@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::SharedLargeAllocationId;
+use crate::SharedHeapReference;
 use crate::allocator::SpanSlot;
 
 /// One shared heap allocation place.
@@ -37,7 +38,7 @@ pub(crate) struct SharedHeapLocation {
     /// The shared heap allocation place.
     pub(crate) place: SharedHeapPlace,
     /// The base reference for the owning allocation.
-    pub(crate) base: crate::SharedHeapReference,
+    pub(crate) base: SharedHeapReference,
     /// The byte offset from the base allocation.
     pub(crate) byte_offset: usize,
     /// The logical byte length for the owning allocation.

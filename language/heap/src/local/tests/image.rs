@@ -79,6 +79,23 @@ fn read_small_slot_bytes(
     read_page_run_bytes(allocator, page_run, start, byte_len)
 }
 
+/// Write one managed payload range for image assertions.
+fn write_payload(
+    heap: &mut crate::Heap,
+    reference: crate::HeapReference,
+    start: usize,
+    bytes: &[u8],
+) {
+    heap.write_barrier(reference, start, bytes.len())
+        .expect("heap barrier should record");
+    let address = heap.heap_base_address() + reference.offset() + start;
+
+    // copy into the managed payload address
+    unsafe {
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), address as *mut u8, bytes.len());
+    }
+}
+
 /// Return the bytes for one young-space range.
 fn read_young_range_bytes(
     allocator: &Allocator,
@@ -181,10 +198,16 @@ fn test_roundtrip_heap_space_image() {
 
     // capture two allocations so the restored copy has independent bytes
     let first = heap
-        .allocate(first_layout.allocation(), Payload::Bytes(&first_bytes))
+        .allocate(
+            &heap.allocation_layout(first_layout.allocation()),
+            Payload::Bytes(&first_bytes),
+        )
         .expect("heap allocation should succeed");
     let _second = heap
-        .allocate(second_layout.allocation(), Payload::Bytes(&second_bytes))
+        .allocate(
+            &heap.allocation_layout(second_layout.allocation()),
+            Payload::Bytes(&second_bytes),
+        )
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored =
@@ -201,7 +224,21 @@ fn test_roundtrip_heap_space_image() {
     assert_eq!(image.allocated_bytes(), restored_image.allocated_bytes());
 
     // restored bytes should match the captured heap bytes
-    assert_eq!(restored.read_bytes(first), Ok(first_bytes.clone()));
+    assert_eq!(
+        read_large_allocation_bytes(
+            restored.allocator(),
+            &restored_image.allocations()[0].pages,
+            first_bytes.len(),
+        ),
+        first_bytes
+    );
+    let first_address = restored.base_address() + first.offset();
+
+    // inspect restored heap bytes directly
+    let bytes =
+        unsafe { std::slice::from_raw_parts(first_address as *const u8, first_bytes.len()) };
+
+    assert_eq!(bytes, first_bytes);
     assert_eq!(
         read_large_allocation_bytes(
             restored.allocator(),
@@ -213,8 +250,15 @@ fn test_roundtrip_heap_space_image() {
 
     // mutating one allocation should not affect the captured image
     restored
-        .write_byte(first, 0, 0xFE)
-        .expect("heap byte write should succeed");
+        .write_barrier(first, 0, 1)
+        .expect("heap write barrier should record");
+    let address = restored.base_address() + first.offset();
+
+    // write through the restored heap mapping
+    unsafe {
+        std::ptr::write(address as *mut u8, 0xFE);
+    }
+
     let mutated_image = restored.image().expect("heap image should capture");
 
     let mut expected_first = first_bytes.clone();
@@ -228,7 +272,18 @@ fn test_roundtrip_heap_space_image() {
         ),
         first_bytes
     );
-    assert_eq!(restored.read_bytes(first), Ok(expected_first));
+    assert_eq!(
+        read_large_allocation_bytes(
+            restored.allocator(),
+            &mutated_image.allocations()[0].pages,
+            expected_first.len(),
+        ),
+        expected_first
+    );
+    let bytes =
+        unsafe { std::slice::from_raw_parts(first_address as *const u8, expected_first.len()) };
+
+    assert_eq!(bytes, expected_first);
     assert_eq!(
         read_large_allocation_bytes(
             restored.allocator(),
@@ -286,7 +341,7 @@ fn test_roundtrip_raw_space_image() {
     assert_eq!(read_first_raw_image_bytes(&mutated_image), expected_first);
 }
 
-/// Preserve heap images and forks across the full heap root.
+/// Preserve heap images and forks across one full heap.
 #[test]
 fn test_roundtrip_heap_image_and_fork() {
     let heap_bytes = 7i64.to_le_bytes();
@@ -295,13 +350,16 @@ fn test_roundtrip_heap_image_and_fork() {
     let layout = &layout_ids[0];
     let heap = &mut test_heap.heap;
     let _heap_reference = heap
-        .allocate(layout.allocation(), Payload::Bytes(&heap_bytes))
+        .allocate(
+            &heap.allocation_layout(layout.allocation()),
+            Payload::Bytes(&heap_bytes),
+        )
         .expect("heap allocation should succeed");
     let _raw = heap
         .allocate_raw(4, Payload::Bytes(&[0xCA, 0xFE, 0xBA, 0xBE]))
         .expect("raw allocation should succeed");
 
-    // capture both the frozen root and the live fork
+    // capture both the frozen image and the live fork
     let image = heap.image().expect("heap image should capture");
     let mut forked = heap.fork().expect("heap fork should retain live pages");
     let mut restored = crate::Heap::from_image(&image).expect("heap image should restore");
@@ -334,8 +392,11 @@ fn test_roundtrip_heap_snapshot() {
         test_heap_with_empty_layouts(HeapOptions::local(), &[heap_bytes.len()]);
     let layout = &layout_ids[0];
     let heap = &mut test_heap.heap;
-    heap.allocate(layout.allocation(), Payload::Bytes(&heap_bytes))
-        .expect("heap allocation should succeed");
+    heap.allocate(
+        &heap.allocation_layout(layout.allocation()),
+        Payload::Bytes(&heap_bytes),
+    )
+    .expect("heap allocation should succeed");
 
     let image = heap.image().expect("heap image should capture");
     let snapshot = image.snapshot().expect("heap snapshot should capture");
@@ -364,18 +425,22 @@ fn test_heap_heap_write_preserves_captured_allocation_bytes() {
         test_heap_with_empty_layouts(options, &[first_bytes.len(), second_bytes.len()]);
     let heap = &mut test_heap.heap;
     let first = heap
-        .allocate(layout_ids[0].allocation(), Payload::Bytes(&first_bytes))
+        .allocate(
+            &heap.allocation_layout(layout_ids[0].allocation()),
+            Payload::Bytes(&first_bytes),
+        )
         .expect("heap allocation should succeed");
     let _second = heap
-        .allocate(layout_ids[1].allocation(), Payload::Bytes(&second_bytes))
+        .allocate(
+            &heap.allocation_layout(layout_ids[1].allocation()),
+            Payload::Bytes(&second_bytes),
+        )
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored = crate::Heap::from_image(&image).expect("heap image should restore");
 
     // mutating one allocation should only change the restored heap
-    restored
-        .write_heap_bytes(first, 0, &[0xCC])
-        .expect("heap bytes should update");
+    write_payload(&mut restored, first, 0, &[0xCC]);
     let mutated_image = restored.image().expect("heap image should capture");
 
     let mut expected_first = first_bytes;
@@ -421,15 +486,16 @@ fn test_heap_heap_write_preserves_captured_page_bytes() {
     let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
     let heap = &mut test_heap.heap;
     let reference = heap
-        .allocate(layout_ids[0].allocation(), Payload::Bytes(&bytes))
+        .allocate(
+            &heap.allocation_layout(layout_ids[0].allocation()),
+            Payload::Bytes(&bytes),
+        )
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored = crate::Heap::from_image(&image).expect("heap image should restore");
 
     // mutating one page should change only the written bytes
-    restored
-        .write_heap_bytes(reference, 4096, &[0xCC])
-        .expect("heap bytes should update");
+    write_payload(&mut restored, reference, 4096, &[0xCC]);
     let mutated_image = restored.image().expect("heap image should capture");
     let mut expected = bytes.clone();
     expected[4096] = 0xCC;
@@ -466,15 +532,16 @@ fn test_heap_heap_write_preserves_captured_multi_page_bytes() {
     let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
     let heap = &mut test_heap.heap;
     let reference = heap
-        .allocate(layout_ids[0].allocation(), Payload::Bytes(&bytes))
+        .allocate(
+            &heap.allocation_layout(layout_ids[0].allocation()),
+            Payload::Bytes(&bytes),
+        )
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored = crate::Heap::from_image(&image).expect("heap image should restore");
 
     // mutating three pages should only change those bytes
-    restored
-        .write_heap_bytes(reference, 0, &vec![0xCC; 3 * 4096])
-        .expect("heap bytes should update");
+    write_payload(&mut restored, reference, 0, &vec![0xCC; 3 * 4096]);
     let mutated_image = restored.image().expect("heap image should capture");
     let mut expected = bytes.clone();
     expected[..3 * 4096].fill(0xCC);
@@ -511,15 +578,16 @@ fn test_heap_heap_write_preserves_captured_many_page_bytes() {
     let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
     let heap = &mut test_heap.heap;
     let reference = heap
-        .allocate(layout_ids[0].allocation(), Payload::Bytes(&bytes))
+        .allocate(
+            &heap.allocation_layout(layout_ids[0].allocation()),
+            Payload::Bytes(&bytes),
+        )
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored = crate::Heap::from_image(&image).expect("heap image should restore");
 
     // mutating four pages should only change those bytes
-    restored
-        .write_heap_bytes(reference, 0, &vec![0xCC; 4 * 4096])
-        .expect("heap bytes should update");
+    write_payload(&mut restored, reference, 0, &vec![0xCC; 4 * 4096]);
     let mutated_image = restored.image().expect("heap image should capture");
     let mut expected = bytes.clone();
     expected[..4 * 4096].fill(0xCC);
@@ -557,10 +625,16 @@ fn test_roundtrip_heap_small_space_image() {
 
     // small allocations should roundtrip as independent bytes
     let first = heap
-        .allocate(layout_ids[0].allocation(), Payload::Bytes(&[1, 2, 3]))
+        .allocate(
+            &heap.allocation_layout(layout_ids[0].allocation()),
+            Payload::Bytes(&[1, 2, 3]),
+        )
         .expect("heap allocation should succeed");
     let _second = heap
-        .allocate(layout_ids[1].allocation(), Payload::Bytes(&[4, 5, 6]))
+        .allocate(
+            &heap.allocation_layout(layout_ids[1].allocation()),
+            Payload::Bytes(&[4, 5, 6]),
+        )
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored =
@@ -580,8 +654,15 @@ fn test_roundtrip_heap_small_space_image() {
 
     // mutating one small allocation should not affect the captured image
     restored
-        .write_byte(first, 1, 0xFE)
-        .expect("heap byte write should succeed");
+        .write_barrier(first, 1, 1)
+        .expect("heap write barrier should record");
+    let address = restored.base_address() + first.offset() + 1;
+
+    // write through the restored heap mapping
+    unsafe {
+        std::ptr::write(address as *mut u8, 0xFE);
+    }
+
     let mutated_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
@@ -620,10 +701,16 @@ fn test_roundtrip_heap_young_space_image() {
 
     // young allocations should roundtrip as independent bytes
     let first = heap
-        .allocate(layout_ids[0].allocation(), Payload::Bytes(&[1, 2, 3]))
+        .allocate(
+            &heap.allocation_layout(layout_ids[0].allocation()),
+            Payload::Bytes(&[1, 2, 3]),
+        )
         .expect("heap allocation should succeed");
     let _second = heap
-        .allocate(layout_ids[1].allocation(), Payload::Bytes(&[4, 5, 6]))
+        .allocate(
+            &heap.allocation_layout(layout_ids[1].allocation()),
+            Payload::Bytes(&[4, 5, 6]),
+        )
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored =
@@ -637,8 +724,15 @@ fn test_roundtrip_heap_young_space_image() {
 
     // mutating one young allocation should not affect the captured image
     restored
-        .write_byte(first, 1, 0xFE)
-        .expect("heap byte write should succeed");
+        .write_barrier(first, 1, 1)
+        .expect("heap write barrier should record");
+    let address = restored.base_address() + first.offset() + 1;
+
+    // write through the restored heap mapping
+    unsafe {
+        std::ptr::write(address as *mut u8, 0xFE);
+    }
+
     let mutated_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
@@ -726,8 +820,11 @@ fn test_restore_full_heap_image_rejects_invalid_size_class() {
     };
     let allocator = test_allocator(&options);
     let (mut heap, layout_ids) = heap_space_with_empty_layouts(allocator.clone(), &options, &[3]);
-    heap.allocate(layout_ids[0].allocation(), Payload::Bytes(&[1, 2, 3]))
-        .expect("heap allocation should succeed");
+    heap.allocate(
+        &heap.allocation_layout(layout_ids[0].allocation()),
+        Payload::Bytes(&[1, 2, 3]),
+    )
+    .expect("heap allocation should succeed");
 
     let image = heap.image().expect("heap image should capture");
     let image =
@@ -748,8 +845,11 @@ fn test_fork_heap_space_rejects_invalid_size_class() {
     };
     let allocator = test_allocator(&options);
     let (mut heap, layout_ids) = heap_space_with_empty_layouts(allocator.clone(), &options, &[3]);
-    heap.allocate(layout_ids[0].allocation(), Payload::Bytes(&[1, 2, 3]))
-        .expect("heap allocation should succeed");
+    heap.allocate(
+        &heap.allocation_layout(layout_ids[0].allocation()),
+        Payload::Bytes(&[1, 2, 3]),
+    )
+    .expect("heap allocation should succeed");
     heap.small.size_classes = SizeClassTable::new([16]).expect("size classes should validate");
 
     let error = heap.fork().expect_err("heap fork should fail loudly");
@@ -803,8 +903,11 @@ fn test_restore_heap_image_rejects_invalid_raw_size_class() {
     };
     let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[3]);
     let heap = &mut test_heap.heap;
-    heap.allocate(layout_ids[0].allocation(), Payload::Bytes(&[1, 2, 3]))
-        .expect("heap allocation should succeed");
+    heap.allocate(
+        &heap.allocation_layout(layout_ids[0].allocation()),
+        Payload::Bytes(&[1, 2, 3]),
+    )
+    .expect("heap allocation should succeed");
     heap.allocate_raw(3, Payload::Bytes(&[4, 5, 6]))
         .expect("raw allocation should succeed");
 
@@ -835,8 +938,11 @@ fn test_fork_heap_rejects_invalid_raw_size_class() {
     };
     let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[3]);
     let heap = &mut test_heap.heap;
-    heap.allocate(layout_ids[0].allocation(), Payload::Bytes(&[1, 2, 3]))
-        .expect("heap allocation should succeed");
+    heap.allocate(
+        &heap.allocation_layout(layout_ids[0].allocation()),
+        Payload::Bytes(&[1, 2, 3]),
+    )
+    .expect("heap allocation should succeed");
     heap.allocate_raw(3, Payload::Bytes(&[4, 5, 6]))
         .expect("raw allocation should succeed");
     heap.raw.small.size_classes = SizeClassTable::new([16]).expect("size classes should validate");

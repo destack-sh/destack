@@ -5,15 +5,24 @@ use crate::allocator::SpanSlot;
 /// One resolved heap allocation location.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(crate) enum HeapPlace {
-    /// One young-space allocation at a base offset.
-    Young {
-        /// The allocation base byte offset inside young space.
-        first_offset: usize,
-    },
+    /// One allocation stored in young space.
+    Young(YoungPlace),
     /// One small-space allocation stored in one span slot.
     Small(SpanSlot),
     /// One allocation stored in heap large space.
     Large(LargeAllocationId),
+}
+
+/// One resolved young-space allocation location.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub(crate) enum YoungPlace {
+    /// One young-space allocation at a base offset.
+    Range {
+        /// The allocation base byte offset inside young space.
+        first_offset: usize,
+    },
+    /// One fixed-size young allocation stored in one run slot.
+    Slot(SpanSlot),
 }
 
 /// One page map entry in heap space.

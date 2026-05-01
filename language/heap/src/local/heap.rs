@@ -6,8 +6,9 @@ use crate::allocator::Allocator;
 use crate::local::raw::RawSpace;
 use crate::local::space::HeapSpace;
 use crate::{
-    AllocationLayout, GcPacer, GcPressure, GcProgress, GcState, GcStats, HeapLimits, HeapOptions,
-    HeapReference, HeapResult, Payload, RawPointer, RootSlots, SharedHeapReference,
+    AllocationLayout, AllocationPlan, GcPacer, GcPressure, GcProgress, GcState, GcStats, HeapError,
+    HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RawPointer, RootSet,
+    SharedHeapReference, SmallAllocationLayout,
 };
 
 /// One pending local GC request.
@@ -19,7 +20,7 @@ pub(super) enum GcRequest {
     Full,
 }
 
-/// One live heap rooted in one shared allocator.
+/// One live heap over one shared allocator.
 #[derive(Debug)]
 pub struct Heap {
     /// The shared page allocator for every local byte payload.
@@ -28,6 +29,8 @@ pub struct Heap {
     pub(super) options: HeapOptions,
     /// The derived collector pacing targets.
     pub(super) gc_pacer: GcPacer,
+    /// The young-space occupancy that starts a minor collection request.
+    pub(super) young_trigger_bytes: usize,
     /// The pending pacing or explicit collection request.
     pub(super) gc_request: Option<GcRequest>,
     /// The heap local allocation space.
@@ -63,10 +66,12 @@ impl Heap {
             allocator,
             options,
             gc_pacer: GcPacer::default(),
+            young_trigger_bytes: 0,
             gc_request: None,
             limits,
         };
 
+        heap.young_trigger_bytes = heap.young_trigger_bytes();
         heap.gc_pacer
             .set_live_bytes(heap.options.gc, heap.heap_allocated_bytes());
         heap.refresh_gc_request();
@@ -80,7 +85,7 @@ impl Heap {
     }
 
     /// Return the heap options.
-    pub(crate) fn options(&self) -> &HeapOptions {
+    pub fn options(&self) -> &HeapOptions {
         &self.options
     }
 
@@ -126,12 +131,12 @@ impl Heap {
     }
 
     /// Scan bounded local-to-shared edge work into the provided root buffer.
-    pub fn scan_shared_edges(
+    pub fn scan_shared_references(
         &mut self,
         roots: &mut Vec<SharedHeapReference>,
         budget_bytes: usize,
     ) -> HeapResult<usize> {
-        self.heap.scan_shared_edges(roots, budget_bytes)
+        self.heap.scan_shared_references(roots, budget_bytes)
     }
 
     /// Stabilize one heap reference in mature space.
@@ -157,7 +162,7 @@ impl Heap {
     /// Perform one minor heap collection over mutable roots.
     pub fn collect_minor<R>(&mut self, roots: &mut R) -> Result<GcStats, R::Error>
     where
-        R: RootSlots,
+        R: RootSet,
     {
         self.gc_pacer
             .begin_cycle(self.options.gc, self.heap_allocated_bytes());
@@ -171,7 +176,7 @@ impl Heap {
     /// Perform one full heap collection over mutable roots.
     pub fn collect_full<R>(&mut self, roots: &mut R) -> Result<GcStats, R::Error>
     where
-        R: RootSlots,
+        R: RootSet,
     {
         self.gc_pacer
             .begin_cycle(self.options.gc, self.heap_allocated_bytes());
@@ -194,6 +199,8 @@ impl Heap {
 
     /// Return and consume one local collection byte budget.
     pub fn take_collection_budget_bytes(&mut self) -> usize {
+        self.refresh_gc_request();
+
         let budget_bytes = self.gc_pacer.budget_bytes(self.options.gc, 1);
 
         match self.gc_request {
@@ -211,11 +218,13 @@ impl Heap {
         budget_bytes: usize,
     ) -> Result<GcProgress, R::Error>
     where
-        R: RootSlots,
+        R: RootSet,
     {
         if budget_bytes == 0 {
             return Ok(GcProgress::Idle);
         }
+
+        self.refresh_gc_request();
 
         // service major GC work
         if self.heap.major_gc_active() {
@@ -235,11 +244,11 @@ impl Heap {
         self.gc_pacer
             .begin_cycle(self.options.gc, self.heap_allocated_bytes());
 
-        // full cycles first clear young debt, then continue as incremental major work
+        // full cycles first drain young space
         if gc_request == GcRequest::Full {
             let mut remaining_bytes = budget_bytes;
 
-            // clear young space as one bounded nursery quantum
+            // run one bounded nursery quantum
             if !self.heap.young.is_empty() {
                 let young_bytes = self.heap.young.used_bytes();
                 if remaining_bytes < young_bytes {
@@ -284,22 +293,124 @@ impl Heap {
     }
 
     /// Allocate one managed heap allocation.
+    #[inline(always)]
     pub fn allocate(
         &mut self,
-        layout: AllocationLayout<'_>,
+        layout: &AllocationLayout<'_>,
         allocation: Payload<'_>,
     ) -> HeapResult<HeapReference> {
+        if self.heap.layout_fits_young(layout) {
+            return self.heap.allocate(layout, allocation);
+        }
+
         let retained_byte_delta = self.heap.retained_byte_delta(layout)?;
 
         // check the projected heap retained-byte delta first
         self.check_retained_byte_delta(retained_byte_delta, 0)?;
 
-        // then allocate through heap space
-        let reference = self.heap.allocate(layout, allocation)?;
+        // then allocate from mature space
+        let has_initialized_bytes = allocation.byte_len().is_some();
+        let reference =
+            self.heap
+                .allocate_mature_layout(layout, allocation, has_initialized_bytes)?;
         self.accrue_assist_debt(layout.byte_len);
         self.refresh_gc_request();
 
         Ok(reference)
+    }
+
+    /// Allocate one byte-initialized managed heap allocation.
+    #[inline(always)]
+    pub fn allocate_bytes(
+        &mut self,
+        layout: &AllocationLayout<'_>,
+        bytes: &[u8],
+    ) -> HeapResult<HeapReference> {
+        if layout.is_empty() {
+            return Err(HeapError::ZeroSizeAllocation);
+        }
+
+        if bytes.len() != layout.byte_len {
+            return Err(HeapError::InvalidAllocationBytes {
+                expected: layout.byte_len,
+                actual: bytes.len(),
+            });
+        }
+
+        if let Some(reference) = self.heap.try_allocate_young_bytes(layout, bytes)? {
+            return Ok(reference);
+        }
+
+        let retained_byte_delta = self.heap.retained_byte_delta(layout)?;
+
+        // check the projected heap retained-byte delta first
+        self.check_retained_byte_delta(retained_byte_delta, 0)?;
+
+        // then allocate from mature space
+        let reference = self
+            .heap
+            .allocate_mature_layout(layout, Payload::Bytes(bytes), true)?;
+        self.accrue_assist_debt(layout.byte_len);
+        self.refresh_gc_request();
+
+        Ok(reference)
+    }
+
+    /// Allocate one zeroed managed heap allocation.
+    #[inline(always)]
+    pub fn allocate_zeroed(&mut self, layout: &AllocationLayout<'_>) -> HeapResult<HeapReference> {
+        if layout.is_empty() {
+            return Err(HeapError::ZeroSizeAllocation);
+        }
+
+        // no-scan small allocations use the young run cursor directly
+        if layout.is_noscan
+            && let Some(small) = layout.class.small()
+            && let Some(reference) = self.heap.reserve_young_run_cursor(small)
+        {
+            return Ok(reference);
+        }
+
+        self.allocate_zeroed_refill(layout)
+    }
+
+    /// Reserve one zeroed no-scan allocation from the active young run.
+    #[inline(always)]
+    pub fn reserve_young(&mut self, small: SmallAllocationLayout) -> Option<HeapReference> {
+        self.heap.reserve_young_run_cursor(small)
+    }
+
+    /// Refill zeroed allocation state or allocate from mature space.
+    #[cold]
+    #[inline(never)]
+    fn allocate_zeroed_refill(
+        &mut self,
+        layout: &AllocationLayout<'_>,
+    ) -> HeapResult<HeapReference> {
+        // refill the young cursor or allocate through mature space
+        if let Some(reference) = self.heap.try_allocate_young_zeroed(layout)? {
+            return Ok(reference);
+        }
+
+        let retained_byte_delta = self.heap.retained_byte_delta(layout)?;
+
+        // check the projected heap retained-byte delta first
+        self.check_retained_byte_delta(retained_byte_delta, 0)?;
+
+        // then allocate from mature space
+        let reference = self
+            .heap
+            .allocate_mature_layout(layout, Payload::Zeroed, false)?;
+        self.accrue_assist_debt(layout.byte_len);
+        self.refresh_gc_request();
+
+        Ok(reference)
+    }
+
+    /// Resolve one allocation plan against this heap.
+    #[inline(always)]
+    pub fn allocation_layout<'a>(&self, plan: AllocationPlan<'a>) -> AllocationLayout<'a> {
+        self.heap.allocation_layout(plan)
     }
 
     /// Allocate one raw allocation.
@@ -322,59 +433,15 @@ impl Heap {
         self.heap.is_live(reference)
     }
 
-    /// Return the bytes for one heap allocation as one owned vector.
-    pub fn read_heap_bytes(&self, reference: HeapReference) -> HeapResult<Vec<u8>> {
-        self.heap.read_bytes(reference)
-    }
-
-    /// Return the remaining byte length for one heap allocation.
-    pub fn heap_byte_len(&self, reference: HeapReference) -> HeapResult<usize> {
-        self.heap.byte_len(reference)
-    }
-
-    /// Fill one caller-provided buffer from one heap allocation at one offset.
-    pub fn read_heap_bytes_into(
-        &self,
-        reference: HeapReference,
-        start: usize,
-        target: &mut [u8],
-    ) -> HeapResult<()> {
-        self.heap.read_bytes_into(reference, start, target)
-    }
-
-    /// Return one checked address for a managed heap byte range.
-    pub fn heap_address(
-        &self,
-        reference: HeapReference,
-        start: usize,
-        byte_len: usize,
-    ) -> HeapResult<*mut u8> {
-        self.heap.address(reference, start, byte_len)
-    }
-
-    /// Return one checked writable address for a managed heap byte range.
-    pub fn heap_address_mut(
-        &mut self,
-        reference: HeapReference,
-        start: usize,
-        byte_len: usize,
-    ) -> HeapResult<*mut u8> {
-        self.heap.address_mut(reference, start, byte_len)
+    /// Return the base native address for direct managed heap access.
+    #[inline(always)]
+    pub fn heap_base_address(&self) -> usize {
+        self.heap.base_address()
     }
 
     /// Return the heap scan metadata for one heap allocation.
     pub fn scan(&self, reference: HeapReference) -> HeapResult<ReferenceMap> {
         self.heap.scan(reference)
-    }
-
-    /// Overwrite one heap byte range.
-    pub fn write_heap_bytes(
-        &mut self,
-        reference: HeapReference,
-        start: usize,
-        bytes: &[u8],
-    ) -> HeapResult<()> {
-        self.heap.write_bytes(reference, start, bytes)
     }
 
     /// Record one heap write barrier over one byte range.
@@ -436,11 +503,6 @@ impl Heap {
         byte_len: usize,
     ) -> HeapResult<*mut u8> {
         self.raw.address_mut(pointer, start, byte_len)
-    }
-
-    /// Return one raw byte by offset.
-    pub fn raw_byte_at(&self, pointer: RawPointer, index: usize) -> Option<u8> {
-        self.raw.byte_at(pointer, index)
     }
 
     /// Replace the bytes for one raw allocation.
@@ -506,7 +568,7 @@ impl Heap {
         )
     }
 
-    /// Refresh the pending collection request from current heap pressure.
+    /// Refresh the pending collection request from current heap state.
     pub(crate) fn refresh_gc_request(&mut self) {
         let heap_bytes = self.heap_allocated_bytes();
 
@@ -517,12 +579,8 @@ impl Heap {
             GcPressure::Full => self.request_gc(GcRequest::Full),
         }
 
-        // young pressure requests the cheap stop-the-world scavenge
-        if self
-            .heap
-            .young
-            .should_collect(self.options.gc.trigger_percent)
-        {
+        // nursery occupancy requests the cheap stop-the-world scavenge
+        if self.heap.young.used_bytes() >= self.young_trigger_bytes {
             self.request_gc(GcRequest::Minor);
         }
     }
@@ -536,6 +594,14 @@ impl Heap {
         }
 
         self.gc_request = Some(GcRequest::Minor);
+    }
+
+    /// Return the young-space byte occupancy that starts minor collection.
+    pub(super) fn young_trigger_bytes(&self) -> usize {
+        let capacity_bytes = self.heap.young.capacity_bytes;
+        let trigger_percent = self.options.gc.trigger_percent as usize;
+
+        capacity_bytes * trigger_percent / 100
     }
 
     /// Record one completed local collection cycle in the pacer.

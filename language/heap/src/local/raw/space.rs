@@ -36,12 +36,12 @@ pub(crate) struct LargeSpace {
     pub(crate) next_unused_large_allocation_id: u64,
 }
 
-/// One live raw allocation space rooted in one allocator.
+/// One live raw allocation space over one allocator.
 #[derive(Debug)]
 pub struct RawSpace {
     /// The shared page allocator for every raw payload.
     pub(super) allocator: Arc<Allocator>,
-    /// The local front-end cache of reusable page runs.
+    /// The local cache of reusable page runs.
     pub(crate) page_run_cache: PageRunCache,
 
     /// The raw small space.
@@ -329,7 +329,6 @@ impl RawSpace {
         }
 
         self.next_offset = next_offset;
-        self.mapping.zero(first_offset, byte_len)?;
 
         Ok(first_offset)
     }
@@ -338,10 +337,10 @@ impl RawSpace {
     pub(crate) fn live_page_runs(&self) -> Vec<PageRun> {
         let mut page_runs = Vec::new();
 
-        // collect raw span roots first
+        // collect raw span page runs first
         page_runs.extend(self.small.spans.iter().map(|span| span.pages));
 
-        // collect live large-allocation roots next
+        // collect live large-allocation page runs next
         page_runs.extend(
             self.large
                 .allocations
@@ -353,7 +352,7 @@ impl RawSpace {
         page_runs
     }
 
-    /// Release allocator roots owned by this raw space.
+    /// Release allocator page runs owned by this raw space.
     fn close(&mut self) -> HeapResult<()> {
         for page_run in self.live_page_runs() {
             self.release_page_run(page_run)?;

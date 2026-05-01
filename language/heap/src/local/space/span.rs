@@ -4,7 +4,7 @@ use super::CardSet;
 use crate::SmallSpanClass;
 use crate::allocator::{Bitmap, PageRun};
 
-/// One frozen heap span root.
+/// One frozen heap span image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct SmallSpanImage {
     /// The first byte offset inside heap space.

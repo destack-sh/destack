@@ -126,28 +126,17 @@ impl RawSpace {
             let first_offset = large_allocation.first_offset;
 
             // initialize bytes before returning the raw pointer
-            let initialize = match payload {
-                Payload::Bytes(bytes) => self.mapping.write(first_offset, bytes),
-                Payload::Zeroed => self.mapping.zero(first_offset, byte_len),
-            };
-            if let Err(error) = initialize {
-                let Some(allocation) = self.large_allocation_mut(allocation_id) else {
-                    self.unmap_page_run(first_offset, &pages);
-                    self.release_page_run(pages)?;
-
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
-                };
-
-                allocation.retire();
-                self.large
-                    .free_large_allocation_ids
-                    .push(allocation_id.id());
-                self.unmap_page_run(first_offset, &pages);
-                self.release_page_run(pages)?;
-
-                return Err(error);
+            match payload {
+                Payload::Bytes(bytes) => unsafe {
+                    self.mapping.write_mapped(first_offset, bytes);
+                },
+                Payload::Zeroed => unsafe {
+                    std::ptr::write_bytes(
+                        (self.mapping.base_address() + first_offset) as *mut u8,
+                        0,
+                        byte_len,
+                    );
+                },
             }
 
             Ok(RawPlace::Large(allocation_id))
@@ -188,6 +177,10 @@ impl RawSpace {
         let index = allocation_id.index()?;
 
         let first_offset = self.reserve_space_range(pages.len() * self.allocator.page_bytes())?;
+
+        // materialize the full large allocation before publishing it
+        self.mapping
+            .materialize(first_offset, pages.len() * self.allocator.page_bytes())?;
 
         self.map_page_run(first_offset, &pages, |logical_page_index| {
             RawPageMapEntry::Large {
@@ -248,6 +241,10 @@ impl RawSpace {
                 if span.occupied_count == 0 && span.pages.is_empty() {
                     let first_offset = span.first_offset;
                     let pages = self.allocate_page_run_zeroed(class.span_bytes)?;
+
+                    // materialize the full span before handing out slots
+                    self.mapping.materialize(first_offset, class.span_bytes)?;
+
                     self.map_page_run(first_offset, &pages, |logical_page_index| {
                         RawPageMapEntry::Small {
                             span_index,
@@ -273,6 +270,10 @@ impl RawSpace {
         let slot_count = (class.span_bytes / class.size_class).max(1);
         let pages = self.allocate_page_run_zeroed(class.span_bytes)?;
         let first_offset = self.reserve_space_range(class.span_bytes)?;
+
+        // materialize the full span before handing out slots
+        self.mapping.materialize(first_offset, class.span_bytes)?;
+
         let span = SmallSpan {
             first_offset,
             class: class.clone(),
@@ -328,8 +329,16 @@ impl RawSpace {
         let mapping_offset = span.first_offset + slot_offset;
 
         match allocation {
-            Payload::Bytes(bytes) => self.mapping.write(mapping_offset, bytes)?,
-            Payload::Zeroed => self.mapping.zero(mapping_offset, class.byte_len)?,
+            Payload::Bytes(bytes) => unsafe {
+                self.mapping.write_mapped(mapping_offset, bytes);
+            },
+            Payload::Zeroed => unsafe {
+                std::ptr::write_bytes(
+                    (self.mapping.base_address() + mapping_offset) as *mut u8,
+                    0,
+                    class.byte_len,
+                );
+            },
         }
 
         let Some(span) = self.small.spans.get_mut(span_index) else {

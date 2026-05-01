@@ -1,4 +1,4 @@
-use super::{HeapLocation, HeapPageMapEntry, HeapPlace, HeapSpace, LargeAllocationId};
+use super::{HeapLocation, HeapPageMapEntry, HeapPlace, HeapSpace, LargeAllocationId, YoungPlace};
 use crate::HeapReference;
 use crate::allocator::{PageRun, SpanSlot};
 
@@ -79,24 +79,26 @@ impl HeapSpace {
         page_offset: usize,
     ) -> Option<HeapLocation> {
         let logical_byte_offset = logical_page_index * self.young.page_bytes + page_offset;
-        let range_end = self
-            .young
-            .ranges
-            .partition_point(|range| range.first_offset <= logical_byte_offset);
 
-        // young ranges are bump ordered, so address resolution is predecessor lookup
-        if range_end == 0 {
-            return None;
+        if let Some(run_index) = self
+            .young
+            .page_runs
+            .get(logical_page_index)
+            .copied()
+            .flatten()
+        {
+            return self.resolve_young_run_location(run_index, logical_byte_offset);
         }
 
-        let range_index = range_end - 1;
-        let allocation = self.young.ranges.get(range_index)?;
+        let start_index = self.young.start_index(logical_byte_offset);
+        let range_index = self.young.starts.last_set_at_or_before(start_index)?;
 
         // retired young ranges stay addressable only until the next reset
         if !self.young.live.contains(range_index) {
             return None;
         }
 
+        let allocation = self.young.range(range_index)?;
         let allocation_offset = allocation.first_offset;
         let allocation_limit = allocation_offset + allocation.byte_len;
         if logical_byte_offset >= allocation_limit {
@@ -106,12 +108,40 @@ impl HeapSpace {
         let byte_offset = logical_byte_offset - allocation_offset;
 
         Some(HeapLocation {
-            place: HeapPlace::Young {
+            place: HeapPlace::Young(YoungPlace::Range {
                 first_offset: allocation_offset,
-            },
+            }),
             base: HeapReference::new(allocation_offset),
             byte_offset,
             byte_len: allocation.byte_len,
+        })
+    }
+
+    /// Return the resolved fixed-size young location for one live heap reference.
+    fn resolve_young_run_location(
+        &self,
+        run_index: usize,
+        logical_byte_offset: usize,
+    ) -> Option<HeapLocation> {
+        let run = self.young.run(run_index)?;
+        let run_offset = logical_byte_offset.checked_sub(run.first_offset)?;
+        let slot_index = run_offset / run.size_class;
+        let slot_offset = run_offset % run.size_class;
+        let bits = self.young.run_bits(run_index)?;
+        if slot_index >= self.young.run_reserved_slot_count(run_index)?
+            || bits.freed.contains(slot_index)
+        {
+            return None;
+        }
+
+        let base_offset = run.slot_offset(slot_index);
+        let slot = SpanSlot::new(run_index, slot_index).ok()?;
+
+        Some(HeapLocation {
+            place: HeapPlace::Young(YoungPlace::Slot(slot)),
+            base: HeapReference::new(base_offset),
+            byte_offset: slot_offset,
+            byte_len: run.size_class,
         })
     }
 

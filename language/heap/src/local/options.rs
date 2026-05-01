@@ -3,11 +3,12 @@ use serde::{Deserialize, Serialize};
 use crate::allocator::{
     Allocator, DEFAULT_ALLOCATOR_CHUNK_BYTES, DEFAULT_PAGE_BYTES, SizeClassPolicy, SizeClassTable,
 };
-use crate::{GcOptions, HeapError};
+use crate::{AllocationClass, GcOptions, HeapError, allocation_class};
 
 use super::constants::{
-    DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
-    DEFAULT_SMALL_BYTES, DEFAULT_SPACE_BYTES, DEFAULT_YOUNG_BYTES,
+    DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES, DEFAULT_SHARED_SMALL_BYTES,
+    DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_BYTES, DEFAULT_SPACE_BYTES,
+    DEFAULT_YOUNG_BYTES,
 };
 
 /// Constructor policy for resolving heap options.
@@ -99,7 +100,7 @@ impl Default for SharedHeapPolicy {
         Self {
             gc: GcOptions::shared(),
             small: SizeClassPolicy::default(),
-            heap_small_bytes: DEFAULT_SMALL_BYTES,
+            heap_small_bytes: DEFAULT_SHARED_SMALL_BYTES,
             heap_space_bytes: DEFAULT_SPACE_BYTES,
             raw_space_bytes: DEFAULT_SPACE_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
@@ -159,6 +160,24 @@ pub struct HeapOptions {
 }
 
 impl HeapOptions {
+    /// Resolve one managed allocation class for this heap shape.
+    #[inline(always)]
+    pub fn allocation_class(
+        &self,
+        byte_len: usize,
+        alignment: usize,
+        is_noscan: bool,
+    ) -> AllocationClass {
+        allocation_class(
+            byte_len,
+            alignment,
+            is_noscan,
+            &self.size_classes,
+            self.page_bytes,
+            self.heap_small_bytes,
+        )
+    }
+
     /// Build the default option set for one heap.
     pub fn local() -> Self {
         Self {
@@ -183,7 +202,7 @@ impl HeapOptions {
             size_classes: SizeClassTable::default(),
             heap_young_bytes: 0,
             max_heap_young_allocation_bytes: 0,
-            heap_small_bytes: DEFAULT_SMALL_BYTES,
+            heap_small_bytes: DEFAULT_SHARED_SMALL_BYTES,
             raw_small_bytes: DEFAULT_SMALL_BYTES,
             heap_space_bytes: DEFAULT_SPACE_BYTES,
             raw_space_bytes: DEFAULT_SPACE_BYTES,
@@ -316,6 +335,15 @@ impl HeapOptions {
             });
         }
 
+        // keep young side metadata compact and directly indexed
+        let max_young_bytes = u32::MAX as usize;
+        if self.heap_young_bytes > max_young_bytes {
+            return Err(HeapError::HeapYoungCapacityTooLarge {
+                capacity: self.heap_young_bytes,
+                max: max_young_bytes,
+            });
+        }
+
         Ok(())
     }
 
@@ -352,7 +380,7 @@ mod tests {
 
     use crate::{Allocator, GcOptions, Heap, HeapError, HeapLimits, HeapOptions, SizeClassTable};
 
-    /// Reject unsupported GC trigger percentages at heap construction.
+    /// Reject invalid GC trigger percentages at heap construction.
     #[test]
     fn test_heap_rejects_invalid_gc_trigger_percent() {
         let options = HeapOptions {

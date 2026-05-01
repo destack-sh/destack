@@ -90,13 +90,12 @@ impl SharedHeapSpace {
         page_offset: usize,
     ) -> Option<SharedHeapLocation> {
         let span = store.small.spans.get(span_index)?.clone();
-        let span = span.read();
         let logical_byte_offset = logical_page_index * self.allocator.page_bytes() + page_offset;
         let slot_index = logical_byte_offset / span.class.size_class;
         let slot_offset = logical_byte_offset % span.class.size_class;
 
         // reject empty or free slots
-        if slot_index >= span.slot_count || !span.occupied.contains(slot_index) {
+        if slot_index >= span.slot_count || !span.contains_slot(slot_index) {
             return None;
         }
 

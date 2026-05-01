@@ -1,189 +1,19 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use destack_mir::ReferenceMap;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    SharedAllocator, SharedGcPhase, SharedGcWorker, SharedHeapLimits, SharedHeapSpace,
-    SharedHeapSpaceImage, SharedHeapUsage, SharedRawSpace, SharedRawSpaceImage,
+    SharedAllocator, SharedGcPacer, SharedGcPhase, SharedGcWorker, SharedHeapLimits,
+    SharedHeapSpace, SharedHeapSpaceImage, SharedHeapUsage, SharedRawSpace, SharedRawSpaceImage,
 };
 use crate::{
-    AllocationLayout, Allocator, AllocatorImage, GcPacer, GcPressure, GcProgress, GcState, GcStats,
-    HeapError, HeapOptions, HeapResult, PageId, PageRun, Payload, SharedHeapReference,
-    SharedRawPointer, apply_byte_delta,
+    AllocationLayout, AllocationPlan, Allocator, AllocatorImage, GcPacer, GcPressure, GcProgress,
+    GcState, GcStats, HeapError, HeapOptions, HeapResult, PageId, PageRun, Payload,
+    SharedHeapReference, SharedRawPointer, apply_byte_delta,
 };
-
-/// Shared collector pacing state.
-#[derive(Debug, Default)]
-struct SharedGcPacer {
-    /// The live shared heap bytes after the last completed cycle.
-    live_bytes: AtomicUsize,
-    /// Estimated shared collector work for one complete cycle.
-    estimated_work_bytes: AtomicUsize,
-    /// Estimated shared collector work not yet issued to collector steps.
-    remaining_work_bytes: AtomicUsize,
-    /// Pending shared collector assist debt in work bytes.
-    assist_debt_bytes: AtomicUsize,
-}
-
-impl SharedGcPacer {
-    /// Derive shared pacing targets from the current live heap size.
-    fn set_live_bytes(&self, options: &HeapOptions, live_bytes: u64) {
-        let mut gc_pacer = GcPacer::default();
-        gc_pacer.set_live_bytes(options.gc, live_bytes);
-
-        self.live_bytes
-            .store(gc_work_usize(gc_pacer.live_bytes), Ordering::Release);
-        self.estimated_work_bytes.store(
-            gc_work_usize(gc_pacer.estimated_work_bytes),
-            Ordering::Release,
-        );
-    }
-
-    /// Copy this shared pacer into one independent heap.
-    fn fork(&self) -> Self {
-        Self {
-            live_bytes: AtomicUsize::new(self.live_bytes.load(Ordering::Acquire)),
-            estimated_work_bytes: AtomicUsize::new(
-                self.estimated_work_bytes.load(Ordering::Acquire),
-            ),
-            remaining_work_bytes: AtomicUsize::new(
-                self.remaining_work_bytes.load(Ordering::Acquire),
-            ),
-            assist_debt_bytes: AtomicUsize::new(self.assist_debt_bytes.load(Ordering::Acquire)),
-        }
-    }
-
-    /// Return one pacer snapshot from current shared heap bytes.
-    fn snapshot(&self, options: &HeapOptions, heap_bytes: u64) -> GcPacer {
-        let live_bytes = self.live_bytes.load(Ordering::Acquire) as u64;
-        let mut gc_pacer = GcPacer {
-            estimated_work_bytes: self.estimated_work_bytes.load(Ordering::Acquire) as u64,
-            remaining_work_bytes: self.remaining_work_bytes.load(Ordering::Acquire) as u64,
-            assist_debt_bytes: self.assist_debt_bytes.load(Ordering::Acquire) as u64,
-            ..GcPacer::default()
-        };
-        gc_pacer.set_live_bytes(options.gc, live_bytes);
-        if gc_pacer.goal_bytes == 0 && heap_bytes == 0 {
-            gc_pacer.set_live_bytes(options.gc, heap_bytes);
-        }
-
-        gc_pacer
-    }
-
-    /// Start one shared collection cycle.
-    fn begin_cycle(&self, options: &HeapOptions, heap_bytes: u64) {
-        let mut gc_pacer = self.snapshot(options, heap_bytes);
-        gc_pacer.begin_cycle(options.gc, heap_bytes);
-
-        self.estimated_work_bytes.store(
-            gc_work_usize(gc_pacer.estimated_work_bytes),
-            Ordering::Release,
-        );
-        self.remaining_work_bytes.store(
-            gc_work_usize(gc_pacer.remaining_work_bytes),
-            Ordering::Release,
-        );
-        self.assist_debt_bytes.store(0, Ordering::Release);
-    }
-
-    /// Record one completed shared collection cycle.
-    fn record_cycle(&self, options: &HeapOptions, stats: GcStats) {
-        let mut gc_pacer = self.snapshot(options, stats.allocated_bytes);
-        gc_pacer.record_cycle(options.gc, stats);
-
-        self.estimated_work_bytes.store(
-            gc_work_usize(gc_pacer.estimated_work_bytes),
-            Ordering::Release,
-        );
-        self.live_bytes
-            .store(gc_work_usize(gc_pacer.live_bytes), Ordering::Release);
-        self.remaining_work_bytes.store(0, Ordering::Release);
-        self.assist_debt_bytes.store(0, Ordering::Release);
-    }
-
-    /// Charge one shared allocation against current collection runway.
-    fn charge_allocation(&self, options: &HeapOptions, heap_bytes: u64, byte_len: usize) {
-        let gc_pacer = self.snapshot(options, heap_bytes);
-        let debt_bytes = gc_pacer.allocation_debt_bytes(options.gc, byte_len);
-
-        self.assist_debt_bytes
-            .fetch_add(gc_work_usize(debt_bytes), Ordering::AcqRel);
-    }
-
-    /// Consume pending collector assist debt as bytes.
-    fn take_assist_budget_bytes(&self, budget_bytes: usize) -> usize {
-        let mut consumed = 0usize;
-
-        // claim one bounded slice of outstanding allocation debt
-        let _ =
-            self.assist_debt_bytes
-                .fetch_update(Ordering::AcqRel, Ordering::Acquire, |pending| {
-                    consumed = pending.min(budget_bytes);
-
-                    Some(pending - consumed)
-                });
-
-        self.consume_work(consumed);
-
-        consumed
-    }
-
-    /// Return and consume one shared collection work budget.
-    fn take_collection_budget_bytes(
-        &self,
-        options: &HeapOptions,
-        heap_bytes: u64,
-        worker_count: usize,
-    ) -> usize {
-        let gc_pacer = self.snapshot(options, heap_bytes);
-        let base_bytes = gc_pacer.base_budget_bytes(options.gc, worker_count);
-        let assist_bytes = self.take_assist_budget_bytes(base_bytes);
-        let budget_bytes = base_bytes + assist_bytes;
-
-        self.consume_work(base_bytes);
-
-        budget_bytes
-    }
-
-    /// Return one shared collector budget without consuming allocation debt.
-    fn base_budget_bytes(
-        &self,
-        options: &HeapOptions,
-        heap_bytes: u64,
-        worker_count: usize,
-    ) -> usize {
-        let gc_pacer = self.snapshot(options, heap_bytes);
-        let budget_bytes = gc_pacer.base_budget_bytes(options.gc, worker_count);
-
-        self.consume_work(budget_bytes);
-
-        budget_bytes
-    }
-
-    /// Consume issued collector work from the remaining cycle estimate.
-    fn consume_work(&self, budget_bytes: usize) {
-        // clamp overspent work at zero
-        let _ = self.remaining_work_bytes.fetch_update(
-            Ordering::AcqRel,
-            Ordering::Acquire,
-            |pending| {
-                if budget_bytes >= pending {
-                    Some(0)
-                } else {
-                    Some(pending - budget_bytes)
-                }
-            },
-        );
-    }
-}
-
-/// Convert collector work bytes to platform usize.
-fn gc_work_usize(bytes: u64) -> usize {
-    bytes.min(usize::MAX as u64) as usize
-}
 
 /// One live world-shared heap.
 #[derive(Debug)]
@@ -209,13 +39,13 @@ pub struct SharedHeap {
 /// One frozen shared heap.
 #[derive(Debug, Clone)]
 pub struct SharedHeapImage {
-    /// The retained shared heap root.
-    root: Arc<SharedHeapImageRoot>,
+    /// The retained shared heap image state.
+    state: Arc<SharedHeapImageState>,
 }
 
-/// One retained shared heap image root.
+/// One retained shared heap image state.
 #[derive(Debug)]
-struct SharedHeapImageRoot {
+struct SharedHeapImageState {
     /// The allocator backing every captured page.
     allocator: Arc<Allocator>,
     /// The captured shared heap options.
@@ -231,7 +61,7 @@ struct SharedHeapImageRoot {
 /// One serialized shared heap snapshot.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SharedHeapSnapshot {
-    /// The serialized allocator pages reachable from this shared root.
+    /// The serialized allocator pages reachable from this shared heap image.
     allocator: AllocatorImage,
     /// The captured shared heap options.
     options: HeapOptions,
@@ -241,14 +71,14 @@ pub struct SharedHeapSnapshot {
     raw: SharedRawSpaceImage,
 }
 
-impl Drop for SharedHeapImageRoot {
+impl Drop for SharedHeapImageState {
     fn drop(&mut self) {
         let _ = self.allocator.release_page_runs(&self.page_runs);
     }
 }
 
 impl SharedHeapImage {
-    /// Create one frozen shared heap root.
+    /// Create one frozen shared heap image.
     pub(crate) fn new(
         allocator: Arc<Allocator>,
         options: HeapOptions,
@@ -258,7 +88,7 @@ impl SharedHeapImage {
         let mut page_runs = heap.page_runs();
         page_runs.extend(raw.page_runs());
 
-        let root = SharedHeapImageRoot {
+        let state = SharedHeapImageState {
             allocator,
             options,
             heap,
@@ -267,7 +97,7 @@ impl SharedHeapImage {
         };
 
         Ok(Self {
-            root: Arc::new(root),
+            state: Arc::new(state),
         })
     }
 
@@ -313,22 +143,22 @@ impl SharedHeapImage {
 
     /// Return the allocator backing every captured page.
     pub fn allocator(&self) -> &Arc<Allocator> {
-        &self.root.allocator
+        &self.state.allocator
     }
 
     /// Return the captured shared heap options.
     pub fn options(&self) -> &HeapOptions {
-        &self.root.options
+        &self.state.options
     }
 
     /// Return the frozen shared heap space.
     pub fn heap(&self) -> &SharedHeapSpaceImage {
-        &self.root.heap
+        &self.state.heap
     }
 
     /// Return the frozen shared raw space.
     pub fn raw(&self) -> &SharedRawSpaceImage {
-        &self.root.raw
+        &self.state.raw
     }
 
     /// Return every allocator page reachable from this shared-heap image.
@@ -451,11 +281,12 @@ impl SharedHeap {
     }
 
     /// Return and consume the local-to-shared edge scan budget for one worker.
-    pub fn take_edge_scan_budget_bytes(&self) -> usize {
+    pub fn take_edge_scan_work_bytes(&self) -> usize {
         self.take_base_collection_budget_bytes(1)
     }
 
     /// Return the current shared heap collector phase.
+    #[inline(always)]
     pub fn gc_phase(&self) -> SharedGcPhase {
         self.heap.gc_phase()
     }
@@ -558,44 +389,192 @@ impl SharedHeap {
         self.raw.free(pointer)
     }
 
-    /// Create one shared heap allocator front end.
+    /// Create one worker-local shared heap allocator.
     pub fn allocator(&self) -> SharedAllocator {
         self.heap.allocator()
     }
 
+    /// Publish and retire every worker-local shared heap run.
+    pub fn flush_allocator(&self, allocator: &mut SharedAllocator) {
+        self.heap.flush_allocator(allocator);
+    }
+
     /// Allocate one shared managed heap allocation.
+    #[inline(always)]
     pub fn allocate(
         &self,
         allocator: &mut SharedAllocator,
-        layout: AllocationLayout<'_>,
+        layout: &AllocationLayout<'_>,
         allocation: Payload<'_>,
     ) -> HeapResult<SharedHeapReference> {
-        self.allocate_for_worker(None, allocator, layout, allocation)
-    }
+        if layout.is_empty() {
+            return Err(HeapError::ZeroSizeAllocation);
+        }
 
-    /// Allocate one shared managed heap allocation with worker-local collector assist.
-    pub fn allocate_for_worker(
-        &self,
-        worker: Option<&SharedGcWorker>,
-        allocator: &mut SharedAllocator,
-        layout: AllocationLayout<'_>,
-        allocation: Payload<'_>,
-    ) -> HeapResult<SharedHeapReference> {
+        let is_active_collection = self.gc_phase() != SharedGcPhase::Idle;
+
+        // worker-local runs are the ordinary allocation path
+        if !is_active_collection
+            && let Some(reference) = self
+                .heap
+                .try_allocate_worker_small(allocator, layout, allocation)?
+        {
+            return Ok(reference);
+        }
+
+        // active marking needs immediately published allocations
+        if is_active_collection {
+            self.flush_allocator(allocator);
+        }
+
         let retained_byte_delta = self.heap.retained_byte_delta(allocator, layout)?;
         self.check_heap_retained_byte_delta(retained_byte_delta)?;
 
-        let is_active_collection = self.gc_phase() != SharedGcPhase::Idle && layout.byte_len > 0;
+        let pressure_bytes = allocator.layout_run_charge_bytes(layout);
 
-        // mark assist before taking more shared heap memory
-        self.assist_allocation(worker, layout.byte_len)?;
+        // mark assist before acquiring another shared allocation run
+        self.assist_allocation(allocator.gc_worker(), pressure_bytes)?;
 
-        let reference = self.heap.allocate(allocator, layout, allocation)?;
+        let reference = self
+            .heap
+            .allocate(allocator, layout, allocation, !is_active_collection)?;
         if !is_active_collection {
-            self.accrue_assist_debt(layout.byte_len);
+            self.accrue_assist_debt(pressure_bytes);
         }
         self.refresh_gc_request();
 
         Ok(reference)
+    }
+
+    /// Allocate one byte-initialized shared managed heap allocation.
+    #[inline(always)]
+    pub fn allocate_bytes(
+        &self,
+        allocator: &mut SharedAllocator,
+        layout: &AllocationLayout<'_>,
+        bytes: &[u8],
+    ) -> HeapResult<SharedHeapReference> {
+        if layout.is_empty() {
+            return Err(HeapError::ZeroSizeAllocation);
+        }
+
+        if bytes.len() != layout.byte_len {
+            return Err(HeapError::InvalidAllocationBytes {
+                expected: layout.byte_len,
+                actual: bytes.len(),
+            });
+        }
+
+        let is_active_collection = self.gc_phase() != SharedGcPhase::Idle;
+
+        // worker-local runs are the ordinary allocation path
+        if !is_active_collection
+            && let Some(reference) =
+                self.heap
+                    .try_allocate_worker_small(allocator, layout, Payload::Bytes(bytes))?
+        {
+            return Ok(reference);
+        }
+
+        // active marking needs immediately published allocations
+        if is_active_collection {
+            self.flush_allocator(allocator);
+        }
+
+        let retained_byte_delta = self.heap.retained_byte_delta(allocator, layout)?;
+        self.check_heap_retained_byte_delta(retained_byte_delta)?;
+
+        let pressure_bytes = allocator.layout_run_charge_bytes(layout);
+
+        // mark assist before acquiring another shared allocation run
+        self.assist_allocation(allocator.gc_worker(), pressure_bytes)?;
+
+        let reference = self.heap.allocate(
+            allocator,
+            layout,
+            Payload::Bytes(bytes),
+            !is_active_collection,
+        )?;
+        if !is_active_collection {
+            self.accrue_assist_debt(pressure_bytes);
+        }
+        self.refresh_gc_request();
+
+        Ok(reference)
+    }
+
+    /// Allocate one zeroed shared managed heap allocation.
+    #[inline(always)]
+    pub fn allocate_zeroed(
+        &self,
+        allocator: &mut SharedAllocator,
+        layout: &AllocationLayout<'_>,
+    ) -> HeapResult<SharedHeapReference> {
+        if layout.is_empty() {
+            return Err(HeapError::ZeroSizeAllocation);
+        }
+
+        let is_active_collection = self.gc_phase() != SharedGcPhase::Idle;
+
+        // worker-local runs are the ordinary allocation path
+        if !is_active_collection
+            && layout.is_noscan
+            && let Some(small) = layout.class.small()
+            && let Some(reference) = allocator.reserve_small_zeroed(small)
+        {
+            return Ok(reference);
+        }
+
+        self.allocate_zeroed_refill(allocator, layout)
+    }
+
+    /// Refill zeroed allocation state or allocate from published space.
+    #[cold]
+    #[inline(never)]
+    fn allocate_zeroed_refill(
+        &self,
+        allocator: &mut SharedAllocator,
+        layout: &AllocationLayout<'_>,
+    ) -> HeapResult<SharedHeapReference> {
+        let is_active_collection = self.gc_phase() != SharedGcPhase::Idle;
+
+        // refill the worker run or allocate through published space
+        if !is_active_collection
+            && let Some(reference) =
+                self.heap
+                    .try_allocate_worker_small(allocator, layout, Payload::Zeroed)?
+        {
+            return Ok(reference);
+        }
+
+        // active marking needs immediately published allocations
+        if is_active_collection {
+            self.flush_allocator(allocator);
+        }
+
+        let retained_byte_delta = self.heap.retained_byte_delta(allocator, layout)?;
+        self.check_heap_retained_byte_delta(retained_byte_delta)?;
+
+        let pressure_bytes = allocator.layout_run_charge_bytes(layout);
+
+        // mark assist before acquiring another shared allocation run
+        self.assist_allocation(allocator.gc_worker(), pressure_bytes)?;
+
+        let reference =
+            self.heap
+                .allocate(allocator, layout, Payload::Zeroed, !is_active_collection)?;
+        if !is_active_collection {
+            self.accrue_assist_debt(pressure_bytes);
+        }
+        self.refresh_gc_request();
+
+        Ok(reference)
+    }
+
+    /// Resolve one allocation plan against this shared heap.
+    #[inline(always)]
+    pub fn allocation_layout<'a>(&self, plan: AllocationPlan<'a>) -> AllocationLayout<'a> {
+        self.heap.allocation_layout(plan)
     }
 
     /// Return whether one shared heap reference currently refers to one live allocation.
@@ -603,60 +582,15 @@ impl SharedHeap {
         self.heap.is_live(reference)
     }
 
-    /// Return the remaining byte length for one shared heap reference.
-    pub fn heap_byte_len(&self, reference: SharedHeapReference) -> HeapResult<usize> {
-        self.heap.byte_len(reference)
-    }
-
-    /// Return the bytes for one shared heap reference.
-    pub fn read_heap_bytes(&self, reference: SharedHeapReference) -> HeapResult<Vec<u8>> {
-        self.heap.read_bytes(reference)
-    }
-
-    /// Fill one caller-provided buffer from one shared heap allocation at one offset.
-    pub fn read_heap_bytes_into(
-        &self,
-        reference: SharedHeapReference,
-        start: usize,
-        target: &mut [u8],
-    ) -> HeapResult<()> {
-        self.heap.read_bytes_into(reference, start, target)
-    }
-
-    /// Return one checked address for a shared heap byte range.
-    pub fn heap_address(
-        &self,
-        reference: SharedHeapReference,
-        start: usize,
-        byte_len: usize,
-    ) -> HeapResult<*mut u8> {
-        self.heap.address(reference, start, byte_len)
-    }
-
-    /// Return one checked writable address for a shared heap byte range.
-    pub fn heap_address_mut(
-        &self,
-        reference: SharedHeapReference,
-        start: usize,
-        byte_len: usize,
-    ) -> HeapResult<*mut u8> {
-        self.heap.address_mut(reference, start, byte_len)
+    /// Return the base native address for direct shared heap access.
+    #[inline(always)]
+    pub fn heap_base_address(&self) -> usize {
+        self.heap.base_address()
     }
 
     /// Return the scan metadata for one shared heap reference.
     pub fn scan(&self, reference: SharedHeapReference) -> HeapResult<ReferenceMap> {
         self.heap.scan(reference)
-    }
-
-    /// Overwrite one shared heap byte range through the shared write barrier.
-    pub fn write_heap_bytes(
-        &self,
-        reference: SharedHeapReference,
-        start: usize,
-        bytes: &[u8],
-    ) -> HeapResult<()> {
-        self.heap.write_barrier_bytes(reference, start, bytes)?;
-        self.heap.write_bytes(reference, start, bytes)
     }
 
     /// Record one shared heap write barrier before one byte store.
@@ -669,9 +603,14 @@ impl SharedHeap {
         self.heap.write_barrier_bytes(reference, start, bytes)
     }
 
-    /// Publish one exact shared heap reference after one completed store.
-    pub fn publish_edge(&self, reference: SharedHeapReference) -> HeapResult<()> {
-        self.heap.publish_edge(reference)
+    /// Record one shared heap write barrier after one completed byte store.
+    pub fn write_barrier(
+        &self,
+        reference: SharedHeapReference,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<()> {
+        self.heap.write_barrier(reference, start, byte_len)
     }
 
     /// Request one shared collection cycle at the next world step.
@@ -766,6 +705,8 @@ impl SharedHeap {
     }
 
     /// Fork this shared heap over the same shared allocator.
+    ///
+    /// Call this only from a safepoint where shared heap mutators are stopped.
     pub fn fork(&self) -> HeapResult<Self> {
         Ok(Self {
             allocator: self.allocator.clone(),

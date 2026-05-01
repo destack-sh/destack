@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::allocator::PageRun;
 use crate::{HeapError, HeapResult};
 
-/// One frozen raw large-allocation root.
+/// One frozen raw large-allocation image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct LargeAllocationImage {
     /// Whether this allocation slot is live.

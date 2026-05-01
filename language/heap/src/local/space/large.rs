@@ -6,7 +6,7 @@ use super::CardSet;
 use crate::allocator::PageRun;
 use crate::{HeapError, HeapResult};
 
-/// One frozen heap large-allocation root.
+/// One frozen heap large-allocation image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct LargeAllocationImage {
     /// Whether this allocation slot is live.

@@ -7,7 +7,7 @@ use super::{SharedRawAllocation, SharedRawSpace};
 use crate::allocator::{AddressSpace, PageRunCache};
 use crate::{AllocationUsage, Allocator, HeapResult, PageId, PageRun};
 
-/// One frozen shared raw-space allocation root.
+/// One frozen shared raw-space allocation image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SharedRawAllocationImage {
     /// Whether this allocation is live.
@@ -20,7 +20,7 @@ pub struct SharedRawAllocationImage {
     pub pages: PageRun,
 }
 
-/// One frozen shared raw-space root.
+/// One frozen shared raw-space image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SharedRawSpaceImage {
     /// Captured shared raw-space allocations keyed by allocation index.
@@ -37,7 +37,7 @@ pub struct SharedRawSpaceImage {
 }
 
 impl SharedRawSpaceImage {
-    /// Create one frozen shared raw-space root.
+    /// Create one frozen shared raw-space image.
     pub fn new(
         allocations: Box<[SharedRawAllocationImage]>,
         allocated_count: usize,
@@ -106,7 +106,9 @@ impl SharedRawSpaceImage {
 }
 
 impl SharedRawSpace {
-    /// Fork one shared raw-space root over the same shared allocator.
+    /// Fork one shared raw space over the same shared allocator.
+    ///
+    /// Call this only from a safepoint where shared raw mutators are stopped.
     pub fn fork(&self) -> HeapResult<Self> {
         let allocations = self.allocations.read();
         let state = self.state.lock();
@@ -150,7 +152,7 @@ impl SharedRawSpace {
         Ok(forked)
     }
 
-    /// Create one shared raw-space root from one frozen shared raw-space image over one shared allocator.
+    /// Create one shared raw space from one frozen image over one shared allocator.
     pub fn from_image_with_allocator(
         allocator: Arc<Allocator>,
         image: &SharedRawSpaceImage,
@@ -197,7 +199,7 @@ impl SharedRawSpace {
         Ok(restored)
     }
 
-    /// Return one frozen shared raw-space root.
+    /// Return one frozen shared raw-space image.
     pub fn image(&self) -> HeapResult<SharedRawSpaceImage> {
         let allocations = self.allocations.read();
         let state = self.state.lock();
@@ -253,7 +255,7 @@ impl SharedRawSpace {
     }
 }
 
-/// Rebuild the address space entries for one shared raw-space root.
+/// Rebuild the address space entries for one live shared raw space.
 fn rebuild_page_map(raw: &SharedRawSpace) {
     let allocations = raw.allocations.read();
 

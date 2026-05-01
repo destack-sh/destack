@@ -126,6 +126,8 @@ impl RawSpaceImage {
 
 impl RawSpace {
     /// Fork one raw space over the same allocator.
+    ///
+    /// Call this only from a safepoint where the raw space cannot mutate.
     pub(crate) fn fork(&mut self) -> Result<Self, HeapError> {
         self.flush_branch_boundary()?;
         let mapping = self.mapping.fork()?;
@@ -206,7 +208,7 @@ impl RawSpace {
         // rebuild the reusable large-allocation ids
         space.large.free_large_allocation_ids = Self::free_large_allocation_ids(image);
 
-        // rebuild the live root over fresh raw place
+        // rebuild the live space over fresh raw place
         space.rebuild_page_map()?;
 
         Ok(space)
@@ -220,7 +222,7 @@ impl RawSpace {
         let spans = self.capture_span_images()?;
         let allocations = self.capture_large_allocation_images()?;
 
-        // freeze the current raw root
+        // freeze the current raw image
         Ok(RawSpaceImage::new(
             self.small.size_classes.clone(),
             self.small.span_bytes,

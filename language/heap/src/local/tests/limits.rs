@@ -1,10 +1,13 @@
 use crate::{
-    AccountingRegion, HeapError, HeapLimits, HeapOptions, HeapSpaceLimits, Payload, RawLimits,
-    test_layout,
+    AccountingRegion, DEFAULT_YOUNG_BYTES, HeapError, HeapLimits, HeapOptions, HeapSpaceLimits,
+    Payload, RawLimits, test_layout,
 };
 use destack_mir::ReferenceMap;
 
 use super::TestHeap;
+
+const SMALL_ALLOCATION_COUNT: usize = 1024;
+const SMALL_ALLOCATION_BYTES: usize = 32;
 
 /// Return the retained heap bytes for one allocation in the given heap options.
 fn heap_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 {
@@ -12,8 +15,11 @@ fn heap_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64
     let mut test_heap = TestHeap::with_limits_and_options(crate::HeapLimits::default(), options);
     let heap = &mut test_heap.heap;
 
-    heap.allocate(layout.allocation(), Payload::Bytes(bytes))
-        .expect("heap allocation should succeed");
+    heap.allocate(
+        &heap.allocation_layout(layout.allocation()),
+        Payload::Bytes(bytes),
+    )
+    .expect("heap allocation should succeed");
 
     heap.usage().heap.retained_bytes
 }
@@ -27,6 +33,72 @@ fn raw_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 
         .expect("raw allocation should succeed");
 
     heap.usage().raw.retained_bytes
+}
+
+/// Track retained bytes for default young-space allocation.
+#[test]
+fn test_track_default_young_retained_bytes() {
+    let layout = test_layout(SMALL_ALLOCATION_BYTES, ReferenceMap::empty());
+    let mut test_heap = TestHeap::new();
+    let heap = &mut test_heap.heap;
+
+    for _ in 0..SMALL_ALLOCATION_COUNT {
+        heap.allocate(
+            &heap.allocation_layout(layout.allocation()),
+            Payload::Zeroed,
+        )
+        .expect("heap allocation should succeed");
+    }
+
+    let usage = heap.usage().heap;
+
+    assert_eq!(usage.allocation_count, SMALL_ALLOCATION_COUNT);
+    assert_eq!(
+        usage.allocated_bytes,
+        (SMALL_ALLOCATION_COUNT * SMALL_ALLOCATION_BYTES) as u64
+    );
+    assert_eq!(usage.retained_bytes, DEFAULT_YOUNG_BYTES as u64);
+}
+
+/// Track retained bytes for local small-span allocation.
+#[test]
+fn test_track_small_span_retained_bytes() {
+    let options = HeapOptions {
+        heap_young_bytes: 0,
+        max_heap_young_allocation_bytes: 0,
+        ..HeapOptions::local()
+    };
+    let layout = test_layout(SMALL_ALLOCATION_BYTES, ReferenceMap::empty());
+    let class_index = options
+        .size_classes
+        .class_index_for(SMALL_ALLOCATION_BYTES)
+        .expect("small allocation size should have a class");
+    let size_class = options.size_classes.classes[class_index];
+    let span_bytes = size_class
+        .span_bytes(options.page_bytes, options.heap_small_bytes)
+        .max(options.heap_small_bytes);
+    let slot_count = span_bytes / size_class.bytes;
+    let span_count = SMALL_ALLOCATION_COUNT.div_ceil(slot_count);
+    let retained_bytes = span_count * span_bytes;
+    let mut test_heap = TestHeap::with_options(options);
+    let heap = &mut test_heap.heap;
+
+    for _ in 0..SMALL_ALLOCATION_COUNT {
+        heap.allocate(
+            &heap.allocation_layout(layout.allocation()),
+            Payload::Zeroed,
+        )
+        .expect("heap allocation should succeed");
+    }
+
+    let usage = heap.usage().heap;
+
+    assert_eq!(usage.allocation_count, SMALL_ALLOCATION_COUNT);
+    assert_eq!(
+        usage.allocated_bytes,
+        (SMALL_ALLOCATION_COUNT * SMALL_ALLOCATION_BYTES) as u64
+    );
+    assert_eq!(usage.retained_bytes, retained_bytes as u64);
 }
 
 /// Reject one heap allocation when the retained-byte limit would be exceeded.
@@ -52,7 +124,10 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
     .expect("baseline heap should fit its current retained-byte limit");
 
     let error = heap
-        .allocate(layout.allocation(), Payload::Bytes(&[1]))
+        .allocate(
+            &heap.allocation_layout(layout.allocation()),
+            Payload::Bytes(&[1]),
+        )
         .expect_err("heap allocation should be rejected");
 
     assert_eq!(

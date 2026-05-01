@@ -13,7 +13,7 @@ pub(crate) struct RawSmallSpanClass {
     pub byte_len: usize,
 }
 
-/// One frozen raw span root.
+/// One frozen raw span image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct SmallSpanImage {
     /// The first byte offset inside raw space.
