@@ -63,7 +63,7 @@ impl PageMap {
             pages: Mutex::new(BTreeMap::new()),
         };
 
-        // native mappings use kernel copy-on-write after fork
+        // native mappings use kernel copy on write after fork
         if platform::SUPPORTS_SHARED_PAGE_FRAMES {
             self.fork_shared_frames(&fork)?;
 

@@ -119,7 +119,7 @@ pub(crate) fn write_word(bytes: &mut [u8], offset: usize, value: usize) {
 
 /// Build the scan map for one record with a local reference field.
 pub(crate) fn local_record_reference_map() -> ReferenceMap {
-    ReferenceMap::Reference {
+    ReferenceMap::Direct {
         local_offsets: Box::new([0]),
         shared_offsets: Box::new([]),
     }
@@ -127,7 +127,7 @@ pub(crate) fn local_record_reference_map() -> ReferenceMap {
 
 /// Build the scan map for one record with a shared reference field.
 pub(crate) fn shared_record_reference_map() -> ReferenceMap {
-    ReferenceMap::Reference {
+    ReferenceMap::Direct {
         local_offsets: Box::new([]),
         shared_offsets: Box::new([0]),
     }
@@ -135,7 +135,7 @@ pub(crate) fn shared_record_reference_map() -> ReferenceMap {
 
 /// Build the scan map for one local reference array.
 pub(crate) fn local_reference_array_map() -> ReferenceMap {
-    ReferenceMap::RepeatedReference {
+    ReferenceMap::Repeat {
         count: WORKLOAD_OBJECTS as u32,
         stride: REFERENCE_BYTES as u32,
         local_offsets: Box::new([0]),
@@ -145,7 +145,7 @@ pub(crate) fn local_reference_array_map() -> ReferenceMap {
 
 /// Build the scan map for one shared reference array.
 pub(crate) fn shared_reference_array_map() -> ReferenceMap {
-    ReferenceMap::RepeatedReference {
+    ReferenceMap::Repeat {
         count: WORKLOAD_OBJECTS as u32,
         stride: REFERENCE_BYTES as u32,
         local_offsets: Box::new([]),

@@ -55,14 +55,8 @@ impl PageRun {
             first_page,
             page_count,
         })?;
-        let end_page_index = first_page.index().checked_add(page_count as usize).ok_or(
-            HeapError::InvalidPageRun {
-                first_page,
-                page_count: page_count as usize,
-            },
-        )?;
-
-        if end_page_index > (u32::MAX as usize) + 1 {
+        let end_page_index = u64::from(first_page.raw()) + u64::from(page_count);
+        if end_page_index > u64::from(u32::MAX) + 1 {
             return Err(HeapError::InvalidPageRun {
                 first_page,
                 page_count: page_count as usize,

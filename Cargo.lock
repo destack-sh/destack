@@ -1746,6 +1746,7 @@ dependencies = [
 name = "destack_heap"
 version = "0.55.4"
 dependencies = [
+ "criterion",
  "crossbeam-deque",
  "destack_core",
  "destack_mir",

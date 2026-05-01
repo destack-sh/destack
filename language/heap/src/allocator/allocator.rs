@@ -215,7 +215,7 @@ impl Allocator {
 
             // reject representational overflow
             if current_count == u32::MAX {
-                return Err(HeapError::InvariantOverflow {
+                return Err(HeapError::RepresentationLimitExceeded {
                     context: "allocator run reference count",
                 });
             }

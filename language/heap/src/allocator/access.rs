@@ -15,17 +15,36 @@ impl Allocator {
         start: usize,
         target: &mut [u8],
     ) -> HeapResult<()> {
+        // validate the requested logical byte range
+        let end = self.byte_range_end(page_run, start, target.len())?;
+        let page_bytes = self.page_bytes();
+        let start_page = start / page_bytes;
+        let end_page = end.div_ceil(page_bytes);
         let mut copied_bytes = 0usize;
 
-        // validate the requested logical byte range
-        self.byte_range_end(page_run, start, target.len())?;
+        // copy each visible page slice into the caller buffer
+        for page_index in start_page..end_page {
+            // resolve the logical page first
+            let Some(page_id) = page_run.page(page_index) else {
+                return Err(HeapError::MissingLogicalPage { page_index });
+            };
 
-        // stream the requested range into the caller buffer
-        self.visit_bytes_from(page_run, start, target.len(), |chunk| {
+            // compute the page-local slice
+            let page_start = page_index * page_bytes;
+            let slice_start = start.max(page_start) - page_start;
+            let slice_end = end.min(page_start + page_bytes) - page_start;
+            if slice_start >= slice_end {
+                continue;
+            }
+
+            // copy the visible page slice
+            let page = self.page_bytes_box(page_id)?;
+            let chunk = &page[slice_start..slice_end];
             let chunk_end = copied_bytes + chunk.len();
+
             target[copied_bytes..chunk_end].copy_from_slice(chunk);
             copied_bytes = chunk_end;
-        })?;
+        }
 
         debug_assert_eq!(copied_bytes, target.len());
 
@@ -45,44 +64,6 @@ impl Allocator {
         page_count as u64 * self.page_bytes() as u64
     }
 
-    /// Visit visible byte chunks for one logical byte range starting at one offset.
-    pub fn visit_bytes_from(
-        &self,
-        page_run: &PageRun,
-        start: usize,
-        byte_len: usize,
-        mut callback: impl FnMut(&[u8]),
-    ) -> HeapResult<()> {
-        let end = self.byte_range_end(page_run, start, byte_len)?;
-        let page_bytes = self.page_bytes();
-        let start_page = start / page_bytes;
-        let end_page = end.div_ceil(page_bytes);
-
-        // visit the requested visible page slices in order
-        for page_index in start_page..end_page {
-            // resolve the logical page first
-            let Some(page_id) = page_run.page(page_index) else {
-                return Err(HeapError::MissingLogicalPage { page_index });
-            };
-
-            // compute the page-local slice
-            let page_start = page_index * page_bytes;
-            let slice_start = start.max(page_start) - page_start;
-            let slice_end = end.min(page_start + page_bytes) - page_start;
-            if slice_start >= slice_end {
-                continue;
-            }
-
-            // expose the visible chunk to the caller
-            let page = self.page_bytes_box(page_id)?;
-            let chunk = &page[slice_start..slice_end];
-
-            callback(chunk);
-        }
-
-        Ok(())
-    }
-
     /// Return one byte vector for one logical byte range starting at one offset.
     pub fn bytes_to_vec_from(
         &self,
@@ -90,12 +71,10 @@ impl Allocator {
         start: usize,
         byte_len: usize,
     ) -> HeapResult<Vec<u8>> {
-        let mut bytes = Vec::with_capacity(byte_len);
+        let mut bytes = vec![0; byte_len];
 
         // materialize the requested range into one owned buffer
-        self.visit_bytes_from(page_run, start, byte_len, |chunk| {
-            bytes.extend_from_slice(chunk);
-        })?;
+        self.fill_bytes_from(page_run, start, &mut bytes)?;
 
         Ok(bytes)
     }
@@ -141,27 +120,6 @@ impl Allocator {
         Ok(())
     }
 
-    /// Return one byte for one logical byte offset.
-    pub fn byte_at(&self, page_run: &PageRun, byte_len: usize, index: usize) -> Option<u8> {
-        // reject offsets outside the logical allocation
-        if index >= byte_len {
-            return None;
-        }
-
-        // resolve the logical page and page-local byte
-        let page_bytes = self.page_bytes();
-        let page_index = index / page_bytes;
-        let byte_index = index % page_bytes;
-        let page = page_run.page(page_index)?;
-
-        // missing pages mean the caller handed us a stale run
-        let Ok(page) = self.page_bytes_box(page) else {
-            return None;
-        };
-
-        page.get(byte_index).copied()
-    }
-
     /// Return the exact end offset for one in-bounds byte range.
     pub(super) fn byte_range_end(
         &self,
@@ -171,19 +129,7 @@ impl Allocator {
     ) -> HeapResult<usize> {
         let capacity = page_run.len() * self.page_bytes();
 
-        // allow empty ranges only when the start stays in bounds
-        if byte_len == 0 {
-            if start <= capacity {
-                return Ok(start);
-            }
-
-            return Err(HeapError::InvalidByteRange {
-                start,
-                len: byte_len,
-                capacity,
-            });
-        }
-
+        // validate the range before computing the end offset
         if start > capacity || byte_len > capacity - start {
             return Err(HeapError::InvalidByteRange {
                 start,
@@ -193,14 +139,6 @@ impl Allocator {
         }
 
         let end = start + byte_len;
-
-        if end > capacity {
-            return Err(HeapError::InvalidByteRange {
-                start,
-                len: byte_len,
-                capacity,
-            });
-        }
 
         Ok(end)
     }
