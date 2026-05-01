@@ -13,14 +13,16 @@ pub enum Image {
 
 impl PartialEq for Image {
     fn eq(&self, other: &Self) -> bool {
-        image_bytes(self) == image_bytes(other)
+        let left = image_bytes(self);
+        let right = image_bytes(other);
+
+        left.is_ok() && left == right
     }
 }
 
 impl Eq for Image {}
 
 /// Serialize one engine image for exact equality checks.
-fn image_bytes(image: &Image) -> Vec<u8> {
+fn image_bytes(image: &Image) -> Result<Vec<u8>, postcard::Error> {
     postcard::to_allocvec(image)
-        .unwrap_or_else(|error| panic!("engine image should serialize: {error}"))
 }

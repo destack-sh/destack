@@ -28,7 +28,7 @@ fn build_random_call_module(
 
     // arguments
     let arguments = if let Some(stream) = stream_arg {
-        vec![builder.iconst(stream as i64, 64, false)]
+        vec![builder.iconst(i128::from(stream), 64, false)]
     } else {
         Vec::new()
     };
@@ -82,7 +82,7 @@ fn run_vm_random_call(
     .expect("test vm shared heap should build");
     runtime.install_vm_defaults(&mut isolate);
     isolate
-        .initialize_statics(&mut statics)
+        .initialize(&heap, &shared, &mut statics)
         .expect("isolate statics should initialize");
 
     // execute entry function
@@ -96,7 +96,7 @@ fn run_vm_random_call(
     };
     assert_eq!(width, 64);
 
-    value
+    value as u64
 }
 
 #[test]

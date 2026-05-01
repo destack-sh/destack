@@ -219,11 +219,11 @@ pub(crate) fn vm_test_values(
     values: Vec<vm::Word>,
 ) -> vm::Word {
     let data = context
-        .allocate_heap_value_slots(values.len())
+        .allocate_heap_words(values.len())
         .expect("vm test heap values should allocate");
     for (index, value) in values.into_iter().enumerate() {
         context
-            .write_heap_value(data, index, value)
+            .write_heap_word(data, index, value)
             .expect("vm test heap value should write");
     }
 

@@ -15,12 +15,12 @@ use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
 use crate::runtime::capability::resolve_capability_profile;
 use crate::runtime::engine::{Continuation, Engine, Image};
 use crate::runtime::memory::{
-    HeapHandle, HeapHandleTable, RootSet, RootVisitor, resolve_local_heap_options,
+    HeapHandle, HeapHandleTable, RootSet, RootSink, resolve_local_heap_options,
 };
 use crate::runtime::policy::HookSnapshot;
 use crate::runtime::poller::PollerToken;
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, EventLoopWatch};
-use crate::runtime::world::{RuntimeId, WorldRef};
+use crate::runtime::world::{RuntimeId, WorldScope};
 use crate::runtime::{
     DropCounts, DropReason, ExecutionContextId, Hooks, PlatformState, PlatformStateImage,
     RuntimeFinalizers, RuntimeFinalizersImage, RuntimeSharedHeap,
@@ -118,6 +118,9 @@ impl WorkerImage {
 
 impl PartialEq for WorkerImage {
     fn eq(&self, other: &Self) -> bool {
+        let heap = worker_heap_snapshot_bytes(&self.heap);
+        let other_heap = worker_heap_snapshot_bytes(&other.heap);
+
         self.options == other.options
             && self.diagnostics == other.diagnostics
             && self.hooks == other.hooks
@@ -125,16 +128,16 @@ impl PartialEq for WorkerImage {
             && self.finalizers == other.finalizers
             && self.platform_state == other.platform_state
             && self.event_loop == other.event_loop
-            && worker_heap_snapshot_bytes(&self.heap) == worker_heap_snapshot_bytes(&other.heap)
+            && heap.is_ok()
+            && heap == other_heap
             && self.statics == other.statics
             && self.engine_image == other.engine_image
     }
 }
 
 /// Serialize one captured worker heap snapshot for exact equality checks.
-fn worker_heap_snapshot_bytes(snapshot: &heap::HeapSnapshot) -> Vec<u8> {
+fn worker_heap_snapshot_bytes(snapshot: &heap::HeapSnapshot) -> Result<Vec<u8>, postcard::Error> {
     postcard::to_allocvec(snapshot)
-        .unwrap_or_else(|error| panic!("worker heap snapshot should serialize: {error}"))
 }
 
 impl WorkerOptionsImage {
@@ -225,7 +228,7 @@ impl Worker {
     pub(crate) fn new_in_world(
         platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
-        world: &WorldRef,
+        world: &WorldScope,
         shared: &RuntimeSharedHeap,
         runtime_static: &engine::StaticSpace,
         engine: impl Into<Engine>,
@@ -251,7 +254,7 @@ impl Worker {
     pub(crate) fn new_in_runtime(
         platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
-        world: &WorldRef,
+        world: &WorldScope,
         shared: &RuntimeSharedHeap,
         runtime_static: &engine::StaticSpace,
         runtime_id: RuntimeId,
@@ -277,7 +280,7 @@ impl Worker {
     fn assemble(
         platform_args: Arc<[String]>,
         options: &RuntimeOptions,
-        world: &WorldRef,
+        world: &WorldScope,
         shared: &RuntimeSharedHeap,
         runtime_static: &engine::StaticSpace,
         runtime_id: RuntimeId,
@@ -292,33 +295,28 @@ impl Worker {
         let resources = ResourceTable::default();
         resources.set_hooks(hooks.clone());
 
-        // bindings, heap, event loop
+        // bindings and policy
         let mut bindings = BindingRegistry::new();
         bindings.set_policy(BindingPolicy::new(world.trace().mode()));
         bindings.install_native_defaults();
         bindings.apply_runtime_defaults(options);
         Self::apply_capability_profile(&mut bindings, options)?;
 
-        // resolve the local heap directly from runtime options
+        // heap and statics
         let heap_options = resolve_local_heap_options(&options.heap)?;
-        let allocator = Arc::new(
-            heap::Allocator::try_new(
-                heap_options.options.page_bytes,
-                heap_options.options.allocator_chunk_bytes,
-            )
-            .map_err(Box::<RuntimeError>::from)?,
-        );
         let heap = heap::Heap::with_allocator_limits_and_options(
-            allocator,
+            shared.allocator(),
             heap_options.limits,
             heap_options.options,
         )
         .map_err(Box::<RuntimeError>::from)?;
         let mut heap = heap;
         let mut statics = engine::StaticSpace::empty();
+        let shared_gc_worker = Self::shared_gc_worker(shared, worker_id)?;
         let context = crate::runtime::engine::Context {
             heap: &mut heap,
             shared: shared.shared(),
+            shared_gc: &shared_gc_worker,
             worker_static: &mut statics,
             runtime_static,
         };
@@ -329,7 +327,6 @@ impl Worker {
 
         let execution_context_id = Self::event_loop_execution_context_id(runtime_id, worker_id);
         event_loop.initialize_execution_context(execution_context_id);
-        let shared_gc_worker = Self::shared_gc_worker(shared, worker_id)?;
 
         // worker state
         Ok(Self {
@@ -410,7 +407,7 @@ impl Worker {
 
     /// Register one new runtime and one primary worker in one world.
     fn register_runtime(
-        world: &WorldRef,
+        world: &WorldScope,
         options: &RuntimeOptions,
     ) -> RuntimeResult<(RuntimeId, WorkerId, String, String)> {
         // runtime selector metadata
@@ -445,7 +442,7 @@ impl Worker {
 
     /// Register one worker in one existing runtime.
     fn register_worker(
-        world: &WorldRef,
+        world: &WorldScope,
         options: &RuntimeOptions,
         runtime_id: RuntimeId,
     ) -> RuntimeResult<(WorkerId, String)> {
@@ -637,7 +634,7 @@ impl Worker {
     }
 
     /// Visit roots from engine, scheduler, and registered providers.
-    pub fn visit_roots(&mut self, roots: &mut RootVisitor<'_>) -> RuntimeResult<()> {
+    pub fn visit_roots(&mut self, roots: &mut RootSink<'_>) -> RuntimeResult<()> {
         // engine state
         self.engine.visit_roots(&self.statics, roots)?;
 
@@ -660,8 +657,9 @@ impl Worker {
         self.heap.usage()
     }
 
-    /// Run one pacing-driven garbage-collection step using the current root set.
-    pub fn gc_step(&mut self) -> RuntimeResult<heap::GcProgress> {
+    /// Run one budgeted local collection step using the current root set.
+    pub fn collect_local_step(&mut self) -> RuntimeResult<heap::GcProgress> {
+        let budget_bytes = self.heap.take_collection_budget_bytes();
         let engine = &mut self.engine;
         let event_loop = &mut self.event_loop;
         let handles = &mut self.handles;
@@ -673,14 +671,14 @@ impl Worker {
             Ok::<(), Box<RuntimeError>>(())
         };
 
-        self.heap.gc_step(&mut roots)
+        self.heap.collect_step(&mut roots, budget_bytes)
     }
 
     /// Collect roots from engine, scheduler, and registered providers.
     pub fn collect_roots(&mut self) -> RuntimeResult<RootSet> {
         let mut roots = RootSet::new();
 
-        self.visit_roots(&mut RootVisitor::All(&mut roots))?;
+        self.visit_roots(&mut RootSink::All(&mut roots))?;
 
         Ok(roots)
     }
@@ -689,7 +687,7 @@ impl Worker {
     pub(crate) fn collect_shared_roots(&mut self) -> RuntimeResult<Vec<heap::SharedHeapReference>> {
         let mut roots = Vec::new();
 
-        self.visit_roots(&mut RootVisitor::SharedHeap(&mut roots))?;
+        self.visit_roots(&mut RootSink::SharedHeap(&mut roots))?;
 
         Ok(roots)
     }
@@ -709,14 +707,19 @@ impl Worker {
         self.heap.finish_shared_edge_scan();
     }
 
-    /// Scan bounded local-to-shared edge work into the provided root buffer.
-    pub(crate) fn scan_shared_edge_step(
+    /// Publish allocator-local shared heap buffers.
+    pub(crate) fn flush_shared_allocator(&mut self, shared: &heap::SharedHeap) {
+        self.engine.flush_shared_allocator(shared);
+    }
+
+    /// Scan bounded local-to-shared reference work into the provided root buffer.
+    pub(crate) fn scan_shared_references(
         &mut self,
         roots: &mut Vec<heap::SharedHeapReference>,
-        work_items: usize,
+        budget_bytes: usize,
     ) -> RuntimeResult<usize> {
         self.heap
-            .scan_shared_edge_step(roots, work_items)
+            .scan_shared_references(roots, budget_bytes)
             .map_err(Box::<RuntimeError>::from)
     }
 
@@ -782,6 +785,7 @@ impl Worker {
     pub(crate) fn try_fork(
         &mut self,
         execution_mode: ExecutionMode,
+        shared_gc_worker: heap::SharedGcWorker,
     ) -> RuntimeResult<Option<Self>> {
         // runtime callbacks
         if self.runtime_callbacks.has_active_callbacks() {
@@ -823,7 +827,6 @@ impl Worker {
         let mut heap = self.heap.fork()?;
         let mut engine = self.engine.fork(&mut heap)?;
         let statics = self.statics.clone();
-        let shared_gc_worker = self.shared_gc_worker.clone();
         let event_loop = Box::new(self.event_loop.fork(&mut self.engine, &mut engine)?);
 
         // platform state
@@ -854,7 +857,7 @@ impl Worker {
 
     /// Restore one worker from one materialized image.
     pub(crate) fn from_image(
-        world: &WorldRef,
+        world: &WorldScope,
         shared: &RuntimeSharedHeap,
         runtime_static: &engine::StaticSpace,
         runtime_id: RuntimeId,
@@ -887,9 +890,15 @@ impl Worker {
 
         // heap and engine
         let heap_options = resolve_local_heap_options(&options.heap)?;
-        let mut heap = heap::Heap::from_snapshot_with_limits(&image.heap, heap_options.limits)
-            .map_err(Box::<RuntimeError>::from)?;
+        let mut heap = heap::Heap::from_snapshot_with_allocator(
+            &image.heap,
+            shared.allocator(),
+            heap_options.limits,
+        )
+        .map_err(Box::<RuntimeError>::from)?;
         let mut statics = image.statics.clone();
+        let shared_gc_worker = Self::shared_gc_worker(shared, worker_id)?;
+
         // rebuild the engine from the materialized worker image
         let mut engine = Engine::from_image(&image.engine_image)?;
 
@@ -897,6 +906,7 @@ impl Worker {
         let context = crate::runtime::engine::Context {
             heap: &mut heap,
             shared: shared.shared(),
+            shared_gc: &shared_gc_worker,
             worker_static: &mut statics,
             runtime_static,
         };
@@ -910,7 +920,6 @@ impl Worker {
         diagnostics.restore_snapshot(&image.diagnostics)?;
         hooks.restore_snapshot(&image.hooks)?;
         resources.restore_snapshot(&image.resources, rebind_context)?;
-        let shared_gc_worker = Self::shared_gc_worker(shared, worker_id)?;
 
         Ok(Self {
             id: worker_id,

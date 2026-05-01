@@ -4,11 +4,11 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{HostEvent, Session};
 use crate::platform::resource::ResourceRebinders;
 use crate::runtime::engine::{Engine, Entry, Output};
-use crate::runtime::memory::RootVisitor;
+use crate::runtime::memory::RootSink;
 use crate::runtime::poller::{HostPoller, PollerEvent};
 use crate::runtime::scheduler::Timer;
 use crate::runtime::time::WorldInstant;
-use crate::runtime::world::{RuntimeId, Wake, WorldRef};
+use crate::runtime::world::{RuntimeId, Wake, WorldScope};
 use crate::runtime::{DropCounts, DropReason};
 use destack_core::CaptureMode;
 use destack_workspace::{
@@ -17,7 +17,7 @@ use destack_workspace::{
 };
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use {destack_engine as engine, destack_heap as heap, destack_vm as vm};
+use {destack_engine as engine, destack_heap as heap};
 
 use super::poller::{poller_for_backend, poller_for_options};
 use super::{RuntimeSharedHeap, Worker, WorkerId, WorkerImage, WorkerOptionsImage};
@@ -122,7 +122,7 @@ pub struct RuntimeImage {
     /// Runtime host reconstruction settings captured for reconstruction.
     pub host_options: RuntimeHostOptions,
     /// Captured runtime-owned shared heap state.
-    pub shared: heap::SharedHeapSnapshot,
+    pub shared_heap: heap::SharedHeapSnapshot,
     /// Captured runtime-owned static bytes.
     pub runtime_static: engine::StaticSpace,
     /// The next worker slot to schedule first.
@@ -190,8 +190,8 @@ impl Runtime {
     pub(crate) fn from_options_in_world(
         platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
-        world: &WorldRef,
-        allocator: Arc<vm::Allocator>,
+        world: &WorldScope,
+        allocator: Arc<heap::Allocator>,
         collector: Arc<super::Collector>,
         engine: impl Into<Engine>,
     ) -> RuntimeResult<Self> {
@@ -279,7 +279,7 @@ impl Runtime {
     }
 
     /// Visit roots from every worker owned by this runtime.
-    pub fn visit_roots(&mut self, roots: &mut RootVisitor<'_>) -> RuntimeResult<()> {
+    pub fn visit_roots(&mut self, roots: &mut RootSink<'_>) -> RuntimeResult<()> {
         for worker in self.workers.values_mut() {
             worker.visit_roots(roots)?;
         }
@@ -291,6 +291,15 @@ impl Runtime {
     pub(crate) fn start_shared_edge_scan(&mut self) {
         for worker in self.workers.values_mut() {
             worker.start_shared_edge_scan();
+        }
+    }
+
+    /// Publish allocator-local shared heap buffers across all workers.
+    pub(crate) fn flush_shared_allocators(&mut self) {
+        let shared = self.shared.shared();
+
+        for worker in self.workers.values_mut() {
+            worker.flush_shared_allocator(shared);
         }
     }
 
@@ -314,7 +323,7 @@ impl Runtime {
     /// Spawn one additional worker with explicit options in the shared runtime world.
     pub(crate) fn spawn_worker_with_options(
         &mut self,
-        world: &WorldRef,
+        world: &WorldScope,
         options: &RuntimeOptions,
         engine: impl Into<Engine>,
     ) -> RuntimeResult<WorkerId> {
@@ -371,7 +380,7 @@ impl Runtime {
     /// Run one entrypoint through the default runtime worker event loop.
     pub(crate) fn run_entrypoint(
         &mut self,
-        world: &WorldRef,
+        world: &WorldScope,
         entry: &Entry,
         args: &[engine::Value],
     ) -> RuntimeResult<Output> {
@@ -381,7 +390,7 @@ impl Runtime {
     /// Run one entrypoint through one explicit runtime worker event loop.
     pub(crate) fn run_entrypoint_for_worker(
         &mut self,
-        world: &WorldRef,
+        world: &WorldScope,
         worker_id: WorkerId,
         entry: &Entry,
         args: &[engine::Value],
@@ -410,7 +419,7 @@ impl Runtime {
     }
 
     /// Execute one runtime tick across all workers without advancing world time.
-    pub(crate) fn tick(&mut self, world: &WorldRef) -> RuntimeResult<TickOutcome> {
+    pub(crate) fn tick(&mut self, world: &WorldScope) -> RuntimeResult<TickOutcome> {
         // poll and handle runtime ingress first
         let ingress_handled = self.poll_ingress(world)?;
 
@@ -505,7 +514,26 @@ impl Runtime {
             .boxed());
         }
 
+        // active shared mark cycles must see the new worker roots
+        if self.shared_gc_marking() {
+            self.join_shared_mark(worker_id)?;
+        }
+
         Ok(worker_id)
+    }
+
+    /// Join one worker to the active shared mark cycle.
+    fn join_shared_mark(&mut self, worker_id: WorkerId) -> RuntimeResult<()> {
+        let worker = self
+            .worker_mut(worker_id)
+            .ok_or_else(|| RuntimeError::WorkerNotFound {
+                worker_id: worker_id.0,
+            })?;
+
+        worker.start_shared_edge_scan();
+        self.shared.join_shared_mark(worker_id);
+
+        Ok(())
     }
 
     /// Insert one restored worker image into this runtime.
@@ -514,7 +542,7 @@ impl Runtime {
     }
 
     /// Return the next virtual deadline across all workers and simulation.
-    pub(crate) fn next_deadline(&self, world: &WorldRef) -> Option<WorldInstant> {
+    pub(crate) fn next_deadline(&self, world: &WorldScope) -> Option<WorldInstant> {
         // current virtual timestamps: monotonic deadlines are projected onto wall time
         let wall_now = world.wall();
         let mono_now = world.mono();
@@ -529,7 +557,7 @@ impl Runtime {
     /// Drain due worker timers after the world advances time.
     pub(crate) fn collect_due_timers(
         &mut self,
-        world: &WorldRef,
+        world: &WorldScope,
     ) -> RuntimeResult<Vec<(RuntimeId, WorkerId, Timer)>> {
         let wall_now = world.wall();
         let mono_now = world.mono();
@@ -546,7 +574,7 @@ impl Runtime {
     }
 
     /// Poll runtime-owned ingress sources and deliver arrivals to worker event loops.
-    fn poll_ingress(&mut self, world: &WorldRef) -> RuntimeResult<bool> {
+    fn poll_ingress(&mut self, world: &WorldScope) -> RuntimeResult<bool> {
         let mut ingress = Vec::new();
 
         // host semantic ingress
@@ -573,7 +601,7 @@ impl Runtime {
     /// Deliver coordinator-owned ingress into worker event loops.
     fn deliver_ingress(
         &mut self,
-        world: &WorldRef,
+        world: &WorldScope,
         ingress: Vec<RuntimeIngress>,
     ) -> RuntimeResult<bool> {
         let mut handled_any = false;
@@ -665,7 +693,7 @@ impl Runtime {
     /// Deliver one batch of due worker-timer wakes.
     pub(crate) fn deliver_wakes(
         &mut self,
-        world: &WorldRef,
+        world: &WorldScope,
         wakes: Vec<Wake>,
     ) -> RuntimeResult<()> {
         for wake in wakes {
@@ -716,7 +744,7 @@ impl Runtime {
             platform_args: self.platform_args.clone(),
             worker_options: self.worker_options.clone(),
             host_options: self.host_options.clone(),
-            shared: self.shared.snapshot()?,
+            shared_heap: self.shared.snapshot()?,
             runtime_static: self.runtime_static.clone(),
             next_worker_cursor: self.next_worker_cursor,
         });
@@ -761,10 +789,10 @@ impl Runtime {
         // fork each owned worker first
         let mut workers = BTreeMap::new();
         for (worker_id, worker) in &mut self.workers {
-            let Some(mut worker) = worker.try_fork(execution_mode)? else {
+            let shared_gc_worker = shared.worker(*worker_id)?;
+            let Some(worker) = worker.try_fork(execution_mode, shared_gc_worker)? else {
                 return Ok(None);
             };
-            worker.shared_gc_worker = shared.worker(*worker_id)?;
             workers.insert(*worker_id, Box::new(worker));
         }
 
@@ -791,7 +819,8 @@ impl Runtime {
 
     /// Restore one runtime from one materialized runtime image.
     pub(crate) fn from_image(
-        world: &WorldRef,
+        world: &WorldScope,
+        allocator: Arc<heap::Allocator>,
         collector: Arc<super::Collector>,
         runtime_id: RuntimeId,
         runtime_name: String,
@@ -804,8 +833,12 @@ impl Runtime {
         let platform_args = image.platform_args.clone();
         let host = image.host_options.host_session(runtime_id);
         let poller = image.host_options.poller()?;
-        let shared =
-            RuntimeSharedHeap::from_snapshot(&image.shared, &image.worker_options, collector)?;
+        let shared = RuntimeSharedHeap::from_snapshot(
+            &image.shared_heap,
+            &image.worker_options,
+            allocator,
+            collector,
+        )?;
         let runtime_static = image.runtime_static.clone();
         let mut workers = BTreeMap::new();
 
@@ -871,11 +904,10 @@ mod tests {
     use crate::host::{
         HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState,
     };
-    use crate::runtime::engine::{Continuation, NativeContinuation};
-    use crate::runtime::tests::TestEngine;
+    use crate::runtime::tests::{TestEngine, start_worker_continuation};
     use crate::runtime::{RuntimeSharedHeap, TickOutcome, Worker, World};
     use destack_engine::Value;
-    use destack_heap::{AllocationLayout, Payload};
+    use destack_heap::{AllocationPlan, Payload};
     use destack_mir::ReferenceMap;
     use destack_workspace::RuntimeOptions;
 
@@ -885,19 +917,19 @@ mod tests {
         bytes: &[u8],
     ) -> destack_heap::HeapResult<destack_heap::SharedHeapReference> {
         let reference_map = ReferenceMap::empty();
-        let layout = AllocationLayout::new(bytes.len(), &reference_map);
+        let plan = AllocationPlan::new(bytes.len(), 1, &reference_map);
+        let layout = heap.allocation_layout(plan);
         let mut allocator = heap.allocator();
 
-        heap.allocate(&mut allocator, layout, Payload::Bytes(bytes))
+        heap.allocate(&mut allocator, &layout, Payload::Bytes(bytes))
     }
 
     /// Build runtime-owned shared heap state for one test world.
     fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> RuntimeSharedHeap {
         let lineage = world.lineage.read();
-        let shared = RuntimeSharedHeap::new(lineage.allocator(), lineage.collector(), options)
-            .expect("runtime shared heap should construct");
 
-        shared
+        RuntimeSharedHeap::new(lineage.allocator(), lineage.collector(), options)
+            .expect("runtime shared heap should construct")
     }
 
     /// Queue one shared direct-root rescan when ingress mutates worker state during marking.
@@ -905,12 +937,12 @@ mod tests {
     fn test_deliver_ingress_queues_shared_root_rescan_during_mark() {
         let options = RuntimeOptions::default();
         let mut world = World::from_options(&options).expect("world should construct");
-        let world_ref = world.world_ref();
+        let world_scope = world.world_scope();
         let shared = runtime_shared_heap(&world, &options);
         let mut worker = Worker::new_in_world(
             Vec::new(),
             &options,
-            &world_ref,
+            &world_scope,
             &shared,
             &destack_engine::StaticSpace::empty(),
             TestEngine::default(),
@@ -921,10 +953,18 @@ mod tests {
             .expect("shared allocation should succeed");
 
         // watched host state: the shared root only lives through the event loop
+        let continuation = start_worker_continuation(
+            &mut worker,
+            &shared,
+            &destack_engine::StaticSpace::empty(),
+            "test.task",
+            7,
+        );
+
         worker
             .watch_host_event(
                 HostEventKind::Lifecycle,
-                Continuation::Native(NativeContinuation::new(7)),
+                continuation,
                 Value::SharedHeapReference(shared_root),
                 0,
             )
@@ -942,18 +982,28 @@ mod tests {
         // active shared mark
         runtime.shared.shared().request_gc();
         runtime
-            .shared
-            .shared()
-            .start_gc()
-            .expect("shared gc start should succeed");
+            .tick_shared_gc()
+            .expect("shared gc should start through runtime roots");
 
         assert!(runtime.shared_gc_marking());
-        assert!(!runtime.shared.mark_roots().is_root_scan_pending(worker_id));
+
+        // initial publication drains before ingress mutates roots
+        let outcome = runtime
+            .tick(&world_scope)
+            .expect("runtime tick should publish initial roots");
+        assert_eq!(outcome, TickOutcome::Progressed);
+        assert!(
+            runtime
+                .shared
+                .roots()
+                .pending_root_epoch(worker_id)
+                .is_none()
+        );
 
         // ingress should requeue the touched worker even before it ticks
         let handled = runtime
             .deliver_ingress(
-                &world_ref,
+                &world_scope,
                 vec![RuntimeIngress::Host {
                     event: HostEvent::Lifecycle(HostLifecycleEvent {
                         source_kind: HostLifecycleSourceKind::Application,
@@ -964,7 +1014,13 @@ mod tests {
             .expect("ingress delivery should succeed");
 
         assert!(handled);
-        assert!(runtime.shared.mark_roots().is_root_scan_pending(worker_id));
+        assert!(
+            runtime
+                .shared
+                .roots()
+                .pending_root_epoch(worker_id)
+                .is_some()
+        );
     }
 
     /// Publish direct shared roots from the owning worker checkpoint during marking.
@@ -972,12 +1028,12 @@ mod tests {
     fn test_runtime_tick_publishes_pending_shared_roots_from_worker() {
         let options = RuntimeOptions::default();
         let mut world = World::from_options(&options).expect("world should construct");
-        let world_ref = world.world_ref();
+        let world_scope = world.world_scope();
         let shared = runtime_shared_heap(&world, &options);
         let mut worker = Worker::new_in_world(
             Vec::new(),
             &options,
-            &world_ref,
+            &world_scope,
             &shared,
             &destack_engine::StaticSpace::empty(),
             TestEngine::default(),
@@ -988,10 +1044,18 @@ mod tests {
             .expect("shared allocation should succeed");
 
         // watched host state: the shared root only lives through the event loop
+        let continuation = start_worker_continuation(
+            &mut worker,
+            &shared,
+            &destack_engine::StaticSpace::empty(),
+            "test.task",
+            9,
+        );
+
         worker
             .watch_host_event(
                 HostEventKind::Lifecycle,
-                Continuation::Native(NativeContinuation::new(9)),
+                continuation,
                 Value::SharedHeapReference(shared_root),
                 0,
             )
@@ -1009,23 +1073,33 @@ mod tests {
         // active shared mark
         runtime.shared.shared().request_gc();
         runtime
-            .shared
-            .shared()
-            .start_gc()
-            .expect("shared gc start should succeed");
+            .tick_shared_gc()
+            .expect("shared gc should start through runtime roots");
         runtime.shared.queue_shared_root_scan(worker_id);
 
-        assert!(runtime.shared.mark_roots().is_root_scan_pending(worker_id));
+        assert!(
+            runtime
+                .shared
+                .roots()
+                .pending_root_epoch(worker_id)
+                .is_some()
+        );
 
         // one runtime tick should let the owning worker publish its direct roots
         let outcome = runtime
-            .tick(&world_ref)
+            .tick(&world_scope)
             .expect("runtime tick should succeed");
 
         assert_eq!(outcome, TickOutcome::Progressed);
-        assert!(!runtime.shared.mark_roots().is_root_scan_pending(worker_id));
+        assert!(
+            runtime
+                .shared
+                .roots()
+                .pending_root_epoch(worker_id)
+                .is_none()
+        );
         assert_eq!(
-            runtime.shared.mark_roots().roots_snapshot().as_ref(),
+            runtime.shared.roots().roots_snapshot().as_ref(),
             &[shared_root]
         );
     }

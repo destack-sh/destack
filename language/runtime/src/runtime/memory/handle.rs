@@ -4,7 +4,7 @@ use destack_heap::{HeapReference, RootSlot};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 
-use super::RootVisitor;
+use super::RootSink;
 
 /// Runtime-owned handle for one retained local heap reference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -115,7 +115,7 @@ impl HeapHandleTable {
     }
 
     /// Visit immutable roots retained by this handle table.
-    pub fn visit_roots(&self, roots: &mut RootVisitor<'_>) {
+    pub fn visit_roots(&self, roots: &mut RootSink<'_>) {
         for entry in &self.entries {
             if entry.refcount != 0 && !entry.reference.is_null() {
                 roots.push_heap(entry.reference);

@@ -12,7 +12,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{HostEvent, HostEventKind};
 use crate::platform::{PlatformError, ResourceId};
 use crate::runtime::engine::{ContinuationImage, Engine};
-use crate::runtime::memory::RootVisitor;
+use crate::runtime::memory::RootSink;
 use crate::runtime::poller::{PollerEvent, PollerToken};
 use crate::runtime::{DropCounts, ExecutionContext, ExecutionContextId};
 
@@ -207,7 +207,7 @@ impl EventLoop {
     pub(crate) fn visit_roots(
         &mut self,
         engine: &mut Engine,
-        roots: &mut RootVisitor<'_>,
+        roots: &mut RootSink<'_>,
     ) -> RuntimeResult<()> {
         // queued tasks
         for task in &self.tasks {
@@ -323,14 +323,14 @@ impl EventLoop {
 }
 
 /// Visit heap roots embedded in one resume value.
-fn visit_value_roots(value: &engine::Value, roots: &mut RootVisitor<'_>) -> RuntimeResult<()> {
+fn visit_value_roots(value: &engine::Value, roots: &mut RootSink<'_>) -> RuntimeResult<()> {
     // direct heap roots
     match value {
         engine::Value::HeapReference(reference) => {
             roots.push_heap(*reference);
         }
         engine::Value::SharedHeapReference(reference) => {
-            roots.push_shared(*reference);
+            roots.push_shared_heap(*reference);
         }
 
         // non root payloads

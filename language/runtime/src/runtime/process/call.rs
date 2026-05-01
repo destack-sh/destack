@@ -11,7 +11,7 @@ use crate::runtime::policy::BindingDispatchDecision;
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::{EventLoop, MicrotaskId, TaskId};
 use crate::runtime::trace::{EntropySubject, Trace};
-use crate::runtime::world::WorldRef;
+use crate::runtime::world::WorldScope;
 use crate::simulation::Simulation;
 
 use super::{
@@ -32,7 +32,7 @@ pub struct BindingCallContext {
     /// Host state for platform callbacks.
     host: *const Session,
     /// Shared world for replay, time, random, and policy.
-    world: *const WorldRef,
+    world: *const WorldScope,
     /// Engine kind for this binding call.
     engine: BindingEngine,
     /// Currently running task or microtask.
@@ -65,7 +65,7 @@ impl BindingCallContext {
         worker: *const Worker,
         event_loop: *const EventLoop,
         host: *const Session,
-        world: *const WorldRef,
+        world: *const WorldScope,
         engine: BindingEngine,
     ) -> Self {
         let event_loop = unsafe { &*event_loop };
@@ -211,7 +211,7 @@ impl BindingCallContext {
 
     /// Borrow the shared runtime world.
     #[inline]
-    pub(crate) fn world(&self) -> &WorldRef {
+    pub(crate) fn world(&self) -> &WorldScope {
         // safety: pointer is owned by the runtime caller
         unsafe { &*self.world }
     }
