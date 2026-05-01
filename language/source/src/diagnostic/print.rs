@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_core::{Color, pluralize};
 
 use crate::{
-    AnnotateOptions, Applicability, DiagnosticCollection, DiagnosticRenderError,
+    AnnotateOptions, Applicability, DiagnosticCollection, DiagnosticLabel, DiagnosticRenderError,
     DiagnosticSuggestion, DiffOptions, File, FileEdit, FileId, SourceColorizer, annotate_file,
     format_diff,
 };
@@ -105,9 +105,7 @@ where
     // individual diagnostics
     for diagnostic in diagnostics.iter() {
         let primary = diagnostic.primary_label();
-        let file_id = primary.span.file;
-        let file =
-            file_for_id(file_id).ok_or(DiagnosticRenderError::MissingFile { file: file_id })?;
+        let file = file_for_label(file_for_id, primary)?;
         let annotate_options = annotate_options
             .clone()
             .with_highlight_color(diagnostic.severity.color());
@@ -140,10 +138,7 @@ where
             .with_context_lines(1, 1);
         for label in diagnostic.labels() {
             let related = label.to_labeled_span("related location");
-            let secondary_file =
-                file_for_id(related.span.file).ok_or(DiagnosticRenderError::MissingFile {
-                    file: related.span.file,
-                })?;
+            let secondary_file = file_for_label(file_for_id, label)?;
             let secondary_body =
                 annotate_file(&secondary_file, &related, secondary_options.clone())?;
             write_block(&options, &secondary_body);
@@ -215,6 +210,28 @@ where
     Ok(())
 }
 
+fn file_for_label<F>(
+    file_for_id: &F,
+    label: &DiagnosticLabel,
+) -> Result<Arc<File>, DiagnosticRenderError>
+where
+    F: Fn(FileId) -> Option<Arc<File>>,
+{
+    let file_id = label.span.file;
+    let file = file_for_id(file_id).ok_or(DiagnosticRenderError::MissingFile { file: file_id })?;
+    let actual = file.content_id();
+
+    if actual != label.content {
+        return Err(DiagnosticRenderError::ContentMismatch {
+            file: file_id,
+            expected: label.content,
+            actual,
+        });
+    }
+
+    Ok(file)
+}
+
 fn write_suggestion<F>(
     file_for_id: &F,
     options: &PrintOptions,
@@ -239,10 +256,7 @@ where
         .with_context_lines(1, 1);
     for label in &suggestion.labels {
         let labeled_span = label.to_labeled_span("suggested change");
-        let file =
-            file_for_id(labeled_span.span.file).ok_or(DiagnosticRenderError::MissingFile {
-                file: labeled_span.span.file,
-            })?;
+        let file = file_for_label(file_for_id, label)?;
         let body = annotate_file(&file, &labeled_span, suggestion_options.clone())?;
         write_block(options, &body);
     }
@@ -376,6 +390,7 @@ mod tests {
             "let value = 1;".to_string(),
         ));
         let let_span = Span::new(file_id, 0, 3);
+        let content = file.content_id();
         let mut file_edit = FileEdit::new(file_id);
         file_edit.push(Edit::replace(let_span, "const"));
         let suggestion = DiagnosticSuggestion::new(
@@ -384,13 +399,14 @@ mod tests {
             Applicability::Automatic,
         )
         .label(DiagnosticLabel::message(
+            content,
             let_span,
             "replace `let` with `const`",
         ));
         let diagnostic = Diagnostic::warning(
             "W001",
             "variable is never reassigned",
-            DiagnosticLabel::message(let_span, "use const"),
+            DiagnosticLabel::message(content, let_span, "use const"),
         )
         .suggestion(suggestion);
         let diagnostics = DiagnosticCollection::from_diagnostics(vec![diagnostic]);

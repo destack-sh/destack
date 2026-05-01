@@ -117,19 +117,30 @@ impl FileContentId {
 
     /// Build one content id from one exact source content payload.
     pub fn for_content(content: &FileContent) -> Self {
+        match content {
+            FileContent::Text { content } => Self::for_text(content),
+            FileContent::Binary { content } => Self::for_binary(content),
+        }
+    }
+
+    /// Build one content id from one exact text payload.
+    pub fn for_text(content: &str) -> Self {
         let mut hasher = StableHasher::new();
         hasher.update_len_prefixed(FILE_CONTENT_ID_DOMAIN);
 
-        match content {
-            FileContent::Text { content } => {
-                hasher.update(&[0]);
-                hasher.update_len_prefixed(content.as_bytes());
-            }
-            FileContent::Binary { content } => {
-                hasher.update(&[1]);
-                hasher.update_len_prefixed(content);
-            }
-        }
+        hasher.update(&[0]);
+        hasher.update_len_prefixed(content.as_bytes());
+
+        Self::new(hasher.finish_u128())
+    }
+
+    /// Build one content id from one exact binary payload.
+    pub fn for_binary(content: &[u8]) -> Self {
+        let mut hasher = StableHasher::new();
+        hasher.update_len_prefixed(FILE_CONTENT_ID_DOMAIN);
+
+        hasher.update(&[1]);
+        hasher.update_len_prefixed(content);
 
         Self::new(hasher.finish_u128())
     }
@@ -163,6 +174,11 @@ impl FileContentEntry {
     /// Return the raw payload.
     pub fn payload(&self) -> &FileContent {
         &self.payload
+    }
+
+    /// Return the exact content id for this payload.
+    pub fn content_id(&self) -> FileContentId {
+        FileContentId::for_content(&self.payload)
     }
 
     /// Return shared line start offsets when present.
@@ -287,6 +303,11 @@ impl File {
             FileContent::Text { content } => content,
             _ => "",
         }
+    }
+
+    /// Return the exact content id for this file image.
+    pub fn content_id(&self) -> FileContentId {
+        self.content.content_id()
     }
 
     /// Return shared line start offsets when present.

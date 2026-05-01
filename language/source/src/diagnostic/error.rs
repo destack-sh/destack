@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-use crate::FileId;
+use crate::{FileContentId, FileId};
 
 /// Error produced while annotating one source span.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -101,6 +101,15 @@ pub enum DiagnosticRenderError {
         /// The missing file.
         file: FileId,
     },
+    /// A diagnostic label references stale or different file content.
+    ContentMismatch {
+        /// The file carrying the rendered content.
+        file: FileId,
+        /// The content expected by the diagnostic label.
+        expected: FileContentId,
+        /// The content carried by the current file.
+        actual: FileContentId,
+    },
     /// One source annotation could not be rendered.
     Annotate {
         /// The annotation error.
@@ -146,6 +155,14 @@ impl Display for DiagnosticRenderError {
             Self::MissingFile { file } => {
                 write!(formatter, "missing diagnostic file {file:?}")
             }
+            Self::ContentMismatch {
+                file,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "diagnostic references content {expected} but file {file:?} has content {actual}"
+            ),
             Self::Annotate { error } => Display::fmt(error, formatter),
             Self::EditFileMismatch { file, edit_file } => write!(
                 formatter,
