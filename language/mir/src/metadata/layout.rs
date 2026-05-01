@@ -8,7 +8,7 @@ use destack_core::StringId;
 use crate::tree::compute_type_layout;
 use crate::{
     AddressSpace, Global, LocalNodeId, PrimitiveTypeIndex, ReferenceKind, Tree, Type, TypeLineage,
-    TypeReference, UnionLayout, slice_header_types,
+    TypeReference, UnionLayout, UnionPayloadKind, slice_header_types,
 };
 
 /// Heap-reference metadata for one runtime payload.
@@ -22,6 +22,18 @@ pub enum ReferenceMap {
         local_offsets: Box<[u32]>,
         /// Byte offsets of encoded shared heap references.
         shared_offsets: Box<[u32]>,
+    },
+    /// Payload stores one nested map at a byte offset.
+    Offset {
+        /// The byte offset of the nested payload.
+        byte_offset: u32,
+        /// The nested reference map.
+        map: Box<ReferenceMap>,
+    },
+    /// Payload stores multiple nested maps.
+    Group {
+        /// The nested reference maps.
+        maps: Box<[ReferenceMap]>,
     },
     /// Payload stores repeated elements with one nested reference map.
     Repeat {
@@ -70,11 +82,9 @@ impl ReferenceMap {
         match self {
             Self::None => false,
             Self::Direct { local_offsets, .. } => !local_offsets.is_empty(),
-            Self::Repeat {
-                count,
-                element,
-                ..
-            } => *count > 0 && element.has_local_reference(),
+            Self::Offset { map, .. } => map.has_local_reference(),
+            Self::Group { maps } => maps.iter().any(Self::has_local_reference),
+            Self::Repeat { count, element, .. } => *count > 0 && element.has_local_reference(),
             Self::Tagged { variants, .. } => variants
                 .iter()
                 .any(|variant| variant.map.has_local_reference()),
@@ -86,14 +96,25 @@ impl ReferenceMap {
         match self {
             Self::None => false,
             Self::Direct { shared_offsets, .. } => !shared_offsets.is_empty(),
-            Self::Repeat {
-                count,
-                element,
-                ..
-            } => *count > 0 && element.has_shared_reference(),
+            Self::Offset { map, .. } => map.has_shared_reference(),
+            Self::Group { maps } => maps.iter().any(Self::has_shared_reference),
+            Self::Repeat { count, element, .. } => *count > 0 && element.has_shared_reference(),
             Self::Tagged { variants, .. } => variants
                 .iter()
                 .any(|variant| variant.map.has_shared_reference()),
+        }
+    }
+
+    /// Report whether this map requires reading payload tags while scanning.
+    pub fn has_tagged_reference(&self) -> bool {
+        match self {
+            Self::None | Self::Direct { .. } => false,
+            Self::Offset { map, .. } => map.has_tagged_reference(),
+            Self::Group { maps } => maps.iter().any(Self::has_tagged_reference),
+            Self::Repeat { element, .. } => element.has_tagged_reference(),
+            Self::Tagged { variants, .. } => {
+                variants.iter().any(|variant| variant.map.has_reference())
+            }
         }
     }
 }
@@ -602,69 +623,38 @@ impl LayoutMetadataCompletion<'_> {
         &mut self,
         type_id: LocalNodeId<Type>,
     ) -> LayoutMetadataResult<ReferenceMap> {
-        if let Type::Array {
-            element, length, ..
-        } = self.tree.get(type_id)
-        {
-            let Some(element) = concrete_type(*element) else {
-                return Ok(ReferenceMap::empty());
-            };
-
-            let element_layout = compute_type_layout(self.tree, element, self.tree.pointer_bytes());
-            let stride = align_up(element_layout.size, element_layout.alignment);
-            let count =
-                u32::try_from(*length).map_err(|_| LayoutMetadataError::ArrayLengthOverflow)?;
-            let mut local_offsets = Vec::new();
-            let mut shared_offsets = Vec::new();
-            self.append_reference_map_offsets(element, 0, &mut local_offsets, &mut shared_offsets)?;
-
-            if local_offsets.is_empty() && shared_offsets.is_empty() {
-                return Ok(ReferenceMap::empty());
-            }
-
-            return Ok(ReferenceMap::Repeat {
-                count,
-                stride,
-                local_offsets: local_offsets.into_boxed_slice(),
-                shared_offsets: shared_offsets.into_boxed_slice(),
-            });
-        }
-
-        let mut local_offsets = Vec::new();
-        let mut shared_offsets = Vec::new();
-        self.append_reference_map_offsets(type_id, 0, &mut local_offsets, &mut shared_offsets)?;
-
-        if local_offsets.is_empty() && shared_offsets.is_empty() {
-            Ok(ReferenceMap::empty())
-        } else {
-            Ok(ReferenceMap::Direct {
-                local_offsets: local_offsets.into_boxed_slice(),
-                shared_offsets: shared_offsets.into_boxed_slice(),
-            })
-        }
+        self.build_reference_map_at(type_id, 0)
     }
 
-    /// Append heap-reference offsets for one concrete type.
-    fn append_reference_map_offsets(
+    /// Build the reference map for one concrete type at one byte offset.
+    fn build_reference_map_at(
         &mut self,
         type_id: LocalNodeId<Type>,
         base_offset: u32,
-        local_offsets: &mut Vec<u32>,
-        shared_offsets: &mut Vec<u32>,
-    ) -> LayoutMetadataResult<()> {
-        match self.tree.get(type_id) {
+    ) -> LayoutMetadataResult<ReferenceMap> {
+        if let Some(reference_map) = self.build_union_reference_map(type_id, base_offset)? {
+            return Ok(reference_map);
+        }
+
+        match self.tree.get(type_id).clone() {
             Type::Reference {
                 kind: ReferenceKind::Managed | ReferenceKind::Owned | ReferenceKind::Borrowed,
                 address_space,
                 ..
             } => {
-                match address_space {
-                    AddressSpace::Local => local_offsets.push(base_offset),
-                    AddressSpace::Shared => shared_offsets.push(base_offset),
-                    _ => {}
-                }
+                let local_offsets = match address_space {
+                    AddressSpace::Local => vec![base_offset].into_boxed_slice(),
+                    _ => Box::default(),
+                };
+                let shared_offsets = match address_space {
+                    AddressSpace::Shared => vec![base_offset].into_boxed_slice(),
+                    _ => Box::default(),
+                };
 
-                Ok(())
+                Ok(ReferenceMap::Direct {
+                    local_offsets,
+                    shared_offsets,
+                })
             }
             Type::Struct { .. }
             | Type::Tuple { .. }
@@ -677,87 +667,118 @@ impl LayoutMetadataCompletion<'_> {
                     .layout
                     .layout_id(type_id)
                     .ok_or(LayoutMetadataError::MissingLayoutId { type_id })?;
-                let layout = self
+                let fields = self
                     .tree
                     .metadata
                     .layout
                     .layout_table
                     .layout(layout_id)
+                    .fields
                     .clone();
+                let mut maps = Vec::new();
 
-                for field in layout.fields {
-                    let field_offset = base_offset.checked_add(field.offset).ok_or(
-                        LayoutMetadataError::Overflow {
-                            context: "layout trace field offset",
-                        },
-                    )?;
+                for field in fields {
+                    let field_offset = base_offset + field.offset;
+                    let reference_map = self.build_reference_map_at(field.ty, field_offset)?;
 
-                    self.append_reference_map_offsets(
-                        field.ty,
-                        field_offset,
-                        local_offsets,
-                        shared_offsets,
-                    )?;
+                    if reference_map.has_reference() {
+                        maps.push(reference_map);
+                    }
                 }
 
-                Ok(())
+                Ok(group_reference_map(maps))
             }
             Type::Array {
                 element, length, ..
             } => {
-                let Some(element) = concrete_type(*element) else {
-                    return Ok(());
+                let Some(element) = concrete_type(element) else {
+                    return Ok(ReferenceMap::None);
                 };
                 let element_layout =
                     compute_type_layout(self.tree, element, self.tree.pointer_bytes());
                 let stride = align_up(element_layout.size, element_layout.alignment);
                 let count =
-                    u32::try_from(*length).map_err(|_| LayoutMetadataError::ArrayLengthOverflow)?;
+                    u32::try_from(length).map_err(|_| LayoutMetadataError::ArrayLengthOverflow)?;
+                let element = self.build_reference_map_at(element, 0)?;
 
-                let mut element_local_offsets = Vec::new();
-                let mut element_shared_offsets = Vec::new();
-                self.append_reference_map_offsets(
-                    element,
-                    0,
-                    &mut element_local_offsets,
-                    &mut element_shared_offsets,
-                )?;
-
-                if element_local_offsets.is_empty() && element_shared_offsets.is_empty() {
-                    return Ok(());
+                if !element.has_reference() || count == 0 {
+                    return Ok(ReferenceMap::None);
                 }
 
-                for index in 0..count {
-                    let delta = stride
-                        .checked_mul(index)
-                        .ok_or(LayoutMetadataError::Overflow {
-                            context: "layout trace array stride",
-                        })?;
+                let reference_map = ReferenceMap::Repeat {
+                    count,
+                    stride,
+                    element: Box::new(element),
+                };
 
-                    for element_offset in &element_local_offsets {
-                        let offset = base_offset
-                            .checked_add(delta)
-                            .and_then(|value| value.checked_add(*element_offset))
-                            .ok_or(LayoutMetadataError::Overflow {
-                                context: "layout trace array offset",
-                            })?;
-                        local_offsets.push(offset);
-                    }
-
-                    for element_offset in &element_shared_offsets {
-                        let offset = base_offset
-                            .checked_add(delta)
-                            .and_then(|value| value.checked_add(*element_offset))
-                            .ok_or(LayoutMetadataError::Overflow {
-                                context: "layout trace array offset",
-                            })?;
-                        shared_offsets.push(offset);
-                    }
-                }
-
-                Ok(())
+                Ok(offset_reference_map(base_offset, reference_map))
             }
-            _ => Ok(()),
+            _ => Ok(ReferenceMap::None),
+        }
+    }
+
+    /// Build a tagged reference map for one union type when available.
+    fn build_union_reference_map(
+        &mut self,
+        type_id: LocalNodeId<Type>,
+        base_offset: u32,
+    ) -> LayoutMetadataResult<Option<ReferenceMap>> {
+        let Some(union_layout) = self.tree.metadata.layout.union_layout(type_id).cloned() else {
+            return Ok(None);
+        };
+        let layout_id = self
+            .tree
+            .metadata
+            .layout
+            .layout_id(type_id)
+            .ok_or(LayoutMetadataError::MissingLayoutId { type_id })?;
+        let layout = self.tree.metadata.layout.layout_table.layout(layout_id);
+        let LayoutKind::Union {
+            tag_offset,
+            payload_offset,
+            ..
+        } = layout.kind
+        else {
+            return Ok(None);
+        };
+
+        match union_layout.payload_kind {
+            UnionPayloadKind::Inline => {
+                let tag_layout = compute_type_layout(
+                    self.tree,
+                    union_layout.tag_type,
+                    self.tree.pointer_bytes(),
+                );
+                let mut variants = Vec::new();
+
+                for (tag, element) in union_layout.element_types.iter().copied().enumerate() {
+                    let map = self.build_reference_map_at(element, 0)?;
+                    if map.has_reference() {
+                        variants.push(ReferenceVariant {
+                            tag: tag as u64,
+                            payload_offset,
+                            map,
+                        });
+                    }
+                }
+
+                let reference_map = ReferenceMap::Tagged {
+                    tag_offset,
+                    tag_bytes: tag_layout.size as u8,
+                    variants: variants.into_boxed_slice(),
+                };
+                if !reference_map.has_reference() {
+                    return Ok(Some(ReferenceMap::None));
+                }
+
+                Ok(Some(offset_reference_map(base_offset, reference_map)))
+            }
+            UnionPayloadKind::Boxed => {
+                let reference_map =
+                    self.build_reference_map_at(union_layout.payload_type, base_offset)?;
+
+                Ok(Some(reference_map))
+            }
         }
     }
 }
@@ -781,6 +802,29 @@ fn align_up(value: u32, alignment: u32) -> u32 {
         value
     } else {
         value + (alignment - misalignment)
+    }
+}
+
+/// Return one normalized offset reference map.
+fn offset_reference_map(byte_offset: u32, map: ReferenceMap) -> ReferenceMap {
+    if byte_offset == 0 || !map.has_reference() {
+        return map;
+    }
+
+    ReferenceMap::Offset {
+        byte_offset,
+        map: Box::new(map),
+    }
+}
+
+/// Return one normalized grouped reference map.
+fn group_reference_map(maps: Vec<ReferenceMap>) -> ReferenceMap {
+    match maps.len() {
+        0 => ReferenceMap::None,
+        1 => maps.into_iter().next().unwrap_or(ReferenceMap::None),
+        _ => ReferenceMap::Group {
+            maps: maps.into_boxed_slice(),
+        },
     }
 }
 
