@@ -479,9 +479,10 @@ impl AbiRenderer<'_> {
             output.push_str(
             "    fn decode_with_context(context: &vm::ExternalReadContext<'_, '_>, value: vm::Word) -> RuntimeResult<Self> {\n",
         );
-            output.push_str(
-            "        let value_ref = context.value_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;\n",
-        );
+            output.push_str(&format!(
+            "        let value_ref = context.value_ref(value, \"{}\").map_err(|error| RuntimeError::from(error).boxed())?;\n",
+            union_metadata_name
+        ));
             output.push_str(
             "        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)\n",
         );
@@ -713,9 +714,11 @@ impl AbiRenderer<'_> {
                 output.push_str(
                 "    fn decode_with_context(context: &vm::ExternalReadContext<'_, '_>, value: vm::Word) -> RuntimeResult<Self> {\n",
             );
-                output.push_str(
-                "        let value_ref = context.value_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;\n",
-            );
+                let metadata_name = codegen.named_type_metadata_name(codegen.module(), struct_name);
+                output.push_str(&format!(
+                "        let value_ref = context.value_ref(value, \"{}\").map_err(|error| RuntimeError::from(error).boxed())?;\n",
+                metadata_name
+            ));
                 output.push_str(
                 "        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)\n",
             );
@@ -868,9 +871,11 @@ impl AbiRenderer<'_> {
                 output.push_str(
                 "    fn decode_with_context(context: &vm::ExternalReadContext<'_, '_>, value: vm::Word) -> RuntimeResult<Self> {\n",
             );
-                output.push_str(
-                "        let value_ref = context.value_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;\n",
-            );
+                let metadata_name = codegen.named_type_metadata_name(codegen.module(), struct_name);
+                output.push_str(&format!(
+                "        let value_ref = context.value_ref(value, \"{}\").map_err(|error| RuntimeError::from(error).boxed())?;\n",
+                metadata_name
+            ));
                 output.push_str(
                 "        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)\n",
             );

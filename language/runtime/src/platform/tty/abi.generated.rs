@@ -416,7 +416,7 @@ impl VmAggregateCodec for PtyPair {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "tty::PtyPair")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -526,7 +526,7 @@ impl VmAggregateCodec for TtyMode {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "tty::TtyMode")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -647,7 +647,7 @@ impl VmAggregateCodec for TtySize {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "tty::TtySize")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -791,7 +791,7 @@ impl VmAggregateCodec for TtyTermiosAttributesAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "tty::TtyTermiosAttributes")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }

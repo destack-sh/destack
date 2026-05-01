@@ -1964,7 +1964,7 @@ impl VmAggregateCodec for DirentNextAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::DirentNext")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -2152,7 +2152,7 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::OsPath")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -2348,7 +2348,7 @@ impl VmAggregateCodec for WatchEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::WatchEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -2681,7 +2681,7 @@ impl VmAggregateCodec for DirentAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::Dirent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -2818,7 +2818,7 @@ impl VmAggregateCodec for DirentNextEndAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::DirentNextEnd")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -2943,7 +2943,7 @@ impl VmAggregateCodec for DirentNextEntryAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::DirentNextEntry")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3064,7 +3064,7 @@ impl VmAggregateCodec for OpenOptions {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::OpenOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3194,7 +3194,7 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::OsPathBytes")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3335,7 +3335,7 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::OsPathUtf16")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3453,7 +3453,7 @@ impl VmAggregateCodec for SpliceCursor {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::SpliceCursor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3571,7 +3571,7 @@ impl VmAggregateCodec for Stat {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::Stat")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3771,7 +3771,7 @@ impl VmAggregateCodec for StatFs {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::StatFs")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3959,7 +3959,7 @@ impl VmAggregateCodec for Statx {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::Statx")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4191,7 +4191,7 @@ impl VmAggregateCodec for WatchBatchAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::WatchBatch")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4336,7 +4336,7 @@ impl VmAggregateCodec for WatchCreateEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::WatchCreateEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4470,7 +4470,7 @@ impl VmAggregateCodec for WatchEventMetadata {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::WatchEventMetadata")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4585,7 +4585,7 @@ impl VmAggregateCodec for WatchMetadataEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::WatchMetadataEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4744,7 +4744,7 @@ impl VmAggregateCodec for WatchModifyEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::WatchModifyEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4883,7 +4883,7 @@ impl VmAggregateCodec for WatchOptions {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::WatchOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5011,7 +5011,7 @@ impl VmAggregateCodec for WatchOverflowEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::WatchOverflowEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5157,7 +5157,7 @@ impl VmAggregateCodec for WatchRemoveEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::WatchRemoveEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5318,7 +5318,7 @@ impl VmAggregateCodec for WatchRenameEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "fs::WatchRenameEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }

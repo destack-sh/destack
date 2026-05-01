@@ -2380,7 +2380,7 @@ impl VmAggregateCodec for DisplayMonitorEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayMonitorEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -2707,7 +2707,7 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::OsPath")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -2949,7 +2949,7 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4131,7 +4131,7 @@ impl VmAggregateCodec for WindowModeOptionsAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowModeOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4374,7 +4374,7 @@ impl VmAggregateCodec for DisplayAddedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayAddedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4545,7 +4545,7 @@ impl VmAggregateCodec for DisplayAddedPayloadAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayAddedPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4686,7 +4686,7 @@ impl VmAggregateCodec for DisplayBackendDescriptorAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayBackendDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4884,7 +4884,7 @@ impl VmAggregateCodec for DisplayBeginFrameEvent {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayBeginFrameEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5061,7 +5061,7 @@ impl VmAggregateCodec for DisplayBeginFrameFilter {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayBeginFrameFilter")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5164,7 +5164,7 @@ impl VmAggregateCodec for DisplayBeginFrameOpenOptions {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayBeginFrameOpenOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5295,7 +5295,7 @@ impl VmAggregateCodec for DisplayColorState {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayColorState")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5464,7 +5464,7 @@ impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5944,7 +5944,7 @@ impl VmAggregateCodec for DisplayDescriptorChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayDescriptorChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -6132,7 +6132,7 @@ impl VmAggregateCodec for DisplayDescriptorChangedPayloadAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayDescriptorChangedPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -6324,7 +6324,7 @@ impl VmAggregateCodec for DisplayDragBeginOptionsAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayDragBeginOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -6588,7 +6588,7 @@ impl VmAggregateCodec for DisplayDragItemDescriptorAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayDragItemDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -6767,7 +6767,7 @@ impl VmAggregateCodec for DisplayDragPosition {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayDragPosition")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -6893,7 +6893,7 @@ impl VmAggregateCodec for DisplayDragPreviewAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayDragPreview")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -7093,7 +7093,7 @@ impl VmAggregateCodec for DisplayDragSourceItemAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayDragSourceItem")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -7319,7 +7319,7 @@ impl VmAggregateCodec for DisplayDragTransferAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayDragTransfer")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -7571,7 +7571,7 @@ impl VmAggregateCodec for DisplayEventQueueOptions {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayEventQueueOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -7699,7 +7699,7 @@ impl VmAggregateCodec for DisplayGammaRampAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayGammaRamp")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -7838,7 +7838,7 @@ impl VmAggregateCodec for DisplayMode {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayMode")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -7984,7 +7984,7 @@ impl VmAggregateCodec for DisplayModeChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayModeChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -8148,7 +8148,7 @@ impl VmAggregateCodec for DisplayModeChangedPayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayModeChangedPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -8274,7 +8274,7 @@ impl VmAggregateCodec for DisplayMonitorEventFilterAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayMonitorEventFilter")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -8451,7 +8451,7 @@ impl VmAggregateCodec for DisplayMonitorEventMetadataAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayMonitorEventMetadata")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -8652,7 +8652,7 @@ impl VmAggregateCodec for DisplayMonitorEventOpenOptionsAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayMonitorEventOpenOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -8835,7 +8835,7 @@ impl VmAggregateCodec for DisplayMonitorListRequest {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayMonitorListRequest")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -8941,7 +8941,7 @@ impl VmAggregateCodec for DisplayMonitorOpenOptions {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayMonitorOpenOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -9069,7 +9069,7 @@ impl VmAggregateCodec for DisplayPrimaryChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayPrimaryChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -9245,7 +9245,7 @@ impl VmAggregateCodec for DisplayPrimaryPayloadAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayPrimaryPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -9417,7 +9417,7 @@ impl VmAggregateCodec for DisplayRemovedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayRemovedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -9593,7 +9593,7 @@ impl VmAggregateCodec for DisplayRemovedPayloadAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::DisplayRemovedPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -9749,7 +9749,7 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::OsPathBytes")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -9891,7 +9891,7 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::OsPathUtf16")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -10012,7 +10012,7 @@ impl VmAggregateCodec for WindowAspectRatio {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowAspectRatio")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -10135,7 +10135,7 @@ impl VmAggregateCodec for WindowAspectRatioChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowAspectRatioChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -10287,7 +10287,7 @@ impl VmAggregateCodec for WindowAspectRatioPayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowAspectRatioPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -10417,7 +10417,7 @@ impl VmAggregateCodec for WindowBorderlessModeOptionsAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowBorderlessModeOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -10576,7 +10576,7 @@ impl VmAggregateCodec for WindowChromeChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowChromeChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -10719,7 +10719,7 @@ impl VmAggregateCodec for WindowChromePayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowChromePayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -10849,7 +10849,7 @@ impl VmAggregateCodec for WindowCloseRequestedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowCloseRequestedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -10998,7 +10998,7 @@ impl VmAggregateCodec for WindowContentRectChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowContentRectChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -11150,7 +11150,7 @@ impl VmAggregateCodec for WindowContentRectPayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowContentRectPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -11280,7 +11280,7 @@ impl VmAggregateCodec for WindowCreatedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowCreatedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -11457,7 +11457,7 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -11859,7 +11859,7 @@ impl VmAggregateCodec for WindowDestroyedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowDestroyedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -12008,7 +12008,7 @@ impl VmAggregateCodec for WindowDisplayChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowDisplayChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -12152,7 +12152,7 @@ impl VmAggregateCodec for WindowDisplayPayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowDisplayPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -12286,7 +12286,7 @@ impl VmAggregateCodec for WindowDragEnteredEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowDragEnteredEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -12452,7 +12452,7 @@ impl VmAggregateCodec for WindowDragExitedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowDragExitedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -12618,7 +12618,7 @@ impl VmAggregateCodec for WindowDragUpdatedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowDragUpdatedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -12784,7 +12784,7 @@ impl VmAggregateCodec for WindowDroppedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowDroppedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -12927,7 +12927,7 @@ impl VmAggregateCodec for WindowEventFilter {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowEventFilter")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -13043,7 +13043,7 @@ impl VmAggregateCodec for WindowEventMetadata {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowEventMetadata")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -13175,7 +13175,7 @@ impl VmAggregateCodec for WindowEventOpenOptions {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowEventOpenOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -13326,7 +13326,7 @@ impl VmAggregateCodec for WindowExclusiveFullscreenModeOptionsAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowExclusiveFullscreenModeOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -13507,7 +13507,7 @@ impl VmAggregateCodec for WindowFocusChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowFocusChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -13648,7 +13648,7 @@ impl VmAggregateCodec for WindowFocusPayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowFocusPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -13772,7 +13772,7 @@ impl VmAggregateCodec for WindowFramebufferSizeChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowFramebufferSizeChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -13928,7 +13928,7 @@ impl VmAggregateCodec for WindowFramebufferSizePayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowFramebufferSizePayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -14062,7 +14062,7 @@ impl VmAggregateCodec for WindowIconImageAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowIconImage")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -14241,7 +14241,7 @@ impl VmAggregateCodec for WindowIconSetAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowIconSet")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -14359,7 +14359,7 @@ impl VmAggregateCodec for WindowLogicalRect {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowLogicalRect")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -14470,7 +14470,7 @@ impl VmAggregateCodec for WindowLogicalSize {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowLogicalSize")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -14592,7 +14592,7 @@ impl VmAggregateCodec for WindowModalChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowModalChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -14733,7 +14733,7 @@ impl VmAggregateCodec for WindowModalPayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowModalPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -14857,7 +14857,7 @@ impl VmAggregateCodec for WindowModeChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowModeChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -15019,7 +15019,7 @@ impl VmAggregateCodec for WindowModePayloadAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowModePayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -15191,7 +15191,7 @@ impl VmAggregateCodec for WindowMousePassthroughChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowMousePassthroughChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -15347,7 +15347,7 @@ impl VmAggregateCodec for WindowMousePassthroughPayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowMousePassthroughPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -15475,7 +15475,7 @@ impl VmAggregateCodec for WindowOcclusionChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowOcclusionChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -15621,7 +15621,7 @@ impl VmAggregateCodec for WindowOcclusionPayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowOcclusionPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -15753,7 +15753,7 @@ impl VmAggregateCodec for WindowOpacityChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowOpacityChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -15897,7 +15897,7 @@ impl VmAggregateCodec for WindowOpacityPayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowOpacityPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -16065,7 +16065,7 @@ impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -16643,7 +16643,7 @@ impl VmAggregateCodec for WindowParentChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowParentChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -16786,7 +16786,7 @@ impl VmAggregateCodec for WindowParentPayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowParentPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -16897,7 +16897,7 @@ impl VmAggregateCodec for WindowPhysicalSize {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowPhysicalSize")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -16996,7 +16996,7 @@ impl VmAggregateCodec for WindowPosition {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowPosition")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -17116,7 +17116,7 @@ impl VmAggregateCodec for WindowPositionChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowPositionChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -17262,7 +17262,7 @@ impl VmAggregateCodec for WindowPositionPayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowPositionPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -17394,7 +17394,7 @@ impl VmAggregateCodec for WindowRenderStateChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowRenderStateChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -17546,7 +17546,7 @@ impl VmAggregateCodec for WindowRenderStatePayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowRenderStatePayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -17678,7 +17678,7 @@ impl VmAggregateCodec for WindowSafeAreaChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowSafeAreaChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -17828,7 +17828,7 @@ impl VmAggregateCodec for WindowSafeAreaInsets {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowSafeAreaInsets")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -17941,7 +17941,7 @@ impl VmAggregateCodec for WindowSafeAreaPayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowSafeAreaPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -18075,7 +18075,7 @@ impl VmAggregateCodec for WindowScaleFactorChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowScaleFactorChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -18227,7 +18227,7 @@ impl VmAggregateCodec for WindowScaleFactorPayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowScaleFactorPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -18355,7 +18355,7 @@ impl VmAggregateCodec for WindowSizeChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowSizeChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -18496,7 +18496,7 @@ impl VmAggregateCodec for WindowSizeConstraints {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowSizeConstraints")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -18607,7 +18607,7 @@ impl VmAggregateCodec for WindowSizePayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowSizePayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -18784,7 +18784,7 @@ impl VmAggregateCodec for WindowState {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowState")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -19132,7 +19132,7 @@ impl VmAggregateCodec for WindowTaskbarVisibilityChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowTaskbarVisibilityChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -19288,7 +19288,7 @@ impl VmAggregateCodec for WindowTaskbarVisibilityPayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowTaskbarVisibilityPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -19414,7 +19414,7 @@ impl VmAggregateCodec for WindowThemeChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowThemeChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -19555,7 +19555,7 @@ impl VmAggregateCodec for WindowThemePayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowThemePayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -19679,7 +19679,7 @@ impl VmAggregateCodec for WindowTransientChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowTransientChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -19825,7 +19825,7 @@ impl VmAggregateCodec for WindowTransientPayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowTransientPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -19959,7 +19959,7 @@ impl VmAggregateCodec for WindowVisibilityChangedEventAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowVisibilityChangedEvent")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -20108,7 +20108,7 @@ impl VmAggregateCodec for WindowVisibilityPayload {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowVisibilityPayload")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -20236,7 +20236,7 @@ impl VmAggregateCodec for WindowWindowedModeOptionsAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "display::WindowWindowedModeOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }

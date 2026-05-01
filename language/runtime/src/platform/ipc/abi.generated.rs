@@ -203,7 +203,7 @@ impl VmAggregateCodec for MessageQueueReceive {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "ipc::MessageQueueReceive")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -302,7 +302,7 @@ impl VmAggregateCodec for PipePair {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "ipc::PipePair")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -405,7 +405,7 @@ impl VmAggregateCodec for SharedMemoryMapping {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "ipc::SharedMemoryMapping")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -506,7 +506,7 @@ impl VmAggregateCodec for UnixPeerCredentials {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "ipc::UnixPeerCredentials")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -636,7 +636,7 @@ impl VmAggregateCodec for UnixReceiveAncillaryAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "ipc::UnixReceiveAncillary")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }

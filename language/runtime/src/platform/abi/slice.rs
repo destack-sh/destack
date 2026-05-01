@@ -98,7 +98,7 @@ impl<T> VmSlice<T> {
         name: &str,
         expected: &str,
     ) -> RuntimeResult<Self> {
-        let value_ref = context.value_ref(value).map_err(|_error| {
+        let value_ref = context.value_ref(value, "Slice").map_err(|_error| {
             RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
         })?;
 
@@ -171,7 +171,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
 
         let data = self.data.as_heap_reference();
         let values = context
-            .heap_values(data)
+            .heap_words(data, self.len as usize)
             .map_err(|error| RuntimeError::from(error).boxed())?;
 
         if values.len() != self.len as usize {
@@ -223,7 +223,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
         }
 
         let data = context
-            .allocate_heap_value_slots(len)
+            .allocate_heap_words(len)
             .map_err(|error| RuntimeError::from(error).boxed())?;
 
         Ok(VmSliceBuilder {
@@ -267,7 +267,7 @@ impl<T: VmCollectionElement> VmSliceBuilder<T> {
         let value = T::encode_with_context(value, context)?;
         let data = self.data.as_heap_reference();
         context
-            .write_heap_value(data, self.written, value)
+            .write_heap_word(data, self.written, value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
         self.written += 1;
 
@@ -350,32 +350,12 @@ impl<T: VmCollectionElement> VmSlice<T> {
             return Ok(());
         }
 
-        // validate the packed heap value length first
-        let expected_byte_len = (self.len as usize)
-            .checked_mul(vm::Word::BYTE_LEN)
-            .ok_or_else(|| {
-                RuntimeError::from(PlatformError::invalid_argument_value(
-                    "slice",
-                    "slice byte length overflow",
-                ))
-                .boxed()
-            })?;
         let data = self.data.as_heap_reference();
         let values = context
-            .heap_values(data)
+            .heap_words(data, self.len as usize)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        let byte_len = values
-            .len()
-            .checked_mul(vm::Word::BYTE_LEN)
-            .ok_or_else(|| {
-                RuntimeError::from(PlatformError::invalid_argument_value(
-                    "slice",
-                    "slice byte length overflow",
-                ))
-                .boxed()
-            })?;
 
-        if byte_len != expected_byte_len || values.len() != self.len as usize {
+        if values.len() != self.len as usize {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "slice",
                 "slice length mismatch",
@@ -386,7 +366,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
         // decode each packed value lane directly
         for index in 0..self.len as usize {
             let value = context
-                .heap_value_at(data, index)
+                .heap_word(data, index)
                 .map_err(|error| RuntimeError::from(error).boxed())?;
             let value = T::decode_with_context(context, value)?;
             visit(context, value)?;
@@ -505,7 +485,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
         for (index, value) in values.iter().copied().enumerate() {
             let encoded = T::encode_with_context(value, context)?;
             context
-                .write_heap_value(data, index, encoded)
+                .write_heap_word(data, index, encoded)
                 .map_err(|error| RuntimeError::from(error).boxed())?;
         }
 

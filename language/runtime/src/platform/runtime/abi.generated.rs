@@ -1755,7 +1755,7 @@ impl VmAggregateCodec for WorkerCreateOptionsAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::WorkerCreateOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -1921,7 +1921,7 @@ impl VmAggregateCodec for WorkerDescriptorAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::WorkerDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -2140,7 +2140,7 @@ impl VmAggregateCodec for WorkerFilterAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::WorkerFilter")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -2348,7 +2348,7 @@ impl VmAggregateCodec for BranchDescriptorAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::BranchDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -2535,7 +2535,7 @@ impl VmAggregateCodec for BranchFilterAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::BranchFilter")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -2696,7 +2696,7 @@ impl VmAggregateCodec for CheckpointDescriptorAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::CheckpointDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -2884,7 +2884,7 @@ impl VmAggregateCodec for CheckpointFilterAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::CheckpointFilter")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3052,7 +3052,7 @@ impl VmAggregateCodec for EngineDescriptor {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::EngineDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3188,7 +3188,7 @@ impl VmAggregateCodec for EventLoopDescriptor {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::EventLoopDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3314,7 +3314,7 @@ impl VmAggregateCodec for HeapDescriptor {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::HeapDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3422,7 +3422,7 @@ impl VmAggregateCodec for ImageDescriptor {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::ImageDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3528,7 +3528,7 @@ impl VmAggregateCodec for ImageFilter {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::ImageFilter")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3633,7 +3633,7 @@ impl VmAggregateCodec for ObservationOptions {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::ObservationOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3789,7 +3789,7 @@ impl VmAggregateCodec for ObservationRecordAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::ObservationRecord")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3963,7 +3963,7 @@ impl VmAggregateCodec for ResourceDescriptorAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::ResourceDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4141,7 +4141,7 @@ impl VmAggregateCodec for ResourceFilterAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::ResourceFilter")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4312,7 +4312,7 @@ impl VmAggregateCodec for RevisionDescriptor {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::RevisionDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4459,7 +4459,7 @@ impl VmAggregateCodec for RevisionFilter {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::RevisionFilter")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4574,7 +4574,7 @@ impl VmAggregateCodec for RuntimeCreateOptionsAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::RuntimeCreateOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4738,7 +4738,7 @@ impl VmAggregateCodec for RuntimeDescriptorAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::RuntimeDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4948,7 +4948,7 @@ impl VmAggregateCodec for RuntimeFilterAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::RuntimeFilter")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5105,7 +5105,7 @@ impl VmAggregateCodec for RuntimeLabelAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::RuntimeLabel")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5247,7 +5247,7 @@ impl VmAggregateCodec for RuntimeLabelSelectorAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::RuntimeLabelSelector")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5374,7 +5374,7 @@ impl VmAggregateCodec for SnapshotDescriptor {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::SnapshotDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5517,7 +5517,7 @@ impl VmAggregateCodec for TopologyEdgeAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::TopologyEdge")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5723,7 +5723,7 @@ impl VmAggregateCodec for TopologyEdgeFilterAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::TopologyEdgeFilter")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5916,7 +5916,7 @@ impl VmAggregateCodec for TopologyEntityAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::TopologyEntity")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -6088,7 +6088,7 @@ impl VmAggregateCodec for TopologyEntityFilterAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::TopologyEntityFilter")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -6223,7 +6223,7 @@ impl VmAggregateCodec for TraceCursorOptions {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::TraceCursorOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -6320,7 +6320,7 @@ impl VmAggregateCodec for TraceDescriptor {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::TraceDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -6444,7 +6444,7 @@ impl VmAggregateCodec for TraceRecordAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::TraceRecord")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -6608,7 +6608,7 @@ impl VmAggregateCodec for WorldCreateOptionsAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::WorldCreateOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -6831,7 +6831,7 @@ impl VmAggregateCodec for WorldDescriptorAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::WorldDescriptor")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -7047,7 +7047,7 @@ impl VmAggregateCodec for WorldResourceId {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::WorldResourceId")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -7150,7 +7150,7 @@ impl VmAggregateCodec for WorldViewOptions {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "runtime::WorldViewOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }

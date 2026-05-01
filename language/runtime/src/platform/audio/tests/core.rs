@@ -239,11 +239,11 @@ fn vm_slice_of_slices(
         .map(|slice| slice.to_value(&mut context.write()))
         .collect::<RuntimeResult<Vec<_>>>()?;
     let data = context
-        .allocate_heap_value_slots(values.len())
+        .allocate_heap_words(values.len())
         .map_err(RuntimeError::from)?;
     for (index, value) in values.into_iter().enumerate() {
         context
-            .write_heap_value(data, index, value)
+            .write_heap_word(data, index, value)
             .map_err(RuntimeError::from)?;
     }
 

@@ -199,7 +199,6 @@ fn ensure_drag_session(
     // otherwise open a new external drag session for this window
     let session = open_external_drag_session(
         runtime_state.resource_table(),
-        &runtime_state.world_ref(),
         allowed_operations,
         proposed_operation,
         Some(position),
