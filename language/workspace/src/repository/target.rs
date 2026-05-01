@@ -32,6 +32,19 @@ impl Repository {
         Ok(Target::implicit_for_id(target_id))
     }
 
+    /// Return one display string for one target id.
+    pub fn target_display(
+        &self,
+        revision: Revision,
+        target_id: TargetId,
+    ) -> Result<Option<String>, RepositoryError> {
+        let Some(target) = self.effective_target(revision, target_id)? else {
+            return Ok(None);
+        };
+
+        Ok(Some(target.name))
+    }
+
     /// Return the package default target when one is selected by configuration.
     pub fn package_default_target(
         &self,

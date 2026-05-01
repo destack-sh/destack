@@ -70,7 +70,6 @@ impl Repository {
         }
 
         let mut module_index = OrdMap::new();
-
         for module in modules.values() {
             let module = self.build_module(revision, module, packages)?;
             module_index.insert(module.id, module);
@@ -94,8 +93,8 @@ impl Repository {
         }
 
         let package = packages.nearest_package(&path)?;
-        let language_type = LanguageType::from_file_type(file_type);
-        let loader = Loader::from_file_type(file_type);
+        let language_type = LanguageType::try_from(file_type).ok();
+        let loader = Loader::from(file_type);
         let module_id =
             ModuleId::from_path_with_loader(package.id, &path, package.path.as_deref(), None);
 
@@ -142,6 +141,19 @@ impl Repository {
         let modules = self.module_index(revision)?;
 
         Ok(modules.module(module_id))
+    }
+
+    /// Return one display string for one module id.
+    pub fn module_display(
+        &self,
+        revision: Revision,
+        module_id: ModuleId,
+    ) -> Result<Option<String>, RepositoryError> {
+        let Some(module) = self.module(revision, module_id)? else {
+            return Ok(None);
+        };
+
+        Ok(Some(module.uri.to_string()))
     }
 
     /// Return the module ids visible in one revision.

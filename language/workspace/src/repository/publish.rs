@@ -5,8 +5,8 @@ use destack_source::{FileContent, FileId, FileType};
 use im::OrdMap;
 
 use crate::repository::{
-    Edit, FileEntry, Ref, Repository, RepositoryError, Revision, RevisionState,
-    normalize_logical_path,
+    normalize_logical_path, Edit, FileEntry, Ref, Repository, RepositoryError, Revision,
+    RevisionState,
 };
 
 impl Repository {
@@ -74,6 +74,7 @@ impl Repository {
     pub fn load_workspace_file_content(&self, path: &Path) -> Result<FileContent, RepositoryError> {
         let file_type = FileType::from_path_or_unknown(path);
 
+        // binary
         if file_type.is_binary() {
             let content = self
                 .fs
@@ -84,19 +85,21 @@ impl Repository {
                     message: error.to_string(),
                 })?;
 
-            return Ok(FileContent::Binary { content });
+            Ok(FileContent::Binary { content })
         }
+        // text
+        else {
+            let content =
+                self.fs
+                    .read_to_string(path)
+                    .map_err(|error| RepositoryError::FileSystem {
+                        operation: "read_to_string",
+                        path: path.to_path_buf(),
+                        message: error.to_string(),
+                    })?;
 
-        let content =
-            self.fs
-                .read_to_string(path)
-                .map_err(|error| RepositoryError::FileSystem {
-                    operation: "read_to_string",
-                    path: path.to_path_buf(),
-                    message: error.to_string(),
-                })?;
-
-        Ok(FileContent::Text { content })
+            Ok(FileContent::Text { content })
+        }
     }
 
     /// Apply edits to one file map.

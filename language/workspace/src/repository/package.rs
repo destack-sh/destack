@@ -169,6 +169,23 @@ impl Repository {
         Ok(packages.package(package_id))
     }
 
+    /// Return one display string for one package id.
+    pub fn package_display(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+    ) -> Result<Option<String>, RepositoryError> {
+        let Some(package) = self.package(revision, package_id)? else {
+            return Ok(None);
+        };
+        let name = package
+            .name
+            .clone()
+            .or_else(|| package.path.as_ref().map(|path| path.display().to_string()));
+
+        Ok(name)
+    }
+
     /// Return the package ids visible in one revision.
     pub fn package_ids(&self, revision: Revision) -> Result<Vec<PackageId>, RepositoryError> {
         let packages = self.package_index(revision)?;
