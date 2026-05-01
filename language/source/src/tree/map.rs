@@ -582,11 +582,10 @@ impl NodeSourceMap {
     pub fn get_enclosing_spans(&self, start: u32, end_inclusive: u32) -> Vec<EnclosingSpan> {
         self.ensure_position_index();
 
-        let file_id = self
-            .enclosing_spans
-            .first()
-            .map(|span| span.file)
-            .unwrap_or(crate::FileId(0));
+        let Some(first_span) = self.enclosing_spans.first() else {
+            return Vec::new();
+        };
+        let file_id = first_span.file;
         let interval_tree = match self.interval_tree.read() {
             Ok(interval_tree) => interval_tree,
             Err(error) => error.into_inner(),
@@ -622,11 +621,10 @@ impl NodeSourceMap {
     ) {
         self.ensure_position_index();
 
-        let file_id = self
-            .enclosing_spans
-            .first()
-            .map(|span| span.file)
-            .unwrap_or(crate::FileId(0));
+        let Some(first_span) = self.enclosing_spans.first() else {
+            return;
+        };
+        let file_id = first_span.file;
         let interval_tree = match self.interval_tree.read() {
             Ok(interval_tree) => interval_tree,
             Err(error) => error.into_inner(),

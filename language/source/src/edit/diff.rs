@@ -1,9 +1,7 @@
-//! Unified diff output for comparing text.
-
 use destack_core::Color;
 
 /// Options for diff output.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct DiffOptions {
     /// Number of context lines before/after changes.
     pub context: usize,
@@ -13,6 +11,14 @@ pub struct DiffOptions {
     pub path: Option<String>,
     /// Show byte length info (useful for debugging).
     pub show_lengths: bool,
+    /// Whether to emit ANSI color escape sequences.
+    pub use_color: bool,
+}
+
+impl Default for DiffOptions {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DiffOptions {
@@ -23,6 +29,7 @@ impl DiffOptions {
             show_whitespace: false,
             path: None,
             show_lengths: false,
+            use_color: true,
         }
     }
 
@@ -49,32 +56,51 @@ impl DiffOptions {
         self.show_lengths = true;
         self
     }
+
+    /// Set whether ANSI color escape sequences are emitted.
+    pub fn with_color(mut self, use_color: bool) -> Self {
+        self.use_color = use_color;
+        self
+    }
 }
 
 /// Print a unified diff between two strings.
 pub fn print_diff(expected: &str, actual: &str, options: &DiffOptions) {
+    eprint!("{}", format_diff(expected, actual, options));
+}
+
+/// Format a unified diff between two strings.
+pub fn format_diff(expected: &str, actual: &str, options: &DiffOptions) -> String {
+    let mut output = String::new();
+
     // byte length info for debugging
     if options.show_lengths {
-        eprintln!(
+        let length_line = format!(
             "  {} bytes: {}, {} bytes: {}",
-            Color::Red.apply("expected"),
+            color_text(options, Color::Red, "expected"),
             expected.len(),
-            Color::Green.apply("actual"),
-            actual.len()
+            color_text(options, Color::Green, "actual"),
+            actual.len(),
         );
-        eprintln!();
+
+        output.push_str(&length_line);
+        output.push('\n');
+        output.push('\n');
     }
 
-    // git-style header
+    // git style header
     if let Some(path) = &options.path {
-        eprintln!("{}", Color::White.apply(&format!("--- a/{path}")));
-        eprintln!("{}", Color::White.apply(&format!("+++ b/{path}")));
+        output.push_str(&color_text(options, Color::White, &format!("--- a/{path}")));
+        output.push('\n');
+        output.push_str(&color_text(options, Color::White, &format!("+++ b/{path}")));
+        output.push('\n');
     }
 
+    // collect lines
     let expected_lines: Vec<&str> = expected.lines().collect();
     let actual_lines: Vec<&str> = actual.lines().collect();
 
-    // LCS-based diff
+    // lcs diff
     let mut i = 0;
     let mut j = 0;
     let mut context_buffer: Vec<(usize, &str)> = Vec::new();
@@ -91,6 +117,7 @@ pub fn print_diff(expected: &str, actual: &str, options: &DiffOptions) {
             // flush any pending changes
             if !pending_removals.is_empty() || !pending_additions.is_empty() {
                 flush_changes(
+                    &mut output,
                     &mut context_buffer,
                     &mut pending_removals,
                     &mut pending_additions,
@@ -104,7 +131,7 @@ pub fn print_diff(expected: &str, actual: &str, options: &DiffOptions) {
                 // print trailing context from previous hunk
                 if in_hunk && context_buffer.len() == options.context + 1 {
                     let (line_no, line) = context_buffer.remove(0);
-                    print_context_line(line_no, line, options);
+                    print_context_line(&mut output, line_no, line, options);
                 } else {
                     context_buffer.remove(0);
                 }
@@ -137,7 +164,7 @@ pub fn print_diff(expected: &str, actual: &str, options: &DiffOptions) {
             }
         }
 
-        // no match found, consume rest
+        // consume the rest when no match is found
         if expected_skip == 0 && actual_skip == 0 {
             expected_skip = expected_lines.len().saturating_sub(i);
             actual_skip = actual_lines.len().saturating_sub(j);
@@ -158,6 +185,7 @@ pub fn print_diff(expected: &str, actual: &str, options: &DiffOptions) {
     // flush remaining changes
     if !pending_removals.is_empty() || !pending_additions.is_empty() {
         flush_changes(
+            &mut output,
             &mut context_buffer,
             &mut pending_removals,
             &mut pending_additions,
@@ -170,27 +198,35 @@ pub fn print_diff(expected: &str, actual: &str, options: &DiffOptions) {
     let expected_newline = expected.ends_with('\n');
     let actual_newline = actual.ends_with('\n');
     if expected_newline != actual_newline {
-        eprintln!(
-            "{}",
-            Color::BrightYellow.apply(&format!(
+        output.push_str(&color_text(
+            options,
+            Color::BrightYellow,
+            &format!(
                 "\\ No newline at end of file (expected: {}, actual: {})",
                 if expected_newline { "yes" } else { "no" },
                 if actual_newline { "yes" } else { "no" }
-            ))
-        );
+            ),
+        ));
+        output.push('\n');
     }
 
-    // whitespace-only difference note
+    // whitespace difference note
     if expected.trim() == actual.trim() && expected != actual {
-        eprintln!();
-        eprintln!(
-            "{}",
-            Color::BrightYellow.apply("note: strings differ only in whitespace")
-        );
+        output.push('\n');
+        output.push_str(&color_text(
+            options,
+            Color::BrightYellow,
+            "note: strings differ only in whitespace",
+        ));
+        output.push('\n');
     }
+
+    output
 }
 
+/// Flush buffered changes into the diff output.
 fn flush_changes(
+    output: &mut String,
     context_buffer: &mut Vec<(usize, &str)>,
     pending_removals: &mut Vec<(usize, &str)>,
     pending_additions: &mut Vec<(usize, &str)>,
@@ -200,67 +236,92 @@ fn flush_changes(
     // start new hunk if needed
     if !*in_hunk {
         *in_hunk = true;
-        eprintln!();
+        output.push('\n');
     }
 
     // print context before
     for (line_no, line) in context_buffer.drain(..) {
-        print_context_line(line_no, line, options);
+        print_context_line(output, line_no, line, options);
     }
 
     // print removals
     for (line_no, line) in pending_removals.drain(..) {
-        print_removal_line(line_no, line, options);
+        print_removal_line(output, line_no, line, options);
     }
 
     // print additions
     for (line_no, line) in pending_additions.drain(..) {
-        print_addition_line(line_no, line, options);
+        print_addition_line(output, line_no, line, options);
     }
 }
 
-fn print_context_line(line_no: usize, line: &str, options: &DiffOptions) {
+/// Write one context line into the diff output.
+fn print_context_line(output: &mut String, line_no: usize, line: &str, options: &DiffOptions) {
     let display = if options.show_whitespace {
         escape_whitespace(line)
     } else {
         line.to_string()
     };
+
     // dim gutter for context lines
-    eprintln!("{} {display}", dim(&format!(" {line_no:>4}│")));
+    output.push_str(&format!(
+        "{} {display}",
+        dim(options, &format!(" {line_no:>4}│"))
+    ));
+    output.push('\n');
 }
 
 /// Apply dim ANSI styling.
-fn dim(s: &str) -> String {
-    format!("\x1b[2m{s}\x1b[0m")
+fn dim(options: &DiffOptions, s: &str) -> String {
+    if options.use_color {
+        format!("\x1b[2m{s}\x1b[0m")
+    } else {
+        s.to_string()
+    }
 }
 
-fn print_removal_line(line_no: usize, line: &str, options: &DiffOptions) {
+/// Write one removal line into the diff output.
+fn print_removal_line(output: &mut String, line_no: usize, line: &str, options: &DiffOptions) {
     let display = if options.show_whitespace {
         escape_whitespace(line)
     } else {
         line.to_string()
     };
-    eprintln!(
+
+    output.push_str(&format!(
         "{} {}",
-        Color::BrightRed.apply(&format!("-{line_no:>4}│")),
-        Color::Red.apply(&display)
-    );
+        color_text(options, Color::BrightRed, &format!("-{line_no:>4}│")),
+        color_text(options, Color::Red, &display)
+    ));
+    output.push('\n');
 }
 
-fn print_addition_line(line_no: usize, line: &str, options: &DiffOptions) {
+/// Write one addition line into the diff output.
+fn print_addition_line(output: &mut String, line_no: usize, line: &str, options: &DiffOptions) {
     let display = if options.show_whitespace {
         escape_whitespace(line)
     } else {
         line.to_string()
     };
-    eprintln!(
+
+    output.push_str(&format!(
         "{} {}",
-        Color::BrightGreen.apply(&format!("+{line_no:>4}│")),
-        Color::Green.apply(&display)
-    );
+        color_text(options, Color::BrightGreen, &format!("+{line_no:>4}│")),
+        color_text(options, Color::Green, &display)
+    ));
+    output.push('\n');
 }
 
 /// Escape whitespace characters for visual display.
 pub fn escape_whitespace(s: &str) -> String {
     s.replace('\t', "→").replace('\r', "⏎").replace(' ', "·")
+}
+
+/// Apply color when output colors are enabled.
+fn color_text(options: &DiffOptions, color: Color, text: &str) -> String {
+    if options.use_color {
+        color.apply(text)
+    } else {
+        text.to_string()
+    }
 }

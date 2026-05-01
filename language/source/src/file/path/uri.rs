@@ -45,26 +45,38 @@ impl Uri {
 
     /// Get the URI without the extension.
     pub fn without_extension(&self) -> Self {
-        // trim extension if exists
-        if self.0.contains(".") {
-            let without_extension = self.0.split(".").next().unwrap();
-            Self(without_extension.to_string())
-        }
-        // no extension
-        else {
-            self.clone()
-        }
+        let Some(extension_start) = self.extension_start() else {
+            return self.clone();
+        };
+
+        Self(self.0[..extension_start].to_string())
     }
 
     /// Append or replace the extension of the URI.
     pub fn with_extension(&self, extension: &str) -> Self {
-        let extension = extension.trim_start_matches("."); // trim leading dot if any
-        if self.0.contains(".") {
-            let without_extension = format!("{}.{}", self.0.split(".").next().unwrap(), extension);
-            Self(without_extension)
-        } else {
-            Self(format!("{}.{}", self.0, extension))
+        let extension = extension.trim_start_matches('.');
+        let Some(extension_start) = self.extension_start() else {
+            return Self(format!("{}.{}", self.0, extension));
+        };
+
+        Self(format!("{}.{}", &self.0[..extension_start], extension))
+    }
+
+    /// Return the byte index where the final path segment extension begins.
+    fn extension_start(&self) -> Option<usize> {
+        let separator_start = self
+            .0
+            .rfind(['/', '\\'])
+            .map(|index| index + 1)
+            .unwrap_or(0);
+        let segment = &self.0[separator_start..];
+        let dot = segment.rfind('.')?;
+
+        if dot == 0 {
+            return None;
         }
+
+        Some(separator_start + dot)
     }
 }
 
