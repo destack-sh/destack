@@ -31,9 +31,9 @@ pub(crate) enum PointerClass {
     Unknown,
 }
 
-/// Runtime value representation used for dispatch selection.
+/// Runtime value layout used for dispatch selection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ValueRepr {
+pub(crate) enum ValueLayout {
     /// Void value.
     Void,
     /// Boolean value.
@@ -65,7 +65,7 @@ pub(crate) enum ValueRepr {
     Unknown,
 }
 
-/// Native representation for one word load or store.
+/// Native word layout for one load or store.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum WordLayout {
     /// Void value.
@@ -127,26 +127,29 @@ impl WordLayout {
     }
 }
 
-/// Get the runtime representation for a MIR type.
-pub(crate) fn value_repr_from_type(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> ValueRepr {
-    // map mir type to value representation
+/// Get the runtime value layout for a MIR type.
+pub(crate) fn value_layout_from_type(
+    tree: &mir::Tree,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> ValueLayout {
+    // map mir type to value layout
     match tree.get(ty) {
-        mir::Type::Void => ValueRepr::Void,
-        mir::Type::Boolean => ValueRepr::Bool,
-        mir::Type::Int { width, is_signed } => ValueRepr::Int {
+        mir::Type::Void => ValueLayout::Void,
+        mir::Type::Boolean => ValueLayout::Bool,
+        mir::Type::Int { width, is_signed } => ValueLayout::Int {
             width: *width,
             signed: *is_signed,
         },
-        mir::Type::Isize => ValueRepr::Int {
+        mir::Type::Isize => ValueLayout::Int {
             width: usize::BITS as u16,
             signed: true,
         },
-        mir::Type::Usize => ValueRepr::Int {
+        mir::Type::Usize => ValueLayout::Int {
             width: usize::BITS as u16,
             signed: false,
         },
-        mir::Type::Float { width } => ValueRepr::Float { width: *width },
-        mir::Type::TypeDescriptor | mir::Type::TypeId => ValueRepr::Int {
+        mir::Type::Float { width } => ValueLayout::Float { width: *width },
+        mir::Type::TypeDescriptor | mir::Type::TypeId => ValueLayout::Int {
             width: usize::BITS as u16,
             signed: false,
         },
@@ -157,7 +160,7 @@ pub(crate) fn value_repr_from_type(tree: &mir::Tree, ty: mir::LocalNodeId<mir::T
             pointee,
             is_nullable,
         } => match pointee.ty() {
-            Some(pointee) => ValueRepr::Pointer {
+            Some(pointee) => ValueLayout::Pointer {
                 pointee,
                 pointer_class: pointer_class_from_reference(address_space.clone(), *kind),
                 reference: ReferenceMeta::new(
@@ -167,43 +170,43 @@ pub(crate) fn value_repr_from_type(tree: &mir::Tree, ty: mir::LocalNodeId<mir::T
                     *is_nullable,
                 ),
             },
-            None => ValueRepr::Unknown,
+            None => ValueLayout::Unknown,
         },
         mir::Type::FunctionSignature { result, .. } => match result.ty() {
-            Some(result) => ValueRepr::FunctionPointer { result },
-            None => ValueRepr::Unknown,
+            Some(result) => ValueLayout::FunctionPointer { result },
+            None => ValueLayout::Unknown,
         },
         mir::Type::FunctionPointer { signature } => match signature.ty() {
             Some(signature) => match tree.get(signature) {
                 mir::Type::FunctionSignature { result, .. } => match result.ty() {
-                    Some(result) => ValueRepr::FunctionPointer { result },
-                    None => ValueRepr::Unknown,
+                    Some(result) => ValueLayout::FunctionPointer { result },
+                    None => ValueLayout::Unknown,
                 },
-                _ => ValueRepr::Unknown,
+                _ => ValueLayout::Unknown,
             },
-            None => ValueRepr::Unknown,
+            None => ValueLayout::Unknown,
         },
         mir::Type::Array {
             element,
             length,
             copy: _,
         } => match element.ty() {
-            Some(element) => ValueRepr::Array {
+            Some(element) => ValueLayout::Array {
                 element,
                 length: *length,
             },
-            None => ValueRepr::Unknown,
+            None => ValueLayout::Unknown,
         },
-        mir::Type::Slice { .. } => ValueRepr::FrameBytes { ty },
+        mir::Type::Slice { .. } => ValueLayout::FrameBytes { ty },
         mir::Type::Newtype { inner, .. } => match inner.ty() {
-            Some(inner) => value_repr_from_type(tree, inner),
-            None => ValueRepr::Unknown,
+            Some(inner) => value_layout_from_type(tree, inner),
+            None => ValueLayout::Unknown,
         },
-        mir::Type::Callable { .. } => ValueRepr::Callable { ty },
+        mir::Type::Callable { .. } => ValueLayout::Callable { ty },
         mir::Type::Tuple { .. }
         | mir::Type::Struct { .. }
         | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. } => ValueRepr::FrameBytes { ty },
+        | mir::Type::Tensor { .. } => ValueLayout::FrameBytes { ty },
         mir::Type::TensorView {
             kind,
             address_space,
@@ -212,7 +215,7 @@ pub(crate) fn value_repr_from_type(tree: &mir::Tree, ty: mir::LocalNodeId<mir::T
             is_nullable,
             ..
         } => match element.ty() {
-            Some(element) => ValueRepr::Pointer {
+            Some(element) => ValueLayout::Pointer {
                 pointee: element,
                 pointer_class: pointer_class_from_reference(address_space.clone(), *kind),
                 reference: ReferenceMeta::new(
@@ -222,12 +225,12 @@ pub(crate) fn value_repr_from_type(tree: &mir::Tree, ty: mir::LocalNodeId<mir::T
                     *is_nullable,
                 ),
             },
-            None => ValueRepr::Unknown,
+            None => ValueLayout::Unknown,
         },
     }
 }
 
-/// Get the native word representation for a MIR type.
+/// Get the native word layout for a MIR type.
 pub(crate) fn word_layout_from_type(
     tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
@@ -295,7 +298,7 @@ pub(crate) fn pointer_class_from_reference(
     }
 }
 
-/// Map one pointer class to the word representation carried by memory.
+/// Map one pointer class to the word layout carried by memory.
 pub(crate) fn word_layout_from_pointer_class(pointer_class: PointerClass) -> Option<WordLayout> {
     Some(match pointer_class {
         PointerClass::Heap | PointerClass::HeapAddress => WordLayout::HeapReference,
