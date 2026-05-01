@@ -123,6 +123,15 @@ impl<'a> FunctionBuilder<'a> {
                 } => {
                     Self::replace_value_in_slot(argument, from, to);
                 }
+                Instruction::BarrierWrite {
+                    object,
+                    offset,
+                    byte_len,
+                } => {
+                    Self::replace_value_in_slot(object, from, to);
+                    Self::replace_value_in_slot(offset, from, to);
+                    Self::replace_value_in_slot(byte_len, from, to);
+                }
                 Instruction::CallIndirect { callee, .. } => {
                     Self::replace_value_in_slot(callee, from, to);
                 }
@@ -291,7 +300,7 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(pointer, from, to);
                     Self::replace_value_in_slot(value, from, to);
                 }
-                Instruction::AtomicFence { .. } | Instruction::Barrier { .. } => {}
+                Instruction::AtomicFence { .. } => {}
                 Instruction::Assume { condition } => {
                     Self::replace_value_in_slot(condition, from, to);
                 }

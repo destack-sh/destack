@@ -222,11 +222,11 @@ pub enum Instruction {
         /// The zero-based field index.
         index: u32,
     },
-    /// Get the address of a field from an aggregate value (field.address).
+    /// Get the address of a field from an addressable aggregate (field.address).
     FieldAddr {
         /// The SSA value to define with the field address.
         destination: ValueReference,
-        /// The aggregate value to get the field from.
+        /// The aggregate base to project from.
         aggregate: ValueReference,
         /// The zero-based field index.
         index: u32,
@@ -253,11 +253,11 @@ pub enum Instruction {
         /// The index of the element (runtime value).
         index: ValueReference,
     },
-    /// Get the address of an array element from an aggregate (element.address).
+    /// Get the address of an element from an addressable indexed value (element.address).
     ElementAddr {
         /// The SSA value to define with the element address.
         destination: ValueReference,
-        /// The array value to get the element from.
+        /// The indexed base to project from.
         array: ValueReference,
         /// The index of the element (runtime value).
         index: ValueReference,
@@ -771,6 +771,17 @@ pub enum Instruction {
         value: ValueReference,
     },
 
+    // managed heap
+    /// Record a managed reference write for the collector.
+    BarrierWrite {
+        /// The managed object whose reference range changed.
+        object: ValueReference,
+        /// The byte offset of the changed reference range.
+        offset: ValueReference,
+        /// The changed byte length.
+        byte_len: ValueReference,
+    },
+
     // atomic memory operations
     /// Load from memory atomically.
     AtomicLoad {
@@ -855,16 +866,6 @@ pub enum Instruction {
         /// The memory semantics for the operation.
         semantics: MemorySemantics,
     },
-    /// Publish one execution and memory synchronization barrier.
-    Barrier {
-        /// The execution scope for the operation.
-        scope: AtomicScope,
-        /// The memory scope for the operation.
-        memory_scope: MemoryScope,
-        /// The memory semantics for the operation.
-        semantics: MemorySemantics,
-    },
-
     // assumptions and hints
     /// Assume a condition is true (UB if false).
     Assume {
@@ -964,13 +965,13 @@ impl Instruction {
             Instruction::Pin { .. } => None,
             Instruction::Unpin { .. } => None,
             Instruction::Drop { .. } => None,
+            Instruction::BarrierWrite { .. } => None,
             Instruction::StackAlloc { destination, .. } => Some(*destination),
             Instruction::AtomicLoad { destination, .. } => Some(*destination),
             Instruction::AtomicStore { .. } => None,
             Instruction::AtomicCompareExchange { destination, .. } => Some(*destination),
             Instruction::AtomicRmw { destination, .. } => Some(*destination),
             Instruction::AtomicFence { .. } => None,
-            Instruction::Barrier { .. } => None,
             Instruction::Assume { .. } => None,
             Instruction::Intrinsic { destination, .. } => *destination,
         }
@@ -1090,6 +1091,11 @@ impl Instruction {
             Instruction::Pin { value } => smallvec![*value],
             Instruction::Unpin { value } => smallvec![*value],
             Instruction::Drop { value } => smallvec![*value],
+            Instruction::BarrierWrite {
+                object,
+                offset,
+                byte_len,
+            } => smallvec![*object, *offset, *byte_len],
             Instruction::StackAlloc { .. } => smallvec![],
             Instruction::AtomicLoad { pointer, .. } => smallvec![*pointer],
             Instruction::AtomicStore { pointer, value, .. } => smallvec![*pointer, *value],
@@ -1101,7 +1107,6 @@ impl Instruction {
             } => smallvec![*pointer, *expected, *new_value],
             Instruction::AtomicRmw { pointer, value, .. } => smallvec![*pointer, *value],
             Instruction::AtomicFence { .. } => smallvec![],
-            Instruction::Barrier { .. } => smallvec![],
             Instruction::Assume { condition } => smallvec![*condition],
             // Arguments stored externally - return empty
             Instruction::Intrinsic { .. } => smallvec![],
