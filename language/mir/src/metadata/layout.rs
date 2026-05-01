@@ -17,23 +17,41 @@ pub enum ReferenceMap {
     /// Payload contains no heap references.
     None,
     /// Payload stores direct heap-reference words at fixed byte offsets.
-    Reference {
+    Direct {
         /// Byte offsets of encoded local heap references.
         local_offsets: Box<[u32]>,
         /// Byte offsets of encoded shared heap references.
         shared_offsets: Box<[u32]>,
     },
-    /// Payload stores repeated elements with heap-reference words at fixed element offsets.
-    RepeatedReference {
+    /// Payload stores repeated elements with one nested reference map.
+    Repeat {
         /// The number of elements in the payload.
         count: u32,
         /// The element byte stride.
         stride: u32,
-        /// Local heap-reference byte offsets within each element.
-        local_offsets: Box<[u32]>,
-        /// Shared heap-reference byte offsets within each element.
-        shared_offsets: Box<[u32]>,
+        /// The per-element reference map.
+        element: Box<ReferenceMap>,
     },
+    /// Payload stores a tagged union with variant-specific reference maps.
+    Tagged {
+        /// The byte offset of the union tag.
+        tag_offset: u32,
+        /// The byte width of the union tag.
+        tag_bytes: u8,
+        /// Variant reference maps keyed by tag value.
+        variants: Box<[ReferenceVariant]>,
+    },
+}
+
+/// One tagged reference-map variant.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ReferenceVariant {
+    /// The numeric tag value selecting this variant.
+    pub tag: u64,
+    /// The byte offset of the variant payload.
+    pub payload_offset: u32,
+    /// The payload reference map for this variant.
+    pub map: ReferenceMap,
 }
 
 impl ReferenceMap {
@@ -51,12 +69,15 @@ impl ReferenceMap {
     pub fn has_local_reference(&self) -> bool {
         match self {
             Self::None => false,
-            Self::Reference { local_offsets, .. } => !local_offsets.is_empty(),
-            Self::RepeatedReference {
+            Self::Direct { local_offsets, .. } => !local_offsets.is_empty(),
+            Self::Repeat {
                 count,
-                local_offsets,
+                element,
                 ..
-            } => *count > 0 && !local_offsets.is_empty(),
+            } => *count > 0 && element.has_local_reference(),
+            Self::Tagged { variants, .. } => variants
+                .iter()
+                .any(|variant| variant.map.has_local_reference()),
         }
     }
 
@@ -64,12 +85,15 @@ impl ReferenceMap {
     pub fn has_shared_reference(&self) -> bool {
         match self {
             Self::None => false,
-            Self::Reference { shared_offsets, .. } => !shared_offsets.is_empty(),
-            Self::RepeatedReference {
+            Self::Direct { shared_offsets, .. } => !shared_offsets.is_empty(),
+            Self::Repeat {
                 count,
-                shared_offsets,
+                element,
                 ..
-            } => *count > 0 && !shared_offsets.is_empty(),
+            } => *count > 0 && element.has_shared_reference(),
+            Self::Tagged { variants, .. } => variants
+                .iter()
+                .any(|variant| variant.map.has_shared_reference()),
         }
     }
 }
@@ -598,7 +622,7 @@ impl LayoutMetadataCompletion<'_> {
                 return Ok(ReferenceMap::empty());
             }
 
-            return Ok(ReferenceMap::RepeatedReference {
+            return Ok(ReferenceMap::Repeat {
                 count,
                 stride,
                 local_offsets: local_offsets.into_boxed_slice(),
@@ -613,7 +637,7 @@ impl LayoutMetadataCompletion<'_> {
         if local_offsets.is_empty() && shared_offsets.is_empty() {
             Ok(ReferenceMap::empty())
         } else {
-            Ok(ReferenceMap::Reference {
+            Ok(ReferenceMap::Direct {
                 local_offsets: local_offsets.into_boxed_slice(),
                 shared_offsets: shared_offsets.into_boxed_slice(),
             })
@@ -976,7 +1000,7 @@ type Packed {
         // heap-reference trace
         assert_eq!(
             layout.reference_map,
-            ReferenceMap::Reference {
+            ReferenceMap::Direct {
                 local_offsets: vec![8].into_boxed_slice(),
                 shared_offsets: Vec::new().into_boxed_slice(),
             }
