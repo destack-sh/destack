@@ -9,7 +9,7 @@ use super::{ArgumentRange, Instruction, MovePair, MoveRange};
 #[derive(Clone, Debug)]
 pub(crate) struct SwitchCase {
     /// Match value.
-    pub value: i64,
+    pub value: i128,
     /// Target block.
     pub target: u32,
     /// Block parameter moves.
@@ -87,17 +87,17 @@ impl FunctionTable {
         }
     }
 
-    /// Get a lowered function pointer by index.
-    pub(crate) fn get_ptr_by_index(&self, index: u32) -> Option<NonNull<Function>> {
+    /// Return a lowered function pointer by dense index.
+    pub(crate) fn pointer(&self, index: u32) -> Option<NonNull<Function>> {
         self.functions.get(index as usize).map(NonNull::from)
     }
 
     /// Resolve one lowered function pointer by function id.
-    pub(crate) fn get_ptr_for(
+    pub(crate) fn pointer_for(
         &self,
         func_id: mir::LocalNodeId<mir::Function>,
     ) -> Option<NonNull<Function>> {
         let index = self.index_for(func_id)?;
-        self.get_ptr_by_index(index)
+        self.pointer(index)
     }
 }

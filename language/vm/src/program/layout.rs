@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 
 use destack_mir as mir;
-use destack_mir::ReferenceMap;
+use destack_mir::{LayoutKind, ReferenceMap};
 
 use crate::{Error, Result};
+
+const SLICE_DATA_FIELD: u32 = 0;
+const SLICE_LENGTH_FIELD: u32 = 1;
 
 /// One compiled field layout.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -25,6 +28,28 @@ pub(crate) struct ElementLayout {
     pub stride: usize,
     /// The byte width of one element payload.
     pub byte_len: usize,
+}
+
+/// One compiled slice layout.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SliceLayout {
+    /// The data pointer field.
+    pub data: FieldLayout,
+    /// The length field.
+    pub length: FieldLayout,
+}
+
+/// The heap object layout for one callable value.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CallableObjectLayout {
+    /// The function pointer offset.
+    pub function_offset: usize,
+    /// The environment pointer offset.
+    pub environment_offset: usize,
+    /// The callable object byte length.
+    pub byte_len: usize,
+    /// The callable object byte alignment.
+    pub alignment: usize,
 }
 
 /// The compiled shape for one MIR type.
@@ -76,6 +101,11 @@ impl Layout {
         matches!(self.shape, LayoutShape::Scalar)
     }
 
+    /// Report whether this type fits in one VM word.
+    pub(crate) fn is_word(&self) -> bool {
+        self.is_scalar() && self.byte_len <= crate::Word::BYTE_LEN
+    }
+
     /// Return the byte alignment of this layout.
     pub(crate) fn alignment(&self) -> usize {
         self.alignment
@@ -97,6 +127,14 @@ impl Layout {
         };
 
         Some(fields.len())
+    }
+
+    /// Return the slice fields.
+    pub(crate) fn slice(&self) -> Option<SliceLayout> {
+        Some(SliceLayout {
+            data: self.field(SLICE_DATA_FIELD)?,
+            length: self.field(SLICE_LENGTH_FIELD)?,
+        })
     }
 
     /// Return the element layout.
@@ -122,6 +160,36 @@ impl Layout {
     /// Return the aligned stride.
     pub(crate) fn stride(&self) -> usize {
         align_offset(self.byte_len, self.alignment)
+    }
+}
+
+impl CallableObjectLayout {
+    /// Return the heap layout table entry for callable objects.
+    pub(crate) fn table_layout(self) -> mir::Layout {
+        mir::Layout {
+            kind: LayoutKind::Callable,
+            size: self.byte_len as u32,
+            alignment: self.alignment as u32,
+            reference_map: ReferenceMap::Direct {
+                local_offsets: vec![self.environment_offset as u32].into_boxed_slice(),
+                shared_offsets: Vec::new().into_boxed_slice(),
+            },
+            fields: Vec::new(),
+        }
+    }
+}
+
+/// Return the callable object layout for one target pointer width.
+pub(crate) fn callable_object_layout(pointer_bytes: usize) -> CallableObjectLayout {
+    let function_offset = 0usize;
+    let environment_offset = align_offset(pointer_bytes, pointer_bytes);
+    let byte_len = environment_offset + pointer_bytes;
+
+    CallableObjectLayout {
+        function_offset,
+        environment_offset,
+        byte_len,
+        alignment: pointer_bytes,
     }
 }
 
@@ -152,7 +220,7 @@ fn concrete_repr_type(
             return Ok(ty);
         };
 
-        ty = (*inner).ty().ok_or_else(|| Error::ConcreteMirRequired {
+        ty = (*inner).ty().ok_or_else(|| Error::MissingRepresentation {
             context: "repr newtype inner".to_string(),
         })?;
     }
@@ -212,7 +280,7 @@ fn build_layout(
                 .iter()
                 .map(|field_id| {
                     let field = tree.get(*field_id);
-                    (field.ty).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                    (field.ty).ty().ok_or_else(|| Error::MissingRepresentation {
                         context: "struct field type".to_string(),
                     })
                 })
@@ -223,7 +291,7 @@ fn build_layout(
             let element_types = elements
                 .iter()
                 .map(|element| {
-                    (*element).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                    (*element).ty().ok_or_else(|| Error::MissingRepresentation {
                         context: "tuple element type".to_string(),
                     })
                 })
@@ -236,9 +304,11 @@ fn build_layout(
             tree,
             layouts,
             ty,
-            (*element).ty().ok_or_else(|| Error::ConcreteMirRequired {
-                context: "array element type".to_string(),
-            })?,
+            (*element)
+                .ty()
+                .ok_or_else(|| Error::MissingRepresentation {
+                    context: "array element type".to_string(),
+                })?,
             *length as usize,
         )?,
         mir::Type::Slice {
@@ -252,7 +322,7 @@ fn build_layout(
             let data = tree
                 .iter_nodes::<mir::Type>()
                 .find_map(|(type_id, ty)| (ty == &data).then_some(type_id))
-                .ok_or_else(|| Error::ConcreteMirRequired {
+                .ok_or_else(|| Error::MissingRepresentation {
                     context: "slice data type".to_string(),
                 })?;
             let length = tree.usize_type();
@@ -266,9 +336,11 @@ fn build_layout(
             tree,
             layouts,
             ty,
-            (*element).ty().ok_or_else(|| Error::ConcreteMirRequired {
-                context: "vector element type".to_string(),
-            })?,
+            (*element)
+                .ty()
+                .ok_or_else(|| Error::MissingRepresentation {
+                    context: "vector element type".to_string(),
+                })?,
             *lanes as usize,
         )?,
         mir::Type::Tensor {
@@ -280,9 +352,11 @@ fn build_layout(
             tree,
             layouts,
             ty,
-            (*element).ty().ok_or_else(|| Error::ConcreteMirRequired {
-                context: "tensor element type".to_string(),
-            })?,
+            (*element)
+                .ty()
+                .ok_or_else(|| Error::MissingRepresentation {
+                    context: "tensor element type".to_string(),
+                })?,
             shape,
             layout,
         )?,
@@ -360,7 +434,7 @@ fn build_record_layout(
         build_layout(tree, layouts, field_type)?;
     }
 
-    // switch to the runtime field layout when raw MIR layout cannot represent callables
+    // callable fields store heap handles in VM frames
     for field_type in field_types.clone() {
         if contains_callable(tree, field_type)? {
             return build_runtime_fields_layout(tree, layouts, ty, field_types);
@@ -389,7 +463,7 @@ fn build_array_layout(
 ) -> Result<Layout> {
     let element_layout = build_layout(tree, layouts, element_type)?;
 
-    // switch to the runtime repeated layout when raw MIR layout cannot represent callables
+    // callable elements store heap handles in VM frames
     if contains_callable(tree, element_type)? {
         return Ok(repeated_layout(
             element_type,
@@ -428,7 +502,7 @@ fn build_vector_layout(
     let element_layout = build_layout(tree, layouts, element_type)?;
     let stride = element_layout.stride();
 
-    // switch to the runtime repeated layout when raw MIR layout cannot represent callables
+    // callable elements store heap handles in VM frames
     if contains_callable(tree, element_type)? {
         return Ok(repeated_layout(
             element_type,
@@ -475,7 +549,7 @@ fn build_tensor_layout(
     let element_count = compute_tensor_element_count(shape, tensor_layout)?;
     let stride = element_layout.stride();
 
-    // switch to the runtime repeated layout when raw MIR layout cannot represent callables
+    // callable elements store heap handles in VM frames
     if contains_callable(tree, element_type)? {
         return Ok(repeated_layout(
             element_type,
@@ -563,7 +637,7 @@ fn contains_callable(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Resul
                 let field_type = tree.get(*field_id).ty;
                 let field_type = (field_type)
                     .ty()
-                    .ok_or_else(|| Error::ConcreteMirRequired {
+                    .ok_or_else(|| Error::MissingRepresentation {
                         context: "struct field type".to_string(),
                     })?;
                 if contains_callable(tree, field_type)? {
@@ -578,7 +652,7 @@ fn contains_callable(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Resul
                 let element_type =
                     (*element_type)
                         .ty()
-                        .ok_or_else(|| Error::ConcreteMirRequired {
+                        .ok_or_else(|| Error::MissingRepresentation {
                             context: "tuple element type".to_string(),
                         })?;
                 if contains_callable(tree, element_type)? {
@@ -592,9 +666,11 @@ fn contains_callable(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Resul
         | mir::Type::Vector { element, .. }
         | mir::Type::Tensor { element, .. } => contains_callable(
             tree,
-            (*element).ty().ok_or_else(|| Error::ConcreteMirRequired {
-                context: "element type".to_string(),
-            })?,
+            (*element)
+                .ty()
+                .ok_or_else(|| Error::MissingRepresentation {
+                    context: "element type".to_string(),
+                })?,
         ),
         _ => Ok(false),
     }
@@ -654,7 +730,7 @@ fn raw_fields_from_layout(layout: &mir::Layout) -> Vec<FieldLayout> {
         })
         .collect();
 
-    // recover source order from MIR field metadata
+    // read source order from MIR field metadata
     fields.sort_by_key(|(index, _)| *index);
 
     fields.into_iter().map(|(_, field)| field).collect()
@@ -671,7 +747,7 @@ fn raw_array_stride(layout: &mir::Layout) -> Result<usize> {
     Ok(*element_stride as usize)
 }
 
-/// Build one runtime field layout for one record with callable children.
+/// Build one VM field layout for one record with callable children.
 fn build_runtime_fields_layout(
     tree: &mir::Tree,
     layouts: &mut HashMap<mir::LocalNodeId<mir::Type>, Layout>,
@@ -748,7 +824,7 @@ fn build_reference_map(
     let reference_map = if local_offsets.is_empty() && shared_offsets.is_empty() {
         ReferenceMap::empty()
     } else {
-        ReferenceMap::Reference {
+        ReferenceMap::Direct {
             local_offsets: local_offsets.into_boxed_slice(),
             shared_offsets: shared_offsets.into_boxed_slice(),
         }
@@ -1025,7 +1101,7 @@ type Packed {
         // reference tracing should point at the heap reference field
         assert_eq!(
             layout.reference_map,
-            ReferenceMap::Reference {
+            ReferenceMap::Direct {
                 local_offsets: vec![8].into_boxed_slice(),
                 shared_offsets: Vec::new().into_boxed_slice(),
             }
@@ -1051,7 +1127,7 @@ type Vec = vector<ref<int32, managed, readonly>, 2>"#;
         // reference tracing should include both elements
         assert_eq!(
             layout.reference_map,
-            ReferenceMap::Reference {
+            ReferenceMap::Direct {
                 local_offsets: vec![0, 8].into_boxed_slice(),
                 shared_offsets: Vec::new().into_boxed_slice(),
             }
@@ -1074,7 +1150,7 @@ type Holder {
         // newtype-wrapped heap refs should still appear in the trace map
         assert_eq!(
             layout.reference_map,
-            ReferenceMap::Reference {
+            ReferenceMap::Direct {
                 local_offsets: vec![0].into_boxed_slice(),
                 shared_offsets: Vec::new().into_boxed_slice(),
             }
@@ -1096,7 +1172,7 @@ type Callable = () => int32"#;
         assert_eq!(layout.byte_len, tree.pointer_bytes() as usize);
         assert_eq!(
             layout.reference_map,
-            ReferenceMap::Reference {
+            ReferenceMap::Direct {
                 local_offsets: vec![0].into_boxed_slice(),
                 shared_offsets: Vec::new().into_boxed_slice(),
             }
@@ -1120,7 +1196,7 @@ type Holder {
         // the callable field should stay traced after the VM field rewrite
         assert_eq!(
             layout.reference_map,
-            ReferenceMap::Reference {
+            ReferenceMap::Direct {
                 local_offsets: vec![8].into_boxed_slice(),
                 shared_offsets: Vec::new().into_boxed_slice(),
             }

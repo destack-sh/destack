@@ -25,8 +25,8 @@ pub(crate) enum Opcode {
     AtomicRmw,
     /// The `atomic_store` opcode.
     AtomicStore,
-    /// The `barrier` opcode.
-    Barrier,
+    /// The `barrier_write` opcode.
+    BarrierWrite,
     /// The `binary` opcode.
     Binary,
     /// The `binary_bool` opcode.
@@ -83,36 +83,60 @@ pub(crate) enum Opcode {
     CompareAndBranchUint,
     /// The `const` opcode.
     Const,
+    /// The `copy` opcode.
+    Copy,
+    /// The `copy_from_address` opcode.
+    CopyFromAddress,
+    /// The `copy_to_address` opcode.
+    CopyToAddress,
     /// The `element_addr` opcode.
     ElementAddr,
     /// The `element_addr_static` opcode.
     ElementAddrStatic,
     /// The `element_addr_heap` opcode.
     ElementAddrHeap,
+    /// The `element_addr_shared_heap` opcode.
+    ElementAddrSharedHeap,
     /// The `element_addr_raw` opcode.
     ElementAddrRaw,
+    /// The `element_addr_shared_raw` opcode.
+    ElementAddrSharedRaw,
     /// The `element_addr_stack` opcode.
     ElementAddrStack,
+    /// The `slice_element_addr` opcode.
+    SliceElementAddr,
     /// The `element_get` opcode.
     ElementGet,
+    /// The `element_copy` opcode.
+    ElementCopy,
     /// The `element_load` opcode.
     ElementLoad,
     /// The `element_load_static` opcode.
     ElementLoadStatic,
     /// The `element_load_heap` opcode.
     ElementLoadHeap,
+    /// The `element_load_shared_heap` opcode.
+    ElementLoadSharedHeap,
     /// The `element_load_raw` opcode.
     ElementLoadRaw,
+    /// The `element_load_shared_raw` opcode.
+    ElementLoadSharedRaw,
     /// The `element_load_stack` opcode.
     ElementLoadStack,
     /// The `element_store` opcode.
     ElementStore,
+    /// The `element_write` opcode.
+    ElementWrite,
     /// The `element_store_static` opcode.
     ElementStoreStatic,
     /// The `element_store_heap` opcode.
     ElementStoreHeap,
+    /// The `element_store_shared_heap` opcode.
+    ElementStoreSharedHeap,
     /// The `element_store_raw` opcode.
     ElementStoreRaw,
+    /// The `element_store_shared_raw` opcode.
+    ElementStoreSharedRaw,
     /// The `element_store_stack` opcode.
     ElementStoreStack,
     /// The `eq_const_int` opcode.
@@ -125,8 +149,12 @@ pub(crate) enum Opcode {
     FieldAddrStatic,
     /// The `field_addr_heap` opcode.
     FieldAddrHeap,
+    /// The `field_addr_shared_heap` opcode.
+    FieldAddrSharedHeap,
     /// The `field_addr_raw` opcode.
     FieldAddrRaw,
+    /// The `field_addr_shared_raw` opcode.
+    FieldAddrSharedRaw,
     /// The `field_addr_stack` opcode.
     FieldAddrStack,
     /// The `field_get` opcode.
@@ -137,8 +165,12 @@ pub(crate) enum Opcode {
     FieldLoadStatic,
     /// The `field_load_heap` opcode.
     FieldLoadHeap,
+    /// The `field_load_shared_heap` opcode.
+    FieldLoadSharedHeap,
     /// The `field_load_raw` opcode.
     FieldLoadRaw,
+    /// The `field_load_shared_raw` opcode.
+    FieldLoadSharedRaw,
     /// The `field_load_stack` opcode.
     FieldLoadStack,
     /// The `field_store` opcode.
@@ -147,8 +179,12 @@ pub(crate) enum Opcode {
     FieldStoreStatic,
     /// The `field_store_heap` opcode.
     FieldStoreHeap,
+    /// The `field_store_shared_heap` opcode.
+    FieldStoreSharedHeap,
     /// The `field_store_raw` opcode.
     FieldStoreRaw,
+    /// The `field_store_shared_raw` opcode.
+    FieldStoreSharedRaw,
     /// The `field_store_stack` opcode.
     FieldStoreStack,
     /// The `function_addr` opcode.
@@ -233,6 +269,10 @@ pub(crate) enum Opcode {
     NeInt,
     /// The `new` opcode.
     New,
+    /// The `new.heap` opcode.
+    NewHeap,
+    /// The `new.shared_heap` opcode.
+    NewSharedHeap,
     /// The `new.slice` opcode.
     NewSlice,
     /// The `or_int` opcode.
@@ -271,12 +311,8 @@ pub(crate) enum Opcode {
     StoreStatic,
     /// The `store_heap` opcode.
     StoreHeap,
-    /// The `store_heap_bytes` opcode.
-    StoreHeapBytes,
     /// The `store_shared_heap` opcode.
     StoreSharedHeap,
-    /// The `store_shared_heap_bytes` opcode.
-    StoreSharedHeapBytes,
     /// The `store_raw` opcode.
     StoreRaw,
     /// The `store_shared_raw` opcode.
