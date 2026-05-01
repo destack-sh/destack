@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-use crate::{ArtifactKey, ArtifactVersion};
+use crate::{ArtifactFailure, ArtifactKey, ArtifactVersion};
 
 /// Error returned when one required artifact is not ready.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,8 +62,11 @@ pub enum ProvideError {
         /// The corrupt artifact version.
         version: ArtifactVersion,
     },
-    /// The provider emitted diagnostics instead of a payload.
-    Errored,
+    /// The provider failed this artifact without aborting the session run.
+    Failed {
+        /// The artifact failure.
+        failure: ArtifactFailure,
+    },
     /// The provider failed due to infrastructure or an invariant violation.
     Internal {
         /// The failure message.
@@ -79,8 +82,15 @@ impl ProvideError {
         }
     }
 
+    /// Build one artifact provider failure.
+    pub fn failed(failure: ArtifactFailure) -> Self {
+        Self::Failed { failure }
+    }
+}
+
+impl From<RequireError> for ProvideError {
     /// Convert one requirement error into provider control flow.
-    pub fn from_require(error: RequireError) -> Self {
+    fn from(error: RequireError) -> Self {
         match error {
             RequireError::Blocked { key } => Self::Blocked { keys: vec![key] },
             RequireError::Failed { key } => Self::RequirementFailed { key },
@@ -102,7 +112,7 @@ impl Display for ProvideError {
                     "artifact provider requirement is corrupt: {version:?}"
                 )
             }
-            Self::Errored => write!(formatter, "artifact provider emitted diagnostics"),
+            Self::Failed { failure } => write!(formatter, "artifact provider failed: {failure:?}"),
             Self::Internal { message } => write!(formatter, "{message}"),
         }
     }
@@ -111,4 +121,4 @@ impl Display for ProvideError {
 impl Error for ProvideError {}
 
 /// Result returned by artifact providers.
-pub type ProviderResult<T = ()> = Result<T, ProvideError>;
+pub type ProviderResult<T = crate::ArtifactPayload> = Result<T, ProvideError>;
