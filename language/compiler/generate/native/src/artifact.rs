@@ -1,46 +1,44 @@
 use std::sync::Arc;
 
-use destack_artifact::{
-    BinaryArtifact, EmitFormat, MirBase, MirOptimized, ObjectArtifact, WasmArtifact, WasmInterface,
-};
+use destack_artifact::{BinaryOutput, EmitFormat, MirLowered, MirOptimized};
 use destack_workspace::{Module, Target};
 
 use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarning};
 
-/// One generator for binary module artifacts.
+/// One generator for binary module outputs.
 #[derive(Debug)]
-pub struct BinaryArtifactGenerator<'a> {
+pub struct BinaryOutputGenerator<'a> {
     /// The current module snapshot.
     module: Arc<Module>,
     /// The current optimized MIR, when available.
     mir_optimized: Option<Arc<MirOptimized>>,
-    /// The current base MIR fallback.
-    mir_base: Option<Arc<MirBase>>,
+    /// The current lowered MIR fallback.
+    mir_lowered: Option<Arc<MirLowered>>,
     /// The target configuration.
     target: &'a Target,
 }
 
-impl<'a> BinaryArtifactGenerator<'a> {
-    /// Create one binary artifact generator.
+impl<'a> BinaryOutputGenerator<'a> {
+    /// Create one binary output generator.
     pub fn new(
         module: Arc<Module>,
         mir_optimized: Option<Arc<MirOptimized>>,
-        mir_base: Option<Arc<MirBase>>,
+        mir_lowered: Option<Arc<MirLowered>>,
         target: &'a Target,
     ) -> Self {
         Self {
             module,
             mir_optimized,
-            mir_base,
+            mir_lowered,
             target,
         }
     }
 
-    /// Generate one binary artifact.
+    /// Generate one binary output.
     pub fn generate(
         self,
     ) -> CodegenCraneliftResult<(
-        BinaryArtifact,
+        BinaryOutput,
         Vec<CodegenCraneliftWarning>,
         Vec<CodegenCraneliftError>,
     )> {
@@ -58,28 +56,20 @@ impl<'a> BinaryArtifactGenerator<'a> {
         // create backend
         let backend = crate::CodegenCraneliftBackend::new(self.target)?;
 
-        // get module and its MIR
         // compile
         let module = self.module.as_ref();
         let name = module.uri.last_segment().unwrap_or("module");
         let compile_output = if let Some(mir) = self.mir_optimized.as_ref() {
             backend.compile_module(&mir.tree, &mir.strings, name)?
-        } else if let Some(mir) = self.mir_base.as_ref() {
+        } else if let Some(mir) = self.mir_lowered.as_ref() {
             backend.compile_module(&mir.tree, &mir.strings, name)?
         } else {
             panic!("codegen requires committed MIR artifact");
         };
 
         let artifact = match self.target.emit {
-            EmitFormat::Native => BinaryArtifact::Object(Box::new(ObjectArtifact {
-                bytes: Arc::from(compile_output.bytes),
-                debug: Vec::new(),
-            })),
-            EmitFormat::Wasm => BinaryArtifact::Wasm(Box::new(WasmArtifact {
-                bytes: Arc::from(compile_output.bytes),
-                interface: WasmInterface::default(),
-                source_map: None,
-            })),
+            EmitFormat::Native => BinaryOutput::object(compile_output.bytes),
+            EmitFormat::Wasm => BinaryOutput::wasm(compile_output.bytes, None),
             _ => unreachable!(),
         };
 
