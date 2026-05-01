@@ -21,7 +21,7 @@ impl World {
         engine: impl Into<Engine>,
     ) -> RuntimeResult<RuntimeId> {
         let mode = self.trace.mode();
-        let world = self.world_ref();
+        let world = self.world_scope();
         let lineage = self.lineage.read();
         let allocator = lineage.allocator();
         let collector = lineage.collector();
@@ -53,26 +53,6 @@ impl World {
                 runtime_id: runtime_id.0,
             }
             .boxed());
-        }
-
-        // workers spawned during shared marking must join the active root-scan pass
-        if self
-            .runtimes
-            .get(&runtime_id)
-            .is_some_and(|runtime| runtime.shared_gc_marking())
-        {
-            let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
-                RuntimeError::RuntimeNotFound {
-                    runtime_id: runtime_id.0,
-                }
-                .boxed()
-            })?;
-            runtime.start_shared_edge_scan();
-
-            for worker_id in runtime.worker_ids() {
-                runtime.queue_shared_root_scan(worker_id);
-                runtime.join_shared_edge_scan(worker_id);
-            }
         }
 
         // record mode needs one structural spawn record for suffix replay
@@ -152,7 +132,7 @@ impl World {
         options: &RuntimeOptions,
         engine: impl Into<Engine>,
     ) -> RuntimeResult<WorkerId> {
-        let world = self.world_ref();
+        let world = self.world_scope();
         let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
             RuntimeError::RuntimeNotFound {
                 runtime_id: runtime_id.0,
@@ -161,21 +141,7 @@ impl World {
         })?;
 
         let mode = self.trace.mode();
-        let is_marking_shared = runtime.shared_gc_marking();
         let worker_id = runtime.spawn_worker_with_options(&world, options, engine)?;
-
-        // workers spawned during shared marking must join the active root-scan pass
-        if is_marking_shared {
-            let worker = runtime.worker_mut(worker_id).ok_or_else(|| {
-                RuntimeError::WorkerNotFound {
-                    worker_id: worker_id.0,
-                }
-                .boxed()
-            })?;
-            worker.start_shared_edge_scan();
-            runtime.queue_shared_root_scan(worker_id);
-            runtime.join_shared_edge_scan(worker_id);
-        }
 
         // record mode needs one structural spawn record for suffix replay
         let replay_image = if mode == ExecutionMode::Record {
@@ -292,7 +258,7 @@ impl World {
         entry: &Entry,
         args: &[engine::Value],
     ) -> RuntimeResult<Output> {
-        let world = self.world_ref();
+        let world = self.world_scope();
         let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
             RuntimeError::RuntimeNotFound {
                 runtime_id: runtime_id.0,
@@ -312,7 +278,7 @@ impl World {
         worker_images: &std::collections::BTreeMap<WorkerId, SpawnedWorkerImage>,
         rebind_context: Option<&ResourceRebinders>,
     ) -> RuntimeResult<()> {
-        let world = self.world_ref();
+        let world = self.world_scope();
         let primary_worker = worker_images
             .get(&runtime_image.primary_worker_id)
             .ok_or_else(|| {
@@ -345,9 +311,15 @@ impl World {
             .iter()
             .map(|(worker_id, worker)| (*worker_id, worker.image.clone()))
             .collect();
+        let lineage = self.lineage.read();
+        let allocator = lineage.allocator();
+        let collector = lineage.collector();
+        drop(lineage);
+
         let runtime = Runtime::from_image(
             &world,
-            self.lineage.read().collector(),
+            allocator,
+            collector,
             runtime_id,
             runtime_name,
             runtime_image.as_ref(),
@@ -365,26 +337,6 @@ impl World {
                 runtime_id: runtime_id.0,
             }
             .boxed());
-        }
-
-        // restored workers must join the active root-scan pass too
-        if self
-            .runtimes
-            .get(&runtime_id)
-            .is_some_and(|runtime| runtime.shared_gc_marking())
-        {
-            let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
-                RuntimeError::RuntimeNotFound {
-                    runtime_id: runtime_id.0,
-                }
-                .boxed()
-            })?;
-            runtime.start_shared_edge_scan();
-
-            for worker_id in runtime.worker_ids() {
-                runtime.queue_shared_root_scan(worker_id);
-                runtime.join_shared_edge_scan(worker_id);
-            }
         }
 
         Ok(())
@@ -410,7 +362,7 @@ impl World {
             })?
             .platform_args_arc();
 
-        let world = self.world_ref();
+        let world = self.world_scope();
         let worker_labels = worker_image.options.resolve(None)?.labels.clone();
         world.register_worker_topology(
             runtime_id,
@@ -448,19 +400,6 @@ impl World {
         })?;
 
         runtime.insert_restored_worker(worker)?;
-
-        // restored workers must join the active root-scan pass too
-        if runtime.shared_gc_marking() {
-            let worker = runtime.worker_mut(worker_id).ok_or_else(|| {
-                RuntimeError::WorkerNotFound {
-                    worker_id: worker_id.0,
-                }
-                .boxed()
-            })?;
-            worker.start_shared_edge_scan();
-            runtime.queue_shared_root_scan(worker_id);
-            runtime.join_shared_edge_scan(worker_id);
-        }
 
         Ok(())
     }

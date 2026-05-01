@@ -4,9 +4,9 @@ use crate::runtime::policy::{BindingDispatchDecision, HookEvent, PolicyDecision,
 use crate::runtime::{Topology, WorkerId};
 use destack_workspace::{ExecutionMode, RuntimeAccess, RuntimeWorld};
 
-use super::{RuntimeId, WorldRef};
+use super::{RuntimeId, WorldScope};
 
-impl WorldRef {
+impl WorldScope {
     /// Resolve binding dispatch decisions for one binding call.
     pub(crate) fn resolve_binding_dispatch(
         &self,
@@ -74,9 +74,7 @@ impl WorldRef {
             &worker_labels,
             mode,
         );
-        let decisions = self
-            .policy_mut()
-            .on_event_for_subject(event, subject, self.random());
+        let decisions = self.apply_policy_event(event, subject);
 
         Ok(decisions)
     }

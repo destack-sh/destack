@@ -1,5 +1,6 @@
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::observe::{Observation, ObservationSequence, Observations};
-use crate::runtime::policy::PolicyState;
+use crate::runtime::policy::{HookEvent, PolicyDecision, PolicyState, RuleSubject};
 use crate::runtime::random::Random;
 use crate::runtime::time::Clock;
 use crate::runtime::trace::Trace;
@@ -10,9 +11,9 @@ use std::collections::BTreeMap;
 
 use super::{BranchId, Topology, WorldResource, WorldResourceId};
 
-/// Execution-scoped mutable world reference.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct WorldRef {
+/// Execution-scoped mutable world handle.
+#[derive(Debug)]
+pub(crate) struct WorldScope {
     /// Active branch identifier for this live execution scope.
     pub(crate) branch_id: BranchId,
     /// Effective world time mode after execution-mode resolution.
@@ -41,8 +42,8 @@ pub(crate) struct WorldRef {
     observations: *const Observations,
 }
 
-impl WorldRef {
-    /// Create one execution-scoped world reference from split world fields.
+impl WorldScope {
+    /// Create one execution-scoped world handle from split world fields.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         branch_id: BranchId,
@@ -90,11 +91,16 @@ impl WorldRef {
         unsafe { &*self.policy }
     }
 
-    /// Borrow the live policy state mutably.
-    #[inline]
-    pub(crate) fn policy_mut(&self) -> &mut PolicyState {
-        // safety: the execution scope owns the live policy borrow
-        unsafe { &mut *self.policy }
+    /// Apply one policy event against the live policy state.
+    pub(crate) fn apply_policy_event(
+        &self,
+        event: &HookEvent,
+        subject: RuleSubject<'_>,
+    ) -> Vec<PolicyDecision> {
+        // policy
+        let policy = unsafe { &mut *self.policy };
+
+        policy.on_event_for_subject(event, subject, self.random())
     }
 
     /// Borrow the live topology.
@@ -104,18 +110,87 @@ impl WorldRef {
         unsafe { &*self.topology }
     }
 
-    /// Borrow the live topology mutably.
-    #[inline]
-    pub(crate) fn topology_mut(&self) -> &mut Topology {
-        // safety: the execution scope owns the live topology borrow
-        unsafe { &mut *self.topology }
+    /// Register one runtime and its primary worker in world topology.
+    pub(crate) fn register_runtime_topology(
+        &self,
+        runtime_id: RuntimeId,
+        runtime_name: String,
+        runtime_labels: BTreeMap<String, String>,
+        primary_worker_id: WorkerId,
+        primary_worker_name: String,
+        primary_worker_labels: BTreeMap<String, String>,
+    ) -> RuntimeResult<()> {
+        // topology
+        let topology = unsafe { &mut *self.topology };
+        let result = topology.add_runtime(
+            runtime_id,
+            runtime_name,
+            runtime_labels,
+            primary_worker_id,
+            primary_worker_name,
+            primary_worker_labels,
+        );
+
+        result.map_err(|message| {
+            RuntimeError::Internal {
+                message: message.to_string(),
+            }
+            .boxed()
+        })
     }
 
-    /// Borrow the live world resources mutably.
-    #[inline]
-    pub(crate) fn resources_mut(&self) -> &mut BTreeMap<WorldResourceId, WorldResource> {
-        // safety: the execution scope owns the live resource borrow
-        unsafe { &mut *self.resources }
+    /// Register one worker in one existing runtime.
+    pub(crate) fn register_worker_topology(
+        &self,
+        runtime_id: RuntimeId,
+        worker_id: WorkerId,
+        worker_name: String,
+        worker_labels: BTreeMap<String, String>,
+    ) -> RuntimeResult<()> {
+        // topology
+        let topology = unsafe { &mut *self.topology };
+        let result = topology.add_worker(runtime_id, worker_id, worker_name, worker_labels);
+
+        result.map_err(|message| {
+            RuntimeError::Internal {
+                message: message.to_string(),
+            }
+            .boxed()
+        })
+    }
+
+    /// Attach one resource to the world topology and resource table.
+    pub(crate) fn attach_resource(&self, resource: WorldResource) -> RuntimeResult<()> {
+        // topology
+        let topology = unsafe { &mut *self.topology };
+        let result = topology.attach_resource(
+            resource.id,
+            resource.kind.clone(),
+            resource.label.as_deref(),
+        );
+        result.map_err(|message| {
+            RuntimeError::Internal {
+                message: message.to_string(),
+            }
+            .boxed()
+        })?;
+
+        // resource table
+        let resources = unsafe { &mut *self.resources };
+        resources.insert(resource.id, resource);
+
+        Ok(())
+    }
+
+    /// Detach one resource from the world topology and resource table.
+    pub(crate) fn detach_resource(&self, resource_id: WorldResourceId) {
+        // topology
+        let topology = unsafe { &mut *self.topology };
+        topology.detach_resource(resource_id);
+
+        // resource table
+        let resources = unsafe { &mut *self.resources };
+        resources.remove(&resource_id);
     }
 
     /// Borrow the shared world clock.
@@ -158,9 +233,10 @@ impl WorldRef {
 
     /// Allocate one runtime identifier.
     pub(crate) fn allocate_runtime_id(&self) -> RuntimeId {
+        // id cursor
         let runtime_id = unsafe { *self.next_runtime_id };
         unsafe {
-            *self.next_runtime_id = runtime_id.saturating_add(1);
+            *self.next_runtime_id = runtime_id + 1;
         }
 
         RuntimeId(runtime_id)
@@ -168,9 +244,10 @@ impl WorldRef {
 
     /// Allocate one worker identifier.
     pub(crate) fn allocate_worker_id(&self) -> WorkerId {
+        // id cursor
         let worker_id = unsafe { *self.next_worker_id };
         unsafe {
-            *self.next_worker_id = worker_id.saturating_add(1);
+            *self.next_worker_id = worker_id + 1;
         }
 
         WorkerId(worker_id)
