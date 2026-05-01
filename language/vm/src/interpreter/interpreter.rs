@@ -192,11 +192,13 @@ impl Interpreter {
         self.frames
             .iter()
             .map(|f| {
-                let func = program.tree.get(f.function);
+                let function = f.function();
+                let block = f.current_block();
+                let func = program.tree.get(function);
                 let name = program.strings.get(func.name).to_string();
                 FrameInfo {
-                    function: f.function,
-                    block: f.current_block,
+                    function,
+                    block,
                     function_name: Some(name),
                 }
             })

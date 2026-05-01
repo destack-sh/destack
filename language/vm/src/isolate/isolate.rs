@@ -646,11 +646,13 @@ impl Isolate {
             .frames()
             .iter()
             .map(|f| {
-                let func = self.program.tree.get(f.function);
+                let function = f.function();
+                let block = f.current_block();
+                let func = self.program.tree.get(function);
                 let name = self.program.strings.get(func.name).to_string();
                 FrameInfo {
-                    function: f.function,
-                    block: f.current_block,
+                    function,
+                    block,
                     function_name: Some(name),
                 }
             })
