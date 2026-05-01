@@ -1,3 +1,5 @@
+use destack_engine::Value;
+
 use crate::Word;
 use crate::diagnostic::Error;
 use crate::tests::{assert_runtime_error, run_mir, run_mir_expect};
@@ -138,6 +140,93 @@ b0:
     return v0
 }"#;
     run_mir_expect(mir, "constant", &[], Word::int32(42));
+}
+
+/// Wide unsigned constants preserve bits above one VM word.
+#[test]
+fn test_constant_uint128() {
+    let mir = r#"
+function constantWide(): boolean {
+b0:
+    v0: uint128 = 18446744073709551616uint128
+    v1: uint128 = 1uint128
+    v2: uint128 = 64uint128
+    v3: uint128 = int.shl v1, v2
+    v4: boolean = int.eq v0, v3
+    return v4
+}"#;
+    run_mir_expect(mir, "constantWide", &[], Word::bool(true));
+}
+
+/// Wide unsigned return values materialize through the engine boundary.
+#[test]
+fn test_return_uint128() {
+    let mir = r#"
+function returnWide(): uint128 {
+b0:
+    v0: uint128 = 18446744073709551616uint128
+    return v0
+}"#;
+    let output = run_mir(mir, "returnWide", &[])
+        .expect("execution failed")
+        .value;
+
+    assert_eq!(
+        output,
+        Value::UInt {
+            value: 18_446_744_073_709_551_616,
+            width: 128,
+        },
+    );
+}
+
+/// Wide unsigned arithmetic runs through frame-backed integer bytes.
+#[test]
+fn test_add_uint128() {
+    let mir = r#"
+function addWide(): boolean {
+b0:
+    v0: uint128 = 18446744073709551615uint128
+    v1: uint128 = 1uint128
+    v2: uint128 = int.add v0, v1
+    v3: uint128 = 1uint128
+    v4: uint128 = 64uint128
+    v5: uint128 = int.shl v3, v4
+    v6: boolean = int.eq v2, v5
+    return v6
+}"#;
+    run_mir_expect(mir, "addWide", &[], Word::bool(true));
+}
+
+/// Wide unsigned arithmetic scales beyond the literal carrier width.
+#[test]
+fn test_add_uint256() {
+    let mir = r#"
+function addVeryWide(): boolean {
+b0:
+    v0: uint256 = 340282366920938463463374607431768211455uint256
+    v1: uint256 = 1uint256
+    v2: uint256 = int.add v0, v1
+    v3: boolean = int.gt.u v2, v0
+    return v3
+}"#;
+    run_mir_expect(mir, "addVeryWide", &[], Word::bool(true));
+}
+
+/// Wide unsigned select copies the selected frame-backed scalar value.
+#[test]
+fn test_select_uint128() {
+    let mir = r#"
+function selectWide(): boolean {
+b0:
+    v0: boolean = true
+    v1: uint128 = 18446744073709551616uint128
+    v2: uint128 = 7uint128
+    v3: uint128 = select v0, v1, v2
+    v4: boolean = int.eq v3, v1
+    return v4
+}"#;
+    run_mir_expect(mir, "selectWide", &[], Word::bool(true));
 }
 
 /// Boolean true constant is loaded correctly.

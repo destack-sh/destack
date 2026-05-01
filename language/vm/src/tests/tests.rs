@@ -20,14 +20,14 @@ pub(crate) struct TestIsolate {
     /// The authoritative heap for the isolate.
     pub heap: Heap,
     /// The world-shared heap for the isolate.
-    pub shared: SharedHeap,
+    pub shared_heap: SharedHeap,
 }
 
 /// Create one local test heap.
 pub(crate) fn create_test_heap() -> Heap {
     let options = HeapOptions::local();
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("test allocator should build"),
     );
 
@@ -39,7 +39,7 @@ pub(crate) fn create_test_heap() -> Heap {
 pub(crate) fn create_test_shared_heap() -> SharedHeap {
     let options = HeapOptions::shared();
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("test allocator should build"),
     );
 
@@ -74,18 +74,18 @@ impl TestIsolate {
                 .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
         let mut statics = StaticSpace::empty();
         let heap = create_test_heap();
-        let shared = create_test_shared_heap();
+        let shared_heap = create_test_shared_heap();
 
         // initialize isolate statics
         isolate
-            .initialize_statics(&mut statics)
+            .initialize(&heap, &shared_heap, &mut statics)
             .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
         Self {
             isolate,
             statics,
             heap,
-            shared,
+            shared_heap,
         }
     }
 
@@ -128,7 +128,7 @@ impl TestIsolate {
         &mut self,
         run: impl FnOnce(&mut Isolate, &mut Heap, &SharedHeap) -> R,
     ) -> R {
-        run(&mut self.isolate, &mut self.heap, &mut self.shared)
+        run(&mut self.isolate, &mut self.heap, &mut self.shared_heap)
     }
 
     /// Run one MIR function by name with the given arguments.
@@ -140,7 +140,7 @@ impl TestIsolate {
         self.isolate.run_function_by_name(
             &mut self.statics,
             &mut self.heap,
-            &self.shared,
+            &self.shared_heap,
             function,
             arguments,
         )
@@ -151,11 +151,11 @@ impl TestIsolate {
         &mut self,
         function: &str,
         arguments: &[Word],
-    ) -> RuntimeResult<crate::Outcome> {
+    ) -> RuntimeResult<Outcome> {
         self.isolate.run_function_by_name_yielding(
             &mut self.statics,
             &mut self.heap,
-            &self.shared,
+            &self.shared_heap,
             function,
             arguments,
         )
@@ -166,16 +166,16 @@ impl TestIsolate {
         &mut self,
         continuation: Continuation,
         resume_value: Word,
-    ) -> RuntimeResult<crate::Outcome> {
+    ) -> RuntimeResult<Outcome> {
         let resume_value = Value::Int {
-            value: resume_value.as_int(),
+            value: resume_value.as_int() as i128,
             width: 32,
         };
 
         self.isolate.resume(
             &mut self.statics,
             &mut self.heap,
-            &self.shared,
+            &self.shared_heap,
             continuation,
             resume_value,
         )
@@ -208,15 +208,15 @@ impl TestIsolate {
             .collect_full(&mut heap_roots)
             .expect("failed to collect heap");
         let shared_stats = self
-            .shared
-            .collect_full(roots.shared.iter().copied())
+            .shared_heap
+            .collect_full(&roots.shared_heap)
             .expect("failed to collect shared heap");
 
         stats.freed_allocations += shared_stats.freed_allocations;
         stats.live_allocations += shared_stats.live_allocations;
         stats.freed_bytes += shared_stats.freed_bytes;
         stats.allocated_bytes += shared_stats.allocated_bytes;
-        stats.active_bytes += shared_stats.active_bytes;
+        stats.retained_bytes += shared_stats.retained_bytes;
 
         stats
     }
@@ -256,14 +256,14 @@ pub(crate) fn create_isolate_with_storage(mir_text: &str, storage: Storage) -> T
 
     // initialize isolate statics
     isolate
-        .initialize_statics(&mut statics)
+        .initialize(&heap, &shared, &mut statics)
         .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
     TestIsolate {
         isolate,
         statics,
         heap,
-        shared,
+        shared_heap: shared,
     }
 }
 
@@ -359,8 +359,8 @@ pub(crate) fn assert_value_word(value: &Value) -> Word {
     match value {
         Value::Void => Word::VOID,
         Value::Bool(value) => Word::bool(*value),
-        Value::Int { value, width } => Word::int(*value, *width),
-        Value::UInt { value, width } => Word::uint(*value, *width),
+        Value::Int { value, width } => Word::int(*value as i64, *width as u8),
+        Value::UInt { value, width } => Word::uint(*value as u64, *width as u8),
         Value::Float32 { bits } => Word::float32(f32::from_bits(*bits)),
         Value::Float64 { bits } => Word::float64(f64::from_bits(*bits)),
         Value::Char(value) => Word::char(*value),
