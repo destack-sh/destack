@@ -7,9 +7,7 @@ use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_session::{Session, SessionEventHandler};
-use destack_source::{
-    DiagnosticCollection, DiagnosticOptions, FileType, ModuleId, ProfileId, TargetId,
-};
+use destack_source::{DiagnosticCollection, FileType, ModuleId, ProfileId, TargetId};
 use destack_workspace::{Ref, Repository, Revision};
 
 use crate::common::{DiagnosticArgs, InputArgs, InputSource, ProgramArgs, print_diagnostics};
@@ -61,8 +59,6 @@ pub struct CompilerContext {
     pub repository: Arc<Repository>,
     /// Private command session for this compilation.
     pub session: Session,
-    /// The diagnostic options.
-    pub diagnostic_options: DiagnosticOptions,
     /// The compile mode.
     pub mode: CompilerMode,
     /// The requested root artifacts.
@@ -76,7 +72,6 @@ impl fmt::Debug for CompilerContext {
         f.debug_struct("CompileContext")
             .field("repository", &self.repository)
             .field("session", &"Session { ... }")
-            .field("diagnostic_options", &self.diagnostic_options)
             .field("mode", &self.mode)
             .finish()
     }
@@ -129,11 +124,10 @@ impl CompilerContext {
     /// Create a new compilation context with the given mode.
     pub fn new(
         program_args: &ProgramArgs,
-        diagnostic_args: &DiagnosticArgs,
+        _diagnostic_args: &DiagnosticArgs,
         mode: CompilerMode,
         event_handler: Option<SessionEventHandler>,
     ) -> Self {
-        let diagnostic_options: DiagnosticOptions = diagnostic_args.clone().into();
         let repository = program_args.setup();
 
         let compiler = Arc::new(Compiler::new(repository.clone()));
@@ -157,7 +151,6 @@ impl CompilerContext {
         Self {
             repository,
             session,
-            diagnostic_options,
             mode,
             root_artifact_keys: RefCell::new(Vec::new()),
             queued_modules: RefCell::new(Vec::new()),
@@ -298,7 +291,6 @@ impl CompilerContext {
         Ok(CompileResult {
             repository: self.repository,
             revision,
-            diagnostic_options: self.diagnostic_options,
             diagnostics,
         })
     }
@@ -323,7 +315,6 @@ impl CompilerContext {
         Ok(CompileResult {
             repository: self.repository,
             revision,
-            diagnostic_options: self.diagnostic_options,
             diagnostics,
         })
     }
@@ -439,8 +430,6 @@ pub struct CompileResult {
     pub repository: Arc<Repository>,
     /// The revision used for compilation and diagnostics.
     pub revision: Revision,
-    /// The diagnostic options.
-    pub diagnostic_options: DiagnosticOptions,
     /// The collected diagnostics for this compile result.
     pub diagnostics: DiagnosticCollection,
 }
@@ -450,7 +439,6 @@ impl fmt::Debug for CompileResult {
         f.debug_struct("CompileResult")
             .field("repository", &self.repository)
             .field("revision", &self.revision)
-            .field("diagnostic_options", &self.diagnostic_options)
             .field("diagnostics", &self.diagnostics)
             .finish()
     }
@@ -459,8 +447,12 @@ impl fmt::Debug for CompileResult {
 impl CompileResult {
     /// Print diagnostics and return exit code.
     pub fn finish(self) -> i32 {
-        let diagnostics = self.diagnostics.map(&self.diagnostic_options);
-        print_diagnostics(&self.repository, self.revision, &diagnostics);
-        diagnostics.get_status_code()
+        if let Err(error) = print_diagnostics(&self.repository, self.revision, &self.diagnostics) {
+            eprintln!("failed to render diagnostics: {error}");
+
+            return 1;
+        }
+
+        self.diagnostics.get_status_code()
     }
 }

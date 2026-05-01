@@ -29,14 +29,13 @@ pub fn run(args: &InfoArgs) -> i32 {
     }
 
     // build daemon command options
-    let common = CommandOptionsBuilder::new(&args.program, None).build();
+    let common = CommandOptionsBuilder::new(&args.program).build();
     let payload = CommandPayload::Info(CommandInfoOptions { all: args.all });
 
     run_root_payload_command_or_report::<CommandInfoPayload, _, _>(
         "info",
         &args.report,
         &args.program,
-        None,
         common,
         payload,
         "info",

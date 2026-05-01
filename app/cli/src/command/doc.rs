@@ -25,13 +25,12 @@ pub fn run(args: &DocArgs) -> i32 {
     }
 
     // build daemon command options
-    let common = CommandOptionsBuilder::new(&args.program, None).build();
+    let common = CommandOptionsBuilder::new(&args.program).build();
     let payload = CommandPayload::Doc(CommandDocOptions::default());
 
     // execute the daemon command
     let result =
-        match run_root_command_or_report("doc", &args.report, &args.program, None, common, payload)
-        {
+        match run_root_command_or_report("doc", &args.report, &args.program, common, payload) {
             Ok(result) => result,
             Err(code) => return code,
         };

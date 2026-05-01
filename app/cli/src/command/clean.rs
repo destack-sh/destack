@@ -67,23 +67,17 @@ fn run_clean_via_daemon(args: &CleanArgs) -> i32 {
         all: args.all,
         all_packages: args.all_packages,
     };
-    let common = CommandOptionsBuilder::new(&args.program, None)
+    let common = CommandOptionsBuilder::new(&args.program)
         .dry_run(args.dry_run)
         .build();
     let payload = CommandPayload::Clean(clean);
 
     // execute the daemon command
-    let result = match run_root_command_or_report(
-        "clean",
-        &args.report,
-        &args.program,
-        None,
-        common,
-        payload,
-    ) {
-        Ok(result) => result,
-        Err(code) => return code,
-    };
+    let result =
+        match run_root_command_or_report("clean", &args.report, &args.program, common, payload) {
+            Ok(result) => result,
+            Err(code) => return code,
+        };
 
     // emit daemon output and messages for text modes
     if !args.report.is_json() {

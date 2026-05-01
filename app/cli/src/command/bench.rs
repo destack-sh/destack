@@ -25,21 +25,15 @@ pub fn run(args: &BenchArgs) -> i32 {
     }
 
     // build daemon command options
-    let common = CommandOptionsBuilder::new(&args.program, None).build();
+    let common = CommandOptionsBuilder::new(&args.program).build();
     let payload = CommandPayload::Bench(CommandBenchOptions::default());
 
     // execute the daemon command
-    let result = match run_root_command_or_report(
-        "bench",
-        &args.report,
-        &args.program,
-        None,
-        common,
-        payload,
-    ) {
-        Ok(result) => result,
-        Err(code) => return code,
-    };
+    let result =
+        match run_root_command_or_report("bench", &args.report, &args.program, common, payload) {
+            Ok(result) => result,
+            Err(code) => return code,
+        };
 
     // emit command output based on the report format
     finish_daemon_message_command("bench", &args.report, &result)

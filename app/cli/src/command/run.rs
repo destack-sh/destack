@@ -25,7 +25,7 @@ use clap::Args;
 use destack_daemon::protocol::{
     CommandPayload, CommandRunMode, CommandRunOptions, CommonCommandOptions,
 };
-use destack_source::{DiagnosticOptions, FileSystem};
+use destack_source::FileSystem;
 use destack_workspace::Repository;
 
 /// Arguments for the run command.
@@ -86,8 +86,6 @@ pub(crate) struct RunRequest {
     pub target: TargetArgs,
     /// Runtime configuration.
     pub runtime: RuntimeArgs,
-    /// Diagnostic options.
-    pub diagnostics: DiagnosticArgs,
     /// Report output options.
     pub report: ReportArgs,
     /// Entry function name.
@@ -110,8 +108,6 @@ struct RunWatchState {
 struct PreparedRunCommand {
     /// Repository used for daemon execution.
     repository: Arc<Repository>,
-    /// Diagnostic options passed to the daemon.
-    diagnostic_options: DiagnosticOptions,
     /// Common daemon command options.
     common: CommonCommandOptions,
     /// Command specific daemon payload.
@@ -122,8 +118,6 @@ struct PreparedRunCommand {
 struct PreparedRunWatch {
     /// Repository used for watch mode.
     repository: Arc<Repository>,
-    /// Diagnostic options passed to the daemon.
-    diagnostic_options: DiagnosticOptions,
     /// Mutable watch state.
     state: RunWatchState,
 }
@@ -144,7 +138,6 @@ pub fn run(args: &RunArgs) -> i32 {
         program: args.program.clone(),
         target: args.target.clone(),
         runtime: args.runtime.clone(),
-        diagnostics: args.diagnostics.clone(),
         report: args.report.clone(),
         entry: args.entry.clone(),
         args: args.args.clone(),
@@ -282,7 +275,6 @@ where
     };
     let PreparedRunWatch {
         repository,
-        diagnostic_options,
         mut state,
     } = prepared;
 
@@ -291,7 +283,6 @@ where
         repository,
         &request.program,
         &request.report,
-        diagnostic_options,
         None,
         watch_loop_options,
         &mut state,
@@ -330,23 +321,18 @@ fn compile_and_run_daemon(
     updated: bool,
     rescan: bool,
 ) -> i32 {
-    let diagnostic_options: DiagnosticOptions = request.diagnostics.clone().into();
-    let (common, payload) = match build_run_command(
-        request,
-        std::slice::from_ref(entry_source),
-        target_name,
-        &diagnostic_options,
-    ) {
-        Ok(command) => command,
-        Err(error) => {
-            let message = watch_error(&error.to_string());
-            if let Some(reporter) = watch_reporter.as_mut() {
-                reporter.emit_warning(&message);
-                return 1;
+    let (common, payload) =
+        match build_run_command(request, std::slice::from_ref(entry_source), target_name) {
+            Ok(command) => command,
+            Err(error) => {
+                let message = watch_error(&error.to_string());
+                if let Some(reporter) = watch_reporter.as_mut() {
+                    reporter.emit_warning(&message);
+                    return 1;
+                }
+                return report_error(request.command_name, &request.report, &message);
             }
-            return report_error(request.command_name, &request.report, &message);
-        }
-    };
+        };
 
     // execute the daemon command
     let result = match daemon.run_root_command(root, common, payload) {
@@ -508,13 +494,11 @@ fn prepare_run_execution(request: &RunRequest) -> Result<RunExecutionPlan, i32> 
     // resolve a single entry source for the run
     let sources = resolve_run_sources_or_report(request)?;
     let target_name = resolve_run_target_name_or_report(request, &repository)?;
-    let diagnostic_options: DiagnosticOptions = request.diagnostics.clone().into();
-    let (common, payload) = build_run_command(request, &sources, &target_name, &diagnostic_options)
+    let (common, payload) = build_run_command(request, &sources, &target_name)
         .map_err(|error| report_error(request.command_name, &request.report, &error.to_string()))?;
 
     Ok(RunExecutionPlan::Daemon(Box::new(PreparedRunCommand {
         repository,
-        diagnostic_options,
         common,
         payload,
     })))
@@ -530,7 +514,6 @@ fn execute_run_command(
         &request.report,
         prepared.repository.clone(),
         &request.program,
-        prepared.diagnostic_options.clone(),
         prepared.common.clone(),
         prepared.payload.clone(),
     )
@@ -569,11 +552,9 @@ fn prepare_run_watch(request: &RunRequest) -> Result<PreparedRunWatch, i32> {
 
     let sources = resolve_run_sources_or_report(request)?;
     let target_name = resolve_run_target_name_for_watch(request, &repository)?;
-    let diagnostic_options: DiagnosticOptions = request.diagnostics.clone().into();
 
     Ok(PreparedRunWatch {
         repository,
-        diagnostic_options,
         state: RunWatchState {
             sources,
             target_name,
@@ -680,10 +661,9 @@ fn build_run_command(
     request: &RunRequest,
     sources: &[InputSource],
     target_name: &str,
-    diagnostic_options: &DiagnosticOptions,
 ) -> CliResult<(CommonCommandOptions, CommandPayload)> {
     let inputs = command_inputs_from_sources(sources, request.input.file_type())?;
-    let common = CommandOptionsBuilder::new(&request.program, Some(diagnostic_options.clone()))
+    let common = CommandOptionsBuilder::new(&request.program)
         .inputs(inputs)
         .target(target_name.to_string())
         .target_overrides(target_overrides_from_args(&request.target))

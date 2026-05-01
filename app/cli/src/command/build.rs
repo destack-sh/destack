@@ -1,5 +1,4 @@
 use destack_daemon::protocol::{CommandBuildOptions, CommandPayload, CommonCommandOptions};
-use destack_source::DiagnosticOptions;
 
 use crate::common::{
     DiagnosticArgs, DiagnosticFormat, FormatOptions, InputArgs, InputSource, ProgramArgs,
@@ -87,9 +86,6 @@ pub fn run(args: &BuildArgs) -> i32 {
 
 /// Run a single build command through the daemon.
 fn run_build_via_daemon(args: &BuildArgs, target_name: &str) -> i32 {
-    // build diagnostic options for the daemon command
-    let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
-
     // build command inputs when explicitly provided
     let inputs = if args.input.has_input() {
         let sources = match args.input.to_sources() {
@@ -109,7 +105,7 @@ fn run_build_via_daemon(args: &BuildArgs, target_name: &str) -> i32 {
     };
 
     // build command options for daemon execution
-    let options = CommandOptionsBuilder::new(&args.program, Some(diagnostic_options.clone()))
+    let options = CommandOptionsBuilder::new(&args.program)
         .inputs(inputs)
         .allow_destack_config_fallback(!args.input.has_input())
         .target(target_name.to_string())
@@ -119,17 +115,11 @@ fn run_build_via_daemon(args: &BuildArgs, target_name: &str) -> i32 {
     let payload = CommandPayload::Build(CommandBuildOptions::default());
 
     // execute the daemon command
-    let result = match run_root_command_or_report(
-        "build",
-        &args.report,
-        &args.program,
-        Some(diagnostic_options),
-        options,
-        payload,
-    ) {
-        Ok(result) => result,
-        Err(code) => return code,
-    };
+    let result =
+        match run_root_command_or_report("build", &args.report, &args.program, options, payload) {
+            Ok(result) => result,
+            Err(code) => return code,
+        };
 
     let data = match result.response.data.as_ref() {
         Some(payload) => match payload.to_json_value() {
@@ -219,9 +209,6 @@ where
         }
     };
 
-    // build diagnostic options for the daemon command
-    let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
-
     // prepare watch mode output
     let json_format_options = FormatOptions {
         format: DiagnosticFormat::Json,
@@ -234,17 +221,14 @@ where
 
     // prepare command options for the watch run
     let target_overrides = target_overrides_from_args(&args.target);
-    let watch_diagnostic_options = diagnostic_options.clone();
     let build_options = |sources: &[InputSource]| -> CliResult<CommonCommandOptions> {
         let inputs = command_inputs_from_sources(sources, args.input.file_type())?;
-        Ok(
-            CommandOptionsBuilder::new(&args.program, Some(watch_diagnostic_options.clone()))
-                .inputs(inputs)
-                .allow_destack_config_fallback(!args.input.has_input())
-                .target(target_name.to_string())
-                .target_overrides(target_overrides.clone())
-                .build(),
-        )
+        Ok(CommandOptionsBuilder::new(&args.program)
+            .inputs(inputs)
+            .allow_destack_config_fallback(!args.input.has_input())
+            .target(target_name.to_string())
+            .target_overrides(target_overrides.clone())
+            .build())
     };
 
     let format_options = FormatOptions::default();
@@ -254,7 +238,6 @@ where
         session,
         &args.program,
         &args.report,
-        diagnostic_options,
         None,
         watch_loop_options,
         &mut watch_state,

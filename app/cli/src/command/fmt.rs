@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use clap::Args;
 use destack_daemon::protocol::{CommandFormatOptions, CommandFormatPayload, CommandPayload};
-use destack_source::DiagnosticOptions;
 
 use crate::common::{
     DiagnosticArgs, ProgramArgs, ReportArgs, ensure_no_watch_or_dev, parse_command_payload,
@@ -47,9 +46,7 @@ pub fn run(args: &FmtArgs) -> i32 {
     }
 
     // build daemon command options
-    let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
-    let common =
-        CommandOptionsBuilder::new(&args.program, Some(diagnostic_options.clone())).build();
+    let common = CommandOptionsBuilder::new(&args.program).build();
     let payload = CommandPayload::Format(CommandFormatOptions {
         files: args.files.clone(),
         eval: args.eval.clone(),
@@ -57,17 +54,11 @@ pub fn run(args: &FmtArgs) -> i32 {
     });
 
     // execute the daemon command
-    let result = match run_root_command_or_report(
-        "fmt",
-        &args.report,
-        &args.program,
-        Some(diagnostic_options),
-        common,
-        payload,
-    ) {
-        Ok(result) => result,
-        Err(code) => return code,
-    };
+    let result =
+        match run_root_command_or_report("fmt", &args.report, &args.program, common, payload) {
+            Ok(result) => result,
+            Err(code) => return code,
+        };
 
     // emit daemon output for text mode
     if !args.report.is_json() {

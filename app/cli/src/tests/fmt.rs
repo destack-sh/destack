@@ -284,7 +284,7 @@ fn test_fmt_payload_includes_changed_and_error_files() {
     let bad_path = program.write_text("bad.ds", "const broken =");
 
     // build daemon command options
-    let common = CommandOptionsBuilder::new(&program.program_args(), None).build();
+    let common = CommandOptionsBuilder::new(&program.program_args()).build();
     let payload = CommandPayload::Format(CommandFormatOptions {
         files: vec![good_path.clone(), bad_path.clone()],
         eval: None,

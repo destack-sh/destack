@@ -108,7 +108,6 @@ pub fn run(args: &EvalArgs) -> i32 {
         program: args.program.clone(),
         target: args.target.clone(),
         runtime: args.runtime.clone(),
-        diagnostics: args.diagnostics.clone(),
         report: args.report.clone(),
         entry: args.entry.clone(),
         args: args.args.clone(),

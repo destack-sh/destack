@@ -25,21 +25,15 @@ pub fn run(args: &TestArgs) -> i32 {
     }
 
     // build daemon command options
-    let common = CommandOptionsBuilder::new(&args.program, None).build();
+    let common = CommandOptionsBuilder::new(&args.program).build();
     let payload = CommandPayload::Test(CommandTestOptions::default());
 
     // execute the daemon command
-    let result = match run_root_command_or_report(
-        "test",
-        &args.report,
-        &args.program,
-        None,
-        common,
-        payload,
-    ) {
-        Ok(result) => result,
-        Err(code) => return code,
-    };
+    let result =
+        match run_root_command_or_report("test", &args.report, &args.program, common, payload) {
+            Ok(result) => result,
+            Err(code) => return code,
+        };
 
     // emit command output based on the report format
     finish_daemon_message_command("test", &args.report, &result)

@@ -30,14 +30,13 @@ pub fn run(args: &TargetsArgs) -> i32 {
     }
 
     // build daemon command options
-    let common = CommandOptionsBuilder::new(&args.program, None).build();
+    let common = CommandOptionsBuilder::new(&args.program).build();
     let payload = CommandPayload::Targets(CommandTargetsOptions { all: args.all });
 
     run_root_payload_command_or_report::<CommandTargetsPayload, _, _>(
         "targets",
         &args.report,
         &args.program,
-        None,
         common,
         payload,
         "targets",
