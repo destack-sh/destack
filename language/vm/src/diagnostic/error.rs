@@ -162,7 +162,7 @@ pub enum Error {
     SuspendWithFrameLocalState = 37,
 
     /// One VM stage required concrete MIR at the given use site.
-    ConcreteMirRequired { context: String } = 38,
+    MissingRepresentation { context: String } = 38,
 
     /// One internal VM invariant was violated.
     InvariantViolation { context: String } = 39,
@@ -285,7 +285,7 @@ impl Error {
             Self::SuspendWithFrameLocalState => {
                 "cannot suspend while frame-local state is still live".to_string()
             }
-            Self::ConcreteMirRequired { context } => {
+            Self::MissingRepresentation { context } => {
                 format!("concrete MIR required: {context}")
             }
             Self::InvariantViolation { context } => {

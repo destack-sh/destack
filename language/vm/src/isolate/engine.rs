@@ -14,7 +14,7 @@ impl engine::Engine for Isolate {
     type Error = RuntimeError;
 
     fn initialize(&mut self, context: engine::Context<'_>) -> Result<(), Self::Error> {
-        Isolate::initialize_statics(self, context.worker_static)
+        Isolate::initialize(self, context.heap, context.shared, context.worker_static)
     }
 
     fn run(
@@ -25,13 +25,17 @@ impl engine::Engine for Isolate {
     ) -> Result<Outcome, Self::Error> {
         let args = args.iter().map(Word::from).collect::<Vec<_>>();
 
-        self.run_function_by_name_yielding(
+        self.enter_shared_gc(context.shared_gc);
+        let outcome = self.run_function_by_name_yielding_words(
             context.worker_static,
             context.heap,
             context.shared,
             entry.name(),
             &args,
-        )
+        );
+        self.leave_shared_gc();
+
+        outcome
     }
 
     fn resume(
@@ -40,14 +44,18 @@ impl engine::Engine for Isolate {
         continuation: Continuation,
         value: engine::Value,
     ) -> Result<Outcome, Self::Error> {
-        Isolate::resume(
+        self.enter_shared_gc(context.shared_gc);
+        let outcome = Isolate::resume(
             self,
             context.worker_static,
             context.heap,
             context.shared,
             continuation,
             value,
-        )
+        );
+        self.leave_shared_gc();
+
+        outcome
     }
 
     fn fork(&mut self, _heap: &mut heap::Heap) -> Result<Self, Self::Error> {

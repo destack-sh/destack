@@ -6,14 +6,16 @@ use destack_core::{Capture, CaptureMode, ImmutableStringPool, SnapshotCodec};
 use destack_engine::{self as engine, StaticSpace};
 use destack_mir as mir;
 
-use super::{ExternalCallContext, ExternalFn, ExternalHandler, RootSet, RootVisitor};
+use super::{ExternalCallContext, ExternalFn, ExternalHandler, RootSet, RootSink};
 use crate::diagnostic::{Error, FrameInfo, RuntimeError, RuntimeResult};
 use crate::interpreter::{Continuation, Interpreter, Outcome, Output};
 use crate::options::IsolateOptions;
 use crate::program::Program;
 use crate::snapshot::{ContinuationImage, IsolateImage};
 use crate::{SharedHeap, Word};
-use destack_heap::{Heap, HeapReference, HeapResult, RootSlot, SharedRawLimits};
+use destack_heap::{
+    Heap, HeapReference, HeapResult, RootSlot, SharedAllocator, SharedGcWorker, SharedRawLimits,
+};
 
 /// VM isolate with static data and execution state.
 pub struct Isolate {
@@ -27,6 +29,10 @@ pub struct Isolate {
     externals: HashMap<String, ExternalFn>,
     /// Interpreter engine backing this isolate.
     interpreter: Interpreter,
+    /// Worker allocator for shared managed heap allocation.
+    shared_allocator: Option<SharedAllocator>,
+    /// Current shared collector worker during one engine call.
+    shared_gc: Option<usize>,
 }
 
 impl fmt::Debug for Isolate {
@@ -49,9 +55,12 @@ impl Isolate {
             program,
             options: image.options.clone(),
             externals: HashMap::new(),
-            interpreter: Interpreter::new(),
+            interpreter: Interpreter::new(&image.options)?,
+            shared_allocator: None,
+            shared_gc: None,
         };
-        isolate.interpreter = Interpreter::from_image(&isolate.program, &image.interpreter)?;
+        isolate.interpreter =
+            Interpreter::from_image(&isolate.program, &image.interpreter, &isolate.options)?;
 
         Ok(isolate)
     }
@@ -84,17 +93,65 @@ impl Isolate {
             }));
         }
 
+        let interpreter = Interpreter::new(&options)?;
+
         Ok(Self {
             isolate_id,
             program,
             options,
             externals: HashMap::new(),
-            interpreter: Interpreter::new(),
+            interpreter,
+            shared_allocator: None,
+            shared_gc: None,
         })
     }
 
-    /// Initialize worker static bytes for this isolate.
-    pub fn initialize_statics(&mut self, statics: &mut StaticSpace) -> RuntimeResult<()> {
+    /// Enter one engine call with one shared collector worker.
+    pub(crate) fn enter_shared_gc(&mut self, worker: &SharedGcWorker) {
+        self.shared_gc = Some(worker as *const SharedGcWorker as usize);
+    }
+
+    /// Leave the current engine shared collector worker scope.
+    pub(crate) fn leave_shared_gc(&mut self) {
+        self.shared_gc = None;
+    }
+
+    /// Prepare this isolate's shared heap allocator for one engine call.
+    fn prepare_shared_allocator(&mut self, shared: &SharedHeap) {
+        if self.shared_allocator.is_none() {
+            self.shared_allocator = Some(shared.allocator());
+        }
+
+        if let Some(allocator) = self.shared_allocator.as_mut() {
+            let shared_gc = self
+                .shared_gc
+                .map(|worker| unsafe { &*(worker as *const SharedGcWorker) });
+            allocator.set_gc_worker(shared_gc);
+        }
+    }
+
+    /// Publish and retire allocator-local shared heap runs.
+    pub fn flush_shared_allocator(&mut self, shared: &SharedHeap) {
+        if let Some(allocator) = self.shared_allocator.as_mut() {
+            shared.flush_allocator(allocator);
+        }
+    }
+
+    /// Initialize heap-shaped program metadata and worker static bytes.
+    pub fn initialize(
+        &mut self,
+        heap: &Heap,
+        shared: &SharedHeap,
+        statics: &mut StaticSpace,
+    ) -> RuntimeResult<()> {
+        // lower allocation opcodes for the live heap geometry
+        self.program = Arc::new(Program::with_heap_options(
+            self.program.tree.clone(),
+            self.program.strings.clone(),
+            heap.options().clone(),
+            shared.options().clone(),
+        )?);
+
         // initialize static data
         self.interpreter
             .initialize_statics(self.program.as_ref(), statics)
@@ -156,7 +213,7 @@ impl Isolate {
             .get(name)
             .copied()
             .ok_or_else(|| {
-                self.make_error(Error::ExternalFunctionNotFound {
+                self.runtime_error(Error::ExternalFunctionNotFound {
                     name: name.to_string(),
                 })
             })?;
@@ -171,19 +228,51 @@ impl Isolate {
         heap: &mut Heap,
         shared: &SharedHeap,
         name: &str,
+        arguments: &[engine::Value],
+    ) -> RuntimeResult<Output> {
+        let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
+
+        self.run_function_by_name_words(statics, heap, shared, name, &arguments)
+    }
+
+    /// Run a function by name with VM words and return its output.
+    pub(crate) fn run_function_by_name_words(
+        &mut self,
+        statics: &mut StaticSpace,
+        heap: &mut Heap,
+        shared: &SharedHeap,
+        name: &str,
         arguments: &[Word],
     ) -> RuntimeResult<Output> {
-        self.interpreter.run_function_by_name(
-            self.isolate_id,
-            self.program.as_ref(),
-            &self.options,
+        self.prepare_shared_allocator(shared);
+        let Self {
+            isolate_id,
+            program,
+            options,
+            externals,
+            interpreter,
+            shared_allocator,
+            ..
+        } = self;
+        let shared_allocator = shared_allocator
+            .as_mut()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+
+        let result = interpreter.run_function_by_name(
+            *isolate_id,
+            program.as_ref(),
+            options,
             statics,
-            &self.externals,
+            externals,
             heap,
             shared,
+            shared_allocator,
             name,
             arguments,
-        )
+        );
+        shared.flush_allocator(shared_allocator);
+
+        result
     }
 
     /// Run a function by name and allow yielding.
@@ -193,19 +282,51 @@ impl Isolate {
         heap: &mut Heap,
         shared: &SharedHeap,
         name: &str,
+        arguments: &[engine::Value],
+    ) -> RuntimeResult<Outcome> {
+        let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
+
+        self.run_function_by_name_yielding_words(statics, heap, shared, name, &arguments)
+    }
+
+    /// Run a function by name with VM words and allow yielding.
+    pub(crate) fn run_function_by_name_yielding_words(
+        &mut self,
+        statics: &mut StaticSpace,
+        heap: &mut Heap,
+        shared: &SharedHeap,
+        name: &str,
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
-        self.interpreter.run_function_by_name_yielding(
-            self.isolate_id,
-            self.program.as_ref(),
-            &self.options,
+        self.prepare_shared_allocator(shared);
+        let Self {
+            isolate_id,
+            program,
+            options,
+            externals,
+            interpreter,
+            shared_allocator,
+            ..
+        } = self;
+        let shared_allocator = shared_allocator
+            .as_mut()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+
+        let result = interpreter.run_function_by_name_yielding(
+            *isolate_id,
+            program.as_ref(),
+            options,
             statics,
-            &self.externals,
+            externals,
             heap,
             shared,
+            shared_allocator,
             name,
             arguments,
-        )
+        );
+        shared.flush_allocator(shared_allocator);
+
+        result
     }
 
     /// Run a function by id and return its output.
@@ -215,19 +336,51 @@ impl Isolate {
         heap: &mut Heap,
         shared: &SharedHeap,
         func_id: mir::LocalNodeId<mir::Function>,
+        arguments: &[engine::Value],
+    ) -> RuntimeResult<Output> {
+        let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
+
+        self.run_function_words(statics, heap, shared, func_id, &arguments)
+    }
+
+    /// Run a function by id with VM words and return its output.
+    pub(crate) fn run_function_words(
+        &mut self,
+        statics: &mut StaticSpace,
+        heap: &mut Heap,
+        shared: &SharedHeap,
+        func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<Output> {
-        self.interpreter.run_function(
-            self.isolate_id,
-            self.program.as_ref(),
-            &self.options,
+        self.prepare_shared_allocator(shared);
+        let Self {
+            isolate_id,
+            program,
+            options,
+            externals,
+            interpreter,
+            shared_allocator,
+            ..
+        } = self;
+        let shared_allocator = shared_allocator
+            .as_mut()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+
+        let result = interpreter.run_function(
+            *isolate_id,
+            program.as_ref(),
+            options,
             statics,
-            &self.externals,
+            externals,
             heap,
             shared,
+            shared_allocator,
             func_id,
             arguments,
-        )
+        );
+        shared.flush_allocator(shared_allocator);
+
+        result
     }
 
     /// Run a function by id and allow yielding.
@@ -237,19 +390,51 @@ impl Isolate {
         heap: &mut Heap,
         shared: &SharedHeap,
         func_id: mir::LocalNodeId<mir::Function>,
+        arguments: &[engine::Value],
+    ) -> RuntimeResult<Outcome> {
+        let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
+
+        self.run_function_yielding_words(statics, heap, shared, func_id, &arguments)
+    }
+
+    /// Run a function by id with VM words and allow yielding.
+    pub(crate) fn run_function_yielding_words(
+        &mut self,
+        statics: &mut StaticSpace,
+        heap: &mut Heap,
+        shared: &SharedHeap,
+        func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
-        self.interpreter.run_function_yielding(
-            self.isolate_id,
-            self.program.as_ref(),
-            &self.options,
+        self.prepare_shared_allocator(shared);
+        let Self {
+            isolate_id,
+            program,
+            options,
+            externals,
+            interpreter,
+            shared_allocator,
+            ..
+        } = self;
+        let shared_allocator = shared_allocator
+            .as_mut()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+
+        let result = interpreter.run_function_yielding(
+            *isolate_id,
+            program.as_ref(),
+            options,
             statics,
-            &self.externals,
+            externals,
             heap,
             shared,
+            shared_allocator,
             func_id,
             arguments,
-        )
+        );
+        shared.flush_allocator(shared_allocator);
+
+        result
     }
 
     /// Resume a previously yielded coroutine.
@@ -261,17 +446,35 @@ impl Isolate {
         continuation: Continuation,
         resume_value: engine::Value,
     ) -> RuntimeResult<Outcome> {
-        self.interpreter.resume(
-            self.isolate_id,
-            self.program.as_ref(),
-            &self.options,
+        self.prepare_shared_allocator(shared);
+        let Self {
+            isolate_id,
+            program,
+            options,
+            externals,
+            interpreter,
+            shared_allocator,
+            ..
+        } = self;
+        let shared_allocator = shared_allocator
+            .as_mut()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+
+        let result = interpreter.resume(
+            *isolate_id,
+            program.as_ref(),
+            options,
             statics,
-            &self.externals,
+            externals,
             heap,
             shared,
+            shared_allocator,
             continuation,
             resume_value,
-        )
+        );
+        shared.flush_allocator(shared_allocator);
+
+        result
     }
 
     /// Capture one continuation as one immutable image.
@@ -288,7 +491,7 @@ impl Isolate {
         image: &ContinuationImage,
     ) -> RuntimeResult<Continuation> {
         let mut continuation =
-            Continuation::from_image(image, &self.program, &self.program.functions)?;
+            Continuation::from_image(image, &self.program, &self.program.functions, &self.options)?;
         continuation.isolate_id = self.isolate_id;
 
         Ok(continuation)
@@ -313,7 +516,7 @@ impl Isolate {
         &mut self,
         statics: &StaticSpace,
         continuations: &[Continuation],
-        roots: &mut impl RootVisitor,
+        roots: &mut impl RootSink,
     ) -> RuntimeResult<()> {
         self.interpreter
             .visit_roots(&self.program, statics, continuations, roots)
@@ -342,11 +545,11 @@ impl Isolate {
     pub fn visit_continuation_roots(
         &mut self,
         continuation: &Continuation,
-        roots: &mut impl RootVisitor,
+        roots: &mut impl RootSink,
     ) -> RuntimeResult<()> {
         continuation
             .visit_roots(&self.program, roots)
-            .map_err(|error| self.make_error(error))
+            .map_err(|error| self.runtime_error(error))
     }
 
     /// Visit mutable local root slots from one live continuation.
@@ -357,7 +560,7 @@ impl Isolate {
     ) -> RuntimeResult<()> {
         continuation
             .visit_root_slots(&self.program, visit)
-            .map_err(|error| self.make_error(error))
+            .map_err(|error| self.runtime_error(error))
     }
 
     /// Collect roots from one captured continuation image.
@@ -376,10 +579,10 @@ impl Isolate {
     pub fn visit_image_roots(
         &mut self,
         image: &ContinuationImage,
-        roots: &mut impl RootVisitor,
+        roots: &mut impl RootSink,
     ) -> RuntimeResult<()> {
         Continuation::visit_image_roots(image, &self.program, roots)
-            .map_err(|error| self.make_error(error))
+            .map_err(|error| self.runtime_error(error))
     }
 
     /// Visit mutable local root slots from one captured continuation image.
@@ -389,7 +592,7 @@ impl Isolate {
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> RuntimeResult<()> {
         Continuation::visit_image_root_slots(image, &self.program, visit)
-            .map_err(|error| self.make_error(error))
+            .map_err(|error| self.runtime_error(error))
     }
 
     /// Capture one immutable VM image.
@@ -412,7 +615,9 @@ impl Isolate {
             program: self.program.clone(),
             options: self.options.clone(),
             externals: self.externals.clone(),
-            interpreter: self.interpreter.fork(),
+            interpreter: self.interpreter.fork()?,
+            shared_allocator: None,
+            shared_gc: None,
         })
     }
 
@@ -424,18 +629,19 @@ impl Isolate {
         self.isolate_id = image.isolate_id;
 
         // rebuild interpreter state over the restored isolate
-        self.interpreter = Interpreter::from_image(&self.program, &image.interpreter)?;
+        self.interpreter =
+            Interpreter::from_image(&self.program, &image.interpreter, &self.options)?;
 
         Ok(())
     }
 
-    // build a runtime error with the current call stack
-    fn make_error(&self, error: Error) -> RuntimeError {
-        RuntimeError::new(error).with_call_stack(self.get_call_stack_info())
+    /// Create a runtime error with current call stack.
+    fn runtime_error(&self, error: Error) -> RuntimeError {
+        RuntimeError::new(error).with_call_stack(self.call_stack())
     }
 
-    // collect call stack info for error reporting
-    fn get_call_stack_info(&self) -> Vec<FrameInfo> {
+    /// Return the current call stack for error reporting.
+    fn call_stack(&self) -> Vec<FrameInfo> {
         self.interpreter
             .frames()
             .iter()
@@ -461,12 +667,12 @@ impl Isolate {
         self.program.layout_id_for_type(ty)
     }
 
-    /// Return the heap allocation facts for one layout id.
-    pub fn allocation_layout(
+    /// Return the heap allocation plan for one layout id.
+    pub fn allocation_plan(
         &self,
         layout_id: mir::LayoutId,
-    ) -> crate::Result<destack_heap::AllocationLayout<'_>> {
-        self.program.allocation_layout(layout_id)
+    ) -> crate::Result<destack_heap::AllocationPlan<'_>> {
+        self.program.allocation_plan(layout_id)
     }
 
     /// Borrow the program MIR tree.

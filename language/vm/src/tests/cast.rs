@@ -1,4 +1,4 @@
-use crate::Word;
+use crate::Value;
 use crate::diagnostic::Error;
 use crate::tests::{run_mir_expect, run_mir_expect_error};
 
@@ -14,8 +14,8 @@ b0(v0: int64):
     run_mir_expect(
         mir,
         "trunc",
-        &[Word::int64(0x1_0000_0042)],
-        Word::int32(0x42),
+        &[Value::int64(0x1_0000_0042)],
+        Value::int32(0x42),
     );
 }
 
@@ -28,8 +28,8 @@ b0(v0: int64):
     v1: int32 = cast.truncate v0 -> int32
     return v1
 }"#;
-    run_mir_expect(mir, "trunc", &[Word::int64(-1)], Word::int32(-1));
-    run_mir_expect(mir, "trunc", &[Word::int64(-42)], Word::int32(-42));
+    run_mir_expect(mir, "trunc", &[Value::int64(-1)], Value::int32(-1));
+    run_mir_expect(mir, "trunc", &[Value::int64(-42)], Value::int32(-42));
 }
 
 /// Zero-extend u8 to u32.
@@ -41,7 +41,7 @@ b0(v0: uint8):
     v1: uint32 = cast.extend.u v0 -> uint32
     return v1
 }"#;
-    run_mir_expect(mir, "uext", &[Word::uint(200, 8)], Word::uint32(200));
+    run_mir_expect(mir, "uext", &[Value::uint(200, 8)], Value::uint32(200));
 }
 
 /// Sign-extend i8 to i32.
@@ -53,12 +53,9 @@ b0(v0: int8):
     v1: int32 = cast.extend.s v0 -> int32
     return v1
 }"#;
-    // positive value
-    run_mir_expect(mir, "sext", &[Word::int(100, 8)], Word::int32(100));
-    // negative value: -1 as i8 should become -1 as i32
-    run_mir_expect(mir, "sext", &[Word::int(-1, 8)], Word::int32(-1));
-    // -100 as i8
-    run_mir_expect(mir, "sext", &[Word::int(-100, 8)], Word::int32(-100));
+    run_mir_expect(mir, "sext", &[Value::int(100, 8)], Value::int32(100));
+    run_mir_expect(mir, "sext", &[Value::int(-1, 8)], Value::int32(-1));
+    run_mir_expect(mir, "sext", &[Value::int(-100, 8)], Value::int32(-100));
 }
 
 /// Float64 to signed integer.
@@ -70,8 +67,8 @@ b0(v0: float64):
     v1: int32 = cast.floatToInt.s v0 -> int32
     return v1
 }"#;
-    run_mir_expect(mir, "f2i", &[Word::float64(42.9)], Word::int32(42));
-    run_mir_expect(mir, "f2i", &[Word::float64(-42.9)], Word::int32(-42));
+    run_mir_expect(mir, "f2i", &[Value::float64(42.9)], Value::int32(42));
+    run_mir_expect(mir, "f2i", &[Value::float64(-42.9)], Value::int32(-42));
 }
 
 /// Float64 to signed integer traps on NaN.
@@ -100,7 +97,7 @@ b0(v0: float64):
     run_mir_expect_error(
         mir,
         "f2iOverflow",
-        &[Word::float64(1e40)],
+        &[Value::float64(1e40)],
         Error::BadConversionToInteger,
     );
 }
@@ -114,7 +111,7 @@ b0(v0: float64):
     v1: uint32 = cast.floatToInt.u v0 -> uint32
     return v1
 }"#;
-    run_mir_expect(mir, "f2u", &[Word::float64(42.9)], Word::uint32(42));
+    run_mir_expect(mir, "f2u", &[Value::float64(42.9)], Value::uint32(42));
 }
 
 /// Float64 to unsigned integer traps on negative inputs.
@@ -129,7 +126,7 @@ b0(v0: float64):
     run_mir_expect_error(
         mir,
         "f2uNegative",
-        &[Word::float64(-1.0)],
+        &[Value::float64(-1.0)],
         Error::BadConversionToInteger,
     );
 }
@@ -146,7 +143,7 @@ b0(v0: float64):
     run_mir_expect_error(
         mir,
         "f2uOverflow",
-        &[Word::float64(1e40)],
+        &[Value::float64(1e40)],
         Error::BadConversionToInteger,
     );
 }
@@ -174,14 +171,19 @@ b0(v0: float64):
     v1: int32 = cast.floatToIntSaturating.s v0 -> int32
     return v1
 }"#;
-    run_mir_expect(mir, "f2iSat", &[Word::float64(42.9)], Word::int32(42));
-    run_mir_expect(mir, "f2iSat", &[Word::float64(-42.9)], Word::int32(-42));
-    run_mir_expect(mir, "f2iSat", &[Word::float64(1e40)], Word::int32(i32::MAX));
+    run_mir_expect(mir, "f2iSat", &[Value::float64(42.9)], Value::int32(42));
+    run_mir_expect(mir, "f2iSat", &[Value::float64(-42.9)], Value::int32(-42));
     run_mir_expect(
         mir,
         "f2iSat",
-        &[Word::float64(-1e40)],
-        Word::int32(i32::MIN),
+        &[Value::float64(1e40)],
+        Value::int32(i32::MAX),
+    );
+    run_mir_expect(
+        mir,
+        "f2iSat",
+        &[Value::float64(-1e40)],
+        Value::int32(i32::MIN),
     );
 }
 
@@ -196,7 +198,7 @@ b0:
     v2: int32 = cast.floatToIntSaturating.s v1 -> int32
     return v2
 }"#;
-    run_mir_expect(mir, "f2iSatNan", &[], Word::int32(0));
+    run_mir_expect(mir, "f2iSatNan", &[], Value::int32(0));
 }
 
 /// Float64 to unsigned integer saturating conversion.
@@ -208,13 +210,13 @@ b0(v0: float64):
     v1: uint32 = cast.floatToIntSaturating.u v0 -> uint32
     return v1
 }"#;
-    run_mir_expect(mir, "f2uSat", &[Word::float64(42.9)], Word::uint32(42));
-    run_mir_expect(mir, "f2uSat", &[Word::float64(-1.0)], Word::uint32(0));
+    run_mir_expect(mir, "f2uSat", &[Value::float64(42.9)], Value::uint32(42));
+    run_mir_expect(mir, "f2uSat", &[Value::float64(-1.0)], Value::uint32(0));
     run_mir_expect(
         mir,
         "f2uSat",
-        &[Word::float64(1e40)],
-        Word::uint32(u32::MAX),
+        &[Value::float64(1e40)],
+        Value::uint32(u32::MAX),
     );
 }
 
@@ -229,7 +231,7 @@ b0:
     v2: uint32 = cast.floatToIntSaturating.u v1 -> uint32
     return v2
 }"#;
-    run_mir_expect(mir, "f2uSatNan", &[], Word::uint32(0));
+    run_mir_expect(mir, "f2uSatNan", &[], Value::uint32(0));
 }
 
 /// Signed integer to float64.
@@ -241,8 +243,8 @@ b0(v0: int32):
     v1: float64 = cast.intToFloat.s v0 -> float64
     return v1
 }"#;
-    run_mir_expect(mir, "i2f", &[Word::int32(42)], Word::float64(42.0));
-    run_mir_expect(mir, "i2f", &[Word::int32(-42)], Word::float64(-42.0));
+    run_mir_expect(mir, "i2f", &[Value::int32(42)], Value::float64(42.0));
+    run_mir_expect(mir, "i2f", &[Value::int32(-42)], Value::float64(-42.0));
 }
 
 /// Unsigned integer to float64.
@@ -254,7 +256,7 @@ b0(v0: uint32):
     v1: float64 = cast.intToFloat.u v0 -> float64
     return v1
 }"#;
-    run_mir_expect(mir, "u2f", &[Word::uint32(42)], Word::float64(42.0));
+    run_mir_expect(mir, "u2f", &[Value::uint32(42)], Value::float64(42.0));
 }
 
 /// Float32 to float64 extension.
@@ -266,7 +268,7 @@ b0(v0: float32):
     v1: float64 = cast.floatExtend v0 -> float64
     return v1
 }"#;
-    run_mir_expect(mir, "fext", &[Word::float32(3.5)], Word::float64(3.5));
+    run_mir_expect(mir, "fext", &[Value::float32(3.5)], Value::float64(3.5));
 }
 
 /// Float64 to float32 truncation.
@@ -278,7 +280,7 @@ b0(v0: float64):
     v1: float32 = cast.floatTruncate v0 -> float32
     return v1
 }"#;
-    run_mir_expect(mir, "ftrunc", &[Word::float64(3.5)], Word::float32(3.5));
+    run_mir_expect(mir, "ftrunc", &[Value::float64(3.5)], Value::float32(3.5));
 }
 
 /// Integer to float32.
@@ -290,5 +292,5 @@ b0(v0: int32):
     v1: float32 = cast.intToFloat.s v0 -> float32
     return v1
 }"#;
-    run_mir_expect(mir, "i2f32", &[Word::int32(42)], Word::float32(42.0));
+    run_mir_expect(mir, "i2f32", &[Value::int32(42)], Value::float32(42.0));
 }

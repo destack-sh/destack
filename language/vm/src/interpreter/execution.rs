@@ -1,11 +1,14 @@
 use std::fmt;
 
 use destack_engine::{self as engine, StaticSpace};
-use destack_heap::{AllocationLayout, Heap, HeapError, HeapReference, HeapResult, Payload};
+use destack_heap::{
+    AllocationLayout as HeapAllocationLayout, AllocationPlan, Heap, HeapReference, SharedAllocator,
+    SharedGcPhase, SharedHeapReference, SmallAllocationLayout,
+};
 use destack_mir as mir;
 
 use super::{Frame, Interpreter};
-use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
+use crate::diagnostic::{Error, RuntimeError};
 use crate::options::IsolateOptions;
 use crate::program::{ArgumentRange, Function, Layout, Program};
 use crate::{FrameInfo, FramePointer, SharedHeap, StackPointer, StaticPointer, Word};
@@ -22,6 +25,8 @@ pub(crate) struct DispatchState<'ctx, 'iso> {
     heap: *mut Heap,
     /// The world-shared heap.
     shared: *const SharedHeap,
+    /// The worker cache for shared heap allocations.
+    shared_allocator: *mut SharedAllocator,
     /// Interpreter engine state for this dispatch.
     pub(crate) engine: &'ctx mut Interpreter,
 
@@ -31,6 +36,10 @@ pub(crate) struct DispatchState<'ctx, 'iso> {
     pub bounds_checks: bool,
     /// Whether null checks are enabled for this dispatch.
     pub null_checks: bool,
+    /// Whether reference address-space checks are enabled for this dispatch.
+    pub reference_kind_checks: bool,
+    /// Whether reference mutability checks are enabled for this dispatch.
+    pub reference_mutability_checks: bool,
     /// Pointer to the current frame for fast access.
     frame: *mut Frame,
     /// Pointer to the current frame layout.
@@ -48,6 +57,11 @@ impl fmt::Debug for DispatchState<'_, '_> {
             .field("argument_pool_len", &self.argument_pool_len)
             .field("bounds_checks", &self.bounds_checks)
             .field("null_checks", &self.null_checks)
+            .field("reference_kind_checks", &self.reference_kind_checks)
+            .field(
+                "reference_mutability_checks",
+                &self.reference_mutability_checks,
+            )
             .finish()
     }
 }
@@ -61,6 +75,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         statics: &'iso mut StaticSpace,
         heap: &'iso mut Heap,
         shared: &'iso SharedHeap,
+        shared_allocator: &'iso mut SharedAllocator,
         engine: &'ctx mut Interpreter,
         frame_index: usize,
         argument_pool: &[mir::Value],
@@ -69,6 +84,8 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         let mode = options.execution.mode;
         let bounds_checks = options.checks.bounds.is_enabled_for(mode);
         let null_checks = options.checks.null.is_enabled_for(mode);
+        let reference_kind_checks = options.checks.enforce_reference_kinds;
+        let reference_mutability_checks = options.checks.enforce_reference_mutability;
 
         // get frame pointer
         // #Safety: frame_index always points at the current frame
@@ -86,10 +103,13 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
             statics,
             heap: heap as *mut Heap,
             shared: shared as *const SharedHeap,
+            shared_allocator: shared_allocator as *mut SharedAllocator,
             engine,
             frame_index,
             bounds_checks,
             null_checks,
+            reference_kind_checks,
+            reference_mutability_checks,
             frame,
             frame_layout,
             argument_pool: argument_pool.as_ptr(),
@@ -197,9 +217,9 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         self.options
     }
 
-    /// Create an error with current call stack.
+    /// Create a runtime error with current call stack.
     #[cold]
-    pub(crate) fn make_error(&self, error: Error) -> RuntimeError {
+    pub(crate) fn runtime_error(&self, error: Error) -> RuntimeError {
         RuntimeError::new(error).with_call_stack(
             self.engine
                 .frames
@@ -217,8 +237,8 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         )
     }
 
-    /// Refresh cached pointers for the current frame and function.
-    pub(crate) fn refresh_for_function(&mut self, function: &Function) {
+    /// Refresh cached frame metadata after moving to another function.
+    pub(crate) fn refresh_frame_metadata(&mut self, function: &Function) {
         let frame_layout = unsafe { (*self.frame).frame_layout };
         if let Some(frame_layout) = self.program.frame_layout_by_id(frame_layout) {
             self.frame_layout = frame_layout as *const engine::FrameLayout;
@@ -235,30 +255,90 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         unsafe { &mut *self.heap }
     }
 
-    /// Allocate one local heap payload from a resolved layout.
-    #[inline]
-    pub(crate) fn allocate_heap(
+    /// Allocate one zeroed local heap payload from one allocation plan.
+    #[inline(always)]
+    pub(crate) fn allocate_zeroed_heap_plan(
         &mut self,
-        layout: AllocationLayout<'_>,
-        payload: Payload<'_>,
+        plan: AllocationPlan<'_>,
+    ) -> Result<HeapReference, Error> {
+        let heap = unsafe { &mut *self.heap };
+        let layout = heap.allocation_layout(plan);
+
+        heap.allocate_zeroed(&layout).map_err(Error::from)
+    }
+
+    /// Allocate one zeroed local heap payload from one resolved allocation layout.
+    #[inline(always)]
+    pub(crate) fn allocate_zeroed_heap_layout(
+        &mut self,
+        layout: &HeapAllocationLayout<'_>,
     ) -> Result<HeapReference, Error> {
         unsafe { &mut *self.heap }
-            .allocate(layout, payload)
+            .allocate_zeroed(layout)
             .map_err(Error::from)
     }
 
-    /// Allocate one local heap payload from one program layout id.
-    #[inline]
-    pub(crate) fn allocate_heap_layout(
+    /// Reserve one zeroed no-scan local heap allocation from the active young run.
+    #[inline(always)]
+    pub(crate) fn reserve_young(&mut self, small: SmallAllocationLayout) -> Option<HeapReference> {
+        unsafe { &mut *self.heap }.reserve_young(small)
+    }
+
+    /// Allocate one byte-initialized local heap payload from one program layout id.
+    #[inline(always)]
+    pub(crate) fn allocate_heap_layout_bytes(
         &mut self,
         layout_id: mir::LayoutId,
-        payload: Payload<'_>,
+        bytes: &[u8],
     ) -> Result<HeapReference, Error> {
-        let layout = self.program.allocation_layout(layout_id)?;
+        let plan = self.program.allocation_plan(layout_id)?;
+        let heap = unsafe { &mut *self.heap };
+        let layout = heap.allocation_layout(plan);
 
-        unsafe { &mut *self.heap }
-            .allocate(layout, payload)
+        heap.allocate_bytes(&layout, bytes).map_err(Error::from)
+    }
+
+    /// Allocate one zeroed shared heap payload from one allocation plan.
+    #[inline(always)]
+    pub(crate) fn allocate_zeroed_shared_heap_plan(
+        &mut self,
+        plan: AllocationPlan<'_>,
+    ) -> Result<SharedHeapReference, Error> {
+        let shared = unsafe { &*self.shared };
+        let allocator = unsafe { &mut *self.shared_allocator };
+        let layout = shared.allocation_layout(plan);
+
+        shared
+            .allocate_zeroed(allocator, &layout)
             .map_err(Error::from)
+    }
+
+    /// Allocate one zeroed shared heap payload from one resolved allocation layout.
+    #[inline(always)]
+    pub(crate) fn allocate_zeroed_shared_heap_layout(
+        &mut self,
+        layout: &HeapAllocationLayout<'_>,
+    ) -> Result<SharedHeapReference, Error> {
+        let shared = unsafe { &*self.shared };
+        let allocator = unsafe { &mut *self.shared_allocator };
+
+        shared
+            .allocate_zeroed(allocator, layout)
+            .map_err(Error::from)
+    }
+
+    /// Reserve one zeroed no-scan shared heap allocation from the active worker run.
+    #[inline(always)]
+    pub(crate) fn reserve_shared_small(
+        &mut self,
+        small: SmallAllocationLayout,
+    ) -> Option<SharedHeapReference> {
+        let shared = unsafe { &*self.shared };
+        if shared.gc_phase() != SharedGcPhase::Idle {
+            return None;
+        }
+
+        unsafe { &mut *self.shared_allocator }.reserve_small_zeroed(small)
     }
 
     /// Borrow the heap immutably for the current block.
@@ -273,45 +353,10 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         unsafe { &*self.shared }
     }
 
-    /// Borrow the shared heap immutably for the current block.
-    #[inline]
-    pub(crate) fn shared_ref(&self) -> &SharedHeap {
-        self.shared()
-    }
-
-    /// Read one exact local heap byte range into owned bytes.
-    pub(crate) fn read_heap_bytes(
-        &self,
-        reference: HeapReference,
-        start: usize,
-        byte_len: usize,
-    ) -> HeapResult<Vec<u8>> {
-        let available_len = self.heap().heap_byte_len(reference)?;
-        let end = start
-            .checked_add(byte_len)
-            .ok_or(HeapError::InvariantOverflow {
-                context: "vm heap read bytes",
-            })?;
-        if end > available_len {
-            return Err(HeapError::InvalidHeapReference { reference });
-        }
-
-        let mut bytes = vec![0u8; byte_len];
-        self.heap()
-            .read_heap_bytes_into(reference, start, &mut bytes)?;
-
-        Ok(bytes)
-    }
-
-    /// Execute one intrinsic against the current interpreter and heap state.
-    pub(crate) fn execute_intrinsic(
-        &mut self,
-        destination: mir::Value,
-        intrinsic: mir::Intrinsic,
-        arguments: &[mir::Value],
-        args: &[Word],
-    ) -> RuntimeResult<Word> {
-        self.execute_intrinsic_with_words(destination, intrinsic, arguments, args)
+    /// Publish allocator-local shared heap runs.
+    #[inline(always)]
+    pub(crate) fn flush_shared_allocator(&mut self) {
+        unsafe { &*self.shared }.flush_allocator(unsafe { &mut *self.shared_allocator });
     }
 
     /// Move the state to a new frame and function.
@@ -328,7 +373,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         self.frame = frame as *mut Frame;
 
         // refresh cached pointers
-        self.refresh_for_function(function);
+        self.refresh_frame_metadata(function);
     }
 
     /// Get the current frame mutably.
@@ -343,13 +388,13 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         unsafe { &*self.frame_layout }
     }
 
-    /// Get a frame by index.
+    /// Borrow one frame.
     #[inline(always)]
-    pub(crate) fn frame_by_index(&self, frame_index: usize) -> Result<&Frame, Error> {
+    pub(crate) fn frame(&self, frame_index: usize) -> Result<&Frame, Error> {
         self.engine
             .frames
             .get(frame_index)
-            .ok_or(Error::InvalidHeapReference)
+            .ok_or(Error::InvalidInstruction)
     }
 
     /// Return whether the interpreter owns one stack byte range.
@@ -367,14 +412,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     /// Return whether the interpreter owns one stack address range.
     #[inline]
     fn owns_stack_address_range(&self, address: usize, byte_len: usize) -> bool {
-        let start = self.engine.stack.as_ptr() as usize;
-        let end = match address.checked_add(byte_len) {
-            Some(end) => end,
-            None => return false,
-        };
-        let stack_end = start.saturating_add(self.engine.stack.len());
-
-        start <= address && end <= stack_end
+        self.engine.stack.contains_address(address, byte_len)
     }
 
     /// Allocate bytes owned by the current frame.
@@ -383,17 +421,19 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         byte_len: usize,
         alignment: usize,
     ) -> Result<usize, Error> {
-        let base = super::interpreter::align_stack_bytes(self.engine.stack.len(), alignment)
-            .ok_or(Error::StackOverflow)?;
-        let end = base.checked_add(byte_len).ok_or(Error::StackOverflow)?;
-        if end > self.options.limits.max_stack_bytes {
-            return Err(Error::StackOverflow);
-        }
-
-        self.engine.stack.resize(end, 0);
+        let base = self
+            .engine
+            .stack
+            .allocate(byte_len, alignment)
+            .map_err(|_| Error::StackOverflow)?;
+        let end = self.engine.stack.len();
         self.current_frame_mut().extend_bytes_to(end);
 
-        Ok(unsafe { self.engine.stack.as_mut_ptr().add(base) as usize })
+        Ok(self
+            .engine
+            .stack
+            .address(base, byte_len)
+            .map_err(|_| Error::StackOverflow)? as usize)
     }
 
     /// Return whether one static pointer targets VM-owned static memory.
@@ -401,6 +441,16 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     pub(crate) fn owns_static_range(&self, pointer: StaticPointer, byte_len: usize) -> bool {
         self.statics.owns_pointer_range(pointer, byte_len)
             || self.program.owns_static_range(pointer, byte_len)
+    }
+
+    /// Return whether one static pointer targets mutable worker static memory.
+    #[inline]
+    pub(crate) fn owns_mutable_static_range(
+        &self,
+        pointer: StaticPointer,
+        byte_len: usize,
+    ) -> bool {
+        self.statics.owns_mutable_pointer_range(pointer, byte_len)
     }
 
     /// Borrow static bytes for one global.
@@ -425,15 +475,31 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     /// Get value by SSA id.
     #[inline(always)]
     pub(crate) fn get(&self, v: mir::Value) -> Word {
+        let region = self.value_region_unchecked(v);
+
+        unsafe { (*self.frame).read_operand(region) }
+    }
+
+    /// Read one word by SSA id.
+    #[inline(always)]
+    pub(crate) fn get_word(&self, v: mir::Value) -> Word {
+        let region = self.value_region_unchecked(v);
+
+        debug_assert!(region.is_word, "attempted word read from frame bytes");
+        unsafe { (*self.frame).read_word(region) }
+    }
+
+    /// Return the frame region for one SSA value without release checks.
+    #[inline(always)]
+    fn value_region_unchecked(&self, v: mir::Value) -> &engine::FrameRegion {
         let index = v.0 as usize;
         let layout = self.frame_layout();
         debug_assert!(
             index < layout.values.len(),
             "ssa value out of bounds: {v:?}"
         );
-        let region = unsafe { layout.values.get_unchecked(index) };
 
-        unsafe { (*self.frame).read_operand(region) }
+        unsafe { layout.values.get_unchecked(index) }
     }
 
     /// Write one word by SSA id.
@@ -453,7 +519,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
 
     /// Copy one local variable into one SSA value.
     #[inline(always)]
-    pub(crate) fn move_local_to_value_by_index(
+    pub(crate) fn move_local_to_value(
         &mut self,
         local_index: u32,
         value: mir::Value,
@@ -474,7 +540,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
 
     /// Copy one SSA value into one local variable.
     #[inline(always)]
-    pub(crate) fn move_value_to_local_by_index(
+    pub(crate) fn move_value_to_local(
         &mut self,
         value: mir::Value,
         local_index: u32,
@@ -511,6 +577,36 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
             as *const engine::FrameRegion;
 
         self.move_frame_region(unsafe { &*source_region }, unsafe { &*destination_region })
+    }
+
+    /// Copy one frame byte range into another frame byte range.
+    #[inline(always)]
+    pub(crate) fn copy_value_range(
+        &mut self,
+        destination: mir::Value,
+        destination_offset: usize,
+        source: mir::Value,
+        source_offset: usize,
+        byte_len: usize,
+    ) -> Result<(), Error> {
+        let (source, source_len) = self.frame_value_byte_range(source)?;
+        let destination = self.value_bytes_mut(destination)?;
+
+        let source_end = source_offset + byte_len;
+        let destination_end = destination_offset + byte_len;
+        if source_end > source_len || destination_end > destination.len() {
+            return Err(Error::InvalidInstruction);
+        }
+
+        unsafe {
+            std::ptr::copy(
+                source.add(source_offset),
+                destination.as_mut_ptr().add(destination_offset),
+                byte_len,
+            );
+        }
+
+        Ok(())
     }
 
     /// Copy bytes between two frame regions in the current frame.

@@ -1,6 +1,6 @@
 use super::{
-    BorrowMode, CheckOptions, ExecutionMode, ExecutionOptions, ExternalCallPolicy, LimitOptions,
-    PolicyOptions, TEST_MAX_INSTRUCTIONS, TEST_MAX_STACK_BYTES, TEST_MAX_STACK_DEPTH,
+    BorrowMode, CheckOptions, CheckPolicy, ExecutionMode, ExecutionOptions, ExternalCallPolicy,
+    LimitOptions, PolicyOptions, TEST_MAX_INSTRUCTIONS, TEST_MAX_STACK_BYTES, TEST_MAX_STACK_DEPTH,
     TelemetryOptions, TrustPolicy,
 };
 use serde::{Deserialize, Serialize};
@@ -73,6 +73,8 @@ impl IsolateOptions {
         if matches!(trust_policy, TrustPolicy::Untrusted) {
             self.policy.borrow_mode = BorrowMode::Strict;
             self.policy.external_calls = ExternalCallPolicy::Protected;
+            self.checks.bounds = CheckPolicy::Always;
+            self.checks.null = CheckPolicy::Always;
             self.checks.enforce_reference_kinds = true;
             self.checks.enforce_reference_mutability = true;
         }

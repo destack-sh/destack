@@ -65,9 +65,9 @@ pub struct PolicyOptions {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum CheckPolicy {
     /// Always enforce the check.
-    #[default]
     Always,
     /// Enforce the check only in debug mode.
+    #[default]
     Debug,
     /// Never enforce the check.
     Never,

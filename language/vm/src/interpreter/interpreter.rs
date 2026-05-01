@@ -4,74 +4,52 @@ use destack_mir as mir;
 use crate::Word;
 use crate::diagnostic::{Error, FrameInfo, RuntimeError, RuntimeResult};
 use crate::interpreter::Continuation;
-use crate::isolate::RootVisitor;
+use crate::isolate::RootSink;
 use crate::options::IsolateOptions;
 use crate::program::Program;
 use crate::snapshot::InterpreterImage;
 use destack_heap::{HeapResult, RootSlot};
 
-use super::Frame;
-
-/// Align one stack byte count.
-pub(super) fn align_stack_bytes(offset: usize, alignment: usize) -> Option<usize> {
-    if alignment <= 1 {
-        return Some(offset);
-    }
-
-    let remainder = offset % alignment;
-    if remainder == 0 {
-        Some(offset)
-    } else {
-        offset.checked_add(alignment - remainder)
-    }
-}
+use super::{Frame, Stack};
 
 /// Interpreter execution engine.
 #[derive(Debug)]
 pub struct Interpreter {
     /// Explicit frame stack used for execution and root walking.
     pub(crate) frames: Vec<Frame>,
-    /// Byte arena backing all live frame bytes.
-    pub(crate) stack: Vec<u8>,
+    /// Page-backed byte stack for frame data.
+    pub(crate) stack: Stack,
 }
 
 impl Interpreter {
     /// Create a new interpreter engine.
-    pub(crate) fn new() -> Self {
-        Self {
+    pub(crate) fn new(options: &IsolateOptions) -> RuntimeResult<Self> {
+        let stack = Stack::reserve(options.limits.max_stack_bytes)?;
+
+        Ok(Self {
             frames: Vec::new(),
-            stack: Vec::new(),
-        }
+            stack,
+        })
     }
 
     /// Prepare the stack arena for one top-level run.
-    pub(crate) fn reset_stack(&mut self, options: &IsolateOptions) {
+    pub(crate) fn reset_stack(&mut self, options: &IsolateOptions) -> RuntimeResult<()> {
         self.frames.clear();
+        self.stack.reset(options.limits.max_stack_bytes)?;
 
-        if self.stack.capacity() < options.limits.max_stack_bytes {
-            self.stack = Vec::with_capacity(options.limits.max_stack_bytes);
-        }
-        self.stack.clear();
+        Ok(())
     }
 
     /// Allocate one frame byte record in the stack arena.
     pub(crate) fn allocate_frame(
         &mut self,
         layout: &engine::FrameLayout,
-        options: &IsolateOptions,
+        _options: &IsolateOptions,
     ) -> RuntimeResult<(usize, *mut u8)> {
-        let base = align_stack_bytes(self.stack.len(), Word::BYTE_LEN)
-            .ok_or_else(|| RuntimeError::new(Error::StackOverflow))?;
-        let end = base
-            .checked_add(layout.byte_len as usize)
-            .ok_or_else(|| RuntimeError::new(Error::StackOverflow))?;
-        if end > options.limits.max_stack_bytes {
-            return Err(RuntimeError::new(Error::StackOverflow));
-        }
-
-        self.stack.resize(end, 0);
-
-        let frame_base = unsafe { self.stack.as_mut_ptr().add(base) };
+        let base = self
+            .stack
+            .allocate(layout.byte_len as usize, Word::BYTE_LEN)?;
+        let frame_base = self.stack.address(base, layout.byte_len as usize)?;
 
         Ok((base, frame_base))
     }
@@ -95,37 +73,39 @@ impl Interpreter {
     }
 
     /// Fork this interpreter for one child isolate.
-    pub(crate) fn fork(&self) -> Self {
-        let mut stack = self.stack.clone();
+    pub(crate) fn fork(&self) -> RuntimeResult<Self> {
+        let stack = self.stack.fork()?;
         let mut frames: Vec<_> = self.frames.iter().map(Frame::clone_for_fork).collect();
 
-        // point cloned frames at the cloned stack bytes
-        let stack_base = stack.as_mut_ptr();
+        // point cloned frames at the forked stack bytes
         for frame in &mut frames {
-            frame.remap_bytes(stack_base);
+            let base = stack
+                .address(frame.stack_offset, frame.byte_len)
+                .map_err(|_| RuntimeError::new(Error::InvalidContinuation))?;
+            frame.replace_bytes(frame.stack_offset, frame.byte_len, base);
         }
 
-        Self { frames, stack }
+        Ok(Self { frames, stack })
     }
 
     /// Create one interpreter from an immutable image.
-    pub(crate) fn from_image(program: &Program, image: &InterpreterImage) -> RuntimeResult<Self> {
-        let mut interpreter = Self::new();
+    pub(crate) fn from_image(
+        program: &Program,
+        image: &InterpreterImage,
+        options: &IsolateOptions,
+    ) -> RuntimeResult<Self> {
+        let mut interpreter = Self::new(options)?;
 
         // restore frame bytes before frame metadata points into them
         for frame_image in &image.stack {
             let layout = program
                 .frame_layout_by_id(frame_image.frame_layout)
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-            let base = align_stack_bytes(interpreter.stack.len(), Word::BYTE_LEN)
-                .ok_or_else(|| RuntimeError::new(Error::StackOverflow))?;
-            let end = base
-                .checked_add(frame_image.bytes.len())
-                .ok_or_else(|| RuntimeError::new(Error::StackOverflow))?;
-            interpreter.stack.resize(end, 0);
-            interpreter.stack[base..end].copy_from_slice(&frame_image.bytes);
-
-            let frame_base = unsafe { interpreter.stack.as_mut_ptr().add(base) };
+            let base = interpreter
+                .stack
+                .allocate(frame_image.bytes.len(), Word::BYTE_LEN)?;
+            interpreter.stack.write(base, &frame_image.bytes)?;
+            let frame_base = interpreter.stack.address(base, frame_image.bytes.len())?;
             let frame =
                 Frame::from_image(frame_image, &program.functions, layout, base, frame_base)?;
 
@@ -135,10 +115,10 @@ impl Interpreter {
         Ok(interpreter)
     }
 
-    /// Create an error with current call stack.
+    /// Create a runtime error with current call stack.
     #[cold]
-    pub(crate) fn make_error(&self, program: &Program, error: Error) -> RuntimeError {
-        RuntimeError::new(error).with_call_stack(self.get_call_stack_info(program))
+    pub(crate) fn runtime_error(&self, program: &Program, error: Error) -> RuntimeError {
+        RuntimeError::new(error).with_call_stack(self.call_stack(program))
     }
 
     /// Initialize static data from MIR globals.
@@ -155,9 +135,11 @@ impl Interpreter {
             .tree
             .iter_nodes::<mir::Global>()
             .map(|(id, global)| {
-                let ty = (global.ty).ty().ok_or_else(|| Error::ConcreteMirRequired {
-                    context: "global type".to_string(),
-                })?;
+                let ty = (global.ty)
+                    .ty()
+                    .ok_or_else(|| Error::MissingRepresentation {
+                        context: "global type".to_string(),
+                    })?;
 
                 Ok((id, ty, global.is_import(), global.initializer.clone()))
             })
@@ -171,7 +153,7 @@ impl Interpreter {
             }
 
             let layout = program.layout(ty).ok_or_else(|| {
-                self.make_error(
+                self.runtime_error(
                     program,
                     Error::TypeMismatch {
                         expected: "compiled global layout".to_string(),
@@ -182,7 +164,7 @@ impl Interpreter {
             let bytes = match initializer.as_ref() {
                 Some(init) => program
                     .initializer_bytes(init, ty)
-                    .map_err(|error| self.make_error(program, error))?,
+                    .map_err(|error| self.runtime_error(program, error))?,
                 None => vec![0; layout.byte_len],
             };
             if initialized_statics
@@ -195,7 +177,7 @@ impl Interpreter {
                 )
                 .is_none()
             {
-                return Err(self.make_error(program, Error::InvalidInstruction));
+                return Err(self.runtime_error(program, Error::InvalidInstruction));
             }
         }
 
@@ -205,8 +187,8 @@ impl Interpreter {
         Ok(())
     }
 
-    /// Get call stack info for error reporting.
-    fn get_call_stack_info(&self, program: &Program) -> Vec<FrameInfo> {
+    /// Return the current call stack for error reporting.
+    fn call_stack(&self, program: &Program) -> Vec<FrameInfo> {
         self.frames
             .iter()
             .map(|f| {
@@ -227,26 +209,26 @@ impl Interpreter {
         program: &Program,
         statics: &StaticSpace,
         continuations: &[Continuation],
-        roots: &mut impl RootVisitor,
+        roots: &mut impl RootSink,
     ) -> RuntimeResult<()> {
         // active frames
         for frame in &self.frames {
             frame
                 .visit_roots(program, roots)
-                .map_err(|error| self.make_error(program, error))?;
+                .map_err(|error| self.runtime_error(program, error))?;
         }
 
         // suspended continuations
         for continuation in continuations {
             continuation
                 .visit_roots(program, roots)
-                .map_err(|error| self.make_error(program, error))?;
+                .map_err(|error| self.runtime_error(program, error))?;
         }
 
         // statics
         for (_id, region, bytes) in statics.iter_regions() {
             Frame::visit_byte_roots(program, program.type_for_id(region.ty), bytes, roots)
-                .map_err(|error| self.make_error(program, error))?;
+                .map_err(|error| self.runtime_error(program, error))?;
         }
 
         Ok(())
@@ -264,7 +246,7 @@ impl Interpreter {
         for frame in &mut self.frames {
             let result = frame.visit_root_slots(program, visit);
             if let Err(error) = result {
-                return Err(self.make_error(program, error));
+                return Err(self.runtime_error(program, error));
             }
         }
 
@@ -272,7 +254,7 @@ impl Interpreter {
         for continuation in continuations {
             continuation
                 .visit_root_slots(program, visit)
-                .map_err(|error| self.make_error(program, error))?;
+                .map_err(|error| self.runtime_error(program, error))?;
         }
 
         let static_ids: Vec<_> = statics.ids().collect();
@@ -282,13 +264,13 @@ impl Interpreter {
             let region = statics
                 .region(id)
                 .cloned()
-                .ok_or_else(|| self.make_error(program, Error::InvalidInstruction))?;
+                .ok_or_else(|| self.runtime_error(program, Error::InvalidInstruction))?;
             let bytes = statics
                 .bytes_mut(id)
-                .ok_or_else(|| self.make_error(program, Error::InvalidInstruction))?;
+                .ok_or_else(|| self.runtime_error(program, Error::InvalidInstruction))?;
 
             Frame::visit_byte_root_slots(program, program.type_for_id(region.ty), bytes, visit)
-                .map_err(|error| self.make_error(program, error))?;
+                .map_err(|error| self.runtime_error(program, error))?;
         }
 
         Ok(())

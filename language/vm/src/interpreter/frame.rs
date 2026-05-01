@@ -7,7 +7,7 @@ use {destack_engine as engine, destack_mir as mir};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::program::{Block, Function, FunctionTable, Program, repr_type};
 use crate::snapshot::FrameImage;
-use crate::{FramePointer, RootVisitor, Word};
+use crate::{FramePointer, RootSink, Word};
 use destack_heap::{HeapReference, HeapResult, RootSlot, SharedHeapReference};
 
 /// Heap reference carried by one scalar type.
@@ -75,11 +75,6 @@ impl Frame {
             byte_len: layout.byte_len as usize,
             base,
         }
-    }
-
-    /// Repoint this frame after its backing stack arena has moved.
-    pub(crate) fn remap_bytes(&mut self, stack_base: *mut u8) {
-        self.base = unsafe { stack_base.add(self.stack_offset) };
     }
 
     /// Replace this frame's byte range.
@@ -283,11 +278,8 @@ impl Frame {
     /// Return whether this frame owns one stack byte range.
     pub(crate) fn owns_stack_range(&self, address: usize, byte_len: usize) -> bool {
         let start = self.base_address();
-        let end = match address.checked_add(byte_len) {
-            Some(end) => end,
-            None => return false,
-        };
-        let stack_end = start.saturating_add(self.byte_len);
+        let end = address + byte_len;
+        let stack_end = start + self.byte_len;
 
         start <= address && end <= stack_end
     }
@@ -296,7 +288,7 @@ impl Frame {
     pub(crate) fn visit_roots(
         &self,
         program: &Program,
-        roots: &mut impl RootVisitor,
+        roots: &mut impl RootSink,
     ) -> Result<(), Error> {
         let layout =
             program
@@ -354,12 +346,80 @@ impl Frame {
         Ok(())
     }
 
+    /// Visit heap roots materialized at one safepoint.
+    pub(crate) fn visit_materialized_roots(
+        &self,
+        program: &Program,
+        materialization: &engine::MaterializationFrame,
+        roots: &mut impl RootSink,
+    ) -> Result<(), Error> {
+        let layout = program
+            .frame_layout_by_id(materialization.frame_layout)
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!(
+                    "missing materialized frame layout for root scan: {:?}",
+                    materialization.frame_layout
+                ),
+            })?;
+        let mut visited = Vec::new();
+
+        // scan each live source region once
+        for value in &materialization.regions {
+            let engine::MaterializationValue::FrameRegion(region) = value else {
+                continue;
+            };
+            if visited.contains(region) {
+                continue;
+            }
+            visited.push(*region);
+
+            let region = layout.region(*region).ok_or(Error::InvalidContinuation)?;
+            self.visit_region_roots(program, region, roots)?;
+        }
+
+        Ok(())
+    }
+
+    /// Visit mutable local root slots materialized at one safepoint.
+    pub(crate) fn visit_materialized_root_slots(
+        &mut self,
+        program: &Program,
+        materialization: &engine::MaterializationFrame,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+    ) -> Result<(), Error> {
+        let layout = program
+            .frame_layout_by_id(materialization.frame_layout)
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!(
+                    "missing materialized frame layout for heap roots: {:?}",
+                    materialization.frame_layout
+                ),
+            })?;
+        let mut visited = Vec::new();
+
+        // visit each live source region once
+        for value in &materialization.regions {
+            let engine::MaterializationValue::FrameRegion(region) = value else {
+                continue;
+            };
+            if visited.contains(region) {
+                continue;
+            }
+            visited.push(*region);
+
+            let region = layout.region(*region).ok_or(Error::InvalidContinuation)?;
+            self.visit_region_root_slots(program, region, visit)?;
+        }
+
+        Ok(())
+    }
+
     /// Visit one heap root stored in one word.
     pub(crate) fn visit_value_root(
         program: &Program,
         ty: mir::LocalNodeId<mir::Type>,
         value: Word,
-        roots: &mut impl RootVisitor,
+        roots: &mut impl RootSink,
     ) -> Result<(), Error> {
         Self::visit_scalar_root(Self::type_scalar_root(program, ty)?, value, roots)
     }
@@ -368,7 +428,7 @@ impl Frame {
     fn visit_scalar_root(
         root: ScalarRoot,
         value: Word,
-        roots: &mut impl RootVisitor,
+        roots: &mut impl RootSink,
     ) -> Result<(), Error> {
         match root {
             ScalarRoot::None => {}
@@ -381,7 +441,7 @@ impl Frame {
             ScalarRoot::Shared => {
                 let reference = SharedHeapReference::from_bits(value.bits() as usize);
                 if !reference.is_null() {
-                    roots.push_shared(reference);
+                    roots.push_shared_heap(reference);
                 }
             }
         }
@@ -393,7 +453,7 @@ impl Frame {
         &self,
         program: &Program,
         region: &engine::FrameRegion,
-        roots: &mut impl RootVisitor,
+        roots: &mut impl RootSink,
     ) -> Result<(), Error> {
         let layout = program
             .layout_for_id(region.ty)
@@ -403,7 +463,7 @@ impl Frame {
                     region.ty
                 ),
             })?;
-        if !layout.is_scalar() {
+        if !layout.is_word() {
             return Self::visit_byte_roots(
                 program,
                 program.type_for_id(region.ty),
@@ -435,7 +495,7 @@ impl Frame {
                     region.ty
                 ),
             })?;
-        if !layout.is_scalar() {
+        if !layout.is_word() {
             return Self::visit_byte_root_slots(
                 program,
                 program.type_for_id(region.ty),
@@ -461,7 +521,7 @@ impl Frame {
             .ok_or_else(|| Error::InvariantViolation {
                 context: format!("missing scalar layout for root scan: type={ty:?}"),
             })?;
-        if !layout.is_scalar() {
+        if !layout.is_word() {
             return Ok(ScalarRoot::None);
         }
 
@@ -498,7 +558,7 @@ impl Frame {
         program: &Program,
         ty: mir::LocalNodeId<mir::Type>,
         bytes: &[u8],
-        roots: &mut impl RootVisitor,
+        roots: &mut impl RootSink,
     ) -> Result<(), Error> {
         let layout = program
             .layout(ty)
@@ -551,7 +611,7 @@ impl Frame {
         ty: mir::LocalNodeId<mir::Type>,
         bytes: &[u8],
         base_offset: usize,
-        roots: &mut impl RootVisitor,
+        roots: &mut impl RootSink,
     ) -> Result<(), Error> {
         let layout = program
             .layout(ty)
@@ -560,35 +620,29 @@ impl Frame {
             })?;
         let pointer_bytes = program.tree.pointer_bytes() as usize;
 
-        // local heap roots
-        for offset in local_reference_offsets(&layout.reference_map)? {
-            let offset = base_offset.checked_add(offset as usize).ok_or_else(|| {
-                Error::InvariantViolation {
-                    context: format!("stack root local offset overflow: type={ty:?}"),
-                }
-            })?;
+        visit_reference_offsets(&layout.reference_map, true, bytes, |offset| {
+            let offset = base_offset + offset;
             let window = Self::reference_window(bytes, offset, pointer_bytes, "stack root scan")?;
             let reference = HeapReference::read_from_bytes(window).map_err(Error::from)?;
 
             if !reference.is_null() {
                 roots.push_heap(reference);
             }
-        }
 
-        // shared heap roots
-        for offset in shared_reference_offsets(&layout.reference_map)? {
-            let offset = base_offset.checked_add(offset as usize).ok_or_else(|| {
-                Error::InvariantViolation {
-                    context: format!("stack root shared offset overflow: type={ty:?}"),
-                }
-            })?;
+            Ok(())
+        })?;
+
+        visit_reference_offsets(&layout.reference_map, false, bytes, |offset| {
+            let offset = base_offset + offset;
             let window = Self::reference_window(bytes, offset, pointer_bytes, "stack root scan")?;
             let reference = SharedHeapReference::read_from_bytes(window).map_err(Error::from)?;
 
             if !reference.is_null() {
-                roots.push_shared(reference);
+                roots.push_shared_heap(reference);
             }
-        }
+
+            Ok(())
+        })?;
 
         Ok(())
     }
@@ -608,20 +662,16 @@ impl Frame {
             })?;
         let pointer_bytes = program.tree.pointer_bytes() as usize;
 
-        // local heap roots
-        for offset in local_reference_offsets(&layout.reference_map)? {
-            let offset = base_offset.checked_add(offset as usize).ok_or_else(|| {
-                Error::InvariantViolation {
-                    context: format!("stack heap root offset overflow: type={ty:?}"),
-                }
-            })?;
-            let end = offset.checked_add(pointer_bytes).ok_or_else(|| {
-                Error::InvariantViolation {
-                    context: format!(
-                        "stack heap root byte range overflow: offset={offset}, width={pointer_bytes}",
-                    ),
-                }
-            })?;
+        let mut offsets = Vec::new();
+        visit_reference_offsets(&layout.reference_map, true, bytes, |offset| {
+            offsets.push(offset);
+
+            Ok(())
+        })?;
+
+        for offset in offsets {
+            let offset = base_offset + offset;
+            let end = offset + pointer_bytes;
             let bytes_len = bytes.len();
             let Some(slot) = bytes.get_mut(offset..end) else {
                 return Err(Error::InvariantViolation {
@@ -709,7 +759,7 @@ impl Frame {
             })
         })?;
 
-        let function_ptr = functions.get_ptr_by_index(function_index).ok_or_else(|| {
+        let function_ptr = functions.pointer(function_index).ok_or_else(|| {
             RuntimeError::new(Error::UndefinedFunction {
                 function: image.function,
             })
@@ -742,60 +792,94 @@ impl Frame {
     }
 }
 
-/// Return all local heap reference offsets in one map.
-fn local_reference_offsets(reference_map: &ReferenceMap) -> Result<Vec<u32>, Error> {
+/// Visit heap reference offsets selected by one map and byte payload.
+fn visit_reference_offsets(
+    reference_map: &ReferenceMap,
+    is_local: bool,
+    bytes: &[u8],
+    mut visit: impl FnMut(usize) -> Result<(), Error>,
+) -> Result<(), Error> {
+    visit_reference_offsets_at(reference_map, is_local, bytes, 0, &mut visit)
+}
+
+/// Visit heap reference offsets from one nested map.
+fn visit_reference_offsets_at(
+    reference_map: &ReferenceMap,
+    is_local: bool,
+    bytes: &[u8],
+    base_offset: usize,
+    visit: &mut dyn FnMut(usize) -> Result<(), Error>,
+) -> Result<(), Error> {
     match reference_map {
-        ReferenceMap::None => Ok(Vec::new()),
-        ReferenceMap::Reference { local_offsets, .. } => Ok(local_offsets.to_vec()),
-        ReferenceMap::RepeatedReference {
-            count,
-            stride,
+        ReferenceMap::None => {}
+        ReferenceMap::Direct {
             local_offsets,
-            ..
-        } => repeated_reference_offsets(*count, *stride, local_offsets),
-    }
-}
+            shared_offsets,
+        } => {
+            let offsets = if is_local {
+                local_offsets
+            } else {
+                shared_offsets
+            };
 
-/// Return all shared heap reference offsets in one map.
-fn shared_reference_offsets(reference_map: &ReferenceMap) -> Result<Vec<u32>, Error> {
-    match reference_map {
-        ReferenceMap::None => Ok(Vec::new()),
-        ReferenceMap::Reference { shared_offsets, .. } => Ok(shared_offsets.to_vec()),
-        ReferenceMap::RepeatedReference {
+            for offset in offsets {
+                visit(base_offset + *offset as usize)?;
+            }
+        }
+        ReferenceMap::Offset { byte_offset, map } => {
+            let byte_offset = base_offset + *byte_offset as usize;
+
+            visit_reference_offsets_at(map, is_local, bytes, byte_offset, visit)?;
+        }
+        ReferenceMap::Group { maps } => {
+            for map in maps {
+                visit_reference_offsets_at(map, is_local, bytes, base_offset, visit)?;
+            }
+        }
+        ReferenceMap::Repeat {
             count,
             stride,
-            shared_offsets,
-            ..
-        } => repeated_reference_offsets(*count, *stride, shared_offsets),
-    }
-}
+            element,
+        } => {
+            for index in 0..*count {
+                let element_offset = base_offset + index as usize * *stride as usize;
 
-/// Expand repeated reference map offsets into absolute byte offsets.
-fn repeated_reference_offsets(count: u32, stride: u32, offsets: &[u32]) -> Result<Vec<u32>, Error> {
-    let mut result = Vec::with_capacity(count as usize * offsets.len());
+                visit_reference_offsets_at(element, is_local, bytes, element_offset, visit)?;
+            }
+        }
+        ReferenceMap::Tagged {
+            tag_offset,
+            tag_bytes,
+            variants,
+        } => {
+            let tag_offset = base_offset + *tag_offset as usize;
+            let tag = read_reference_tag(bytes, tag_offset, *tag_bytes)?;
+            let Some(variant) = variants.iter().find(|variant| variant.tag == tag) else {
+                return Ok(());
+            };
+            let variant_offset = base_offset + variant.payload_offset as usize;
 
-    // expand each repeated element
-    for index in 0..count {
-        let base = index
-            .checked_mul(stride)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!(
-                    "repeated reference-map base offset overflow: index={index}, stride={stride}",
-                ),
-            })?;
-
-        for offset in offsets {
-            let offset = base
-                .checked_add(*offset)
-                .ok_or_else(|| Error::InvariantViolation {
-                    context: format!(
-                        "repeated reference-map offset overflow: base={base}, offset={offset}",
-                    ),
-                })?;
-
-            result.push(offset);
+            visit_reference_offsets_at(&variant.map, is_local, bytes, variant_offset, visit)?;
         }
     }
 
-    Ok(result)
+    Ok(())
+}
+
+/// Read one unsigned reference-map tag from bytes.
+fn read_reference_tag(bytes: &[u8], offset: usize, tag_bytes: u8) -> Result<u64, Error> {
+    let tag_bytes = tag_bytes as usize;
+    let end = offset + tag_bytes;
+    let Some(window) = bytes.get(offset..end) else {
+        return Err(Error::InvariantViolation {
+            context: format!(
+                "reference tag byte range out of bounds: offset={offset}, width={tag_bytes}, len={}",
+                bytes.len(),
+            ),
+        });
+    };
+    let mut raw = [0u8; std::mem::size_of::<u64>()];
+    raw[..tag_bytes].copy_from_slice(window);
+
+    Ok(u64::from_le_bytes(raw))
 }

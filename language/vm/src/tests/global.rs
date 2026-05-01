@@ -1,8 +1,6 @@
-use crate::Word;
+use crate::Value;
 use crate::diagnostic::Error;
-use crate::tests::{
-    assert_runtime_error_matches, assert_value_word, run_mir, run_mir_expect, run_mir_ok,
-};
+use crate::tests::{assert_runtime_error_matches, run_mir, run_mir_expect, run_mir_ok};
 
 /// Global constant can be read.
 #[test]
@@ -16,7 +14,7 @@ b0:
     v1: int32 = load v0
     return v1
 }"#;
-    run_mir_expect(mir, "read", &[], Word::int32(42));
+    run_mir_expect(mir, "read", &[], Value::int32(42));
 }
 
 /// Mutable global can be written and read back.
@@ -35,7 +33,7 @@ b0:
     v4: int32 = load v0
     return v4
 }"#;
-    run_mir_expect(mir, "increment", &[], Word::int32(1));
+    run_mir_expect(mir, "increment", &[], Value::int32(1));
 }
 
 /// Writing to immutable global via pointer produces an error.
@@ -85,7 +83,7 @@ b0:
     v0: int32 = call get(): () -> int32
     return v0
 }"#;
-    run_mir_expect(mir, "main", &[], Word::int32(3));
+    run_mir_expect(mir, "main", &[], Value::int32(3));
 }
 
 /// Zero-initialized global starts at typed zero.
@@ -100,7 +98,7 @@ b0:
     v1: int32 = load v0
     return v1
 }"#;
-    run_mir_expect(mir, "read", &[], Word::int32(0));
+    run_mir_expect(mir, "read", &[], Value::int32(0));
 }
 
 /// Zero-initialized float global.
@@ -115,7 +113,7 @@ b0:
     v1: float64 = load v0
     return v1
 }"#;
-    run_mir_expect(mir, "read", &[], Word::float64(0.0));
+    run_mir_expect(mir, "read", &[], Value::float64(0.0));
 }
 
 /// Zero-initialized bool global.
@@ -130,12 +128,12 @@ b0:
     v1: boolean = load v0
     return v1
 }"#;
-    run_mir_expect(mir, "read", &[], Word::bool(false));
+    run_mir_expect(mir, "read", &[], Value::bool(false));
 }
 
-/// Payload global initializer with scalar values.
+/// Aggregate global initializer stores scalar fields.
 #[test]
-fn test_global_payload() {
+fn test_global_aggregate() {
     let mir = r#"
 global pair: (int32, int32), readonly = {10int32, 20int32}
 
@@ -146,7 +144,7 @@ b0:
     v2: int32 = field.get v1, 1
     return v2
 }"#;
-    run_mir_expect(mir, "getSecond", &[], Word::int32(20));
+    run_mir_expect(mir, "getSecond", &[], Value::int32(20));
 }
 
 /// String global initializer materializes as typed UTF-8 byte storage.
@@ -163,7 +161,7 @@ b0:
     v3: uint8 = element.get v1, v2
     return v3
 }"#;
-    run_mir_expect(mir, "readSecond", &[], Word::uint8(b'o'));
+    run_mir_expect(mir, "readSecond", &[], Value::uint8(b'o'));
 }
 
 /// Multiple globals can coexist.
@@ -186,7 +184,7 @@ b0:
     v7: int32 = int.add v6, v5
     return v7
 }"#;
-    run_mir_expect(mir, "sum", &[], Word::int32(60));
+    run_mir_expect(mir, "sum", &[], Value::int32(60));
 }
 
 /// Global can be modified multiple times.
@@ -207,7 +205,7 @@ b0:
     v4: int32 = load v0
     return v4
 }"#;
-    run_mir_expect(mir, "test", &[], Word::int32(30));
+    run_mir_expect(mir, "test", &[], Value::int32(30));
 }
 
 /// Global with negative initial value.
@@ -222,7 +220,7 @@ b0:
     v1: int32 = load v0
     return v1
 }"#;
-    run_mir_expect(mir, "read", &[], Word::int32(-42));
+    run_mir_expect(mir, "read", &[], Value::int32(-42));
 }
 
 /// Global float with initial value.
@@ -239,7 +237,8 @@ b0:
     return v1
 }"#;
     let output = run_mir_ok(mir, "read", &[]);
-    let f = assert_value_word(&output.value).as_float64();
+    let f = f64::try_from(&output.value).expect("expected float64 value");
+
     assert!((f - 3.14159).abs() < 0.0001);
 }
 
@@ -258,5 +257,5 @@ b0:
     v3: boolean = load v0
     return v3
 }"#;
-    run_mir_expect(mir, "toggle", &[], Word::bool(false));
+    run_mir_expect(mir, "toggle", &[], Value::bool(false));
 }
