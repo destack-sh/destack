@@ -117,8 +117,7 @@ pub enum Intrinsic {
     RawEq,
 
     // heap
-    /// Local heap write barrier.
-    /// Shared heap stores use typed store operations so the inserted value is visible to the barrier.
+    /// Managed heap write barrier.
     /// `(target, start, len) -> ()`
     WriteBarrier,
 
