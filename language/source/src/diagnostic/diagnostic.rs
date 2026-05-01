@@ -1,118 +1,129 @@
-use destack_core::Color;
 use serde::{Deserialize, Serialize};
 
-use crate::{FileId, LabeledSpan, Suggestion};
+use crate::{
+    DiagnosticHelp, DiagnosticLabel, DiagnosticNote, DiagnosticSeverity, DiagnosticSuggestion,
+    DiagnosticTag, Span,
+};
 
-/// The level of a diagnostic.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum DiagnosticSeverity {
-    /// Note (informative message).
-    Note = 1,
-    /// Warning (non-critical issue).
-    Warning = 2,
-    /// Error (critical issue).
-    Error = 3,
-}
-
-impl DiagnosticSeverity {
-    /// Get the family name of the severity.
-    pub fn family_name(&self) -> &'static str {
-        match self {
-            Self::Note => "note",
-            Self::Warning => "warning",
-            Self::Error => "error",
-        }
-    }
-
-    /// Get the stage letter of the severity.
-    pub fn stage_letter(&self) -> &'static str {
-        match self {
-            Self::Note => "N",
-            Self::Warning => "W",
-            Self::Error => "E",
-        }
-    }
-
-    /// Get the color of the severity.
-    pub fn color(&self) -> Color {
-        match self {
-            Self::Note => Color::BrightBlue,
-            Self::Warning => Color::BrightYellow,
-            Self::Error => Color::BrightRed,
-        }
-    }
-}
-
-/// A Diagnostic.
+/// A final renderable diagnostic.
 #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Diagnostic {
     /// The stable identifier of the diagnostic (like `E001` or `W017`).
     pub code: String,
-    /// The original code of the diagnostic (if changed by options).
-    pub original_code: Option<String>,
     /// The DiagnosticSeverity of the diagnostic.
     pub severity: DiagnosticSeverity,
-    /// The original severity of the diagnostic (if changed by options).
-    pub original_severity: Option<DiagnosticSeverity>,
     /// The message of the diagnostic.
     pub message: String,
-    /// The primary source of the diagnostic.
-    pub file_id: FileId,
-    /// The primary span of the diagnostic.
-    pub primary_span: LabeledSpan,
-    /// The spans to highlight within the primary span.
-    pub primary_highlight_spans: Option<Vec<LabeledSpan>>,
-    /// The secondary spans of the diagnostic.
-    pub secondary_spans: Option<Vec<LabeledSpan>>,
+    /// The main source label.
+    pub primary: DiagnosticLabel,
+    /// Additional source labels.
+    pub labels: Vec<DiagnosticLabel>,
+    /// Extra context for understanding the diagnostic.
+    pub notes: Vec<DiagnosticNote>,
+    /// Guidance for fixing or avoiding the diagnostic.
+    pub helps: Vec<DiagnosticHelp>,
     /// The suggestions for the diagnostic.
-    pub suggestions: Option<Vec<Suggestion>>,
+    pub suggestions: Vec<DiagnosticSuggestion>,
+    /// Extra semantic tags.
+    pub tags: Vec<DiagnosticTag>,
 }
 
-/// Diagnostic options for re-mapping.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DiagnosticOptions {
-    /// Which warning codes to error on (as errors).
-    pub error_warnings: Vec<String>,
-    /// Which error codes to suppress (as warnings).
-    pub suppress_errors: Vec<String>,
-    /// Which warning codes to suppress.
-    pub suppress_warnings: Vec<String>,
-}
-
-impl DiagnosticOptions {
-    /// Map a diagnostic to its adjusted diagnostic.
-    pub fn map(&self, mut diagnostic: Diagnostic) -> Option<Diagnostic> {
-        // retain original code/severity
-        diagnostic.original_code = Some(diagnostic.code.clone());
-        diagnostic.original_severity = Some(diagnostic.severity);
-
-        // map severity
-        // error -> warning
-        if diagnostic.severity == DiagnosticSeverity::Error
-            && self.suppress_errors.contains(&diagnostic.code)
-        {
-            diagnostic.severity = DiagnosticSeverity::Warning;
+impl Diagnostic {
+    /// Create one diagnostic.
+    pub fn new(
+        code: impl Into<String>,
+        severity: DiagnosticSeverity,
+        message: impl Into<String>,
+        primary: DiagnosticLabel,
+    ) -> Self {
+        Self {
+            code: code.into(),
+            severity,
+            message: message.into(),
+            primary,
+            labels: Vec::new(),
+            notes: Vec::new(),
+            helps: Vec::new(),
+            suggestions: Vec::new(),
+            tags: Vec::new(),
         }
-        // warning -> error
-        else if diagnostic.severity == DiagnosticSeverity::Warning
-            && self.error_warnings.contains(&diagnostic.code)
-        {
-            diagnostic.severity = DiagnosticSeverity::Error;
-        }
-        // warning -> none
-        else if diagnostic.severity == DiagnosticSeverity::Warning
-            && self.suppress_warnings.contains(&diagnostic.code)
-        {
-            return None;
-        }
-        Some(diagnostic)
     }
 
-    /// Map a sequence of diagnostics to their adjusted diagnostics.
-    pub fn map_all(&self, diagnostics: &[Diagnostic]) -> Vec<Diagnostic> {
-        diagnostics
-            .iter()
-            .filter_map(|d| self.map(d.clone()))
-            .collect()
+    /// Create one error diagnostic.
+    pub fn error(
+        code: impl Into<String>,
+        message: impl Into<String>,
+        primary: DiagnosticLabel,
+    ) -> Self {
+        Self::new(code, DiagnosticSeverity::Error, message, primary)
+    }
+
+    /// Create one warning diagnostic.
+    pub fn warning(
+        code: impl Into<String>,
+        message: impl Into<String>,
+        primary: DiagnosticLabel,
+    ) -> Self {
+        Self::new(code, DiagnosticSeverity::Warning, message, primary)
+    }
+
+    /// Return the primary source label.
+    pub fn primary_label(&self) -> &DiagnosticLabel {
+        &self.primary
+    }
+
+    /// Return the primary source span.
+    pub fn primary_span(&self) -> Span {
+        self.primary.span
+    }
+
+    /// Add one source label.
+    pub fn label(mut self, label: DiagnosticLabel) -> Self {
+        self.labels.push(label);
+
+        self
+    }
+
+    /// Add one note.
+    pub fn note(mut self, message: impl Into<String>) -> Self {
+        self.notes.push(DiagnosticNote::new(message));
+
+        self
+    }
+
+    /// Add one help message.
+    pub fn help(mut self, message: impl Into<String>) -> Self {
+        self.helps.push(DiagnosticHelp::new(message));
+
+        self
+    }
+
+    /// Add one suggestion.
+    pub fn suggestion(mut self, suggestion: DiagnosticSuggestion) -> Self {
+        self.suggestions.push(suggestion);
+
+        self
+    }
+
+    /// Add one semantic tag.
+    pub fn tag(mut self, tag: DiagnosticTag) -> Self {
+        self.tags.push(tag);
+
+        self
+    }
+
+    /// Return all additional source labels.
+    pub fn labels(&self) -> impl Iterator<Item = &DiagnosticLabel> {
+        self.labels.iter()
+    }
+
+    /// Return note messages.
+    pub fn notes(&self) -> impl Iterator<Item = &DiagnosticNote> {
+        self.notes.iter()
+    }
+
+    /// Return help messages.
+    pub fn helps(&self) -> impl Iterator<Item = &DiagnosticHelp> {
+        self.helps.iter()
     }
 }

@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
-use crate::{Diagnostic, DiagnosticOptions, DiagnosticSeverity};
+use crate::{Diagnostic, DiagnosticSeverity};
 
 /// A collection of diagnostics.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,13 +31,18 @@ impl DiagnosticCollection {
         Self { diagnostics }
     }
 
-    /// Add a Diagnostic.
+    /// Add one diagnostic.
     pub fn insert(&mut self, diagnostic: Diagnostic) {
         self.diagnostics.push(diagnostic);
     }
 
-    /// Get a vector clone of diagnostics.
-    pub fn iter(&self) -> Vec<Diagnostic> {
+    /// Iterate over diagnostics.
+    pub fn iter(&self) -> std::slice::Iter<'_, Diagnostic> {
+        self.diagnostics.iter()
+    }
+
+    /// Clone the diagnostics into a vector.
+    pub fn to_vec(&self) -> Vec<Diagnostic> {
         self.diagnostics.clone()
     }
 
@@ -46,19 +51,9 @@ impl DiagnosticCollection {
         self.diagnostics.len()
     }
 
-    /// Whether the collector is empty.
+    /// Whether the collection is empty.
     pub fn is_empty(&self) -> bool {
         self.diagnostics.is_empty()
-    }
-
-    /// Clone and map these diagnostics to their adjusted diagnostics.
-    pub fn map(&self, options: &DiagnosticOptions) -> DiagnosticCollection {
-        let diagnostics = self
-            .diagnostics
-            .iter()
-            .filter_map(|d| options.map(d.clone()))
-            .collect();
-        DiagnosticCollection { diagnostics }
     }
 
     /// Merge another diagnostic collection into this one.
@@ -129,7 +124,7 @@ impl DiagnosticCollector {
         }
     }
 
-    /// Add a Diagnostic.
+    /// Add one diagnostic.
     pub fn insert(&self, diagnostic: Diagnostic) {
         self.collection.lock().diagnostics.push(diagnostic);
     }
@@ -192,8 +187,8 @@ impl DiagnosticCollector {
         self.collection.lock().count_diagnostics_by_severity()
     }
 
-    /// Get a vector clone of diagnostics.
-    pub fn iter(&self) -> Vec<Diagnostic> {
+    /// Clone the diagnostics into a vector.
+    pub fn to_vec(&self) -> Vec<Diagnostic> {
         self.collection.lock().diagnostics.clone()
     }
 
