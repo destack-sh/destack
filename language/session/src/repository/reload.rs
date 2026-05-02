@@ -5,7 +5,7 @@ use destack_source::FileType;
 use destack_workspace::Ref;
 
 use crate::{
-    FileMutation, FileSystemSource, FileUpdate, FileUpdateKind, RepositoryChange, Session,
+    FileChange, FileSystemSource, FileUpdate, FileUpdateKind, RepositoryChange, Session,
     SessionError,
 };
 
@@ -52,20 +52,20 @@ impl Session {
     }
 
     /// Read one filesystem path as a file update.
-    pub fn read_file_from_fs(&self, path: &Path) -> io::Result<FileMutation> {
+    pub fn read_file_from_fs(&self, path: &Path) -> io::Result<FileChange> {
         let repository = self.repository();
 
         // preserve bytes for binary formats
         if FileType::from_path(path).is_some_and(|file_type| file_type.is_binary()) {
             let content = repository.file_system().read(path)?;
 
-            return Ok(FileMutation::Bytes { content });
+            return Ok(FileChange::Bytes { content });
         }
 
         // use text for source readable files
         let content = repository.file_system().read_to_string(path)?;
 
-        Ok(FileMutation::Text { content })
+        Ok(FileChange::Text { content })
     }
 
     /// Return whether filesystem reload should track one path.
