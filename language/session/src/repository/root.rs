@@ -11,7 +11,7 @@ use destack_workspace::{
 use serde_json::Value;
 
 use super::reload::{RELOAD_EXCLUDED_DIRECTORY_NAMES, is_reload_path};
-use super::{FileSystemSource, RepositoryChange, RepositorySource};
+use super::{FileSystemSource, RepositoryChange};
 
 /// Open one repository after discovering the workspace root from one path.
 pub fn open_repository_from_fs(

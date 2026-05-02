@@ -20,7 +20,7 @@ pub(crate) struct SessionState {
     compiler: Arc<Compiler>,
     /// Linter for this root.
     linter: Arc<Linter>,
-    /// Serialize semantic access per root.
+    /// Serialize query and mutation access per root.
     mutation_lock: RwLock<()>,
     /// Optional outer session event handler.
     event_handler: Option<SessionEventHandler>,
