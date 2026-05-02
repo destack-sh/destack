@@ -5,8 +5,8 @@ use destack_source::FileType;
 use destack_workspace::Ref;
 
 use crate::{
-    FileMutation, FileSystemSource, FileUpdate, FileUpdateKind, RepositoryChange, RepositorySource,
-    Session, SessionError,
+    FileMutation, FileSystemSource, FileUpdate, FileUpdateKind, RepositoryChange, Session,
+    SessionError,
 };
 
 /// Directory names excluded by filesystem reload scans.
