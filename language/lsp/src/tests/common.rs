@@ -1,8 +1,10 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use destack_artifact::DiskCacheStore;
 use destack_lsp_server::UriExt;
-use destack_source::{File, FileId, FileType, Span, Uri};
-use destack_workspace::{Change, Ref, Repository};
+use destack_source::{File, FileId, FileSystem, FileType, PhysicalFileSystem, Span, Uri};
+use destack_workspace::{Edit as RepositoryEdit, HostEnvironment, Ref, Repository};
 
 use crate::query::common::{
     byte_span_to_range, byte_to_utf16_position, position_to_byte, span_to_location,
@@ -13,11 +15,23 @@ fn missing_file_id() -> FileId {
     FileId::from_logical_str("missing/lsp-common.ds")
 }
 
+/// Create one empty test repository.
+fn test_repository() -> Repository {
+    let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+
+    Repository::new(
+        PathBuf::from("."),
+        Arc::new(DiskCacheStore::new()),
+        file_system,
+        HostEnvironment::capture_process(),
+    )
+}
+
 /// Return none when the span file is missing in the repository registry.
 #[test]
 fn test_span_to_location_returns_none_for_unknown_file() {
     // create a repository with no user files in the registry
-    let repository = Repository::open_root(PathBuf::from("."));
+    let repository = test_repository();
     let revision = repository
         .current(&Ref::for_workspace_root(repository.workspace_root()))
         .expect("expected workspace root revision");
@@ -32,14 +46,17 @@ fn test_span_to_location_returns_none_for_unknown_file() {
 #[test]
 fn test_span_to_location_converts_known_file() {
     // create a repository and materialize a file with valid lsp uri resolution
-    let repository = Repository::open_root(PathBuf::from("."));
+    let repository = test_repository();
     let path = PathBuf::from("/tmp/destack_lsp_span_to_location.ds");
-    let file_id = repository.file_id_for_workspace_path(&path);
-    let logical_path = repository.normalize_workspace_path(&path);
+    let file_id = repository.file_id(&path);
+    let logical_path = repository.logical_path(&path);
     let revision = repository
-        .apply(
+        .apply_to_ref(
             &Ref::for_workspace_root(repository.workspace_root()),
-            Change::set_text(&logical_path, "export const value = 1;\n"),
+            [RepositoryEdit::set_text(
+                &logical_path,
+                "export const value = 1;\n",
+            )],
         )
         .expect("expected revision write");
 
@@ -58,14 +75,17 @@ fn test_span_to_location_converts_known_file() {
 #[test]
 fn test_span_to_location_accepts_absolute_workspace_path() {
     // create a repository and materialize a file outside the repository root
-    let repository = Repository::open_root(PathBuf::from("."));
+    let repository = test_repository();
     let path = PathBuf::from("/tmp/destack_lsp_virtual_only.ds");
-    let file_id = repository.file_id_for_workspace_path(&path);
-    let logical_path = repository.normalize_workspace_path(&path);
+    let file_id = repository.file_id(&path);
+    let logical_path = repository.logical_path(&path);
     let revision = repository
-        .apply(
+        .apply_to_ref(
             &Ref::for_workspace_root(repository.workspace_root()),
-            Change::set_text(&logical_path, "export const value = 1;\n"),
+            [RepositoryEdit::set_text(
+                &logical_path,
+                "export const value = 1;\n",
+            )],
         )
         .expect("expected revision write");
 

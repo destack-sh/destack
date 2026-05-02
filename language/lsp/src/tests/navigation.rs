@@ -1,9 +1,11 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
+use destack_artifact::DiskCacheStore;
 use destack_dir::{GlobalSymbolId, LocalSymbolId, SymbolType};
 use destack_query as query;
-use destack_source::{FileId, ModuleId, PackageId, Span};
-use destack_workspace::{Change, Ref, Repository};
+use destack_source::{FileId, FileSystem, ModuleId, PackageId, PhysicalFileSystem, Span};
+use destack_workspace::{Edit as RepositoryEdit, HostEnvironment, Ref, Repository};
 
 use crate::query::navigation::{outgoing_call_to_lsp, workspace_symbol_to_lsp};
 
@@ -23,11 +25,23 @@ fn missing_file_id() -> FileId {
     FileId::from_logical_str("missing/lsp-navigation.ds")
 }
 
+/// Create one empty test repository.
+fn test_repository() -> Repository {
+    let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+
+    Repository::new(
+        PathBuf::from("."),
+        Arc::new(DiskCacheStore::new()),
+        file_system,
+        HostEnvironment::capture_process(),
+    )
+}
+
 /// Return none for workspace symbols with unknown file ids.
 #[test]
 fn test_workspace_symbol_to_lsp_returns_none_for_unknown_file() {
     // create a repository and keep the symbol file id unresolved
-    let repository = Repository::open_root(PathBuf::from("."));
+    let repository = test_repository();
     let symbol = query::WorkspaceSymbol {
         name: "foo".to_string(),
         kind: query::SymbolKind::Function,
@@ -48,14 +62,17 @@ fn test_workspace_symbol_to_lsp_returns_none_for_unknown_file() {
 #[test]
 fn test_outgoing_call_to_lsp_skips_missing_from_ranges() {
     // create a repository with a single known file for the hierarchy item
-    let repository = Repository::open_root(PathBuf::from("."));
+    let repository = test_repository();
     let path = PathBuf::from("/tmp/destack_lsp_navigation_call_hierarchy.ds");
-    let file_id = repository.file_id_for_workspace_path(&path);
-    let logical_path = repository.normalize_workspace_path(&path);
+    let file_id = repository.file_id(&path);
+    let logical_path = repository.logical_path(&path);
     let revision = repository
-        .apply(
+        .apply_to_ref(
             &Ref::for_workspace_root(repository.workspace_root()),
-            Change::set_text(&logical_path, "export function foo() {}\n"),
+            [RepositoryEdit::set_text(
+                &logical_path,
+                "export function foo() {}\n",
+            )],
         )
         .expect("expected revision write");
 

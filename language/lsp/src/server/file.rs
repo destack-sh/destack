@@ -1,15 +1,16 @@
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use destack_artifact::ArtifactKey;
 use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
-use destack_compiler::CompilerOptions;
+use destack_core::StableHasher;
 use destack_fir::format as fir_format;
 use destack_formatter::{
     DestackFormatContext, DestackFormatOptions, format_file_source, statement_list,
 };
 use destack_parser::Parser;
-use destack_service::{FileSnapshot, LanguageService as LspLanguageService, LanguageServiceError};
+use destack_service::{FileImage, LanguageService, LanguageServiceError};
 use destack_source::{
     DiagnosticSeverity, File, FileId, FileType, LanguageType, OverlayFileSystem, Span,
     WATCHABLE_FILE_TYPES,
@@ -20,22 +21,22 @@ use {destack_lsp_types as lsp, destack_query as query};
 /// Globs for config files tracked by the LSP.
 pub(super) const CONFIG_GLOBS: [&str; 2] = ["**/destack.json", "**/tsconfig*.json"];
 
-/// Build a standalone file from a snapshot without mutating the repository.
-pub(super) fn file_from_snapshot_for_diagnostics(snapshot: &FileSnapshot) -> Option<Arc<File>> {
-    let content = snapshot.content.as_ref()?;
-    let file = file_from_snapshot(snapshot, snapshot.id, content);
+/// Build a standalone file from an image without mutating the repository.
+pub(super) fn file_from_image_for_diagnostics(image: &FileImage) -> Option<Arc<File>> {
+    let content = image.content.as_ref()?;
+    let file = file_from_image(image, image.id, content);
 
     Some(Arc::new(file))
 }
 
-/// Build a file from a snapshot payload.
-fn file_from_snapshot(snapshot: &FileSnapshot, file_id: FileId, content: &str) -> File {
+/// Build a file from an image payload.
+fn file_from_image(image: &FileImage, file_id: FileId, content: &str) -> File {
     File::from_text(
         file_id,
-        snapshot.name.clone(),
-        snapshot.uri.clone(),
-        snapshot.path.clone(),
-        snapshot.file_type,
+        image.name.clone(),
+        image.uri.clone(),
+        image.path.clone(),
+        image.file_type,
         content.to_string(),
     )
 }
@@ -79,16 +80,9 @@ pub(super) fn create_language_service(
     repository: Arc<Repository>,
     overlay_fs: Arc<OverlayFileSystem>,
     roots: Vec<PathBuf>,
-    compiler_options: CompilerOptions,
-) -> Result<LspLanguageService, LanguageServiceError> {
-    LspLanguageService::with_options(
-        repository,
-        Some(overlay_fs),
-        roots,
-        compiler_options,
-        None,
-        None,
-    )
+    workers: usize,
+) -> Result<LanguageService, LanguageServiceError> {
+    LanguageService::new(repository, Some(overlay_fs), roots, workers, None)
 }
 
 /// Convert completion kind to LSP completion item kind.
@@ -124,13 +118,16 @@ pub(super) fn completion_kind_to_lsp(kind: query::CompletionKind) -> lsp::Comple
 
 /// Compute a deterministic result id for a diagnostics payload.
 pub(super) fn diagnostic_result_id(diagnostics: &[destack_source::Diagnostic]) -> String {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = StableHasher::new();
     diagnostics.len().hash(&mut hasher);
     for diagnostic in diagnostics {
         diagnostic.code.hash(&mut hasher);
         diagnostic.message.hash(&mut hasher);
-        diagnostic.primary_span.span.start.hash(&mut hasher);
-        diagnostic.primary_span.span.end.hash(&mut hasher);
+        let primary = diagnostic.primary_label();
+        primary.content.hash(&mut hasher);
+        let primary_span = primary.span;
+        primary_span.start.hash(&mut hasher);
+        primary_span.end.hash(&mut hasher);
         let severity = match diagnostic.severity {
             DiagnosticSeverity::Error => 0u8,
             DiagnosticSeverity::Warning => 1u8,
@@ -138,11 +135,11 @@ pub(super) fn diagnostic_result_id(diagnostics: &[destack_source::Diagnostic]) -
         };
         severity.hash(&mut hasher);
     }
-    format!("{:x}", hasher.finish())
+    format!("{:x}", hasher.finish_u64())
 }
 
 /// Format a file and return the formatted content.
-/// Requires module AST state from the workspace graph.
+/// Requires module AST state from the repository graph.
 pub(super) fn format_file(
     repository: &Repository,
     revision: Revision,
@@ -155,7 +152,7 @@ pub(super) fn format_file(
         return format_file_source(file.as_ref(), file.text(), formatter).ok();
     }
 
-    let language_type = LanguageType::from(file.ty);
+    let language_type = LanguageType::try_from(file.ty).ok()?;
     let format_options = DestackFormatOptions {
         language_type,
         ..formatter.into()
@@ -164,7 +161,12 @@ pub(super) fn format_file(
     // resolve module state for this file
     let module_id = repository.module_id_for_file(revision, file_id).ok()??;
     repository.file(revision, file_id).ok().flatten()?;
-    let ast = repository.ast(revision, module_id)?;
+    let ast_key = ArtifactKey::ast(module_id);
+    let ast_version = repository
+        .artifact_version(revision, &ast_key)
+        .ok()
+        .flatten()?;
+    let ast = repository.artifact_store().ast(&ast_version)?;
 
     // build format context from committed semantic state
     let side_span = Parser::compute_side_span_from_tree(&ast.tree);
@@ -210,7 +212,7 @@ pub(super) fn formatting_options_for_path(
     revision: Revision,
     path: &std::path::Path,
 ) -> FormatterOptions {
-    let package = repository.package_for_path(revision, path).ok().flatten();
+    let package = repository.nearest_package(revision, path).ok().flatten();
     if let Some(package) = package
         && let Ok(Some(package_options)) = repository.package_options(revision, package.id)
     {
@@ -233,7 +235,7 @@ pub(super) fn format_range(
     end_offset: u32,
 ) -> Option<(String, Span)> {
     // parse file
-    let language_type = LanguageType::from(file.ty);
+    let language_type = LanguageType::try_from(file.ty).ok()?;
     let mut parser = Parser::lex_file(file.clone(), language_type);
     let expressions = parser.parse();
 
@@ -305,90 +307,4 @@ pub(super) fn normalize_line_endings(content: String) -> String {
     } else {
         content
     }
-}
-
-/// Build line start offsets for a string.
-fn line_start_offsets(text: &str) -> Vec<u32> {
-    let mut offsets = vec![0];
-    for (index, ch) in text.char_indices() {
-        if ch == '\n' {
-            offsets.push(index as u32 + 1);
-        }
-    }
-    offsets
-}
-
-/// Convert an LSP position to a byte offset in raw text.
-fn position_to_byte_in_text(
-    text: &str,
-    line_start_offsets: &[u32],
-    position: &lsp::Position,
-) -> Option<u32> {
-    let line_index = position.line as usize;
-    let line_start = *line_start_offsets
-        .get(line_index)
-        .unwrap_or(&(text.len() as u32));
-    let next_start = line_start_offsets
-        .get(line_index + 1)
-        .copied()
-        .unwrap_or(text.len() as u32);
-    let slice = &text[line_start as usize..next_start as usize];
-
-    // walk characters counting utf16 units until we reach target
-    let mut utf16_units = 0u32;
-    let mut byte_offset = 0usize;
-    for ch in slice.chars() {
-        if utf16_units >= position.character {
-            break;
-        }
-        let ch_units = ch.len_utf16() as u32;
-        if utf16_units + ch_units > position.character {
-            break;
-        }
-        utf16_units += ch_units;
-        byte_offset += ch.len_utf8();
-    }
-
-    // if we didn't reach the target character, clamp to end of line
-    if utf16_units < position.character {
-        return Some(next_start);
-    }
-
-    Some(line_start + byte_offset as u32)
-}
-
-/// Apply a batch of incremental text changes to the document text.
-pub(super) fn apply_text_changes(
-    text: &mut String,
-    changes: &[lsp::TextDocumentContentChangeEvent],
-) -> bool {
-    for change in changes {
-        let change_text = normalize_line_endings(change.text.clone());
-        let Some(range) = &change.range else {
-            *text = change_text;
-            continue;
-        };
-
-        let line_offsets = line_start_offsets(text);
-        let Some(start) = position_to_byte_in_text(text, &line_offsets, &range.start) else {
-            return false;
-        };
-        let Some(end) = position_to_byte_in_text(text, &line_offsets, &range.end) else {
-            return false;
-        };
-        let (start, end) = if start <= end {
-            (start, end)
-        } else {
-            (end, start)
-        };
-        let start = start as usize;
-        let end = end as usize;
-        if !text.is_char_boundary(start) || !text.is_char_boundary(end) {
-            return false;
-        }
-
-        text.replace_range(start..end, &change_text);
-    }
-
-    true
 }

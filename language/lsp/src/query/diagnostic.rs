@@ -1,4 +1,8 @@
-use destack_source::{Diagnostic, DiagnosticSeverity, File};
+use std::sync::Arc;
+
+use destack_source::{
+    Diagnostic, DiagnosticLabel, DiagnosticSeverity, DiagnosticTag, File, FileId,
+};
 use destack_workspace::{Repository, Revision};
 use serde_json::Value;
 use {destack_lsp_types as lsp, destack_query as query};
@@ -7,9 +11,17 @@ use super::common::byte_span_to_range;
 use super::refactor::batch_edit_to_workspace_edit;
 
 /// Convert a Destack diagnostic to an LSP diagnostic.
-pub fn diagnostic_to_lsp_diagnostic(diagnostic: &Diagnostic, source: &File) -> lsp::Diagnostic {
-    // span
-    let range = byte_span_to_range(source, diagnostic.primary_span.span);
+pub fn diagnostic_to_lsp_diagnostic<F>(
+    diagnostic: &Diagnostic,
+    file_for_id: &F,
+) -> Option<lsp::Diagnostic>
+where
+    F: Fn(FileId) -> Option<Arc<File>>,
+{
+    let primary = diagnostic.primary_label();
+    let primary_file = file_for_label(file_for_id, primary)?;
+    let primary_span = primary.span;
+    let range = byte_span_to_range(&primary_file, primary_span);
 
     // severity
     let severity = match diagnostic.severity {
@@ -18,25 +30,48 @@ pub fn diagnostic_to_lsp_diagnostic(diagnostic: &Diagnostic, source: &File) -> l
         DiagnosticSeverity::Note => Some(lsp::DiagnosticSeverity::INFORMATION),
     };
 
-    // related information from secondary spans
-    let related_information = diagnostic.secondary_spans.as_ref().map(|spans| {
-        spans
-            .iter()
-            .filter_map(|labeled| {
-                let uri = source.uri.as_ref().parse::<lsp::Uri>().ok()?;
-                Some(lsp::DiagnosticRelatedInformation {
-                    location: lsp::Location {
-                        uri,
-                        range: byte_span_to_range(source, labeled.span),
-                    },
-                    message: labeled.label.clone(),
-                })
+    // related locations
+    let related_locations = diagnostic
+        .labels()
+        .filter_map(|label| {
+            let file = file_for_label(file_for_id, label)?;
+            let uri = file.uri.as_ref().parse::<lsp::Uri>().ok()?;
+            Some(lsp::DiagnosticRelatedInformation {
+                location: lsp::Location {
+                    uri,
+                    range: byte_span_to_range(&file, label.span),
+                },
+                message: label
+                    .message
+                    .clone()
+                    .unwrap_or_else(|| "related location".to_string()),
             })
-            .collect()
-    });
+        })
+        .collect::<Vec<_>>();
+    let related_information = if related_locations.is_empty() {
+        None
+    } else {
+        Some(related_locations)
+    };
+
+    // tags
+    let tags = if diagnostic.tags.is_empty() {
+        None
+    } else {
+        Some(
+            diagnostic
+                .tags
+                .iter()
+                .map(|tag| match tag {
+                    DiagnosticTag::Unnecessary => lsp::DiagnosticTag::UNNECESSARY,
+                    DiagnosticTag::Deprecated => lsp::DiagnosticTag::DEPRECATED,
+                })
+                .collect(),
+        )
+    };
 
     // diagnostic
-    lsp::Diagnostic {
+    Some(lsp::Diagnostic {
         range,
         severity,
         code: Some(lsp::NumberOrString::String(diagnostic.code.clone())),
@@ -44,9 +79,22 @@ pub fn diagnostic_to_lsp_diagnostic(diagnostic: &Diagnostic, source: &File) -> l
         source: Some("destack".to_string()),
         message: diagnostic.message.clone(),
         related_information,
-        tags: None,
+        tags,
         data: None,
+    })
+}
+
+/// Get the file for the given label and make sure it's actually the same content.
+fn file_for_label<F>(file_for_id: &F, label: &DiagnosticLabel) -> Option<Arc<File>>
+where
+    F: Fn(FileId) -> Option<Arc<File>>,
+{
+    let file = file_for_id(label.span.file)?;
+    if file.content_id() != label.content {
+        return None;
     }
+
+    Some(file)
 }
 
 /// Convert a workspace code action kind to an LSP code action kind.

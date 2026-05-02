@@ -2,7 +2,6 @@ use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use destack_compiler::CompilerOptions;
 use destack_lsp_server::jsonrpc::{Request, Response};
 use destack_lsp_server::{ClientSocket, ExitedError, LanguageServer, LspService, UriExt};
 use destack_lsp_types as lsp;
@@ -77,13 +76,8 @@ impl LspHarness {
 
         // create the server and client socket
         let (service, client) = LspService::new(|client| {
-            // keep lsp tests deterministic: use a single compiler worker
-            let compiler_options = CompilerOptions {
-                workers: 1,
-                ..CompilerOptions::default()
-            };
-
-            DestackLanguageServer::with_compiler_options(client, compiler_options)
+            // keep lsp tests deterministic
+            DestackLanguageServer::with_workers(client, 1)
         });
 
         // build the harness state

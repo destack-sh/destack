@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use dashmap::{DashMap, DashSet};
 #[cfg(test)]
 use destack_artifact::MemoryCacheStore;
+use destack_compiler::default_workers;
 use destack_core::StableHasher;
 use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
 use destack_service::{
@@ -178,6 +179,8 @@ pub struct DestackLanguageServer {
     repository: OnceLock<Arc<Repository>>,
     /// The language service.
     language_service: OnceLock<Arc<LanguageService>>,
+    /// Compiler worker count for the owned language service.
+    workers: usize,
     /// Notification used to wake requests waiting on progress cancellation.
     progress_cancel_notify: Arc<Notify>,
     /// Cached semantic tokens per document.
@@ -207,6 +210,7 @@ impl DestackLanguageServer {
             client,
             repository: OnceLock::new(),
             language_service: OnceLock::new(),
+            workers: default_workers() as usize,
             progress_cancel_notify: Arc::new(Notify::new()),
             semantic_tokens_cache: DashMap::new(),
             semantic_tokens_counter: AtomicU64::new(1),
@@ -217,6 +221,15 @@ impl DestackLanguageServer {
             code_action_edit_resolve_supported: OnceLock::new(),
             settings: LspSettings::default(),
         }
+    }
+
+    /// Create a new language server instance with an explicit worker count.
+    #[cfg(test)]
+    pub(crate) fn with_workers(client: Client, workers: usize) -> Self {
+        let mut server = Self::new(client);
+        server.workers = workers;
+
+        server
     }
 
     /// Get the repository (must be called after initialize).
@@ -874,14 +887,18 @@ impl LanguageServer for DestackLanguageServer {
         }
 
         // create the language service for the repository
-        let language_service =
-            match create_language_service(repository.clone(), overlay_fs, opened_roots) {
-                Ok(language_service) => Arc::new(language_service),
-                Err(error) => {
-                    tracing::debug!(?error, "lsp.workspace.init_failed");
-                    return Err(jsonrpc::Error::internal_error());
-                }
-            };
+        let language_service = match create_language_service(
+            repository.clone(),
+            overlay_fs,
+            opened_roots,
+            self.workers,
+        ) {
+            Ok(language_service) => Arc::new(language_service),
+            Err(error) => {
+                tracing::debug!(?error, "lsp.workspace.init_failed");
+                return Err(jsonrpc::Error::internal_error());
+            }
+        };
         if self.language_service.set(language_service).is_err() {
             tracing::warn!("lsp.initialize.language_service_already_set");
             return Err(jsonrpc::Error::internal_error());
