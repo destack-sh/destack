@@ -6,21 +6,20 @@ use destack_core::StringPool;
 use destack_parser::{Parser, ParserSettings};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, Span};
 
-use crate::SessionError;
-use crate::session::{SessionContext, SessionState};
+use crate::{SessionError, SessionProviderContext, SessionState};
 
 impl SessionState {
     /// Provide one AST artifact from source.
     pub(crate) fn provide_ast(
         &self,
         module_id: ModuleId,
-        context: &SessionContext,
+        context: &SessionProviderContext,
     ) -> Result<ArtifactPayload, SessionError> {
         let revision = context.revision();
         let module = self
             .repository()
             .module(revision, module_id)?
-            .ok_or(SessionError::ModuleIdNotTracked { module_id })?;
+            .ok_or(SessionError::ModuleNotTracked { module_id })?;
         let file = self.file(revision, module.file_id, context)?;
 
         // parse real code modules only
@@ -57,10 +56,11 @@ impl SessionState {
         &self,
         file: Arc<File>,
         package_id: PackageId,
-        context: &SessionContext,
+        context: &SessionProviderContext,
     ) -> Result<Ast, SessionError> {
+        // figure out language
         let language_type =
-            LanguageType::from_file_type(file.ty).ok_or(SessionError::Internal {
+            LanguageType::try_from(file.ty).map_err(|_| SessionError::Internal {
                 detail: format!("file type has no parser language: {:?}", file.ty),
             })?;
         let language_type = if file.ty == FileType::JavaScript
@@ -71,22 +71,11 @@ impl SessionState {
             language_type
         };
 
-        // configure parser from session compiler options
-        let mut parser = Parser::lex_file_with_settings(
-            file.clone(),
-            language_type,
-            ParserSettings {
-                disallow_ambiguous_tree_literal: self
-                    .compiler()
-                    .options
-                    .disallow_ambiguous_tree_literal,
-                ..ParserSettings::default()
-            },
-        );
-
         // parse and forward parser diagnostics
+        let mut parser =
+            Parser::lex_file_with_settings(file.clone(), language_type, ParserSettings::default());
         let expressions = parser.parse();
-        context.diagnostics(parser.diagnostics.collect());
+        context.emit_collection(parser.diagnostics.collect());
 
         // preserve parser side data in the artifact payload
         let (tokens, side_tokens) = parser.take_tokens();
@@ -112,19 +101,20 @@ impl SessionState {
     fn package_parses_js_as_jsx(
         &self,
         package_id: PackageId,
-        context: &SessionContext,
+        context: &SessionProviderContext,
     ) -> Result<bool, SessionError> {
         // record the package config dependency that controls js-as-jsx
-        let Some(package) = self.repository().package(context.revision(), package_id)? else {
-            return Ok(false);
-        };
+        let package = self
+            .repository()
+            .package(context.revision(), package_id)?
+            .ok_or(SessionError::PackageNotTracked { package_id })?;
         if let Some(file_id) = package.destack_file_id {
             let content_id = self
                 .repository()
                 .file_content_id(context.revision(), file_id)?
-                .ok_or(SessionError::FileIdNotTracked { file_id })?;
+                .ok_or(SessionError::FileNotTracked { file_id })?;
 
-            context.dependency(ArtifactDependency::file_content(file_id, content_id));
+            context.track(ArtifactDependency::file_content(file_id, content_id));
         }
 
         let package_options = self

@@ -3,21 +3,20 @@ use destack_css::parse_css;
 use destack_html::parse_html;
 use destack_source::{File, FileId, FileType, ModuleId, Span};
 
-use crate::SessionError;
-use crate::session::{SessionContext, SessionState};
+use crate::{SessionError, SessionProviderContext, SessionState};
 
 impl SessionState {
     /// Provide one data artifact from source.
     pub(crate) fn provide_data(
         &self,
         module_id: ModuleId,
-        context: &SessionContext,
+        context: &SessionProviderContext,
     ) -> Result<ArtifactPayload, SessionError> {
         let revision = context.revision();
         let module = self
             .repository()
             .module(revision, module_id)?
-            .ok_or(SessionError::ModuleIdNotTracked { module_id })?;
+            .ok_or(SessionError::ModuleNotTracked { module_id })?;
         let file = self.file(revision, module.file_id, context)?;
         let data = match file.ty {
             FileType::Html => self.parse_html_data(file.as_ref()),
@@ -122,7 +121,7 @@ impl SessionState {
             }
         })?;
 
-        Ok(self.toml_to_json(value))
+        self.toml_to_json(value)
     }
 
     /// Parse TOML content into a JSON value on wasm.
@@ -142,26 +141,36 @@ impl SessionState {
 
     /// Convert a TOML value to a JSON value.
     #[cfg(not(target_arch = "wasm32"))]
-    fn toml_to_json(&self, toml: toml::Value) -> serde_json::Value {
+    fn toml_to_json(&self, toml: toml::Value) -> Result<serde_json::Value, SessionError> {
         match toml {
-            toml::Value::String(string) => serde_json::Value::String(string),
-            toml::Value::Integer(integer) => serde_json::Value::Number(integer.into()),
-            toml::Value::Float(float) => serde_json::Number::from_f64(float)
-                .map_or(serde_json::Value::Null, serde_json::Value::Number),
-            toml::Value::Boolean(boolean) => serde_json::Value::Bool(boolean),
-            toml::Value::Datetime(datetime) => serde_json::Value::String(datetime.to_string()),
-            toml::Value::Array(array) => serde_json::Value::Array(
-                array
+            toml::Value::String(string) => Ok(serde_json::Value::String(string)),
+            toml::Value::Integer(integer) => Ok(serde_json::Value::Number(integer.into())),
+            toml::Value::Float(float) => {
+                let number =
+                    serde_json::Number::from_f64(float).ok_or_else(|| SessionError::Internal {
+                        detail: format!("toml data parse produced non-json float: {float}"),
+                    })?;
+
+                Ok(serde_json::Value::Number(number))
+            }
+            toml::Value::Boolean(boolean) => Ok(serde_json::Value::Bool(boolean)),
+            toml::Value::Datetime(datetime) => Ok(serde_json::Value::String(datetime.to_string())),
+            toml::Value::Array(array) => {
+                let array = array
                     .into_iter()
                     .map(|value| self.toml_to_json(value))
-                    .collect(),
-            ),
-            toml::Value::Table(table) => serde_json::Value::Object(
-                table
+                    .collect::<Result<_, _>>()?;
+
+                Ok(serde_json::Value::Array(array))
+            }
+            toml::Value::Table(table) => {
+                let table = table
                     .into_iter()
-                    .map(|(key, value)| (key, self.toml_to_json(value)))
-                    .collect(),
-            ),
+                    .map(|(key, value)| Ok((key, self.toml_to_json(value)?)))
+                    .collect::<Result<_, SessionError>>()?;
+
+                Ok(serde_json::Value::Object(table))
+            }
         }
     }
 }

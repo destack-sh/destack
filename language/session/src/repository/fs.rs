@@ -1,432 +1,249 @@
 use std::collections::HashSet;
-use std::io;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
-use destack_source::{File, FileContent, FileId, FileType, IgnoreSet, ModuleId, PackageId};
-use destack_workspace::{Edit, Ref, Repository, Revision};
+use destack_source::{FileContent, FileMetadata, IgnoreSet};
+use destack_workspace::{Repository, RepositoryError};
 
-use crate::session::FileChange;
-use crate::{FileChangeKind, FileMutation, Session, SessionChange, SessionError};
+use super::RepositorySource;
 
-const IMPORT_IGNORED_DIRECTORY_NAMES: &[&str] = &[".git", "node_modules", "target"];
-
-/// One filesystem path role during revision import.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ImportPathKind {
-    /// Directory that can be walked.
-    Directory,
-    /// Configuration file that can affect workspace shape.
-    Config,
-    /// Source module file that can enter the revision.
-    Module,
-    /// Path that does not contribute to revision import.
-    Other,
+/// Filesystem-backed repository source.
+pub(crate) struct FileSystemSource<'a> {
+    /// The repository receiving filesystem truth.
+    repository: &'a Repository,
+    /// The filesystem root scanned by this source.
+    root: &'a Path,
+    /// The directories waiting to be scanned.
+    pending_directories: Vec<PathBuf>,
+    /// The directories already scanned.
+    visited_directories: HashSet<PathBuf>,
+    /// The loaded ignore rules for the scanned root.
+    ignore_set: IgnoreSet,
+    /// The directory names excluded from recursive scans.
+    excluded_directory_names: &'a [&'a str],
+    /// The repository path predicate for full source syncs.
+    tracked_path: fn(&Path) -> bool,
 }
 
-impl Session {
-    /// Import source files from disk into one ref.
-    pub fn load_from_fs(&self, reference: &Ref) -> Result<SessionChange, SessionError> {
-        let _mutation_guard = self.enter_mutation();
-        let before = self.revision(reference)?;
-        let (after, file_changes) = self.import_files(before)?;
+/// One filesystem file visible to a repository source scan.
+pub(crate) struct FileSystemFile {
+    /// The physical filesystem path.
+    path: PathBuf,
+    /// The repository path.
+    repository_path: PathBuf,
+}
 
-        self.finish_change(reference, before, after, file_changes, None)
+impl<'a> FileSystemSource<'a> {
+    /// Create one filesystem repository source.
+    pub(crate) fn new(repository: &'a Repository, root: &'a Path) -> Self {
+        Self {
+            repository,
+            root,
+            pending_directories: Vec::new(),
+            visited_directories: HashSet::new(),
+            ignore_set: IgnoreSet::new(),
+            excluded_directory_names: &[],
+            tracked_path: |_| true,
+        }
     }
 
-    /// Refresh tracked source state from disk into one ref.
-    pub fn refresh_from_fs(&self, reference: &Ref) -> Result<SessionChange, SessionError> {
-        let _mutation_guard = self.enter_mutation();
-        let before = self.revision(reference)?;
-        let (after, file_changes) = self.refresh_files(before)?;
+    /// Set directory names excluded from recursive scans.
+    pub(crate) fn with_excluded_directory_names(
+        mut self,
+        excluded_directory_names: &'a [&'a str],
+    ) -> Self {
+        self.excluded_directory_names = excluded_directory_names;
 
-        self.finish_change(reference, before, after, file_changes, None)
+        self
     }
 
-    /// Import untracked session files into a revision derived from one base revision.
-    fn import_files(
-        &self,
-        base_revision: Revision,
-    ) -> Result<(Revision, Vec<FileChange>), SessionError> {
-        let mut pending_directories = vec![self.root().to_path_buf()];
-        let mut visited_directories = HashSet::new();
-        let mut ignore_set = IgnoreSet::new();
-        let repository = self.repository();
-        let mut revision = base_revision;
-        let mut file_changes = Vec::new();
+    /// Set the repository path predicate for full source syncs.
+    pub(crate) fn with_tracked_path(mut self, tracked_path: fn(&Path) -> bool) -> Self {
+        self.tracked_path = tracked_path;
 
-        while let Some(directory) = pending_directories.pop() {
-            // skip directories already reached through another path
-            if !visited_directories.insert(directory.clone()) {
-                continue;
-            }
+        self
+    }
 
-            // load ignore rules before classifying child paths
-            ignore_set.load_dir(&directory);
-            let entries = self.import_directory_entries(repository.as_ref(), &directory)?;
-
-            // fold imported files into the staged revision
-            for entry in entries {
-                let entry_kind =
-                    self.import_path_kind(repository.as_ref(), &ignore_set, entry.as_path())?;
-                let entry_change = self.import_path(
-                    repository.as_ref(),
-                    revision,
-                    entry.as_path(),
-                    entry_kind,
-                    &mut pending_directories,
-                )?;
-
-                if let Some((next_revision, file_change)) = entry_change {
-                    revision = next_revision;
-                    file_changes.push(file_change);
-                }
-            }
+    /// Return one file descriptor when the path is visible as a file.
+    fn file(&mut self, path: &Path) -> Result<Option<FileSystemFile>, RepositoryError> {
+        // source visibility
+        self.load_ignore_rules_for_path(path);
+        if !self.tracks(path) {
+            return Ok(None);
         }
 
-        Ok((revision, file_changes))
+        // filesystem presence
+        let metadata = match self.repository.file_system().metadata(path) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(None);
+            }
+            Err(error) => {
+                return Err(RepositoryError::FileSystem {
+                    operation: "metadata",
+                    path: path.to_path_buf(),
+                    message: error.to_string(),
+                });
+            }
+        };
+
+        // files only
+        if !metadata.is_file {
+            return Ok(None);
+        }
+
+        Ok(Some(FileSystemFile {
+            path: path.to_path_buf(),
+            repository_path: PathBuf::from(self.repository.logical_path(path)),
+        }))
     }
 
-    /// Read the child paths for one import directory.
-    fn import_directory_entries(
-        &self,
-        repository: &Repository,
-        directory: &Path,
-    ) -> Result<Vec<PathBuf>, SessionError> {
-        repository
+    /// Read child paths for one directory.
+    fn read_directory(&self, directory: &Path) -> Result<Vec<PathBuf>, RepositoryError> {
+        self.repository
             .file_system()
             .read_dir(directory)
-            .map_err(|error| SessionError::ReadPathFailed {
-                detail: format!(
-                    "failed to read session directory {}: {error}",
-                    directory.display(),
-                ),
+            .map_err(|error| RepositoryError::FileSystem {
+                operation: "read_dir",
                 path: directory.to_path_buf(),
+                message: error.to_string(),
             })
     }
 
-    /// Classify one filesystem path for revision import.
-    fn import_path_kind(
-        &self,
-        repository: &Repository,
-        ignore_set: &IgnoreSet,
-        path: &Path,
-    ) -> Result<ImportPathKind, SessionError> {
-        let metadata = repository.file_system().metadata(path).map_err(|error| {
-            SessionError::ReadPathFailed {
-                detail: format!(
-                    "failed to read session metadata {}: {error}",
-                    path.display(),
-                ),
+    /// Read metadata for one path.
+    fn path_metadata(&self, path: &Path) -> Result<FileMetadata, RepositoryError> {
+        self.repository
+            .file_system()
+            .metadata(path)
+            .map_err(|error| RepositoryError::FileSystem {
+                operation: "metadata",
                 path: path.to_path_buf(),
-            }
-        })?;
-
-        // ignore matched paths
-        if ignore_set.is_ignored(self.root(), path, metadata.is_directory) {
-            Ok(ImportPathKind::Other)
-        }
-        // importable directory
-        else if metadata.is_directory && self.is_import_directory(path) {
-            Ok(ImportPathKind::Directory)
-        }
-        // importable config file
-        else if metadata.is_file && self.is_import_config_path(path) {
-            Ok(ImportPathKind::Config)
-        }
-        // importable module file
-        else if metadata.is_file && self.is_import_module_path(path) {
-            Ok(ImportPathKind::Module)
-        }
-        // ignored file
-        else {
-            Ok(ImportPathKind::Other)
-        }
+                message: error.to_string(),
+            })
     }
 
-    /// Import one classified path into a staged revision.
-    fn import_path(
-        &self,
-        repository: &Repository,
-        revision: Revision,
-        path: &Path,
-        kind: ImportPathKind,
-        pending_directories: &mut Vec<PathBuf>,
-    ) -> Result<Option<(Revision, FileChange)>, SessionError> {
-        match kind {
-            ImportPathKind::Directory => {
-                pending_directories.push(path.to_path_buf());
-
-                Ok(None)
-            }
-            ImportPathKind::Config => self.import_config_file(repository, revision, path),
-            ImportPathKind::Module => self.import_module_path(repository, revision, path),
-            ImportPathKind::Other => Ok(None),
-        }
-    }
-
-    /// Import one config file when it is not tracked yet.
-    fn import_config_file(
-        &self,
-        repository: &Repository,
-        revision: Revision,
-        path: &Path,
-    ) -> Result<Option<(Revision, FileChange)>, SessionError> {
-        let file_id = repository.file_id_for_workspace_path(path);
-        let file = repository
-            .file(revision, file_id)
-            .map_err(SessionError::from)?;
-
-        // already tracked config
-        if file.is_some() {
-            return Ok(None);
-        }
-
-        let mutation =
-            self.read_file_from_fs(path)
-                .map_err(|error| SessionError::ReadPathFailed {
-                    detail: format!("failed to read session config {}: {error}", path.display()),
-                    path: path.to_path_buf(),
-                })?;
-        let revision = self.apply_file_update_to_revision(repository, revision, path, mutation)?;
-        let file_change = self.file_change(repository, revision, path, file_id)?;
-
-        Ok(Some((revision, file_change)))
-    }
-
-    /// Import one module path when it is not tracked yet.
-    fn import_module_path(
-        &self,
-        repository: &Repository,
-        revision: Revision,
-        path: &Path,
-    ) -> Result<Option<(Revision, FileChange)>, SessionError> {
-        let module_id = repository
-            .module_id_for_path(revision, path)
-            .map_err(SessionError::from)?;
-
-        // already tracked module
-        if module_id.is_some() {
-            return Ok(None);
-        }
-
-        let (revision, _) = self.import_module_file(revision, path).map_err(|error| {
-            SessionError::ResolvePathFailed {
-                path: path.to_path_buf(),
-                detail: format!("failed to import session module: {error}"),
-            }
-        })?;
-        let file_id = repository.file_id_for_workspace_path(path);
-        let file_change = self.file_change(repository, revision, path, file_id)?;
-
-        Ok(Some((revision, file_change)))
-    }
-
-    /// Import one module file into a revision when it is not tracked yet.
-    pub(crate) fn import_module_file(
-        &self,
-        revision: Revision,
-        path: &Path,
-    ) -> Result<(Revision, ModuleId), SessionError> {
-        let repository = self.repository();
-        let path = path.to_path_buf();
-        let module_id = repository
-            .module_id_for_path(revision, &path)
-            .map_err(SessionError::from)?;
-
-        // reuse the existing module when it is already tracked
-        if let Some(module_id) = module_id {
-            return Ok((revision, module_id));
-        }
-
-        let logical_path = repository.normalize_workspace_path(&path);
-        let content = repository
-            .load_workspace_file_content(&path)
-            .map_err(SessionError::from)?;
-        let edit = Edit::SetFile {
-            logical_path,
-            content,
-        };
-        let revision = self.apply_edits(repository.as_ref(), revision, [edit])?;
-        let module_id = repository
-            .module_id_for_path(revision, &path)
-            .map_err(SessionError::from)?;
-
-        let Some(module_id) = module_id else {
-            return Err(SessionError::ResolvePathFailed {
-                path,
-                detail: "imported source file did not produce a module".to_string(),
-            });
-        };
-
-        Ok((revision, module_id))
-    }
-
-    /// Refresh tracked files into a revision derived from one base revision.
-    fn refresh_files(
-        &self,
-        base_revision: Revision,
-    ) -> Result<(Revision, Vec<FileChange>), SessionError> {
-        let repository = self.repository();
-        let repository = repository.as_ref();
-        let files = self.collect_refresh_files(repository, base_revision)?;
-        let mut revision = base_revision;
-        let mut file_changes = Vec::new();
-
-        for file in files {
-            // fold changed tracked files into the staged revision
-            if let Some((next_revision, file_change)) =
-                self.refresh_file(repository, revision, file.as_ref())?
-            {
-                revision = next_revision;
-                file_changes.push(file_change);
-            }
-        }
-
-        Ok((revision, file_changes))
-    }
-
-    /// Return whether import should descend into one directory.
-    fn is_import_directory(&self, path: &Path) -> bool {
+    /// Return whether this source should descend into one directory.
+    fn should_scan_directory(&self, path: &Path) -> bool {
+        // anonymous paths are not excluded by name
         let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
             return true;
         };
 
-        !IMPORT_IGNORED_DIRECTORY_NAMES.contains(&name)
+        !self.excluded_directory_names.contains(&name)
     }
 
-    /// Return whether import should include one config file.
-    fn is_import_config_path(&self, path: &Path) -> bool {
-        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+    /// Return whether one path is below an excluded directory.
+    fn is_below_excluded_directory(&self, path: &Path) -> bool {
+        // paths outside the source are handled by tracks
+        let Ok(relative_path) = path.strip_prefix(self.root) else {
             return false;
         };
 
-        matches!(name, "package.json" | "destack.json")
-            || (name.starts_with("tsconfig") && name.ends_with(".json"))
+        // excluded directory components
+        relative_path.components().any(|component| {
+            let name = component.as_os_str().to_string_lossy();
+
+            self.excluded_directory_names.contains(&name.as_ref())
+        })
     }
 
-    /// Return whether import should include one module file.
-    pub(crate) fn is_import_module_path(&self, path: &Path) -> bool {
-        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
-            return false;
+    /// Load ignore rules that can affect one path.
+    fn load_ignore_rules_for_path(&mut self, path: &Path) {
+        // ignore files cannot affect a path without a parent
+        let Some(parent) = path.parent() else {
+            return;
         };
 
-        // config files are imported as config
-        if matches!(name, "package.json" | "destack.json")
-            || (name.starts_with("tsconfig") && name.ends_with(".json"))
-        {
-            false
-        }
-        // source files are watched and imported as modules
-        else {
-            self.should_watch_path(path)
-        }
-    }
-
-    /// Read one filesystem path as a file update.
-    pub fn read_file_from_fs(&self, path: &Path) -> io::Result<FileMutation> {
-        let repository = self.repository();
-
-        // preserve bytes for binary formats
-        if FileType::from_path(path).is_some_and(|file_type| file_type.is_binary()) {
-            let content = repository.file_system().read(path)?;
-
-            return Ok(FileMutation::Bytes { content });
-        }
-
-        // otherwise prefer text so downstream diagnostics keep source spans
-        let content = repository.file_system().read_to_string(path)?;
-
-        Ok(FileMutation::Text { content })
-    }
-
-    /// Return true when watch mode should track one path.
-    pub fn should_watch_path(&self, path: &Path) -> bool {
-        let Some(file_type) = FileType::from_path(path) else {
-            return false;
-        };
-
-        file_type.is_code()
-            || file_type.is_data()
-            || file_type.is_text()
-            || file_type.is_binary()
-            || FileChangeKind::for_path(path).is_config_change()
-    }
-
-    /// Collect tracked files that refresh should read from disk.
-    fn collect_refresh_files(
-        &self,
-        repository: &Repository,
-        revision: Revision,
-    ) -> Result<Vec<Arc<File>>, SessionError> {
-        let mut seen_file_ids = HashSet::new();
-        let mut files = Vec::new();
-        let mut package_ids = HashSet::new();
-
-        // workspace config owned by this source root
-        if let Some(workspace_config) = repository.destack_declaration_for_workspace(revision)? {
-            let path = workspace_config.path.clone();
-            if path.starts_with(self.root()) {
-                self.push_refresh_file(
-                    repository,
-                    revision,
-                    workspace_config.file_id,
-                    &mut seen_file_ids,
-                    &mut files,
-                )?;
+        // collect ancestors inside this source
+        let mut directories = Vec::new();
+        let mut directory = parent;
+        loop {
+            // stop outside this source root
+            if !directory.starts_with(self.root) {
+                break;
             }
+
+            // collect the current ancestor
+            directories.push(directory.to_path_buf());
+
+            // stop after including the root
+            if directory == self.root {
+                break;
+            }
+
+            // move toward the root
+            let Some(parent) = directory.parent() else {
+                break;
+            };
+            directory = parent;
         }
 
-        // modules and their package config files
-        for module_id in repository
-            .module_ids(revision)
-            .map_err(SessionError::from)?
-        {
-            let Some(module) = repository
-                .module(revision, module_id)
-                .map_err(SessionError::from)?
-            else {
-                return Err(SessionError::ModuleIdNotTracked { module_id });
-            };
-            let is_root_module = module
-                .path
-                .as_ref()
-                .is_some_and(|path| module.is_user() && path.starts_with(self.root()));
+        // load rules from root down to the path parent
+        for directory in directories.into_iter().rev() {
+            self.ignore_set.load_dir(&directory);
+        }
+    }
+}
 
-            // module source file
-            if is_root_module {
-                self.push_refresh_file(
-                    repository,
-                    revision,
-                    module.file_id,
-                    &mut seen_file_ids,
-                    &mut files,
-                )?;
+impl RepositorySource for FileSystemSource<'_> {
+    type File = FileSystemFile;
 
-                // package config files
-                if package_ids.insert(module.package_id) {
-                    self.collect_package_refresh_files(
-                        repository,
-                        revision,
-                        module.package_id,
-                        &mut seen_file_ids,
-                        &mut files,
-                    )?;
+    fn list(&mut self) -> Result<Vec<Self::File>, RepositoryError> {
+        let mut files = Vec::new();
+
+        // reset mutable traversal state
+        self.pending_directories.clear();
+        self.visited_directories.clear();
+        self.ignore_set = IgnoreSet::new();
+
+        // seed this traversal
+        self.pending_directories.push(self.root.to_path_buf());
+
+        // walk source directories
+        while let Some(directory) = self.pending_directories.pop() {
+            // skip directories already reached through another path
+            if !self.visited_directories.insert(directory.clone()) {
+                continue;
+            }
+
+            // load local ignore rules before classifying children
+            self.ignore_set.load_dir(&directory);
+
+            // scan child paths
+            for path in self.read_directory(&directory)? {
+                // read child metadata once
+                let metadata = self.path_metadata(&path)?;
+
+                // ignore paths excluded by loaded rules
+                if self
+                    .ignore_set
+                    .is_ignored(self.root, path.as_path(), metadata.is_directory)
+                {
+                    continue;
                 }
 
-                // tsconfig file
-                if let Some(tsconfig_file_id) = module.tsconfig_file_id
-                    && let Some(tsconfig) = repository
-                        .tsconfig_declaration_for_file(revision, tsconfig_file_id)
-                        .map_err(SessionError::from)?
-                {
-                    self.push_refresh_file(
-                        repository,
-                        revision,
-                        tsconfig.file_id,
-                        &mut seen_file_ids,
-                        &mut files,
-                    )?;
+                // queue source directories
+                if metadata.is_directory {
+                    // descend into included directories
+                    if self.should_scan_directory(&path) {
+                        self.pending_directories.push(path);
+                    }
+
+                    continue;
+                }
+
+                // collect filesystem files
+                if metadata.is_file {
+                    let repository_path = PathBuf::from(self.repository.logical_path(&path));
+
+                    // skip files outside this source sync
+                    if !(self.tracked_path)(&repository_path) {
+                        continue;
+                    }
+
+                    files.push(FileSystemFile {
+                        repository_path,
+                        path,
+                    });
                 }
             }
         }
@@ -434,155 +251,61 @@ impl Session {
         Ok(files)
     }
 
-    /// Collect tracked package files that refresh should read from disk.
-    fn collect_package_refresh_files(
-        &self,
-        repository: &Repository,
-        revision: Revision,
-        package_id: PackageId,
-        seen_file_ids: &mut HashSet<FileId>,
-        files: &mut Vec<Arc<File>>,
-    ) -> Result<(), SessionError> {
-        // load the package that owns the source module
-        let Some(package) = repository
-            .package(revision, package_id)
-            .map_err(SessionError::from)?
-        else {
-            return Err(SessionError::Internal {
-                detail: format!("missing package for {package_id:?}"),
-            });
-        };
-
-        // package manifest
-        if let Some(package_file_id) = package.package_file_id {
-            self.push_refresh_file(repository, revision, package_file_id, seen_file_ids, files)?;
-        }
-
-        // package destack config
-        if let Some(config) = repository.destack_declaration_for_package(revision, &package)? {
-            self.push_refresh_file(repository, revision, config.file_id, seen_file_ids, files)?;
-        }
-
-        Ok(())
+    fn get(&mut self, path: &Path) -> Result<Option<Self::File>, RepositoryError> {
+        self.file(path)
     }
 
-    /// Push one tracked refresh file when it has not been seen yet.
-    fn push_refresh_file(
-        &self,
-        repository: &Repository,
-        revision: Revision,
-        file_id: FileId,
-        seen_file_ids: &mut HashSet<FileId>,
-        files: &mut Vec<Arc<File>>,
-    ) -> Result<(), SessionError> {
-        // avoid duplicate config files reached through multiple modules
-        if !seen_file_ids.insert(file_id) {
-            return Ok(());
+    fn path<'file>(&self, file: &'file Self::File) -> &'file Path {
+        &file.repository_path
+    }
+
+    fn read(&self, file: &Self::File) -> Result<FileContent, RepositoryError> {
+        self.repository.load_workspace_file_content(&file.path)
+    }
+
+    fn tracks(&self, path: &Path) -> bool {
+        // root authority
+        if !path.starts_with(self.root) {
+            return false;
         }
 
-        let Some(file) = repository
-            .file(revision, file_id)
-            .map_err(SessionError::from)?
-        else {
-            return Ok(());
-        };
+        // excluded directory authority
+        if self.is_below_excluded_directory(path) {
+            return false;
+        }
 
-        files.push(file);
+        // ignore authority
+        if self.ignore_set.is_ignored(self.root, path, false) {
+            return false;
+        }
 
-        Ok(())
+        // repository path authority
+        let repository_path = self.repository.logical_path(path);
+
+        (self.tracked_path)(Path::new(&repository_path))
     }
 
-    /// Refresh one tracked file when its filesystem content changed.
-    fn refresh_file(
-        &self,
-        repository: &Repository,
-        revision: Revision,
-        file: &File,
-    ) -> Result<Option<(Revision, FileChange)>, SessionError> {
-        let Some(path) = file.path.clone().or_else(|| file.uri.to_path_buf()) else {
-            return Ok(None);
-        };
+    fn has(&self, path: &Path) -> Result<bool, RepositoryError> {
+        // source authority
+        if !self.tracks(path) {
+            return Ok(false);
+        }
 
-        // read changed filesystem content
-        let Some(mutation) = self.read_changed_file_from_fs(repository, file, &path)? else {
-            return Ok(None);
-        };
-
-        let revision =
-            self.apply_file_update_to_revision(repository, revision, path.as_path(), mutation)?;
-        let file_change = self.file_change(repository, revision, path.as_path(), file.id)?;
-
-        Ok(Some((revision, file_change)))
-    }
-
-    /// Read one changed filesystem file.
-    fn read_changed_file_from_fs(
-        &self,
-        repository: &Repository,
-        file: &File,
-        path: &Path,
-    ) -> Result<Option<FileMutation>, SessionError> {
-        // make binary mutation
-        if file.ty.is_binary() {
-            let bytes = match repository.file_system().read(path) {
-                Ok(bytes) => bytes,
-                Err(error) => {
-                    return self.removed_file_or_read_error(path, error);
-                }
-            };
-
-            if self.bytes_changed(file, &bytes) {
-                return Ok(Some(FileMutation::Bytes { content: bytes }));
+        // filesystem presence
+        let metadata = match self.repository.file_system().metadata(path) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(false);
             }
-
-            Ok(None)
-        }
-        // make text mutation
-        else {
-            let content = match repository.file_system().read_to_string(path) {
-                Ok(content) => content,
-                Err(error) => {
-                    return self.removed_file_or_read_error(path, error);
-                }
-            };
-
-            if self.text_changed(file, &content) {
-                return Ok(Some(FileMutation::Text { content }));
+            Err(error) => {
+                return Err(RepositoryError::FileSystem {
+                    operation: "metadata",
+                    path: path.to_path_buf(),
+                    message: error.to_string(),
+                });
             }
+        };
 
-            Ok(None)
-        }
-    }
-
-    /// Decide whether a text update should be applied.
-    fn text_changed(&self, file: &File, content: &str) -> bool {
-        match file.content.payload() {
-            FileContent::Text { content: current } => current != content,
-            FileContent::Binary { .. } => true,
-        }
-    }
-
-    /// Decide whether a byte update should be applied.
-    fn bytes_changed(&self, file: &File, bytes: &[u8]) -> bool {
-        match file.content.payload() {
-            FileContent::Binary { content } => content.as_slice() != bytes,
-            FileContent::Text { .. } => true,
-        }
-    }
-
-    /// Handle file read errors during filesystem refresh.
-    fn removed_file_or_read_error(
-        &self,
-        path: &Path,
-        error: io::Error,
-    ) -> Result<Option<FileMutation>, SessionError> {
-        if error.kind() == io::ErrorKind::NotFound {
-            return Ok(Some(FileMutation::Removed));
-        }
-
-        Err(SessionError::ReadPathFailed {
-            detail: format!("failed to read watched file {}: {error}", path.display()),
-            path: path.to_path_buf(),
-        })
+        Ok(metadata.is_file)
     }
 }

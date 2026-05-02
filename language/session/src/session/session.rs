@@ -7,9 +7,8 @@ use destack_source::ModuleId;
 use destack_workspace::{Ref, Repository, Revision};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 
-use crate::SessionError;
 use crate::executor::Executor;
-use crate::source::FileUpdate;
+use crate::{FileSystemSource, RepositoryChange, RepositorySource, SessionError};
 
 use super::{SessionEventHandler, SessionState};
 
@@ -158,31 +157,47 @@ impl Session {
             .map_err(SessionError::from)
     }
 
-    /// Import one filesystem module path into one ref when needed.
-    pub fn import_module_from_fs(
+    /// Load one filesystem module path into one ref when needed.
+    pub fn load_module_from_fs(
         &self,
         reference: &Ref,
         path: &Path,
     ) -> Result<ModuleId, SessionError> {
         let _mutation_guard = self.enter_mutation();
+        let repository = self.repository();
         let revision = self.revision(reference)?;
-        let (revision, module_id) = self.import_module_path_from_fs(revision, path)?;
 
+        // reuse already tracked modules
+        let module_id = repository.module_id_for_path(revision, path)?;
+        if let Some(module_id) = module_id {
+            return Ok(module_id);
+        }
+
+        // read the requested filesystem source file
+        let mut source = FileSystemSource::new(repository.as_ref(), self.root());
+        let Some(file) = source.get(path)? else {
+            return Err(SessionError::ResolvePathFailed {
+                path: path.to_path_buf(),
+                detail: "source file is not importable".to_string(),
+            });
+        };
+
+        // apply the selected source file
+        let change = RepositoryChange::from_files(repository.as_ref(), revision, &source, [file])?;
+        let revision = change.apply(repository.as_ref(), revision)?;
+
+        // require the applied file to produce a module
+        let module_id = repository.module_id_for_path(revision, path)?;
+        let Some(module_id) = module_id else {
+            return Err(SessionError::ResolvePathFailed {
+                path: path.to_path_buf(),
+                detail: "loaded source file did not produce a module".to_string(),
+            });
+        };
+
+        // publish the new revision only after validation
         self.set_ref(reference, revision)?;
 
         Ok(module_id)
     }
-}
-
-/// One committed session ref movement.
-#[derive(Debug, Clone)]
-pub struct RefUpdate {
-    /// The repository ref that moved.
-    pub reference: Ref,
-    /// The revision the ref pointed at before the change.
-    pub before: Revision,
-    /// The revision the ref points at after the change.
-    pub after: Revision,
-    /// File updates visible to session consumers.
-    pub files: Vec<FileUpdate>,
 }

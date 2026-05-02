@@ -1,45 +1,28 @@
-use std::sync::Arc;
+use std::path::Path;
 
-use destack_artifact::{ArtifactDependency, ArtifactKey, ArtifactPayload, ProviderContext};
-use destack_source::{File, FileId};
-use destack_workspace::Revision;
+use destack_source::FileContent;
+use destack_workspace::RepositoryError;
 
-use crate::SessionError;
-use crate::session::{SessionContext, SessionState};
+/// A source of external truth that can be applied to or synchronized with a repository.
+pub(crate) trait RepositorySource {
+    /// The source-owned file descriptor.
+    type File;
 
-impl SessionState {
-    /// Provide one source-derived artifact for a fixed revision.
-    pub(crate) fn provide_source(
-        &self,
-        context: &SessionContext,
-    ) -> Result<ArtifactPayload, SessionError> {
-        match context.key() {
-            ArtifactKey::Ast { module } => self.provide_ast(module, context),
-            ArtifactKey::Data { module } => self.provide_data(module, context),
-            artifact_key => Err(SessionError::Internal {
-                detail: format!("non source artifact reached source provider: {artifact_key:?}"),
-            }),
-        }
-    }
+    /// List files visible to this source.
+    fn list(&mut self) -> Result<Vec<Self::File>, RepositoryError>;
 
-    /// Load one source file and record its exact content dependency.
-    pub(super) fn file(
-        &self,
-        revision: Revision,
-        file_id: FileId,
-        context: &SessionContext,
-    ) -> Result<Arc<File>, SessionError> {
-        let content_id = self
-            .repository()
-            .file_content_id(revision, file_id)?
-            .ok_or(SessionError::FileIdNotTracked { file_id })?;
-        let file = self
-            .repository()
-            .file(revision, file_id)?
-            .ok_or(SessionError::FileIdNotTracked { file_id })?;
+    /// Get one visible file by path.
+    fn get(&mut self, path: &Path) -> Result<Option<Self::File>, RepositoryError>;
 
-        context.dependency(ArtifactDependency::file_content(file_id, content_id));
+    /// Return the repository path for one source file.
+    fn path<'file>(&self, file: &'file Self::File) -> &'file Path;
 
-        Ok(file)
-    }
+    /// Read one source file.
+    fn read(&self, file: &Self::File) -> Result<FileContent, RepositoryError>;
+
+    /// Return whether a full sync from this source owns one repository file path.
+    fn tracks(&self, path: &Path) -> bool;
+
+    /// Return whether one repository file path currently exists as a source file.
+    fn has(&self, path: &Path) -> Result<bool, RepositoryError>;
 }

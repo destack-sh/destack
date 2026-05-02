@@ -9,175 +9,38 @@ use destack_workspace::{
 };
 use serde_json::{Map, Value};
 
-use crate::session::FileChange;
-use crate::{FileChangeKind, FileMutation, FileUpdate, Session, SessionChange, SessionError};
+use crate::{FileMutation, FileUpdate, FileUpdateKind, RepositoryChange, Session, SessionError};
 
 impl Session {
-    /// Set one open file to its current overlay text.
-    pub fn update_open_file(
-        &self,
-        reference: &Ref,
-        path: &Path,
-        uri: Uri,
-        text: String,
-    ) -> Result<SessionChange, SessionError> {
-        let _mutation_guard = self.enter_mutation();
-
-        let update = FileMutation::Text {
-            content: text.clone(),
-        };
-        let before = self.revision(reference)?;
-        let (after, file_changes) = self.apply_file_update_locked(before, path, update)?;
-
-        self.track_open_file(path, uri.clone());
-        self.set_open_file_text(path, text);
-
-        self.finish_change(reference, before, after, file_changes, Some(&uri))
-    }
-
-    /// Save one open file to explicit saved text.
-    pub fn save_open_file(
-        &self,
-        reference: &Ref,
-        path: &Path,
-        text: String,
-    ) -> Result<SessionChange, SessionError> {
-        let _mutation_guard = self.enter_mutation();
-
-        // preserve open file state for still open files
-        let tracked_open_file = self.tracked_open_file(path);
-        let update = FileMutation::Text {
-            content: text.clone(),
-        };
-        let before = self.revision(reference)?;
-        let (after, file_changes) = self.apply_file_update_locked(before, path, update)?;
-
-        if let Some(open_file) = tracked_open_file {
-            self.set_open_file_text(path, text);
-
-            return self.finish_change(
-                reference,
-                before,
-                after,
-                file_changes,
-                Some(&open_file.uri),
-            );
-        }
-
-        self.finish_change(reference, before, after, file_changes, None)
-    }
-
-    /// Close one open file and restore filesystem backed source truth.
-    pub fn close_open_file(
-        &self,
-        reference: &Ref,
-        path: &Path,
-    ) -> Result<SessionChange, SessionError> {
-        let _mutation_guard = self.enter_mutation();
-
-        let Some(open_file) = self.tracked_open_file(path) else {
-            let revision = self.revision(reference)?;
-
-            return Ok(SessionChange {
-                reference: reference.clone(),
-                before: revision,
-                after: revision,
-                files: Vec::new(),
-            });
-        };
-        let tracked_text =
-            self.open_file_text(path)
-                .map_err(|error| SessionError::ReadPathFailed {
-                    detail: format!(
-                        "failed to read tracked open file {}: {error}",
-                        path.display()
-                    ),
-                    path: path.to_path_buf(),
-                })?;
-
-        let _removed_open_file = self.untrack_open_file(path);
-        self.remove_open_file_text(path);
-
-        // restore the filesystem backed update
-        let update = match self.read_file_from_fs(path) {
-            Ok(update) => update,
-            Err(error) if error.kind() == ErrorKind::NotFound => FileMutation::Removed,
-            Err(error) => {
-                self.track_open_file(path, open_file.uri.clone());
-                if let Some(text) = tracked_text.clone() {
-                    self.set_open_file_text(path, text);
-                }
-
-                return Err(SessionError::ReadPathFailed {
-                    detail: format!(
-                        "failed to restore closed open file {}: {error}",
-                        path.display(),
-                    ),
-                    path: path.to_path_buf(),
-                });
-            }
-        };
-
-        // restore the open file state when the semantic update fails
-        let before = self.revision(reference)?;
-        let (after, file_changes) = match self.apply_file_update_locked(before, path, update) {
-            Ok(update) => update,
-            Err(error) => {
-                self.track_open_file(path, open_file.uri.clone());
-                if let Some(text) = tracked_text {
-                    self.set_open_file_text(path, text);
-                }
-
-                return Err(error);
-            }
-        };
-
-        self.finish_change(reference, before, after, file_changes, Some(&open_file.uri))
-    }
-
     /// Apply one explicit file mutation through one ref.
-    pub fn apply(
+    pub fn apply_file(
         &self,
         reference: &Ref,
         path: &Path,
         update: FileMutation,
-    ) -> Result<SessionChange, SessionError> {
+    ) -> Result<Vec<FileUpdate>, SessionError> {
         let _mutation_guard = self.enter_mutation();
+        let repository = self.repository();
         let before = self.revision(reference)?;
-        let (after, file_changes) = self.apply_file_update_locked(before, path, update)?;
+        let change = self.file_mutation_change(repository.as_ref(), path, update);
+        let file_ids = change.file_ids();
+        let revision = change.apply(repository.as_ref(), before)?;
+        let files = self.project_file_updates(before, revision, file_ids)?;
 
-        self.finish_change(reference, before, after, file_changes, None)
+        self.set_ref(reference, revision)?;
+
+        Ok(files)
     }
 
-    /// Build one file change after one file update.
-    pub(crate) fn file_change(
+    /// Build one repository change from one file mutation.
+    fn file_mutation_change(
         &self,
         repository: &Repository,
-        revision: Revision,
-        path: &Path,
-        file_id: FileId,
-    ) -> Result<FileChange, SessionError> {
-        let module_id = repository
-            .module_id_for_file(revision, file_id)
-            .map_err(SessionError::from)?;
-
-        Ok(FileChange {
-            module_id,
-            file_id,
-            kind: FileChangeKind::for_path(path),
-        })
-    }
-
-    /// Apply one file update to one staged revision.
-    pub(crate) fn apply_file_update_to_revision(
-        &self,
-        repository: &Repository,
-        revision: Revision,
         path: &Path,
         update: FileMutation,
-    ) -> Result<Revision, SessionError> {
-        // apply the explicit file edit
-        let logical_path = repository.normalize_workspace_path(path);
+    ) -> RepositoryChange {
+        // build the repository edit
+        let logical_path = repository.logical_path(path);
         let edit = match update {
             FileMutation::Text { content } => Edit::set_text(logical_path.clone(), content),
             FileMutation::Bytes { content } => Edit::SetFile {
@@ -186,110 +49,81 @@ impl Session {
             },
             FileMutation::Removed => Edit::remove_file(logical_path.clone()),
         };
-        self.apply_edits(repository, revision, [edit])
+
+        RepositoryChange::from_edits([edit])
     }
 
-    /// Apply staged repository edits directly.
-    pub(crate) fn apply_edits<I>(
+    /// Project repository file changes into session file updates.
+    pub(crate) fn project_file_updates(
         &self,
-        repository: &Repository,
-        revision: Revision,
-        edits: I,
-    ) -> Result<Revision, SessionError>
-    where
-        I: IntoIterator<Item = Edit>,
-    {
-        repository
-            .fork_with_edits(revision, edits)
-            .map_err(SessionError::from)
-    }
-
-    /// Apply one file update while already holding the session mutation lock.
-    fn apply_file_update_locked(
-        &self,
-        revision: Revision,
-        path: &Path,
-        update: FileMutation,
-    ) -> Result<(Revision, Vec<FileChange>), SessionError> {
-        let repository = self.repository();
-        let file_id = repository.file_id_for_workspace_path(path);
-        let is_module_update =
-            !matches!(&update, FileMutation::Removed) && self.is_import_module_path(path);
-
-        // apply the explicit file edit
-        let mut revision =
-            self.apply_file_update_to_revision(&repository, revision, path, update)?;
-        let module_id = repository
-            .module_id_for_path(revision, path)
-            .map_err(SessionError::from)?;
-
-        // load newly visible module files after the edit lands
-        if is_module_update && module_id.is_none() {
-            let (next_revision, _) = self.import_module_file(revision, path).map_err(|error| {
-                SessionError::UpdatePathFailed {
-                    path: path.to_path_buf(),
-                    detail: format!("failed to import session module: {error}"),
-                }
-            })?;
-            revision = next_revision;
-        }
-
-        let file_change = self.file_change(&repository, revision, path, file_id)?;
-        let file_changes = vec![file_change];
-
-        Ok((revision, file_changes))
-    }
-
-    /// Finish one session change by setting the ref and building file updates.
-    pub(crate) fn finish_change(
-        &self,
-        reference: &Ref,
         before: Revision,
-        after: Revision,
-        file_changes: Vec<FileChange>,
-        preferred_uri: Option<&Uri>,
-    ) -> Result<SessionChange, SessionError> {
-        self.set_ref(reference, after)?;
-
+        revision: Revision,
+        file_changes: Vec<FileId>,
+    ) -> Result<Vec<FileUpdate>, SessionError> {
         let mut files = Vec::new();
+        let repository = self.repository();
 
         // project changed repository files into session update payloads
-        for file_change in file_changes {
-            let file = self
-                .repository()
-                .file(after, file_change.file_id)
-                .map_err(SessionError::from)?
-                .ok_or(SessionError::FileIdNotTracked {
-                    file_id: file_change.file_id,
+        let mut seen_file_ids = HashSet::new();
+        for file_id in file_changes {
+            if !seen_file_ids.insert(file_id) {
+                continue;
+            }
+
+            let file = repository
+                .file(revision, file_id)
+                .map_err(SessionError::from)?;
+
+            // live files carry their current repository image
+            if let Some(file) = file {
+                let module_id = repository
+                    .module_id_for_file(revision, file_id)
+                    .map_err(SessionError::from)?;
+                let path = file.path.as_deref().ok_or_else(|| SessionError::Internal {
+                    detail: format!("updated repository file has no path: {file_id:?}"),
                 })?;
+                let kind = FileUpdateKind::for_path(path);
 
-            // prefer live open file uri for diagnostic publishing
-            let open_file = file
+                let uri = Uri::from_file_path(path);
+
+                files.push(FileUpdate::Updated {
+                    module_id,
+                    file_id,
+                    uri,
+                    file,
+                    kind,
+                });
+
+                continue;
+            }
+
+            let previous_file = repository
+                .file(before, file_id)
+                .map_err(SessionError::from)?
+                .ok_or(SessionError::FileNotTracked { file_id })?;
+            let module_id = repository
+                .module_id_for_file(before, file_id)
+                .map_err(SessionError::from)?;
+            let path = previous_file
                 .path
-                .as_ref()
-                .and_then(|path| self.tracked_open_file(path));
-            let uri = open_file
-                .as_ref()
-                .map(|file| file.uri.clone())
-                .or_else(|| preferred_uri.cloned())
-                .or_else(|| file.path.as_ref().map(Uri::from_file_path))
-                .unwrap_or_else(|| file.uri.clone());
+                .as_deref()
+                .ok_or_else(|| SessionError::Internal {
+                    detail: format!("removed repository file has no path: {file_id:?}"),
+                })?;
+            let kind = FileUpdateKind::for_path(path);
 
-            files.push(FileUpdate {
-                module_id: file_change.module_id,
-                file_id: file_change.file_id,
+            // removed files still need a uri so clients can clear diagnostics
+            let uri = Uri::from_file_path(path);
+
+            files.push(FileUpdate::Removed {
+                module_id,
+                file_id,
                 uri,
-                file,
-                kind: file_change.kind,
+                kind,
             });
         }
 
-        Ok(SessionChange {
-            reference: reference.clone(),
-            before,
-            after,
-            files,
-        })
+        Ok(files)
     }
 
     /// Apply workspace config overrides through one coherent session mutation.
@@ -297,32 +131,25 @@ impl Session {
         &self,
         reference: &Ref,
         overrides: &[ConfigOverride],
-    ) -> Result<SessionChange, SessionError> {
+    ) -> Result<Vec<FileUpdate>, SessionError> {
         let _mutation_guard = self.enter_mutation();
 
         if overrides.is_empty() {
-            let revision = self.revision(reference)?;
-
-            return Ok(SessionChange {
-                reference: reference.clone(),
-                before: revision,
-                after: revision,
-                files: Vec::new(),
-            });
+            return Ok(Vec::new());
         }
 
-        // staged revision
+        // revision fork
         let repository = self.repository();
         let before = self.revision(reference)?;
-        let mut revision = before;
-        let config_paths = self.collect_workspace_config_paths(repository.as_ref(), revision)?;
+        let config_paths = self.collect_workspace_config_paths(repository.as_ref(), before)?;
 
-        // staged config updates
+        // config updates
+        let mut change = RepositoryChange::new();
         let mut file_changes = Vec::new();
         let mut seen_file_ids = HashSet::new();
 
         for path in config_paths {
-            let mut json = self.load_workspace_config_json(repository.as_ref(), revision, &path)?;
+            let mut json = self.load_workspace_config_json(repository.as_ref(), before, &path)?;
             apply_config_overrides_to_json(&mut json, overrides).map_err(|detail| {
                 SessionError::UpdatePathFailed {
                     path: path.clone(),
@@ -338,22 +165,29 @@ impl Session {
             })?;
             let content = format!("{content}\n");
 
-            revision = self.apply_file_update_to_revision(
+            let file_change = self.file_mutation_change(
                 repository.as_ref(),
-                revision,
                 &path,
                 FileMutation::Text { content },
-            )?;
+            );
 
-            let file_id = repository.file_id_for_workspace_path(&path);
-            if seen_file_ids.insert(file_id) {
-                let file_change =
-                    self.file_change(repository.as_ref(), revision, &path, file_id)?;
-                file_changes.push(file_change);
+            for file_id in file_change.file_ids() {
+                if !seen_file_ids.insert(file_id) {
+                    continue;
+                }
+
+                file_changes.push(file_id);
             }
+
+            change.extend(file_change);
         }
 
-        self.finish_change(reference, before, revision, file_changes, None)
+        let revision = change.apply(repository.as_ref(), before)?;
+        let files = self.project_file_updates(before, revision, file_changes)?;
+
+        self.set_ref(reference, revision)?;
+
+        Ok(files)
     }
 
     /// Collect visible workspace config paths for the current revision.
@@ -384,7 +218,7 @@ impl Session {
         revision: Revision,
         path: &Path,
     ) -> Result<Value, SessionError> {
-        let file_id = repository.file_id_for_workspace_path(path);
+        let file_id = repository.file_id(path);
 
         // prefer revision backed source truth
         if let Some(file) = repository
