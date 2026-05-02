@@ -212,6 +212,7 @@ impl Compiler {
                 module: module_id,
                 message: format!("{error}"),
             })?;
+            let shared_gc = shared.gc_worker(0);
 
             isolate
                 .initialize(&heap, &shared, &mut statics)
@@ -219,15 +220,21 @@ impl Compiler {
                     module: module_id,
                     message: format!("{error}"),
                 })?;
-            let output = isolate
-                .run_function(&mut statics, &mut heap, &mut shared, function_id, &[])
+            let vm_value = isolate
+                .run_function(
+                    &mut statics,
+                    &mut heap,
+                    &mut shared,
+                    &shared_gc,
+                    function_id,
+                    &[],
+                )
                 .map_err(|error| ExecuteError::FailedExecution {
                     module: module_id,
                     message: format!("{error}"),
                 })?;
 
             // convert the vm value to a static expression
-            let vm_value = output.value;
             let dir_value = self
                 .value_to_static_expression(&isolate, &heap, &vm_value)
                 .ok_or_else(|| ExecuteError::FailedExecution {
