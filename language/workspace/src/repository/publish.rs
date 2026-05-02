@@ -5,8 +5,8 @@ use destack_source::{FileContent, FileId, FileType};
 use im::OrdMap;
 
 use crate::repository::{
-    normalize_logical_path, Edit, FileEntry, Ref, Repository, RepositoryError, Revision,
-    RevisionState,
+    Edit, FileEntry, Ref, Repository, RepositoryError, Revision, RevisionState,
+    normalize_logical_path,
 };
 
 impl Repository {

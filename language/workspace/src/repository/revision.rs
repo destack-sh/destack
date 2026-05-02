@@ -10,6 +10,44 @@ use destack_source::{FileContentId, FileId};
 
 use crate::repository::{FileEntry, HostEnvironment};
 
+/// Content identity for one immutable repository revision state.
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct Revision(pub [u8; 32]);
+
+impl Revision {
+    /// The null revision identity.
+    pub const NULL: Self = Self([0; 32]);
+
+    /// Build one revision identity from one raw digest.
+    pub const fn new(value: [u8; 32]) -> Self {
+        Self(value)
+    }
+
+    /// Build one revision identity from one small test value.
+    pub const fn from_test_value(value: u8) -> Self {
+        Self([value; 32])
+    }
+}
+
+impl fmt::Debug for Revision {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(self, formatter)
+    }
+}
+
+impl Display for Revision {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter.write_str("r")?;
+        for byte in self.0 {
+            write!(formatter, "{byte:02x}")?;
+        }
+
+        Ok(())
+    }
+}
+
 /// A movable name pointing at one repository revision.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -52,44 +90,6 @@ impl From<String> for Ref {
 impl From<&str> for Ref {
     fn from(value: &str) -> Self {
         Self::new(value)
-    }
-}
-
-/// Content identity for one immutable repository revision state.
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct Revision(pub [u8; 32]);
-
-impl Revision {
-    /// The null revision identity.
-    pub const NULL: Self = Self([0; 32]);
-
-    /// Build one revision identity from one raw digest.
-    pub const fn new(value: [u8; 32]) -> Self {
-        Self(value)
-    }
-
-    /// Build one revision identity from one small test value.
-    pub const fn from_test_value(value: u8) -> Self {
-        Self([value; 32])
-    }
-}
-
-impl fmt::Debug for Revision {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        Display::fmt(self, formatter)
-    }
-}
-
-impl Display for Revision {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        formatter.write_str("r")?;
-        for byte in self.0 {
-            write!(formatter, "{byte:02x}")?;
-        }
-
-        Ok(())
     }
 }
 
