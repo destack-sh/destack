@@ -9,20 +9,20 @@ use destack_workspace::{
 };
 use serde_json::{Map, Value};
 
-use crate::{FileMutation, FileUpdate, FileUpdateKind, RepositoryChange, Session, SessionError};
+use crate::{FileChange, FileUpdate, FileUpdateKind, RepositoryChange, Session, SessionError};
 
 impl Session {
-    /// Apply one explicit file mutation through one ref.
+    /// Apply one explicit file change through one ref.
     pub fn apply_file(
         &self,
         reference: &Ref,
         path: &Path,
-        update: FileMutation,
+        update: FileChange,
     ) -> Result<Vec<FileUpdate>, SessionError> {
         let _mutation_guard = self.enter_mutation();
         let repository = self.repository();
         let before = self.revision(reference)?;
-        let change = self.file_mutation_change(repository.as_ref(), path, update);
+        let change = self.repository_change_for_file(repository.as_ref(), path, update);
         let file_ids = change.file_ids();
         let revision = change.apply(repository.as_ref(), before)?;
         let files = self.project_file_updates(before, revision, file_ids)?;
@@ -32,22 +32,22 @@ impl Session {
         Ok(files)
     }
 
-    /// Build one repository change from one file mutation.
-    fn file_mutation_change(
+    /// Build one repository change from one file change.
+    fn repository_change_for_file(
         &self,
         repository: &Repository,
         path: &Path,
-        update: FileMutation,
+        update: FileChange,
     ) -> RepositoryChange {
         // build the repository edit
         let logical_path = repository.logical_path(path);
         let edit = match update {
-            FileMutation::Text { content } => Edit::set_text(logical_path.clone(), content),
-            FileMutation::Bytes { content } => Edit::SetFile {
+            FileChange::Text { content } => Edit::set_text(logical_path.clone(), content),
+            FileChange::Bytes { content } => Edit::SetFile {
                 logical_path: logical_path.clone(),
                 content: FileContent::Binary { content },
             },
-            FileMutation::Removed => Edit::remove_file(logical_path.clone()),
+            FileChange::Removed => Edit::remove_file(logical_path.clone()),
         };
 
         RepositoryChange::from_edits([edit])
@@ -165,10 +165,10 @@ impl Session {
             })?;
             let content = format!("{content}\n");
 
-            let file_change = self.file_mutation_change(
+            let file_change = self.repository_change_for_file(
                 repository.as_ref(),
                 &path,
-                FileMutation::Text { content },
+                FileChange::Text { content },
             );
 
             for file_id in file_change.file_ids() {

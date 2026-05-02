@@ -5,7 +5,7 @@ use destack_source::{File, FileId, ModuleId, Uri};
 
 /// One explicit file-content update applied through a session.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FileMutation {
+pub enum FileChange {
     /// Replace file content with text.
     Text { content: String },
     /// Replace file content with raw bytes.
