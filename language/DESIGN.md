@@ -37,68 +37,59 @@ Destack extends TypeScript's type system with precise primitives, nominal types 
 ### Primitives
 
 TypeScript inherits its primitive types from JavaScript: `object`, `string`, `boolean`, `number`, `bigint`, and `symbol`, plus the `null` and `undefined` sentinels.
-Destack adds precise numeric types beyond TypeScript's `number` with variable width signed and unsigned integers (`int8`, `uint32`, `int17`) as well as single and double precision floats (`float32`, `float64`).
-(`number` is just an alias to `float64`.)
+Destack adds precise numeric types beyond `number` with variable width signed and unsigned integers (`int8`, `uint32`, `int17`) as well as single and double precision floats (`float32`, `float64`).
+`number` is just an alias to `float64`.
 
 ```ds
 const id: uint64 = 12345;
 const balance: float32 = 100.50;
+const n: number = 1.0;
+n satisfies float64;
 ```
 
-Pointer-sized integers - that integers that are as wide as the target machine's pointer size - are spelled `isize` and `usize`, respectively.
+Pointer-sized integers - that integers that are as wide as the target's pointer size - are spelled `isize` and `usize`, respectively.
 
 ### Structs
 
-Structs are data-oriented value types with fixed layout without reference identity or any inheritance; they are just data with a name.
-Structs may embed other structs to compose types, and structs can implement interfaces.
+Structs are nominal value types for data with fixed shape, but without reference identity, constructors, or inheritance.
+Basically, structs are just data with a name, much like structs in other "systems languages".
+Plain `T` of a struct is just an alias to the struct's components values, that is, structs are stored and passed by value by default.
 
 ```ds
 struct Point {
     x: float32;
     y: float32;
 }
-```
 
-| | struct | class |
-|---|---|---|
-| Reference identity | No (`===` is error) | Yes (`===` compares managed identity) |
-| Inheritance | No (use embedding) | Yes (`extends`) |
-| Default passing | Value | Reference |
-| Default storage | Inline | Managed reference |
-| JS output | Plain object | ES6 class |
-
-Classes are reference types, so `===` compares managed object identity as usual.
-Structs are value types, so `==` compares fields and `===` will just error (at compile time).
-
-```ds
-const p1 = Point { x: 1, y: 2 };
-const p2 = Point { x: 1, y: 2 };
-p1 == p2;  // true: same data
-
-const e1 = new Entity(1);
-const e2 = new Entity(1);
-e1 == e2;  // false: different instances
-```
-
-Structs are nominal (like newtypes), so they must be explicitly constructed:
-
-```ds
 let x: Point = Point { x, y };  // ok
 let x: Point = { x, y };        // ERROR: plain object is not Point
 ```
 
-For composition, structs use embedding instead of inheritance:
+For composition, structs use embedding instead of inheritance, similar to Go:
 
 ```ds
 struct Transform { position: Vec3; rotation: Quat; }
 struct Player { ...Transform; health: int; }  // embeds Transform's fields
 ```
 
+Classes are unchanged and still behave like full object types (albeit with fixed shape) with reference identity.
+Plain `T` for a class means a managed reference to a class instance, with identity, constructors, static members, methods, inheritance, and ordinary TS-shaped method lookup.
+
+| | `struct` | `class` |
+|---|---|---|
+| Plain `T` | Value | Managed reference |
+| Reference identity | No (`===` is an error) | Yes (`===` compares managed identity) |
+| Inheritance | No | Yes (`extends`) |
+| Default storage | Inline value | Managed instance |
+| JS output | Plain object shape | ES6 class |
+
+Ownership forms compose with both declaration kinds.
+`^Entity` is still an owned class instance, not a struct.
+
 ### Enums
 
-Enums are nominal values.
-Enums do not implicitly mix with their backing type, and explicit conversions are required when you want the backing value.
-
+Enums are nominal values for a set of constants, just like in Typescript, except that Destack's enums do not implicitly cast to with their backing type. 
+Explicit conversions are required when you want the backing value.
 Like other nominal types, enums can carry static members and methods and can also receive extensions.
 
 ```ds
@@ -908,6 +899,7 @@ Extension methods participate in member resolution, too.
 TypeScript does not encode memory "ownership" in its type system: all reference types are implicitly GC-managed, and all value types are copied by default.
 This is a convenient default for a "safe" language, but sometimes we need to take direct control of memory, whether for better control and performance, or just to express invariants in the code.
 Destack adds explicit, optional modifiers for controlling memory ownership and placement inspired by Rust and Mojo's ownership models with `^T` as the "owned" signifier.
+Plain `T` keeps the base type's default representation: value types are values, object types are managed references.
 
 TypeScript inherits the JavaScript / web model of local, single-threaded execution.
 Destack embraces and extends this ambient model and also supports more ergonomic shared memory as part of a generalized notion of "place": local to a Worker, shared across Workers in a Runtime, or in a different address space.
@@ -915,15 +907,16 @@ For shared memory, this is conceptually like a proper object graph around `Share
 
 | Form | Ownership | Region | Place | Liveness | MIR shape | Value |
 |------|-----------|--------|-------|---------------|-----------|-------|
-| `T` | managed | none | ambient | keeps the referent alive | `ref<T, managed, space(X)>` | managed heap handle |
-| `shared T` | managed | none | shared | keeps the referent alive | `ref<T, managed, space(shared)>` | managed shared handle |
+| `T` for value bases | value | none | ambient | owned by its containing storage | `value<T, space(X)>` | inline value |
+| `T` for object bases | managed | none | ambient | keeps the referent alive | `ref<T, managed, space(X)>` | managed heap handle |
+| `shared T` for value bases | value | none | shared | owned by its containing storage | `value<T, space(shared)>` | inline shared value |
+| `shared T` for object bases | managed | none | shared | keeps the referent alive | `ref<T, managed, space(shared)>` | managed shared handle |
 | `&T` | borrowed | inferred or explicit | ambient | requires liveness | `ref<T, borrowed, space(X)>` | semantic borrow or projection |
 | `&shared T` | borrowed | inferred or explicit | shared | requires liveness | `ref<T, borrowed, space(shared)>` | semantic shared borrow or projection |
 | `^T` | owned | none | ambient | owns the referent | `ref<T, owned, space(X)>` | owned heap handle |
 | `^shared T` | owned | none | shared | owns the referent | `ref<T, owned, space(shared)>` | owned shared heap handle |
 | `*T` | raw | none | ambient | does not keep anything alive | `ref<T, raw, space(X)>` | unsafe raw typed pointer |
 | `*shared T` | raw | none | shared | does not keep anything alive | `ref<T, raw, space(shared)>` | unsafe shared raw typed pointer |
-
 
 ### Local And Shared Space
 
@@ -1095,7 +1088,8 @@ Traceability is derived from the base type and layout metadata rather than from 
 
 | Surface spelling | Algebraic spelling |
 |------------------|--------------------|
-| `T` | `Managed<T>` in storage bearing positions |
+| `T` | `Default<T>` in storage-bearing positions |
+| `Managed<T>` | `Managed<T>` |
 | `&T` | `Borrowed<T, _>` |
 | `^T` | `Owned<T>` |
 | `*T` | `Raw<T>` |
@@ -1105,7 +1099,7 @@ Traceability is derived from the base type and layout metadata rather than from 
 The core kernel is:
 
 ```ds
-type Form<T, O = "managed", S = "local", R = never> = ...
+type Form<T, O = "default", S = "local", R = never> = ...
 
 type BaseOf<T> = ...
 type OwnershipOf<T> = ...
@@ -1115,6 +1109,7 @@ type RegionOf<T> = ...
 type OwnershipOr<T, D> = ...
 type SpaceOr<T, D> = ...
 
+type Default<T> = ...
 type Managed<T> = ...
 type Borrowed<T, R> = ...
 type Owned<T> = ...
