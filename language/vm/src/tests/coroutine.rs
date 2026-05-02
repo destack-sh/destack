@@ -389,6 +389,7 @@ fn test_continuation_roots_keep_allocations() {
 type Pair {
     ref<int32, managed, readonly>;
 }
+
 function yieldAlloc(): int32 {
 b0:
     v0: ref<int32, managed, readonly> = new int32
@@ -419,6 +420,7 @@ fn test_continuation_image_roots_keep_allocations() {
 type Pair {
     ref<int32, managed, readonly>;
 }
+
 function yieldAlloc(): int32 {
 b0:
     v0: ref<int32, managed, readonly> = new int32
@@ -440,9 +442,10 @@ b1(v3: Pair, v4: int32):
         .isolate
         .continuation_image(&continuation)
         .expect("continuation image should capture");
-    let roots = isolate
+    let mut roots = crate::RootSet::default();
+    isolate
         .isolate
-        .continuation_image_root_set(&image)
+        .visit_image_roots(&image, &mut roots)
         .expect("continuation image roots should collect");
     let mut heap_roots = roots.heap;
     let stats = isolate

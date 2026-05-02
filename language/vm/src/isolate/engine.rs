@@ -3,10 +3,9 @@ use std::sync::Arc;
 use destack_engine as engine;
 
 use super::Isolate;
-use crate::Word;
 use crate::diagnostic::RuntimeError;
 use crate::interpreter::{Continuation, Outcome};
-use crate::snapshot::IsolateImage;
+use crate::isolate::IsolateImage;
 
 impl engine::Engine for Isolate {
     type Continuation = Continuation;
@@ -28,13 +27,13 @@ impl engine::Engine for Isolate {
         entry: engine::Entry,
         args: &[engine::Value],
     ) -> Result<Outcome, Self::Error> {
-        let args = args.iter().map(Word::from).collect::<Vec<_>>();
         let function_id = self.function_for_entry(entry);
 
-        self.run_function_yielding_words(
+        self.run_function_yielding(
             context.worker_static,
             context.heap,
             context.shared_heap,
+            context.shared_allocator,
             context.shared_gc,
             function_id,
             &args,
@@ -52,6 +51,7 @@ impl engine::Engine for Isolate {
             context.worker_static,
             context.heap,
             context.shared_heap,
+            context.shared_allocator,
             context.shared_gc,
             continuation,
             value,

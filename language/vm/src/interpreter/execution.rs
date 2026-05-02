@@ -2,7 +2,7 @@ use std::fmt;
 
 use destack_heap::{
     AllocationLayout as HeapAllocationLayout, AllocationPlan, Heap, HeapReference, SharedAllocator,
-    SharedGcPhase, SharedHeapReference, SmallAllocationLayout,
+    SharedGcPhase, SharedGcWorker, SharedHeapReference, SmallAllocationLayout,
 };
 use engine::StaticSpace;
 use {destack_engine as engine, destack_mir as mir};
@@ -15,7 +15,7 @@ use crate::program::{
     FrameAccessId, Function, Layout, OperandTable, PointeeAccess, PointeeAccessId, Program,
     SliceElementAccess, SliceElementAccessId,
 };
-use crate::{FrameInfo, FramePointer, SharedHeap, StackPointer, StaticPointer, Word};
+use crate::{FramePointer, SharedHeap, StackPointer, StaticPointer, Word};
 
 /// Cached state for one interpreter dispatch.
 pub(crate) struct DispatchState<'ctx, 'iso> {
@@ -25,6 +25,8 @@ pub(crate) struct DispatchState<'ctx, 'iso> {
     pub(crate) options: &'iso IsolateOptions,
     /// Mutable static byte arena.
     pub(crate) statics: &'iso mut StaticSpace,
+    /// Shared collector worker for allocation assist.
+    shared_gc: &'iso SharedGcWorker,
     /// The worker-local heap.
     heap: *mut Heap,
     /// The world-shared heap.
@@ -80,20 +82,24 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         statics: &'iso mut StaticSpace,
         heap: &'iso mut Heap,
         shared: &'iso SharedHeap,
+        shared_gc: &'iso SharedGcWorker,
         shared_allocator: &'iso mut SharedAllocator,
         engine: &'ctx mut Interpreter,
         frame_index: usize,
         function: &'iso Function,
     ) -> Result<Self, Error> {
         // resolve check policies
-        let mode = options.execution.mode;
-        let bounds_checks = options.checks.bounds.is_enabled_for(mode);
-        let null_checks = options.checks.null.is_enabled_for(mode);
-        let reference_kind_checks = options.checks.enforce_reference_kinds;
-        let reference_mutability_checks = options.checks.enforce_reference_mutability;
+        let bounds_checks = options.checks.bounds;
+        let null_checks = options.checks.null;
+        let reference_kind_checks = options.checks.reference_kind;
+        let reference_mutability_checks = options.checks.reference_mutability;
 
         // get frame pointer
-        // #Safety: frame_index always points at the current frame
+        debug_assert!(
+            frame_index < engine.frames.len(),
+            "frame index out of bounds"
+        );
+        // safety: frame_index always points at the current frame
         let frame = unsafe { engine.frames.get_unchecked_mut(frame_index) as *mut Frame };
 
         let frame_layout = unsafe { (*frame).frame_layout };
@@ -106,6 +112,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
             program,
             options,
             statics,
+            shared_gc,
             heap: heap as *mut Heap,
             shared: shared as *const SharedHeap,
             shared_allocator: shared_allocator as *mut SharedAllocator,
@@ -226,35 +233,23 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     /// Create a runtime error with current call stack.
     #[cold]
     pub(crate) fn runtime_error(&self, error: Error) -> RuntimeError {
-        RuntimeError::new(error).with_call_stack(
-            self.engine
-                .frames
-                .iter()
-                .map(|frame| {
-                    let function = frame.function();
-                    let block = frame.current_block();
-                    let func = self.program.tree.get(function);
-                    let name = self.program.strings.get(func.name).to_string();
-                    FrameInfo {
-                        function,
-                        block,
-                        function_name: Some(name),
-                    }
-                })
-                .collect(),
-        )
+        self.engine.runtime_error(self.program, error)
     }
 
     /// Refresh cached frame data after moving to another function.
-    pub(crate) fn refresh_frame(&mut self, function: &Function) {
+    pub(crate) fn refresh_frame(&mut self, function: &Function) -> Result<(), Error> {
         let frame_layout = unsafe { (*self.frame).frame_layout };
-        if let Some(frame_layout) = self.program.frame_layout_by_id(frame_layout) {
-            self.frame_layout = frame_layout as *const engine::FrameLayout;
-        }
+        let frame_layout = self
+            .program
+            .frame_layout_by_id(frame_layout)
+            .ok_or(Error::InvalidInstruction)?;
+        self.frame_layout = frame_layout as *const engine::FrameLayout;
 
         // refresh argument pool
         self.argument_pool = function.argument_pool.as_ptr();
         self.argument_pool_len = function.argument_pool.len();
+
+        Ok(())
     }
 
     /// Return the program operand table pointer.
@@ -353,7 +348,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         let layout = shared.allocation_layout(plan);
 
         shared
-            .allocate_zeroed(allocator, &layout)
+            .allocate_zeroed(self.shared_gc, allocator, &layout)
             .map_err(Error::from)
     }
 
@@ -367,7 +362,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         let allocator = unsafe { &mut *self.shared_allocator };
 
         shared
-            .allocate_zeroed(allocator, layout)
+            .allocate_zeroed(self.shared_gc, allocator, layout)
             .map_err(Error::from)
     }
 
@@ -404,7 +399,11 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     }
 
     /// Move the state to a new frame and function.
-    pub(crate) fn enter_frame(&mut self, frame_index: usize, function: &Function) {
+    pub(crate) fn enter_frame(
+        &mut self,
+        frame_index: usize,
+        function: &Function,
+    ) -> Result<(), Error> {
         // validate frame index in debug builds
         debug_assert!(
             frame_index < self.engine.frames.len(),
@@ -417,7 +416,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         self.frame = frame as *mut Frame;
 
         // refresh cached pointers
-        self.refresh_frame(function);
+        self.refresh_frame(function)
     }
 
     /// Get the current frame mutably.

@@ -9,7 +9,8 @@ pub trait RootSink {
     fn push_shared_heap(&mut self, reference: SharedHeapReference);
 }
 
-/// One collected VM root set.
+/// One collected VM root set used by VM tests.
+#[cfg(test)]
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RootSet {
     /// The local heap roots.
@@ -18,6 +19,7 @@ pub struct RootSet {
     pub shared_heap: Vec<SharedHeapReference>,
 }
 
+#[cfg(test)]
 impl RootSink for RootSet {
     fn push_heap(&mut self, reference: HeapReference) {
         if reference.is_null() {

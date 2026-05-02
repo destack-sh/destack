@@ -12,7 +12,7 @@ use crate::isolate::{ExternalCallContext, ExternalFn};
 use crate::options::IsolateOptions;
 use crate::program::{Block, CallTarget, Function, Program};
 use crate::{SharedHeap, Word};
-use destack_heap::{Heap, SharedAllocator, SharedRawLimits};
+use destack_heap::{Heap, SharedAllocator, SharedGcWorker, SharedRawLimits};
 
 impl Interpreter {
     /// Execute a function by name.
@@ -28,6 +28,7 @@ impl Interpreter {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
+        shared_gc: &SharedGcWorker,
         name: &str,
         arguments: &[Word],
     ) -> RuntimeResult<engine::Value> {
@@ -40,6 +41,7 @@ impl Interpreter {
             heap,
             shared,
             shared_allocator,
+            shared_gc,
             name,
             arguments,
         )?;
@@ -63,6 +65,7 @@ impl Interpreter {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
+        shared_gc: &SharedGcWorker,
         name: &str,
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
@@ -88,6 +91,7 @@ impl Interpreter {
             heap,
             shared,
             shared_allocator,
+            shared_gc,
             function_id,
             arguments,
         )
@@ -107,6 +111,7 @@ impl Interpreter {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
+        shared_gc: &SharedGcWorker,
         function_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<engine::Value> {
@@ -119,6 +124,7 @@ impl Interpreter {
             heap,
             shared,
             shared_allocator,
+            shared_gc,
             function_id,
             arguments,
         )?;
@@ -142,6 +148,7 @@ impl Interpreter {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
+        shared_gc: &SharedGcWorker,
         function_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
@@ -196,6 +203,7 @@ impl Interpreter {
             heap,
             shared,
             shared_allocator,
+            shared_gc,
             function_id,
             arguments,
         )
@@ -214,6 +222,7 @@ impl Interpreter {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
+        shared_gc: &SharedGcWorker,
         continuation: Continuation,
         received_value: engine::Value,
     ) -> RuntimeResult<Outcome> {
@@ -237,6 +246,7 @@ impl Interpreter {
             heap,
             shared,
             shared_allocator,
+            shared_gc,
             continuation.resume_frame_index,
             continuation.frame_state,
             received_value,
@@ -254,6 +264,7 @@ impl Interpreter {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
+        shared_gc: &SharedGcWorker,
         resume_frame_index: usize,
         frame_state: engine::FrameStateId,
         received_value: engine::Value,
@@ -304,6 +315,7 @@ impl Interpreter {
             heap,
             shared,
             shared_allocator,
+            shared_gc,
         )
     }
 
@@ -323,6 +335,7 @@ impl Interpreter {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
+        shared_gc: &SharedGcWorker,
         function_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
@@ -343,7 +356,7 @@ impl Interpreter {
         let frame_layout_ref = program
             .frame_layout_by_id(frame_layout)
             .ok_or_else(|| self.runtime_error(program, Error::InvalidInstruction))?;
-        let (stack_offset, frame_base) = self.allocate_frame(frame_layout_ref, options)?;
+        let (stack_offset, frame_base) = self.allocate_frame(frame_layout_ref)?;
 
         // create the entry frame
         let frame = Frame::new(
@@ -382,6 +395,7 @@ impl Interpreter {
                 statics,
                 heap,
                 shared,
+                shared_gc,
                 shared_allocator,
                 self,
                 frame_index,
@@ -416,6 +430,7 @@ impl Interpreter {
             heap,
             shared,
             shared_allocator,
+            shared_gc,
         )
     }
 
@@ -430,6 +445,7 @@ impl Interpreter {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
+        shared_gc: &SharedGcWorker,
     ) -> RuntimeResult<Outcome> {
         let mut lowered_instructions_executed = 0;
 
@@ -468,6 +484,7 @@ impl Interpreter {
                     statics,
                     heap,
                     shared,
+                    shared_gc,
                     shared_allocator,
                     self,
                     frame_index,
@@ -510,6 +527,7 @@ impl Interpreter {
                 heap,
                 shared,
                 shared_allocator,
+                shared_gc,
                 current_func,
                 transfer,
             )? {

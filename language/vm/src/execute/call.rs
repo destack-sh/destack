@@ -312,7 +312,7 @@ fn try_enter_direct_call(
         Some(layout) => layout,
         None => return Some(Transfer::Error(Error::InvalidInstruction)),
     };
-    let (stack_offset, frame_base) = match state.engine.allocate_frame(layout, state.options) {
+    let (stack_offset, frame_base) = match state.engine.allocate_frame(layout) {
         Ok(frame) => frame,
         Err(error) => return Some(Transfer::Error(error.error)),
     };
@@ -354,7 +354,9 @@ fn try_enter_direct_call(
     // push the callee frame and continue at its entry block
     state.engine.frames.push(new_frame);
     let new_index = state.engine.frames.len() - 1;
-    state.enter_frame(new_index, callee);
+    if let Err(error) = state.enter_frame(new_index, callee) {
+        return Some(Transfer::Error(error));
+    }
 
     let entry_instructions = entry_block.instructions.as_slice();
     Some(dispatch_block(state, entry_instructions, 0))
@@ -746,7 +748,7 @@ fn enter_tail_call(
     state.engine.truncate_stack(stack_offset);
     let (stack_offset, frame_base) = state
         .engine
-        .allocate_frame(layout, state.options)
+        .allocate_frame(layout)
         .map_err(|error| error.error)?;
     {
         let frame = state.current_frame_mut();
@@ -759,7 +761,7 @@ fn enter_tail_call(
     }
 
     // refresh cached pointers for the new function
-    state.refresh_frame(callee);
+    state.refresh_frame(callee)?;
 
     // bind function parameters
     let program = state.program;
@@ -907,7 +909,9 @@ pub(crate) fn execute_tail_call_self(
     }
 
     // refresh cached frame pointers after replacing frame bytes
-    state.refresh_frame(function);
+    if let Err(error) = state.refresh_frame(function) {
+        return Transfer::Error(error);
+    }
 
     // bind function parameters
     let program = state.program;

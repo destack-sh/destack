@@ -44,9 +44,9 @@ pub struct ExternalCallContext<'ctx> {
 #[derive(Debug)]
 pub struct ExternalReadContext<'call, 'ctx> {
     /// The owning external call context.
-    pub(super) context: *mut ExternalCallContext<'ctx>,
+    pub(super) context: *const ExternalCallContext<'ctx>,
     /// The lifetime marker for the call context.
-    _marker: PhantomData<&'call mut ExternalCallContext<'ctx>>,
+    _marker: PhantomData<&'call ExternalCallContext<'ctx>>,
 }
 
 /// Mutable external VM call capability.
@@ -95,7 +95,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
     /// Return the external call read capability.
     pub fn read(&self) -> ExternalReadContext<'_, 'ctx> {
         ExternalReadContext {
-            context: self as *const Self as *mut Self,
+            context: self as *const Self,
             _marker: PhantomData,
         }
     }
@@ -206,11 +206,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
 
     /// Allocate one zeroed raw packed-value buffer and return its pointer.
     pub fn allocate_raw_value_slots(&mut self, slot_count: usize) -> Result<RawPointer, Error> {
-        let byte_len = slot_count
-            .checked_mul(Word::BYTE_LEN)
-            .ok_or(Error::InvariantViolation {
-                context: "raw value buffer byte length".to_string(),
-            })?;
+        let byte_len = slot_count * Word::BYTE_LEN;
 
         self.allocate_zeroed_raw_bytes(byte_len)
     }
@@ -244,7 +240,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
     }
 
     /// Read raw packed values from one pointer.
-    pub fn raw_values(&mut self, pointer: RawPointer) -> Result<Vec<Word>, Error> {
+    pub fn raw_values(&self, pointer: RawPointer) -> Result<Vec<Word>, Error> {
         let bytes = self
             .heap_ref()
             .read_raw_bytes(pointer)
@@ -258,8 +254,6 @@ impl<'ctx> ExternalCallContext<'ctx> {
         // decode each packed word from the raw payload
         for window in bytes.chunks_exact(Word::BYTE_LEN) {
             let value = Word::from_byte_slice(window).ok_or(Error::InvalidHeapReference)?;
-            let value = self.capture_value(value)?;
-
             values.push(value);
         }
 
@@ -267,10 +261,8 @@ impl<'ctx> ExternalCallContext<'ctx> {
     }
 
     /// Read one raw packed value by slot index.
-    pub fn raw_value_at(&mut self, pointer: RawPointer, index: usize) -> Result<Word, Error> {
-        let start = index
-            .checked_mul(Word::BYTE_LEN)
-            .ok_or(Error::InvalidHeapReference)?;
+    pub fn raw_value_at(&self, pointer: RawPointer, index: usize) -> Result<Word, Error> {
+        let start = index * Word::BYTE_LEN;
         let mut bytes = [0u8; Word::BYTE_LEN];
 
         // read the packed word without materializing the whole raw payload
@@ -278,9 +270,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
             .read_raw_bytes_into(pointer, start, &mut bytes)
             .map_err(Error::from)?;
 
-        let value = Word::from_byte_slice(&bytes).ok_or(Error::InvalidHeapReference)?;
-
-        self.capture_value(value)
+        Word::from_byte_slice(&bytes).ok_or(Error::InvalidHeapReference)
     }
 
     /// Read shared bytes from a pointer to one shared allocation as one owned vector.
@@ -321,11 +311,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
         index: usize,
         value: Word,
     ) -> Result<(), Error> {
-        let start = index
-            .checked_mul(Word::BYTE_LEN)
-            .ok_or(Error::InvariantViolation {
-                context: "raw value byte offset".to_string(),
-            })?;
+        let start = index * Word::BYTE_LEN;
 
         self.heap()
             .write_raw_bytes(pointer, start, &value.to_byte_array())
@@ -385,21 +371,27 @@ impl<'ctx> ExternalCallContext<'ctx> {
         Ok(pinned_reference)
     }
 
-    /// Capture one VM value in the external handle scope.
-    pub(super) fn capture_value(&mut self, value: Word) -> Result<Word, Error> {
-        Ok(value)
-    }
-
     /// Release all heap pins captured for this call.
     pub(crate) fn release_pins(&mut self) -> Result<(), Error> {
         let heap_references = std::mem::take(&mut self.pin_scope.heap_references);
+        let mut error = None;
 
         // release every call scoped local heap pin
         for reference in heap_references.into_iter().rev() {
-            self.heap().unpin_heap(reference).map_err(Error::from)?;
+            if let Err(current) = self.heap().unpin_heap(reference).map_err(Error::from)
+                && error.is_none()
+            {
+                error = Some(current);
+            }
         }
 
-        Ok(())
+        self.pin_scope.pinned_heap_references.clear();
+        self.pin_scope.heap_reference_rewrites.clear();
+
+        match error {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
     }
 }
 
@@ -413,11 +405,6 @@ impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
     /// Return the external call context immutably.
     pub(super) fn context(&self) -> &ExternalCallContext<'ctx> {
         unsafe { &*self.context }
-    }
-
-    /// Return the external call context mutably.
-    pub(super) fn context_mut(&self) -> &mut ExternalCallContext<'ctx> {
-        unsafe { &mut *self.context }
     }
 
     /// Return one raw byte payload borrow or copy.
@@ -437,12 +424,12 @@ impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
 
     /// Return one raw packed value by slot index.
     pub fn raw_value_at(&self, pointer: RawPointer, index: usize) -> Result<Word, Error> {
-        self.context_mut().raw_value_at(pointer, index)
+        self.context().raw_value_at(pointer, index)
     }
 
     /// Return one raw packed-value payload copy.
     pub fn raw_values(&self, pointer: RawPointer) -> Result<Vec<Word>, Error> {
-        self.context_mut().raw_values(pointer)
+        self.context().raw_values(pointer)
     }
 
     /// Return one shared byte payload copy.
@@ -452,12 +439,12 @@ impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
 
     /// Return one heap word payload copy.
     pub fn heap_words(&self, reference: HeapReference, count: usize) -> Result<Vec<Word>, Error> {
-        self.context_mut().heap_words(reference, count)
+        self.context().heap_words(reference, count)
     }
 
     /// Return one heap word by index.
     pub fn heap_word(&self, reference: HeapReference, index: usize) -> Result<Word, Error> {
-        self.context_mut().heap_word(reference, index)
+        self.context().heap_word(reference, index)
     }
 }
 

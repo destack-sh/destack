@@ -4,14 +4,14 @@ use std::sync::Arc;
 
 use destack_core::{Capture, CaptureMode, ImmutableStringPool, SnapshotCodec};
 use engine::StaticSpace;
+use serde::{Deserialize, Serialize};
 use {destack_engine as engine, destack_mir as mir};
 
-use super::{ExternalCallContext, ExternalFn, ExternalHandler, RootSet, RootSink};
-use crate::diagnostic::{Error, FrameInfo, RuntimeError, RuntimeResult};
-use crate::interpreter::{Continuation, Interpreter, Outcome};
+use super::{ExternalCallContext, ExternalFn, ExternalHandler, RootSink};
+use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
+use crate::interpreter::{Continuation, ContinuationImage, Interpreter, InterpreterImage, Outcome};
 use crate::options::IsolateOptions;
 use crate::program::Program;
-use crate::snapshot::{ContinuationImage, IsolateImage};
 use crate::{Result as VmResult, SharedHeap, Word};
 use destack_heap::{
     AllocationPlan, Heap, HeapReference, HeapResult, RootSlot, SharedAllocator, SharedGcWorker,
@@ -21,7 +21,7 @@ use destack_heap::{
 /// VM isolate with static data and execution state.
 pub struct Isolate {
     /// Unique id used to validate continuation ownership.
-    isolate_id: engine::EngineId,
+    id: engine::EngineId,
     /// Immutable program shared by this isolate.
     program: Arc<Program>,
     /// Configuration options for this isolate.
@@ -30,8 +30,21 @@ pub struct Isolate {
     externals: HashMap<String, ExternalFn>,
     /// Interpreter engine backing this isolate.
     interpreter: Interpreter,
-    /// Worker allocator for shared managed heap allocation.
-    shared_allocator: Option<SharedAllocator>,
+}
+
+/// Immutable isolate image.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IsolateImage {
+    /// The MIR tree used to rebuild the isolate program.
+    pub tree: mir::Tree,
+    /// The string pool used to rebuild the isolate program.
+    pub strings: ImmutableStringPool,
+    /// The isolate configuration options.
+    pub options: IsolateOptions,
+    /// The isolate id captured in this image.
+    pub isolate_id: engine::EngineId,
+    /// The captured interpreter state.
+    pub interpreter: InterpreterImage,
 }
 
 impl fmt::Debug for Isolate {
@@ -48,13 +61,14 @@ impl Isolate {
     /// Create a new isolate from one shared immutable image.
     pub fn new(image: Arc<IsolateImage>) -> RuntimeResult<Self> {
         let program = Arc::new(Program::new(image.tree.clone(), image.strings.clone())?);
+        Self::require_host_pointer_width(program.as_ref())?;
+
         let mut isolate = Self {
-            isolate_id: image.isolate_id,
+            id: image.isolate_id,
             program,
             options: image.options.clone(),
             externals: HashMap::new(),
             interpreter: Interpreter::new(&image.options)?,
-            shared_allocator: None,
         };
         isolate.interpreter =
             Interpreter::from_image(&isolate.program, &image.interpreter, &isolate.options)?;
@@ -79,46 +93,17 @@ impl Isolate {
         options: IsolateOptions,
     ) -> RuntimeResult<Self> {
         let program = Arc::new(Program::new(tree, strings)?);
-        let native_pointer_bytes = program.tree.metadata.layout.storage.native_pointer_bytes;
-        let host_pointer_bytes = HeapReference::BYTE_LEN as u8;
-
-        // host execution only supports native-width pointers
-        if native_pointer_bytes != host_pointer_bytes {
-            return Err(RuntimeError::new(Error::IncompatiblePointerWidth {
-                bytes: native_pointer_bytes,
-                host_bytes: host_pointer_bytes,
-            }));
-        }
+        Self::require_host_pointer_width(program.as_ref())?;
 
         let interpreter = Interpreter::new(&options)?;
 
         Ok(Self {
-            isolate_id,
+            id: isolate_id,
             program,
             options,
             externals: HashMap::new(),
             interpreter,
-            shared_allocator: None,
         })
-    }
-
-    /// Prepare this isolate's shared heap allocator for one engine call.
-    fn prepare_shared_allocator(&mut self, shared: &SharedHeap, shared_gc: &SharedGcWorker) {
-        if self.shared_allocator.is_none() {
-            self.shared_allocator = Some(shared.allocator());
-        }
-
-        if let Some(allocator) = self.shared_allocator.as_mut() {
-            allocator.set_gc_worker(Some(shared_gc));
-        }
-    }
-
-    /// Publish and retire allocator-local shared heap runs.
-    pub fn flush_shared_allocator(&mut self, shared: &SharedHeap) {
-        if let Some(allocator) = self.shared_allocator.as_mut() {
-            shared.flush_allocator(allocator);
-            allocator.set_gc_worker(None);
-        }
     }
 
     /// Initialize heap-shaped program metadata and worker static bytes.
@@ -144,11 +129,6 @@ impl Isolate {
     /// Get the isolate options.
     pub fn options(&self) -> &IsolateOptions {
         &self.options
-    }
-
-    /// Get mutable isolate options.
-    pub fn options_mut(&mut self) -> &mut IsolateOptions {
-        &mut self.options
     }
 
     /// Register a VM binding handler.
@@ -226,13 +206,22 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         shared_gc: &SharedGcWorker,
         name: &str,
         arguments: &[engine::Value],
     ) -> RuntimeResult<engine::Value> {
         let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
 
-        self.run_function_by_name_words(statics, heap, shared, shared_gc, name, &arguments)
+        self.run_function_by_name_words(
+            statics,
+            heap,
+            shared,
+            shared_allocator,
+            shared_gc,
+            name,
+            &arguments,
+        )
     }
 
     /// Run a function by name with VM words and return its output.
@@ -241,25 +230,21 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         shared_gc: &SharedGcWorker,
         name: &str,
         arguments: &[Word],
     ) -> RuntimeResult<engine::Value> {
-        self.prepare_shared_allocator(shared, shared_gc);
         let Self {
-            isolate_id,
+            id: isolate_id,
             program,
             options,
             externals,
             interpreter,
-            shared_allocator,
             ..
         } = self;
-        let shared_allocator = shared_allocator
-            .as_mut()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-        let result = interpreter.run_function_by_name(
+        interpreter.run_function_by_name(
             *isolate_id,
             program.as_ref(),
             options,
@@ -268,12 +253,10 @@ impl Isolate {
             heap,
             shared,
             shared_allocator,
+            shared_gc,
             name,
             arguments,
-        );
-        shared.flush_allocator(shared_allocator);
-
-        result
+        )
     }
 
     /// Run a function by name and allow yielding.
@@ -282,13 +265,22 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         shared_gc: &SharedGcWorker,
         name: &str,
         arguments: &[engine::Value],
     ) -> RuntimeResult<Outcome> {
         let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
 
-        self.run_function_by_name_yielding_words(statics, heap, shared, shared_gc, name, &arguments)
+        self.run_function_by_name_yielding_words(
+            statics,
+            heap,
+            shared,
+            shared_allocator,
+            shared_gc,
+            name,
+            &arguments,
+        )
     }
 
     /// Run a function by name with VM words and allow yielding.
@@ -297,13 +289,22 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         shared_gc: &SharedGcWorker,
         name: &str,
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
         let function_id = self.function_id_by_name(name)?;
 
-        self.run_function_yielding_words(statics, heap, shared, shared_gc, function_id, arguments)
+        self.run_function_yielding_words(
+            statics,
+            heap,
+            shared,
+            shared_allocator,
+            shared_gc,
+            function_id,
+            arguments,
+        )
     }
 
     /// Run a function by id and return its output.
@@ -312,13 +313,22 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         shared_gc: &SharedGcWorker,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[engine::Value],
     ) -> RuntimeResult<engine::Value> {
         let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
 
-        self.run_function_words(statics, heap, shared, shared_gc, func_id, &arguments)
+        self.run_function_words(
+            statics,
+            heap,
+            shared,
+            shared_allocator,
+            shared_gc,
+            func_id,
+            &arguments,
+        )
     }
 
     /// Run a function by id with VM words and return its output.
@@ -327,25 +337,21 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         shared_gc: &SharedGcWorker,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<engine::Value> {
-        self.prepare_shared_allocator(shared, shared_gc);
         let Self {
-            isolate_id,
+            id: isolate_id,
             program,
             options,
             externals,
             interpreter,
-            shared_allocator,
             ..
         } = self;
-        let shared_allocator = shared_allocator
-            .as_mut()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-        let result = interpreter.run_function(
+        interpreter.run_function(
             *isolate_id,
             program.as_ref(),
             options,
@@ -354,12 +360,10 @@ impl Isolate {
             heap,
             shared,
             shared_allocator,
+            shared_gc,
             func_id,
             arguments,
-        );
-        shared.flush_allocator(shared_allocator);
-
-        result
+        )
     }
 
     /// Run a function by id and allow yielding.
@@ -368,13 +372,22 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         shared_gc: &SharedGcWorker,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[engine::Value],
     ) -> RuntimeResult<Outcome> {
         let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
 
-        self.run_function_yielding_words(statics, heap, shared, shared_gc, func_id, &arguments)
+        self.run_function_yielding_words(
+            statics,
+            heap,
+            shared,
+            shared_allocator,
+            shared_gc,
+            func_id,
+            &arguments,
+        )
     }
 
     /// Run a function by id with VM words and allow yielding.
@@ -383,25 +396,21 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         shared_gc: &SharedGcWorker,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
-        self.prepare_shared_allocator(shared, shared_gc);
         let Self {
-            isolate_id,
+            id: isolate_id,
             program,
             options,
             externals,
             interpreter,
-            shared_allocator,
             ..
         } = self;
-        let shared_allocator = shared_allocator
-            .as_mut()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-        let result = interpreter.run_function_yielding(
+        interpreter.run_function_yielding(
             *isolate_id,
             program.as_ref(),
             options,
@@ -410,12 +419,10 @@ impl Isolate {
             heap,
             shared,
             shared_allocator,
+            shared_gc,
             func_id,
             arguments,
-        );
-        shared.flush_allocator(shared_allocator);
-
-        result
+        )
     }
 
     /// Resume a previously yielded coroutine.
@@ -424,25 +431,21 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         shared_gc: &SharedGcWorker,
         continuation: Continuation,
         resume_value: engine::Value,
     ) -> RuntimeResult<Outcome> {
-        self.prepare_shared_allocator(shared, shared_gc);
         let Self {
-            isolate_id,
+            id: isolate_id,
             program,
             options,
             externals,
             interpreter,
-            shared_allocator,
             ..
         } = self;
-        let shared_allocator = shared_allocator
-            .as_mut()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-        let result = interpreter.resume(
+        interpreter.resume(
             *isolate_id,
             program.as_ref(),
             options,
@@ -451,12 +454,10 @@ impl Isolate {
             heap,
             shared,
             shared_allocator,
+            shared_gc,
             continuation,
             resume_value,
-        );
-        shared.flush_allocator(shared_allocator);
-
-        result
+        )
     }
 
     /// Capture one continuation as one immutable image.
@@ -472,25 +473,10 @@ impl Isolate {
         &self,
         image: &ContinuationImage,
     ) -> RuntimeResult<Continuation> {
-        let mut continuation =
-            Continuation::from_image(image, &self.program, &self.program.functions, &self.options)?;
-        continuation.isolate_id = self.isolate_id;
+        let mut continuation = Continuation::from_image(image, &self.program, &self.options)?;
+        continuation.isolate_id = self.id;
 
         Ok(continuation)
-    }
-
-    /// Collect one complete root set from live state and optional continuations.
-    pub fn root_set(
-        &mut self,
-        statics: &StaticSpace,
-        continuations: &[Continuation],
-    ) -> RuntimeResult<RootSet> {
-        let mut roots = RootSet::default();
-
-        self.interpreter
-            .visit_roots(&self.program, statics, continuations, &mut roots)?;
-
-        Ok(roots)
     }
 
     /// Visit one complete root set from live state and optional continuations.
@@ -515,14 +501,6 @@ impl Isolate {
             .visit_root_slots(&self.program, statics, continuations, visit)
     }
 
-    /// Collect roots from one live continuation.
-    pub fn continuation_root_set(&mut self, continuation: &Continuation) -> RuntimeResult<RootSet> {
-        let mut roots = RootSet::default();
-        self.visit_continuation_roots(continuation, &mut roots)?;
-
-        Ok(roots)
-    }
-
     /// Visit roots from one live continuation.
     pub fn visit_continuation_roots(
         &mut self,
@@ -543,18 +521,6 @@ impl Isolate {
         continuation
             .visit_root_slots(&self.program, visit)
             .map_err(|error| self.runtime_error(error))
-    }
-
-    /// Collect roots from one captured continuation image.
-    pub fn continuation_image_root_set(
-        &mut self,
-        image: &ContinuationImage,
-    ) -> RuntimeResult<RootSet> {
-        let mut roots = RootSet::default();
-
-        self.visit_image_roots(image, &mut roots)?;
-
-        Ok(roots)
     }
 
     /// Visit roots from one captured continuation image.
@@ -585,7 +551,7 @@ impl Isolate {
             tree: self.program.tree.clone(),
             strings: self.program.strings.clone(),
             options: self.options.clone(),
-            isolate_id: self.isolate_id,
+            isolate_id: self.id,
             interpreter,
         })
     }
@@ -593,12 +559,11 @@ impl Isolate {
     /// Fork this isolate for one child branch.
     pub fn fork(&self) -> RuntimeResult<Self> {
         Ok(Self {
-            isolate_id: self.isolate_id,
+            id: self.id,
             program: self.program.clone(),
             options: self.options.clone(),
             externals: self.externals.clone(),
             interpreter: self.interpreter.fork()?,
-            shared_allocator: None,
         })
     }
 
@@ -607,7 +572,7 @@ impl Isolate {
         self.program = Arc::new(Program::new(image.tree.clone(), image.strings.clone())?);
         self.options = image.options.clone();
 
-        self.isolate_id = image.isolate_id;
+        self.id = image.isolate_id;
 
         // rebuild interpreter state over the restored isolate
         self.interpreter =
@@ -618,26 +583,23 @@ impl Isolate {
 
     /// Create a runtime error with current call stack.
     fn runtime_error(&self, error: Error) -> RuntimeError {
-        RuntimeError::new(error).with_call_stack(self.call_stack())
+        self.interpreter.runtime_error(&self.program, error)
     }
 
-    /// Return the current call stack for error reporting.
-    fn call_stack(&self) -> Vec<FrameInfo> {
-        self.interpreter
-            .frames()
-            .iter()
-            .map(|f| {
-                let function = f.function();
-                let block = f.current_block();
-                let func = self.program.tree.get(function);
-                let name = self.program.strings.get(func.name).to_string();
-                FrameInfo {
-                    function,
-                    block,
-                    function_name: Some(name),
-                }
-            })
-            .collect()
+    /// Require a host pointer width compatible with the program layout.
+    fn require_host_pointer_width(program: &Program) -> RuntimeResult<()> {
+        let native_pointer_bytes = program.tree.metadata.layout.storage.native_pointer_bytes;
+        let host_pointer_bytes = HeapReference::BYTE_LEN as u8;
+
+        // host execution only supports native-width pointers
+        if native_pointer_bytes != host_pointer_bytes {
+            return Err(RuntimeError::new(Error::IncompatiblePointerWidth {
+                bytes: native_pointer_bytes,
+                host_bytes: host_pointer_bytes,
+            }));
+        }
+
+        Ok(())
     }
 
     /// Borrow the canonical runtime layout table.

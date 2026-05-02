@@ -606,7 +606,7 @@ b0(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
         let mut allocator = isolate.shared_heap.allocator();
         let handle = isolate
             .shared_heap
-            .allocate_zeroed(&mut allocator, &layout)
+            .allocate_zeroed(&isolate.shared_gc, &mut allocator, &layout)
             .expect("shared heap allocation should succeed");
         isolate.shared_heap.flush_allocator(&mut allocator);
 
@@ -658,7 +658,8 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
 
     assert_runtime_error_matches!(
         result,
-        Error::Panic { ref message } if message.contains("invalid heap byte range")
+        Error::InvariantViolation { ref context }
+            if context == "invalid heap byte range: start 4, len 1, capacity 4"
     );
 }
 

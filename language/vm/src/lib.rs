@@ -17,8 +17,6 @@ pub mod isolate;
 pub mod lower;
 pub mod options;
 pub mod program;
-pub mod snapshot;
-pub mod telemetry;
 mod value;
 
 pub use diagnostic::*;

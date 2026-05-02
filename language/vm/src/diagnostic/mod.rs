@@ -1,5 +1,3 @@
-//! Diagnostics for the Destack VM.
-
 mod error;
 
-pub use error::{DiagnosticAnchor, Error, FrameInfo, Result, RuntimeError, RuntimeResult};
+pub use error::{DiagnosticAnchor, Error, Result, RuntimeError, RuntimeResult, StackTraceFrame};

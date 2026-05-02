@@ -326,11 +326,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
     }
 
     /// Read heap words from one heap reference.
-    pub fn heap_words(
-        &mut self,
-        reference: HeapReference,
-        count: usize,
-    ) -> Result<Vec<Word>, Error> {
+    pub fn heap_words(&self, reference: HeapReference, count: usize) -> Result<Vec<Word>, Error> {
         let byte_len = count * Word::BYTE_LEN;
         let bytes = self.copy_payload(reference, byte_len)?;
 
@@ -339,7 +335,6 @@ impl<'ctx> ExternalCallContext<'ctx> {
         // decode each packed word from the managed payload
         for bytes in bytes.chunks_exact(Word::BYTE_LEN) {
             let value = Word::from_byte_slice(bytes).ok_or(Error::InvalidHeapReference)?;
-            let value = self.capture_value(value)?;
             values.push(value);
         }
 
@@ -347,13 +342,11 @@ impl<'ctx> ExternalCallContext<'ctx> {
     }
 
     /// Read one heap word by index.
-    pub fn heap_word(&mut self, reference: HeapReference, index: usize) -> Result<Word, Error> {
+    pub fn heap_word(&self, reference: HeapReference, index: usize) -> Result<Word, Error> {
         let start = index * Word::BYTE_LEN;
         let mut bytes = [0u8; Word::BYTE_LEN];
         self.copy_payload_into(reference, start, &mut bytes)?;
-        let value = Word::from_byte_slice(&bytes).ok_or(Error::InvalidHeapReference)?;
-
-        self.capture_value(value)
+        Word::from_byte_slice(&bytes).ok_or(Error::InvalidHeapReference)
     }
 
     /// Write one heap word by index.
@@ -601,7 +594,7 @@ impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
         let bytes = self.context().copy_payload(reference, byte_len)?;
 
         Ok(VmValueRef {
-            context: self.context,
+            context: self.context as *mut ExternalCallContext<'ctx>,
             fields,
             bytes: Arc::<[u8]>::from(bytes),
             start: 0,

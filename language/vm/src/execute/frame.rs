@@ -12,7 +12,7 @@ use crate::program::{
     pointer_class_from_reference, repr_type, value_layout_from_type,
 };
 use crate::{FramePointer, SharedHeap, Word};
-use destack_heap::{Heap, SharedAllocator};
+use destack_heap::{Heap, SharedAllocator, SharedGcWorker};
 
 use super::access;
 use super::reference::{check_reference_address_space, check_reference_mutability};
@@ -673,6 +673,7 @@ pub(crate) fn materialize_value(
     heap: &mut Heap,
     shared: &SharedHeap,
     shared_allocator: &mut SharedAllocator,
+    shared_gc: &SharedGcWorker,
     value: FrameValue,
 ) -> Result<engine::Value, Error> {
     match value.body {
@@ -697,7 +698,7 @@ pub(crate) fn materialize_value(
                 PointerClass::SharedHeap => {
                     let layout = shared.allocation_layout(plan);
                     let reference = shared
-                        .allocate_bytes(shared_allocator, &layout, &bytes)
+                        .allocate_bytes(shared_gc, shared_allocator, &layout, &bytes)
                         .map_err(Error::from)?;
 
                     Ok(engine::Value::SharedHeapReference(reference))
