@@ -1,19 +1,18 @@
+use std::collections::HashMap;
 use std::ptr::NonNull;
 
-use destack_engine::{self as engine, StaticSpace};
-use destack_mir as mir;
+use engine::StaticSpace;
+use {destack_engine as engine, destack_mir as mir};
 
-use super::dispatch_instruction;
-use super::frame::{
-    frame_value_from_materialized, frame_value_type, function_return_type, materialize_word,
-};
+use super::frame::{dematerialize_value, frame_value_type, function_return_type, materialize_word};
+use super::{dispatch_block, dispatch_block_counted};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::interpreter::{Continuation, DispatchState, Frame, Interpreter, Outcome, Output};
+use crate::interpreter::{Continuation, DispatchState, Frame, Interpreter, Outcome};
 use crate::isolate::{ExternalCallContext, ExternalFn};
 use crate::options::IsolateOptions;
 use crate::program::{Block, CallTarget, Function, Program};
 use crate::{SharedHeap, Word};
-use destack_heap::{Heap, SharedRawLimits};
+use destack_heap::{Heap, SharedAllocator, SharedRawLimits};
 
 impl Interpreter {
     /// Execute a function by name.
@@ -25,19 +24,29 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals: &HashMap<String, ExternalFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         name: &str,
         arguments: &[Word],
-    ) -> RuntimeResult<Output> {
+    ) -> RuntimeResult<engine::Value> {
         let outcome = self.run_function_by_name_yielding(
-            isolate_id, program, options, statics, externals, heap, shared, name, arguments,
+            isolate_id,
+            program,
+            options,
+            statics,
+            externals,
+            heap,
+            shared,
+            shared_allocator,
+            name,
+            arguments,
         )?;
 
         match outcome {
-            Outcome::Completed { output } => Ok(output),
-            Outcome::Yielded { .. } => Err(self.make_error(program, Error::UnexpectedYield)),
+            Outcome::Completed { value } => Ok(value),
+            Outcome::Yielded { .. } => Err(self.runtime_error(program, Error::UnexpectedYield)),
         }
     }
 
@@ -50,9 +59,10 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals: &HashMap<String, ExternalFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         name: &str,
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
@@ -61,7 +71,7 @@ impl Interpreter {
             .get(name)
             .copied()
             .ok_or_else(|| {
-                self.make_error(
+                self.runtime_error(
                     program,
                     Error::ExternalFunctionNotFound {
                         name: name.to_string(),
@@ -77,6 +87,7 @@ impl Interpreter {
             externals,
             heap,
             shared,
+            shared_allocator,
             function_id,
             arguments,
         )
@@ -92,12 +103,13 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals: &HashMap<String, ExternalFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         function_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
-    ) -> RuntimeResult<Output> {
+    ) -> RuntimeResult<engine::Value> {
         let outcome = self.run_function_yielding(
             isolate_id,
             program,
@@ -106,13 +118,14 @@ impl Interpreter {
             externals,
             heap,
             shared,
+            shared_allocator,
             function_id,
             arguments,
         )?;
 
         match outcome {
-            Outcome::Completed { output } => Ok(output),
-            Outcome::Yielded { .. } => Err(self.make_error(program, Error::UnexpectedYield)),
+            Outcome::Completed { value } => Ok(value),
+            Outcome::Yielded { .. } => Err(self.runtime_error(program, Error::UnexpectedYield)),
         }
     }
 
@@ -125,13 +138,14 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals: &HashMap<String, ExternalFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         function_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
-        self.reset_stack(options);
+        self.reset_stack(options)?;
 
         // resolve the function target before entering the main loop
         match program.functions.resolve(function_id) {
@@ -140,7 +154,7 @@ impl Interpreter {
                 let function = program.tree.get(function_id);
                 let name = program.strings.get(function.name).to_string();
                 let handler = externals.get(&name).cloned().ok_or_else(|| {
-                    self.make_error(program, Error::ExternalFunctionNotFound { name })
+                    self.runtime_error(program, Error::ExternalFunctionNotFound { name })
                 })?;
                 let value = {
                     let mut context =
@@ -148,23 +162,23 @@ impl Interpreter {
                     let value = handler(&mut context, arguments);
                     context
                         .release_pins()
-                        .map_err(|error| self.make_error(program, error))?;
+                        .map_err(|error| self.runtime_error(program, error))?;
                     value
                 }
-                .map_err(|error| self.make_error(program, error))?;
+                .map_err(|error| self.runtime_error(program, error))?;
 
                 let return_type =
                     function_return_type(program, function_id).map_err(RuntimeError::new)?;
                 let value =
                     materialize_word(program, return_type, value).map_err(RuntimeError::new)?;
 
-                return Ok(self.complete_execution(heap, value));
+                return Ok(self.complete_execution(value));
             }
             Some(CallTarget::Local(_)) => {}
 
             // reject missing functions loudly
             None => {
-                return Err(self.make_error(
+                return Err(self.runtime_error(
                     program,
                     Error::UndefinedFunction {
                         function: function_id,
@@ -181,6 +195,7 @@ impl Interpreter {
             externals,
             heap,
             shared,
+            shared_allocator,
             function_id,
             arguments,
         )
@@ -195,18 +210,19 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals: &HashMap<String, ExternalFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         continuation: Continuation,
-        resume_value: engine::Value,
+        received_value: engine::Value,
     ) -> RuntimeResult<Outcome> {
         if continuation.isolate_id != isolate_id {
-            return Err(self.make_error(program, Error::InvalidContinuation));
+            return Err(self.runtime_error(program, Error::InvalidContinuation));
         }
 
         if !self.frames.is_empty() {
-            return Err(self.make_error(program, Error::InvalidContinuation));
+            return Err(self.runtime_error(program, Error::InvalidContinuation));
         }
 
         self.stack = continuation.stack;
@@ -220,9 +236,10 @@ impl Interpreter {
             externals,
             heap,
             shared,
+            shared_allocator,
             continuation.resume_frame_index,
-            continuation.resume_point,
-            resume_value,
+            continuation.frame_state,
+            received_value,
         )
     }
 
@@ -233,42 +250,44 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals: &HashMap<String, ExternalFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         resume_frame_index: usize,
-        resume_point: engine::ResumePointId,
-        resume_value: engine::Value,
+        frame_state: engine::FrameStateId,
+        received_value: engine::Value,
     ) -> RuntimeResult<Outcome> {
-        let resume_point_metadata = program
-            .resume_point(resume_point)
-            .ok_or_else(|| self.make_error(program, Error::InvalidContinuation))?;
-        let resume_transfer = resume_point_metadata
-            .transfer
-            .and_then(|resume_transfer| program.resume_transfer(resume_transfer));
-        let resume_value_region = resume_transfer
-            .and_then(|resume_transfer| resume_transfer.resume_value)
-            .ok_or_else(|| self.make_error(program, Error::InvalidContinuation))?;
+        let frame_state_metadata = program
+            .frame_state(frame_state)
+            .ok_or_else(|| self.runtime_error(program, Error::InvalidContinuation))?;
+        let frame_entry = frame_state_metadata
+            .entry
+            .and_then(|frame_entry| program.frame_entry(frame_entry));
+        let received_value_region = frame_entry
+            .and_then(|frame_entry| frame_entry.received_value)
+            .ok_or_else(|| self.runtime_error(program, Error::InvalidContinuation))?;
         let frame = self
             .frames
             .get(resume_frame_index)
-            .ok_or_else(|| self.make_error(program, Error::InvalidContinuation))?;
+            .ok_or_else(|| self.runtime_error(program, Error::InvalidContinuation))?;
         let layout = program
             .frame_layout_by_id(frame.frame_layout)
-            .ok_or_else(|| self.make_error(program, Error::InvalidContinuation))?;
-        let resume_value_id = layout
-            .value_for_region(resume_value_region)
-            .ok_or_else(|| self.make_error(program, Error::InvalidContinuation))?;
-        let resume_type = frame_value_type(program, frame, mir::Value::new(resume_value_id.0))
-            .map_err(|_| self.make_error(program, Error::InvalidContinuation))?;
-        let resume_value = frame_value_from_materialized(resume_type, &resume_value)
-            .map_err(|_| self.make_error(program, Error::InvalidContinuation))?;
+            .ok_or_else(|| self.runtime_error(program, Error::InvalidContinuation))?;
+        let received_value_id = layout
+            .value_for_region(received_value_region)
+            .ok_or_else(|| self.runtime_error(program, Error::InvalidContinuation))?;
+        let received_type = frame_value_type(program, frame, mir::Value::new(received_value_id))
+            .map_err(|_| self.runtime_error(program, Error::InvalidContinuation))?;
+        let received_value =
+            dematerialize_value(program, heap, shared, received_type, &received_value)
+                .map_err(|_| self.runtime_error(program, Error::InvalidContinuation))?;
 
-        self.apply_resume_point_to_frame(
+        self.enter_frame_state(
             program,
             resume_frame_index,
-            resume_point,
-            Some(resume_value),
+            frame_state,
+            Some(received_value),
         )
         .map_err(|error| RuntimeError {
             error: Error::InvalidContinuation,
@@ -277,16 +296,20 @@ impl Interpreter {
         })?;
 
         self.run_loop(
-            isolate_id, program, options, statics, externals, heap, shared,
+            isolate_id,
+            program,
+            options,
+            statics,
+            externals,
+            heap,
+            shared,
+            shared_allocator,
         )
     }
 
     /// Assemble a completed execution outcome.
-    pub(crate) fn complete_execution(&mut self, _heap: &Heap, value: engine::Value) -> Outcome {
-        // package the final runtime output
-        let output = Output { value };
-
-        Outcome::Completed { output }
+    pub(crate) fn complete_execution(&mut self, value: engine::Value) -> Outcome {
+        Outcome::Completed { value }
     }
 
     /// Run one lowered function from its entry block.
@@ -296,38 +319,37 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals: &HashMap<String, ExternalFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         function_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
         // resolve the lowered entry metadata
-        let function_ptr = program.functions.get_ptr_for(function_id).ok_or_else(|| {
+        let function_ptr = program.functions.pointer_for(function_id).ok_or_else(|| {
             RuntimeError::new(Error::UndefinedFunction {
                 function: function_id,
             })
         })?;
-        let (entry_block_id, entry_block_ptr) = unsafe {
+        let entry_block_ptr = unsafe {
             let function = function_ptr.as_ref();
             let entry = function.entry;
             let entry_block = &function.blocks[entry as usize];
 
-            (entry_block.mir_block, NonNull::from(entry_block))
+            NonNull::from(entry_block)
         };
         let frame_layout = unsafe { function_ptr.as_ref().frame_layout };
         let frame_layout_ref = program
             .frame_layout_by_id(frame_layout)
-            .ok_or_else(|| self.make_error(program, Error::InvalidInstruction))?;
+            .ok_or_else(|| self.runtime_error(program, Error::InvalidInstruction))?;
         let (stack_offset, frame_base) = self.allocate_frame(frame_layout_ref, options)?;
 
-        // allocate the entry frame
+        // create the entry frame
         let frame = Frame::new(
             frame_layout,
-            function_id,
             function_ptr,
             entry_block_ptr,
-            entry_block_id,
             frame_layout_ref,
             stack_offset,
             frame_base,
@@ -353,16 +375,17 @@ impl Interpreter {
         // bind explicit entry arguments through the same frame move path as MIR values
         {
             let frame_index = self.frames.len() - 1;
-            let argument_pool = unsafe { function_ptr.as_ref().argument_pool.as_slice() };
+            let function = unsafe { function_ptr.as_ref() };
             let mut state = DispatchState::new(
                 program,
                 options,
                 statics,
                 heap,
                 shared,
+                shared_allocator,
                 self,
                 frame_index,
-                argument_pool,
+                function,
             )
             .map_err(RuntimeError::new)?;
             for (index, param) in parameter_slice.iter().enumerate() {
@@ -374,18 +397,25 @@ impl Interpreter {
                 }
 
                 let ty = state.value_type(*param).map_err(RuntimeError::new)?;
-                let bytes = super::bytes::encode_argument_bytes(&mut state, ty, value)
+                let bytes = super::frame::encode_argument_bytes(&mut state, ty, value)
                     .map_err(RuntimeError::new)?;
-                let target = state.value_bytes_mut(*param).map_err(RuntimeError::new)?;
-                if target.len() != bytes.len() {
+                let destination = state.value_bytes_mut(*param).map_err(RuntimeError::new)?;
+                if destination.len() != bytes.len() {
                     return Err(RuntimeError::new(Error::InvalidInstruction));
                 }
-                target.copy_from_slice(&bytes);
+                destination.copy_from_slice(&bytes);
             }
         }
 
         self.run_loop(
-            isolate_id, program, options, statics, externals, heap, shared,
+            isolate_id,
+            program,
+            options,
+            statics,
+            externals,
+            heap,
+            shared,
+            shared_allocator,
         )
     }
 
@@ -396,15 +426,16 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals: &HashMap<String, ExternalFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
     ) -> RuntimeResult<Outcome> {
         let mut lowered_instructions_executed = 0;
 
         // require at least one live frame before stepping
         if self.frames.is_empty() {
-            return Err(self.make_error(program, Error::InvalidInstruction));
+            return Err(self.runtime_error(program, Error::InvalidInstruction));
         }
 
         loop {
@@ -412,7 +443,7 @@ impl Interpreter {
             if let Some(max) = options.limits.max_instructions
                 && lowered_instructions_executed >= max
             {
-                return Err(self.make_error(program, Error::StepLimitExceeded));
+                return Err(self.runtime_error(program, Error::StepLimitExceeded));
             }
 
             // load the current frame position and clear any pending resume pc
@@ -428,10 +459,8 @@ impl Interpreter {
 
             let current_func: &Function = unsafe { function_ptr.as_ref() };
             let block: &Block = unsafe { block_ptr.as_ref() };
-            let block_len = block.instructions.len();
-
-            // dispatch the current lowered block from the chosen instruction offset
-            let transfer = {
+            // run the current lowered block from the chosen instruction offset
+            let block_run = {
                 let frame_index = self.frames.len() - 1;
                 let mut state = DispatchState::new(
                     program,
@@ -439,19 +468,31 @@ impl Interpreter {
                     statics,
                     heap,
                     shared,
+                    shared_allocator,
                     self,
                     frame_index,
-                    current_func.argument_pool.as_slice(),
+                    current_func,
                 )
                 .map_err(RuntimeError::new)?;
-                dispatch_instruction(&mut state, &block.instructions, start_pc)
+
+                if options.limits.max_instructions.is_some() {
+                    let block_run =
+                        dispatch_block_counted(&mut state, &block.instructions, start_pc);
+
+                    (block_run.transfer, block_run.executed)
+                } else {
+                    (dispatch_block(&mut state, &block.instructions, start_pc), 0)
+                }
             };
 
-            // record the instructions covered by this dispatch
+            // record the instructions covered by this block run
             if options.limits.max_instructions.is_some() {
-                lowered_instructions_executed += (block_len - start_pc) as u64;
+                lowered_instructions_executed += block_run.1;
             }
-            // reload the current function after any direct call fast path rewrites
+
+            let transfer = block_run.0;
+
+            // reload the current function after any direct call path rewrites
             let current_func = {
                 let frame = self
                     .frames
@@ -461,13 +502,14 @@ impl Interpreter {
             };
 
             // apply the transfer and stop once it produces an outcome
-            if let Some(outcome) = self.apply_transfer(
+            if let Some(outcome) = self.complete_transfer(
                 isolate_id,
                 program,
                 options,
                 externals,
                 heap,
                 shared,
+                shared_allocator,
                 current_func,
                 transfer,
             )? {

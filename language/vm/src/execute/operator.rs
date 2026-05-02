@@ -2,21 +2,11 @@ use destack_mir as mir;
 
 use crate::Word;
 use crate::diagnostic::Error;
+use crate::program::{WordLayout, pointer_class_from_reference, word_layout_from_pointer_class};
 
-use super::access;
-
-/// Execute a binary opcode.
+/// Evaluate a signed integer binary operator.
 #[inline(always)]
-pub(crate) fn execute_binary(op: mir::BinaryOperator, lhs: Word, rhs: Word) -> Result<Word, Error> {
-    Err(Error::TypeMismatch {
-        expected: format!("typed binary opcode for {op:?}"),
-        actual: format!("{lhs:?}, {rhs:?}"),
-    })
-}
-
-/// Execute a signed integer binary opcode.
-#[inline(always)]
-pub(crate) fn execute_binary_int(
+pub(crate) fn evaluate_binary_int(
     op: mir::BinaryOperator,
     lhs: Word,
     rhs: Word,
@@ -54,7 +44,7 @@ pub(crate) fn execute_binary_int(
         ArithmeticShiftRight => Word::int(a.wrapping_shr(b as u32), Word::BIT_LEN),
         _ => {
             return Err(Error::TypeMismatch {
-                expected: format!("signed integer opcode for {op:?}"),
+                expected: format!("signed integer operator for {op:?}"),
                 actual: format!("{lhs:?}, {rhs:?}"),
             });
         }
@@ -63,9 +53,9 @@ pub(crate) fn execute_binary_int(
     Ok(result)
 }
 
-/// Execute an unsigned integer binary opcode.
+/// Evaluate an unsigned integer binary operator.
 #[inline(always)]
-pub(crate) fn execute_binary_uint(
+pub(crate) fn evaluate_binary_uint(
     op: mir::BinaryOperator,
     lhs: Word,
     rhs: Word,
@@ -101,7 +91,7 @@ pub(crate) fn execute_binary_uint(
         LogicalShiftRight => Word::uint(a.wrapping_shr(b as u32), Word::BIT_LEN),
         _ => {
             return Err(Error::TypeMismatch {
-                expected: format!("unsigned integer opcode for {op:?}"),
+                expected: format!("unsigned integer operator for {op:?}"),
                 actual: format!("{lhs:?}, {rhs:?}"),
             });
         }
@@ -110,9 +100,9 @@ pub(crate) fn execute_binary_uint(
     Ok(result)
 }
 
-/// Execute a float32 binary opcode.
+/// Evaluate a float32 binary operator.
 #[inline(always)]
-pub(crate) fn execute_binary_float32(
+pub(crate) fn evaluate_binary_float32(
     op: mir::BinaryOperator,
     lhs: Word,
     rhs: Word,
@@ -134,7 +124,7 @@ pub(crate) fn execute_binary_float32(
         FloatGreaterEqual => Word::bool(a >= b),
         _ => {
             return Err(Error::TypeMismatch {
-                expected: format!("float32 opcode for {op:?}"),
+                expected: format!("float32 operator for {op:?}"),
                 actual: format!("{lhs:?}, {rhs:?}"),
             });
         }
@@ -143,9 +133,9 @@ pub(crate) fn execute_binary_float32(
     Ok(result)
 }
 
-/// Execute a float64 binary opcode.
+/// Evaluate a float64 binary operator.
 #[inline(always)]
-pub(crate) fn execute_binary_float64(
+pub(crate) fn evaluate_binary_float64(
     op: mir::BinaryOperator,
     lhs: Word,
     rhs: Word,
@@ -167,7 +157,7 @@ pub(crate) fn execute_binary_float64(
         FloatGreaterEqual => Word::bool(a >= b),
         _ => {
             return Err(Error::TypeMismatch {
-                expected: format!("float64 opcode for {op:?}"),
+                expected: format!("float64 operator for {op:?}"),
                 actual: format!("{lhs:?}, {rhs:?}"),
             });
         }
@@ -176,9 +166,9 @@ pub(crate) fn execute_binary_float64(
     Ok(result)
 }
 
-/// Execute a boolean binary opcode.
+/// Evaluate a boolean binary operator.
 #[inline(always)]
-pub(crate) fn execute_binary_bool(
+pub(crate) fn evaluate_binary_bool(
     op: mir::BinaryOperator,
     lhs: Word,
     rhs: Word,
@@ -193,7 +183,7 @@ pub(crate) fn execute_binary_bool(
         Xor => Word::bool(a ^ b),
         _ => {
             return Err(Error::TypeMismatch {
-                expected: format!("boolean opcode for {op:?}"),
+                expected: format!("boolean operator for {op:?}"),
                 actual: format!("{lhs:?}, {rhs:?}"),
             });
         }
@@ -202,59 +192,15 @@ pub(crate) fn execute_binary_bool(
     Ok(result)
 }
 
-/// Execute a unary opcode.
+/// Evaluate a float32 unary operator.
 #[inline(always)]
-pub(crate) fn execute_unary(op: mir::UnaryOperator, arg: Word) -> Result<Word, Error> {
-    Err(Error::TypeMismatch {
-        expected: format!("typed unary opcode for {op:?}"),
-        actual: format!("{arg:?}"),
-    })
-}
-
-/// Execute a signed integer unary opcode.
-#[inline(always)]
-pub(crate) fn execute_unary_int(op: mir::UnaryOperator, arg: Word) -> Result<Word, Error> {
-    let value = arg.as_i64();
-    let result = match op {
-        mir::UnaryOperator::Negate => Word::int(value.wrapping_neg(), Word::BIT_LEN),
-        mir::UnaryOperator::Not => Word::int(!value, Word::BIT_LEN),
-        _ => {
-            return Err(Error::TypeMismatch {
-                expected: format!("signed integer opcode for {op:?}"),
-                actual: format!("{arg:?}"),
-            });
-        }
-    };
-
-    Ok(result)
-}
-
-/// Execute an unsigned integer unary opcode.
-#[inline(always)]
-pub(crate) fn execute_unary_uint(op: mir::UnaryOperator, arg: Word) -> Result<Word, Error> {
-    let value = arg.as_u64();
-    let result = match op {
-        mir::UnaryOperator::Not => Word::uint(!value, Word::BIT_LEN),
-        _ => {
-            return Err(Error::TypeMismatch {
-                expected: format!("unsigned integer opcode for {op:?}"),
-                actual: format!("{arg:?}"),
-            });
-        }
-    };
-
-    Ok(result)
-}
-
-/// Execute a float32 unary opcode.
-#[inline(always)]
-pub(crate) fn execute_unary_float32(op: mir::UnaryOperator, arg: Word) -> Result<Word, Error> {
+pub(crate) fn evaluate_unary_float32(op: mir::UnaryOperator, arg: Word) -> Result<Word, Error> {
     let value = arg.as_f32();
     let result = match op {
         mir::UnaryOperator::FloatNegate => Word::float32(-value),
         _ => {
             return Err(Error::TypeMismatch {
-                expected: format!("float32 opcode for {op:?}"),
+                expected: format!("float32 operator for {op:?}"),
                 actual: format!("{arg:?}"),
             });
         }
@@ -263,15 +209,15 @@ pub(crate) fn execute_unary_float32(op: mir::UnaryOperator, arg: Word) -> Result
     Ok(result)
 }
 
-/// Execute a float64 unary opcode.
+/// Evaluate a float64 unary operator.
 #[inline(always)]
-pub(crate) fn execute_unary_float64(op: mir::UnaryOperator, arg: Word) -> Result<Word, Error> {
+pub(crate) fn evaluate_unary_float64(op: mir::UnaryOperator, arg: Word) -> Result<Word, Error> {
     let value = arg.as_f64();
     let result = match op {
         mir::UnaryOperator::FloatNegate => Word::float64(-value),
         _ => {
             return Err(Error::TypeMismatch {
-                expected: format!("float64 opcode for {op:?}"),
+                expected: format!("float64 operator for {op:?}"),
                 actual: format!("{arg:?}"),
             });
         }
@@ -280,15 +226,15 @@ pub(crate) fn execute_unary_float64(op: mir::UnaryOperator, arg: Word) -> Result
     Ok(result)
 }
 
-/// Execute a boolean unary opcode.
+/// Evaluate a boolean unary operator.
 #[inline(always)]
-pub(crate) fn execute_unary_bool(op: mir::UnaryOperator, arg: Word) -> Result<Word, Error> {
+pub(crate) fn evaluate_unary_bool(op: mir::UnaryOperator, arg: Word) -> Result<Word, Error> {
     let value = arg.as_bool();
     let result = match op {
         mir::UnaryOperator::Not => Word::bool(!value),
         _ => {
             return Err(Error::TypeMismatch {
-                expected: format!("boolean opcode for {op:?}"),
+                expected: format!("boolean operator for {op:?}"),
                 actual: format!("{arg:?}"),
             });
         }
@@ -297,9 +243,9 @@ pub(crate) fn execute_unary_bool(op: mir::UnaryOperator, arg: Word) -> Result<Wo
     Ok(result)
 }
 
-/// Execute a cast opcode.
+/// Evaluate one cast operator.
 #[inline(always)]
-pub(crate) fn execute_cast(
+pub(crate) fn evaluate_cast(
     tree: &mir::Tree,
     operator: mir::CastOperator,
     argument: Word,
@@ -397,7 +343,22 @@ pub(crate) fn execute_cast(
 
 /// Cast one integer bit pattern into the requested pointer-shaped target type.
 fn cast_integer_to_pointer(raw: u64, target_type: &mir::Type) -> Result<Word, Error> {
-    access::decode_pointer_bits(raw, target_type)
+    match target_type {
+        mir::Type::Reference {
+            kind,
+            address_space,
+            ..
+        } => {
+            let pointer_class = pointer_class_from_reference(address_space.clone(), *kind);
+            let layout = word_layout_from_pointer_class(pointer_class).ok_or(Error::InvalidCast)?;
+
+            Ok(layout.decode(raw))
+        }
+        mir::Type::FunctionPointer { .. } | mir::Type::FunctionSignature { .. } => {
+            Ok(WordLayout::FunctionPointer.decode(raw))
+        }
+        _ => Err(Error::InvalidCast),
+    }
 }
 
 /// Return the integer target width for one type.

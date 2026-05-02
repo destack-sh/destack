@@ -3,35 +3,35 @@ use std::ptr::NonNull;
 use crate::Word;
 use destack_engine as engine;
 
-use super::frame::{FrameValue, frame_value_type, write_frame_value};
+use super::frame::{FrameValue, frame_value_type, store_frame_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::interpreter::{Frame, Interpreter};
 use crate::program::Program;
 use destack_mir as mir;
 
-/// Value copied while a continuation resumes into a target block.
-enum ResumeCopyValue {
+/// Saved frame value used while applying moves.
+enum SavedFrameValue {
     /// One scalar word.
     Word(Word),
     /// One frame byte range.
     Bytes(Vec<u8>),
 }
 
-/// Apply resume moves within one frame.
-fn apply_resume_moves(
+/// Complete frame moves within one frame.
+fn complete_frame_moves(
     layout: &engine::FrameLayout,
     frame: &mut Frame,
-    copies: &[engine::ResumeCopy],
+    moves: &[engine::FrameMove],
 ) -> RuntimeResult<()> {
     // gather source values before rewriting destinations
-    let saved_values = copies
+    let saved_values = moves
         .iter()
-        .map(|copy| {
+        .map(|frame_move| {
             let source_region = layout
-                .region(copy.source)
+                .region(frame_move.source)
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
             let destination_region = layout
-                .region(copy.destination)
+                .region(frame_move.destination)
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
             if source_region.byte_len != destination_region.byte_len
@@ -41,24 +41,24 @@ fn apply_resume_moves(
             }
 
             if destination_region.is_word {
-                return Ok(ResumeCopyValue::Word(frame.read_word(source_region)));
+                return Ok(SavedFrameValue::Word(frame.read_word(source_region)));
             }
 
-            Ok(ResumeCopyValue::Bytes(
+            Ok(SavedFrameValue::Bytes(
                 frame.region_bytes(source_region).to_vec(),
             ))
         })
         .collect::<RuntimeResult<Vec<_>>>()?;
 
-    // write the saved values back into their destination regions
-    for (copy, value) in copies.iter().zip(saved_values) {
+    // store the saved values back into their destination regions
+    for (frame_move, value) in moves.iter().zip(saved_values) {
         let destination_region = layout
-            .region(copy.destination)
+            .region(frame_move.destination)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
         match value {
-            ResumeCopyValue::Word(word) => frame.write_word(destination_region, word),
-            ResumeCopyValue::Bytes(bytes) => {
+            SavedFrameValue::Word(word) => frame.write_word(destination_region, word),
+            SavedFrameValue::Bytes(bytes) => {
                 frame
                     .region_bytes_mut(destination_region)
                     .copy_from_slice(&bytes);
@@ -70,25 +70,28 @@ fn apply_resume_moves(
 }
 
 impl Interpreter {
-    /// Apply one semantic resume point to one existing frame.
-    pub(crate) fn apply_resume_point_to_frame(
+    /// Enter one frame state in an existing frame.
+    pub(crate) fn enter_frame_state(
         &mut self,
         program: &Program,
         frame_index: usize,
-        resume_point_id: engine::ResumePointId,
-        resume_value: Option<FrameValue>,
+        frame_state_id: engine::FrameStateId,
+        received_value: Option<FrameValue>,
     ) -> RuntimeResult<()> {
-        // resolve the semantic resume metadata first
-        let resume_point = program
-            .resume_point(resume_point_id)
+        // resolve frame-state metadata first
+        let frame_state = program
+            .frame_state(frame_state_id)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let resume_transfer = resume_point
-            .transfer
-            .and_then(|resume_transfer| program.resume_transfer(resume_transfer))
+        let point = program
+            .point_for_frame_state(frame_state_id)
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        let frame_entry = frame_state
+            .entry
+            .and_then(|frame_entry| program.frame_entry(frame_entry))
             .cloned();
-        let resume_block = program.block_for_id(resume_point.block);
-        let instruction_offset = resume_point.instruction_offset as usize;
-        let expected_function = program.function_for_id(resume_point.function);
+        let target_block_id = point.block;
+        let instruction_index = point.instruction_index as usize;
+        let expected_function = point.function;
 
         // resolve the frame and lowered target block
         let frame = self
@@ -96,8 +99,8 @@ impl Interpreter {
             .get(frame_index)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-        // require the resumed frame to match the resume metadata
-        if frame.function != expected_function {
+        // require the frame to match the target state
+        if frame.function() != expected_function {
             return Err(RuntimeError::new(Error::InvalidInstruction));
         }
 
@@ -105,15 +108,15 @@ impl Interpreter {
         let target_index = function
             .blocks
             .iter()
-            .position(|candidate| candidate.mir_block == resume_block)
+            .position(|candidate| candidate.mir_block == target_block_id)
             .ok_or_else(|| {
                 RuntimeError::new(Error::UndefinedBlock {
-                    block: resume_block,
+                    block: target_block_id,
                 })
             })?;
         let target_block = &function.blocks[target_index];
 
-        // bind resume moves and the optional resumed value
+        // bind frame moves and the optional received value
         let frame = self
             .frames
             .get_mut(frame_index)
@@ -121,36 +124,35 @@ impl Interpreter {
         let frame_layout = program
             .frame_layout_by_id(frame.frame_layout)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        if let Some(resume_transfer) = &resume_transfer {
-            apply_resume_moves(frame_layout, frame, &resume_transfer.copies)?;
+        if let Some(frame_entry) = &frame_entry {
+            complete_frame_moves(frame_layout, frame, &frame_entry.moves)?;
         }
 
-        if let Some(resume_value_region) =
-            resume_transfer.and_then(|resume_transfer| resume_transfer.resume_value)
+        if let Some(received_value_region) =
+            frame_entry.and_then(|frame_entry| frame_entry.received_value)
         {
-            let Some(frame_value) = resume_value else {
+            let Some(frame_value) = received_value else {
                 return Err(RuntimeError::new(Error::InvalidInstruction));
             };
-            let resume_value = frame_layout
-                .value_for_region(resume_value_region)
+            let received_value = frame_layout
+                .value_for_region(received_value_region)
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-            write_frame_value(program, frame, mir::Value::new(resume_value.0), frame_value)
+            store_frame_value(program, frame, mir::Value::new(received_value), frame_value)
                 .map_err(RuntimeError::new)?;
         }
 
         // advance the frame to the resumed position
         frame.block_ptr = NonNull::from(target_block);
-        frame.current_block = resume_block;
-        frame.resume_pc = instruction_offset;
+        frame.resume_pc = instruction_index;
 
         Ok(())
     }
 
-    /// Apply one semantic resume point on the resumed caller frame.
-    pub(crate) fn apply_resume_point_transfer(
+    /// Enter one frame state in the current caller frame with one word value.
+    pub(crate) fn enter_caller_state_word(
         &mut self,
         program: &Program,
-        resume_point_id: engine::ResumePointId,
+        frame_state_id: engine::FrameStateId,
         value: Word,
     ) -> RuntimeResult<()> {
         // target the current caller frame
@@ -160,14 +162,14 @@ impl Interpreter {
             .checked_sub(1)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-        let resume_point = program
-            .resume_point(resume_point_id)
+        let frame_state = program
+            .frame_state(frame_state_id)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let resume_transfer = resume_point
-            .transfer
-            .and_then(|resume_transfer| program.resume_transfer(resume_transfer));
-        let resume_value_region = resume_transfer
-            .and_then(|resume_transfer| resume_transfer.resume_value)
+        let frame_entry = frame_state
+            .entry
+            .and_then(|frame_entry| program.frame_entry(frame_entry));
+        let received_value_region = frame_entry
+            .and_then(|frame_entry| frame_entry.received_value)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let frame = self
             .frames
@@ -176,21 +178,21 @@ impl Interpreter {
         let layout = program
             .frame_layout_by_id(frame.frame_layout)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let resume_value = layout
-            .value_for_region(resume_value_region)
+        let received_value = layout
+            .value_for_region(received_value_region)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let ty = frame_value_type(program, frame, mir::Value::new(resume_value.0))
+        let ty = frame_value_type(program, frame, mir::Value::new(received_value))
             .map_err(RuntimeError::new)?;
         let value = FrameValue::word(ty, value);
 
-        self.apply_resume_point_to_frame(program, frame_index, resume_point_id, Some(value))
+        self.enter_frame_state(program, frame_index, frame_state_id, Some(value))
     }
 
-    /// Apply one resume point on the resumed caller frame from one frame value.
-    pub(crate) fn apply_frame_resume_point_transfer(
+    /// Enter one frame state in the current caller frame from one frame value.
+    pub(crate) fn enter_caller_state(
         &mut self,
         program: &Program,
-        resume_point_id: engine::ResumePointId,
+        frame_state_id: engine::FrameStateId,
         value: FrameValue,
     ) -> RuntimeResult<()> {
         let frame_index = self
@@ -199,6 +201,6 @@ impl Interpreter {
             .checked_sub(1)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-        self.apply_resume_point_to_frame(program, frame_index, resume_point_id, Some(value))
+        self.enter_frame_state(program, frame_index, frame_state_id, Some(value))
     }
 }

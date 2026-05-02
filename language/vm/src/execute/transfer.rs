@@ -1,13 +1,17 @@
+use std::collections::HashMap;
+use std::mem;
+use std::ptr::NonNull;
+
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::interpreter::{Continuation, Interpreter, Outcome};
+use crate::interpreter::{Continuation, Interpreter, Outcome, Stack};
 use crate::isolate::ExternalFn;
 use crate::options::IsolateOptions;
 use crate::program::{Function, MoveRange, Program, Transfer};
 use crate::{SharedHeap, Word};
-use destack_heap::Heap;
+use destack_heap::{Heap, SharedAllocator};
 use {destack_engine as engine, destack_mir as mir};
 
-use super::frame::move_values;
+use super::frame::move_values_within_frame;
 
 impl Interpreter {
     /// Capture execution state into a continuation.
@@ -15,23 +19,27 @@ impl Interpreter {
         &mut self,
         isolate_id: engine::EngineId,
         resume_frame_index: usize,
-        resume_point: engine::ResumePointId,
-    ) -> Continuation {
+        frame_state: engine::FrameStateId,
+        options: &IsolateOptions,
+    ) -> RuntimeResult<Continuation> {
         // move execution stack into the continuation
-        let stack = std::mem::take(&mut self.stack);
-        let frames = std::mem::take(&mut self.frames);
+        let stack = mem::replace(
+            &mut self.stack,
+            Stack::reserve(options.limits.max_stack_bytes)?,
+        );
+        let frames = mem::take(&mut self.frames);
 
-        Continuation {
+        Ok(Continuation {
             isolate_id,
             stack,
             frames,
             resume_frame_index,
-            resume_point,
-        }
+            frame_state,
+        })
     }
 
-    /// Apply one jump transfer within the current frame.
-    fn apply_jump_transfer(
+    /// Complete one jump transfer within the current frame.
+    fn complete_jump(
         &mut self,
         program: &Program,
         current_func: &Function,
@@ -42,42 +50,33 @@ impl Interpreter {
         let target_block = &current_func.blocks[target as usize];
         let frame = self
             .frames
-            .last()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let copied = frame.clone_for_fork();
-        let frame = self
-            .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        move_values(
-            program,
-            &copied,
-            frame,
-            moves,
-            current_func.move_pool.as_slice(),
-        )
-        .map_err(RuntimeError::new)?;
+        move_values_within_frame(program, frame, moves, current_func.move_pool.as_slice())
+            .map_err(RuntimeError::new)?;
 
         // retarget the frame to the destination block
         let frame = self
             .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        frame.block_ptr = std::ptr::NonNull::from(target_block);
-        frame.current_block = target_block.mir_block;
+        frame.block_ptr = NonNull::from(target_block);
 
         Ok(())
     }
 
-    /// Apply one yield transfer and return the yielded outcome.
-    fn apply_yield_transfer(
+    /// Complete one yield transfer and return the yielded outcome.
+    fn complete_yield(
         &mut self,
         program: &Program,
+        options: &IsolateOptions,
         heap: &mut Heap,
+        shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         isolate_id: engine::EngineId,
         value: Word,
         source: mir::Value,
-        resume_point: engine::ResumePointId,
+        frame_state: engine::FrameStateId,
     ) -> RuntimeResult<Outcome> {
         // capture the logical yield position first
         let resume_frame_index = self.frames.len() - 1;
@@ -91,11 +90,14 @@ impl Interpreter {
             super::frame::frame_value_type(program, frame, source).map_err(RuntimeError::new)?;
         let value =
             super::frame::frame_value_from_word(program, self.frames.as_slice(), yield_type, value)
-                .and_then(|value| super::frame::materialize_frame_value(program, heap, value))
+                .and_then(|value| {
+                    super::frame::materialize_value(program, heap, shared, shared_allocator, value)
+                })
                 .map_err(RuntimeError::new)?;
 
         // capture the continuation after packaging the yielded result
-        let continuation = self.capture_continuation(isolate_id, resume_frame_index, resume_point);
+        let continuation =
+            self.capture_continuation(isolate_id, resume_frame_index, frame_state, options)?;
 
         Ok(Outcome::Yielded {
             continuation,
@@ -103,24 +105,24 @@ impl Interpreter {
         })
     }
 
-    /// Apply one control transfer produced by instruction execution.
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn apply_transfer(
+    /// Complete one control transfer produced by instruction execution.
+    pub(crate) fn complete_transfer(
         &mut self,
         isolate_id: engine::EngineId,
         program: &Program,
         options: &IsolateOptions,
-        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals: &HashMap<String, ExternalFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         current_func: &Function,
         transfer: Transfer,
     ) -> RuntimeResult<Option<Outcome>> {
         // dispatch the transfer to the matching machine opcode
         match transfer {
-            Transfer::Continue => Err(self.make_error(program, Error::InvalidInstruction)),
+            Transfer::Continue => Err(self.runtime_error(program, Error::InvalidInstruction)),
             Transfer::Jump { block, moves } => {
-                self.apply_jump_transfer(program, current_func, block, moves)?;
+                self.complete_jump(program, current_func, block, moves)?;
                 Ok(None)
             }
             Transfer::Call {
@@ -132,7 +134,7 @@ impl Interpreter {
                 moves,
                 resume_pc,
             } => {
-                self.apply_call_transfer(
+                self.complete_call(
                     program,
                     options,
                     externals,
@@ -154,10 +156,10 @@ impl Interpreter {
                 target,
                 arguments,
                 env,
-                normal_resume_point,
-                unwind_resume_point,
+                normal_state,
+                unwind_state,
             } => {
-                self.apply_call_branch_transfer(
+                self.complete_call_branch(
                     program,
                     options,
                     externals,
@@ -168,8 +170,8 @@ impl Interpreter {
                     target,
                     arguments,
                     env,
-                    normal_resume_point,
-                    unwind_resume_point,
+                    normal_state,
+                    unwind_state,
                 )?;
                 Ok(None)
             }
@@ -179,7 +181,7 @@ impl Interpreter {
                 arguments,
                 env,
                 moves,
-            } => self.apply_tail_call_transfer(
+            } => self.complete_tail_call(
                 program,
                 options,
                 externals,
@@ -195,13 +197,25 @@ impl Interpreter {
             Transfer::Yield {
                 value,
                 source,
-                resume_point,
+                frame_state,
             } => self
-                .apply_yield_transfer(program, heap, isolate_id, value, source, resume_point)
+                .complete_yield(
+                    program,
+                    options,
+                    heap,
+                    shared,
+                    shared_allocator,
+                    isolate_id,
+                    value,
+                    source,
+                    frame_state,
+                )
                 .map(Some),
-            Transfer::Throw(value) => self.apply_throw_transfer(program, value),
-            Transfer::Return(value) => self.apply_return_transfer(program, heap, value),
-            Transfer::Error(error) => Err(self.make_error(program, error)),
+            Transfer::Throw(value) => self.complete_throw(program, value),
+            Transfer::Return(value) => {
+                self.complete_return(program, heap, shared, shared_allocator, value)
+            }
+            Transfer::Error(error) => Err(self.runtime_error(program, error)),
         }
     }
 }

@@ -1,6 +1,10 @@
-use super::prelude::*;
+use crate::diagnostic::Error;
+use crate::interpreter::DispatchState;
+use crate::{ReferenceAddressSpace, ReferenceMeta};
+use destack_mir as mir;
 
 /// Format a reference kind label for diagnostics.
+#[cold]
 pub(crate) fn reference_label(reference: ReferenceMeta) -> String {
     match reference.kind() {
         Some(kind) => {
@@ -15,48 +19,54 @@ pub(crate) fn reference_label(reference: ReferenceMeta) -> String {
     }
 }
 
-/// Validate reference kind against the pointer value.
-pub(crate) fn check_reference_kind(
-    state: &DispatchState<'_, '_>,
-    reference: ReferenceMeta,
-    _pointer: Word,
-) -> Result<(), Error> {
-    // skip validation when reference-kind checks are disabled
-    if !state.options().checks.enforce_reference_kinds {
-        return Ok(());
-    }
+/// Build an unsupported address-space error.
+#[cold]
+#[inline(never)]
+fn unsupported_address_space(reference: ReferenceMeta) -> Error {
+    let address_space = reference.address_space();
 
-    check_reference_address_space(state, reference)
+    Error::UnsupportedAddressSpace {
+        address_space: address_space.label().to_string(),
+    }
+}
+
+/// Build an immutable-reference store error.
+#[cold]
+#[inline(never)]
+fn immutable_reference_write(reference: ReferenceMeta) -> Error {
+    Error::ImmutableReferenceWrite {
+        reference: reference_label(reference),
+    }
 }
 
 /// Validate the declared reference address space.
+#[inline(always)]
 pub(crate) fn check_reference_address_space(
     state: &DispatchState<'_, '_>,
     reference: ReferenceMeta,
 ) -> Result<(), Error> {
     // skip validation when the runtime checks are disabled
-    if !state.options().checks.enforce_reference_kinds {
+    if !state.reference_kind_checks {
         return Ok(());
     }
 
     // local address spaces accept local runtime pointer values
     let address_space = reference.address_space();
     if !address_space.is_supported_by_vm() {
-        return Err(Error::UnsupportedAddressSpace {
-            address_space: address_space.label().to_string(),
-        });
+        return Err(unsupported_address_space(reference));
     }
 
     Ok(())
 }
 
 /// Validate reference mutability for stores.
+#[inline(always)]
 pub(crate) fn check_reference_mutability(
     state: &DispatchState<'_, '_>,
     reference: ReferenceMeta,
 ) -> Result<(), Error> {
     // skip validation when the runtime checks are disabled
-    if !state.options().checks.enforce_reference_mutability {
+    if !state.reference_mutability_checks {
         return Ok(());
     }
 
@@ -67,9 +77,7 @@ pub(crate) fn check_reference_mutability(
 
     // reject writes through immutable references
     if matches!(mutability, mir::Mutability::Immutable) {
-        return Err(Error::ImmutableReferenceWrite {
-            reference: reference_label(reference),
-        });
+        return Err(immutable_reference_write(reference));
     }
 
     Ok(())

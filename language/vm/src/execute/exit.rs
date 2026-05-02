@@ -1,18 +1,20 @@
 use crate::Word;
-use destack_engine as engine;
-use destack_heap::Heap;
+use destack_heap::{Heap, SharedAllocator};
 
-use super::frame::{frame_value_from_word, materialize_frame_value, write_frame_value};
+use super::frame::{frame_value_from_word, materialize_value, store_frame_value};
+use crate::SharedHeap;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::interpreter::{Interpreter, Outcome};
+use crate::interpreter::{ExceptionalCall, Interpreter, Outcome};
 use crate::program::Program;
 
 impl Interpreter {
-    /// Apply one return transfer.
-    pub(crate) fn apply_return_transfer(
+    /// Complete one return call.
+    pub(crate) fn complete_return(
         &mut self,
         program: &Program,
         heap: &mut Heap,
+        shared: &SharedHeap,
+        shared_allocator: &mut SharedAllocator,
         value: Word,
     ) -> RuntimeResult<Option<Outcome>> {
         // capture the returned value before the callee frame goes away
@@ -22,11 +24,11 @@ impl Interpreter {
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let return_type = program
             .tree
-            .get(callee.function)
+            .get(callee.function())
             .return_type
             .ty()
-            .ok_or_else(|| Error::ConcreteMirRequired {
-                context: "return transfer type".to_string(),
+            .ok_or_else(|| Error::MissingRepresentation {
+                context: "return call type".to_string(),
             })?;
         let returned = frame_value_from_word(program, self.frames.as_slice(), return_type, value)
             .map_err(RuntimeError::new)?;
@@ -40,27 +42,23 @@ impl Interpreter {
 
         // complete top level execution when there is no caller
         if self.frames.is_empty() {
-            let value =
-                materialize_frame_value(program, heap, returned).map_err(RuntimeError::new)?;
-            return Ok(Some(self.complete_execution(heap, value)));
+            let value = materialize_value(program, heap, shared, shared_allocator, returned)
+                .map_err(RuntimeError::new)?;
+            return Ok(Some(self.complete_execution(value)));
         }
 
-        // otherwise resume the caller through its pending transfer or return slot
+        // otherwise take the exceptional edge before resuming the caller
         let caller_index = self.frames.len() - 1;
-        let transfer = self
+        let exceptional_call = self
             .frames
             .get_mut(caller_index)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?
-            .transfer
+            .exceptional_call
             .take();
 
-        // branch-call callers resume through their normal continuation
-        if let Some(engine::ControlTransfer::Call(engine::CallTransfer::Branch {
-            normal_resume_point,
-            ..
-        })) = transfer
-        {
-            self.apply_frame_resume_point_transfer(program, normal_resume_point, returned)?;
+        // exceptional callers resume through their normal edge
+        if let Some(ExceptionalCall { normal_state, .. }) = exceptional_call {
+            self.enter_caller_state(program, normal_state, returned)?;
             return Ok(None);
         }
 
@@ -69,19 +67,20 @@ impl Interpreter {
             .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        if let Some(destination) = program.return_destination_for_position(
-            caller.function,
-            caller.current_block,
+        let point = program.point(
+            caller.function(),
+            caller.current_block(),
             caller.resume_pc as u32,
-        )? {
-            write_frame_value(program, caller, destination, returned).map_err(RuntimeError::new)?;
+        );
+        if let Some(destination) = program.return_destination_at(point)? {
+            store_frame_value(program, caller, destination, returned).map_err(RuntimeError::new)?;
         }
 
         Ok(None)
     }
 
-    /// Apply one thrown exception value through pending call continuations.
-    pub(crate) fn apply_throw_transfer(
+    /// Complete one thrown exception value through exceptional call edges.
+    pub(crate) fn complete_throw(
         &mut self,
         program: &Program,
         value: Word,
@@ -96,7 +95,7 @@ impl Interpreter {
 
             // fail loudly once the exception escapes the whole stack
             if self.frames.is_empty() {
-                return Err(self.make_error(
+                return Err(self.runtime_error(
                     program,
                     Error::Panic {
                         message: format!("uncaught exception: {value:?}"),
@@ -104,20 +103,17 @@ impl Interpreter {
                 ));
             }
 
-            // load the caller transfer before deciding how to continue unwinding
+            // take the exceptional edge before deciding how to unwind
             let caller = self
                 .frames
                 .last_mut()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-            let transfer = caller.transfer.take();
+            let exceptional_call = caller.exceptional_call.take();
 
-            // resume the first caller that owns an unwind continuation
-            match transfer {
-                Some(engine::ControlTransfer::Call(engine::CallTransfer::Branch {
-                    unwind_resume_point,
-                    ..
-                })) => {
-                    self.apply_resume_point_transfer(program, unwind_resume_point, value)?;
+            // resume the first caller that owns an unwind edge
+            match exceptional_call {
+                Some(ExceptionalCall { unwind_state, .. }) => {
+                    self.enter_caller_state_word(program, unwind_state, value)?;
                     return Ok(None);
                 }
 

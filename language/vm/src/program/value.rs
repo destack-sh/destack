@@ -192,7 +192,7 @@ impl WordEncoding {
 
 /// Return the byte width of a type that fits in one VM word.
 pub(crate) fn word_byte_len_from_type(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<usize, Error> {
     // require a scalar representation
@@ -208,7 +208,7 @@ pub(crate) fn word_byte_len_from_type(
 
 /// Decode one raw byte range into a VM word.
 pub(crate) fn decode_word_bytes(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
     bytes: &[u8],
 ) -> Result<Word, Error> {
@@ -231,7 +231,7 @@ pub(crate) fn decode_word_bytes(
 
 /// Decode one raw scalar bit pattern into a VM word.
 pub(crate) fn decode_word_bits(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
     raw: u64,
     byte_len: usize,
@@ -258,7 +258,7 @@ pub(crate) fn decode_word_bits(
 
 /// Encode one VM word into raw bits for the given type.
 pub(crate) fn encode_word_bits(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
     value: Word,
 ) -> Result<(u64, usize), Error> {
@@ -279,7 +279,7 @@ pub(crate) fn encode_word_bits(
 
 /// Encode one VM word into scalar bytes.
 pub(crate) fn encode_word_bytes(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
     value: Word,
 ) -> Result<WordEncoding, Error> {
