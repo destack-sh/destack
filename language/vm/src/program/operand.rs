@@ -82,9 +82,9 @@ pub(crate) struct BinaryElementwise {
 /// Integer binary opcode.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct BinaryInteger {
-    pub(crate) dest: mir::Value,
-    pub(crate) left: mir::Value,
-    pub(crate) right: mir::Value,
+    pub(crate) dest: u32,
+    pub(crate) left: u32,
+    pub(crate) right: u32,
     pub(crate) width: u8,
     pub(crate) is_signed: bool,
 }
@@ -107,8 +107,8 @@ pub(crate) struct UnaryWord {
 /// Integer unary opcode.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct UnaryInteger {
-    pub(crate) dest: mir::Value,
-    pub(crate) arg: mir::Value,
+    pub(crate) dest: u32,
+    pub(crate) arg: u32,
     pub(crate) width: u8,
     pub(crate) is_signed: bool,
 }
@@ -122,20 +122,63 @@ pub(crate) struct UnaryElementwise {
     pub(crate) result_type: mir::LocalNodeId<mir::Type>,
 }
 
-/// Type cast.
+/// Word type cast.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Cast {
-    pub(crate) dest: mir::Value,
+pub(crate) struct CastWord {
+    pub(crate) dest: u32,
     pub(crate) op: mir::CastOperator,
-    pub(crate) arg: mir::Value,
+    pub(crate) arg: u32,
     pub(crate) to_type: u32,
 }
 
-/// Conditional select.
+/// Word integer cast into wide integer bytes.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Select {
+pub(crate) struct CastWordToWideInt {
     pub(crate) dest: mir::Value,
-    pub(crate) condition: mir::Value,
+    pub(crate) op: mir::CastOperator,
+    pub(crate) arg: u32,
+    pub(crate) source_width: u16,
+    pub(crate) source_signed: bool,
+    pub(crate) dest_width: u16,
+}
+
+/// Wide integer byte cast into one word integer.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct CastWideIntToWord {
+    pub(crate) dest: u32,
+    pub(crate) op: mir::CastOperator,
+    pub(crate) arg: mir::Value,
+    pub(crate) source_width: u16,
+    pub(crate) source_signed: bool,
+    pub(crate) dest_width: u16,
+    pub(crate) dest_signed: bool,
+}
+
+/// Wide integer byte cast into wide integer bytes.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct CastWideInt {
+    pub(crate) dest: mir::Value,
+    pub(crate) op: mir::CastOperator,
+    pub(crate) arg: mir::Value,
+    pub(crate) source_width: u16,
+    pub(crate) source_signed: bool,
+    pub(crate) dest_width: u16,
+}
+
+/// Conditional word select.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SelectWord {
+    pub(crate) dest: u32,
+    pub(crate) condition: u32,
+    pub(crate) then_value: u32,
+    pub(crate) else_value: u32,
+}
+
+/// Conditional frame value select.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SelectFrame {
+    pub(crate) dest: mir::Value,
+    pub(crate) condition: u32,
     pub(crate) then_value: mir::Value,
     pub(crate) else_value: mir::Value,
 }
@@ -356,46 +399,26 @@ pub(crate) struct AddressFrameElement {
     pub(crate) access: FrameAccessId,
 }
 
-/// Copy bytes between frame values.
+/// Move bytes between frame values.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct CopyFrame {
+pub(crate) struct MoveFrame {
     pub(crate) destination: mir::Value,
     pub(crate) destination_access: FrameAccessId,
     pub(crate) source: mir::Value,
     pub(crate) source_access: FrameAccessId,
 }
 
-/// Copy bytes from a frame element into a frame value.
+/// Load bytes from an address into a frame value.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct CopyFrameElementToFrame {
-    pub(crate) destination: mir::Value,
-    pub(crate) destination_access: FrameAccessId,
-    pub(crate) source: mir::Value,
-    pub(crate) source_index: mir::Value,
-    pub(crate) source_access: FrameAccessId,
-}
-
-/// Copy bytes from a frame value into a frame element.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct CopyFrameToFrameElement {
-    pub(crate) destination: mir::Value,
-    pub(crate) destination_index: mir::Value,
-    pub(crate) destination_access: FrameAccessId,
-    pub(crate) source: mir::Value,
-    pub(crate) source_access: FrameAccessId,
-}
-
-/// Copy bytes from an address into a frame value.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct CopyAddressToFrame {
+pub(crate) struct LoadFrameBytes {
     pub(crate) destination: mir::Value,
     pub(crate) address: mir::Value,
     pub(crate) access: PointeeAccessId,
 }
 
-/// Copy bytes from a frame value into an address.
+/// Store bytes from a frame value into an address.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct CopyFrameToAddress {
+pub(crate) struct StoreFrameBytes {
     pub(crate) address: mir::Value,
     pub(crate) source: mir::Value,
     pub(crate) access: PointeeAccessId,

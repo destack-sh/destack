@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use destack_mir as mir;
 use destack_mir::{LayoutKind, ReferenceMap};
 
-use crate::{Error, Result};
+use crate::{Error, Result, Word};
 
 const SLICE_DATA_FIELD: u32 = 0;
 const SLICE_LENGTH_FIELD: u32 = 1;
@@ -103,7 +103,7 @@ impl Layout {
 
     /// Report whether this type fits in one VM word.
     pub(crate) fn is_word(&self) -> bool {
-        self.is_scalar() && self.byte_len <= crate::Word::BYTE_LEN
+        self.is_scalar() && self.byte_len <= Word::BYTE_LEN
     }
 
     /// Return the byte alignment of this layout.

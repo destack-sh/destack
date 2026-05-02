@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use {destack_heap as heap, destack_mir as mir};
+use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
 use crate::program::{CallTarget, Layout};
 use crate::{Error, Result};
@@ -161,16 +161,15 @@ pub(super) struct FunctionContext<'a> {
     pub(super) function_id: mir::LocalNodeId<mir::Function>,
     /// The lowered entry block index.
     pub(super) entry_block: u32,
-    /// The lowered yield resume point by MIR block id.
-    pub(super) yield_resume_points:
-        &'a HashMap<mir::LocalNodeId<mir::Block>, destack_engine::ResumePointId>,
-    /// The lowered exceptional call resume points by MIR block id.
-    pub(super) exceptional_call_resume_points: &'a HashMap<
-        mir::LocalNodeId<mir::Block>,
-        (destack_engine::ResumePointId, destack_engine::ResumePointId),
-    >,
+    /// The lowered yield frame state by MIR block id.
+    pub(super) yield_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, engine::FrameStateId>,
+    /// The lowered exceptional call frame states by MIR block id.
+    pub(super) exceptional_call_frame_states:
+        &'a HashMap<mir::LocalNodeId<mir::Block>, (engine::FrameStateId, engine::FrameStateId)>,
     /// The call target by MIR function id.
     pub(super) call_targets: &'a HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
+    /// The byte layout for this lowered function frame.
+    pub(super) frame_layout: &'a engine::FrameLayout,
     /// The lowered value layout by SSA value id.
     pub(super) value_layout_map: ValueLayoutMap,
     /// The lowered value type by SSA value id.

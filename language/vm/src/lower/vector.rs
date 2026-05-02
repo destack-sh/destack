@@ -1,6 +1,9 @@
 use destack_mir as mir;
 
-use crate::program::{Instruction, Opcode, Operands};
+use crate::program::{
+    Instruction, Opcode, VectorCompare, VectorConvert, VectorExtract, VectorInsert, VectorReduce,
+    VectorSelect, VectorShuffle, VectorSplat,
+};
 use crate::{Error, Result};
 
 use super::lower::BlockLowerer;
@@ -22,13 +25,13 @@ impl<'a> BlockLowerer<'a> {
             context: "vector splat value".to_string(),
         })?;
 
-        Ok(Instruction {
-            opcode: Opcode::VectorSplat,
-            operands: Operands::VectorSplat {
+        Ok(Instruction::new(
+            Opcode::VectorSplat,
+            VectorSplat {
                 dest: destination,
                 value,
             },
-        })
+        ))
     }
 
     /// Lower one vector extract.
@@ -50,14 +53,14 @@ impl<'a> BlockLowerer<'a> {
             context: "vector extract index".to_string(),
         })?;
 
-        Ok(Instruction {
-            opcode: Opcode::VectorExtract,
-            operands: Operands::VectorExtract {
+        Ok(Instruction::new(
+            Opcode::VectorExtract,
+            VectorExtract {
                 dest: destination,
                 vector,
                 index,
             },
-        })
+        ))
     }
 
     /// Lower one vector insert.
@@ -83,15 +86,15 @@ impl<'a> BlockLowerer<'a> {
             context: "vector insert value".to_string(),
         })?;
 
-        Ok(Instruction {
-            opcode: Opcode::VectorInsert,
-            operands: Operands::VectorInsert {
+        Ok(Instruction::new(
+            Opcode::VectorInsert,
+            VectorInsert {
                 dest: destination,
                 vector,
                 index,
                 value,
             },
-        })
+        ))
     }
 
     /// Lower one vector shuffle.
@@ -115,15 +118,15 @@ impl<'a> BlockLowerer<'a> {
             context: "vector shuffle right".to_string(),
         })?;
 
-        Ok(Instruction {
-            opcode: Opcode::VectorShuffle,
-            operands: Operands::VectorShuffle {
+        Ok(Instruction::new(
+            Opcode::VectorShuffle,
+            VectorShuffle {
                 dest: destination,
                 left,
                 right,
                 mask: pool.u32_range(mask),
             },
-        })
+        ))
     }
 
     /// Lower one vector select.
@@ -153,15 +156,15 @@ impl<'a> BlockLowerer<'a> {
                 context: "vector select else value".to_string(),
             })?;
 
-        Ok(Instruction {
-            opcode: Opcode::VectorSelect,
-            operands: Operands::VectorSelect {
+        Ok(Instruction::new(
+            Opcode::VectorSelect,
+            VectorSelect {
                 dest: destination,
                 mask,
                 then_value,
                 else_value,
             },
-        })
+        ))
     }
 
     /// Lower one vector reduction.
@@ -180,14 +183,14 @@ impl<'a> BlockLowerer<'a> {
             context: "vector reduce input".to_string(),
         })?;
 
-        Ok(Instruction {
-            opcode: Opcode::VectorReduce,
-            operands: Operands::VectorReduce {
+        Ok(Instruction::new(
+            Opcode::VectorReduce,
+            VectorReduce {
                 dest: destination,
                 operator,
                 vector,
             },
-        })
+        ))
     }
 
     /// Lower one vector comparison.
@@ -210,15 +213,15 @@ impl<'a> BlockLowerer<'a> {
             context: "vector compare right".to_string(),
         })?;
 
-        Ok(Instruction {
-            opcode: Opcode::VectorCompare,
-            operands: Operands::VectorCompare {
+        Ok(Instruction::new(
+            Opcode::VectorCompare,
+            VectorCompare {
                 dest: destination,
                 operator,
                 left,
                 right,
             },
-        })
+        ))
     }
 
     /// Lower one vector conversion.
@@ -239,15 +242,15 @@ impl<'a> BlockLowerer<'a> {
         let dest_type = self.value_type_for_value(destination)?;
         let source_type = self.value_type_for_value(vector)?;
 
-        Ok(Instruction {
-            opcode: Opcode::VectorConvert,
-            operands: Operands::VectorConvert {
+        Ok(Instruction::new(
+            Opcode::VectorConvert,
+            VectorConvert {
                 dest: destination,
                 mode,
                 vector,
                 source_type,
                 dest_type,
             },
-        })
+        ))
     }
 }

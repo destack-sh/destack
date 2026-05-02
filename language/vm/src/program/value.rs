@@ -1,6 +1,6 @@
 use crate::{
-    FramePointer, FunctionPointer, HeapReference, RawPointer, ReferenceMeta, SharedHeapReference,
-    SharedRawPointer, StackPointer, StaticPointer, Word,
+    Error, FramePointer, FunctionPointer, HeapReference, RawPointer, ReferenceMeta,
+    SharedHeapReference, SharedRawPointer, StackPointer, StaticPointer, Word,
 };
 use destack_mir as mir;
 
@@ -99,6 +99,26 @@ pub(crate) enum WordLayout {
 }
 
 impl WordLayout {
+    /// Return the memory byte width for this word layout.
+    #[inline(always)]
+    pub(crate) fn byte_len(self, pointer_bytes: usize) -> usize {
+        match self {
+            Self::Void => 0,
+            Self::Bool => 1,
+            Self::Int { width } | Self::Uint { width } => (width as usize).div_ceil(8),
+            Self::Float32 => 4,
+            Self::Float64 => 8,
+            Self::HeapReference
+            | Self::SharedHeapReference
+            | Self::RawPointer
+            | Self::SharedRawPointer
+            | Self::StackPointer
+            | Self::FramePointer
+            | Self::StaticPointer
+            | Self::FunctionPointer => pointer_bytes,
+        }
+    }
+
     /// Decode raw memory bits into one VM word.
     #[inline(always)]
     pub(crate) fn decode(self, raw: u64) -> Word {
@@ -125,6 +145,150 @@ impl WordLayout {
             }
         }
     }
+
+    /// Encode one VM word into raw memory bits.
+    #[inline(always)]
+    pub(crate) fn encode(self, value: Word) -> u64 {
+        match self {
+            Self::Void => 0,
+            Self::Bool => u64::from(value.as_bool()),
+            Self::Int { .. } => value.bits(),
+            Self::Uint { .. } => value.as_uint(),
+            Self::Float32 => value.as_float32().to_bits() as u64,
+            Self::Float64 => value.as_float64().to_bits(),
+            Self::HeapReference => value.as_heap_reference().bits() as u64,
+            Self::SharedHeapReference => value.as_shared_heap_reference().bits() as u64,
+            Self::RawPointer => value.as_raw_pointer().bits() as u64,
+            Self::SharedRawPointer => value.as_shared_raw_pointer().bits() as u64,
+            Self::StackPointer => value.as_stack_pointer().bits() as u64,
+            Self::FramePointer => value.as_frame_pointer().bits() as u64,
+            Self::StaticPointer => value.as_static_pointer().bits() as u64,
+            Self::FunctionPointer => value.as_function_pointer().bits() as u64,
+        }
+    }
+}
+
+/// One word encoded as raw bytes.
+pub(crate) struct WordEncoding {
+    /// The byte buffer.
+    bytes: [u8; Word::BYTE_LEN],
+    /// The number of initialized bytes.
+    len: usize,
+}
+
+impl WordEncoding {
+    /// Return the initialized bytes.
+    #[inline(always)]
+    pub(crate) fn as_slice(&self) -> &[u8] {
+        &self.bytes[..self.len]
+    }
+
+    /// Return the initialized byte count.
+    #[inline(always)]
+    pub(crate) fn len(&self) -> usize {
+        self.len
+    }
+}
+
+/// Return the byte width of a type that fits in one VM word.
+pub(crate) fn word_byte_len_from_type(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> Result<usize, Error> {
+    // require a scalar representation
+    let Some(layout) = word_layout_from_type(tree, ty) else {
+        return Err(Error::TypeMismatch {
+            expected: "word-sized type".to_string(),
+            actual: format!("{:?}", repr_type(tree, ty)),
+        });
+    };
+
+    Ok(layout.byte_len(tree.pointer_bytes() as usize))
+}
+
+/// Decode one raw byte range into a VM word.
+pub(crate) fn decode_word_bytes(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+    bytes: &[u8],
+) -> Result<Word, Error> {
+    // validate the physical byte width
+    let byte_len = word_byte_len_from_type(tree, ty)?;
+    if bytes.len() != byte_len {
+        return Err(Error::TypeMismatch {
+            expected: format!("{byte_len} raw bytes"),
+            actual: format!("{} raw bytes", bytes.len()),
+        });
+    }
+
+    // widen into the VM carrier before typed decoding
+    let mut raw = [0u8; Word::BYTE_LEN];
+    raw[..bytes.len()].copy_from_slice(bytes);
+    let raw = u64::from_le_bytes(raw);
+
+    decode_word_bits(tree, ty, raw, byte_len)
+}
+
+/// Decode one raw scalar bit pattern into a VM word.
+pub(crate) fn decode_word_bits(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+    raw: u64,
+    byte_len: usize,
+) -> Result<Word, Error> {
+    // resolve the scalar layout once
+    let Some(layout) = word_layout_from_type(tree, ty) else {
+        return Err(Error::TypeMismatch {
+            expected: "word raw load".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    };
+
+    // reject mismatched memory widths
+    let expected_byte_len = layout.byte_len(tree.pointer_bytes() as usize);
+    if byte_len != expected_byte_len {
+        return Err(Error::TypeMismatch {
+            expected: format!("{expected_byte_len} raw bytes"),
+            actual: format!("{byte_len} raw bytes"),
+        });
+    }
+
+    Ok(layout.decode(raw))
+}
+
+/// Encode one VM word into raw bits for the given type.
+pub(crate) fn encode_word_bits(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+    value: Word,
+) -> Result<(u64, usize), Error> {
+    // resolve the scalar layout once
+    let Some(layout) = word_layout_from_type(tree, ty) else {
+        return Err(Error::TypeMismatch {
+            expected: "scalar or reference raw store".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    };
+
+    // encode into memory bits
+    let raw = layout.encode(value);
+    let byte_len = layout.byte_len(tree.pointer_bytes() as usize);
+
+    Ok((raw, byte_len))
+}
+
+/// Encode one VM word into scalar bytes.
+pub(crate) fn encode_word_bytes(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+    value: Word,
+) -> Result<WordEncoding, Error> {
+    let (raw, byte_len) = encode_word_bits(tree, ty, value)?;
+
+    Ok(WordEncoding {
+        bytes: raw.to_le_bytes(),
+        len: byte_len,
+    })
 }
 
 /// Get the runtime value layout for a MIR type.

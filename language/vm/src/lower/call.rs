@@ -1,6 +1,9 @@
 use destack_mir as mir;
 
-use crate::program::{Instruction, Opcode, Operands, pack_optional_value};
+use crate::program::{
+    Call, CallIndirect, CallInterface, CallVirtual, CallableBind, CallableEnvironment, Instruction,
+    Opcode,
+};
 use crate::{Error, Result};
 
 use super::access::{interface_table_field, virtual_table_field};
@@ -38,16 +41,16 @@ impl<'a> BlockLowerer<'a> {
         let moves = pool.parameter_move_range(&callee.parameters, &argument_value)?;
         let target = self.call_target(function)?;
 
-        Ok(Instruction {
-            opcode: Opcode::Call,
-            operands: Operands::Call {
+        Ok(Instruction::new(
+            Opcode::Call,
+            Call {
                 dest: self.optional_value(destination, "call destination")?,
                 function: function.id,
                 target,
                 arguments: argument_range,
                 moves,
             },
-        })
+        ))
     }
 
     /// Lower one virtual call.
@@ -76,16 +79,16 @@ impl<'a> BlockLowerer<'a> {
         )
         .map(|field| pool.field_access(field));
 
-        Ok(Instruction {
-            opcode: Opcode::CallVirtual,
-            operands: Operands::CallVirtual {
+        Ok(Instruction::new(
+            Opcode::CallVirtual,
+            CallVirtual {
                 dest: self.optional_value(destination, "virtual call destination")?,
                 receiver,
                 table_field,
                 method_index: method.0,
                 arguments,
             },
-        })
+        ))
     }
 
     /// Lower one interface call.
@@ -114,16 +117,16 @@ impl<'a> BlockLowerer<'a> {
         )
         .map(|field| pool.field_access(field));
 
-        Ok(Instruction {
-            opcode: Opcode::CallInterface,
-            operands: Operands::CallInterface {
+        Ok(Instruction::new(
+            Opcode::CallInterface,
+            CallInterface {
                 dest: self.optional_value(destination, "interface call destination")?,
                 receiver,
                 table_field,
                 method_index: method.0,
                 arguments,
             },
-        })
+        ))
     }
 
     /// Lower one indirect call.
@@ -142,14 +145,14 @@ impl<'a> BlockLowerer<'a> {
             context: "indirect call callee".to_string(),
         })?;
 
-        Ok(Instruction {
-            opcode: Opcode::CallIndirect,
-            operands: Operands::CallIndirect {
+        Ok(Instruction::new(
+            Opcode::CallIndirect,
+            CallIndirect {
                 dest: self.optional_value(destination, "indirect call destination")?,
                 callee,
                 arguments,
             },
-        })
+        ))
     }
 
     /// Lower one callable binding.
@@ -175,14 +178,14 @@ impl<'a> BlockLowerer<'a> {
                 context: "callable bind environment".to_string(),
             })?;
 
-        Ok(Instruction {
-            opcode: Opcode::BindCallable,
-            operands: Operands::CallableBind {
+        Ok(Instruction::new(
+            Opcode::BindCallable,
+            CallableBind {
                 dest: destination,
                 function: function.id,
                 environment,
             },
-        })
+        ))
     }
 
     /// Lower one callable environment read.
@@ -196,26 +199,24 @@ impl<'a> BlockLowerer<'a> {
                 context: "callable environment destination".to_string(),
             })?;
 
-        Ok(Instruction {
-            opcode: Opcode::LoadCallableEnvironment,
-            operands: Operands::CallableEnvironment { dest: destination },
-        })
+        Ok(Instruction::new(
+            Opcode::LoadCallableEnvironment,
+            CallableEnvironment { dest: destination },
+        ))
     }
 
-    /// Pack an optional MIR value for a call destination.
+    /// Resolve an optional MIR value for a call destination.
     fn optional_value(
         &self,
         value: Option<mir::ValueReference>,
         context: &'static str,
-    ) -> Result<mir::Value> {
-        Ok(pack_optional_value(
-            value
-                .map(|value| {
-                    value.value().ok_or_else(|| Error::MissingRepresentation {
-                        context: context.into(),
-                    })
+    ) -> Result<Option<mir::Value>> {
+        value
+            .map(|value| {
+                value.value().ok_or_else(|| Error::MissingRepresentation {
+                    context: context.to_string(),
                 })
-                .transpose()?,
-        ))
+            })
+            .transpose()
     }
 }

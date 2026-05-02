@@ -2,9 +2,12 @@ use destack_heap::HeapOptions;
 use destack_mir as mir;
 
 use crate::program::{
-    AllocationLayout, FrameAccess, INVALID_VALUE_ID, Instruction, Layout, Opcode, Operands,
-    PointeeAccess, PointerClass, ValueLayout, pack_optional_value, pointer_class_from_reference,
-    value_layout_from_type,
+    AddressFrame, AddressFrameElement, AllocationLayout, AtomicCompareExchange, AtomicLoad,
+    AtomicRmw, AtomicStore, BarrierWrite, ElementAddr, FieldAddr, FrameAccess, FunctionAddr,
+    Instruction, Intrinsic, Layout, Load, LoadFrame, LoadFrameBytes, LocalAddr, LocalGet, LocalSet,
+    New, NewSlice, Opcode, PointeeAccess, PointerClass, RawAlloc, RawFree, SliceElementAddr,
+    StackAlloc, StaticAddr, Store, StoreFrame, StoreFrameBytes, ValueLayout,
+    pointer_class_from_reference, value_layout_from_type,
 };
 use crate::{Error, Result};
 
@@ -110,13 +113,13 @@ impl<'a> BlockLowerer<'a> {
         })?;
         let local = self.local_index(local)?;
 
-        Ok(Instruction {
-            opcode: Opcode::LoadLocal,
-            operands: Operands::LocalGet {
+        Ok(Instruction::new(
+            Opcode::LoadLocal,
+            LocalGet {
                 dest: destination,
                 local,
             },
-        })
+        ))
     }
 
     /// Lower one local address.
@@ -135,14 +138,14 @@ impl<'a> BlockLowerer<'a> {
         })?;
         let local = self.local_index(local)?;
 
-        Ok(Instruction {
-            opcode: Opcode::AddressLocal,
-            operands: Operands::LocalAddr {
+        Ok(Instruction::new(
+            Opcode::AddressLocal,
+            LocalAddr {
                 dest: destination,
                 local,
                 reference: reference_meta_for_value(self.value_layout_map(), destination),
             },
-        })
+        ))
     }
 
     /// Lower one local set.
@@ -159,10 +162,10 @@ impl<'a> BlockLowerer<'a> {
         })?;
         let local = self.local_index(local)?;
 
-        Ok(Instruction {
-            opcode: Opcode::StoreLocal,
-            operands: Operands::LocalSet { local, value },
-        })
+        Ok(Instruction::new(
+            Opcode::StoreLocal,
+            LocalSet { local, value },
+        ))
     }
 
     /// Lower one static address.
@@ -182,14 +185,14 @@ impl<'a> BlockLowerer<'a> {
                 context: "static address global".to_string(),
             })?;
 
-        Ok(Instruction {
-            opcode: Opcode::AddressStatic,
-            operands: Operands::StaticAddr {
+        Ok(Instruction::new(
+            Opcode::AddressStatic,
+            StaticAddr {
                 dest: destination,
                 global: global.id,
                 reference: reference_meta_for_value(self.value_layout_map(), destination),
             },
-        })
+        ))
     }
 
     /// Lower one function address.
@@ -209,13 +212,13 @@ impl<'a> BlockLowerer<'a> {
                 context: "function address callee".to_string(),
             })?;
 
-        Ok(Instruction {
-            opcode: Opcode::AddressFunction,
-            operands: Operands::FunctionAddr {
+        Ok(Instruction::new(
+            Opcode::AddressFunction,
+            FunctionAddr {
                 dest: destination,
                 function: function.id,
             },
-        })
+        ))
     }
 
     /// Lower one load.
@@ -237,26 +240,34 @@ impl<'a> BlockLowerer<'a> {
             })?;
         let access = self.pointee_access_for_value(pointer)?;
         let opcode = select_load_opcode(access)?;
-        let operands = match opcode {
-            Opcode::LoadFrame => Operands::LoadFrame {
-                dest: destination,
-                base: pointer,
-                index: mir::Value(INVALID_VALUE_ID),
-                access: pool.frame_access(frame_access(access)),
-            },
-            Opcode::LoadFrameBytes => Operands::LoadFrameBytes {
-                destination,
-                address: pointer,
-                access: pool.pointee_access(access),
-            },
-            _ => Operands::Load {
-                dest: destination,
-                pointer,
-                access: pool.pointee_access(access),
-            },
+        let instruction = match opcode {
+            Opcode::LoadFrame => Instruction::new(
+                opcode,
+                LoadFrame {
+                    dest: destination,
+                    base: pointer,
+                    access: pool.frame_access(frame_access(access)),
+                },
+            ),
+            Opcode::LoadFrameBytes => Instruction::new(
+                opcode,
+                LoadFrameBytes {
+                    destination,
+                    address: pointer,
+                    access: pool.pointee_access(access),
+                },
+            ),
+            _ => Instruction::new(
+                opcode,
+                Load {
+                    dest: destination,
+                    pointer,
+                    access: pool.pointee_access(access),
+                },
+            ),
         };
 
-        Ok(Instruction { opcode, operands })
+        Ok(instruction)
     }
 
     /// Lower one store.
@@ -276,27 +287,35 @@ impl<'a> BlockLowerer<'a> {
         })?;
         let access = self.pointee_access_for_value(pointer)?;
         let opcode = select_store_opcode(access)?;
-        let operands = match opcode {
-            Opcode::StoreFrame => Operands::StoreFrame {
-                base: pointer,
-                index: mir::Value(INVALID_VALUE_ID),
-                value,
-                reference: reference_meta_for_value(self.value_layout_map(), pointer),
-                access: pool.frame_access(frame_access(access)),
-            },
-            Opcode::StoreFrameBytes => Operands::StoreFrameBytes {
-                address: pointer,
-                source: value,
-                access: pool.pointee_access(access),
-            },
-            _ => Operands::Store {
-                pointer,
-                value,
-                access: pool.pointee_access(access),
-            },
+        let instruction = match opcode {
+            Opcode::StoreFrame => Instruction::new(
+                opcode,
+                StoreFrame {
+                    base: pointer,
+                    value,
+                    reference: reference_meta_for_value(self.value_layout_map(), pointer),
+                    access: pool.frame_access(frame_access(access)),
+                },
+            ),
+            Opcode::StoreFrameBytes => Instruction::new(
+                opcode,
+                StoreFrameBytes {
+                    address: pointer,
+                    source: value,
+                    access: pool.pointee_access(access),
+                },
+            ),
+            _ => Instruction::new(
+                opcode,
+                Store {
+                    pointer,
+                    value,
+                    access: pool.pointee_access(access),
+                },
+            ),
         };
 
-        Ok(Instruction { opcode, operands })
+        Ok(instruction)
     }
 
     /// Lower one field address.
@@ -319,21 +338,20 @@ impl<'a> BlockLowerer<'a> {
         let field = self.field_access_for_value(base, index)?;
 
         if opcode == Opcode::AddressFrame {
-            return Ok(Instruction {
+            return Ok(Instruction::new(
                 opcode,
-                operands: Operands::AddressFrame {
+                AddressFrame {
                     dest: destination,
                     base,
-                    index: mir::Value(INVALID_VALUE_ID),
                     reference: reference_meta_for_value(self.value_layout_map(), destination),
                     access: pool.frame_access(field.into()),
                 },
-            });
+            ));
         }
 
-        Ok(Instruction {
+        Ok(Instruction::new(
             opcode,
-            operands: Operands::FieldAddr {
+            FieldAddr {
                 dest: destination,
                 base,
                 index,
@@ -341,7 +359,7 @@ impl<'a> BlockLowerer<'a> {
                 field_count: self.field_count_for_value(base)?,
                 field: pool.field_access(field),
             },
-        })
+        ))
     }
 
     /// Lower one element address.
@@ -369,37 +387,37 @@ impl<'a> BlockLowerer<'a> {
         if let Some(access) = pointee_type.and_then(|pointee_type| {
             slice_element_access(self.tree, self.layouts(), pointee_type, pointer_class)
         }) {
-            return Ok(Instruction {
-                opcode: Opcode::AddressSliceElement,
-                operands: Operands::SliceElementAddr {
+            return Ok(Instruction::new(
+                Opcode::AddressSliceElement,
+                SliceElementAddr {
                     dest: destination,
                     slice: array,
                     index,
                     reference: reference_meta_for_value(self.value_layout_map(), destination),
                     access: pool.slice_element_access(access),
                 },
-            });
+            ));
         }
         let opcode = select_element_addr_opcode(self.value_layout_map(), array)?;
         let element = self.element_access_for_value(array)?;
         let array_length = self.array_length_for_value(array)?;
 
         if opcode == Opcode::AddressFrame {
-            return Ok(Instruction {
-                opcode,
-                operands: Operands::AddressFrame {
+            return Ok(Instruction::new(
+                Opcode::AddressFrameElement,
+                AddressFrameElement {
                     dest: destination,
                     base: array,
                     index,
                     reference: reference_meta_for_value(self.value_layout_map(), destination),
                     access: pool.frame_access(element.into_frame_access(0, array_length)),
                 },
-            });
+            ));
         }
 
-        Ok(Instruction {
+        Ok(Instruction::new(
             opcode,
-            operands: Operands::ElementAddr {
+            ElementAddr {
                 dest: destination,
                 array,
                 index,
@@ -407,7 +425,7 @@ impl<'a> BlockLowerer<'a> {
                 array_length,
                 element: pool.element_access(element),
             },
-        })
+        ))
     }
 
     /// Lower one managed allocation.
@@ -444,13 +462,13 @@ impl<'a> BlockLowerer<'a> {
             self.shared_heap_options,
         )?;
 
-        Ok(Instruction {
+        Ok(Instruction::new(
             opcode,
-            operands: Operands::New {
+            New {
                 dest: destination,
                 allocation: pool.allocation_layout(allocation),
             },
-        })
+        ))
     }
 
     /// Lower one slice allocation.
@@ -489,16 +507,16 @@ impl<'a> BlockLowerer<'a> {
             self.shared_heap_options,
         )?;
 
-        Ok(Instruction {
-            opcode: Opcode::AllocateSlice,
-            operands: Operands::NewSlice {
+        Ok(Instruction::new(
+            Opcode::AllocateSlice,
+            NewSlice {
                 dest: destination,
                 length,
                 pointer_class,
                 element: pool.allocation_layout(element),
                 element_alignment,
             },
-        })
+        ))
     }
 
     /// Lower one raw allocation.
@@ -516,13 +534,13 @@ impl<'a> BlockLowerer<'a> {
             context: "raw alloc layout".to_string(),
         })?;
 
-        Ok(Instruction {
-            opcode: Opcode::AllocateRaw,
-            operands: Operands::RawAlloc {
+        Ok(Instruction::new(
+            Opcode::AllocateRaw,
+            RawAlloc {
                 dest: destination,
                 byte_len: self.byte_len_for_type(layout)?,
             },
-        })
+        ))
     }
 
     /// Lower one raw free.
@@ -533,10 +551,7 @@ impl<'a> BlockLowerer<'a> {
                 context: "raw free pointer".to_string(),
             })?;
 
-        Ok(Instruction {
-            opcode: Opcode::FreeRaw,
-            operands: Operands::RawFree { pointer },
-        })
+        Ok(Instruction::new(Opcode::FreeRaw, RawFree { pointer }))
     }
 
     /// Lower one stack allocation.
@@ -554,14 +569,14 @@ impl<'a> BlockLowerer<'a> {
             context: "stack alloc layout".to_string(),
         })?;
 
-        Ok(Instruction {
-            opcode: Opcode::AllocateStack,
-            operands: Operands::StackAlloc {
+        Ok(Instruction::new(
+            Opcode::AllocateStack,
+            StackAlloc {
                 dest: destination,
                 reference: reference_meta_for_value(self.value_layout_map(), destination),
                 allocation_type,
             },
-        })
+        ))
     }
 
     /// Lower one intrinsic call.
@@ -574,24 +589,22 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let arguments = pool
             .argument_reference_range(self.tree.get_arguments(arguments), "intrinsic argument")?;
-        let destination = pack_optional_value(
-            destination
-                .map(|value| {
-                    value.value().ok_or_else(|| Error::MissingRepresentation {
-                        context: "intrinsic destination".to_string(),
-                    })
+        let destination = destination
+            .map(|value| {
+                value.value().ok_or_else(|| Error::MissingRepresentation {
+                    context: "intrinsic destination".to_string(),
                 })
-                .transpose()?,
-        );
+            })
+            .transpose()?;
 
-        Ok(Instruction {
-            opcode: Opcode::Intrinsic,
-            operands: Operands::Intrinsic {
+        Ok(Instruction::new(
+            Opcode::Intrinsic,
+            Intrinsic {
                 dest: destination,
                 intrinsic,
                 arguments,
             },
-        })
+        ))
     }
 
     /// Lower one atomic load.
@@ -611,14 +624,14 @@ impl<'a> BlockLowerer<'a> {
                 context: "atomic load pointer".to_string(),
             })?;
 
-        Ok(Instruction {
-            opcode: Opcode::AtomicLoad,
-            operands: Operands::AtomicLoad {
+        Ok(Instruction::new(
+            Opcode::AtomicLoad,
+            AtomicLoad {
                 dest: destination,
                 pointer,
                 raw_pointee: raw_pointee_type_for_value(self.tree, self.value_type(), pointer),
             },
-        })
+        ))
     }
 
     /// Lower one atomic store.
@@ -636,14 +649,14 @@ impl<'a> BlockLowerer<'a> {
             context: "atomic store value".to_string(),
         })?;
 
-        Ok(Instruction {
-            opcode: Opcode::AtomicStore,
-            operands: Operands::AtomicStore {
+        Ok(Instruction::new(
+            Opcode::AtomicStore,
+            AtomicStore {
                 pointer,
                 value,
                 raw_pointee: raw_pointee_type_for_value(self.tree, self.value_type(), pointer),
             },
-        })
+        ))
     }
 
     /// Lower one atomic compare exchange.
@@ -675,16 +688,16 @@ impl<'a> BlockLowerer<'a> {
                 context: "atomic compare exchange new value".to_string(),
             })?;
 
-        Ok(Instruction {
-            opcode: Opcode::AtomicCompareExchange,
-            operands: Operands::AtomicCompareExchange {
+        Ok(Instruction::new(
+            Opcode::AtomicCompareExchange,
+            AtomicCompareExchange {
                 dest: destination,
                 pointer,
                 expected,
                 new_value,
                 raw_pointee: raw_pointee_type_for_value(self.tree, self.value_type(), pointer),
             },
-        })
+        ))
     }
 
     /// Lower one atomic read-modify-write.
@@ -709,16 +722,16 @@ impl<'a> BlockLowerer<'a> {
             context: "atomic rmw value".to_string(),
         })?;
 
-        Ok(Instruction {
-            opcode: Opcode::AtomicRmw,
-            operands: Operands::AtomicRmw {
+        Ok(Instruction::new(
+            Opcode::AtomicRmw,
+            AtomicRmw {
                 dest: destination,
                 operator,
                 pointer,
                 value,
                 raw_pointee: raw_pointee_type_for_value(self.tree, self.value_type(), pointer),
             },
-        })
+        ))
     }
 
     /// Lower one write barrier.
@@ -748,15 +761,15 @@ impl<'a> BlockLowerer<'a> {
             });
         };
 
-        Ok(Instruction {
-            opcode: Opcode::BarrierWrite,
-            operands: Operands::BarrierWrite {
+        Ok(Instruction::new(
+            Opcode::BarrierWrite,
+            BarrierWrite {
                 object,
                 offset,
                 byte_len,
                 pointer_class,
             },
-        })
+        ))
     }
 
     /// Return the lowered access for a pointer value.

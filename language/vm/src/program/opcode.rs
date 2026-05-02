@@ -6,18 +6,16 @@ pub(crate) enum Opcode {
     // ============================================================================
     /// Load a constant into a frame value.
     LoadConst,
-    /// Copy bytes between frame values.
-    CopyFrame,
-    /// Copy bytes from a frame element into a frame value.
-    CopyFrameElementToFrame,
-    /// Copy bytes from a frame value into a frame element.
-    CopyFrameToFrameElement,
-    /// Copy bytes from memory into a frame value.
-    CopyAddressToFrame,
-    /// Copy bytes from a frame value into memory.
-    CopyFrameToAddress,
+    /// Move bytes between frame values.
+    MoveFrame,
+    /// Load bytes from memory into a frame value.
+    LoadFrameBytes,
+    /// Store bytes from a frame value into memory.
+    StoreFrameBytes,
     /// Select one of two word values.
-    Select,
+    SelectWord,
+    /// Select one of two frame values.
+    SelectFrame,
 
     // ============================================================================
     // locals, statics, functions
@@ -308,8 +306,14 @@ pub(crate) enum Opcode {
     NotBool,
     /// Execute an elementwise unary operation.
     UnaryElementwise,
-    /// Cast one value.
-    Cast,
+    /// Cast one word value.
+    CastWord,
+    /// Cast one word integer into wide integer bytes.
+    CastWordToWideInt,
+    /// Cast wide integer bytes into one word integer.
+    CastWideIntToWord,
+    /// Cast wide integer bytes into wide integer bytes.
+    CastWideInt,
 
     // ============================================================================
     // calls
