@@ -128,6 +128,15 @@ impl LocalStringPool {
         &self.buffer[entry.offset as usize..(entry.offset + entry.len) as usize]
     }
 
+    /// Return the string associated with the given StringId when present.
+    #[inline]
+    pub fn get_maybe(&self, id: StringId) -> Option<&str> {
+        let slot = self.slot_by_id.get(&id).copied()?;
+        let entry = self.entries[slot];
+
+        Some(&self.buffer[entry.offset as usize..(entry.offset + entry.len) as usize])
+    }
+
     /// Check if the pool contains the given StringId.
     #[inline]
     pub fn contains(&self, id: StringId) -> bool {
@@ -362,6 +371,14 @@ impl StringPool {
         let state = self.inner.read();
 
         StringRef { pool: state, id }
+    }
+
+    /// Return the string associated with the given StringId when present.
+    #[inline]
+    pub fn get_maybe(&self, id: StringId) -> Option<String> {
+        let state = self.inner.read();
+
+        state.get_maybe(id).map(ToString::to_string)
     }
 
     /// Intern a string, storing only one owned copy of bytes.
