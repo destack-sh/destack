@@ -157,9 +157,8 @@ function readSecond(): uint8 {
 b0:
     v0: ref<uint8[4], raw, readonly> = global.address message
     v1: uint8[4] = load v0
-    v2: uint64 = 1uint64
-    v3: uint8 = element.get v1, v2
-    return v3
+    v2: uint8 = element.get v1, 1
+    return v2
 }"#;
     run_mir_expect(mir, "readSecond", &[], Value::uint8(b'o'));
 }
@@ -225,7 +224,6 @@ b0:
 
 /// Global float with initial value.
 #[test]
-#[allow(clippy::approx_constant)]
 fn test_global_float() {
     let mir = r#"
 global pi: float64, readonly = 3.14159float64
@@ -237,7 +235,7 @@ b0:
     return v1
 }"#;
     let output = run_mir_ok(mir, "read", &[]);
-    let f = f64::try_from(&output.value).expect("expected float64 value");
+    let f = f64::try_from(&output).expect("expected float64 value");
 
     assert!((f - 3.14159).abs() < 0.0001);
 }

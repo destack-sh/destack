@@ -77,7 +77,7 @@ b0:
     return v0
 }"#;
     let output = run_mir_ok(mir, "alloc", &[]);
-    assert!(matches!(output.value, Value::HeapReference(_)));
+    assert!(matches!(output, Value::HeapReference(_)));
 }
 
 /// Shared heap allocation creates one shared heap allocation.
@@ -93,8 +93,8 @@ b0:
     let output = isolate
         .run_function_by_name("alloc", &[])
         .expect("execution failed");
-    let Value::SharedHeapReference(reference) = output.value else {
-        panic!("expected shared heap reference, got {:?}", output.value);
+    let Value::SharedHeapReference(reference) = output else {
+        panic!("expected shared heap reference, got {output:?}");
     };
 
     assert!(isolate.shared_heap.is_heap_live(reference));
@@ -299,8 +299,8 @@ b0:
     let output = isolate
         .run_function_by_name("allocArray", &[])
         .expect("execution failed");
-    let Value::HeapReference(slice) = output.value else {
-        panic!("expected heap slice value, got {:?}", output.value);
+    let Value::HeapReference(slice) = output else {
+        panic!("expected heap slice value, got {output:?}");
     };
     let bytes = read_heap_bytes(&isolate.heap, slice, 2 * HeapReference::BYTE_LEN);
     let data = Word::heap_reference(decode_heap_reference(&bytes, 0));
@@ -324,8 +324,8 @@ b0:
     let output = isolate
         .run_function_by_name("allocArray", &[])
         .expect("execution failed");
-    let Value::SharedHeapReference(slice) = output.value else {
-        panic!("expected shared heap slice value, got {:?}", output.value);
+    let Value::SharedHeapReference(slice) = output else {
+        panic!("expected shared heap slice value, got {output:?}");
     };
     let bytes = read_shared_heap_bytes(
         &isolate.shared_heap,
@@ -397,7 +397,7 @@ b0(v0: (int32, int32)):
         let agg = interp.materialize_value_for_type(ty, vec![Word::int32(10), Word::int32(20)]);
         vec![agg]
     });
-    assert_eq!(output.value, Value::int32(10));
+    assert_eq!(output, Value::int32(10));
 }
 
 /// Field set creates a new tuple with one field replaced.
@@ -415,7 +415,7 @@ b0(v0: (int32, int32), v1: int32):
         let agg = interp.materialize_value_for_type(ty, vec![Word::int32(10), Word::int32(20)]);
         vec![agg, Word::int32(99)]
     });
-    assert_eq!(output.value, Value::int32(99));
+    assert_eq!(output, Value::int32(99));
 }
 
 /// Field set returns one fresh tuple value instead of mutating the original.
@@ -437,7 +437,7 @@ b0(v0: (int32, int32), v1: int32):
         vec![tuple, Word::int32(99)]
     });
 
-    assert_eq!(output.value, Value::int32(109));
+    assert_eq!(output, Value::int32(109));
 }
 
 /// Field get copies nested aggregate values.
@@ -480,66 +480,56 @@ b0:
     run_mir_expect(mir, "setNested", &[], Value::int32(50));
 }
 
-/// Element get reads from an array at a dynamic index.
+/// Element get reads from an array at a fixed index.
 #[test]
 fn test_element_get_reads_array_element() {
     let mir = r#"
-function getElem(v0: int32[3], v1: int64): int32 {
-b0(v0: int32[3], v1: int64):
-    v2: int32 = element.get v0, v1
-    return v2
+function getElem(v0: int32[3]): int32 {
+b0(v0: int32[3]):
+    v1: int32 = element.get v0, 1
+    return v1
 }"#;
-    let cases = [
-        (Value::uint64(0), Value::int32(10)),
-        (Value::uint64(1), Value::int32(20)),
-        (Value::uint64(2), Value::int32(30)),
-    ];
+    let output = run_mir_with_frame_ok(mir, "getElem", |interp| {
+        let ty = interp.parameter_type("getElem", 0);
+        let array = interp.materialize_value_for_type(
+            ty,
+            vec![Word::int32(10), Word::int32(20), Word::int32(30)],
+        );
 
-    for (index, expected) in cases {
-        let output = run_mir_with_frame_ok(mir, "getElem", |interp| {
-            let ty = interp.parameter_type("getElem", 0);
-            let array = interp.materialize_value_for_type(
-                ty,
-                vec![Word::int32(10), Word::int32(20), Word::int32(30)],
-            );
+        vec![array]
+    });
 
-            vec![array, Word::from(&index)]
-        });
-
-        assert_eq!(output.value, expected);
-    }
+    assert_eq!(output, Value::int32(20));
 }
 
-/// Dynamic element.get on one locally constructed array stays correct.
+/// Element get on one locally constructed array stays correct.
 #[test]
 fn test_element_get_reads_constructed_array() {
     let mir = r#"
-function getLocalElem(v0: int64): int32 {
-b0(v0: int64):
-    v1: int32 = 10int32
-    v2: int32 = 20int32
-    v3: int32 = 30int32
-    v4: int32[3] = array int32[3] (v1, v2, v3)
-    v5: int32 = element.get v4, v0
-    return v5
+function getLocalElem(): int32 {
+b0:
+    v0: int32 = 10int32
+    v1: int32 = 20int32
+    v2: int32 = 30int32
+    v3: int32[3] = array int32[3] (v0, v1, v2)
+    v4: int32 = element.get v3, 2
+    return v4
 }"#;
 
-    run_mir_expect(mir, "getLocalElem", &[Value::uint64(0)], Value::int32(10));
-    run_mir_expect(mir, "getLocalElem", &[Value::uint64(1)], Value::int32(20));
-    run_mir_expect(mir, "getLocalElem", &[Value::uint64(2)], Value::int32(30));
+    run_mir_expect(mir, "getLocalElem", &[], Value::int32(30));
 }
 
 /// Element set returns one fresh array value instead of mutating the original.
 #[test]
 fn test_element_set_preserves_source_array() {
     let mir = r#"
-function setWithoutAlias(v0: int32[3], v1: int64, v2: int32): int32 {
-b0(v0: int32[3], v1: int64, v2: int32):
-    v3: int32[3] = element.set v0, v1, v2
-    v4: int32 = element.get v0, v1
-    v5: int32 = element.get v3, v1
-    v6: int32 = int.add v4, v5
-    return v6
+function setWithoutAlias(v0: int32[3], v1: int32): int32 {
+b0(v0: int32[3], v1: int32):
+    v2: int32[3] = element.set v0, 1, v1
+    v3: int32 = element.get v0, 1
+    v4: int32 = element.get v2, 1
+    v5: int32 = int.add v3, v4
+    return v5
 }"#;
     let output = run_mir_with_frame_ok(mir, "setWithoutAlias", |interp| {
         let ty = interp.parameter_type("setWithoutAlias", 0);
@@ -548,21 +538,21 @@ b0(v0: int32[3], v1: int64, v2: int32):
             vec![Word::int32(10), Word::int32(20), Word::int32(30)],
         );
 
-        vec![array, Word::uint64(1), Word::int32(99)]
+        vec![array, Word::int32(99)]
     });
 
-    assert_eq!(output.value, Value::int32(119));
+    assert_eq!(output, Value::int32(119));
 }
 
 /// Element set creates a new array with one element replaced.
 #[test]
 fn test_element_set_replaces_array_element() {
     let mir = r#"
-function setAndGet(v0: int32[3], v1: int64, v2: int32): int32 {
-b0(v0: int32[3], v1: int64, v2: int32):
-    v3: int32[3] = element.set v0, v1, v2
-    v4: int32 = element.get v3, v1
-    return v4
+function setAndGet(v0: int32[3], v1: int32): int32 {
+b0(v0: int32[3], v1: int32):
+    v2: int32[3] = element.set v0, 1, v1
+    v3: int32 = element.get v2, 1
+    return v3
 }"#;
     let output = run_mir_with_frame_ok(mir, "setAndGet", |interp| {
         let ty = interp.parameter_type("setAndGet", 0);
@@ -570,32 +560,32 @@ b0(v0: int32[3], v1: int64, v2: int32):
             ty,
             vec![Word::int32(10), Word::int32(20), Word::int32(30)],
         );
-        vec![arr, Word::uint64(1), Word::int32(99)]
+        vec![arr, Word::int32(99)]
     });
-    assert_eq!(output.value, Value::int32(99));
+    assert_eq!(output, Value::int32(99));
 }
 
-/// Dynamic element.set on one locally constructed array stays correct.
+/// Element set on one locally constructed array stays correct.
 #[test]
 fn test_element_set_replaces_constructed_array_element() {
     let mir = r#"
-function setLocalAndGet(v0: int64, v1: int32): int32 {
-b0(v0: int64, v1: int32):
-    v2: int32 = 10int32
-    v3: int32 = 20int32
-    v4: int32 = 30int32
-    v5: int32[3] = array int32[3] (v2, v3, v4)
-    v6: int32[3] = element.set v5, v0, v1
-    v7: int32 = element.get v5, v0
-    v8: int32 = element.get v6, v0
-    v9: int32 = int.add v7, v8
-    return v9
+function setLocalAndGet(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 10int32
+    v2: int32 = 20int32
+    v3: int32 = 30int32
+    v4: int32[3] = array int32[3] (v1, v2, v3)
+    v5: int32[3] = element.set v4, 1, v0
+    v6: int32 = element.get v4, 1
+    v7: int32 = element.get v5, 1
+    v8: int32 = int.add v6, v7
+    return v8
 }"#;
 
     run_mir_expect(
         mir,
         "setLocalAndGet",
-        &[Value::uint64(1), Value::int32(99)],
+        &[Value::int32(99)],
         Value::int32(119),
     );
 }
@@ -613,10 +603,9 @@ b0:
     v4: int32 = 40int32
     v5: (int32, int32) = tuple (int32, int32) (v3, v4)
     v6: (int32, int32)[2] = array (int32, int32)[2] (v2, v5)
-    v7: int64 = 1int64
-    v8: (int32, int32) = element.get v6, v7
-    v9: int32 = field.get v8, 0
-    return v9
+    v7: (int32, int32) = element.get v6, 1
+    v8: int32 = field.get v7, 0
+    return v8
 }"#;
     run_mir_expect(mir, "getNested", &[], Value::int32(30));
 }
@@ -637,11 +626,10 @@ b0:
     v7: int32 = 50int32
     v8: int32 = 60int32
     v9: (int32, int32) = tuple (int32, int32) (v7, v8)
-    v10: int64 = 1int64
-    v11: (int32, int32)[2] = element.set v6, v10, v9
-    v12: (int32, int32) = element.get v11, v10
-    v13: int32 = field.get v12, 1
-    return v13
+    v10: (int32, int32)[2] = element.set v6, 1, v9
+    v11: (int32, int32) = element.get v10, 1
+    v12: int32 = field.get v11, 1
+    return v12
 }"#;
     run_mir_expect(mir, "setNested", &[], Value::int32(60));
 }
@@ -714,7 +702,7 @@ b0:
     let output = isolate
         .run_function_by_name("allocBox", &[])
         .expect("execution failed");
-    let Value::HeapReference(reference) = output.value else {
+    let Value::HeapReference(reference) = output else {
         panic!("expected heap reference value");
     };
 
@@ -741,7 +729,7 @@ b0(v0: int32):
     let output = isolate
         .run_function_by_name("makeBox", &[Value::int32(9)])
         .expect("execution failed");
-    let Value::HeapReference(reference) = output.value else {
+    let Value::HeapReference(reference) = output else {
         panic!("expected heap reference value");
     };
     let bytes = read_heap_bytes(&isolate.heap, reference, 4);
@@ -771,7 +759,7 @@ b0:
     let output = isolate
         .run_function_by_name("allocPacked", &[])
         .expect("execution failed");
-    let Value::HeapReference(reference) = output.value else {
+    let Value::HeapReference(reference) = output else {
         panic!("expected heap reference value");
     };
 
@@ -802,8 +790,8 @@ b0:
     let output = isolate
         .run_function_by_name("allocArray", &[])
         .expect("execution failed");
-    let Value::HeapReference(slice) = output.value else {
-        panic!("expected heap slice value, got {:?}", output.value);
+    let Value::HeapReference(slice) = output else {
+        panic!("expected heap slice value, got {output:?}");
     };
     let bytes = read_heap_bytes(&isolate.heap, slice, 2 * HeapReference::BYTE_LEN);
     let reference = decode_heap_reference(&bytes, 0);
@@ -843,7 +831,7 @@ b0:
         .run_function_by_name("comparePaths", &[])
         .expect("execution failed");
 
-    assert_eq!(output.value, Value::int32(41));
+    assert_eq!(output, Value::int32(41));
 }
 
 /// Out-of-bounds field access produces an error.
@@ -872,8 +860,9 @@ fn test_invalid_array_access() {
     let mir = r#"
 function badElem(v0: int32[3], v1: int64): int32 {
 b0(v0: int32[3], v1: int64):
-    v2: int32 = element.get v0, v1
-    return v2
+    v2: ref<int32, raw, readonly, space(frame)> = element.address v0, v1
+    v3: int32 = load v2
+    return v3
 }"#;
     let result = run_mir_with_frame(mir, "badElem", |interp| {
         let ty = interp.parameter_type("badElem", 0);
@@ -902,7 +891,7 @@ b0:
     return v0
 }"#;
     let output = run_mir_ok(mir, "rawAlloc", &[]);
-    let Value::RawPointer(pointer) = output.value else {
+    let Value::RawPointer(pointer) = output else {
         panic!("expected raw pointer value");
     };
 
@@ -923,7 +912,7 @@ b0:
     return v2
 }"#;
     let output = run_mir_ok(mir, "rawAllocFree", &[]);
-    assert_eq!(output.value, Value::int32(42));
+    assert_eq!(output, Value::int32(42));
 }
 
 /// Raw free on invalid pointer produces an error.

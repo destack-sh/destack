@@ -53,16 +53,12 @@ b0(v0: ref<Env, managed>):
     let env = isolate
         .run_function_by_name("makeEnv", &[])
         .expect("execution failed");
-    let env = env.value;
-
     let first = isolate
         .run_function_by_name("callOnce", slice::from_ref(&env))
         .expect("execution failed");
-    let first = first.value;
     let second = isolate
         .run_function_by_name("callOnce", &[env])
         .expect("execution failed");
-    let second = second.value;
 
     assert_eq!(first, Value::int32(11));
     assert_eq!(second, Value::int32(12));
@@ -255,24 +251,19 @@ b0(v0: ref<Env, managed>):
     let env_a = isolate
         .run_function_by_name("makeEnv", &[Value::int32(7)])
         .expect("execution failed");
-    let env_a = env_a.value;
     let env_b = isolate
         .run_function_by_name("makeEnv", &[Value::int32(13)])
         .expect("execution failed");
-    let env_b = env_b.value;
 
     let first = isolate
         .run_function_by_name("callOnce", slice::from_ref(&env_a))
         .expect("execution failed");
-    let first = first.value;
     let second = isolate
         .run_function_by_name("callOnce", &[env_b])
         .expect("execution failed");
-    let second = second.value;
     let third = isolate
         .run_function_by_name("callOnce", &[env_a])
         .expect("execution failed");
-    let third = third.value;
 
     assert_eq!(first, Value::int32(7));
     assert_eq!(second, Value::int32(13));
@@ -466,10 +457,9 @@ b0(v0: int32):
     v1: ref<Env, managed> = call makeEnv(v0): (int32) -> ref<Env, managed>
     v2: Reader = callable.bind readEnv, v1
     v3: Reader[1] = array Reader[1] (v2)
-    v4: int32 = 0int32
-    v5: Reader = element.get v3, v4
-    v6: int32 = call.indirect v5(): () -> int32
-    return v6
+    v4: Reader = element.get v3, 0
+    v5: int32 = call.indirect v4(): () -> int32
+    return v5
 }"#;
 
     run_mir_expect(mir, "caller", &[Value::int32(8)], Value::int32(8));

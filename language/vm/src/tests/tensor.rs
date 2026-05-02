@@ -34,7 +34,7 @@ where
 {
     let output = run_mir_with_frame_ok(mir_text, function, setup);
 
-    assert_eq!(output.value, expected);
+    assert_eq!(output, expected);
 }
 
 /// Tensor splat broadcasts a scalar to every element.
