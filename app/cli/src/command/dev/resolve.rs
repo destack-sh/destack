@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Args;
-use destack_resolver::{ResolveOptions, Resolver};
+use destack_resolver::{Resolver, ResolverContext, ResolverOptions};
 
 use crate::common::ProgramArgs;
 use crate::console;
@@ -86,7 +86,7 @@ pub fn run(args: &ResolveArgs) -> i32 {
         }
     };
     let mut options =
-        ResolveOptions::default_for_workspace(directory.clone(), workspace_options.as_ref());
+        ResolverOptions::workspace_defaults(directory.clone(), workspace_options.as_ref());
     if !args.condition.is_empty() {
         options.conditions = args.condition.clone();
     }
@@ -100,8 +100,9 @@ pub fn run(args: &ResolveArgs) -> i32 {
     let _ = args.typescript_source;
 
     let resolver = Resolver::from_repository(repository.clone(), options);
+    let mut context = ResolverContext::new(revision);
 
-    match resolver.resolve_from_directory(revision, &directory, &args.specifier) {
+    match resolver.resolve_from_directory(&mut context, &directory, &args.specifier) {
         Ok(resolution) => {
             console::info(&resolution.path().to_string_lossy());
             0

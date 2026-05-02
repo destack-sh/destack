@@ -6,7 +6,7 @@ use std::sync::Arc;
 use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
-use destack_session::{Session, SessionEventHandler};
+use destack_session::{FileChange, Session, SessionEventHandler};
 use destack_source::{DiagnosticCollection, FileType, ModuleId, ProfileId, TargetId};
 use destack_workspace::{Ref, Repository, Revision};
 
@@ -338,10 +338,10 @@ impl CompilerContext {
         let logical_path = cli_input_logical_path(kind, name, file_type);
         let path = self.repository.workspace_root().join(&logical_path);
         self.session
-            .apply(
+            .apply_file(
                 self.session.head(),
                 path.as_path(),
-                destack_session::FileMutation::Text {
+                FileChange::Text {
                     content: content.to_string(),
                 },
             )

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_resolver::{ResolveOptions, Resolver};
+use destack_resolver::{Resolver, ResolverOptions};
 use destack_workspace::{DestackDeclaration, Repository, Revision, Workspace};
 
 use crate::common::ProgramArgs;
@@ -46,7 +46,7 @@ pub fn workspace_context(
     })?;
     let resolver = Resolver::from_repository(
         repository.clone(),
-        ResolveOptions::default_for_workspace(
+        ResolverOptions::workspace_defaults(
             repository.workspace_root().to_path_buf(),
             workspace_options.as_ref(),
         ),

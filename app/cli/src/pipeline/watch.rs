@@ -180,7 +180,7 @@ pub fn build_watch_context(
 /// Build watch options for CLI watch mode.
 pub fn build_watch_options() -> FileWatchOptions {
     // filter to relevant file types
-    let filter: FileWatchFilter = Arc::new(|path: &Path| is_watchable_path(path));
+    let filter: FileWatchFilter = Arc::new(|path: &Path| is_source_path(path));
 
     // build the watcher options
     FileWatchOptions {
@@ -200,7 +200,7 @@ pub fn build_watch_loop_options() -> WatchLoopOptions {
 }
 
 /// Check if a path should be handled by watch mode.
-pub fn is_watchable_path(path: &Path) -> bool {
+pub fn is_source_path(path: &Path) -> bool {
     // skip unknown or non file paths
     let Some(file_type) = FileType::from_path(path) else {
         return false;

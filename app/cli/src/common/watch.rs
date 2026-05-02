@@ -354,12 +354,13 @@ mod tests {
             "export const value = ;".to_string(),
         );
         files.insert(file_id, Arc::new(file));
+        let content = files.get(&file_id).unwrap().content_id();
 
         let span = Span::at(file_id, 0, 1);
         let diagnostic = Diagnostic::error(
             "E000",
             "syntax error",
-            DiagnosticLabel::message(span, "here"),
+            DiagnosticLabel::message(content, span, "here"),
         );
         let diagnostics = DiagnosticCollection::from_diagnostics(vec![diagnostic]);
         let format_options = FormatOptions::default();
