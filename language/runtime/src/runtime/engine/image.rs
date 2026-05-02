@@ -7,7 +7,7 @@ use {destack_native as native, destack_vm as vm};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Image {
     /// Immutable VM execution image.
-    Vm(Arc<vm::snapshot::IsolateImage>),
+    Vm(Arc<vm::IsolateImage>),
     /// Immutable native execution image.
     Native(native::Image),
 }

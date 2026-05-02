@@ -8,7 +8,7 @@ use crate::isolate::ExternalFn;
 use crate::options::IsolateOptions;
 use crate::program::{Function, MoveRange, Program, Transfer};
 use crate::{SharedHeap, Word};
-use destack_heap::{Heap, SharedAllocator};
+use destack_heap::{Heap, SharedAllocator, SharedGcWorker};
 use {destack_engine as engine, destack_mir as mir};
 
 use super::frame::move_values_within_frame;
@@ -73,6 +73,7 @@ impl Interpreter {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
+        shared_gc: &SharedGcWorker,
         isolate_id: engine::EngineId,
         value: Word,
         source: mir::Value,
@@ -91,7 +92,14 @@ impl Interpreter {
         let value =
             super::frame::frame_value_from_word(program, self.frames.as_slice(), yield_type, value)
                 .and_then(|value| {
-                    super::frame::materialize_value(program, heap, shared, shared_allocator, value)
+                    super::frame::materialize_value(
+                        program,
+                        heap,
+                        shared,
+                        shared_allocator,
+                        shared_gc,
+                        value,
+                    )
                 })
                 .map_err(RuntimeError::new)?;
 
@@ -115,6 +123,7 @@ impl Interpreter {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
+        shared_gc: &SharedGcWorker,
         current_func: &Function,
         transfer: Transfer,
     ) -> RuntimeResult<Option<Outcome>> {
@@ -183,7 +192,6 @@ impl Interpreter {
                 moves,
             } => self.complete_tail_call(
                 program,
-                options,
                 externals,
                 heap,
                 shared,
@@ -205,6 +213,7 @@ impl Interpreter {
                     heap,
                     shared,
                     shared_allocator,
+                    shared_gc,
                     isolate_id,
                     value,
                     source,
@@ -213,7 +222,7 @@ impl Interpreter {
                 .map(Some),
             Transfer::Throw(value) => self.complete_throw(program, value),
             Transfer::Return(value) => {
-                self.complete_return(program, heap, shared, shared_allocator, value)
+                self.complete_return(program, heap, shared, shared_allocator, shared_gc, value)
             }
             Transfer::Error(error) => Err(self.runtime_error(program, error)),
         }

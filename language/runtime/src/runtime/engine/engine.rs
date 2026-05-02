@@ -117,14 +117,6 @@ impl Engine {
         }
     }
 
-    /// Publish allocator-local shared heap buffers before global heap work.
-    pub fn flush_shared_allocator(&mut self, shared: &heap::SharedHeap) {
-        match self {
-            Self::Vm(engine) => engine.flush_shared_allocator(shared),
-            Self::Native(_) => {}
-        }
-    }
-
     /// Visit mutable local root slots from active backend state.
     pub fn visit_root_slots(
         &mut self,

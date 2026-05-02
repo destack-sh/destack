@@ -118,7 +118,7 @@ impl Interpreter {
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let (stack_offset, frame_base) = self.allocate_frame(frame_layout, options)?;
+        let (stack_offset, frame_base) = self.allocate_frame(frame_layout)?;
 
         // record the caller edge before mutating the stacks
         let caller_frame = self
@@ -175,7 +175,6 @@ impl Interpreter {
     fn reuse_tail_call_frame(
         &mut self,
         program: &Program,
-        options: &IsolateOptions,
         callee: LoweredCallee,
         arguments: &[FrameValue],
         env: Option<Word>,
@@ -199,7 +198,7 @@ impl Interpreter {
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?
             .stack_offset;
         self.truncate_stack(stack_offset);
-        let (stack_offset, frame_base) = self.allocate_frame(frame_layout, options)?;
+        let (stack_offset, frame_base) = self.allocate_frame(frame_layout)?;
 
         // retarget the frame to the callee
         let frame = self
@@ -403,7 +402,6 @@ impl Interpreter {
     pub(crate) fn complete_tail_call(
         &mut self,
         program: &Program,
-        options: &IsolateOptions,
         externals: &HashMap<String, ExternalFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
@@ -492,7 +490,7 @@ impl Interpreter {
 
         // otherwise reuse the current frame for the lowered callee
         let callee = Self::require_lowered_callee(program, function_id, target)?;
-        self.reuse_tail_call_frame(program, options, callee, &argument_values, env)?;
+        self.reuse_tail_call_frame(program, callee, &argument_values, env)?;
 
         Ok(None)
     }

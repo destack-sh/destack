@@ -1,5 +1,5 @@
 use crate::Word;
-use destack_heap::{Heap, SharedAllocator};
+use destack_heap::{Heap, SharedAllocator, SharedGcWorker};
 
 use super::frame::{frame_value_from_word, materialize_value, store_frame_value};
 use crate::SharedHeap;
@@ -15,6 +15,7 @@ impl Interpreter {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
+        shared_gc: &SharedGcWorker,
         value: Word,
     ) -> RuntimeResult<Option<Outcome>> {
         // capture the returned value before the callee frame goes away
@@ -42,8 +43,9 @@ impl Interpreter {
 
         // complete top level execution when there is no caller
         if self.frames.is_empty() {
-            let value = materialize_value(program, heap, shared, shared_allocator, returned)
-                .map_err(RuntimeError::new)?;
+            let value =
+                materialize_value(program, heap, shared, shared_allocator, shared_gc, returned)
+                    .map_err(RuntimeError::new)?;
             return Ok(Some(self.complete_execution(value)));
         }
 

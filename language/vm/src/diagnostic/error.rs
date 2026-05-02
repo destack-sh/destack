@@ -21,9 +21,9 @@ pub enum DiagnosticAnchor {
     },
 }
 
-/// Information about a call frame for stack traces.
+/// One frame in a diagnostic call stack.
 #[derive(Debug, Clone, PartialEq)]
-pub struct FrameInfo {
+pub struct StackTraceFrame {
     /// The function being executed.
     pub function: mir::LocalNodeId<mir::Function>,
     /// The block being executed.
@@ -175,13 +175,16 @@ pub enum Error {
 
     /// Invalid shared raw pointer.
     InvalidSharedRawPointer = 42,
+
+    /// Invalid shared heap reference.
+    InvalidSharedHeapReference = 43,
 }
 
 impl Error {
     /// Get the numeric sub-code of the error.
     #[inline]
     pub fn sub_code(&self) -> u8 {
-        // Safety: repr(u8) ensures the discriminant is valid
+        // safety: repr(u8) stores the discriminant in the first byte
         unsafe { *(self as *const Self as *const u8) }
     }
 
@@ -296,6 +299,7 @@ impl Error {
             }
             Self::InvalidRawPointer => "invalid raw pointer".to_string(),
             Self::InvalidSharedRawPointer => "invalid shared raw pointer".to_string(),
+            Self::InvalidSharedHeapReference => "invalid shared heap reference".to_string(),
         }
     }
 }
@@ -330,8 +334,10 @@ impl From<heap::HeapError> for Error {
             },
             heap::HeapError::InvalidRawPointer { .. } => Self::InvalidRawPointer,
             heap::HeapError::InvalidSharedRawPointer { .. } => Self::InvalidSharedRawPointer,
-            error => Self::Panic {
-                message: error.to_string(),
+            heap::HeapError::InvalidHeapReference { .. } => Self::InvalidHeapReference,
+            heap::HeapError::InvalidSharedHeapReference { .. } => Self::InvalidSharedHeapReference,
+            error => Self::InvariantViolation {
+                context: error.to_string(),
             },
         }
     }
@@ -343,7 +349,7 @@ pub struct RuntimeError {
     /// The underlying error.
     pub error: Error,
     /// The call stack at the time of the error.
-    pub stack: Vec<FrameInfo>,
+    pub stack: Vec<StackTraceFrame>,
     /// The location where the error occurred.
     pub anchor: DiagnosticAnchor,
 }
@@ -359,7 +365,7 @@ impl RuntimeError {
     }
 
     /// Add call stack information.
-    pub fn with_call_stack(mut self, stack: Vec<FrameInfo>) -> Self {
+    pub fn with_call_stack(mut self, stack: Vec<StackTraceFrame>) -> Self {
         self.stack = stack;
         self
     }

@@ -15,7 +15,7 @@ pub enum Continuation {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ContinuationImage {
     /// VM continuation image.
-    Vm(vm::snapshot::ContinuationImage),
+    Vm(vm::ContinuationImage),
     /// Native continuation image.
     Native(engine::Continuation),
 }

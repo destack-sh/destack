@@ -1,12 +1,12 @@
 use engine::StaticSpace;
+use serde::{Deserialize, Serialize};
 use {destack_engine as engine, destack_mir as mir};
 
-use crate::diagnostic::{Error, FrameInfo, RuntimeError, RuntimeResult};
-use crate::interpreter::Continuation;
+use crate::diagnostic::{Error, RuntimeError, RuntimeResult, StackTraceFrame};
+use crate::interpreter::{Continuation, FrameImage};
 use crate::isolate::RootSink;
 use crate::options::IsolateOptions;
 use crate::program::Program;
-use crate::snapshot::InterpreterImage;
 use crate::{Result, Word};
 use destack_heap::{HeapResult, RootSlot};
 
@@ -19,6 +19,13 @@ pub struct Interpreter {
     pub(crate) frames: Vec<Frame>,
     /// Page-backed byte stack for frame data.
     pub(crate) stack: Stack,
+}
+
+/// Immutable interpreter image.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InterpreterImage {
+    /// The captured frame stack.
+    pub stack: Vec<FrameImage>,
 }
 
 impl Interpreter {
@@ -44,7 +51,6 @@ impl Interpreter {
     pub(crate) fn allocate_frame(
         &mut self,
         layout: &engine::FrameLayout,
-        _options: &IsolateOptions,
     ) -> RuntimeResult<(usize, *mut u8)> {
         let base = self
             .stack
@@ -60,11 +66,6 @@ impl Interpreter {
         self.stack.truncate(stack_offset);
     }
 
-    /// Return the current frames for this engine.
-    pub(crate) fn frames(&self) -> &[Frame] {
-        &self.frames
-    }
-
     /// Capture one immutable interpreter image.
     pub(crate) fn image(&self) -> InterpreterImage {
         let stack = self.frames.iter().map(Frame::image).collect();
@@ -75,14 +76,14 @@ impl Interpreter {
     /// Fork this interpreter for one child isolate.
     pub(crate) fn fork(&self) -> RuntimeResult<Self> {
         let stack = self.stack.fork()?;
-        let mut frames: Vec<_> = self.frames.iter().map(Frame::clone_for_fork).collect();
+        let mut frames = Vec::with_capacity(self.frames.len());
 
-        // point cloned frames at the forked stack bytes
-        for frame in &mut frames {
+        // clone frames over the forked stack bytes
+        for frame in &self.frames {
             let base = stack
                 .address(frame.stack_offset, frame.byte_len)
                 .map_err(|_| RuntimeError::new(Error::InvalidContinuation))?;
-            frame.replace_bytes(frame.stack_offset, frame.byte_len, base);
+            frames.push(frame.clone_for_fork(base));
         }
 
         Ok(Self { frames, stack })
@@ -186,7 +187,7 @@ impl Interpreter {
     }
 
     /// Return the current call stack for error reporting.
-    fn call_stack(&self, program: &Program) -> Vec<FrameInfo> {
+    fn call_stack(&self, program: &Program) -> Vec<StackTraceFrame> {
         self.frames
             .iter()
             .map(|f| {
@@ -194,7 +195,7 @@ impl Interpreter {
                 let block = f.current_block();
                 let func = program.tree.get(function);
                 let name = program.strings.get(func.name).to_string();
-                FrameInfo {
+                StackTraceFrame {
                     function,
                     block,
                     function_name: Some(name),

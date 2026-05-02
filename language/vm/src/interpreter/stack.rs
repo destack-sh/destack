@@ -86,6 +86,7 @@ impl Stack {
     /// Allocate one aligned byte range.
     pub(crate) fn allocate(&mut self, byte_len: usize, alignment: usize) -> RuntimeResult<usize> {
         // reserve the next aligned byte range
+        let old_len = self.len;
         let base = align_stack_bytes(self.len, alignment);
         let end = base + byte_len;
         if end > self.byte_len {
@@ -93,7 +94,9 @@ impl Stack {
         }
 
         // zero newly exposed stack bytes
-        self.space.zero(base, end - self.len).map_err(Error::from)?;
+        self.space
+            .zero(old_len, end - old_len)
+            .map_err(Error::from)?;
         self.len = end;
 
         Ok(base)

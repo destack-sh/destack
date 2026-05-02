@@ -1,13 +1,14 @@
 use std::mem;
 use std::ptr::NonNull;
 
+use destack_engine::{self as engine, FrameRegionId};
+use destack_mir as mir;
 use destack_mir::ReferenceMap;
 use serde::{Deserialize, Serialize};
-use {destack_engine as engine, destack_mir as mir};
+use smallvec::SmallVec;
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::program::{Block, Function, FunctionTable, Program, repr_type};
-use crate::snapshot::FrameImage;
 use crate::{FramePointer, RootSink, Word};
 use destack_heap::{HeapReference, HeapResult, RootSlot, SharedHeapReference};
 
@@ -50,6 +51,23 @@ pub struct Frame {
     pub(crate) byte_len: usize,
     /// Pointer to the frame bytes in the interpreter stack arena.
     base: *mut u8,
+}
+
+/// Immutable frame image.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FrameImage {
+    /// The logical frame layout.
+    pub frame_layout: engine::FrameLayoutId,
+    /// The function being executed.
+    pub function: mir::LocalNodeId<mir::Function>,
+    /// The current block being executed.
+    pub current_block: mir::LocalNodeId<mir::Block>,
+    /// The program counter within the current block.
+    pub resume_pc: usize,
+    /// The active exceptional call owned by this frame while one callee runs.
+    pub exceptional_call: Option<ExceptionalCall>,
+    /// The captured frame bytes.
+    pub bytes: Vec<u8>,
 }
 
 // frame should fit in 64 bytes
@@ -197,31 +215,6 @@ impl Frame {
         &mut self.bytes_mut()[start..end]
     }
 
-    /// Get a value from this frame.
-    #[inline]
-    pub fn get_value(
-        &self,
-        layout: &engine::FrameLayout,
-        value: mir::Value,
-    ) -> RuntimeResult<Word> {
-        self.get_value_or_error(layout, value)
-            .map_err(RuntimeError::new)
-    }
-
-    /// Get a value from this frame without call stack context.
-    #[inline]
-    pub fn get_value_or_error(
-        &self,
-        layout: &engine::FrameLayout,
-        value: mir::Value,
-    ) -> Result<Word, Error> {
-        let region = layout
-            .value(value.0)
-            .ok_or(Error::UndefinedValue { value })?;
-
-        Ok(self.read_operand(region))
-    }
-
     /// Write one word into a scalar SSA value.
     #[inline]
     pub(crate) fn write_value_word(
@@ -243,36 +236,6 @@ impl Frame {
         self.write_word(region, word);
 
         Ok(())
-    }
-
-    /// Check if a value is defined in this frame.
-    #[inline]
-    pub fn has_value(&self, layout: &engine::FrameLayout, value: mir::Value) -> bool {
-        layout.value(value.0).is_some()
-    }
-
-    /// Get a local variable.
-    pub fn get_local(
-        &self,
-        layout: &engine::FrameLayout,
-        local: mir::LocalNodeId<mir::Local>,
-    ) -> RuntimeResult<Word> {
-        self.get_local_or_error(layout, local)
-            .map_err(RuntimeError::new)
-    }
-
-    /// Get a local variable without call stack context.
-    #[inline]
-    pub fn get_local_or_error(
-        &self,
-        layout: &engine::FrameLayout,
-        local: mir::LocalNodeId<mir::Local>,
-    ) -> Result<Word, Error> {
-        let region = layout
-            .local(local.id)
-            .ok_or(Error::UndefinedLocal { local })?;
-
-        Ok(self.read_operand(region))
     }
 
     /// Return the address of one local value.
@@ -303,13 +266,11 @@ impl Frame {
             return;
         };
 
-        if let Some(value) = value {
-            self.write_word(region, value);
-        }
+        self.write_word(region, value.unwrap_or(Word::VOID));
     }
 
     /// Clear all values (but keep locals).
-    pub fn clear_values(&mut self, layout: &engine::FrameLayout) {
+    pub(crate) fn clear_values(&mut self, layout: &engine::FrameLayout) {
         for region in layout.values() {
             self.region_bytes_mut(region).fill(0);
         }
@@ -401,7 +362,7 @@ impl Frame {
                     materialization.frame_layout
                 ),
             })?;
-        let mut visited = Vec::new();
+        let mut visited = SmallVec::<[FrameRegionId; 16]>::new();
 
         // scan each live source region once
         for value in &materialization.regions {
@@ -435,7 +396,7 @@ impl Frame {
                     materialization.frame_layout
                 ),
             })?;
-        let mut visited = Vec::new();
+        let mut visited = SmallVec::<[FrameRegionId; 16]>::new();
 
         // visit each live source region once
         for value in &materialization.regions {
@@ -702,7 +663,7 @@ impl Frame {
             })?;
         let pointer_bytes = program.tree.pointer_bytes() as usize;
 
-        let mut offsets = Vec::new();
+        let mut offsets = SmallVec::<[usize; 16]>::new();
         visit_reference_offsets(&layout.reference_map, true, bytes, |offset| {
             offsets.push(offset);
 
@@ -740,11 +701,7 @@ impl Frame {
             });
         }
 
-        let end = start
-            .checked_add(width)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("{context} byte range overflow: start={start}, width={width}"),
-            })?;
+        let end = start + width;
 
         bytes
             .get(start..end)
@@ -756,8 +713,8 @@ impl Frame {
             })
     }
 
-    /// Clone this frame for a forked continuation.
-    pub(crate) fn clone_for_fork(&self) -> Self {
+    /// Clone this frame over one already forked stack address.
+    pub(crate) fn clone_for_fork(&self, base: *mut u8) -> Self {
         Self {
             frame_layout: self.frame_layout,
             function_ptr: self.function_ptr,
@@ -766,7 +723,7 @@ impl Frame {
             exceptional_call: self.exceptional_call.clone(),
             stack_offset: self.stack_offset,
             byte_len: self.byte_len,
-            base: self.base,
+            base,
         }
     }
 
