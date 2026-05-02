@@ -1,29 +1,22 @@
 # Destack Language Design
 
-> **The Destack language is "TypeScript++" for building correct, optimal, integrated software systems.**
->
-> This document describes the motivation and tradeoffs in choosing TypeScript and why we added what.
-
-Destack (`.ds`) is a superset of "modern strict" TypeScript that natively supports reading `.ts` and `.tsx` files, and can also compile to JS/TS targets (including the web and Node-like runtimes).
-Regular TypeScript dependencies _just work_ **if** they fit Destack's strict TypeScript model.
-So, if you don't need or want any additional features you can ignore the "++" part of Destack entirely, write completely standard `.ts` and `.tsx` files.
-
-Destack adds features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do, but for truly full stack software systems.
-We support full `TSX` syntax, and modern `TS` code just works, because the Destack language ("TS++") is a superset of modern _TypeScript_.
-To enable truly universal programming with TypeScript, even in high performance ("systems") use cases, we support some _additional_ stuff like manual memory management features.
+The Destack language (`.ds`), colloqially "TypeScript++", is a superset of "strict modern" TypeScript with support for `.ts` and `.tsx` files, native AOT compilation and a fullly integrated language toolchain, _and_ it can also compile nicely to standard JS/TS targets.
+Unmodified TypeScript _just works_ **if** it follows its strict TypeScript-based type system - i.e., what you get when enabling most existing TypeScript's strict flags that improve soundness.
+TypeScript++ adds new features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do for frontend-shaped softare, but for the entire software stack including "systems software".
 
 ## "TypeScript++"
 
-We're very early in the field of software engineering.
-We want to make correct, optimal, integrated full-stack software systems simple and fast to build, and we cannot confidently do that by stringing together inefficient, fragmented systems.
+We're very early in software engineering, and we're still figuring out how to build optimal, correct, and integrated software.
+Destack aims to make building software systems simple and fast, and we believe that requires deeply integrating all the historically fragmented pieces of the software development lifecycle: the programming language itself, the language toolchain with linters and formatters, a VM, compiler, runtime, and so on.
 TypeScript is the closest thing we have to a unified software foundation today that _could_ conceivably express all software well (because in many ways, it already is, albeit suboptimally).
 
-The TypeScript ecosystem also has a good answer to modern frontends *and* a very strong "already runs everywhere" story because browsers are the most ubiquitous software platform.
+The TypeScript ecosystem has a good answer to modern developer experience, rich frontends, *and* a very strong "already runs everywhere" story because browsers are the most ubiquitous software platform.
 Performance-wise, modern TypeScript is surprisingly close to a fully AOT-compilable language (and most browsers retrofit compilation internally already, sort of).
-Thus, by embracing TypeScript, we can build a new toolchain that truly covers the full stack, is immediately familiar to millions of developers, but is completely free of JS overhead and (some) of its baggage.
+Embracing TypeScript lets us build a new toolchain that truly covers the full stack, is immediately familiar to millions of developers, and _can_ be completely free of JS overhead and (some) historic baggage.
 
-TypeScript is not a simple language, and any additional features risk becoming unpredictably combinatorial (hello C++).
-However, we need to add _some_ stuff to actually solve systems programming in a serious way, and we wanted to take the opportunity to add some modern ergonomic wins like pattern matching.
+TypeScript is not a simple language, and thus any additional language features risk becoming unpredictably combinatorial (hello C++).
+There are solid arguments that a language should be minimal (like Zig or Go or even C), and while minimal languages have their advantages, we do not believe the "minimalist" framing to be correct for the universal language and toolchain we think we need.
+We needed to add _some_ affordances to TypeScript for serious systems programming, and we wanted to take the opportunity to round out the language with modern ergonomics like patterns, operator overloading, reflection, and comptime.
 
 | Feature | What | Why |
 |---------|-------------|-----|
@@ -39,38 +32,20 @@ However, we need to add _some_ stuff to actually solve systems programming in a 
 
 ## Types
 
-Destack extends TypeScript's type system with precise primitives, nominal types ("newtypes"), ergonomic constraints, and some additional features.
+Destack extends TypeScript's type system with precise primitives, nominal types ("newtypes"), value types ("structs"), tuples, ergonomic constraints, and some additional niceties.
 
 ### Primitives
 
-Precise numeric types beyond TypeScript's `number`:
+TypeScript inherits its primitive types from JavaScript: `object`, `string`, `boolean`, `number`, `bigint`, and `symbol`, plus the `null` and `undefined` sentinels.
+Destack adds precise numeric types beyond TypeScript's `number` with variable width signed and unsigned integers (`int8`, `uint32`, `int17`) as well as single and double precision floats (`float32`, `float64`).
+(`number` is just an alias to `float64`.)
 
 ```ds
 const id: uint64 = 12345;
 const balance: float32 = 100.50;
 ```
 
-Destack keeps `number` as the JS-compatible numeric supertype (aliased to `float64`).
-`int` and `uint` are fixed-width aliases for `int64` and `uint64`.
-`float` defaults to `float64`.
-Pointer-sized integers are spelled `isize` and `usize`.
-
-### Newtypes
-
-TypeScript is structurally typed by default.
-Destack keeps that behavior, but adds nominal forms where identity is part of the program meaning.
-
-Newtypes are nominal wrappers that prevent mixing semantically different values:
-
-```ds
-newtype UserId = int64;
-newtype OrderId = int64;
-// UserId and OrderId don't mix, even though both are int64
-
-const id = UserId(42);            // wraps scalar
-const p = Point(1.0, 2.0);        // wraps tuple
-const c = Config { debug: true };  // wraps object
-```
+Pointer-sized integers - that integers that are as wide as the target machine's pointer size - are spelled `isize` and `usize`, respectively.
 
 ### Structs
 
@@ -83,8 +58,6 @@ struct Point {
     y: float32;
 }
 ```
-
-#### Structs vs Classes
 
 | | struct | class |
 |---|---|---|
@@ -106,8 +79,6 @@ const e1 = new Entity(1);
 const e2 = new Entity(1);
 e1 == e2;  // false: different instances
 ```
-
-#### Structs Are Nominal
 
 Structs are nominal (like newtypes), so they must be explicitly constructed:
 
@@ -146,6 +117,23 @@ enum Priority {
         }
     }
 }
+```
+
+### Newtypes
+
+TypeScript is structurally typed for most types, that is, an interface is satisfied by any object matching its shape, even when it doesn't explicitly `implement` it (very similar to Go).
+This is useful, and Destack keeps that default behavior, but also supports nominal interfaces for situations where identity is part of the program meaning.
+
+```ds
+newtype UserId = int64;
+newtype OrderId = int64;
+// UserId and OrderId don't mix, even though both are int64
+```
+
+```ds
+const id = UserId(42);            // wraps scalar
+const p = Point(1.0, 2.0);        // wraps tuple
+const c = Config { debug: true };  // wraps object
 ```
 
 ### Arrays And Tuples
@@ -307,9 +295,7 @@ newtype interface Print<T> {
 
 ### Annotations And Decorators
 
-Destack extends decorators (`@`) to work on many more language constructs than TypeScript: declarations, statements, members, parameters, types, match arms, and more.
-TypeScript decorators are a compatible subset.
-Destack annotations are metadata and transform hooks the compiler can see.
+Destack extends decorators (`@`) to work on many more language constructs than TypeScript supports: declarations, statements, members, parameters, types, match arms, etc..
 
 ```ds
 @deprecated("use newAPI instead")
@@ -323,12 +309,12 @@ for (let i = 0; i < 4; i++) { }
 
 // on struct members
 struct User {
-    @validate(minLength(1))
+    @schema.validate(schema.minLength(1))
     name: string,
 }
 
 // on function parameters
-function process(@nonempty input: string) { }
+function process(input: string) { }
 
 // on reference types
 function kernel(data: @space("shared") &Point) { }
@@ -367,7 +353,9 @@ Multiple `@if` annotations combine with logical AND.
 
 ### Globals
 
-In addition to ambient global typings, Destack supports "real" `global { ... }` declarations that contribute to the ambient lexical environment of the active target.
+In addition to ambient global typings, Destack supports "real" `global { ... }` value declarations that contribute to the ambient environment without explicit qualification.
+That is, with `global { const registry: Registry }` in some (known) module `A` we can just do `registry.whatever` in module `B` without any direct imports.
+Used sparingly, this is incredibly convenient.
 
 Globals can be ambient declarations (for non-native targets) or implemented declarations (for native targets):
 
@@ -917,8 +905,8 @@ Extension methods participate in member resolution, too.
 
 ## Ownership
 
-TypeScript does not encode "ownership" in its type system: all reference types are implicitly GC managed, and all value types are copied by default.
-This is convenient, but sometimes we want to take direct ownership of memory, whether for better control and performance, or just to express and enforce invariants in the code.
+TypeScript does not encode memory "ownership" in its type system: all reference types are implicitly GC-managed, and all value types are copied by default.
+This is a convenient default for a "safe" language, but sometimes we need to take direct control of memory, whether for better control and performance, or just to express invariants in the code.
 Destack adds explicit, optional modifiers for controlling memory ownership and placement inspired by Rust and Mojo's ownership models with `^T` as the "owned" signifier.
 
 TypeScript inherits the JavaScript / web model of local, single-threaded execution.
