@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-use crate::{ArtifactFailure, ArtifactKey, ArtifactVersion};
+use crate::{ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion};
 
 /// Error returned when one required artifact is not ready.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,6 +21,11 @@ pub enum RequireError {
         /// The corrupt artifact version.
         version: ArtifactVersion,
     },
+    /// The requirement failed due to infrastructure or an invariant violation.
+    Internal {
+        /// The failure message.
+        message: String,
+    },
 }
 
 impl RequireError {
@@ -38,6 +43,7 @@ impl Display for RequireError {
             Self::Corrupt { version } => {
                 write!(formatter, "artifact requirement is corrupt: {version:?}")
             }
+            Self::Internal { message } => write!(formatter, "{message}"),
         }
     }
 }
@@ -46,7 +52,7 @@ impl Error for RequireError {}
 
 /// Error returned by one provider attempt.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ProvideError {
+pub enum ProviderError {
     /// The provider needs the listed artifact keys first.
     Blocked {
         /// The required artifact keys.
@@ -74,7 +80,7 @@ pub enum ProvideError {
     },
 }
 
-impl ProvideError {
+impl ProviderError {
     /// Build one internal provider error.
     pub fn internal(message: impl Into<String>) -> Self {
         Self::Internal {
@@ -88,18 +94,19 @@ impl ProvideError {
     }
 }
 
-impl From<RequireError> for ProvideError {
+impl From<RequireError> for ProviderError {
     /// Convert one requirement error into provider control flow.
     fn from(error: RequireError) -> Self {
         match error {
             RequireError::Blocked { key } => Self::Blocked { keys: vec![key] },
             RequireError::Failed { key } => Self::RequirementFailed { key },
             RequireError::Corrupt { version } => Self::Corrupt { version },
+            RequireError::Internal { message } => Self::Internal { message },
         }
     }
 }
 
-impl Display for ProvideError {
+impl Display for ProviderError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Blocked { keys } => write!(formatter, "artifact provider is blocked: {keys:?}"),
@@ -118,7 +125,7 @@ impl Display for ProvideError {
     }
 }
 
-impl Error for ProvideError {}
+impl Error for ProviderError {}
 
 /// Result returned by artifact providers.
-pub type ProviderResult<T = crate::ArtifactPayload> = Result<T, ProvideError>;
+pub type ProviderResult<T = ArtifactPayload> = Result<T, Box<ProviderError>>;
