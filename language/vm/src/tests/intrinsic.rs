@@ -99,7 +99,7 @@ b0(v0: int32, v1: int32):
     return v3
 }"#;
     let output = run_mir_ok(mir, "testResult", &[Value::int32(10), Value::int32(20)]);
-    assert_eq!(output.value, Value::int32(30));
+    assert_eq!(output, Value::int32(30));
     let mir = r#"
 function testFlag(v0: int32, v1: int32): boolean {
 b0(v0: int32, v1: int32):
@@ -108,7 +108,7 @@ b0(v0: int32, v1: int32):
     return v3
 }"#;
     let output = run_mir_ok(mir, "testFlag", &[Value::int32(10), Value::int32(20)]);
-    assert_eq!(output.value, Value::bool(false));
+    assert_eq!(output, Value::bool(false));
 }
 
 #[test]
@@ -121,7 +121,7 @@ b0(v0: int32, v1: int32):
     return v3
 }"#;
     let output = run_mir_ok(mir, "test", &[Value::int32(i32::MAX), Value::int32(1)]);
-    assert_eq!(output.value, Value::bool(true));
+    assert_eq!(output, Value::bool(true));
 }
 
 #[test]
@@ -134,7 +134,7 @@ b0(v0: uint32, v1: uint32):
     return v3
 }"#;
     let output = run_mir_ok(mir, "test", &[Value::uint32(0), Value::uint32(1)]);
-    assert_eq!(output.value, Value::bool(true));
+    assert_eq!(output, Value::bool(true));
 }
 
 #[test]
@@ -765,7 +765,7 @@ b0:
     return v0
 }"#;
     let output = run_mir_ok(mir, "test", &[]);
-    let value = UnsignedInt::try_from(&output.value).expect("expected uint value");
+    let value = UnsignedInt::try_from(&output).expect("expected uint value");
 
     assert!(value.value != 0, "expected non-zero return address");
 }
@@ -795,7 +795,7 @@ b0:
     return v0
 }"#;
     let output = run_mir_ok(mir, "test", &[]);
-    let value = UnsignedInt::try_from(&output.value).expect("expected uint value");
+    let value = UnsignedInt::try_from(&output).expect("expected uint value");
 
     assert!(
         value.value > 0x7FFF_0000_0000_0000u128,
@@ -824,7 +824,7 @@ b0(v0: vector<int32, 4>):
         );
         vec![input]
     });
-    assert_eq!(output.value, Value::int32(10));
+    assert_eq!(output, Value::int32(10));
 }
 
 #[test]
@@ -848,7 +848,7 @@ b0(v0: vector<int32, 4>):
         );
         vec![input]
     });
-    assert_eq!(output.value, Value::int32(120));
+    assert_eq!(output, Value::int32(120));
 }
 
 #[test]
@@ -872,7 +872,7 @@ b0(v0: vector<int32, 4>):
         );
         vec![input]
     });
-    assert_eq!(output.value, Value::int32(1));
+    assert_eq!(output, Value::int32(1));
 }
 
 #[test]
@@ -896,7 +896,7 @@ b0(v0: vector<int32, 4>):
         );
         vec![input]
     });
-    assert_eq!(output.value, Value::int32(8));
+    assert_eq!(output, Value::int32(8));
 }
 
 #[test]
@@ -920,7 +920,7 @@ b0(v0: vector<uint32, 4>):
         );
         vec![input]
     });
-    assert_eq!(output.value, Value::uint32(0b1000));
+    assert_eq!(output, Value::uint32(0b1000));
 }
 
 #[test]
@@ -944,7 +944,7 @@ b0(v0: vector<uint32, 4>):
         );
         vec![input]
     });
-    assert_eq!(output.value, Value::uint32(0b1111));
+    assert_eq!(output, Value::uint32(0b1111));
 }
 
 #[test]
@@ -968,5 +968,5 @@ b0(v0: vector<uint32, 4>):
         );
         vec![input]
     });
-    assert_eq!(output.value, Value::uint32(4));
+    assert_eq!(output, Value::uint32(4));
 }

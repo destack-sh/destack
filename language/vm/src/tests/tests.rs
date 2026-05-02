@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use destack_engine::{StaticSpace, Value};
-use destack_heap::{Allocator, GcStats, Heap, HeapLimits, HeapOptions, SharedHeapLimits};
+use destack_heap::{
+    Allocator, GcStats, Heap, HeapLimits, HeapOptions, SharedGcWorker, SharedHeapLimits,
+};
 
 use crate::SharedHeap;
 use destack_mir::Storage;
@@ -9,7 +11,7 @@ use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
 
 use crate::diagnostic::{Error, RuntimeResult};
-use crate::{Continuation, Isolate, IsolateId, IsolateOptions, Outcome, Output, Word};
+use crate::{Continuation, Isolate, IsolateId, IsolateOptions, Outcome, Word};
 
 /// The isolate and authoritative heap used by one test runtime.
 pub(crate) struct TestIsolate {
@@ -21,6 +23,8 @@ pub(crate) struct TestIsolate {
     pub heap: Heap,
     /// The world-shared heap for the isolate.
     pub shared_heap: SharedHeap,
+    /// The shared collector worker used by this isolate.
+    pub shared_gc: SharedGcWorker,
 }
 
 /// Create one local test heap.
@@ -65,6 +69,7 @@ impl TestIsolate {
         let mut statics = StaticSpace::empty();
         let heap = create_test_heap();
         let shared_heap = create_test_shared_heap();
+        let shared_gc = shared_heap.gc_worker(0);
         isolate
             .initialize(&heap, &shared_heap, &mut statics)
             .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
@@ -74,6 +79,7 @@ impl TestIsolate {
             statics,
             heap,
             shared_heap,
+            shared_gc,
         }
     }
 
@@ -124,11 +130,12 @@ impl TestIsolate {
         &mut self,
         function: &str,
         arguments: &[Value],
-    ) -> RuntimeResult<Output> {
+    ) -> RuntimeResult<Value> {
         self.isolate.run_function_by_name(
             &mut self.statics,
             &mut self.heap,
             &self.shared_heap,
+            &self.shared_gc,
             function,
             arguments,
         )
@@ -144,6 +151,7 @@ impl TestIsolate {
             &mut self.statics,
             &mut self.heap,
             &self.shared_heap,
+            &self.shared_gc,
             function,
             arguments,
         )
@@ -154,11 +162,12 @@ impl TestIsolate {
         &mut self,
         function: &str,
         arguments: &[Word],
-    ) -> RuntimeResult<Output> {
+    ) -> RuntimeResult<Value> {
         self.isolate.run_function_by_name_words(
             &mut self.statics,
             &mut self.heap,
             &self.shared_heap,
+            &self.shared_gc,
             function,
             arguments,
         )
@@ -174,6 +183,7 @@ impl TestIsolate {
             &mut self.statics,
             &mut self.heap,
             &self.shared_heap,
+            &self.shared_gc,
             continuation,
             resume_value,
         )
@@ -249,6 +259,7 @@ pub(crate) fn create_isolate_with_storage(mir_text: &str, storage: Storage) -> T
     let mut statics = StaticSpace::empty();
     let heap = create_test_heap();
     let shared = create_test_shared_heap();
+    let shared_gc = shared.gc_worker(0);
     isolate
         .initialize(&heap, &shared, &mut statics)
         .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
@@ -258,11 +269,12 @@ pub(crate) fn create_isolate_with_storage(mir_text: &str, storage: Storage) -> T
         statics,
         heap,
         shared_heap: shared,
+        shared_gc,
     }
 }
 
 /// Run one MIR function by name with the given arguments.
-pub(crate) fn run_mir(mir: &str, function: &str, arguments: &[Value]) -> RuntimeResult<Output> {
+pub(crate) fn run_mir(mir: &str, function: &str, arguments: &[Value]) -> RuntimeResult<Value> {
     let mut isolate = create_isolate(mir);
 
     isolate.run_function_by_name(function, arguments)
@@ -273,7 +285,7 @@ pub(crate) fn run_mir_with_frame<F>(
     mir_text: &str,
     function: &str,
     setup: F,
-) -> RuntimeResult<Output>
+) -> RuntimeResult<Value>
 where
     F: FnOnce(&mut TestIsolate) -> Vec<Word>,
 {
@@ -284,7 +296,7 @@ where
 }
 
 /// Run MIR with interpreter frame words, expecting success.
-pub(crate) fn run_mir_with_frame_ok<F>(mir_text: &str, function: &str, setup: F) -> Output
+pub(crate) fn run_mir_with_frame_ok<F>(mir_text: &str, function: &str, setup: F) -> Value
 where
     F: FnOnce(&mut TestIsolate) -> Vec<Word>,
 {
@@ -292,7 +304,7 @@ where
 }
 
 /// Run MIR and expect success, returning the output.
-pub(crate) fn run_mir_ok(mir_text: &str, function: &str, args: &[Value]) -> Output {
+pub(crate) fn run_mir_ok(mir_text: &str, function: &str, args: &[Value]) -> Value {
     run_mir(mir_text, function, args).expect("execution failed")
 }
 
@@ -300,7 +312,7 @@ pub(crate) fn run_mir_ok(mir_text: &str, function: &str, args: &[Value]) -> Outp
 pub(crate) fn run_mir_expect(mir_text: &str, function: &str, args: &[Value], expected: Value) {
     let output = run_mir_ok(mir_text, function, args);
 
-    assert_eq!(output.value, expected, "unexpected value");
+    assert_eq!(output, expected, "unexpected value");
 }
 
 /// Run MIR and expect one specific runtime error.
@@ -358,11 +370,11 @@ pub(crate) fn assert_execution_yielded(result: RuntimeResult<Outcome>) -> (Conti
 }
 
 /// Assert that one execution result completed.
-pub(crate) fn assert_execution_completed(result: RuntimeResult<Outcome>) -> Output {
+pub(crate) fn assert_execution_completed(result: RuntimeResult<Outcome>) -> Value {
     let outcome = result.expect("execution failed");
 
     match outcome {
-        Outcome::Completed { output } => output,
+        Outcome::Completed { value } => value,
         Outcome::Yielded { .. } => panic!("expected completion"),
     }
 }
@@ -389,7 +401,7 @@ b0(v0: int32):
 
     let output = run_mir_ok(mir_text, "sumBox", &[Value::int32(9)]);
 
-    assert_eq!(output.value, Value::int32(10));
+    assert_eq!(output, Value::int32(10));
 }
 
 /// Direct calls preserve managed receivers for callee loads.
@@ -418,7 +430,7 @@ b0(v0: ref<Box, managed, readonly>):
 
     let output = run_mir_ok(mir_text, "readValueClass", &[Value::int32(9)]);
 
-    assert_eq!(output.value, Value::int32(9));
+    assert_eq!(output, Value::int32(9));
 }
 
 /// Stored function values preserve their function pointer through managed structs.
@@ -450,7 +462,7 @@ b0:
 
     let output = run_mir_ok(mir_text, "run", &[]);
 
-    assert_eq!(output.value, Value::int32(7));
+    assert_eq!(output, Value::int32(7));
 }
 
 /// Interface dispatch forwards the concrete object receiver to the selected method.
@@ -518,5 +530,5 @@ b0(v0: ref<GreeterImpl, managed, readonly>):
 
     let output = run_mir_ok(mir_text, "runInterface", &[]);
 
-    assert_eq!(output.value, Value::int32(42));
+    assert_eq!(output, Value::int32(42));
 }

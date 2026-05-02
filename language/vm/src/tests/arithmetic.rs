@@ -165,9 +165,7 @@ b0:
     v0: uint128 = 18446744073709551616uint128
     return v0
 }"#;
-    let output = run_mir(mir, "returnWide", &[])
-        .expect("execution failed")
-        .value;
+    let output = run_mir(mir, "returnWide", &[]).expect("execution failed");
 
     assert_eq!(
         output,

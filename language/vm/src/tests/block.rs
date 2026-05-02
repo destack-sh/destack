@@ -226,7 +226,7 @@ b0(v0: (int32) -> int32, v1: int32):
         )
         .expect("execution failed");
 
-    assert_eq!(result.value, Value::int32(42));
+    assert_eq!(result, Value::int32(42));
 }
 
 /// CallIndirect with wrong type produces an error.
@@ -285,7 +285,7 @@ b0(v0: int32):
     tailCall countdown(v0, v1): (int32, int32) -> int32
 }"#;
     let output = run_mir_ok(mir, "entry", &[Value::int32(200)]);
-    assert_eq!(output.value, Value::int32(200));
+    assert_eq!(output, Value::int32(200));
 }
 
 /// Self tail calls release stack allocations before re-entering.
@@ -306,7 +306,7 @@ b2:
     return v0
 }"#;
     let output = run_mir_ok(mir, "countdown", &[Value::int32(600)]);
-    assert_eq!(output.value, Value::int32(0));
+    assert_eq!(output, Value::int32(0));
 }
 
 /// Tail call indirect reuses the current frame without growing the stack.
@@ -348,7 +348,7 @@ b0(v0: int32, v1: (int32, int32) -> int32):
         )
         .expect("execution failed");
 
-    assert_eq!(result.value, Value::int32(200));
+    assert_eq!(result, Value::int32(200));
 }
 
 /// Block parameters are correctly passed via jump.
@@ -400,9 +400,8 @@ b0:
     v3: int32[3] = array int32[3] (v0, v1, v2)
     jump b1(v3)
 b1(v4: int32[3]):
-    v5: int64 = 2int64
-    v6: int32 = element.get v4, v5
-    return v6
+    v5: int32 = element.get v4, 2
+    return v5
 }"#;
     run_mir_expect(mir, "arrayParams", &[], Value::int32(30));
 }
@@ -411,23 +410,23 @@ b1(v4: int32[3]):
 #[test]
 fn test_block_parameters_jump_updated_array() {
     let mir = r#"
-function updatedArrayParams(v0: int64, v1: int32): int32 {
-b0(v0: int64, v1: int32):
-    v2: int32 = 10int32
-    v3: int32 = 20int32
-    v4: int32 = 30int32
-    v5: int32[3] = array int32[3] (v2, v3, v4)
-    v6: int32[3] = element.set v5, v0, v1
-    jump b1(v6, v0)
-b1(v7: int32[3], v8: int64):
-    v9: int32 = element.get v7, v8
-    return v9
+function updatedArrayParams(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 10int32
+    v2: int32 = 20int32
+    v3: int32 = 30int32
+    v4: int32[3] = array int32[3] (v1, v2, v3)
+    v5: int32[3] = element.set v4, 2, v0
+    jump b1(v5)
+b1(v6: int32[3]):
+    v7: int32 = element.get v6, 2
+    return v7
 }"#;
 
     run_mir_expect(
         mir,
         "updatedArrayParams",
-        &[Value::uint64(2), Value::int32(99)],
+        &[Value::int32(99)],
         Value::int32(99),
     );
 }

@@ -23,7 +23,7 @@ b1(v2: int32, v3: int32):
     );
     assert_eq!(value, Value::int32(5));
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(11)));
-    assert_eq!(output.value, Value::int32(18));
+    assert_eq!(output, Value::int32(18));
 }
 
 /// Yield ignores the resume value when no slot is available.
@@ -43,7 +43,7 @@ b1(v2: int32, v3: int32):
     );
     assert_eq!(value, Value::int32(1));
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(100)));
-    assert_eq!(output.value, Value::int32(9));
+    assert_eq!(output, Value::int32(9));
 }
 
 /// Yield can suspend multiple times and resume with new values.
@@ -70,7 +70,7 @@ b2(v5: int32, v6: int32):
         assert_execution_yielded(isolate.resume(continuation, Value::int32(3)));
     assert_eq!(value, Value::int32(7));
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(10)));
-    assert_eq!(output.value, Value::int32(17));
+    assert_eq!(output, Value::int32(17));
 }
 
 /// Yield resumes without explicit resume arguments.
@@ -90,7 +90,7 @@ b1(v2: int32):
     );
     assert_eq!(value, Value::int32(4));
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(9)));
-    assert_eq!(output.value, Value::int32(9));
+    assert_eq!(output, Value::int32(9));
 }
 
 /// Yield preserves locals across suspension.
@@ -114,7 +114,7 @@ b1(v2: int32):
     );
     assert_eq!(value, Value::int32(4));
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(6)));
-    assert_eq!(output.value, Value::int32(10));
+    assert_eq!(output, Value::int32(10));
 }
 
 /// Yield resumes with explicit arguments and a trailing resume value.
@@ -137,7 +137,7 @@ b1(v3: int32, v4: int32, v5: int32):
     );
     assert_eq!(value, Value::int32(10));
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
-    assert_eq!(output.value, Value::int32(32));
+    assert_eq!(output, Value::int32(32));
 }
 
 /// Yield clears trailing resume parameters when no argument is provided.
@@ -165,7 +165,7 @@ b3(v12: int32):
     );
     assert_eq!(value, Value::int32(3));
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(0)));
-    assert_eq!(output.value, Value::int32(0));
+    assert_eq!(output, Value::int32(0));
 }
 
 /// Yield in a nested call resumes back to the caller.
@@ -192,7 +192,7 @@ b0(v0: int32):
     );
     assert_eq!(value, Value::int32(5));
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
-    assert_eq!(output.value, Value::int32(13));
+    assert_eq!(output, Value::int32(13));
 }
 
 /// Yield preserves one pending exceptional call continuation across suspension.
@@ -225,7 +225,7 @@ b2(v5: ref<void, managed, readonly>):
     );
     assert_eq!(value, Value::int32(5));
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(3)));
-    assert_eq!(output.value, Value::int32(20));
+    assert_eq!(output, Value::int32(20));
 }
 
 /// Yield preserves live frame-local stack memory in the yielded frame.
@@ -246,7 +246,7 @@ b1(v2: int32):
     assert_eq!(value, Value::int32(1));
 
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
-    assert_eq!(output.value, Value::int32(7));
+    assert_eq!(output, Value::int32(7));
 }
 
 /// Yield accepts stack allocation after the lifetime is explicitly ended.
@@ -292,7 +292,7 @@ b0(v0: int32):
     assert_eq!(value, Value::int32(5));
 
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(9)));
-    assert_eq!(output.value, Value::int32(9));
+    assert_eq!(output, Value::int32(9));
 }
 
 /// Yield preserves live frame pointers in the yielded frame.
@@ -317,7 +317,7 @@ b1(v3: int32):
     assert_eq!(value, Value::int32(2));
 
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(11)));
-    assert_eq!(output.value, Value::int32(1));
+    assert_eq!(output, Value::int32(1));
 }
 
 /// Running a coroutine with the non-yielding entry reports an error.
@@ -377,9 +377,9 @@ b1(v1: int32):
         .clone_for_fork()
         .expect("continuation should fork");
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(5)));
-    assert_eq!(output.value, Value::int32(5));
+    assert_eq!(output, Value::int32(5));
     let output = assert_execution_completed(isolate.resume(forked, Value::int32(9)));
-    assert_eq!(output.value, Value::int32(9));
+    assert_eq!(output, Value::int32(9));
 }
 
 /// Continuation roots keep heap allocations alive across yields.
@@ -407,7 +407,7 @@ b1(v3: Pair, v4: int32):
     let stats = isolate.collect_garbage_with_continuations(std::slice::from_mut(&mut continuation));
     assert_eq!(stats.live_allocations, 1);
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
-    assert_eq!(output.value, Value::int32(1));
+    assert_eq!(output, Value::int32(1));
     let stats = isolate.collect_garbage();
     assert_eq!(stats.live_allocations, 0);
 }
