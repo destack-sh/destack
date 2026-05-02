@@ -4,6 +4,7 @@ use destack_source::DiagnosticCollection;
 use destack_workspace::resolve_cache_root;
 use serde::{Deserialize, Serialize};
 
+use super::CommandResult;
 use super::context::CommandContext;
 use super::dispatch::CommandOutcome;
 
@@ -32,7 +33,7 @@ impl CommandContext<'_> {
     pub(super) fn run_cache_command(
         &mut self,
         _options: &CommandCacheOptions,
-    ) -> super::CommandResult<CommandOutcome> {
+    ) -> CommandResult<CommandOutcome> {
         let revision = self.revision()?;
         let workspace = self
             .daemon

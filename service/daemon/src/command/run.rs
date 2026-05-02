@@ -10,6 +10,7 @@ use destack_vm::{
 use destack_workspace::{DebugMode, Repository, Revision, RuntimeOptionsJson, Target, TrustPolicy};
 use serde::{Deserialize, Serialize};
 
+use super::CommandResult;
 use super::common::CommandInput;
 use super::context::{CommandContext, ResolvedTarget};
 use super::dispatch::{CommandOutcome, CommandOutputBuffer};
@@ -56,7 +57,7 @@ impl CommandContext<'_> {
     pub(super) fn execute_run_command(
         &mut self,
         options: &CommandRunOptions,
-    ) -> super::CommandResult<CommandOutcome> {
+    ) -> CommandResult<CommandOutcome> {
         // resolve inputs for the command
         let inputs = self.resolve_command_inputs()?;
         let modules = self.resolve_modules(&inputs)?;
@@ -68,7 +69,7 @@ impl CommandContext<'_> {
 
         // resolve the target configuration
         let target_overrides = self.common.target_overrides.as_ref();
-        let target = self.resolve_target_for_module(entry_module, target_overrides)?;
+        let target = self.resolve_target_for_module(revision, entry_module, target_overrides)?;
 
         // collect run roots
         let artifact_keys = run_roots_for_target(
@@ -80,16 +81,13 @@ impl CommandContext<'_> {
         )?;
 
         // provide the requested roots
-        let revision = self.revision()?;
         self.session
             .provide(revision, &artifact_keys)
             .map_err(|error| error.to_string())?;
-        let raw_diagnostics = self
+        let diagnostics = self
             .repository
             .diagnostics(revision)
             .map_err(|error| error.to_string())?;
-        self.commit_diagnostics_for_modules(&modules, &raw_diagnostics)?;
-        let diagnostics = raw_diagnostics.map(&self.diagnostic_options);
         let exit_code = diagnostics.get_status_code();
         let profile_count = self
             .target_profile_id(revision, entry_module, target.id)
@@ -186,7 +184,7 @@ fn run_entry_module(
     run_mode: CommandRunMode,
     runtime_overrides: Option<&RuntimeOptionsJson>,
     output: &mut CommandOutputBuffer,
-) -> super::CommandResult<RunResult> {
+) -> CommandResult<RunResult> {
     let target_id = target.id;
     let mut target = target.target.clone();
     if let Some(runtime_overrides) = runtime_overrides {
@@ -318,7 +316,7 @@ fn create_isolate(
     module_id: ModuleId,
     target_id: &TargetId,
     options: IsolateOptions,
-) -> super::CommandResult<Isolate> {
+) -> CommandResult<Isolate> {
     let profile_id = target_profile_id(repository, revision, module_id, *target_id)?;
     let optimized_key = ArtifactKey::mir_optimized(module_id, profile_id, *target_id);
     let lowered_key = ArtifactKey::mir_lowered(module_id, profile_id, *target_id);

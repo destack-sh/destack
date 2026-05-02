@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use destack_service::{FileChangeKind, FileImage as ServiceFileImage, LanguageService};
+use destack_service::{FileImage as ServiceFileImage, FileUpdateKind, LanguageService};
 use destack_session::SessionEventHandler;
 use destack_source::{Diagnostic, FileId, ModuleId};
 use destack_workspace::{Ref, Repository};
@@ -131,10 +131,10 @@ pub struct DaemonUpdate {
     pub module_id: Option<ModuleId>,
     /// The file id for the updated module.
     pub file_id: FileId,
-    /// File image for the updated file.
-    pub file: ServiceFileImage,
+    /// File image when the updated file still exists.
+    pub file: Option<ServiceFileImage>,
     /// The coarse change kind for this file.
-    pub kind: FileChangeKind,
+    pub kind: FileUpdateKind,
     /// Diagnostics for the updated file.
     pub diagnostics: Vec<Diagnostic>,
 }

@@ -8,8 +8,8 @@ use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_li
 use destack_json::{JsonFormatOptions, format_json, parse as parse_json};
 use destack_parser::{Parser, colorize_source, source_colorizer};
 use destack_source::{
-    DiagnosticCollection, DiagnosticCollector, DiagnosticOptions, DiagnosticSeverity, File, FileId,
-    FileSystem, FileType, LanguageType, PrintOptions, Uri, print_diagnostics,
+    DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, File, FileId, FileSystem,
+    FileType, LanguageType, PrintOptions, Uri, print_diagnostics,
 };
 use destack_workspace::{FormatterOptions, Repository, Revision};
 use parking_lot::Mutex;
@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use super::context::CommandContext;
 use super::dispatch::{CommandOutcome, CommandOutputBuffer};
+use super::{CommandResult, DaemonCommandError};
 
 /// Options for the format command.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -56,12 +57,11 @@ impl CommandContext<'_> {
         &mut self,
         _root: &Path,
         options: &CommandFormatOptions,
-    ) -> super::CommandResult<CommandOutcome> {
+    ) -> CommandResult<CommandOutcome> {
         // resolve formatting inputs
         let format_options = options.clone();
         let check = options.check;
         let suppress_output = false;
-        let diagnostic_options = self.diagnostic_options.clone();
         let command_diagnostics = DiagnosticCollector::new();
         let revision = self.revision()?;
 
@@ -92,16 +92,10 @@ impl CommandContext<'_> {
 
             let (formatted, diagnostics) = format_file(file.clone(), default_formatting);
             command_diagnostics.merge_from(&diagnostics);
-            if check_and_collect_errors(
-                &file_for_id,
-                &diagnostics,
-                &diagnostic_options,
-                suppress_output,
-                self.output,
-            ) {
+            if check_and_collect_errors(&file_for_id, &diagnostics, suppress_output, self.output) {
                 summary.errors += 1;
                 summary.error_files.push("<eval>".to_string());
-                let diagnostics = command_diagnostics.collect().map(&diagnostic_options);
+                let diagnostics = command_diagnostics.collect();
                 let data = summary_payload(&summary)?;
                 return Ok(CommandOutcome::new(diagnostics, 1, 0, 0, 0).with_data(data));
             }
@@ -109,7 +103,7 @@ impl CommandContext<'_> {
             summary.formatted_output = Some(formatted.clone());
             self.output
                 .push_stdout(colorize_formatted_output(&formatted).into_bytes());
-            let diagnostics = command_diagnostics.collect().map(&diagnostic_options);
+            let diagnostics = command_diagnostics.collect();
             let data = summary_payload(&summary)?;
             return Ok(CommandOutcome::new(diagnostics, 0, 0, 0, 0).with_data(data));
         }
@@ -141,7 +135,6 @@ impl CommandContext<'_> {
                     revision,
                     &path,
                     &command_diagnostics,
-                    &diagnostic_options,
                     suppress_output,
                     check,
                     self.output,
@@ -174,7 +167,6 @@ impl CommandContext<'_> {
                         revision,
                         &file_path,
                         &command_diagnostics,
-                        &diagnostic_options,
                         suppress_output,
                         check,
                         self.output,
@@ -206,7 +198,7 @@ impl CommandContext<'_> {
             exit_code = 1;
         }
 
-        let diagnostics = command_diagnostics.collect().map(&diagnostic_options);
+        let diagnostics = command_diagnostics.collect();
         let data = summary_payload(&summary)?;
         Ok(CommandOutcome::new(diagnostics, exit_code, 0, 0, 0).with_data(data))
     }
@@ -246,7 +238,7 @@ impl FmtSummary {
 }
 
 /// Build a summary payload for format responses.
-fn summary_payload(summary: &FmtSummary) -> super::CommandResult<serde_json::Value> {
+fn summary_payload(summary: &FmtSummary) -> CommandResult<serde_json::Value> {
     let payload = CommandFormatPayload {
         files: summary.files_total,
         changed: summary.files_changed,
@@ -266,15 +258,16 @@ fn summary_payload(summary: &FmtSummary) -> super::CommandResult<serde_json::Val
 fn check_and_collect_errors(
     file_for_id: &impl Fn(FileId) -> Option<Arc<File>>,
     diagnostics: &DiagnosticCollector,
-    diagnostic_options: &DiagnosticOptions,
     suppress_output: bool,
     output: &mut CommandOutputBuffer,
 ) -> bool {
     // collect diagnostics and check for errors
-    let diagnostics = diagnostics.collect().map(diagnostic_options);
+    let diagnostics = diagnostics.collect();
     let has_errors = diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error);
     if has_errors && !suppress_output {
-        print_diagnostics_to_output(file_for_id, &diagnostics, output);
+        if let Err(error) = print_diagnostics_to_output(file_for_id, &diagnostics, output) {
+            output.push_stderr(format!("failed to render diagnostics: {error}\n").into_bytes());
+        }
     }
     has_errors
 }
@@ -284,7 +277,7 @@ fn print_diagnostics_to_output(
     file_for_id: &impl Fn(FileId) -> Option<Arc<File>>,
     diagnostics: &DiagnosticCollection,
     output: &mut CommandOutputBuffer,
-) {
+) -> CommandResult<()> {
     // collect diagnostic lines
     let lines = Arc::new(Mutex::new(Vec::new()));
     let writer_lines = Arc::clone(&lines);
@@ -299,13 +292,16 @@ fn print_diagnostics_to_output(
         .with_line_writer(line_writer);
 
     // render diagnostics into the line buffer
-    print_diagnostics(file_for_id, diagnostics, options);
+    print_diagnostics(file_for_id, diagnostics, options)
+        .map_err(|error| DaemonCommandError::internal(error.to_string()))?;
 
     // flush rendered diagnostics into output
     let mut lines = lines.lock();
     for line in lines.drain(..) {
         output.push_stderr(line);
     }
+
+    Ok(())
 }
 
 /// Format a single file and return the formatted content.
@@ -419,7 +415,6 @@ fn format_single_file(
     revision: Revision,
     path: &Path,
     command_diagnostics: &DiagnosticCollector,
-    diagnostic_options: &DiagnosticOptions,
     suppress_output: bool,
     check: bool,
     output: &mut CommandOutputBuffer,
@@ -488,13 +483,7 @@ fn format_single_file(
             let (result, diagnostics) = format_file(file.clone(), formatting_options);
             command_diagnostics.merge_from(&diagnostics);
 
-            if check_and_collect_errors(
-                &file_for_id,
-                &diagnostics,
-                diagnostic_options,
-                suppress_output,
-                output,
-            ) {
+            if check_and_collect_errors(&file_for_id, &diagnostics, suppress_output, output) {
                 return FormatResult::Error;
             }
 
@@ -536,7 +525,7 @@ fn format_single_file(
 }
 
 /// Format JSON content.
-fn format_json_content(content: &str, formatter: FormatterOptions) -> super::CommandResult<String> {
+fn format_json_content(content: &str, formatter: FormatterOptions) -> CommandResult<String> {
     let file_id = FileId::new(0);
     let doc = parse_json(content, file_id).map_err(|e| e.to_string())?;
     let options: JsonFormatOptions = formatter.into();
@@ -571,7 +560,7 @@ enum FormatResult {
 fn workspace_formatting_options(
     repository: &Repository,
     revision: Revision,
-) -> super::CommandResult<FormatterOptions> {
+) -> CommandResult<FormatterOptions> {
     let workspace_options = repository
         .workspace_options(revision)
         .map_err(|error| format!("failed to derive workspace options: {error}"))?;

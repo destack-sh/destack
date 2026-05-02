@@ -1,6 +1,7 @@
 use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
 
+use super::CommandResult;
 use super::common::CommandMessagePayload;
 use super::context::CommandContext;
 use super::dispatch::CommandOutcome;
@@ -14,7 +15,7 @@ impl CommandContext<'_> {
     pub(super) fn run_repl_command(
         &mut self,
         _options: &CommandReplOptions,
-    ) -> super::CommandResult<CommandOutcome> {
+    ) -> CommandResult<CommandOutcome> {
         let message = "repl is not implemented yet";
         self.output.push_stderr(format!("{message}\n").into_bytes());
         let payload = CommandMessagePayload {

@@ -3,19 +3,17 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_linter::Linter;
-use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
+use destack_resolver::{CachePolicy, Resolver, ResolverContext, ResolverOptions};
 use destack_session::{FileMutation, Session};
-use destack_source::{
-    DiagnosticCollection, DiagnosticOptions, FileType, ModuleId, ProfileId, TargetId, glob,
-};
+use destack_source::{FileType, ModuleId, ProfileId, TargetId, glob};
 use destack_workspace::{
     DestackDeclaration, OptimizeLevel, Repository, Revision, Target, TargetDiscovery,
 };
 
 use crate::Daemon;
 
-use super::CommandOutputBuffer;
 use super::common::{CommandInput, CommandTargetOverrides, CommonCommandOptions};
+use super::{CommandOutputBuffer, CommandResult, DaemonCommandError};
 
 /// Per-request command context.
 #[derive(Debug)]
@@ -30,8 +28,6 @@ pub(super) struct CommandContext<'a> {
     pub(super) session: Session,
     /// Common command options.
     pub(super) common: &'a CommonCommandOptions,
-    /// Diagnostic options resolved for this request.
-    pub(super) diagnostic_options: DiagnosticOptions,
     /// Output buffer for command streaming.
     pub(super) output: &'a mut CommandOutputBuffer,
 }
@@ -54,12 +50,15 @@ impl<'a> CommandContext<'a> {
         compiler: Arc<destack_compiler::Compiler>,
         common: &'a CommonCommandOptions,
         output: &'a mut CommandOutputBuffer,
-    ) -> super::CommandResult<Self> {
+    ) -> CommandResult<Self> {
         // root revision
         let reference = destack_workspace::Ref::for_workspace_root(&root);
-        let revision = repository
-            .current(&reference)
-            .expect("command workspace revision should exist");
+        let revision = repository.current(&reference).map_err(|error| {
+            DaemonCommandError::internal(format!(
+                "command workspace revision is missing for {}: {error}",
+                root.display()
+            ))
+        })?;
 
         // private command session
         let linter = Arc::new(Linter::new(repository.clone()));
@@ -76,29 +75,29 @@ impl<'a> CommandContext<'a> {
             daemon.worker_limit,
             None,
         )
-        .expect("command session should initialize");
+        .map_err(|error| {
+            DaemonCommandError::internal(format!("failed to initialize command session: {error}"))
+        })?;
         session
             .apply_workspace_config_overrides(session.head(), &common.overrides)
             .map_err(|error| {
-                super::DaemonCommandError::internal(format!(
+                DaemonCommandError::internal(format!(
                     "failed to apply command config overrides: {error}"
                 ))
             })?;
 
-        let diagnostic_options = common.diagnostic.clone().unwrap_or_default();
         Ok(Self {
             daemon,
             root,
             repository,
             session,
             common,
-            diagnostic_options,
             output,
         })
     }
 
     /// Resolve command inputs, falling back to the Destack config when allowed.
-    pub(super) fn resolve_command_inputs(&self) -> super::CommandResult<Vec<CommandInput>> {
+    pub(super) fn resolve_command_inputs(&self) -> CommandResult<Vec<CommandInput>> {
         if !self.common.inputs.is_empty() {
             return Ok(self.common.inputs.clone());
         }
@@ -123,10 +122,7 @@ impl<'a> CommandContext<'a> {
     }
 
     /// Resolve command inputs into module ids.
-    pub(super) fn resolve_modules(
-        &self,
-        inputs: &[CommandInput],
-    ) -> super::CommandResult<Vec<ModuleId>> {
+    pub(super) fn resolve_modules(&self, inputs: &[CommandInput]) -> CommandResult<Vec<ModuleId>> {
         let mut seen = HashSet::new();
         let mut modules = Vec::new();
 
@@ -161,10 +157,10 @@ impl<'a> CommandContext<'a> {
     }
 
     /// Return the active workspace revision for this command.
-    pub(super) fn revision(&self) -> super::CommandResult<Revision> {
+    pub(super) fn revision(&self) -> CommandResult<Revision> {
         self.session
             .revision(self.session.head())
-            .map_err(|error| super::DaemonCommandError::internal(error.to_string()))
+            .map_err(|error| DaemonCommandError::internal(error.to_string()))
     }
 
     /// Materialize one inline command input into one command local revision.
@@ -174,13 +170,13 @@ impl<'a> CommandContext<'a> {
         name: &str,
         content: &str,
         file_type: FileType,
-    ) -> super::CommandResult<ModuleId> {
+    ) -> CommandResult<ModuleId> {
         let logical_path = command_input_logical_path(kind, name, file_type);
         let path = self.root.join(&logical_path);
 
         // publish the new command-local file text
         self.session
-            .apply(
+            .apply_file(
                 self.session.head(),
                 path.as_path(),
                 FileMutation::Text {
@@ -203,7 +199,7 @@ impl<'a> CommandContext<'a> {
         &self,
         revision: Revision,
         modules: &[ModuleId],
-    ) -> super::CommandResult<usize> {
+    ) -> CommandResult<usize> {
         let mut profiles = HashSet::new();
 
         for module_id in modules {
@@ -219,7 +215,7 @@ impl<'a> CommandContext<'a> {
         &self,
         revision: Revision,
         module_id: ModuleId,
-    ) -> super::CommandResult<ProfileId> {
+    ) -> CommandResult<ProfileId> {
         let profile = self
             .repository
             .module_profile(revision, module_id)
@@ -234,7 +230,7 @@ impl<'a> CommandContext<'a> {
         revision: Revision,
         module_id: ModuleId,
         target_id: TargetId,
-    ) -> super::CommandResult<ProfileId> {
+    ) -> CommandResult<ProfileId> {
         let profile = self
             .repository
             .module_target_profile(revision, module_id, target_id)
@@ -250,26 +246,15 @@ impl<'a> CommandContext<'a> {
         Ok(profile.id())
     }
 
-    /// Commit diagnostics to the repository store for module files.
-    pub(super) fn commit_diagnostics_for_modules(
+    /// Resolve a named target for a module.
+    pub(super) fn resolve_named_target_for_module(
         &self,
-        modules: &[ModuleId],
-        diagnostics: &DiagnosticCollection,
-    ) -> super::CommandResult<()> {
-        let _ = modules;
-        let _ = diagnostics;
-
-        Ok(())
-    }
-
-    /// Resolve or create a target for a module.
-    pub(super) fn ensure_target_for_module(
-        &self,
+        revision: Revision,
         module_id: ModuleId,
         target_name: &str,
         overrides: Option<&CommandTargetOverrides>,
-    ) -> super::CommandResult<ResolvedTarget> {
-        let revision = self.revision()?;
+    ) -> CommandResult<ResolvedTarget> {
+        // load the owning package for the module
         let module = self
             .repository
             .module(revision, module_id)
@@ -277,6 +262,8 @@ impl<'a> CommandContext<'a> {
             .ok_or_else(|| format!("missing module snapshot for {module_id:?}"))?;
         let package_id = module.package_id;
         let target_id = TargetId::new(package_id, target_name);
+
+        // distinguish explicit targets from implicit target fallback
         let existing_target = self
             .repository
             .target(revision, target_id)
@@ -287,6 +274,7 @@ impl<'a> CommandContext<'a> {
             .effective_target(revision, target_id)
             .map_err(|error| format!("failed to read target snapshot: {error}"))?;
 
+        // named targets are already complete configuration entries
         if let Some(overrides) = overrides
             && !overrides.is_empty()
             && is_explicit_target
@@ -298,6 +286,7 @@ impl<'a> CommandContext<'a> {
             );
         }
 
+        // resolve repository target or build a known built in target
         let target = if let Some(target) = effective_target {
             target
         } else {
@@ -318,14 +307,18 @@ impl<'a> CommandContext<'a> {
     /// Resolve or infer a target for a module based on command and config defaults.
     pub(super) fn resolve_target_for_module(
         &self,
+        revision: Revision,
         module_id: ModuleId,
         overrides: Option<&CommandTargetOverrides>,
-    ) -> super::CommandResult<ResolvedTarget> {
-        let revision = self.revision()?;
-
+    ) -> CommandResult<ResolvedTarget> {
         // honor explicit target override first
         if let Some(target_name) = self.common.target.as_deref() {
-            return self.ensure_target_for_module(module_id, target_name, overrides);
+            return self.resolve_named_target_for_module(
+                revision,
+                module_id,
+                target_name,
+                overrides,
+            );
         }
 
         // derive from package defaults and configured targets
@@ -359,7 +352,7 @@ impl<'a> CommandContext<'a> {
         // infer a fallback target when no explicit configuration exists
         let target_name = if module.is_destack() { "native" } else { "js" };
 
-        self.ensure_target_for_module(module_id, target_name, overrides)
+        self.resolve_named_target_for_module(revision, module_id, target_name, overrides)
     }
 
     /// Decide whether optimization should run for a target.
@@ -381,7 +374,7 @@ impl<'a> CommandContext<'a> {
 
         Resolver::from_repository(
             self.repository.clone(),
-            ResolveOptions::default_for_workspace(self.root.clone(), workspace_options.as_ref()),
+            ResolverOptions::workspace_defaults(self.root.clone(), workspace_options.as_ref()),
         )
     }
 
@@ -389,7 +382,7 @@ impl<'a> CommandContext<'a> {
     pub(super) fn resolve_destack_config_path(
         &self,
         override_path: Option<&Path>,
-    ) -> super::CommandResult<PathBuf> {
+    ) -> CommandResult<PathBuf> {
         resolve_destack_config_path(&self.resolver(), self.root.as_path(), override_path)
     }
 
@@ -397,7 +390,7 @@ impl<'a> CommandContext<'a> {
     pub(super) fn load_destack_declaration(
         &self,
         path: &Path,
-    ) -> super::CommandResult<DestackDeclaration> {
+    ) -> CommandResult<DestackDeclaration> {
         load_destack_declaration(&self.resolver(), path)
     }
 
@@ -410,7 +403,7 @@ impl<'a> CommandContext<'a> {
     pub(super) fn load_workspace_declarations(
         &self,
         revision: Revision,
-    ) -> super::CommandResult<Vec<DestackDeclaration>> {
+    ) -> CommandResult<Vec<DestackDeclaration>> {
         load_workspace_declarations(&self.resolver(), &self.repository, revision)
     }
 }
@@ -446,7 +439,7 @@ fn resolve_destack_config_path(
     resolver: &Resolver,
     cwd: &Path,
     override_path: Option<&Path>,
-) -> super::CommandResult<PathBuf> {
+) -> CommandResult<PathBuf> {
     let revision = resolver_revision(resolver)?;
     let repository = resolver.repository();
 
@@ -474,14 +467,12 @@ fn resolve_destack_config_path(
     Ok(destack_config_path)
 }
 
-fn load_destack_declaration(
-    resolver: &Resolver,
-    path: &Path,
-) -> super::CommandResult<DestackDeclaration> {
+fn load_destack_declaration(resolver: &Resolver, path: &Path) -> CommandResult<DestackDeclaration> {
     let revision = resolver_revision(resolver)?;
+    let mut context = ResolverContext::new(revision);
 
     Ok(resolver
-        .read_destack(revision, path, CachePolicy::UseCache)
+        .read_destack(path, &mut context, CachePolicy::UseCache)
         .map_err(|error| error.to_string())?)
 }
 
@@ -514,7 +505,7 @@ fn find_destack_config(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
     }
 }
 
-fn resolver_revision(resolver: &Resolver) -> super::CommandResult<Revision> {
+fn resolver_revision(resolver: &Resolver) -> CommandResult<Revision> {
     let repository = resolver.repository();
     let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
 
@@ -527,7 +518,7 @@ fn load_workspace_declarations(
     resolver: &Resolver,
     repository: &Repository,
     revision: Revision,
-) -> super::CommandResult<Vec<DestackDeclaration>> {
+) -> CommandResult<Vec<DestackDeclaration>> {
     let mut configs = BTreeMap::new();
     for package_path in repository
         .package_roots(revision)

@@ -3,6 +3,7 @@ use std::path::Path;
 use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
 
+use super::CommandResult;
 use super::context::CommandContext;
 use super::dispatch::CommandOutcome;
 
@@ -35,7 +36,7 @@ impl CommandContext<'_> {
     pub(super) fn run_config_command(
         &mut self,
         options: &CommandConfigOptions,
-    ) -> super::CommandResult<CommandOutcome> {
+    ) -> CommandResult<CommandOutcome> {
         // resolve config path overrides
         let config_override = options
             .path
@@ -75,7 +76,7 @@ impl CommandContext<'_> {
 fn read_config_json(
     resolver: &destack_resolver::Resolver,
     path: &Path,
-) -> super::CommandResult<serde_json::Value> {
+) -> CommandResult<serde_json::Value> {
     let repository = resolver.repository();
     let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
     let revision = repository

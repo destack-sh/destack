@@ -4,6 +4,7 @@ use destack_source::DiagnosticCollection;
 use destack_workspace::{DestackDeclaration, ExtendsFieldJson};
 use serde::{Deserialize, Serialize};
 
+use super::CommandResult;
 use super::context::CommandContext;
 use super::dispatch::CommandOutcome;
 
@@ -88,7 +89,7 @@ impl CommandContext<'_> {
     pub(super) fn run_doctor_command(
         &mut self,
         options: &CommandDoctorOptions,
-    ) -> super::CommandResult<CommandOutcome> {
+    ) -> CommandResult<CommandOutcome> {
         // collect static environment info
         let os = std::env::consts::OS;
         let arch = std::env::consts::ARCH;
