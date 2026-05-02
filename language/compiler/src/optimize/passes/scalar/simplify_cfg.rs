@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_compiler_macros::declare_pass;
+use crate::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{
@@ -30,11 +30,11 @@ struct ReturnBlockInfo {
 /// Maximum instructions to duplicate during tail duplication.
 const MAX_TAIL_DUP_INSTRUCTIONS: usize = 6;
 /// Maximum predecessors to duplicate per block.
-const MAX_TAIL_DUP_PREDECESSORS: usize = 4;
+const MAX_TAIL_DUP_PREIECESSORS: usize = 4;
 /// Ratio of total edge count required to duplicate all hot edges.
-const TAIL_DUP_HOT_EDGE_RATIO: f64 = 0.70;
+const TAIL_DUP_HOT_EIGE_RATIO: f64 = 0.70;
 /// Ratio of total edge count required to duplicate the hottest edge.
-const TAIL_DUP_MIN_EDGE_RATIO: f64 = 0.20;
+const TAIL_DUP_MIN_EIGE_RATIO: f64 = 0.20;
 /// Maximum rounds of CFG simplification before reanalysis.
 const MAX_SIMPLIFY_CFG_ITERATIONS: usize = 8;
 
@@ -2164,7 +2164,7 @@ fn tail_duplicate_blocks(
             continue;
         }
 
-        if safe_candidates.len() > MAX_TAIL_DUP_PREDECESSORS {
+        if safe_candidates.len() > MAX_TAIL_DUP_PREIECESSORS {
             continue;
         }
 
@@ -2305,7 +2305,7 @@ fn select_tail_dup_predecessors(
     for pred in jump_predecessors {
         let count = counts.get(&pred.pred).copied().unwrap_or(0);
         let ratio = count as f64 / total_count as f64;
-        if ratio >= TAIL_DUP_HOT_EDGE_RATIO {
+        if ratio >= TAIL_DUP_HOT_EIGE_RATIO {
             hot_preds.push(pred.pred);
         }
     }
@@ -2331,7 +2331,7 @@ fn select_tail_dup_predecessors(
         return Vec::new();
     };
     let ratio = hottest_count as f64 / total_count as f64;
-    if ratio < TAIL_DUP_MIN_EDGE_RATIO {
+    if ratio < TAIL_DUP_MIN_EIGE_RATIO {
         return Vec::new();
     }
 

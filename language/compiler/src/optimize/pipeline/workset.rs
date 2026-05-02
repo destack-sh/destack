@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_artifact::MirBase;
+use destack_artifact::MirLowered;
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_source::{ModuleId, PackageId, TargetId};
+use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 use parking_lot::RwLock;
 
 use crate::optimize::{OptimizationLevel, PipelineOptions};
@@ -13,10 +13,12 @@ use crate::optimize::{OptimizationLevel, PipelineOptions};
 pub struct ModuleWorkItem {
     /// The module id for this work item.
     module_id: ModuleId,
+    /// The semantic profile for this work item.
+    profile_id: ProfileId,
     /// The target id for this work item.
     target_id: TargetId,
     /// The local mutable MIR state for this work item.
-    mir: Arc<RwLock<MirBase>>,
+    mir: Arc<RwLock<MirLowered>>,
     /// The pipeline options for this module.
     options: PipelineOptions,
 }
@@ -25,12 +27,14 @@ impl ModuleWorkItem {
     /// Create a new module work item.
     pub fn new(
         module_id: ModuleId,
+        profile_id: ProfileId,
         target_id: TargetId,
-        mir: MirBase,
+        mir: MirLowered,
         options: PipelineOptions,
     ) -> Self {
         Self {
             module_id,
+            profile_id,
             target_id,
             mir: Arc::new(RwLock::new(mir)),
             options,
@@ -40,6 +44,11 @@ impl ModuleWorkItem {
     /// Get the module id.
     pub fn module_id(&self) -> ModuleId {
         self.module_id
+    }
+
+    /// Get the profile id.
+    pub fn profile_id(&self) -> ProfileId {
+        self.profile_id
     }
 
     /// Get the target id.
@@ -78,18 +87,16 @@ impl ModuleWorkItem {
 
     /// Access the profile data for this module.
     pub fn with_profile<T>(&self, f: impl FnOnce(Option<&mir::ProfileTable>) -> T) -> T {
-        let mir = self.mir.read();
-        f(mir.profile())
+        f(None)
     }
 
     /// Clone the profile data for this module.
     pub fn clone_profile(&self) -> Option<Arc<mir::ProfileTable>> {
-        let mir = self.mir.read();
-        mir.profile.clone()
+        None
     }
 
     /// Access the module MIR data.
-    pub fn with_mir<T>(&self, f: impl FnOnce(&MirBase) -> T) -> T {
+    pub fn with_mir<T>(&self, f: impl FnOnce(&MirLowered) -> T) -> T {
         let mir = self.mir.read();
         f(&mir)
     }

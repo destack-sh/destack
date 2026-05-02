@@ -1,9 +1,10 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use destack_artifact::{ArtifactVersion, DiagnosticBuilder};
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_source::{ModuleId, PackageId, TargetId};
+use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 use destack_workspace::FloatMathPolicy;
 use parking_lot::Mutex;
 
@@ -11,15 +12,15 @@ use crate::optimize::{
     CallsiteHotnessPolicy, DiagnosticEmitter, FunctionAnalyses, ModuleAnalyses, ModuleWorkItem,
     PackageAnalyses, PackageWorkset, PassMetadata, ProgramAnalyses, ProgramWorkset,
 };
-use crate::{OptimizeError, OptimizeWarning};
+use crate::{DiagnosticAnchor, OptimizeError, OptimizeWarning};
 
 /// Shared diagnostics state for pipeline contexts.
 #[derive(Debug)]
 pub struct PipelineDiagnostics {
     /// Accumulated errors from verification passes.
-    errors: Mutex<Vec<OptimizeError>>,
+    errors: Mutex<Vec<DiagnosticBuilder<OptimizeError>>>,
     /// Accumulated warnings from verification passes.
-    warnings: Mutex<Vec<OptimizeWarning>>,
+    warnings: Mutex<Vec<DiagnosticBuilder<OptimizeWarning>>>,
     /// Whether all verification passed with no aliasing violations.
     is_strict_safe: AtomicBool,
     /// Whether type layouts have been validated for this pipeline run.
@@ -38,13 +39,13 @@ impl PipelineDiagnostics {
     }
 
     /// Emit an optimization error.
-    pub fn emit_error(&self, error: OptimizeError) {
-        self.errors.lock().push(error);
+    pub fn emit_error(&self, error: impl Into<DiagnosticBuilder<OptimizeError>>) {
+        self.errors.lock().push(error.into());
     }
 
     /// Emit an optimization warning.
-    pub fn emit_warning(&self, warning: OptimizeWarning) {
-        self.warnings.lock().push(warning);
+    pub fn emit_warning(&self, warning: impl Into<DiagnosticBuilder<OptimizeWarning>>) {
+        self.warnings.lock().push(warning.into());
     }
 
     /// Mark that aliasing violations were found.
@@ -68,12 +69,12 @@ impl PipelineDiagnostics {
     }
 
     /// Take all accumulated errors.
-    pub fn take_errors(&self) -> Vec<OptimizeError> {
+    pub fn take_errors(&self) -> Vec<DiagnosticBuilder<OptimizeError>> {
         std::mem::take(&mut *self.errors.lock())
     }
 
     /// Take all accumulated warnings.
-    pub fn take_warnings(&self) -> Vec<OptimizeWarning> {
+    pub fn take_warnings(&self) -> Vec<DiagnosticBuilder<OptimizeWarning>> {
         std::mem::take(&mut *self.warnings.lock())
     }
 
@@ -204,8 +205,12 @@ pub struct PipelineContext<'a> {
 
     /// The module being optimized.
     module_id: ModuleId,
+    /// The semantic profile being optimized.
+    profile_id: ProfileId,
     /// The target being optimized.
     target_id: TargetId,
+    /// The MIR artifact being optimized.
+    source_mir: Option<ArtifactVersion>,
     /// Optional profile guided optimization data.
     profile: Option<Arc<mir::ProfileTable>>,
 
@@ -219,7 +224,9 @@ impl std::fmt::Debug for PipelineContext<'_> {
             .field("strings", &"...")
             .field("options", &self.options)
             .field("module_id", &self.module_id)
+            .field("profile_id", &self.profile_id)
             .field("target_id", &self.target_id)
+            .field("has_source_mir", &self.source_mir.is_some())
             .field("has_profile", &self.profile.is_some())
             .field("errors", &self.diagnostics.errors.lock().len())
             .field("warnings", &self.diagnostics.warnings.lock().len())
@@ -234,6 +241,7 @@ impl<'a> PipelineContext<'a> {
         strings: &'a StringPool,
         options: PipelineOptions,
         module_id: ModuleId,
+        profile_id: ProfileId,
         target_id: TargetId,
         profile: Option<Arc<mir::ProfileTable>>,
     ) -> Self {
@@ -241,7 +249,31 @@ impl<'a> PipelineContext<'a> {
             strings,
             options,
             module_id,
+            profile_id,
             target_id,
+            None,
+            profile,
+            Arc::new(PipelineDiagnostics::default()),
+        )
+    }
+
+    /// Create a new pipeline context from one MIR artifact.
+    pub fn with_source_mir(
+        strings: &'a StringPool,
+        options: PipelineOptions,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+        target_id: TargetId,
+        source_mir: ArtifactVersion,
+        profile: Option<Arc<mir::ProfileTable>>,
+    ) -> Self {
+        Self::with_diagnostics(
+            strings,
+            options,
+            module_id,
+            profile_id,
+            target_id,
+            Some(source_mir),
             profile,
             Arc::new(PipelineDiagnostics::default()),
         )
@@ -252,7 +284,9 @@ impl<'a> PipelineContext<'a> {
         strings: &'a StringPool,
         options: PipelineOptions,
         module_id: ModuleId,
+        profile_id: ProfileId,
         target_id: TargetId,
+        source_mir: Option<ArtifactVersion>,
         profile: Option<Arc<mir::ProfileTable>>,
         diagnostics: Arc<PipelineDiagnostics>,
     ) -> Self {
@@ -260,7 +294,9 @@ impl<'a> PipelineContext<'a> {
             strings,
             options,
             module_id,
+            profile_id,
             target_id,
+            source_mir,
             profile,
             diagnostics,
         }
@@ -271,9 +307,23 @@ impl<'a> PipelineContext<'a> {
         self.module_id
     }
 
+    /// Get the profile id.
+    pub fn profile_id(&self) -> ProfileId {
+        self.profile_id
+    }
+
     /// Get the target id.
     pub fn target_id(&self) -> &TargetId {
         &self.target_id
+    }
+
+    /// Return the MIR artifact being optimized.
+    pub fn source_mir(&self) -> ArtifactVersion {
+        let Some(source_mir) = self.source_mir else {
+            panic!("pipeline pass requires a source MIR artifact");
+        };
+
+        source_mir
     }
 
     /// Get profile data if available.
@@ -309,6 +359,15 @@ impl<'a> PipelineContext<'a> {
     /// Return true when optimizable MIR metadata is required.
     pub fn require_optimized_metadata(&self) -> bool {
         self.options.require_optimized_metadata()
+    }
+
+    /// Create a diagnostic anchor for one MIR node.
+    pub fn anchor(&self, tree: &mir::Tree, node: mir::LocalNodeIdAny) -> DiagnosticAnchor {
+        let span = tree
+            .get_span_by_id(node.id)
+            .expect("optimizer diagnostic node is missing a source span");
+
+        DiagnosticAnchor::Span(span)
     }
 
     /// Enforce metadata requirements for a function pass.
@@ -350,12 +409,12 @@ impl<'a> PipelineContext<'a> {
     }
 
     /// Emit an optimization error.
-    pub fn emit_error(&self, error: OptimizeError) {
+    pub fn emit_error(&self, error: impl Into<DiagnosticBuilder<OptimizeError>>) {
         self.diagnostics.emit_error(error);
     }
 
     /// Emit an optimization warning.
-    pub fn emit_warning(&self, warning: OptimizeWarning) {
+    pub fn emit_warning(&self, warning: impl Into<DiagnosticBuilder<OptimizeWarning>>) {
         self.diagnostics.emit_warning(warning);
     }
 
@@ -376,12 +435,12 @@ impl<'a> PipelineContext<'a> {
     }
 
     /// Take all accumulated errors.
-    pub fn take_errors(&self) -> Vec<OptimizeError> {
+    pub fn take_errors(&self) -> Vec<DiagnosticBuilder<OptimizeError>> {
         self.diagnostics.take_errors()
     }
 
     /// Take all accumulated warnings.
-    pub fn take_warnings(&self) -> Vec<OptimizeWarning> {
+    pub fn take_warnings(&self) -> Vec<DiagnosticBuilder<OptimizeWarning>> {
         self.diagnostics.take_warnings()
     }
 
@@ -402,11 +461,11 @@ impl<'a> PipelineContext<'a> {
 }
 
 impl DiagnosticEmitter for PipelineContext<'_> {
-    fn emit_error(&self, error: OptimizeError) {
+    fn emit_error(&self, error: impl Into<DiagnosticBuilder<OptimizeError>>) {
         self.diagnostics.emit_error(error);
     }
 
-    fn emit_warning(&self, warning: OptimizeWarning) {
+    fn emit_warning(&self, warning: impl Into<DiagnosticBuilder<OptimizeWarning>>) {
         self.diagnostics.emit_warning(warning);
     }
 
@@ -474,7 +533,9 @@ impl PackagePipelineContext {
             &strings,
             module.options().clone(),
             module.module_id(),
+            module.profile_id(),
             *module.target_id(),
+            None,
             profile,
             self.diagnostics.clone(),
         );
@@ -483,12 +544,12 @@ impl PackagePipelineContext {
     }
 
     /// Emit an optimization error.
-    pub fn emit_error(&self, error: OptimizeError) {
+    pub fn emit_error(&self, error: impl Into<DiagnosticBuilder<OptimizeError>>) {
         self.diagnostics.emit_error(error);
     }
 
     /// Emit an optimization warning.
-    pub fn emit_warning(&self, warning: OptimizeWarning) {
+    pub fn emit_warning(&self, warning: impl Into<DiagnosticBuilder<OptimizeWarning>>) {
         self.diagnostics.emit_warning(warning);
     }
 
@@ -503,12 +564,12 @@ impl PackagePipelineContext {
     }
 
     /// Take all accumulated errors.
-    pub fn take_errors(&self) -> Vec<OptimizeError> {
+    pub fn take_errors(&self) -> Vec<DiagnosticBuilder<OptimizeError>> {
         self.diagnostics.take_errors()
     }
 
     /// Take all accumulated warnings.
-    pub fn take_warnings(&self) -> Vec<OptimizeWarning> {
+    pub fn take_warnings(&self) -> Vec<DiagnosticBuilder<OptimizeWarning>> {
         self.diagnostics.take_warnings()
     }
 
@@ -534,11 +595,11 @@ impl PackagePipelineContext {
 }
 
 impl DiagnosticEmitter for PackagePipelineContext {
-    fn emit_error(&self, error: OptimizeError) {
+    fn emit_error(&self, error: impl Into<DiagnosticBuilder<OptimizeError>>) {
         self.diagnostics.emit_error(error);
     }
 
-    fn emit_warning(&self, warning: OptimizeWarning) {
+    fn emit_warning(&self, warning: impl Into<DiagnosticBuilder<OptimizeWarning>>) {
         self.diagnostics.emit_warning(warning);
     }
 
@@ -592,12 +653,12 @@ impl ProgramPipelineContext {
     }
 
     /// Emit an optimization error.
-    pub fn emit_error(&self, error: OptimizeError) {
+    pub fn emit_error(&self, error: impl Into<DiagnosticBuilder<OptimizeError>>) {
         self.diagnostics.emit_error(error);
     }
 
     /// Emit an optimization warning.
-    pub fn emit_warning(&self, warning: OptimizeWarning) {
+    pub fn emit_warning(&self, warning: impl Into<DiagnosticBuilder<OptimizeWarning>>) {
         self.diagnostics.emit_warning(warning);
     }
 
@@ -612,12 +673,12 @@ impl ProgramPipelineContext {
     }
 
     /// Take all accumulated errors.
-    pub fn take_errors(&self) -> Vec<OptimizeError> {
+    pub fn take_errors(&self) -> Vec<DiagnosticBuilder<OptimizeError>> {
         self.diagnostics.take_errors()
     }
 
     /// Take all accumulated warnings.
-    pub fn take_warnings(&self) -> Vec<OptimizeWarning> {
+    pub fn take_warnings(&self) -> Vec<DiagnosticBuilder<OptimizeWarning>> {
         self.diagnostics.take_warnings()
     }
 
@@ -643,11 +704,11 @@ impl ProgramPipelineContext {
 }
 
 impl DiagnosticEmitter for ProgramPipelineContext {
-    fn emit_error(&self, error: OptimizeError) {
+    fn emit_error(&self, error: impl Into<DiagnosticBuilder<OptimizeError>>) {
         self.diagnostics.emit_error(error);
     }
 
-    fn emit_warning(&self, warning: OptimizeWarning) {
+    fn emit_warning(&self, warning: impl Into<DiagnosticBuilder<OptimizeWarning>>) {
         self.diagnostics.emit_warning(warning);
     }
 

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_compiler_macros::declare_pass;
+use crate::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree};
@@ -88,13 +88,13 @@ impl FunctionPass for CfgLayout {
 }
 
 /// Maximum instructions to duplicate on hot edges.
-const MAX_HOT_EDGE_DUP_INSTRUCTIONS: usize = 6;
+const MAX_HOT_EIGE_DUP_INSTRUCTIONS: usize = 6;
 /// Maximum predecessors to duplicate per hot block.
-const MAX_HOT_EDGE_DUP_PREDECESSORS: usize = 4;
+const MAX_HOT_EIGE_DUP_PREIECESSORS: usize = 4;
 /// Ratio of total edge count required to duplicate all hot edges.
-const HOT_EDGE_DUP_RATIO: f64 = 0.70;
+const HOT_EIGE_DUP_RATIO: f64 = 0.70;
 /// Ratio of total edge count required to duplicate the hottest edge.
-const HOT_EDGE_DUP_MIN_RATIO: f64 = 0.20;
+const HOT_EIGE_DUP_MIN_RATIO: f64 = 0.20;
 
 /// Predecessor edge data for hot edge duplication.
 #[derive(Debug, Clone)]
@@ -415,7 +415,7 @@ fn duplicate_hot_edges(
         }
 
         // skip blocks with too many instructions
-        if block.instructions.len() > MAX_HOT_EDGE_DUP_INSTRUCTIONS {
+        if block.instructions.len() > MAX_HOT_EIGE_DUP_INSTRUCTIONS {
             continue;
         }
 
@@ -475,7 +475,7 @@ fn duplicate_hot_edges(
             continue;
         }
 
-        if safe_candidates.len() > MAX_HOT_EDGE_DUP_PREDECESSORS {
+        if safe_candidates.len() > MAX_HOT_EIGE_DUP_PREIECESSORS {
             continue;
         }
 
@@ -567,7 +567,7 @@ fn select_hot_edge_predecessors(predecessors: &[EdgePredecessor]) -> Vec<EdgePre
     let mut hot_preds = Vec::new();
     for pred in predecessors {
         let ratio = pred.count as f64 / total_count as f64;
-        if ratio >= HOT_EDGE_DUP_RATIO {
+        if ratio >= HOT_EIGE_DUP_RATIO {
             hot_preds.push(pred.pred);
         }
     }
@@ -592,7 +592,7 @@ fn select_hot_edge_predecessors(predecessors: &[EdgePredecessor]) -> Vec<EdgePre
         return Vec::new();
     };
     let ratio = hottest_count as f64 / total_count as f64;
-    if ratio < HOT_EDGE_DUP_MIN_RATIO {
+    if ratio < HOT_EIGE_DUP_MIN_RATIO {
         return Vec::new();
     }
 

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use destack_compiler_macros::declare_pass;
+use crate::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::ControlFlowGraph;
@@ -60,9 +60,9 @@ declare_pass! {
 /// Base instruction budget for if conversion.
 const BASE_CONVERT_BUDGET: usize = 16;
 /// Larger budget when profile indicates balanced branches.
-const BALANCED_CONVERT_BUDGET: usize = 48;
+const BALANCEI_CONVERT_BUDGET: usize = 48;
 /// Threshold for treating a branch as highly biased.
-const BIASED_BRANCH_RATIO: f64 = 0.90;
+const BIASEI_BRANCH_RATIO: f64 = 0.90;
 
 impl FunctionPass for IfConvert {
     /// Run if conversion on a function.
@@ -375,11 +375,11 @@ fn should_convert(
 
         let then_ratio = then_count as f64 / total_count as f64;
         let else_ratio = else_count as f64 / total_count as f64;
-        let is_balanced = ((1.0 - BIASED_BRANCH_RATIO)..=BIASED_BRANCH_RATIO).contains(&then_ratio)
-            && ((1.0 - BIASED_BRANCH_RATIO)..=BIASED_BRANCH_RATIO).contains(&else_ratio);
+        let is_balanced = ((1.0 - BIASEI_BRANCH_RATIO)..=BIASEI_BRANCH_RATIO).contains(&then_ratio)
+            && ((1.0 - BIASEI_BRANCH_RATIO)..=BIASEI_BRANCH_RATIO).contains(&else_ratio);
 
         if is_balanced {
-            return total_cost <= BALANCED_CONVERT_BUDGET;
+            return total_cost <= BALANCEI_CONVERT_BUDGET;
         }
 
         return total_cost <= BASE_CONVERT_BUDGET;
@@ -388,12 +388,12 @@ fn should_convert(
     // fall back to size balance when no profile data is available
     let min_cost = then_cost.min(else_cost);
     if min_cost == 0 {
-        return total_cost <= BALANCED_CONVERT_BUDGET;
+        return total_cost <= BALANCEI_CONVERT_BUDGET;
     }
 
     let size_ratio = then_cost.max(else_cost) as f64 / min_cost as f64;
     if size_ratio <= 1.25 {
-        return total_cost <= BALANCED_CONVERT_BUDGET;
+        return total_cost <= BALANCEI_CONVERT_BUDGET;
     }
 
     total_cost <= BASE_CONVERT_BUDGET

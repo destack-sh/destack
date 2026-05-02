@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_core::{ImmutableStringPool, StringPool};
 use destack_mir as mir;
-use destack_source::{DiffOptions, FileId, ModuleId, PackageId, TargetId, print_diff};
+use destack_source::{DiffOptions, FileId, ModuleId, PackageId, ProfileId, TargetId, print_diff};
 use mir::parse::ParseOptions;
 
 use crate::optimize::{FunctionPass, ModulePass, PipelineContext, PipelineOptions};
@@ -11,6 +11,11 @@ use crate::{OptimizeError, OptimizeWarning};
 /// Placeholder module id for tests.
 fn test_module_id() -> ModuleId {
     ModuleId::new(PackageId::new(0), 0)
+}
+
+/// Placeholder profile id for tests.
+fn test_profile_id() -> ProfileId {
+    ProfileId::new(0)
 }
 
 /// Placeholder target id for tests.
@@ -491,6 +496,7 @@ impl TestProgram {
             &self.strings_pool,
             options,
             test_module_id(),
+            test_profile_id(),
             test_target_id(),
             profile,
         );
@@ -528,8 +534,16 @@ impl TestProgram {
         }
 
         // collect diagnostics after pass completes
-        self.errors = context.take_errors();
-        self.warnings = context.take_warnings();
+        self.errors = context
+            .take_errors()
+            .into_iter()
+            .map(|diagnostic| diagnostic.into_inner())
+            .collect();
+        self.warnings = context
+            .take_warnings()
+            .into_iter()
+            .map(|diagnostic| diagnostic.into_inner())
+            .collect();
     }
 
     /// Return the first function id in the program.
@@ -685,6 +699,7 @@ impl TestProgram {
             &self.strings_pool,
             PipelineOptions::default(),
             test_module_id(),
+            test_profile_id(),
             test_target_id(),
             None,
         );
@@ -695,8 +710,16 @@ impl TestProgram {
         }
 
         // collect diagnostics after pass completes
-        self.errors = context.take_errors();
-        self.warnings = context.take_warnings();
+        self.errors = context
+            .take_errors()
+            .into_iter()
+            .map(|diagnostic| diagnostic.into_inner())
+            .collect();
+        self.warnings = context
+            .take_warnings()
+            .into_iter()
+            .map(|diagnostic| diagnostic.into_inner())
+            .collect();
     }
 
     /// Apply a module pass with custom options.
@@ -709,6 +732,7 @@ impl TestProgram {
             &self.strings_pool,
             options,
             test_module_id(),
+            test_profile_id(),
             test_target_id(),
             None,
         );
@@ -719,8 +743,16 @@ impl TestProgram {
         }
 
         // collect diagnostics after pass completes
-        self.errors = context.take_errors();
-        self.warnings = context.take_warnings();
+        self.errors = context
+            .take_errors()
+            .into_iter()
+            .map(|diagnostic| diagnostic.into_inner())
+            .collect();
+        self.warnings = context
+            .take_warnings()
+            .into_iter()
+            .map(|diagnostic| diagnostic.into_inner())
+            .collect();
     }
 
     /// Apply a module pass with profile data.
@@ -733,6 +765,7 @@ impl TestProgram {
             &self.strings_pool,
             PipelineOptions::default(),
             test_module_id(),
+            test_profile_id(),
             test_target_id(),
             Some(Arc::new(profile)),
         );
@@ -743,8 +776,16 @@ impl TestProgram {
         }
 
         // collect diagnostics after pass completes
-        self.errors = context.take_errors();
-        self.warnings = context.take_warnings();
+        self.errors = context
+            .take_errors()
+            .into_iter()
+            .map(|diagnostic| diagnostic.into_inner())
+            .collect();
+        self.warnings = context
+            .take_warnings()
+            .into_iter()
+            .map(|diagnostic| diagnostic.into_inner())
+            .collect();
     }
 
     /// Format the MIR back to text.
@@ -867,7 +908,7 @@ impl TestProgram {
 mod tests {
     use std::sync::Arc;
 
-    use destack_compiler_macros::declare_pass;
+    use crate::declare_pass;
     use destack_core::StringPool;
     use destack_mir as mir;
 
@@ -985,6 +1026,7 @@ b0:
             &strings,
             PipelineOptions::default(),
             super::test_module_id(),
+            super::test_profile_id(),
             super::test_target_id(),
             Some(profile),
         );
@@ -1190,14 +1232,14 @@ b0:
     declare_pass! {
         /// Require profile data for validation in tests.
         #[pass(id = "test-profile", requires(profile_data))]
-        pub TestProfilePass,
+        pub(super) TestProfilePass,
         "Test profile requirement enforcement"
     }
 
     declare_pass! {
         /// Require type layout metadata for validation in tests.
         #[pass(id = "test-layout", requires(type_layouts))]
-        pub TestLayoutPass,
+        pub(super) TestLayoutPass,
         "Test layout requirement enforcement"
     }
 
