@@ -1,23 +1,40 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use destack_artifact::DiskCacheStore;
 use destack_lsp_server::UriExt;
-use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span};
-use destack_workspace::{Change, Ref, Repository};
+use destack_source::{BatchEdit, Edit, FileEdit, FileId, FileSystem, PhysicalFileSystem, Span};
+use destack_workspace::{Edit as RepositoryEdit, HostEnvironment, Ref, Repository};
 
 use crate::query::refactor::batch_edit_to_workspace_edit;
+
+/// Create one empty test repository.
+fn test_repository() -> Repository {
+    let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+
+    Repository::new(
+        PathBuf::from("."),
+        Arc::new(DiskCacheStore::new()),
+        file_system,
+        HostEnvironment::capture_process(),
+    )
+}
 
 /// Skip edits for files that are missing from the registry.
 #[test]
 fn test_batch_edit_to_workspace_edit_skips_unknown_files() {
     // create a repository with one known file
-    let repository = Repository::open_root(PathBuf::from("."));
+    let repository = test_repository();
     let known_path = PathBuf::from("/tmp/destack_lsp_refactor_known.ds");
-    let known_file_id = repository.file_id_for_workspace_path(&known_path);
-    let logical_path = repository.normalize_workspace_path(&known_path);
+    let known_file_id = repository.file_id(&known_path);
+    let logical_path = repository.logical_path(&known_path);
     let revision = repository
-        .apply(
+        .apply_to_ref(
             &Ref::for_workspace_root(repository.workspace_root()),
-            Change::set_text(&logical_path, "export const value = 1;\n"),
+            [RepositoryEdit::set_text(
+                &logical_path,
+                "export const value = 1;\n",
+            )],
         )
         .expect("expected revision write");
 

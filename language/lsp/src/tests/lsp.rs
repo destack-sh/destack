@@ -1,15 +1,14 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use destack_compiler::CompilerOptions;
 use destack_lsp_server::UriExt;
 use destack_lsp_server::jsonrpc::{ErrorCode, Response};
-use destack_service::LanguageService as LspLanguageService;
+use destack_service::{FileChange, LanguageService};
 use destack_session::open_repository_from_fs;
 use destack_source::{
     FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri,
 };
-use destack_workspace::AmbientSnapshot;
+use destack_workspace::HostEnvironment;
 use {destack_lsp_types as lsp, destack_query as query};
 
 use super::fixture::TestLsp;
@@ -30,10 +29,10 @@ async fn test_lsp_did_open_publishes_diagnostics() {
     assert!(diagnostics.diagnostics.is_empty());
 }
 
-/// LSP workspace service emits diagnostics for virtual updates.
+/// LSP language service emits diagnostics for file updates.
 #[test]
-fn test_lsp_workspace_service_virtual_update_emits_diagnostics() {
-    let fs = TemporaryPhysicalFileSystem::new_with_prefix("lsp_workspace_client");
+fn test_lsp_language_service_file_update_emits_diagnostics() {
+    let fs = TemporaryPhysicalFileSystem::new_with_prefix("lsp_language_service_update");
     let overlay = Arc::new(OverlayFileSystem::with_inner(Arc::new(
         PhysicalFileSystem::new(),
     )));
@@ -42,29 +41,28 @@ fn test_lsp_workspace_service_virtual_update_emits_diagnostics() {
         open_repository_from_fs(
             root.clone(),
             overlay.clone(),
-            AmbientSnapshot::capture_process(),
+            HostEnvironment::capture_process(),
         )
         .expect("failed to import repository from overlay fs"),
     );
-    // keep lsp workspace-service test deterministic: use a single compiler worker
-    let compiler_options = CompilerOptions {
-        workers: 1,
-        ..CompilerOptions::default()
-    };
-    let workspace_service = LspLanguageService::with_options(
+    let language_service = LanguageService::new(
         repository.clone(),
         Some(overlay),
         vec![root.clone()],
-        compiler_options,
-        None,
+        1,
         None,
     )
-    .expect("expected workspace service");
+    .expect("expected language service");
 
     let path = root.join("main.ds");
     let _ = fs.write_text("main.ds", "export const x: number = 1;\n");
-    let initial = workspace_service
-        .update_virtual_file(&path, "export const x: number = 1;\n".to_string())
+    let initial = language_service
+        .apply_file(
+            &path,
+            FileChange::Text {
+                content: "export const x: number = 1;\n".to_string(),
+            },
+        )
         .expect("expected initial update");
     assert!(
         initial
@@ -74,8 +72,13 @@ fn test_lsp_workspace_service_virtual_update_emits_diagnostics() {
         "expected no diagnostics for valid content"
     );
 
-    let updated = workspace_service
-        .update_virtual_file(&path, "export const x = ;\n".to_string())
+    let updated = language_service
+        .apply_file(
+            &path,
+            FileChange::Text {
+                content: "export const x = ;\n".to_string(),
+            },
+        )
         .expect("expected updated diagnostics");
     assert!(
         updated
@@ -84,14 +87,12 @@ fn test_lsp_workspace_service_virtual_update_emits_diagnostics() {
             .any(|update| !update.diagnostics.is_empty()),
         "expected diagnostics for invalid content"
     );
-
-    workspace_service.shutdown();
 }
 
-/// LSP workspace-style service setup preserves inferred inlay type hints after virtual edits.
+/// LSP language service queries use current file updates.
 #[test]
-fn test_lsp_workspace_service_virtual_update_preserves_inlay_type_hints() {
-    let fs = TemporaryPhysicalFileSystem::new_with_prefix("lsp_workspace_inlay_hints");
+fn test_lsp_language_service_query_uses_current_file_update() {
+    let fs = TemporaryPhysicalFileSystem::new_with_prefix("lsp_language_service_query");
     let overlay = Arc::new(OverlayFileSystem::with_inner(Arc::new(
         PhysicalFileSystem::new(),
     )));
@@ -100,24 +101,18 @@ fn test_lsp_workspace_service_virtual_update_preserves_inlay_type_hints() {
         open_repository_from_fs(
             root.clone(),
             overlay.clone(),
-            AmbientSnapshot::capture_process(),
+            HostEnvironment::capture_process(),
         )
         .expect("failed to import repository from overlay fs"),
     );
-    // keep lsp workspace-service test deterministic: use a single compiler worker
-    let compiler_options = CompilerOptions {
-        workers: 1,
-        ..CompilerOptions::default()
-    };
-    let workspace_service = LspLanguageService::with_options(
+    let language_service = LanguageService::new(
         repository.clone(),
         Some(overlay),
         vec![root.clone()],
-        compiler_options,
-        None,
+        1,
         None,
     )
-    .expect("expected workspace service");
+    .expect("expected language service");
 
     let source_a = r#"function greet(name: string, greeting: string): string {
     return greeting + ", " + name;
@@ -134,15 +129,25 @@ const msg = greet("World", "Hello");
         .expect("failed to write main.ds");
     let uri = Uri::from_file_path(path.clone());
 
-    let _ = workspace_service
-        .update_virtual_file(&path, source_a.to_string())
+    let _ = language_service
+        .apply_file(
+            &path,
+            FileChange::Text {
+                content: source_a.to_string(),
+            },
+        )
         .expect("expected initial update");
-    let _ = workspace_service
-        .update_virtual_file(&path, source_b.to_string())
+    let _ = language_service
+        .apply_file(
+            &path,
+            FileChange::Text {
+                content: source_b.to_string(),
+            },
+        )
         .expect("expected second update");
 
-    let response = workspace_service
-        .execute_read_query_for_path(
+    let response = language_service
+        .read_query(
             &path,
             query::QueryRequest::InlayHints(query::InlayHintsRequest {
                 uri,
@@ -161,10 +166,8 @@ const msg = greet("World", "Hello");
         .any(|hint| hint.kind == query::InlayHintKind::Type);
     assert!(
         type_hint,
-        "expected one inferred type hint after the virtual update"
+        "expected one inferred type hint after the file update"
     );
-
-    workspace_service.shutdown();
 }
 
 /// LSP didChange publishes updated diagnostics.
@@ -243,7 +246,7 @@ async fn test_lsp_did_change_incremental_recovery_publishes_diagnostics() {
     let initial = harness.next_diagnostics_for(&uri).await;
     assert!(initial.diagnostics.is_empty());
 
-    // send an invalid incremental range so apply_text_changes fails
+    // send an oversized incremental range through the service patch path
     let invalid_change = lsp::TextDocumentContentChangeEvent {
         range: Some(lsp::Range::new(
             lsp::Position::new(99, 0),
@@ -639,7 +642,7 @@ async fn test_lsp_workspace_diagnostic_and_definition_remain_responsive_during_e
     }
 }
 
-/// Document diagnostics include open virtual file updates.
+/// Document diagnostics include open file updates.
 #[tokio::test]
 async fn test_lsp_document_diagnostic_reflects_open_virtual_content() {
     let fs = test_fs("document_diagnostic_virtual");
