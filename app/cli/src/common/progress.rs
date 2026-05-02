@@ -5,7 +5,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use destack_artifact::ArtifactKey;
-use destack_session::{SessionEvent, SessionEventHandler, SessionRunId};
+use destack_session::{RunId, SessionEvent, SessionEventHandler};
 use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::console;
@@ -13,7 +13,7 @@ use crate::console;
 const HEADER_TICK_RATE: Duration = Duration::from_millis(100);
 
 /// Key for one active session task.
-type ActiveTaskKey = (SessionRunId, ArtifactKey);
+type ActiveTaskKey = (RunId, ArtifactKey);
 
 /// Progress display mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

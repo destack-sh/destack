@@ -8,7 +8,7 @@ use destack_workspace::Repository;
 
 use crate::common::WatchCompileReason;
 use crate::pipeline::watch::{
-    WatchLoopAction, WatchLoopOptions, build_watch_options, is_watchable_path, run_watch_loop,
+    WatchLoopAction, WatchLoopOptions, build_watch_options, is_source_path, run_watch_loop,
 };
 
 use super::tests::TestProgram;
@@ -106,17 +106,17 @@ impl WatchLoopHarness {
 
 /// Validate the watchable path filter.
 #[test]
-fn test_is_watchable_path_filters_extensions() {
+fn test_is_source_path_filters_extensions() {
     let code = PathBuf::from("/test/main.ds");
     let data = PathBuf::from("/test/config.json");
     let text = PathBuf::from("/test/readme.md");
     let image = PathBuf::from("/test/logo.png");
 
     // assert watchable extensions
-    assert!(is_watchable_path(&code));
-    assert!(is_watchable_path(&data));
-    assert!(is_watchable_path(&text));
-    assert!(!is_watchable_path(&image));
+    assert!(is_source_path(&code));
+    assert!(is_source_path(&data));
+    assert!(is_source_path(&text));
+    assert!(!is_source_path(&image));
 }
 
 /// Ensure watch options include a usable filter.

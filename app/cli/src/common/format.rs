@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use destack_parser::source_colorizer;
 use destack_source::{
-    Diagnostic, DiagnosticCollection, DiagnosticRenderError, DiagnosticSeverity, File, FileId,
-    PrintOptions, print_diagnostics as print_diagnostics_impl,
+    Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticRenderError, DiagnosticSeverity,
+    File, FileId, PrintOptions, print_diagnostics as print_diagnostics_impl,
 };
 use serde::Serialize;
 
@@ -277,9 +277,9 @@ where
 {
     // emit github annotations per diagnostic
     for d in diagnostics {
-        let primary_span = d.primary_span();
-        let file_id = primary_span.file;
-        let file = resolve_file(file_for_id, file_id);
+        let primary = d.primary_label();
+        let primary_span = primary.span;
+        let file = resolve_label_file(file_for_id, primary);
 
         // get_position returns 0 based line and column
         let (line, column) = file
@@ -396,9 +396,9 @@ where
     let json_diagnostics: Vec<DiagnosticJson> = diagnostics
         .iter()
         .map(|d| {
-            let primary_span = d.primary_span();
-            let file_id = primary_span.file;
-            let file = resolve_file(file_for_id, file_id);
+            let primary = d.primary_label();
+            let primary_span = primary.span;
+            let file = resolve_label_file(file_for_id, primary);
 
             // get_position returns 0 based line and column
             let (line, column) = file
@@ -447,12 +447,23 @@ where
     }
 }
 
-/// Resolve one file for one diagnostic id.
-fn resolve_file<F>(file_for_id: &F, file_id: FileId) -> Arc<File>
+/// Resolve one file for one diagnostic label.
+fn resolve_label_file<F>(file_for_id: &F, label: &DiagnosticLabel) -> Arc<File>
 where
     F: Fn(FileId) -> Option<Arc<File>>,
 {
-    file_for_id(file_id).unwrap_or_else(|| panic!("missing diagnostic file: {file_id:?}"))
+    let file_id = label.span.file;
+    let file =
+        file_for_id(file_id).unwrap_or_else(|| panic!("missing diagnostic file: {file_id:?}"));
+    let content = file.content_id();
+    assert_eq!(
+        content,
+        label.content,
+        "diagnostic content mismatch for file {file_id:?}: expected {expected}, got {content}",
+        expected = label.content,
+    );
+
+    file
 }
 
 /// Compute statistics grouped by rule code.

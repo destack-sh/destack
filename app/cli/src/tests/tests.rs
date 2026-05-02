@@ -7,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use destack_artifact::MemoryCacheStore;
 use destack_daemon::WatchPolicy;
-use destack_resolver::{ResolveOptions, Resolver};
+use destack_resolver::{Resolver, ResolverOptions};
 use destack_source::{FileSystem, MemoryFileSystem, MemoryFileWatcher};
 use destack_workspace::{Edit, HostEnvironment, Ref, Repository, Revision};
 use serde_json::{Value, json};
@@ -46,7 +46,7 @@ impl TestProgram {
         ));
 
         // create a resolver for workspace lookups
-        let resolver = Resolver::from_repository(repository.clone(), ResolveOptions::default());
+        let resolver = Resolver::from_repository(repository.clone(), ResolverOptions::default());
 
         // return the test harness
         Self {
