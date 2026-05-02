@@ -2,9 +2,10 @@ use std::error::Error;
 use std::fmt;
 
 use destack_heap::{HeapReference, RawPointer, SharedHeapReference, SharedRawPointer};
+use serde::{Deserialize, Serialize};
 
-/// One boundary value type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// One engine value type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ValueType {
     /// The void type.
     Void,
@@ -30,8 +31,8 @@ pub enum ValueType {
     SharedRawPointer,
 }
 
-/// Boundary value type mismatch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// Engine value type mismatch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValueTypeMismatch {
     /// The expected value type.
     pub expected: ValueType,
@@ -40,7 +41,7 @@ pub struct ValueTypeMismatch {
 }
 
 impl ValueTypeMismatch {
-    /// Create one value type mismatch.
+    /// Create one engine value type mismatch.
     pub const fn new(expected: ValueType, actual: ValueType) -> Self {
         Self { expected, actual }
     }
@@ -58,8 +59,8 @@ impl fmt::Display for ValueTypeMismatch {
 
 impl Error for ValueTypeMismatch {}
 
-/// One signed integer boundary value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// One signed integer value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SignedInt {
     /// The integer payload.
     pub value: i128,
@@ -67,8 +68,8 @@ pub struct SignedInt {
     pub width: u16,
 }
 
-/// One unsigned integer boundary value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// One unsigned integer value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UnsignedInt {
     /// The integer payload.
     pub value: u128,
@@ -76,8 +77,8 @@ pub struct UnsignedInt {
     pub width: u16,
 }
 
-/// One engine boundary value.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// One engine value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Value {
     /// The void value.
     Void,
@@ -123,96 +124,96 @@ impl Value {
     /// The void boundary value.
     pub const VOID: Self = Self::Void;
 
-    /// Create one boolean boundary value.
+    /// Create one boolean value.
     pub const fn bool(value: bool) -> Self {
         Self::Bool(value)
     }
 
-    /// Create one signed integer boundary value with an explicit width.
+    /// Create one signed integer value.
     pub const fn int(value: i128, width: u16) -> Self {
         Self::Int { value, width }
     }
 
-    /// Create one signed 8-bit integer boundary value.
+    /// Create one signed 8-bit integer value.
     pub const fn int8(value: i8) -> Self {
         Self::int(value as i128, 8)
     }
 
-    /// Create one signed 16-bit integer boundary value.
+    /// Create one signed 16-bit integer value.
     pub const fn int16(value: i16) -> Self {
         Self::int(value as i128, 16)
     }
 
-    /// Create one signed 32-bit integer boundary value.
+    /// Create one signed 32-bit integer value.
     pub const fn int32(value: i32) -> Self {
         Self::int(value as i128, 32)
     }
 
-    /// Create one signed 64-bit integer boundary value.
+    /// Create one signed 64-bit integer value.
     pub const fn int64(value: i64) -> Self {
         Self::int(value as i128, 64)
     }
 
-    /// Create one unsigned integer boundary value with an explicit width.
+    /// Create one unsigned integer value.
     pub const fn uint(value: u128, width: u16) -> Self {
         Self::UInt { value, width }
     }
 
-    /// Create one unsigned 8-bit integer boundary value.
+    /// Create one unsigned 8-bit integer value.
     pub const fn uint8(value: u8) -> Self {
         Self::uint(value as u128, 8)
     }
 
-    /// Create one unsigned 16-bit integer boundary value.
+    /// Create one unsigned 16-bit integer value.
     pub const fn uint16(value: u16) -> Self {
         Self::uint(value as u128, 16)
     }
 
-    /// Create one unsigned 32-bit integer boundary value.
+    /// Create one unsigned 32-bit integer value.
     pub const fn uint32(value: u32) -> Self {
         Self::uint(value as u128, 32)
     }
 
-    /// Create one unsigned 64-bit integer boundary value.
+    /// Create one unsigned 64-bit integer value.
     pub const fn uint64(value: u64) -> Self {
         Self::uint(value as u128, 64)
     }
 
-    /// Create one 32-bit floating point boundary value.
+    /// Create one 32-bit floating point value.
     pub const fn float32(value: f32) -> Self {
         Self::Float32 {
             bits: value.to_bits(),
         }
     }
 
-    /// Create one 64-bit floating point boundary value.
+    /// Create one 64-bit floating point value.
     pub const fn float64(value: f64) -> Self {
         Self::Float64 {
             bits: value.to_bits(),
         }
     }
 
-    /// Create one character boundary value.
+    /// Create one character value.
     pub const fn char(value: char) -> Self {
         Self::Char(value)
     }
 
-    /// Create one local heap reference boundary value.
+    /// Create one local heap reference value.
     pub const fn heap_reference(reference: HeapReference) -> Self {
         Self::HeapReference(reference)
     }
 
-    /// Create one shared heap reference boundary value.
+    /// Create one shared heap reference value.
     pub const fn shared_heap_reference(reference: SharedHeapReference) -> Self {
         Self::SharedHeapReference(reference)
     }
 
-    /// Create one raw pointer boundary value.
+    /// Create one raw pointer value.
     pub const fn raw_pointer(pointer: RawPointer) -> Self {
         Self::RawPointer(pointer)
     }
 
-    /// Create one shared raw pointer boundary value.
+    /// Create one shared raw pointer value.
     pub const fn shared_raw_pointer(pointer: SharedRawPointer) -> Self {
         Self::SharedRawPointer(pointer)
     }

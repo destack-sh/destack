@@ -2,17 +2,17 @@ use destack_heap as heap;
 
 use crate::StaticSpace;
 
-/// Heap and static memory available to one backend execution call.
+/// Memory available to one engine call.
 pub struct Context<'a> {
-    /// Worker-local heap.
+    /// Worker heap.
     pub heap: &'a mut heap::Heap,
-    /// Runtime-shared heap.
-    pub shared: &'a heap::SharedHeap,
-    /// Shared collector worker handle for this execution worker.
+    /// Runtime heap.
+    pub shared_heap: &'a heap::SharedHeap,
+    /// Runtime heap collector worker.
     pub shared_gc: &'a heap::SharedGcWorker,
-    /// Worker-owned static bytes.
+    /// Worker static memory.
     pub worker_static: &'a mut StaticSpace,
-    /// Runtime-owned static bytes.
+    /// Runtime static memory.
     pub runtime_static: &'a StaticSpace,
 }
 
@@ -21,7 +21,7 @@ impl std::fmt::Debug for Context<'_> {
         formatter
             .debug_struct("Context")
             .field("heap", &"<heap>")
-            .field("shared", &"<shared heap>")
+            .field("shared_heap", &"<shared heap>")
             .field("shared_gc", &"<shared gc worker>")
             .field("worker_static", &self.worker_static.len())
             .field("runtime_static", &self.runtime_static.byte_len())

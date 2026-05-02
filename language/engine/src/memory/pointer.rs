@@ -32,9 +32,7 @@ impl StaticPointer {
 
     /// Add one byte offset to this address.
     #[inline]
-    pub fn add_bytes(self, byte_offset: usize) -> Option<Self> {
-        self.address()
-            .checked_add(byte_offset)
-            .map(Self::from_address)
+    pub const fn add_bytes(self, byte_offset: usize) -> Self {
+        Self::from_address(self.address() + byte_offset)
     }
 }
