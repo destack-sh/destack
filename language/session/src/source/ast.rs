@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependency, ArtifactPayload, Ast, ProviderContext};
+use destack_artifact::{ArtifactDependency, ArtifactPayload, Ast};
 use destack_ast as ast;
 use destack_core::StringPool;
 use destack_parser::{Parser, ParserSettings};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, Span};
+use destack_workspace::ProviderContext;
 
 use crate::{SessionError, SessionProviderContext, SessionState};
 

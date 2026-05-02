@@ -6,9 +6,9 @@ use std::sync::{Arc, LazyLock, Once};
 
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload,
-    ArtifactProvider, ArtifactVersion, Ast, DiagnosticAnchor, DiagnosticContext, DiagnosticError,
-    EmitFormat, MemoryCacheStore, Platform, ProfileFlags, ProfileKey, ProviderContext,
-    ProviderError, RequireError, Runtime, ToDiagnostic,
+    ArtifactProvider, ArtifactVersion, Ast, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
+    DiagnosticError, EmitFormat, MemoryCacheStore, Platform, ProfileFlags, ProfileKey, Runtime,
+    ToDiagnostic,
 };
 use destack_ast as ast;
 use destack_ast::NodeParentIndex;
@@ -26,7 +26,7 @@ use destack_source::{
 };
 use destack_workspace::{
     Edit as RepositoryEdit, HostEnvironment, LintCategory, LintSeverity, LinterOptions, Module,
-    Profile, Ref, Repository, Revision,
+    Profile, ProviderContext, ProviderError, Ref, Repository, Revision,
 };
 use parking_lot::Mutex;
 
@@ -350,67 +350,62 @@ impl DiagnosticContext for TestProviderContext {
         })
     }
 
-    /// Format one module id when the context can resolve it.
-    fn format_module_id(&self, module: ModuleId) -> Result<String, DiagnosticError> {
-        let module_id = module;
-        let module = self
-            .repository
-            .module(self.revision, module_id)
-            .expect("linter test provider should read module");
-        let Some(module) = module else {
-            return Err(Self::invalid_anchor(format!(
-                "diagnostic module is not tracked in revision: {module_id:?}"
-            )));
-        };
+    /// Display one repository-backed value when the context can resolve it.
+    fn display(&self, display: DiagnosticDisplay) -> Result<String, DiagnosticError> {
+        match display {
+            DiagnosticDisplay::Module(module_id) => {
+                let module = self
+                    .repository
+                    .module(self.revision, module_id)
+                    .expect("linter test provider should read module");
+                let Some(module) = module else {
+                    return Err(Self::invalid_anchor(format!(
+                        "diagnostic module is not tracked in revision: {module_id:?}"
+                    )));
+                };
 
-        Ok(module.uri.to_string())
-    }
+                Ok(module.uri.to_string())
+            }
+            DiagnosticDisplay::Package(package_id) => {
+                let package = self
+                    .repository
+                    .package(self.revision, package_id)
+                    .expect("linter test provider should read package");
+                let Some(package) = package else {
+                    return Err(Self::invalid_anchor(format!(
+                        "diagnostic package is not tracked in revision: {package_id:?}"
+                    )));
+                };
+                let name = package
+                    .name
+                    .clone()
+                    .or_else(|| package.path.as_ref().map(|path| path.display().to_string()));
+                let Some(name) = name else {
+                    return Err(Self::invalid_anchor(format!(
+                        "diagnostic package has no display name: {package_id:?}"
+                    )));
+                };
 
-    /// Format one package id when the context can resolve it.
-    fn format_package_id(&self, package: PackageId) -> Result<String, DiagnosticError> {
-        let package_id = package;
-        let package = self
-            .repository
-            .package(self.revision, package_id)
-            .expect("linter test provider should read package");
-        let Some(package) = package else {
-            return Err(Self::invalid_anchor(format!(
-                "diagnostic package is not tracked in revision: {package_id:?}"
-            )));
-        };
-        let name = package
-            .name
-            .clone()
-            .or_else(|| package.path.as_ref().map(|path| path.display().to_string()));
-        let Some(name) = name else {
-            return Err(Self::invalid_anchor(format!(
-                "diagnostic package has no display name: {package_id:?}"
-            )));
-        };
+                Ok(name)
+            }
+            DiagnosticDisplay::Target(target_id) => {
+                let target = self
+                    .repository
+                    .effective_target(self.revision, target_id)
+                    .expect("linter test provider should read target");
+                let Some(target) = target else {
+                    return Err(Self::invalid_anchor(format!(
+                        "diagnostic target is not tracked in revision: {target_id:?}"
+                    )));
+                };
 
-        Ok(name)
-    }
-
-    /// Format one target id when the context can resolve it.
-    fn format_target_id(&self, target: TargetId) -> Result<String, DiagnosticError> {
-        let target_id = target;
-        let target = self
-            .repository
-            .effective_target(self.revision, target_id)
-            .expect("linter test provider should read target");
-        let Some(target) = target else {
-            return Err(Self::invalid_anchor(format!(
-                "diagnostic target is not tracked in revision: {target_id:?}"
-            )));
-        };
-
-        Ok(target.name)
+                Ok(target.name)
+            }
+        }
     }
 }
 
 impl ProviderContext for TestProviderContext {
-    type Revision = Revision;
-
     /// Return the pinned repository revision for this attempt.
     fn revision(&self) -> Revision {
         self.revision
@@ -422,9 +417,9 @@ impl ProviderContext for TestProviderContext {
     }
 
     /// Require one artifact and return its exact version when ready.
-    fn require(&self, key: ArtifactKey) -> Result<ArtifactVersion, RequireError> {
+    fn require(&self, key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
         if key == self.artifact_key {
-            return Err(RequireError::Failed { key });
+            return Err(ProviderError::RequirementFailed { key });
         }
 
         let Some(version) = self
@@ -432,7 +427,7 @@ impl ProviderContext for TestProviderContext {
             .artifact_version(self.revision, &key)
             .expect("linter test provider should read artifact version")
         else {
-            return Err(RequireError::blocked(key));
+            return Err(ProviderError::blocked(key));
         };
 
         match self.repository.artifact_store().outcome(&version) {
@@ -444,9 +439,9 @@ impl ProviderContext for TestProviderContext {
                     dependencies.push(dependency);
                 }
 
-                return Err(RequireError::Failed { key });
+                return Err(ProviderError::RequirementFailed { key });
             }
-            None => return Err(RequireError::blocked(key)),
+            None => return Err(ProviderError::blocked(key)),
         }
 
         let mut dependencies = self.dependencies.lock();
@@ -1591,39 +1586,36 @@ impl DiagnosticContext for LintResult<'_> {
         })
     }
 
-    /// Format one module id when the context can resolve it.
-    fn format_module_id(&self, module: ModuleId) -> Result<String, DiagnosticError> {
-        self.repository
-            .module_display(self.revision, module)
-            .map_err(|error| DiagnosticError::InvalidAnchor {
-                message: format!("failed to format diagnostic module: {error}"),
-            })?
-            .ok_or_else(|| DiagnosticError::InvalidAnchor {
-                message: format!("diagnostic module is not tracked: {module:?}"),
-            })
-    }
-
-    /// Format one package id when the context can resolve it.
-    fn format_package_id(&self, package: PackageId) -> Result<String, DiagnosticError> {
-        self.repository
-            .package_display(self.revision, package)
-            .map_err(|error| DiagnosticError::InvalidAnchor {
-                message: format!("failed to format diagnostic package: {error}"),
-            })?
-            .ok_or_else(|| DiagnosticError::InvalidAnchor {
-                message: format!("diagnostic package has no display name: {package:?}"),
-            })
-    }
-
-    /// Format one target id when the context can resolve it.
-    fn format_target_id(&self, target: TargetId) -> Result<String, DiagnosticError> {
-        self.repository
-            .target_display(self.revision, target)
-            .map_err(|error| DiagnosticError::InvalidAnchor {
-                message: format!("failed to format diagnostic target: {error}"),
-            })?
-            .ok_or_else(|| DiagnosticError::InvalidAnchor {
-                message: format!("diagnostic target is not tracked: {target:?}"),
-            })
+    /// Display one repository-backed value when the context can resolve it.
+    fn display(&self, display: DiagnosticDisplay) -> Result<String, DiagnosticError> {
+        match display {
+            DiagnosticDisplay::Module(module) => self
+                .repository
+                .module_display(self.revision, module)
+                .map_err(|error| DiagnosticError::InvalidAnchor {
+                    message: format!("failed to format diagnostic module: {error}"),
+                })?
+                .ok_or_else(|| DiagnosticError::InvalidAnchor {
+                    message: format!("diagnostic module is not tracked: {module:?}"),
+                }),
+            DiagnosticDisplay::Package(package) => self
+                .repository
+                .package_display(self.revision, package)
+                .map_err(|error| DiagnosticError::InvalidAnchor {
+                    message: format!("failed to format diagnostic package: {error}"),
+                })?
+                .ok_or_else(|| DiagnosticError::InvalidAnchor {
+                    message: format!("diagnostic package has no display name: {package:?}"),
+                }),
+            DiagnosticDisplay::Target(target) => self
+                .repository
+                .target_display(self.revision, target)
+                .map_err(|error| DiagnosticError::InvalidAnchor {
+                    message: format!("failed to format diagnostic target: {error}"),
+                })?
+                .ok_or_else(|| DiagnosticError::InvalidAnchor {
+                    message: format!("diagnostic target is not tracked: {target:?}"),
+                }),
+        }
     }
 }

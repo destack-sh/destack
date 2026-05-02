@@ -3,12 +3,12 @@ use std::fmt;
 use std::sync::{Arc, LazyLock};
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPayload, ModuleLinted, PackageLinted, ProviderContext, ProviderError,
-    ProviderResult, WorkspaceLinted,
+    ArtifactKey, ArtifactPayload, ModuleLinted, PackageLinted, WorkspaceLinted,
 };
 use destack_source::{FileId, ModuleId, PackageId};
 use destack_workspace::{
-    LintPreset, LinterOptions, Module, Profile, ProfileId, Repository, Revision,
+    LintPreset, LinterOptions, Module, Profile, ProfileId, ProviderContext, ProviderError,
+    ProviderResult, Repository, Revision,
 };
 
 use crate::{LintLevel, LintReport, LintRunner};
@@ -124,7 +124,7 @@ impl Linter {
     /// Record lint diagnostics on one provider context.
     fn record_lint_diagnostics(
         &self,
-        context: &dyn ProviderContext<Revision = Revision>,
+        context: &dyn ProviderContext,
         diagnostics: impl IntoIterator<Item = LintReport>,
     ) -> Result<(), LinterError> {
         let mut seen = HashSet::new();
@@ -221,7 +221,7 @@ impl Linter {
     /// Lint one module and return fresh diagnostics.
     pub fn lint_module(
         &self,
-        context: &dyn ProviderContext<Revision = Revision>,
+        context: &dyn ProviderContext,
         revision: Revision,
         module_id: ModuleId,
         profile: Profile,
@@ -276,7 +276,7 @@ impl Linter {
     /// Lint one package and record package scoped diagnostics.
     pub fn lint_package(
         &self,
-        context: &dyn ProviderContext<Revision = Revision>,
+        context: &dyn ProviderContext,
         revision: Revision,
         package_id: PackageId,
     ) -> Result<(), LinterError> {
@@ -335,7 +335,7 @@ impl Linter {
     /// Lint one workspace and record workspace scoped diagnostics.
     pub fn lint_workspace(
         &self,
-        context: &dyn ProviderContext<Revision = Revision>,
+        context: &dyn ProviderContext,
         revision: Revision,
     ) -> Result<(), LinterError> {
         // skip disabled linter configurations
@@ -373,10 +373,7 @@ impl Linter {
     }
 
     /// Provide one lint artifact key.
-    pub fn provide(
-        &self,
-        context: &dyn ProviderContext<Revision = Revision>,
-    ) -> ProviderResult<ArtifactPayload> {
+    pub fn provide(&self, context: &dyn ProviderContext) -> ProviderResult<ArtifactPayload> {
         match context.artifact_key() {
             ArtifactKey::ModuleLinted { module, profile } => {
                 self.provide_module(context, module, profile)
@@ -393,7 +390,7 @@ impl Linter {
     /// Provide one module lint artifact.
     fn provide_module(
         &self,
-        context: &dyn ProviderContext<Revision = Revision>,
+        context: &dyn ProviderContext,
         module_id: ModuleId,
         profile_id: ProfileId,
     ) -> ProviderResult<ArtifactPayload> {
@@ -403,9 +400,7 @@ impl Linter {
             .map_err(|error| ProviderError::internal(error.to_string()))?;
 
         for dependency_key in dependency_keys {
-            context
-                .require(dependency_key)
-                .map_err(ProviderError::from)?;
+            context.require(dependency_key)?;
         }
 
         let profile = self
@@ -430,7 +425,7 @@ impl Linter {
     /// Provide one package lint artifact.
     fn provide_package(
         &self,
-        context: &dyn ProviderContext<Revision = Revision>,
+        context: &dyn ProviderContext,
         package_id: PackageId,
     ) -> ProviderResult<ArtifactPayload> {
         let revision = context.revision();
@@ -439,9 +434,7 @@ impl Linter {
             .map_err(|error| ProviderError::internal(error.to_string()))?;
 
         for dependency_key in dependency_keys {
-            context
-                .require(dependency_key)
-                .map_err(ProviderError::from)?;
+            context.require(dependency_key)?;
         }
 
         self.lint_package(context, revision, package_id)
@@ -451,19 +444,14 @@ impl Linter {
     }
 
     /// Provide one workspace lint artifact.
-    fn provide_workspace(
-        &self,
-        context: &dyn ProviderContext<Revision = Revision>,
-    ) -> ProviderResult<ArtifactPayload> {
+    fn provide_workspace(&self, context: &dyn ProviderContext) -> ProviderResult<ArtifactPayload> {
         let revision = context.revision();
         let dependency_keys = self
             .workspace_lint_dependency_keys(revision)
             .map_err(|error| ProviderError::internal(error.to_string()))?;
 
         for dependency_key in dependency_keys {
-            context
-                .require(dependency_key)
-                .map_err(ProviderError::from)?;
+            context.require(dependency_key)?;
         }
 
         self.lint_workspace(context, revision)

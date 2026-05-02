@@ -2,9 +2,9 @@ use std::sync::Arc;
 use std::thread::{Builder, JoinHandle};
 
 use destack_artifact::{
-    ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload, ArtifactVersion, ProviderError,
+    ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload, ArtifactVersion,
 };
-use destack_workspace::Revision;
+use destack_workspace::{ProviderError, Revision};
 use parking_lot::{Condvar, Mutex};
 
 use super::run::Run;
