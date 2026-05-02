@@ -1,6 +1,86 @@
+use std::collections::HashMap;
+use std::error::Error;
+use std::fmt::{self, Display, Formatter};
+
 use serde::{Deserialize, Serialize};
 
-use crate::{FileId, Span};
+use crate::{File, FileId, Span};
+
+/// Error produced while applying source edits.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EditApplyError {
+    /// The edited file cannot be loaded.
+    MissingFile {
+        /// The missing file.
+        file: FileId,
+    },
+    /// One edit is attached to a different file.
+    FileMismatch {
+        /// The file being edited.
+        file: FileId,
+        /// The file carried by the edit span.
+        edit_file: FileId,
+    },
+    /// Edits overlap after sorting.
+    OverlappingEdits {
+        /// The edited file.
+        file: FileId,
+    },
+    /// One edit span is outside the file.
+    OutsideFile {
+        /// The edited file.
+        file: FileId,
+        /// The edit start byte offset.
+        start: u32,
+        /// The edit end byte offset.
+        end: u32,
+        /// The file length in bytes.
+        len: usize,
+    },
+    /// One edit span does not land on UTF-8 boundaries.
+    Boundary {
+        /// The edited file.
+        file: FileId,
+        /// The edit start byte offset.
+        start: u32,
+        /// The edit end byte offset.
+        end: u32,
+    },
+}
+
+impl Display for EditApplyError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MissingFile { file } => {
+                write!(formatter, "missing file for source edit {file:?}")
+            }
+            Self::FileMismatch { file, edit_file } => {
+                write!(
+                    formatter,
+                    "source edit file {edit_file:?} does not match {file:?}"
+                )
+            }
+            Self::OverlappingEdits { file } => {
+                write!(formatter, "source edits overlap in file {file:?}")
+            }
+            Self::OutsideFile {
+                file,
+                start,
+                end,
+                len,
+            } => write!(
+                formatter,
+                "source edit span {start}..{end} is outside file {file:?} with length {len}"
+            ),
+            Self::Boundary { file, start, end } => write!(
+                formatter,
+                "source edit span {start}..{end} is not on UTF-8 boundaries in file {file:?}"
+            ),
+        }
+    }
+}
+
+impl Error for EditApplyError {}
 
 /// A single edit: replace a span with new text.
 ///
@@ -202,4 +282,87 @@ impl FromIterator<FileEdit> for BatchEdit {
             files: iter.into_iter().collect(),
         }
     }
+}
+
+/// Apply one file edit to source text.
+pub fn apply_file_edit(file: &File, file_edit: &FileEdit) -> Result<String, EditApplyError> {
+    let mut edits = file_edit.edits.clone();
+    edits.sort_by_key(|edit| (edit.span.start, edit.span.end));
+
+    // validate edit order and ownership before mutating text
+    let mut previous_end = 0;
+    for edit in &edits {
+        // reject edits attached to a different file
+        if edit.span.file != file_edit.file {
+            return Err(EditApplyError::FileMismatch {
+                file: file_edit.file,
+                edit_file: edit.span.file,
+            });
+        }
+
+        // reject edits that would rewrite the same byte twice
+        if edit.span.start < previous_end {
+            return Err(EditApplyError::OverlappingEdits {
+                file: file_edit.file,
+            });
+        }
+
+        previous_end = edit.span.end;
+    }
+
+    // apply from the back so byte offsets stay stable
+    let mut text = file.text().to_string();
+    for edit in edits.iter().rev() {
+        let start = edit.span.start as usize;
+        let end = edit.span.end as usize;
+
+        // reject byte ranges outside the source text
+        if start > end || end > text.len() {
+            return Err(EditApplyError::OutsideFile {
+                file: file_edit.file,
+                start: edit.span.start,
+                end: edit.span.end,
+                len: text.len(),
+            });
+        }
+
+        // reject byte ranges that split unicode scalars
+        if !text.is_char_boundary(start) || !text.is_char_boundary(end) {
+            return Err(EditApplyError::Boundary {
+                file: file_edit.file,
+                start: edit.span.start,
+                end: edit.span.end,
+            });
+        }
+
+        // replace after validation
+        text.replace_range(start..end, &edit.new_text);
+    }
+
+    Ok(text)
+}
+
+/// Apply one batch edit to loaded source files.
+pub fn apply_batch_edit<'a, F>(
+    edits: &BatchEdit,
+    file_for_id: F,
+) -> Result<HashMap<FileId, String>, EditApplyError>
+where
+    F: Fn(FileId) -> Option<&'a File>,
+{
+    let mut updates = HashMap::new();
+
+    for file_edit in &edits.files {
+        // require every edited file to be available
+        let file = file_for_id(file_edit.file).ok_or(EditApplyError::MissingFile {
+            file: file_edit.file,
+        })?;
+
+        // apply one file edit independently
+        let text = apply_file_edit(file, file_edit)?;
+
+        updates.insert(file_edit.file, text);
+    }
+
+    Ok(updates)
 }

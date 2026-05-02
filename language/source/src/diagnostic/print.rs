@@ -5,8 +5,8 @@ use destack_core::{Color, pluralize};
 
 use crate::{
     AnnotateOptions, Applicability, DiagnosticCollection, DiagnosticLabel, DiagnosticRenderError,
-    DiagnosticSuggestion, DiffOptions, File, FileEdit, FileId, SourceColorizer, annotate_file,
-    format_diff,
+    DiagnosticSuggestion, DiffOptions, File, FileId, SourceColorizer, annotate_file,
+    apply_file_edit, format_diff,
 };
 
 /// Write a diagnostic line.
@@ -279,52 +279,6 @@ where
     }
 
     Ok(())
-}
-
-fn apply_file_edit(file: &File, file_edit: &FileEdit) -> Result<String, DiagnosticRenderError> {
-    let mut edits = file_edit.edits.clone();
-    edits.sort_by_key(|edit| (edit.span.start, edit.span.end));
-
-    let mut previous_end = 0;
-    for edit in &edits {
-        if edit.span.file != file_edit.file {
-            return Err(DiagnosticRenderError::EditFileMismatch {
-                file: file_edit.file,
-                edit_file: edit.span.file,
-            });
-        }
-        if edit.span.start < previous_end {
-            return Err(DiagnosticRenderError::OverlappingEdits {
-                file: file_edit.file,
-            });
-        }
-        previous_end = edit.span.end;
-    }
-
-    let mut text = file.text().to_string();
-    for edit in edits.iter().rev() {
-        let start = edit.span.start as usize;
-        let end = edit.span.end as usize;
-        if start > end || end > text.len() {
-            return Err(DiagnosticRenderError::EditOutsideFile {
-                file: file_edit.file,
-                start: edit.span.start,
-                end: edit.span.end,
-                len: text.len(),
-            });
-        }
-        if !text.is_char_boundary(start) || !text.is_char_boundary(end) {
-            return Err(DiagnosticRenderError::EditBoundary {
-                file: file_edit.file,
-                start: edit.span.start,
-                end: edit.span.end,
-            });
-        }
-
-        text.replace_range(start..end, &edit.new_text);
-    }
-
-    Ok(text)
 }
 
 fn color_text(options: &PrintOptions, color: Color, text: &str) -> String {
