@@ -1,10 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_compiler::{Compiler, CompilerOptions};
-use destack_linter::Linter;
-use destack_session::{Session, SessionEventHandler};
-use destack_source::OverlayFileSystem;
+use destack_compiler::Compiler;
+use destack_session::Session;
 use destack_workspace::{Ref, Repository, Revision};
 
 use super::{LanguageService, LanguageServiceError};
@@ -46,8 +44,22 @@ impl LanguageService {
             })
     }
 
-    /// Resolve the imported root that owns a path.
-    pub(super) fn semantic_root(
+    /// Return whether one path belongs to one configured root.
+    pub(super) fn path_in_root(&self, path: &Path, root: &Path) -> bool {
+        // accept direct path containment first
+        if path.starts_with(root) {
+            return true;
+        }
+
+        // compare normalized paths for symlinked roots and files
+        let path = Self::normalized_path(path);
+        let root = Self::normalized_path(root);
+
+        path.starts_with(root)
+    }
+
+    /// Resolve the root whose current revision tracks a path.
+    pub(super) fn tracked_root(
         &self,
         path: &Path,
     ) -> Result<Option<PathBuf>, LanguageServiceError> {
@@ -58,9 +70,14 @@ impl LanguageService {
         for entry in self.roots.iter() {
             let session = entry.value();
             let revision = session.revision(session.head())?;
-            let is_member = session.owns_semantic_path(revision, path)?
-                || (canonical_path != path
-                    && session.owns_semantic_path(revision, &canonical_path)?);
+            let repository = session.repository();
+            let file_id = repository.file_id(path);
+            let is_member = repository.file(revision, file_id)?.is_some()
+                || (canonical_path != path && {
+                    let file_id = repository.file_id(&canonical_path);
+
+                    repository.file(revision, file_id)?.is_some()
+                });
             if !is_member {
                 continue;
             }
@@ -85,7 +102,7 @@ impl LanguageService {
             return self.session(&root);
         }
 
-        // fall back to imported semantic ownership
+        // fall back to tracked repository ownership
         self.session_at(path)
     }
 
@@ -95,33 +112,6 @@ impl LanguageService {
             Ok(path) => path,
             Err(_error) => path.to_path_buf(),
         }
-    }
-
-    /// Create a local language service with explicit compiler options.
-    pub fn with_options(
-        repository: Arc<Repository>,
-        overlay_file_system: Option<Arc<OverlayFileSystem>>,
-        roots: Vec<PathBuf>,
-        compiler_options: CompilerOptions,
-        session_event_handler: Option<SessionEventHandler>,
-    ) -> Result<Self, LanguageServiceError> {
-        let compiler = Arc::new(Compiler::new(repository.clone(), compiler_options));
-        let linter = Arc::new(Linter::new(repository.clone()));
-
-        let service = Self {
-            repository,
-            compiler,
-            linter,
-            events: session_event_handler,
-            roots: dashmap::DashMap::new(),
-            overlay_file_system,
-        };
-
-        for root in roots {
-            service.open_root(root)?;
-        }
-
-        Ok(service)
     }
 
     /// Open one root.
@@ -134,7 +124,7 @@ impl LanguageService {
         self.roots.insert(root.clone(), Arc::clone(&session));
 
         // synchronize the current source state for the new workspace ref
-        let result = session.load_from_fs(session.head());
+        let result = session.reload_from_fs(session.head());
         let Err(error) = result else {
             return Ok(());
         };
@@ -202,7 +192,7 @@ impl LanguageService {
 
     /// Resolve or create the session that owns a path.
     pub(super) fn session_at(&self, path: &Path) -> Result<Arc<Session>, LanguageServiceError> {
-        let Some(root) = self.semantic_root(path)? else {
+        let Some(root) = self.tracked_root(path)? else {
             return Err(LanguageServiceError::PathNotInRoot {
                 path: path.to_path_buf(),
             });
@@ -225,13 +215,17 @@ impl LanguageService {
             .map_err(LanguageServiceError::from)
     }
 
-    /// Execute a callback with repository and compiler handles while holding the mutation lock.
-    pub fn with_session<T, F>(&self, root: &Path, callback: F) -> Result<T, LanguageServiceError>
+    /// Execute a callback with repository and compiler handles while holding the root mutation lock.
+    pub fn with_exclusive_root<T, F>(
+        &self,
+        root: &Path,
+        callback: F,
+    ) -> Result<T, LanguageServiceError>
     where
         F: FnOnce(Arc<Repository>, Arc<Compiler>) -> T,
     {
         let session = self.session(root)?;
-        let _compile_guard = session.enter_mutation();
+        let _mutation_guard = session.enter_mutation();
 
         Ok(callback(
             session.repository().clone(),
@@ -257,10 +251,10 @@ impl LanguageService {
             cwd,
             self.repository.clone(),
             revision_ref,
-            self.overlay_file_system.clone(),
             self.compiler.clone(),
             self.linter.clone(),
-            self.events.clone(),
-        ))
+            self.worker_limit,
+            self.event_handler.clone(),
+        )?)
     }
 }

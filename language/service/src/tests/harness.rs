@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_compiler::CompilerOptions;
 use destack_session::open_repository_from_fs;
 use destack_source::{
     FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem, PhysicalFileSystem,
@@ -9,7 +8,7 @@ use destack_source::{
 };
 use destack_workspace::HostEnvironment;
 
-use crate::{FileMutation, LanguageService, LanguageServiceResult};
+use crate::{FileChange, LanguageService, LanguageServiceResult};
 
 /// Test harness for language service integration tests.
 #[derive(Debug)]
@@ -47,19 +46,9 @@ impl TestLanguageService {
             )
             .expect("failed to import repository from overlay fs"),
         );
-        // keep compiler execution deterministic for service tests
-        let compiler_options = CompilerOptions {
-            workers: 1,
-            ..CompilerOptions::default()
-        };
-        let service = LanguageService::with_options(
-            repository.clone(),
-            Some(overlay),
-            roots.clone(),
-            compiler_options,
-            None,
-        )
-        .expect("expected language service");
+        let service =
+            LanguageService::new(repository.clone(), Some(overlay), roots.clone(), 1, None)
+                .expect("expected language service");
 
         Self { fs, service, roots }
     }
@@ -106,16 +95,16 @@ impl TestLanguageService {
         path
     }
 
-    /// Apply a virtual source update for a path.
-    pub(super) fn update_virtual_text(&self, path: &Path, source: &str) -> LanguageServiceResult {
+    /// Apply a text source update for a path.
+    pub(super) fn apply_text(&self, path: &Path, source: &str) -> LanguageServiceResult {
         self.service
             .apply_file(
                 path,
-                FileMutation::Text {
+                FileChange::Text {
                     content: source.to_string(),
                 },
             )
-            .unwrap_or_else(|error| panic!("failed virtual update for {}: {error}", path.display()))
+            .unwrap_or_else(|error| panic!("failed file update for {}: {error}", path.display()))
     }
 
     /// Apply a modified watch event for a path.

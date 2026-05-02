@@ -14,7 +14,7 @@ fn test_read_query_returns_document_symbols() {
     let path = test.write_text("main.ds", source);
     let uri = test.uri_for_path(&path);
 
-    let _ = test.update_virtual_text(&path, source);
+    let _ = test.apply_text(&path, source);
 
     let response = test
         .service
@@ -34,10 +34,10 @@ fn test_read_query_returns_document_symbols() {
     );
 }
 
-/// Preserve inferred inlay type hints after virtual edits remove explicit annotations.
+/// Preserve inferred inlay type hints after file edits remove explicit annotations.
 #[test]
-fn test_read_query_uses_current_overlay_text() {
-    let test = TestLanguageService::new("service_query_overlay");
+fn test_read_query_uses_latest_file_text() {
+    let test = TestLanguageService::new("service_query_file_text");
     let source_a = r#"function greet(name: string, greeting: string): string {
     return greeting + ", " + name;
 }
@@ -51,8 +51,8 @@ const msg = greet("World", "Hello");
     let path = test.write_text("main.ds", source_a);
     let uri = test.uri_for_path(&path);
 
-    let _ = test.update_virtual_text(&path, source_a);
-    let _ = test.update_virtual_text(&path, source_b);
+    let _ = test.apply_text(&path, source_a);
+    let _ = test.apply_text(&path, source_b);
 
     // query the full file so the binding and call-site hints are both in range
     let response = test
@@ -77,11 +77,11 @@ const msg = greet("World", "Hello");
         .any(|hint| hint.kind == query::InlayHintKind::Type);
     assert!(
         type_hint,
-        "expected one inferred type hint after the virtual update"
+        "expected one inferred type hint after the file update"
     );
 }
 
-/// Advance semantic revision after virtual file updates.
+/// Advance the repository revision after file updates.
 #[test]
 fn test_apply_file_advances_revision() {
     let test = TestLanguageService::new("service_revision_updates");
@@ -89,13 +89,13 @@ fn test_apply_file_advances_revision() {
     let source_b = "export const value = 2;\n";
     let path = test.write_text("main.ds", source_a);
 
-    let _ = test.update_virtual_text(&path, source_a);
+    let _ = test.apply_text(&path, source_a);
     let revision_a = test
         .service
         .revision_at(&path)
         .expect("expected first revision");
 
-    let _ = test.update_virtual_text(&path, source_b);
+    let _ = test.apply_text(&path, source_b);
     let revision_b = test
         .service
         .revision_at(&path)
@@ -104,45 +104,29 @@ fn test_apply_file_advances_revision() {
     assert_ne!(revision_b, revision_a, "expected revision to change");
 }
 
-/// Require revision preconditions for mutating queries.
+/// Require matching revision preconditions for mutating queries.
 #[test]
-fn test_write_query_requires_current_revision() {
+fn test_write_query_requires_matching_revision() {
     let test = TestLanguageService::new("service_mutation_revision");
     let source = "export const value = 1;\n";
     let path = test.write_text("main.ds", source);
 
-    let _ = test.update_virtual_text(&path, source);
+    let _ = test.apply_text(&path, source);
     let current_revision = test
         .service
         .revision_at(&path)
         .expect("expected current revision");
 
-    // reject mutating queries without an expected revision
-    let missing_revision = query::QueryRequestEnvelope {
-        expected_revision: None,
-        request: query::QueryRequest::RenameFiles(query::RenameFilesRequest {
-            renames: Vec::new(),
-        }),
-    };
-    let missing_error = test
-        .service
-        .write_query_at(&path, missing_revision)
-        .expect_err("expected missing revision error");
-    assert!(matches!(
-        missing_error,
-        LanguageServiceError::MissingExpectedRevision
-    ));
-
     // reject stale revision preconditions
-    let stale_revision = query::QueryRequestEnvelope {
-        expected_revision: Some(Revision::NULL),
-        request: query::QueryRequest::RenameFiles(query::RenameFilesRequest {
-            renames: Vec::new(),
-        }),
-    };
     let stale_error = test
         .service
-        .write_query_at(&path, stale_revision)
+        .write_query(
+            &path,
+            Revision::NULL,
+            query::QueryRequest::RenameFiles(query::RenameFilesRequest {
+                renames: Vec::new(),
+            }),
+        )
         .expect_err("expected stale revision error");
     assert!(matches!(
         stale_error,
@@ -150,15 +134,15 @@ fn test_write_query_requires_current_revision() {
     ));
 
     // accept matching revision preconditions
-    let matching_revision = query::QueryRequestEnvelope {
-        expected_revision: Some(current_revision),
-        request: query::QueryRequest::RenameFiles(query::RenameFilesRequest {
-            renames: Vec::new(),
-        }),
-    };
     let _ = test
         .service
-        .write_query_at(&path, matching_revision)
+        .write_query(
+            &path,
+            current_revision,
+            query::QueryRequest::RenameFiles(query::RenameFilesRequest {
+                renames: Vec::new(),
+            }),
+        )
         .expect("expected mutating query with matching revision");
 }
 
@@ -169,17 +153,16 @@ fn test_read_query_rejects_write_request() {
     let source = "export const value = 1;\n";
     let path = test.write_text("main.ds", source);
 
-    let _ = test.update_virtual_text(&path, source);
+    let _ = test.apply_text(&path, source);
 
-    let envelope = query::QueryRequestEnvelope {
-        expected_revision: None,
-        request: query::QueryRequest::RenameFiles(query::RenameFilesRequest {
-            renames: Vec::new(),
-        }),
-    };
     let error = test
         .service
-        .read_query_at(&path, envelope)
+        .read_query(
+            &path,
+            query::QueryRequest::RenameFiles(query::RenameFilesRequest {
+                renames: Vec::new(),
+            }),
+        )
         .expect_err("expected read mode mismatch");
     assert!(matches!(
         error,
@@ -190,33 +173,6 @@ fn test_read_query_rejects_write_request() {
         }
     ));
 }
-
-/// Reject expected revisions on read query APIs.
-#[test]
-fn test_read_query_rejects_expected_revision() {
-    let test = TestLanguageService::new("service_read_expected_revision");
-    let source = "export const value = 1;\n";
-    let path = test.write_text("main.ds", source);
-    let uri = test.uri_for_path(&path);
-
-    let _ = test.update_virtual_text(&path, source);
-
-    let envelope = query::QueryRequestEnvelope {
-        expected_revision: Some(Revision::NULL),
-        request: query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest { uri }),
-    };
-    let error = test
-        .service
-        .read_query_at(&path, envelope)
-        .expect_err("expected unexpected revision error");
-    assert!(matches!(
-        error,
-        LanguageServiceError::UnexpectedExpectedRevision {
-            expected_revision: Revision::NULL
-        }
-    ));
-}
-
 /// Resolve cross-module references for exported symbols.
 #[test]
 fn test_read_query_finds_cross_module_references() {
@@ -227,9 +183,9 @@ fn test_read_query_finds_cross_module_references() {
     let main_path = test.write_text("main.ds", main_source);
     let lib_uri = test.uri_for_path(&lib_path);
 
-    // apply virtual updates for both files
-    let _ = test.update_virtual_text(&lib_path, lib_source);
-    let _ = test.update_virtual_text(&main_path, main_source);
+    // apply file updates for both files
+    let _ = test.apply_text(&lib_path, lib_source);
+    let _ = test.apply_text(&main_path, main_source);
 
     // query references from the exported symbol definition
     let ping_offset = lib_source
@@ -267,30 +223,28 @@ fn test_write_query_renames_cross_module_symbol() {
     let main_path = test.write_text("main.ds", main_source);
     let lib_uri = test.uri_for_path(&lib_path);
 
-    // apply virtual updates for both files
-    let _ = test.update_virtual_text(&lib_path, lib_source);
-    let _ = test.update_virtual_text(&main_path, main_source);
+    // apply file updates for both files
+    let _ = test.apply_text(&lib_path, lib_source);
+    let _ = test.apply_text(&main_path, main_source);
 
     // query rename from the exported definition
     let greet_offset = lib_source
         .find("greet")
         .unwrap_or_else(|| panic!("expected 'greet' in lib source")) as u32;
+    let revision = test
+        .service
+        .revision_at(&lib_path)
+        .expect("expected revision for rename");
     let response = test
         .service
-        .write_query_at(
+        .write_query(
             &lib_path,
-            query::QueryRequestEnvelope {
-                expected_revision: Some(
-                    test.service
-                        .revision_at(&lib_path)
-                        .expect("expected revision for rename"),
-                ),
-                request: query::QueryRequest::Rename(query::RenameRequest {
-                    uri: lib_uri,
-                    offset: greet_offset,
-                    new_name: "salute".to_string(),
-                }),
-            },
+            revision,
+            query::QueryRequest::Rename(query::RenameRequest {
+                uri: lib_uri,
+                offset: greet_offset,
+                new_name: "salute".to_string(),
+            }),
         )
         .expect("expected rename query response");
     let query::QueryResponse::Rename(query::RenameResponse { result }) = response.response else {

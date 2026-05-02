@@ -5,9 +5,10 @@ use std::sync::Arc;
 use destack_query as query;
 use destack_query::QueryArtifact;
 use destack_session::{Session, SessionError};
-use destack_source::{Diagnostic, File, FileId, ModuleId, ProfileId, Span, Uri};
+use destack_source::{File, FileId, ModuleId, ProfileId, Span, Uri};
 use destack_workspace::{Repository, Revision, RevisionPin};
 
+use super::diagnostic::diagnostics_by_file;
 use super::{DiagnosticSnapshot, LanguageService, LanguageServiceError};
 
 /// Result of executing one query.
@@ -130,20 +131,17 @@ impl LanguageService {
                 return Ok(None);
             };
             let file = Self::tracked_file(repository, revision, file_id)?;
-            let diagnostics = current_root_diagnostics_by_file(session, repository)?
+            let diagnostics = diagnostics_by_file(repository, revision)?
                 .remove(&file_id)
                 .unwrap_or_default();
-            let open_file = file
-                .path
-                .as_ref()
-                .and_then(|path| self.open_file_for_path(path));
+            let open_file = file.path.as_ref().and_then(|path| self.open_state(path));
             let diagnostic_uri = open_file
                 .as_ref()
                 .map(|file| file.uri.clone())
                 .or_else(|| file.path.as_ref().map(Uri::from_file_path))
                 .unwrap_or_else(|| file.uri.clone());
             let diagnostic_version = if let Some(path) = file.path.as_ref() {
-                self.open_file_version_for_revision(
+                self.open_file_version_in_revision(
                     session.repository().as_ref(),
                     revision,
                     file_id,
@@ -184,11 +182,11 @@ impl LanguageService {
     ) -> Result<Vec<DiagnosticSnapshot>, LanguageServiceError> {
         self.read_session(root, |session, revision_pin| {
             let mut diagnostics_by_file =
-                current_root_diagnostics_by_file(session, revision_pin.repository())?;
+                diagnostics_by_file(revision_pin.repository(), revision_pin.revision())?;
 
             // open files
-            let mut open_files = std::collections::HashMap::new();
-            for (path, file) in self.open_files_for_root(root) {
+            let mut open_files = HashMap::new();
+            for (path, file) in self.open_files_under(root) {
                 let Some(file_id) = Self::tracked_file_id(
                     revision_pin.repository(),
                     revision_pin.revision(),
@@ -197,7 +195,7 @@ impl LanguageService {
                 else {
                     continue;
                 };
-                let version = self.open_file_version_for_revision(
+                let version = self.open_file_version_in_revision(
                     session.repository().as_ref(),
                     revision_pin.revision(),
                     file_id,
@@ -282,11 +280,11 @@ impl LanguageService {
     ) -> Result<QueryResult, LanguageServiceError> {
         let root = self.root_at(path)?;
 
-        self.read_root_query(&root, request)
+        self.read_query_for_root(&root, request)
     }
 
     /// Run one read query for a root.
-    pub fn read_root_query(
+    pub fn read_query_for_root(
         &self,
         root: &Path,
         request: query::QueryRequest,
@@ -316,7 +314,7 @@ impl LanguageService {
     }
 
     /// Run one write query for the root that owns a path.
-    pub fn write_query_at(
+    pub fn write_query(
         &self,
         path: &Path,
         expected_revision: Revision,
@@ -324,11 +322,11 @@ impl LanguageService {
     ) -> Result<QueryResult, LanguageServiceError> {
         let root = self.root_at(path)?;
 
-        self.write_root_query(&root, expected_revision, request)
+        self.write_query_for_root(&root, expected_revision, request)
     }
 
     /// Run one write query for a root.
-    pub fn write_root_query(
+    pub fn write_query_for_root(
         &self,
         root: &Path,
         expected_revision: Revision,
@@ -456,7 +454,7 @@ impl LanguageService {
                 )?;
                 let hints = match file_id {
                     Some(file_id) => {
-                        let range = self.span_for_offsets(file_id, params.start, params.end);
+                        let range = Self::offset_span(file_id, params.start, params.end);
                         query::inlay_hints(repository, revision, file_id, range)
                     }
                     None => Vec::new(),
@@ -523,7 +521,7 @@ impl LanguageService {
                 )?;
                 let tokens = match file_id {
                     Some(file_id) => {
-                        let range = self.span_for_offsets(file_id, params.start, params.end);
+                        let range = Self::offset_span(file_id, params.start, params.end);
                         query::semantic_tokens_range(repository, revision, file_id, range)
                     }
                     None => Vec::new(),
@@ -819,7 +817,7 @@ impl LanguageService {
                 )?;
                 let result = match file_id {
                     Some(file_id) => {
-                        let selection = self.span_for_offsets(file_id, params.start, params.end);
+                        let selection = Self::offset_span(file_id, params.start, params.end);
                         query::extract_function(
                             repository,
                             revision,
@@ -843,7 +841,7 @@ impl LanguageService {
                 )?;
                 let result = match file_id {
                     Some(file_id) => {
-                        let selection = self.span_for_offsets(file_id, params.start, params.end);
+                        let selection = Self::offset_span(file_id, params.start, params.end);
                         query::extract_variable(
                             repository,
                             revision,
@@ -906,11 +904,10 @@ impl LanguageService {
                 )?;
                 let actions = match file_id {
                     Some(file_id) => {
-                        let range = self.span_for_offsets(file_id, params.start, params.end);
-                        let diagnostics =
-                            current_repository_diagnostics_by_file(repository, revision)?
-                                .remove(&file_id)
-                                .unwrap_or_default();
+                        let range = Self::offset_span(file_id, params.start, params.end);
+                        let diagnostics = diagnostics_by_file(repository, revision)?
+                            .remove(&file_id)
+                            .unwrap_or_default();
                         query::code_actions(
                             repository,
                             revision,
@@ -940,9 +937,11 @@ impl LanguageService {
         artifact: Option<&QueryArtifact>,
     ) -> Result<Option<FileId>, LanguageServiceError> {
         // resolve the file identity from the bound file or query URI
-        let Some(file_id) =
-            bound_file_id.or_else(|| self.resolve_file_id(repository, revision, uri))
-        else {
+        let file_id = match bound_file_id {
+            Some(file_id) => Some(file_id),
+            None => self.resolve_file_id(repository, revision, uri)?,
+        };
+        let Some(file_id) = file_id else {
             return Ok(None);
         };
 
@@ -962,32 +961,28 @@ impl LanguageService {
         repository: &Repository,
         revision: Revision,
         uri: &Uri,
-    ) -> Option<FileId> {
+    ) -> Result<Option<FileId>, LanguageServiceError> {
         // prefer one module lookup by uri
-        if let Ok(Some(module_id)) = repository.module_id_for_uri(revision, uri)
-            && let Ok(Some(module)) = repository.module(revision, module_id)
-        {
-            return Some(module.file_id);
+        if let Some(module_id) = repository.module_id_for_uri(revision, uri)? {
+            let module = repository.module(revision, module_id)?.ok_or_else(|| {
+                LanguageServiceError::Internal {
+                    detail: format!("module id has no module in revision: {module_id:?}"),
+                }
+            })?;
+
+            return Ok(Some(module.file_id));
         }
 
         // then try direct file identity for the exact uri form
         if let Some(path) = uri.to_path_buf() {
             let file_id = repository.file_id(&path);
 
-            return match repository.file(revision, file_id) {
-                Ok(Some(_file)) => Some(file_id),
-                Ok(None) => None,
-                Err(_error) => None,
-            };
+            return Ok(repository.file(revision, file_id)?.map(|_| file_id));
         }
 
         let file_id = FileId::from_logical_str(uri.as_ref());
 
-        match repository.file(revision, file_id) {
-            Ok(Some(_file)) => Some(file_id),
-            Ok(None) => None,
-            Err(_error) => None,
-        }
+        Ok(repository.file(revision, file_id)?.map(|_| file_id))
     }
 
     /// Require one query artifact to be ready for a file.
@@ -1077,7 +1072,7 @@ impl LanguageService {
     }
 
     /// Build a span from offsets for a file.
-    fn span_for_offsets(&self, file_id: FileId, start: u32, end: u32) -> Span {
+    fn offset_span(file_id: FileId, start: u32, end: u32) -> Span {
         // normalize offset order before building a span
         let range_start = start.min(end);
         let range_end = start.max(end);
@@ -1085,34 +1080,7 @@ impl LanguageService {
     }
 }
 
-/// Return current diagnostics grouped by file for one session.
-fn current_root_diagnostics_by_file(
-    session: &Session,
-    repository: &Repository,
-) -> Result<HashMap<FileId, Vec<Diagnostic>>, LanguageServiceError> {
-    current_repository_diagnostics_by_file(repository, session.revision(session.head())?)
-}
-
-/// Return current diagnostics grouped by file for one repository revision.
-fn current_repository_diagnostics_by_file(
-    repository: &Repository,
-    revision: Revision,
-) -> Result<HashMap<FileId, Vec<Diagnostic>>, LanguageServiceError> {
-    let diagnostics = repository.diagnostics(revision)?;
-    let mut diagnostics_by_file = HashMap::new();
-
-    for diagnostic in diagnostics.iter() {
-        let file_id = diagnostic.primary_label().span.file;
-        diagnostics_by_file
-            .entry(file_id)
-            .or_insert_with(Vec::new)
-            .push(diagnostic.clone());
-    }
-
-    Ok(diagnostics_by_file)
-}
-
-/// Return the default semantic profile id for one module.
+/// Return the default profile id for one module.
 fn default_profile_id_for_module(
     repository: &Repository,
     revision: Revision,
