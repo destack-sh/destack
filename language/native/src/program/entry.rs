@@ -1,37 +1,37 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{CodeOffset, EntryFn};
 
-/// Dense native entry id.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+/// One native entry id.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct EntryId(pub u32);
 
-/// One named callable entry in an emitted native artifact.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct EntryImage {
-    /// The dense entry id.
+/// One native entry symbol.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EntrySymbol {
+    /// The entry id.
     pub id: EntryId,
     /// The runtime entry name.
     pub name: String,
-    /// The owning function.
-    pub function: destack_engine::FunctionId,
     /// The code offset for this entry.
     pub offset: CodeOffset,
 }
 
-/// One named callable entry in a loaded native program.
+/// One loaded native entry.
 #[derive(Clone)]
 pub struct Entry {
-    /// The dense entry id.
+    /// The entry id.
     pub id: EntryId,
     /// The loaded entry function pointer.
     pub function: EntryFn,
 }
 
 impl Entry {
-    /// Load one emitted entry with its executable function.
-    pub fn load(image: EntryImage, function: EntryFn) -> Self {
+    /// Load one entry symbol.
+    pub fn load(symbol: EntrySymbol, function: EntryFn) -> Self {
         Self {
-            id: image.id,
+            id: symbol.id,
             function,
         }
     }

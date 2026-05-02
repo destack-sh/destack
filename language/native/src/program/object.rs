@@ -1,29 +1,32 @@
 use std::collections::HashMap;
 
-use crate::{EntryId, EntryImage, Text};
+use destack_engine::{Metadata, StaticSpace};
+use serde::{Deserialize, Serialize};
 
-/// Emitted native object plus managed runtime metadata.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+use crate::{EntryId, EntrySymbol, Text};
+
+/// Native object.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Object {
-    /// The emitted object code.
+    /// The code bytes.
     pub text: Text,
-    /// The immutable program static memory.
-    pub static_space: destack_engine::StaticSpace,
-    /// The metadata needed by GC, safepoints, yielding, and images.
-    pub metadata: destack_engine::ProgramMetadata,
-    /// The named entry table.
-    entries: Vec<EntryImage>,
+    /// The program static memory.
+    pub static_space: StaticSpace,
+    /// The program execution metadata.
+    pub metadata: Metadata,
+    /// The entries by id.
+    entries: Vec<EntrySymbol>,
     /// Entry id by runtime entry name.
     entry_by_name: HashMap<String, EntryId>,
 }
 
 impl Object {
-    /// Create one emitted native object.
+    /// Create one native object.
     pub fn new(
         text: Text,
-        static_space: destack_engine::StaticSpace,
-        metadata: destack_engine::ProgramMetadata,
-        entries: Vec<EntryImage>,
+        static_space: StaticSpace,
+        metadata: Metadata,
+        entries: Vec<EntrySymbol>,
     ) -> Self {
         let entry_by_name = entries
             .iter()
@@ -40,19 +43,19 @@ impl Object {
     }
 
     /// Return one entry by id.
-    pub fn entry(&self, id: EntryId) -> Option<&EntryImage> {
+    pub fn entry(&self, id: EntryId) -> Option<&EntrySymbol> {
         self.entries.get(id.0 as usize)
     }
 
     /// Return one entry by runtime name.
-    pub fn entry_by_name(&self, name: &str) -> Option<&EntryImage> {
+    pub fn entry_by_name(&self, name: &str) -> Option<&EntrySymbol> {
         let id = self.entry_by_name.get(name)?;
 
         self.entry(*id)
     }
 
     /// Return all entries in entry id order.
-    pub fn entries(&self) -> &[EntryImage] {
+    pub fn entries(&self) -> &[EntrySymbol] {
         &self.entries
     }
 }

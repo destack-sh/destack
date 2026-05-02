@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 /// Status returned by native entry functions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(u32)]
 pub enum Status {
     /// Execution completed normally.
@@ -11,7 +13,7 @@ pub enum Status {
 }
 
 /// Runtime trap code reported by generated native code.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[repr(u32)]
 pub enum Trap {
     /// Integer arithmetic overflowed.

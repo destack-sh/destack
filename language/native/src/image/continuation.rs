@@ -1,13 +1,16 @@
+use destack_engine::Continuation as EngineContinuation;
+use serde::{Deserialize, Serialize};
+
 /// Native continuation materialized at a managed safepoint.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Continuation {
-    /// The logical continuation image reconstructed from native state.
-    pub image: destack_engine::ContinuationImage,
+    /// The continuation reconstructed from native state.
+    pub continuation: EngineContinuation,
 }
 
 impl Continuation {
-    /// Create one continuation from a logical image.
-    pub const fn new(image: destack_engine::ContinuationImage) -> Self {
-        Self { image }
+    /// Create one continuation.
+    pub const fn new(continuation: EngineContinuation) -> Self {
+        Self { continuation }
     }
 }

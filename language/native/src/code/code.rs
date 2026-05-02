@@ -1,11 +1,11 @@
 use crate::{CodeLen, CodeOffset, CodePointer};
 
-/// Loaded executable code address range.
+/// Loaded code address range.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CodeMapping {
-    /// The executable base address.
+    /// The base address.
     pub base: CodePointer,
-    /// The executable byte length.
+    /// The byte length.
     pub byte_len: CodeLen,
 }
 

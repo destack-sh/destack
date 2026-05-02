@@ -1,7 +1,15 @@
+use destack_engine::StaticId;
+use serde::{Deserialize, Serialize};
+
 use crate::{CodeOffset, Import};
 
+/// One native function id.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[repr(transparent)]
+pub struct FunctionId(pub u32);
+
 /// Machine relocation encoding.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RelocationKind {
     /// Write one absolute 64-bit address.
     Absolute64,
@@ -10,18 +18,18 @@ pub enum RelocationKind {
 }
 
 /// Relocation target referenced by generated code.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RelocationTarget {
     /// One runtime helper call.
     Runtime(Import),
-    /// One function entry inside the same program.
-    Function(destack_engine::FunctionId),
+    /// One function inside the same program.
+    Function(FunctionId),
     /// One static region address.
-    Static(destack_engine::StaticId),
+    Static(StaticId),
 }
 
 /// One relocation applied while loading native code.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Relocation {
     /// The code offset patched by this relocation.
     pub offset: CodeOffset,

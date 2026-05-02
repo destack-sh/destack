@@ -1,5 +1,7 @@
 use std::ffi::c_void;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{Status, Trap};
 
 /// Opaque runtime context pointer passed to generated native code.
@@ -54,7 +56,7 @@ pub type BindingFn = unsafe extern "C" fn(
 ) -> Status;
 
 /// One runtime helper referenced by native code metadata.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Import {
     /// Local managed allocation.
     Alloc,
