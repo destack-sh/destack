@@ -304,8 +304,7 @@ mod tests {
     use std::sync::Arc;
 
     use destack_source::{
-        Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, File, FileType,
-        Span, Uri,
+        Diagnostic, DiagnosticCollection, DiagnosticLabel, File, FileType, Span, Uri,
     };
     use serde_json::Value;
 
