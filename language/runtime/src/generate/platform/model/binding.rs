@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use destack_builtin::LanguageSymbol;
 use destack_compiler::Compiler;
-use destack_core::{StringPool, fnv1a_64};
+use destack_core::{StringPool, stable_hash_text};
 use destack_dir::{
     self as dir, Argument, Declaration, DependencyItem, Expression, GlobalSymbolId, PrimitiveType,
     StaticArgument, StaticExpression, TypeLiteral, WellKnownSymbol,
@@ -1310,7 +1310,7 @@ fn tuple_struct_name(type_text: Option<&str>, arity: usize) -> String {
     if type_text.is_empty() {
         return format!("Tuple{arity}");
     }
-    let hash = fnv1a_64(type_text.as_bytes());
+    let hash = stable_hash_text(type_text);
     format!("Tuple_{hash:016x}")
 }
 
@@ -1737,8 +1737,6 @@ fn format_type_checked(
 
 #[cfg(test)]
 mod tests {
-    use std::num::NonZeroU32;
-
     use destack_core::StringPool;
     use destack_dir as dir;
 
@@ -1750,9 +1748,7 @@ mod tests {
     #[test]
     fn test_binding_type_from_scalar_literal_string() {
         let strings = StringPool::new();
-        let literal = dir::ScalarLiteral::String(destack_core::StringId(
-            NonZeroU32::new(1).expect("nonzero"),
-        ));
+        let literal = dir::ScalarLiteral::String(strings.intern("value"));
         let binding_type = binding_type_from_scalar_literal(&literal, &strings);
 
         assert_eq!(binding_type, BindingType::String);

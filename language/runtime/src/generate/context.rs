@@ -6,15 +6,13 @@ use destack_artifact::{
 };
 use destack_compiler::Compiler;
 use destack_source::ModuleId;
-use destack_workspace::{
-    Module, ProfileId, Repository, RepositoryError, RepositorySnapshot, Revision,
-};
+use destack_workspace::{Module, PinnedRevision, ProfileId, Repository, RepositoryError, Revision};
 
 /// Revision-scoped semantic context for runtime generation.
 #[derive(Debug)]
 pub(crate) struct GeneratorContext {
-    /// The rooted repository snapshot for this generator run.
-    snapshot: RepositorySnapshot,
+    /// The pinned repository revision for this generator run.
+    pinned_revision: PinnedRevision,
     /// The retained live artifacts for this generator run.
     retained_artifacts: ArtifactPinSet,
 }
@@ -22,25 +20,25 @@ pub(crate) struct GeneratorContext {
 impl GeneratorContext {
     /// Build one context from a repository and revision.
     pub(crate) fn new(repository: Arc<Repository>, revision: Revision) -> Self {
-        let snapshot = repository
-            .snapshot(revision)
+        let pinned_revision = repository
+            .pin(revision)
             .unwrap_or_else(|error| panic!("failed to root runtime generator revision: {error}"));
         let retained_artifacts = ArtifactPinSet::new(repository.artifact_store().clone());
 
         Self {
-            snapshot,
+            pinned_revision,
             retained_artifacts,
         }
     }
 
     /// Return the shared repository.
     pub(crate) fn repository(&self) -> &Repository {
-        self.snapshot.repository()
+        self.pinned_revision.repository()
     }
 
     /// Return the active revision.
     pub(crate) fn revision(&self) -> Revision {
-        self.snapshot.revision()
+        self.pinned_revision.revision()
     }
 
     /// Return the live artifact store for type formatting helpers.
@@ -48,9 +46,9 @@ impl GeneratorContext {
         self.retained_artifacts.store()
     }
 
-    /// Return one module snapshot from the active revision.
+    /// Return one module from the active revision.
     pub(crate) fn get(&self, module_id: ModuleId) -> Arc<Module> {
-        self.snapshot
+        self.pinned_revision
             .module(module_id)
             .unwrap_or_else(|error| panic!("failed to load module {module_id:?}: {error}"))
             .unwrap_or_else(|| {

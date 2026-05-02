@@ -3,12 +3,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use destack_artifact::{EmitFormat, EnvironmentStamp, Platform, ProfileFlags, ProfileKey, Runtime};
+use destack_artifact::{
+    DiskCacheStore, EmitFormat, EnvironmentStamp, Platform, ProfileFlags, ProfileKey, Runtime,
+};
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_linter::Linter;
 use destack_session::Session;
-use destack_source::{DiagnosticCollection, DiagnosticSeverity};
-use destack_workspace::{AmbientSnapshot, Profile, ProfileId, Ref, Repository, Revision};
+use destack_source::{DiagnosticCollection, DiagnosticSeverity, FileSystem, PhysicalFileSystem};
+use destack_workspace::{HostEnvironment, Profile, ProfileId, Ref, Repository, Revision};
 
 use crate::context::GeneratorContext;
 use crate::option::parse_generator_options;
@@ -99,9 +101,12 @@ impl RuntimeGenerator {
     /// Build the generator state from a workspace root.
     fn new(cwd: PathBuf) -> Self {
         // repository and imported root revision
-        let repository = Arc::new(Repository::open_root(
+        let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+        let repository = Arc::new(Repository::new(
             cwd.clone(),
-            AmbientSnapshot::capture_process(),
+            Arc::new(DiskCacheStore::new()),
+            file_system,
+            HostEnvironment::capture_process(),
         ));
         let reference = Ref::for_workspace_root(repository.workspace_root());
         let revision = repository
@@ -117,10 +122,13 @@ impl RuntimeGenerator {
         let compiler = Arc::new(Compiler::new(repository.clone(), compiler_options));
         let session = Session::fork(
             cwd.clone(),
+            cwd.clone(),
             repository.clone(),
+            Ref::new("generator"),
             revision,
             compiler.clone(),
             Arc::new(Linter::new(repository.clone())),
+            1,
             None,
         )
         .expect("runtime generator session should initialize");
@@ -318,6 +326,7 @@ impl RuntimeGenerator {
             None,
             None,
             vec!["native".to_string(), "platform".to_string()],
+            Vec::new(),
             false,
             false,
             false,
