@@ -4,14 +4,13 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use destack_artifact::ArtifactOutcome;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
-use destack_source::OverlayFileSystem;
 use destack_workspace::Repository;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::SessionError;
-use crate::r#loop::{SessionRunId, SessionTask};
+use crate::executor::{RunId, Task};
 
-use super::{SessionEvent, SessionEventHandler, SessionOverlay};
+use super::{SessionEvent, SessionEventHandler};
 
 /// Shared session state used by session workers.
 pub(crate) struct SessionState {
@@ -21,8 +20,6 @@ pub(crate) struct SessionState {
     compiler: Arc<Compiler>,
     /// Linter for this root.
     linter: Arc<Linter>,
-    /// File text projected over filesystem-backed source.
-    overlay: SessionOverlay,
     /// Serialize semantic access per root.
     mutation_lock: RwLock<()>,
     /// Optional outer session event handler.
@@ -39,7 +36,6 @@ impl std::fmt::Debug for SessionState {
             .field("repository", &self.repository)
             .field("compiler", &self.compiler)
             .field("linter", &self.linter)
-            .field("overlay", &self.overlay)
             .field("event_handler", &self.event_handler.is_some())
             .finish_non_exhaustive()
     }
@@ -51,14 +47,12 @@ impl SessionState {
         repository: Arc<Repository>,
         compiler: Arc<Compiler>,
         linter: Arc<Linter>,
-        overlay_file_system: Option<Arc<OverlayFileSystem>>,
         event_handler: Option<SessionEventHandler>,
     ) -> Self {
         Self {
             repository,
             compiler,
             linter,
-            overlay: SessionOverlay::new(overlay_file_system),
             mutation_lock: RwLock::new(()),
             event_handler,
             next_run_id: AtomicU32::new(1),
@@ -90,11 +84,6 @@ impl SessionState {
         self.linter.clone()
     }
 
-    /// Return the overlay for this session.
-    pub(crate) fn overlay(&self) -> &SessionOverlay {
-        &self.overlay
-    }
-
     /// Emit one outer session event when a handler is installed.
     pub(crate) fn emit_event(&self, event: SessionEvent) {
         if let Some(handler) = &self.event_handler {
@@ -103,16 +92,16 @@ impl SessionState {
     }
 
     /// Allocate the next session run id.
-    pub(crate) fn next_run_id(&self) -> SessionRunId {
+    pub(crate) fn next_run_id(&self) -> RunId {
         let run_id = self.next_run_id.fetch_add(1, Ordering::Relaxed);
 
-        SessionRunId(run_id)
+        RunId(run_id)
     }
 
     /// Return the terminal artifact outcome for one task when it already exists.
     pub(crate) fn artifact_outcome(
         &self,
-        task: SessionTask,
+        task: Task,
     ) -> Result<Option<ArtifactOutcome>, SessionError> {
         // no revision binding means the artifact has not been provided
         let Some(version) = self
