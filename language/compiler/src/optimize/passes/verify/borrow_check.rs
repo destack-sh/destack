@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use destack_compiler_macros::declare_pass;
+use crate::declare_pass;
+use destack_artifact::DiagnosticAnchor;
 use destack_mir as mir;
-use destack_source::{ModuleId, TargetId};
 use mir::{Instruction, Mutability, ReferenceKind, Type, Value};
 
 use crate::optimize::common::ValueTypeMap;
@@ -71,10 +71,6 @@ struct BorrowCheckContext<'a> {
     borrows_of: HashMap<Value, HashSet<BorrowId>>,
     /// Next borrow ID to allocate.
     next_borrow_id: u32,
-    /// The module being checked.
-    module_id: ModuleId,
-    /// The target being checked.
-    target_id: TargetId,
     /// Whether we're in strict mode.
     strict_mode: bool,
     /// Whether any aliasing violations were found.
@@ -95,8 +91,6 @@ impl<'a> BorrowCheckContext<'a> {
         tree: &'a mir::Tree,
         alias_analysis: Arc<AliasAnalysis>,
         lifetime_analysis: Arc<LifetimeAnalysis>,
-        module_id: ModuleId,
-        target_id: TargetId,
         strict_mode: bool,
     ) -> Self {
         Self {
@@ -107,8 +101,6 @@ impl<'a> BorrowCheckContext<'a> {
             active_borrows: HashMap::new(),
             borrows_of: HashMap::new(),
             next_borrow_id: 0,
-            module_id,
-            target_id,
             strict_mode,
             had_aliasing_violations: false,
             value_types: ValueTypeMap::new(function, tree),
@@ -212,11 +204,14 @@ impl<'a> BorrowCheckContext<'a> {
         }
     }
 
-    /// Create an anchored node ID for diagnostics.
-    fn anchor(&self, instruction_id: mir::LocalNodeId<Instruction>) -> mir::AnchoredGlobalNodeId {
-        instruction_id
-            .into_any()
-            .into_anchored(self.module_id, self.target_id)
+    /// Create a diagnostic anchor.
+    fn anchor(&self, instruction_id: mir::LocalNodeId<Instruction>) -> DiagnosticAnchor {
+        let span = self
+            .tree
+            .get_span_by_id(instruction_id.id)
+            .expect("borrow check diagnostic node is missing a source span");
+
+        DiagnosticAnchor::Span(span)
     }
 
     /// Build provenance chain for a new borrow.
@@ -336,11 +331,17 @@ impl<'a> BorrowCheckContext<'a> {
 
         if let Some((existing_at, existing_is_mutable)) = conflict {
             self.had_aliasing_violations = true;
-            context.emit_error(OptimizeError::ConflictingBorrow {
-                node: self.anchor(at),
-                existing_borrow: self.anchor(existing_at),
-                existing_is_mutable,
-            });
+            let existing_borrow = self.anchor(existing_at);
+
+            context.emit_error(
+                OptimizeError::ConflictingBorrow {
+                    anchor: self.anchor(at),
+                    existing_borrow: existing_borrow.clone(),
+                    existing_is_mutable,
+                }
+                .label(existing_borrow, "existing borrow is here")
+                .help("end the existing borrow before taking a mutable borrow"),
+            );
         }
     }
 
@@ -555,10 +556,16 @@ impl<'a> BorrowCheckContext<'a> {
         });
 
         if let Some(borrow) = conflicting_borrow {
-            context.emit_error(OptimizeError::DropWhileBorrowed {
-                node: self.anchor(at),
-                borrowed_at: self.anchor(borrow.created_at),
-            });
+            let borrowed_at = self.anchor(borrow.created_at);
+
+            context.emit_error(
+                OptimizeError::DropWhileBorrowed {
+                    anchor: self.anchor(at),
+                    borrowed_at: borrowed_at.clone(),
+                }
+                .label(borrowed_at, "borrow starts here")
+                .help("drop the value after the borrow has ended"),
+            );
             self.had_aliasing_violations = true;
             return;
         }
@@ -567,10 +574,16 @@ impl<'a> BorrowCheckContext<'a> {
         if let Some(entry_state) = &self.entry_borrow_state {
             let borrow_state = entry_state.get(value);
             if let Some(borrowed_at) = borrow_state.borrow_location() {
-                context.emit_error(OptimizeError::DropWhileBorrowed {
-                    node: self.anchor(at),
-                    borrowed_at: self.anchor(borrowed_at),
-                });
+                let borrowed_at = self.anchor(borrowed_at);
+
+                context.emit_error(
+                    OptimizeError::DropWhileBorrowed {
+                        anchor: self.anchor(at),
+                        borrowed_at: borrowed_at.clone(),
+                    }
+                    .label(borrowed_at, "borrow starts here")
+                    .help("drop the value after the borrow has ended"),
+                );
                 self.had_aliasing_violations = true;
             }
         }
@@ -619,10 +632,16 @@ impl<'a> BorrowCheckContext<'a> {
 
         // check for conflicts with active borrows
         if let Some(borrow) = conflicting_borrow {
-            context.emit_error(OptimizeError::MoveOfBorrowedValue {
-                node: self.anchor(at),
-                borrowed_at: self.anchor(borrow.created_at),
-            });
+            let borrowed_at = self.anchor(borrow.created_at);
+
+            context.emit_error(
+                OptimizeError::MoveOfBorrowedValue {
+                    anchor: self.anchor(at),
+                    borrowed_at: borrowed_at.clone(),
+                }
+                .label(borrowed_at, "borrow starts here")
+                .help("end the borrow before moving the value"),
+            );
             self.had_aliasing_violations = true;
             return;
         }
@@ -631,10 +650,16 @@ impl<'a> BorrowCheckContext<'a> {
         if let Some(entry_state) = &self.entry_borrow_state {
             let borrow_state = entry_state.get(value);
             if let Some(borrowed_at) = borrow_state.borrow_location() {
-                context.emit_error(OptimizeError::MoveOfBorrowedValue {
-                    node: self.anchor(at),
-                    borrowed_at: self.anchor(borrowed_at),
-                });
+                let borrowed_at = self.anchor(borrowed_at);
+
+                context.emit_error(
+                    OptimizeError::MoveOfBorrowedValue {
+                        anchor: self.anchor(at),
+                        borrowed_at: borrowed_at.clone(),
+                    }
+                    .label(borrowed_at, "borrow starts here")
+                    .help("end the borrow before moving the value"),
+                );
                 self.had_aliasing_violations = true;
             }
         }
@@ -651,10 +676,16 @@ impl<'a> BorrowCheckContext<'a> {
 
         if let Some(borrowed_at) = borrowed_at {
             // setting a borrowed local invalidates the borrow
-            context.emit_error(OptimizeError::LocalSetWhileBorrowed {
-                node: self.anchor(at),
-                borrowed_at: self.anchor(borrowed_at),
-            });
+            let borrowed_at = self.anchor(borrowed_at);
+
+            context.emit_error(
+                OptimizeError::LocalSetWhileBorrowed {
+                    anchor: self.anchor(at),
+                    borrowed_at: borrowed_at.clone(),
+                }
+                .label(borrowed_at, "borrow starts here")
+                .help("end the borrow before assigning to the local"),
+            );
             self.had_aliasing_violations = true;
         }
     }
@@ -726,16 +757,28 @@ impl<'a> BorrowCheckContext<'a> {
         self.had_aliasing_violations = true;
 
         if self.strict_mode {
-            context.emit_error(OptimizeError::ConflictingBorrow {
-                node: self.anchor(at),
-                existing_borrow: self.anchor(existing_at),
-                existing_is_mutable,
-            });
+            let existing_borrow = self.anchor(existing_at);
+
+            context.emit_error(
+                OptimizeError::ConflictingBorrow {
+                    anchor: self.anchor(at),
+                    existing_borrow: existing_borrow.clone(),
+                    existing_is_mutable,
+                }
+                .label(existing_borrow, "existing borrow is here")
+                .help("end the existing borrow before taking a mutable borrow"),
+            );
         } else {
-            context.emit_warning(OptimizeWarning::PotentialAliasingViolation {
-                node: self.anchor(at),
-                existing_borrow: self.anchor(existing_at),
-            });
+            let existing_borrow = self.anchor(existing_at);
+
+            context.emit_warning(
+                OptimizeWarning::PotentialAliasingViolation {
+                    anchor: self.anchor(at),
+                    existing_borrow: existing_borrow.clone(),
+                }
+                .label(existing_borrow, "existing borrow is here")
+                .help("make the aliasing relationship explicit"),
+            );
         }
     }
 
@@ -749,15 +792,27 @@ impl<'a> BorrowCheckContext<'a> {
         self.had_aliasing_violations = true;
 
         if self.strict_mode {
-            context.emit_error(OptimizeError::InvalidatedReference {
-                node: self.anchor(at),
-                invalidated_by: self.anchor(invalidated_at),
-            });
+            let invalidated_by = self.anchor(invalidated_at);
+
+            context.emit_error(
+                OptimizeError::InvalidatedReference {
+                    anchor: self.anchor(at),
+                    invalidated_by: invalidated_by.clone(),
+                }
+                .label(invalidated_by, "borrow starts here")
+                .help("create a fresh reference after the mutation"),
+            );
         } else {
-            context.emit_warning(OptimizeWarning::PotentialInvalidatedReference {
-                node: self.anchor(invalidated_at),
-                mutation_at: self.anchor(at),
-            });
+            let mutation_at = self.anchor(at);
+
+            context.emit_warning(
+                OptimizeWarning::PotentialInvalidatedReference {
+                    anchor: self.anchor(invalidated_at),
+                    mutation_at: mutation_at.clone(),
+                }
+                .label(mutation_at, "possible mutation is here")
+                .help("refresh the reference after mutation when possible"),
+            );
         }
     }
 }
@@ -782,17 +837,12 @@ impl FunctionPass for BorrowCheck {
         // get module-level lifetime analysis
         let lifetime_analysis = ctx.module_analyses(tree).get::<LifetimeAnalysis>().clone();
 
-        let module_id = ctx.module_id();
-        let target_id = *ctx.target_id();
-
         let strict_mode = ctx.options.strict_borrow_mode;
         let mut checker = BorrowCheckContext::new(
             function,
             tree,
             alias_analysis,
             lifetime_analysis,
-            module_id,
-            target_id,
             strict_mode,
         );
 

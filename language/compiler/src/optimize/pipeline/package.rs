@@ -608,7 +608,7 @@ mod tests {
 
     /// Create a package workset for routing tests.
     fn package_workset(id: u64, level: OptimizationLevel) -> PackageWorkset {
-        let package_id = PackageId::new(id);
+        let package_id = PackageId::new(id.into());
         let target_id = test_target_id(package_id, "test");
 
         PackageWorkset::new(package_id, target_id, level)

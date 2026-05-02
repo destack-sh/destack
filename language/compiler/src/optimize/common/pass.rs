@@ -252,3 +252,64 @@ pub fn run_function_passes_always(
     // write back the updated function
     *tree.get_mut(function_id) = function;
 }
+
+/// Declare one optimization pass and its static metadata.
+#[macro_export]
+macro_rules! declare_pass {
+    (
+        $(#[doc = $doc:literal])*
+        #[pass(id = $id:literal $(, requires($($requirement:ident),* $(,)?))?)]
+        $visibility:vis $name:ident,
+        $description:literal $(,)?
+    ) => {
+        $(#[doc = $doc])*
+        #[derive(Debug, Clone, Copy)]
+        $visibility struct $name;
+
+        impl $crate::optimize::Pass for $name {
+            fn metadata(&self) -> &'static $crate::optimize::PassMetadata {
+                Self::metadata()
+            }
+        }
+
+        impl $name {
+            /// Static metadata for this pass.
+            $visibility const METADATA: $crate::optimize::PassMetadata =
+                $crate::optimize::PassMetadata {
+                    id: $id,
+                    name: stringify!($name),
+                    description: $description,
+                    requirements: $crate::declare_pass!(@requirements $($($requirement),*)?),
+            };
+
+            /// Get the pass metadata.
+            $visibility const fn metadata() -> &'static $crate::optimize::PassMetadata {
+                &Self::METADATA
+            }
+        }
+    };
+
+    (@requirements) => {
+        $crate::optimize::PassRequirements::NONE
+    };
+
+    (@requirements $first:ident $(, $rest:ident)*) => {
+        $crate::declare_pass!(@requirement $first)$(.union($crate::declare_pass!(@requirement $rest)))*
+    };
+
+    (@requirement call_effects) => {
+        $crate::optimize::PassRequirements::CALL_EFFECTS
+    };
+
+    (@requirement memory_access_metadata) => {
+        $crate::optimize::PassRequirements::MEMORY_ACCESS_METADATA
+    };
+
+    (@requirement profile_data) => {
+        $crate::optimize::PassRequirements::PROFILE_DATA
+    };
+
+    (@requirement type_layouts) => {
+        $crate::optimize::PassRequirements::TYPE_LAYOUTS
+    };
+}

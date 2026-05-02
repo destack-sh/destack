@@ -1,15 +1,13 @@
 use std::collections::HashMap;
 
-use destack_compiler_macros::declare_pass;
+use crate::declare_pass;
 use destack_mir as mir;
-use destack_source::{ModuleId, TargetId};
 use mir::{Instruction, Value, ValueReference};
 
 use crate::OptimizeError;
 use crate::optimize::{
-    AnalysisPreservation, CallTargetAnalysis, ControlFlowGraph, DiagnosticEmitter, FunctionPass,
-    Lattice, LifetimeAnalysis, LivenessAnalysis, PipelineContext, ResolvedLifetime,
-    forward_dataflow,
+    AnalysisPreservation, CallTargetAnalysis, ControlFlowGraph, FunctionPass, Lattice,
+    LifetimeAnalysis, LivenessAnalysis, PipelineContext, ResolvedLifetime, forward_dataflow,
 };
 
 declare_pass! {
@@ -388,18 +386,15 @@ impl StackPointerMap {
         &self,
         instruction_id: mir::LocalNodeId<Instruction>,
         instruction: &Instruction,
-        module_id: &ModuleId,
-        target_id: &TargetId,
-        context: &impl DiagnosticEmitter,
+        tree: &mir::Tree,
+        context: &PipelineContext<'_>,
     ) {
         match instruction {
             // store stack pointer to non-stack location = escape
             Instruction::Store { pointer, value } => {
                 if self.get(*value).is_maybe_stack() && !self.get(*pointer).is_maybe_stack() {
                     context.emit_error(OptimizeError::LocalReferenceEscapes {
-                        node: instruction_id
-                            .into_any()
-                            .into_anchored(*module_id, *target_id),
+                        anchor: context.anchor(tree, instruction_id.into_any()),
                     });
                 }
             }
@@ -417,9 +412,7 @@ impl StackPointerMap {
             } => {
                 if self.get(*value).is_maybe_stack() && !self.get(*aggregate).is_maybe_stack() {
                     context.emit_error(OptimizeError::LocalReferenceEscapes {
-                        node: instruction_id
-                            .into_any()
-                            .into_anchored(*module_id, *target_id),
+                        anchor: context.anchor(tree, instruction_id.into_any()),
                     });
                 }
             }
@@ -428,9 +421,7 @@ impl StackPointerMap {
             Instruction::ElementSet { array, value, .. } => {
                 if self.get(*value).is_maybe_stack() && !self.get(*array).is_maybe_stack() {
                     context.emit_error(OptimizeError::LocalReferenceEscapes {
-                        node: instruction_id
-                            .into_any()
-                            .into_anchored(*module_id, *target_id),
+                        anchor: context.anchor(tree, instruction_id.into_any()),
                     });
                 }
             }
@@ -445,16 +436,15 @@ impl StackPointerMap {
         block_id: mir::LocalNodeId<mir::Block>,
         terminator: &mir::Terminator,
         liveness: &LivenessAnalysis,
-        module_id: &ModuleId,
-        target_id: &TargetId,
-        context: &impl DiagnosticEmitter,
+        tree: &mir::Tree,
+        context: &PipelineContext<'_>,
     ) {
         match terminator {
             // returning a stack pointer = escape
             mir::Terminator::Return { value: Some(value) } => {
                 if self.get(*value).is_maybe_stack() {
                     context.emit_error(OptimizeError::ReturnReferenceToLocal {
-                        node: block_id.into_any().into_anchored(*module_id, *target_id),
+                        anchor: context.anchor(tree, block_id.into_any()),
                     });
                 }
             }
@@ -475,7 +465,7 @@ impl StackPointerMap {
 
                 if yields_frame_local_pointer || suspends_with_live_frame_local_pointer {
                     context.emit_error(OptimizeError::LocalReferenceEscapes {
-                        node: block_id.into_any().into_anchored(*module_id, *target_id),
+                        anchor: context.anchor(tree, block_id.into_any()),
                     });
                 }
             }
@@ -511,9 +501,7 @@ fn run_stack_check(
     lifetime_analysis: &LifetimeAnalysis,
     call_targets: &CallTargetAnalysis,
     liveness: &LivenessAnalysis,
-    module_id: ModuleId,
-    target_id: TargetId,
-    context: &impl DiagnosticEmitter,
+    context: &PipelineContext<'_>,
 ) {
     if function.entry.is_none() {
         return;
@@ -562,13 +550,7 @@ fn run_stack_check(
         // check each instruction
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
-            current_state.check_instruction_escapes(
-                instruction_id,
-                instruction,
-                &module_id,
-                &target_id,
-                context,
-            );
+            current_state.check_instruction_escapes(instruction_id, instruction, tree, context);
             current_state.apply_instruction_effects(instruction);
             current_state.apply_call_effects(
                 instruction_id,
@@ -581,9 +563,7 @@ fn run_stack_check(
 
         // check terminator
         let terminator = tree.get(block.terminator);
-        current_state.check_terminator_escapes(
-            block_id, terminator, liveness, &module_id, &target_id, context,
-        );
+        current_state.check_terminator_escapes(block_id, terminator, liveness, tree, context);
     }
 }
 
@@ -615,8 +595,6 @@ impl FunctionPass for StackCheck {
             &lifetime_analysis,
             &call_targets,
             &liveness,
-            ctx.module_id(),
-            *ctx.target_id(),
             ctx,
         );
 

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use destack_compiler_macros::declare_pass;
+use crate::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree, Loop, LoopAnalysis};

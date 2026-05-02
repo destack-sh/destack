@@ -1,12 +1,12 @@
-use destack_compiler_macros::declare_pass;
+use crate::declare_pass;
+use destack_artifact::DiagnosticAnchor;
 use destack_mir as mir;
-use destack_source::{ModuleId, TargetId};
 use mir::Instruction;
 
 use crate::OptimizeError;
 use crate::optimize::{
-    AnalysisPreservation, DiagnosticEmitter, FunctionPass, MoveLocation, OwnershipAnalysis,
-    OwnershipMap, PipelineContext,
+    AnalysisPreservation, DiagnosticEmitter, FunctionPass, OwnershipAnalysis, OwnershipMap,
+    PipelineContext,
 };
 
 declare_pass! {
@@ -26,55 +26,22 @@ struct MoveCheckContext<'a> {
     tree: &'a mir::Tree,
     /// The ownership analysis results.
     ownership: &'a OwnershipAnalysis,
-    /// The module being checked.
-    module_id: ModuleId,
-    /// The target being checked.
-    target_id: TargetId,
 }
 
 impl<'a> MoveCheckContext<'a> {
     /// Create a new move check context.
-    fn new(
-        tree: &'a mir::Tree,
-        ownership: &'a OwnershipAnalysis,
-        module_id: ModuleId,
-        target_id: TargetId,
-    ) -> Self {
-        Self {
-            tree,
-            ownership,
-            module_id,
-            target_id,
-        }
+    fn new(tree: &'a mir::Tree, ownership: &'a OwnershipAnalysis) -> Self {
+        Self { tree, ownership }
     }
 
-    /// Create an anchored node ID from a move location for diagnostics.
-    fn anchor(&self, location: &MoveLocation) -> mir::AnchoredGlobalNodeId {
-        match location {
-            MoveLocation::Instruction(id) => {
-                id.into_any().into_anchored(self.module_id, self.target_id)
-            }
-            MoveLocation::Terminator(id) => {
-                id.into_any().into_anchored(self.module_id, self.target_id)
-            }
-        }
-    }
+    /// Create a diagnostic anchor.
+    fn anchor(&self, node: mir::LocalNodeIdAny) -> DiagnosticAnchor {
+        let span = self
+            .tree
+            .get_span_by_id(node.id)
+            .expect("move check diagnostic node is missing a source span");
 
-    /// Create an anchored node ID for an instruction.
-    fn anchor_instruction(
-        &self,
-        instruction_id: mir::LocalNodeId<Instruction>,
-    ) -> mir::AnchoredGlobalNodeId {
-        instruction_id
-            .into_any()
-            .into_anchored(self.module_id, self.target_id)
-    }
-
-    /// Create an anchored node ID for a block.
-    fn anchor_block(&self, block_id: mir::LocalNodeId<mir::Block>) -> mir::AnchoredGlobalNodeId {
-        block_id
-            .into_any()
-            .into_anchored(self.module_id, self.target_id)
+        DiagnosticAnchor::Span(span)
     }
 
     /// Check if using a value is valid at the current state.
@@ -90,23 +57,31 @@ impl<'a> MoveCheckContext<'a> {
             && ownership.is_moved()
         {
             let use_anchor = if let Some(instruction_id) = at_instruction {
-                self.anchor_instruction(instruction_id)
+                self.anchor(instruction_id.into_any())
             } else {
-                self.anchor_block(at_block)
+                self.anchor(at_block.into_any())
             };
 
-            let move_anchor = self.anchor(ownership.move_location().unwrap());
+            let move_anchor = self.anchor(ownership.move_location().unwrap().node());
 
             if ownership.is_maybe_moved() {
-                context.emit_error(OptimizeError::MaybeUseAfterMove {
-                    node: use_anchor,
-                    moved_at: move_anchor,
-                });
+                context.emit_error(
+                    OptimizeError::MaybeUseAfterMove {
+                        anchor: use_anchor,
+                        moved_at: move_anchor.clone(),
+                    }
+                    .label(move_anchor, "possible move is here")
+                    .help("make the ownership flow explicit on every path"),
+                );
             } else {
-                context.emit_error(OptimizeError::UseAfterMove {
-                    node: use_anchor,
-                    moved_at: move_anchor,
-                });
+                context.emit_error(
+                    OptimizeError::UseAfterMove {
+                        anchor: use_anchor,
+                        moved_at: move_anchor.clone(),
+                    }
+                    .label(move_anchor, "value moved here")
+                    .help("use a borrow or clone the value before moving it"),
+                );
             }
         }
     }
@@ -126,24 +101,32 @@ impl<'a> MoveCheckContext<'a> {
         {
             // build the use anchor
             let use_anchor = if let Some(instruction_id) = at_instruction {
-                self.anchor_instruction(instruction_id)
+                self.anchor(instruction_id.into_any())
             } else {
-                self.anchor_block(at_block)
+                self.anchor(at_block.into_any())
             };
 
             // build the move anchor
-            let move_anchor = self.anchor(ownership.move_location().unwrap());
+            let move_anchor = self.anchor(ownership.move_location().unwrap().node());
 
             if ownership.is_maybe_moved() {
-                context.emit_error(OptimizeError::MaybeUseAfterMove {
-                    node: use_anchor,
-                    moved_at: move_anchor,
-                });
+                context.emit_error(
+                    OptimizeError::MaybeUseAfterMove {
+                        anchor: use_anchor,
+                        moved_at: move_anchor.clone(),
+                    }
+                    .label(move_anchor, "possible move is here")
+                    .help("make the ownership flow explicit on every path"),
+                );
             } else {
-                context.emit_error(OptimizeError::UseAfterMove {
-                    node: use_anchor,
-                    moved_at: move_anchor,
-                });
+                context.emit_error(
+                    OptimizeError::UseAfterMove {
+                        anchor: use_anchor,
+                        moved_at: move_anchor.clone(),
+                    }
+                    .label(move_anchor, "value moved here")
+                    .help("use a borrow or clone the value before moving it"),
+                );
             }
         }
     }
@@ -404,10 +387,7 @@ impl FunctionPass for MoveCheck {
             analyses.get::<OwnershipAnalysis>().clone()
         };
 
-        let module_id = ctx.module_id();
-        let target_id = *ctx.target_id();
-
-        let checker = MoveCheckContext::new(tree, &ownership, module_id, target_id);
+        let checker = MoveCheckContext::new(tree, &ownership);
         checker.check(function, ctx);
 
         AnalysisPreservation::all()
