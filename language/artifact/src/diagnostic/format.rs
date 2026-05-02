@@ -2,7 +2,7 @@ use destack_builtin::LanguageSymbol;
 use destack_dir as dir;
 use destack_source::{FileType, ModuleId, PackageId, ProfileId, TargetId, Uri};
 
-use crate::{DiagnosticContext, DiagnosticError};
+use crate::{DiagnosticContext, DiagnosticDisplay, DiagnosticError};
 
 /// Formatter for diagnostic message fields.
 pub struct DiagnosticFormatter<'a> {
@@ -16,19 +16,9 @@ impl<'a> DiagnosticFormatter<'a> {
         Self { context }
     }
 
-    /// Format one module id.
-    pub fn format_module_id(&self, module: ModuleId) -> Result<String, DiagnosticError> {
-        self.context.format_module_id(module)
-    }
-
-    /// Format one package id.
-    pub fn format_package_id(&self, package: PackageId) -> Result<String, DiagnosticError> {
-        self.context.format_package_id(package)
-    }
-
-    /// Format one target id.
-    pub fn format_target_id(&self, target: TargetId) -> Result<String, DiagnosticError> {
-        self.context.format_target_id(target)
+    /// Display one repository-backed value.
+    pub fn display(&self, display: DiagnosticDisplay) -> Result<String, DiagnosticError> {
+        self.context.display(display)
     }
 }
 
@@ -235,7 +225,7 @@ impl DiagnosticFormat for ModuleId {
         &self,
         formatter: &DiagnosticFormatter<'_>,
     ) -> Result<String, DiagnosticError> {
-        formatter.format_module_id(*self)
+        formatter.display(DiagnosticDisplay::Module(*self))
     }
 }
 
@@ -245,7 +235,7 @@ impl DiagnosticFormat for PackageId {
         &self,
         formatter: &DiagnosticFormatter<'_>,
     ) -> Result<String, DiagnosticError> {
-        formatter.format_package_id(*self)
+        formatter.display(DiagnosticDisplay::Package(*self))
     }
 }
 
@@ -255,7 +245,7 @@ impl DiagnosticFormat for TargetId {
         &self,
         formatter: &DiagnosticFormatter<'_>,
     ) -> Result<String, DiagnosticError> {
-        formatter.format_target_id(*self)
+        formatter.display(DiagnosticDisplay::Target(*self))
     }
 }
 
