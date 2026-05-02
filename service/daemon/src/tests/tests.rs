@@ -539,7 +539,7 @@ impl TestProtocolHarness {
         }
 
         panic!(
-            "semantic query state did not become ready after {max_attempts} attempts",
+            "query state did not become ready after {max_attempts} attempts",
             max_attempts = policy.max_attempts
         );
     }

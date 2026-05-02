@@ -28,7 +28,7 @@ const IMPORT_A_VALUE_SOURCE: &str = r#"import { value } from "./a.ds";
 value;
 "#;
 
-/// Assert semantic query readiness for a virtual source file.
+/// Assert query readiness for a virtual source file.
 fn assert_virtual_navigation_ready(repository: &Repository, path: &Path, source: &str) {
     // resolve the file id from the tracked path
     let file_id = repository.file_id(path);
@@ -145,7 +145,7 @@ fn test_daemon_virtual_update_emits_diagnostics_physical_fs() {
     );
 }
 
-/// Ensure virtual updates build strict navigation semantic query state.
+/// Ensure virtual updates build strict navigation query state.
 #[test]
 fn test_daemon_virtual_update_builds_navigation_semantic_query_state() {
     let test = TestDaemon::new();

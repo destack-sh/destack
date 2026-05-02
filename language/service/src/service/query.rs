@@ -3,12 +3,21 @@ use std::path::Path;
 use std::sync::Arc;
 
 use destack_query as query;
-use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
-use destack_session::Session;
+use destack_query::QueryArtifact;
+use destack_session::{Session, SessionError};
 use destack_source::{Diagnostic, File, FileId, ModuleId, ProfileId, Span, Uri};
 use destack_workspace::{Repository, Revision, RevisionPin};
 
 use super::{DiagnosticSnapshot, LanguageService, LanguageServiceError};
+
+/// Result of executing one query.
+#[derive(Debug, Clone, PartialEq)]
+pub struct QueryResult {
+    /// The revision used for query execution.
+    pub revision: Revision,
+    /// The query response payload.
+    pub response: query::QueryResponse,
+}
 
 impl LanguageService {
     /// Run one callback under a coherent session read lock.
@@ -30,7 +39,32 @@ impl LanguageService {
         callback(session.as_ref(), &revision_pin)
     }
 
-    /// Prepare the default query artifact root for one file path.
+    /// Return one tracked file id for a path in a revision.
+    fn tracked_file_id(
+        repository: &Repository,
+        revision: Revision,
+        path: &Path,
+    ) -> Result<Option<FileId>, LanguageServiceError> {
+        let file_id = repository.file_id(path);
+        let file = repository.file(revision, file_id)?;
+
+        Ok(file.map(|_| file_id))
+    }
+
+    /// Return one tracked file by id.
+    fn tracked_file(
+        repository: &Repository,
+        revision: Revision,
+        file_id: FileId,
+    ) -> Result<Arc<File>, LanguageServiceError> {
+        let file = repository
+            .file(revision, file_id)?
+            .ok_or(SessionError::FileNotTracked { file_id })?;
+
+        Ok(file)
+    }
+
+    /// Prepare the default query artifact for one file path.
     pub fn prepare_query(&self, path: &Path) -> Result<(), LanguageServiceError> {
         let session = self.edit_session(path)?;
         let module_id = session
@@ -44,7 +78,10 @@ impl LanguageService {
                 .map_err(|error| LanguageServiceError::QueryNotReady {
                     detail: format!("query preparation failed for {}: {error}", path.display()),
                 })?;
-        let artifact_key = query::default_document_artifact_key(module_id, profile_id);
+        let query_artifact = QueryArtifact::CheckedDir {
+            uri: Uri::from_file_path(path),
+        };
+        let artifact_key = query_artifact.key(module_id, profile_id);
 
         session
             .provide(revision, &[artifact_key])
@@ -63,17 +100,17 @@ impl LanguageService {
         // resolve the root once before entering the read section
         let root = self.root_at(path)?;
 
-        self.read_session(&root, |session, revision_pin| {
+        self.read_session(&root, |_session, revision_pin| {
             let repository = revision_pin.repository();
             let revision = revision_pin.revision();
 
             // require one file for the request
-            let file_id = session.file_id_for_path(revision, path)?.ok_or_else(|| {
+            let file_id = Self::tracked_file_id(repository, revision, path)?.ok_or_else(|| {
                 LanguageServiceError::FileMissing {
                     path: path.to_path_buf(),
                 }
             })?;
-            let file = session.file_for_id(revision, file_id)?;
+            let file = Self::tracked_file(repository, revision, file_id)?;
 
             callback(repository, file_id, file, revision)
         })
@@ -88,24 +125,33 @@ impl LanguageService {
 
         self.read_session(&root, |session, revision_pin| {
             let revision = revision_pin.revision();
-            let Some((file_id, file)) = session.file_for_path(revision_pin.revision(), path)?
-            else {
+            let repository = revision_pin.repository();
+            let Some(file_id) = Self::tracked_file_id(repository, revision, path)? else {
                 return Ok(None);
             };
-            let diagnostics = current_root_diagnostics_by_file(session, revision_pin.repository())?
+            let file = Self::tracked_file(repository, revision, file_id)?;
+            let diagnostics = current_root_diagnostics_by_file(session, repository)?
                 .remove(&file_id)
                 .unwrap_or_default();
-            let diagnostic_uri = file
+            let open_file = file
                 .path
                 .as_ref()
-                .map(Uri::from_file_path)
+                .and_then(|path| self.open_file_for_path(path));
+            let diagnostic_uri = open_file
+                .as_ref()
+                .map(|file| file.uri.clone())
+                .or_else(|| file.path.as_ref().map(Uri::from_file_path))
                 .unwrap_or_else(|| file.uri.clone());
-            let diagnostic_version = file
-                .path
-                .as_ref()
-                .map(|path| session.diagnostic_version(revision, file_id, path))
-                .transpose()?
-                .flatten();
+            let diagnostic_version = if let Some(path) = file.path.as_ref() {
+                self.open_file_version_for_revision(
+                    session.repository().as_ref(),
+                    revision,
+                    file_id,
+                    path,
+                )?
+            } else {
+                None
+            };
 
             Ok(Some(DiagnosticSnapshot {
                 file,
@@ -142,21 +188,31 @@ impl LanguageService {
 
             // open files
             let mut open_files = std::collections::HashMap::new();
-            for (path, uri, _version) in session.open_files() {
-                let Some(file_id) = session.file_id_for_path(revision_pin.revision(), &path)?
+            for (path, file) in self.open_files_for_root(root) {
+                let Some(file_id) = Self::tracked_file_id(
+                    revision_pin.repository(),
+                    revision_pin.revision(),
+                    &path,
+                )?
                 else {
                     continue;
                 };
-                let version =
-                    session.diagnostic_version(revision_pin.revision(), file_id, &path)?;
+                let version = self.open_file_version_for_revision(
+                    session.repository().as_ref(),
+                    revision_pin.revision(),
+                    file_id,
+                    &path,
+                )?;
 
                 diagnostics_by_file.entry(file_id).or_insert(Vec::new());
-                open_files.insert(file_id, (uri, version));
+                open_files.insert(file_id, (file.uri, version));
             }
 
             let mut snapshots = Vec::new();
             for (file_id, diagnostics) in diagnostics_by_file {
-                let Ok(file) = session.file_for_id(revision_pin.revision(), file_id) else {
+                let Ok(file) =
+                    Self::tracked_file(revision_pin.repository(), revision_pin.revision(), file_id)
+                else {
                     continue;
                 };
                 let open_file = open_files.get(&file_id);
@@ -200,7 +256,7 @@ impl LanguageService {
         &self,
         path: &Path,
         build_request: F,
-    ) -> Result<Option<(FileId, Arc<File>, QueryResponseEnvelope)>, LanguageServiceError>
+    ) -> Result<Option<(FileId, Arc<File>, QueryResult)>, LanguageServiceError>
     where
         F: FnOnce(FileId, &File) -> Option<query::QueryRequest>,
     {
@@ -214,11 +270,7 @@ impl LanguageService {
             let response =
                 self.execute_query_request(repository, revision, Some(file_id), request)?;
 
-            Ok(Some((
-                file_id,
-                file,
-                QueryResponseEnvelope { revision, response },
-            )))
+            Ok(Some((file_id, file, QueryResult { revision, response })))
         })
     }
 
@@ -227,82 +279,66 @@ impl LanguageService {
         &self,
         path: &Path,
         request: query::QueryRequest,
-    ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
-        // read queries never carry revision preconditions
-        let envelope = QueryRequestEnvelope {
-            expected_revision: None,
-            request,
-        };
-
-        // route through read envelope execution
-        self.read_query_at(path, envelope)
-    }
-
-    /// Run one read query envelope for the root that owns a path.
-    pub fn read_query_at(
-        &self,
-        path: &Path,
-        envelope: QueryRequestEnvelope,
-    ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
+    ) -> Result<QueryResult, LanguageServiceError> {
         let root = self.root_at(path)?;
-        self.read_root_query_envelope(&root, envelope)
+
+        self.read_root_query(&root, request)
     }
 
-    /// Run one read query envelope for a root.
-    pub fn read_root_query_envelope(
+    /// Run one read query for a root.
+    pub fn read_root_query(
         &self,
         root: &Path,
-        envelope: QueryRequestEnvelope,
-    ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
+        request: query::QueryRequest,
+    ) -> Result<QueryResult, LanguageServiceError> {
         // reject any non-read requests on the read path
-        let request_mode = envelope.request.execution_mode();
+        let request_mode = request.execution_mode();
         if request_mode != query::QueryExecutionMode::Read {
             return Err(LanguageServiceError::QueryModeMismatch {
-                method: envelope.request.method_id(),
+                method: request.method_id(),
                 expected: query::QueryExecutionMode::Read,
                 actual: request_mode,
             });
         }
 
-        // reject revision preconditions on read path requests
-        if let Some(expected_revision) = envelope.expected_revision {
-            return Err(LanguageServiceError::UnexpectedExpectedRevision { expected_revision });
-        }
-
-        self.prepare_query_request(&envelope.request)?;
+        // materialize requested query artifacts through the root session
+        let session = self.session(root)?;
+        self.provide_query_artifact(session.as_ref(), root, &request)?;
 
         self.read_session(root, |_session, revision_pin| {
             // dispatch pure read query execution
             let repository = revision_pin.repository();
             let revision = revision_pin.revision();
-            let response =
-                self.execute_query_request(repository, revision, None, envelope.request)?;
+            let response = self.execute_query_request(repository, revision, None, request)?;
 
-            Ok(QueryResponseEnvelope { revision, response })
+            Ok(QueryResult { revision, response })
         })
     }
 
-    /// Run one write query envelope for the root that owns a path.
+    /// Run one write query for the root that owns a path.
     pub fn write_query_at(
         &self,
         path: &Path,
-        envelope: QueryRequestEnvelope,
-    ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
+        expected_revision: Revision,
+        request: query::QueryRequest,
+    ) -> Result<QueryResult, LanguageServiceError> {
         let root = self.root_at(path)?;
-        self.write_root_query(&root, envelope)
+
+        self.write_root_query(&root, expected_revision, request)
     }
 
-    /// Run one write query envelope for a root.
+    /// Run one write query for a root.
     pub fn write_root_query(
         &self,
         root: &Path,
-        envelope: QueryRequestEnvelope,
-    ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
+        expected_revision: Revision,
+        request: query::QueryRequest,
+    ) -> Result<QueryResult, LanguageServiceError> {
         // reject any non-write requests on the write path
-        let request_mode = envelope.request.execution_mode();
+        let request_mode = request.execution_mode();
         if request_mode != query::QueryExecutionMode::Write {
             return Err(LanguageServiceError::QueryModeMismatch {
-                method: envelope.request.method_id(),
+                method: request.method_id(),
                 expected: query::QueryExecutionMode::Write,
                 actual: request_mode,
             });
@@ -316,9 +352,6 @@ impl LanguageService {
         let current_revision = session.revision(session.head())?;
 
         // require a matching revision precondition for write requests
-        let expected_revision = envelope
-            .expected_revision
-            .ok_or(LanguageServiceError::MissingExpectedRevision)?;
         if expected_revision != current_revision {
             return Err(LanguageServiceError::StaleRevision {
                 expected: expected_revision,
@@ -334,14 +367,10 @@ impl LanguageService {
 
         // dispatch mutating query execution
         let revision = revision_pin.revision();
-        let response = self.execute_query_request(
-            revision_pin.repository(),
-            revision,
-            None,
-            envelope.request,
-        )?;
+        let response =
+            self.execute_query_request(revision_pin.repository(), revision, None, request)?;
 
-        Ok(QueryResponseEnvelope { revision, response })
+        Ok(QueryResult { revision, response })
     }
 
     /// Build a query response for a request payload.
@@ -352,23 +381,27 @@ impl LanguageService {
         bound_file_id: Option<FileId>,
         request: query::QueryRequest,
     ) -> Result<query::QueryResponse, LanguageServiceError> {
+        // use the request-owned artifact decision for all file-backed branches
+        let request_artifact = request.artifact();
+
         // dispatch by query request variant
         let response = match request {
             query::QueryRequest::Completion(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let mut items = match file_id {
-                    Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
-                        query::completions(
-                            repository,
-                            revision,
-                            file_id,
-                            params.offset,
-                            params.trigger,
-                        )
-                    }
+                    Some(file_id) => query::completions(
+                        repository,
+                        revision,
+                        file_id,
+                        params.offset,
+                        params.trigger,
+                    ),
                     None => Vec::new(),
                 };
 
@@ -382,26 +415,30 @@ impl LanguageService {
                 })
             }
             query::QueryRequest::Hover(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let hover = match file_id {
-                    Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
-                        query::hover(repository, revision, file_id, params.offset)
-                    }
+                    Some(file_id) => query::hover(repository, revision, file_id, params.offset),
                     None => None,
                 };
 
                 query::QueryResponse::Hover(query::HoverResponse { hover })
             }
             query::QueryRequest::SignatureHelp(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let help = match file_id {
                     Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
                         query::signature_help(repository, revision, file_id, params.offset)
                     }
                     None => None,
@@ -410,12 +447,15 @@ impl LanguageService {
                 query::QueryResponse::SignatureHelp(query::SignatureHelpResponse { help })
             }
             query::QueryRequest::InlayHints(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let hints = match file_id {
                     Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
                         let range = self.span_for_offsets(file_id, params.start, params.end);
                         query::inlay_hints(repository, revision, file_id, range)
                     }
@@ -425,14 +465,15 @@ impl LanguageService {
                 query::QueryResponse::InlayHints(query::InlayHintsResponse { hints })
             }
             query::QueryRequest::CodeLenses(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let lenses = match file_id {
-                    Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
-                        query::code_lenses(repository, revision, file_id)
-                    }
+                    Some(file_id) => query::code_lenses(repository, revision, file_id),
                     None => Vec::new(),
                 };
 
@@ -443,40 +484,45 @@ impl LanguageService {
                 query::QueryResponse::ResolveCodeLens(query::ResolveCodeLensResponse { lens })
             }
             query::QueryRequest::FoldingRanges(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let ranges = match file_id {
-                    Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
-                        query::folding_ranges(repository, revision, file_id)
-                    }
+                    Some(file_id) => query::folding_ranges(repository, revision, file_id),
                     None => Vec::new(),
                 };
 
                 query::QueryResponse::FoldingRanges(query::FoldingRangesResponse { ranges })
             }
             query::QueryRequest::SemanticTokens(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let tokens = match file_id {
-                    Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
-                        query::semantic_tokens(repository, revision, file_id)
-                    }
+                    Some(file_id) => query::semantic_tokens(repository, revision, file_id),
                     None => Vec::new(),
                 };
 
                 query::QueryResponse::SemanticTokens(query::SemanticTokensResponse { tokens })
             }
             query::QueryRequest::SemanticTokensRange(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let tokens = match file_id {
                     Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
                         let range = self.span_for_offsets(file_id, params.start, params.end);
                         query::semantic_tokens_range(repository, revision, file_id, range)
                     }
@@ -486,14 +532,15 @@ impl LanguageService {
                 query::QueryResponse::SemanticTokensRange(query::SemanticTokensResponse { tokens })
             }
             query::QueryRequest::DocumentSymbols(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let symbols = match file_id {
-                    Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
-                        query::document_symbols(repository, revision, file_id)
-                    }
+                    Some(file_id) => query::document_symbols(repository, revision, file_id),
                     None => Vec::new(),
                 };
 
@@ -509,14 +556,15 @@ impl LanguageService {
                 query::QueryResponse::WorkspaceSymbols(query::WorkspaceSymbolsResponse { symbols })
             }
             query::QueryRequest::DocumentLinks(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let links = match file_id {
-                    Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
-                        query::document_links(repository, revision, file_id)
-                    }
+                    Some(file_id) => query::document_links(repository, revision, file_id),
                     None => Vec::new(),
                 };
 
@@ -529,12 +577,15 @@ impl LanguageService {
                 })
             }
             query::QueryRequest::DocumentHighlight(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let highlights = match file_id {
                     Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
                         query::document_highlights(repository, revision, file_id, params.offset)
                     }
                     None => Vec::new(),
@@ -545,12 +596,15 @@ impl LanguageService {
                 })
             }
             query::QueryRequest::SelectionRanges(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let ranges = match file_id {
                     Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
                         query::selection_ranges(repository, revision, file_id, &params.offsets)
                     }
                     None => Vec::new(),
@@ -559,12 +613,15 @@ impl LanguageService {
                 query::QueryResponse::SelectionRanges(query::SelectionRangesResponse { ranges })
             }
             query::QueryRequest::GotoDefinition(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
                         query::goto_definition(repository, revision, file_id, params.offset)
                     }
                     None => None,
@@ -573,12 +630,15 @@ impl LanguageService {
                 query::QueryResponse::GotoDefinition(query::GotoDefinitionResponse { result })
             }
             query::QueryRequest::GotoDeclaration(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
                         query::goto_declaration(repository, revision, file_id, params.offset)
                     }
                     None => None,
@@ -587,12 +647,15 @@ impl LanguageService {
                 query::QueryResponse::GotoDeclaration(query::GotoDeclarationResponse { result })
             }
             query::QueryRequest::GotoTypeDefinition(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
                         query::goto_type_definition(repository, revision, file_id, params.offset)
                     }
                     None => None,
@@ -603,12 +666,15 @@ impl LanguageService {
                 })
             }
             query::QueryRequest::GotoImplementation(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
                         query::goto_implementation(repository, revision, file_id, params.offset)
                     }
                     None => None,
@@ -619,32 +685,36 @@ impl LanguageService {
                 })
             }
             query::QueryRequest::FindReferences(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let result = match file_id {
-                    Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
-                        query::find_references(
-                            repository,
-                            revision,
-                            file_id,
-                            params.offset,
-                            params.include_declaration,
-                        )
-                    }
+                    Some(file_id) => query::find_references(
+                        repository,
+                        revision,
+                        file_id,
+                        params.offset,
+                        params.include_declaration,
+                    ),
                     None => None,
                 };
 
                 query::QueryResponse::FindReferences(query::FindReferencesResponse { result })
             }
             query::QueryRequest::PrepareCallHierarchy(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let item = match file_id {
                     Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
                         query::prepare_call_hierarchy(repository, revision, file_id, params.offset)
                     }
                     None => None,
@@ -667,12 +737,15 @@ impl LanguageService {
                 })
             }
             query::QueryRequest::PrepareTypeHierarchy(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let item = match file_id {
                     Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
                         query::prepare_type_hierarchy(repository, revision, file_id, params.offset)
                     }
                     None => None,
@@ -695,12 +768,15 @@ impl LanguageService {
                 })
             }
             query::QueryRequest::PrepareRename(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
                         query::prepare_rename(repository, revision, file_id, params.offset)
                     }
                     None => None,
@@ -709,20 +785,21 @@ impl LanguageService {
                 query::QueryResponse::PrepareRename(query::PrepareRenameResponse { result })
             }
             query::QueryRequest::Rename(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let result = match file_id {
-                    Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
-                        query::rename(
-                            repository,
-                            revision,
-                            file_id,
-                            params.offset,
-                            &params.new_name,
-                        )
-                    }
+                    Some(file_id) => query::rename(
+                        repository,
+                        revision,
+                        file_id,
+                        params.offset,
+                        &params.new_name,
+                    ),
                     None => None,
                 };
 
@@ -733,12 +810,15 @@ impl LanguageService {
                 query::QueryResponse::RenameFiles(query::RenameFilesResponse { result })
             }
             query::QueryRequest::ExtractFunction(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
                         let selection = self.span_for_offsets(file_id, params.start, params.end);
                         query::extract_function(
                             repository,
@@ -754,12 +834,15 @@ impl LanguageService {
                 query::QueryResponse::ExtractFunction(query::ExtractFunctionResponse { result })
             }
             query::QueryRequest::ExtractVariable(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
                         let selection = self.span_for_offsets(file_id, params.start, params.end);
                         query::extract_variable(
                             repository,
@@ -775,12 +858,15 @@ impl LanguageService {
                 query::QueryResponse::ExtractVariable(query::ExtractVariableResponse { result })
             }
             query::QueryRequest::Inline(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
                         query::inline_symbol(repository, revision, file_id, params.offset)
                     }
                     None => None,
@@ -789,33 +875,37 @@ impl LanguageService {
                 query::QueryResponse::Inline(query::InlineResponse { result })
             }
             query::QueryRequest::ChangeSignature(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let result = match file_id {
-                    Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
-                        query::change_signature(
-                            repository,
-                            revision,
-                            file_id,
-                            params.offset,
-                            &params.new_parameters,
-                            &params.new_arguments,
-                        )
-                    }
+                    Some(file_id) => query::change_signature(
+                        repository,
+                        revision,
+                        file_id,
+                        params.offset,
+                        &params.new_parameters,
+                        &params.new_arguments,
+                    ),
                     None => None,
                 };
 
                 query::QueryResponse::ChangeSignature(query::ChangeSignatureResponse { result })
             }
             query::QueryRequest::CodeActions(params) => {
-                let file_id =
-                    self.resolve_request_file_id(repository, revision, &params.uri, bound_file_id);
+                let file_id = self.query_file_id(
+                    repository,
+                    revision,
+                    &params.uri,
+                    bound_file_id,
+                    request_artifact.as_ref(),
+                )?;
                 let actions = match file_id {
                     Some(file_id) => {
-                        let file_id =
-                            self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
                         let range = self.span_for_offsets(file_id, params.start, params.end);
                         let diagnostics =
                             current_repository_diagnostics_by_file(repository, revision)?
@@ -840,15 +930,30 @@ impl LanguageService {
         Ok(response)
     }
 
-    /// Resolve the file id for one query request.
-    fn resolve_request_file_id(
+    /// Resolve and check the file id for one query request.
+    fn query_file_id(
         &self,
         repository: &Repository,
         revision: Revision,
         uri: &Uri,
         bound_file_id: Option<FileId>,
-    ) -> Option<FileId> {
-        bound_file_id.or_else(|| self.resolve_file_id(repository, revision, uri))
+        artifact: Option<&QueryArtifact>,
+    ) -> Result<Option<FileId>, LanguageServiceError> {
+        // resolve the file identity from the bound file or query URI
+        let Some(file_id) =
+            bound_file_id.or_else(|| self.resolve_file_id(repository, revision, uri))
+        else {
+            return Ok(None);
+        };
+
+        // assert the query artifact selected by the request
+        if let Some(artifact) = artifact {
+            return self
+                .require_query_artifact(repository, revision, file_id, artifact)
+                .map(Some);
+        }
+
+        Ok(Some(file_id))
     }
 
     /// Resolve a file id for a query uri.
@@ -867,7 +972,7 @@ impl LanguageService {
 
         // then try direct file identity for the exact uri form
         if let Some(path) = uri.to_path_buf() {
-            let file_id = repository.file_id_for_workspace_path(&path);
+            let file_id = repository.file_id(&path);
 
             return match repository.file(revision, file_id) {
                 Ok(Some(_file)) => Some(file_id),
@@ -885,13 +990,15 @@ impl LanguageService {
         }
     }
 
-    /// Ensure query artifacts are ready for a file.
-    fn ensure_query_artifacts_for_file(
+    /// Require one query artifact to be ready for a file.
+    fn require_query_artifact(
         &self,
         repository: &Repository,
         revision: Revision,
         file_id: FileId,
+        artifact: &QueryArtifact,
     ) -> Result<FileId, LanguageServiceError> {
+        // query files must belong to a module
         let Some(module_id) = repository
             .module_id_for_file(revision, file_id)
             .map_err(LanguageServiceError::from)?
@@ -901,14 +1008,16 @@ impl LanguageService {
             });
         };
 
+        // resolve the profile for this module
         let profile_id =
             default_profile_id_for_module(repository, revision, module_id).map_err(|error| {
                 LanguageServiceError::QueryNotReady {
                     detail: format!("missing query profile for module {module_id:?}: {error}"),
                 }
             })?;
-        let artifact_key = query::default_document_artifact_key(module_id, profile_id);
+        let artifact_key = artifact.key(module_id, profile_id);
 
+        // require preparation to have bound the query artifact
         if repository
             .artifact_version(revision, &artifact_key)?
             .is_some()
@@ -921,31 +1030,43 @@ impl LanguageService {
         })
     }
 
-    /// Prepare one query request when it targets one file path.
-    fn prepare_query_request(
+    /// Provide the artifact required by one query.
+    fn provide_query_artifact(
         &self,
+        session: &Session,
+        root: &Path,
         request: &query::QueryRequest,
     ) -> Result<(), LanguageServiceError> {
-        let Some(path) = request.path() else {
+        // skip queries that do not need a file artifact
+        let Some(artifact) = request.artifact() else {
+            return Ok(());
+        };
+        let Some(path) = artifact.uri().to_path_buf() else {
             return Ok(());
         };
 
-        let session = self.edit_session(&path)?;
+        // root queries must stay inside their requested root
+        if !self.path_in_root(&path, root) {
+            return Err(LanguageServiceError::PathNotInRoot { path });
+        }
+
+        // import the queried file into the root revision
         let module_id = session
             .load_module_from_fs(session.head(), &path)
             .map_err(|error| LanguageServiceError::QueryNotReady {
                 detail: format!("query preparation failed for {}: {error}", path.display()),
             })?;
+
+        // resolve the artifact key requested by this query
         let revision = session.revision(session.head())?;
         let profile_id =
             default_profile_id_for_module(session.repository().as_ref(), revision, module_id)
                 .map_err(|error| LanguageServiceError::QueryNotReady {
                     detail: format!("query preparation failed for {}: {error}", path.display()),
                 })?;
-        let Some(artifact_key) = request.default_artifact_key(module_id, profile_id) else {
-            return Ok(());
-        };
+        let artifact_key = artifact.key(module_id, profile_id);
 
+        // provide exactly the requested query artifact
         session
             .provide(revision, &[artifact_key])
             .map_err(|error| LanguageServiceError::QueryNotReady {
@@ -981,10 +1102,11 @@ fn current_repository_diagnostics_by_file(
     let mut diagnostics_by_file = HashMap::new();
 
     for diagnostic in diagnostics.iter() {
+        let file_id = diagnostic.primary_label().span.file;
         diagnostics_by_file
-            .entry(diagnostic.file_id)
+            .entry(file_id)
             .or_insert_with(Vec::new)
-            .push(diagnostic);
+            .push(diagnostic.clone());
     }
 
     Ok(diagnostics_by_file)

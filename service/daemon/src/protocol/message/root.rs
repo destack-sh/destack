@@ -16,7 +16,7 @@ pub struct OpenRootRequest {
 /// Options for opening a root.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RootOpenOptions {
-    /// Whether to preload semantic root state.
+    /// Whether to preload root state.
     pub load_index: bool,
 }
 

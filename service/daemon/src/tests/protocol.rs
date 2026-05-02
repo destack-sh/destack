@@ -5,9 +5,10 @@ use crate::protocol::{
     DaemonQuery, DaemonQueryResponse, DaemonRequest, DaemonResponse, FileUpdate, FileUpdateKind,
     FileUpdateRequest, OpenRootRequest, PROTOCOL_VERSION, PayloadBody, PrepareQueryRequest,
     ProtocolClientError, ProtocolClientOptions, ProtocolErrorCode, ProtocolLimits, ProtocolRange,
-    ProtocolServerActivity, ProtocolServerOptions, ProtocolVersion, QueryRequestPayload,
-    ReloadReason, ReloadRootRequest, RootHandleId, RootOpenOptions, WatchBatch, WatchBatchRequest,
-    WatchEvent, WatchEventKind, WatchStatus, inline_payload_max_bytes,
+    ProtocolServerActivity, ProtocolServerOptions, ProtocolVersion, QueryRequestBody,
+    QueryRequestPayload, ReloadReason, ReloadRootRequest, RootHandleId, RootOpenOptions,
+    WatchBatch, WatchBatchRequest, WatchEvent, WatchEventKind, WatchStatus,
+    inline_payload_max_bytes,
 };
 use crate::tests::{
     RequestRetryPolicy, TestDaemon, TestProtocolHarness, current_root_revision, wait_for_condition,
@@ -15,7 +16,7 @@ use crate::tests::{
 use destack_query as query;
 use destack_query::{
     DocumentSymbolsRequest, FindReferencesRequest, GotoDefinitionRequest, HoverRequest,
-    QueryRequest, QueryRequestEnvelope, QueryResponse, RenameFilesRequest, SemanticTokensRequest,
+    QueryRequest, QueryResponse, RenameFilesRequest, SemanticTokensRequest,
 };
 use destack_source::Uri;
 use destack_workspace::Revision;
@@ -204,9 +205,9 @@ fn test_protocol_handshake_rejects_version() {
     harness.shutdown();
 }
 
-/// Streams large root query responses through deferred payload chunks.
+/// Streams large query responses through deferred payload chunks.
 #[test]
-fn test_protocol_root_query_deferred_payload_roundtrip() {
+fn test_protocol_query_streams_deferred_payload() {
     // configure small payload limits to force deferred query responses
     let limits = ProtocolLimits::new(4096, 4096, 8, 16);
     let server_options = ProtocolServerOptions {
@@ -244,21 +245,21 @@ fn test_protocol_root_query_deferred_payload_roundtrip() {
     }
 
     // execute a large semantic tokens query
-    let request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
+    let request = QueryRequestPayload::from_body(QueryRequestBody {
         expected_revision: None,
         request: QueryRequest::SemanticTokens(SemanticTokensRequest {
             uri: Uri::from_path(&file_path),
         }),
     })
     .expect("query request encode");
-    let response = harness.send_request(DaemonRequest::Query(DaemonQuery::RootQuery {
+    let response = harness.send_request(DaemonRequest::Query(DaemonQuery::Execute {
         handle,
         request,
     }));
 
     // assert that the client reconstructed a deferred payload
     let payload = match response {
-        DaemonResponse::QueryResult(DaemonQueryResponse::RootQuery(payload)) => payload,
+        DaemonResponse::QueryResult(DaemonQueryResponse::Query(payload)) => payload,
         other => panic!("unexpected response: {other:?}"),
     };
     let inline_limit = inline_payload_max_bytes(limits);
@@ -272,8 +273,8 @@ fn test_protocol_root_query_deferred_payload_roundtrip() {
     );
 
     // assert the decoded query response content
-    let envelope = payload.decode_envelope().expect("query response decode");
-    match envelope.response {
+    let response = payload.decode_response().expect("query response decode");
+    match response.response {
         QueryResponse::SemanticTokens(response) => {
             assert!(!response.tokens.is_empty());
         }
@@ -536,7 +537,7 @@ fn test_protocol_virtual_update_query_goto_definition() {
 
     let response = harness.send_request_with_retry(
         || {
-            let request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
+            let request = QueryRequestPayload::from_body(QueryRequestBody {
                 expected_revision: None,
                 request: QueryRequest::GotoDefinition(GotoDefinitionRequest {
                     uri: Uri::from_path(&path),
@@ -545,19 +546,19 @@ fn test_protocol_virtual_update_query_goto_definition() {
             })
             .expect("query request encode");
 
-            DaemonRequest::Query(DaemonQuery::RootQuery { handle, request })
+            DaemonRequest::Query(DaemonQuery::Execute { handle, request })
         },
         RequestRetryPolicy::default(),
     );
 
-    let envelope = match response {
-        DaemonResponse::QueryResult(DaemonQueryResponse::RootQuery(envelope)) => envelope,
+    let payload = match response {
+        DaemonResponse::QueryResult(DaemonQueryResponse::Query(payload)) => payload,
         other => panic!("unexpected response: {other:?}"),
     };
-    let envelope = envelope.decode_envelope().expect("query response decode");
+    let response = payload.decode_response().expect("query response decode");
 
     // assert goto definition response content
-    match envelope.response {
+    match response.response {
         QueryResponse::GotoDefinition(payload) => {
             let Some(result) = payload.result else {
                 panic!("expected goto definition result");
@@ -643,9 +644,9 @@ fn test_protocol_query_diagnostics() {
     harness.shutdown();
 }
 
-/// Executes a root hover query.
+/// Executes a hover query.
 #[test]
-fn test_protocol_root_query_hover() {
+fn test_protocol_query_hover() {
     // build the protocol harness
     let harness = TestProtocolHarness::new();
 
@@ -678,7 +679,7 @@ fn test_protocol_root_query_hover() {
 
     // build the hover query
     let offset = content.find("announce(name").unwrap_or(0) as u32 + 1;
-    let request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
+    let request = QueryRequestPayload::from_body(QueryRequestBody {
         expected_revision: None,
         request: QueryRequest::Hover(HoverRequest {
             uri: Uri::from_path(&file_path),
@@ -688,20 +689,20 @@ fn test_protocol_root_query_hover() {
     .expect("query request encode");
 
     // execute the query
-    let response = harness.send_request(DaemonRequest::Query(DaemonQuery::RootQuery {
+    let response = harness.send_request(DaemonRequest::Query(DaemonQuery::Execute {
         handle,
         request,
     }));
 
-    let envelope = match response {
-        DaemonResponse::QueryResult(DaemonQueryResponse::RootQuery(envelope)) => envelope,
+    let payload = match response {
+        DaemonResponse::QueryResult(DaemonQueryResponse::Query(payload)) => payload,
         other => panic!("unexpected response: {other:?}"),
     };
-    let envelope = envelope.decode_envelope().expect("query response decode");
+    let response = payload.decode_response().expect("query response decode");
 
     // assert hover response content
-    assert_ne!(envelope.revision, Revision::NULL);
-    match envelope.response {
+    assert_ne!(response.revision, Revision::NULL);
+    match response.response {
         QueryResponse::Hover(payload) => {
             if let Some(hover) = payload.hover {
                 assert!(hover.signature.contains("function announce"));
@@ -713,23 +714,23 @@ fn test_protocol_root_query_hover() {
     harness.shutdown();
 }
 
-/// Requires revision preconditions for mutating root queries.
+/// Requires revision preconditions for mutating queries.
 #[test]
-fn test_protocol_root_query_requires_revision_for_mutation() {
+fn test_protocol_query_requires_revision_for_mutation() {
     // build the protocol harness
     let harness = TestProtocolHarness::new();
     let _ = harness.handshake();
     let handle = harness.open_root();
 
     // reject mutating queries without an expected revision
-    let missing_request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
+    let missing_request = QueryRequestPayload::from_body(QueryRequestBody {
         expected_revision: None,
         request: QueryRequest::RenameFiles(RenameFilesRequest {
             renames: Vec::new(),
         }),
     })
     .expect("query request encode");
-    let missing_response = harness.send_request(DaemonRequest::Query(DaemonQuery::RootQuery {
+    let missing_response = harness.send_request(DaemonRequest::Query(DaemonQuery::Execute {
         handle,
         request: missing_request,
     }));
@@ -741,14 +742,14 @@ fn test_protocol_root_query_requires_revision_for_mutation() {
     }
 
     // reject stale revision preconditions
-    let stale_request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
+    let stale_request = QueryRequestPayload::from_body(QueryRequestBody {
         expected_revision: Some(Revision::NULL),
         request: QueryRequest::RenameFiles(RenameFilesRequest {
             renames: Vec::new(),
         }),
     })
     .expect("query request encode");
-    let stale_response = harness.send_request(DaemonRequest::Query(DaemonQuery::RootQuery {
+    let stale_response = harness.send_request(DaemonRequest::Query(DaemonQuery::Execute {
         handle,
         request: stale_request,
     }));
@@ -770,24 +771,24 @@ fn test_protocol_root_query_requires_revision_for_mutation() {
     };
 
     // accept mutating queries with a matching revision precondition
-    let matching_request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
+    let matching_request = QueryRequestPayload::from_body(QueryRequestBody {
         expected_revision: Some(revision),
         request: QueryRequest::RenameFiles(RenameFilesRequest {
             renames: Vec::new(),
         }),
     })
     .expect("query request encode");
-    let matching_response = harness.send_request(DaemonRequest::Query(DaemonQuery::RootQuery {
+    let matching_response = harness.send_request(DaemonRequest::Query(DaemonQuery::Execute {
         handle,
         request: matching_request,
     }));
-    let envelope = match matching_response {
-        DaemonResponse::QueryResult(DaemonQueryResponse::RootQuery(envelope)) => envelope,
+    let payload = match matching_response {
+        DaemonResponse::QueryResult(DaemonQueryResponse::Query(payload)) => payload,
         other => panic!("unexpected response: {other:?}"),
     };
-    let envelope = envelope.decode_envelope().expect("query response decode");
-    assert_eq!(envelope.revision, revision);
-    match envelope.response {
+    let response = payload.decode_response().expect("query response decode");
+    assert_eq!(response.revision, revision);
+    match response.response {
         QueryResponse::RenameFiles(_) => {}
         other => panic!("unexpected query response: {other:?}"),
     }
@@ -795,9 +796,9 @@ fn test_protocol_root_query_requires_revision_for_mutation() {
     harness.shutdown();
 }
 
-/// Executes a root query batch.
+/// Executes a query batch.
 #[test]
-fn test_protocol_root_query_batch() {
+fn test_protocol_query_batch() {
     // build the protocol harness
     let harness = TestProtocolHarness::new();
 
@@ -834,7 +835,7 @@ fn test_protocol_root_query_batch() {
     // execute the batch query
     let response = harness.send_request_with_retry(
         || {
-            let hover_request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
+            let hover_request = QueryRequestPayload::from_body(QueryRequestBody {
                 expected_revision: None,
                 request: QueryRequest::Hover(HoverRequest {
                     uri: Uri::from_path(&file_path),
@@ -843,7 +844,7 @@ fn test_protocol_root_query_batch() {
             })
             .expect("query request encode");
 
-            let symbols_request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
+            let symbols_request = QueryRequestPayload::from_body(QueryRequestBody {
                 expected_revision: None,
                 request: QueryRequest::DocumentSymbols(DocumentSymbolsRequest {
                     uri: Uri::from_path(&file_path),
@@ -851,7 +852,7 @@ fn test_protocol_root_query_batch() {
             })
             .expect("query request encode");
 
-            DaemonRequest::Query(DaemonQuery::RootQueryBatch {
+            DaemonRequest::Query(DaemonQuery::ExecuteBatch {
                 handle,
                 requests: vec![hover_request, symbols_request],
             })
@@ -860,12 +861,12 @@ fn test_protocol_root_query_batch() {
     );
 
     let responses = match response {
-        DaemonResponse::QueryResult(DaemonQueryResponse::RootQueryBatch(responses)) => responses,
+        DaemonResponse::QueryResult(DaemonQueryResponse::QueryBatch(responses)) => responses,
         other => panic!("unexpected response: {other:?}"),
     };
     let responses: Vec<_> = responses
         .into_iter()
-        .map(|response| response.decode_envelope().expect("query response decode"))
+        .map(|response| response.decode_response().expect("query response decode"))
         .collect();
 
     // assert the batch responses
@@ -895,9 +896,9 @@ fn test_protocol_root_query_batch() {
     harness.shutdown();
 }
 
-/// Executes a root find references query for member access.
+/// Executes a find references query for member access.
 #[test]
-fn test_protocol_root_query_find_references_member_access() {
+fn test_protocol_query_find_references_member_access() {
     // build the protocol harness
     let harness = TestProtocolHarness::new();
 
@@ -938,7 +939,7 @@ fn test_protocol_root_query_find_references_member_access() {
     // execute the query
     let response = harness.send_request_with_retry(
         || {
-            let request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
+            let request = QueryRequestPayload::from_body(QueryRequestBody {
                 expected_revision: None,
                 request: QueryRequest::FindReferences(FindReferencesRequest {
                     uri: Uri::from_path(&file_path),
@@ -948,19 +949,19 @@ fn test_protocol_root_query_find_references_member_access() {
             })
             .expect("query request encode");
 
-            DaemonRequest::Query(DaemonQuery::RootQuery { handle, request })
+            DaemonRequest::Query(DaemonQuery::Execute { handle, request })
         },
         RequestRetryPolicy::default(),
     );
 
-    let envelope = match response {
-        DaemonResponse::QueryResult(DaemonQueryResponse::RootQuery(envelope)) => envelope,
+    let payload = match response {
+        DaemonResponse::QueryResult(DaemonQueryResponse::Query(payload)) => payload,
         other => panic!("unexpected response: {other:?}"),
     };
-    let envelope = envelope.decode_envelope().expect("query response decode");
+    let response = payload.decode_response().expect("query response decode");
 
     // assert find references response content
-    match envelope.response {
+    match response.response {
         QueryResponse::FindReferences(payload) => {
             if let Some(refs) = payload.result {
                 assert_eq!(refs.references.len(), 4);

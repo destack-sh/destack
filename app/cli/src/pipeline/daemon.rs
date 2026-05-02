@@ -10,14 +10,13 @@ use destack_daemon::protocol::{
     CommonCommandOptions, ConfigOverride, DaemonMessageKind as ProtocolMessageKind,
     DaemonMessageRecord, DaemonQuery, DaemonQueryResponse, DaemonRequest, DaemonResponse,
     DiagnosticBatch, FileUpdateImage, OpenRootRequest, OutputStream, ProtocolClient,
-    QueryRequestPayload, RootHandleId, RootOpenOptions, WatchBatch as ProtocolWatchBatch,
-    WatchBatchRequest, WatchEvent, WatchStatus,
+    QueryRequestBody, QueryRequestPayload, QueryResponseBody, RootHandleId, RootOpenOptions,
+    WatchBatch as ProtocolWatchBatch, WatchBatchRequest, WatchEvent, WatchStatus,
 };
 use destack_daemon::{
     DaemonConnectOptions, DaemonConnection, DaemonInstance, DaemonLaunchConfig,
     connect_in_process_daemon, connect_ipc_daemon,
 };
-use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
 use destack_session::SessionEventHandler;
 use destack_source::{DiagnosticCollection, File, FileId, FileType, FileWatchStatus};
 use destack_workspace::config::{OptimizeLevel, RuntimeOptionsJson};
@@ -611,25 +610,25 @@ impl ProtocolDaemonClient {
         Ok(command_result_from_response(response))
     }
 
-    /// Run a root query for a root.
+    /// Run a query for a root.
     pub fn run_query(
         &self,
         root: &Path,
-        request: QueryRequestEnvelope,
-    ) -> CliResult<QueryResponseEnvelope> {
+        request: QueryRequestBody,
+    ) -> CliResult<QueryResponseBody> {
         // resolve the root handle
         let handle = self
             .root_handle(root)
             .ok_or_else(|| CliError::message(format!("root not opened: {}", root.display())))?;
 
-        // encode the semantic query request envelope
-        let request = QueryRequestPayload::from_envelope(request)
+        // encode the query request
+        let request = QueryRequestPayload::from_body(request)
             .map_err(|error| CliError::message(format!("query request encode failed: {error}")))?;
 
         // send the request to the daemon
         let response = self
             .client
-            .send_request(DaemonRequest::Query(DaemonQuery::RootQuery {
+            .send_request(DaemonRequest::Query(DaemonQuery::Execute {
                 handle: handle.handle,
                 request,
             }))
@@ -648,7 +647,7 @@ impl ProtocolDaemonClient {
 
         // unwrap the query response
         let response = match response {
-            DaemonQueryResponse::RootQuery(response) => response,
+            DaemonQueryResponse::Query(response) => response,
             other => {
                 return Err(CliError::message(format!(
                     "unexpected query response: {other:?}"
@@ -656,9 +655,9 @@ impl ProtocolDaemonClient {
             }
         };
 
-        // decode the semantic query response envelope
+        // decode the query response
         response
-            .decode_envelope()
+            .decode_response()
             .map_err(|error| CliError::message(format!("query response decode failed: {error}")))
     }
 
@@ -701,28 +700,28 @@ impl ProtocolDaemonClient {
         }
     }
 
-    /// Run a batch of root queries for a root.
+    /// Run a batch of queries for a root.
     pub fn run_query_batch(
         &self,
         root: &Path,
-        requests: Vec<QueryRequestEnvelope>,
-    ) -> CliResult<Vec<QueryResponseEnvelope>> {
+        requests: Vec<QueryRequestBody>,
+    ) -> CliResult<Vec<QueryResponseBody>> {
         // resolve the root handle
         let handle = self
             .root_handle(root)
             .ok_or_else(|| CliError::message(format!("root not opened: {}", root.display())))?;
 
-        // encode semantic query request envelopes
+        // encode query requests
         let requests: Vec<QueryRequestPayload> = requests
             .into_iter()
-            .map(QueryRequestPayload::from_envelope)
+            .map(QueryRequestPayload::from_body)
             .collect::<Result<_, _>>()
             .map_err(|error| CliError::message(format!("query request encode failed: {error}")))?;
 
         // send the request to the daemon
         let response = self
             .client
-            .send_request(DaemonRequest::Query(DaemonQuery::RootQueryBatch {
+            .send_request(DaemonRequest::Query(DaemonQuery::ExecuteBatch {
                 handle: handle.handle,
                 requests,
             }))
@@ -741,7 +740,7 @@ impl ProtocolDaemonClient {
 
         // unwrap the query response
         let response = match response {
-            DaemonQueryResponse::RootQueryBatch(response) => response,
+            DaemonQueryResponse::QueryBatch(response) => response,
             other => {
                 return Err(CliError::message(format!(
                     "unexpected query response: {other:?}"
@@ -749,10 +748,10 @@ impl ProtocolDaemonClient {
             }
         };
 
-        // decode semantic query response envelopes
+        // decode query responses
         response
             .into_iter()
-            .map(|payload| payload.decode_envelope())
+            .map(|payload| payload.decode_response())
             .collect::<Result<Vec<_>, _>>()
             .map_err(|error| CliError::message(format!("query response decode failed: {error}")))
     }

@@ -33,8 +33,8 @@ pub struct DaemonUpdateRecord {
     pub module_id: Option<ModuleId>,
     /// File id for the update.
     pub file_id: FileId,
-    /// File image for the update.
-    pub file: FileUpdateImage,
+    /// File image when the updated file still exists.
+    pub file: Option<FileUpdateImage>,
     /// File change summary.
     pub change: UpdateChangeSummary,
     /// Diagnostics produced by the update.

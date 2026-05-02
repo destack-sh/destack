@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use destack_service::{FileChangeKind, FileImage as ServiceFileImage};
+use destack_service::{FileImage as ServiceFileImage, FileUpdateKind};
 use destack_source::{
     Diagnostic, FileContent, FileId, FileWatchEvent, FileWatchEventKind, FileWatchRescanReason,
     FileWatchStatus,
@@ -17,13 +17,13 @@ use super::{
     WatchEventKind as ProtocolWatchEventKind, WatchStatus as ProtocolWatchStatus,
 };
 
-impl From<FileChangeKind> for ProtocolUpdateChangeKind {
-    fn from(kind: FileChangeKind) -> Self {
+impl From<FileUpdateKind> for ProtocolUpdateChangeKind {
+    fn from(kind: FileUpdateKind) -> Self {
         match kind {
-            FileChangeKind::Package => ProtocolUpdateChangeKind::Package,
-            FileChangeKind::Destack => ProtocolUpdateChangeKind::Destack,
-            FileChangeKind::TsConfig => ProtocolUpdateChangeKind::TsConfig,
-            FileChangeKind::Unknown => ProtocolUpdateChangeKind::Unknown,
+            FileUpdateKind::Package => ProtocolUpdateChangeKind::Package,
+            FileUpdateKind::Destack => ProtocolUpdateChangeKind::Destack,
+            FileUpdateKind::TsConfig => ProtocolUpdateChangeKind::TsConfig,
+            FileUpdateKind::Unknown => ProtocolUpdateChangeKind::Unknown,
         }
     }
 }
@@ -42,7 +42,7 @@ impl From<&DaemonUpdate> for DaemonUpdateRecord {
         Self {
             module_id: update.module_id,
             file_id: update.file_id,
-            file: protocol_image_from_root(&update.file),
+            file: update.file.as_ref().map(protocol_image_from_root),
             change: UpdateChangeSummary::from(update),
             diagnostics: update.diagnostics.clone(),
         }
@@ -228,8 +228,9 @@ pub fn diagnostics_to_batches(diagnostics: &[Diagnostic]) -> Vec<DiagnosticBatch
     // group diagnostics by file
     let mut by_file = HashMap::new();
     for diagnostic in diagnostics {
+        let file_id = diagnostic.primary_label().span.file;
         by_file
-            .entry(diagnostic.file_id)
+            .entry(file_id)
             .or_insert_with(Vec::new)
             .push(diagnostic.clone());
     }
@@ -256,8 +257,9 @@ pub fn diagnostic_file_images(
     let mut seen = HashSet::new();
     let mut images = Vec::new();
     for diagnostic in diagnostics {
-        if seen.insert(diagnostic.file_id)
-            && let Some(image) = image_for_file(repository, revision, diagnostic.file_id)
+        let file_id = diagnostic.primary_label().span.file;
+        if seen.insert(file_id)
+            && let Some(image) = image_for_file(repository, revision, file_id)
         {
             images.push(image);
         }
