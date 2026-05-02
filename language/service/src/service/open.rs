@@ -1,71 +1,136 @@
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
-use destack_session::Session;
-use destack_source::Uri;
+use destack_source::{FileContentId, FileId, Uri};
+use destack_workspace::{Repository, Revision};
 
-use super::{LanguageService, LanguageServiceError};
+use super::{FileChange, LanguageService, LanguageServiceError};
+
+/// One currently open file tracked by the language service.
+#[derive(Debug, Clone)]
+pub(super) struct OpenFile {
+    /// Client-facing uri for this file.
+    pub uri: Uri,
+    /// Client-provided file version.
+    pub version: i32,
+    /// Repository content id corresponding to the open content.
+    pub content_id: FileContentId,
+    /// Current open content.
+    pub content: FileChange,
+}
 
 impl LanguageService {
-    /// Resolve an already opened session for one open file path.
-    fn existing_open_session(
-        &self,
-        path: &Path,
-    ) -> Result<Option<Arc<Session>>, LanguageServiceError> {
-        if let Some(root) = self.owned_root(path) {
-            let session = self
-                .roots
-                .get(root.as_path())
-                .map(|entry| Arc::clone(entry.value()));
+    /// Return the open file for one path.
+    pub(super) fn open_state(&self, path: &Path) -> Option<OpenFile> {
+        // open file paths are stored by normalized path
+        let path = Self::normalized_path(path);
 
-            return Ok(session);
-        }
-
-        let Some(root) = self.semantic_root(path)? else {
-            return Ok(None);
-        };
-        let session = self
-            .roots
-            .get(root.as_path())
-            .map(|entry| Arc::clone(entry.value()));
-
-        Ok(session)
+        self.open_file_by_path
+            .get(path.as_path())
+            .map(|file| file.value().clone())
     }
 
-    /// Return true when a path is open in its owning session.
+    /// Return the client version for one open file path.
+    pub(super) fn open_file_version(&self, path: &Path) -> Option<i32> {
+        self.open_state(path).map(|file| file.version)
+    }
+
+    /// Set one open file.
+    pub(super) fn set_open_state(
+        &self,
+        path: &Path,
+        uri: Uri,
+        version: i32,
+        content_id: FileContentId,
+        content: FileChange,
+    ) {
+        // mirror open text into the shared filesystem overlay
+        let path = Self::normalized_path(path);
+        let file = OpenFile {
+            uri,
+            version,
+            content_id,
+            content: content.clone(),
+        };
+
+        // update the text overlay only for text content
+        if let Some(overlay_file_system) = self.overlay_file_system.as_ref() {
+            match content {
+                FileChange::Text { content } => {
+                    overlay_file_system.set_overlay(path.as_path(), content);
+                }
+                FileChange::Bytes { .. } | FileChange::Removed => {
+                    overlay_file_system.remove_overlay(path.as_path());
+                }
+            }
+        }
+
+        // store protocol state after overlay update succeeds
+        self.open_file_by_path.insert(path, file);
+    }
+
+    /// Remove one open file.
+    pub(super) fn remove_open_state(&self, path: &Path) -> Option<OpenFile> {
+        // remove overlay state before dropping open file metadata
+        let path = Self::normalized_path(path);
+
+        if let Some(overlay_file_system) = self.overlay_file_system.as_ref() {
+            overlay_file_system.remove_overlay(path.as_path());
+        }
+
+        self.open_file_by_path
+            .remove(path.as_path())
+            .map(|(_, file)| file)
+    }
+
+    /// Return the current text for one open file.
+    pub(super) fn open_file_text(&self, path: &Path) -> Option<String> {
+        let file = self.open_state(path)?;
+        let FileChange::Text { content } = file.content else {
+            return None;
+        };
+
+        Some(content)
+    }
+
+    /// Return true when a path is open.
     pub fn has_open_file(&self, path: &Path) -> bool {
-        let Ok(Some(session)) = self.existing_open_session(path) else {
-            return false;
-        };
+        // compare normalized paths with the open file map
+        let path = Self::normalized_path(path);
 
-        session.contains_open_file(path)
+        self.open_file_by_path.contains_key(path.as_path())
     }
 
-    /// Read one open file from its owning session.
-    pub fn read_open_file(
+    /// Return open files contained by one root.
+    pub(super) fn open_files_under(&self, root: &Path) -> Vec<(PathBuf, OpenFile)> {
+        self.open_file_by_path
+            .iter()
+            .filter(|entry| entry.key().starts_with(root))
+            .map(|entry| (entry.key().clone(), entry.value().clone()))
+            .collect()
+    }
+
+    /// Return the open file diagnostic version when it matches a revision.
+    pub(super) fn open_file_version_in_revision(
         &self,
+        repository: &Repository,
+        revision: Revision,
+        file_id: FileId,
         path: &Path,
-    ) -> Result<Option<(Uri, i32, String)>, LanguageServiceError> {
-        let Some(session) = self.existing_open_session(path)? else {
+    ) -> Result<Option<i32>, LanguageServiceError> {
+        // missing open files have no client version
+        let Some(file) = self.open_state(path) else {
             return Ok(None);
         };
-        let file = session
-            .open_file(path)
-            .map_err(|error| LanguageServiceError::Internal {
-                detail: format!("failed to read open file {}: {error}", path.display()),
-            })?;
 
-        Ok(file)
-    }
+        // only advertise a version when revision content matches open text
+        let Some(content_id) = repository.file_content_id(revision, file_id)? else {
+            return Ok(None);
+        };
 
-    /// Return the open files keyed by path.
-    pub fn open_files(&self) -> Vec<(PathBuf, Uri, i32)> {
-        let mut files = Vec::new();
-
-        for entry in self.roots.iter() {
-            files.extend(entry.value().open_files());
+        if content_id != file.content_id {
+            return Ok(None);
         }
 
-        files
+        Ok(Some(file.version))
     }
 }

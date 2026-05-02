@@ -15,8 +15,8 @@ fn test_route_queries_across_roots() {
     let uri_a = test.uri_for_path(&path_a);
     let uri_b = test.uri_for_path(&path_b);
 
-    let _ = test.update_virtual_text(&path_a, source);
-    let _ = test.update_virtual_text(&path_b, source);
+    let _ = test.apply_text(&path_a, source);
+    let _ = test.apply_text(&path_b, source);
 
     let response_a = test
         .service
@@ -54,8 +54,8 @@ fn test_close_root_removes_workspace_symbol_entries() {
     let path_a = test.write_text_for_root(0, "main.ds", source_a);
     let path_b = test.write_text_for_root(1, "main.ds", source_b);
 
-    let _ = test.update_virtual_text(&path_a, source_a);
-    let _ = test.update_virtual_text(&path_b, source_b);
+    let _ = test.apply_text(&path_a, source_a);
+    let _ = test.apply_text(&path_b, source_b);
 
     let response_before = test
         .service
@@ -120,8 +120,8 @@ fn test_close_root_removes_auto_import_entries() {
         .unwrap_or_else(|| panic!("expected completion prefix")) as u32
         + 3;
 
-    let _ = test.update_virtual_text(&path_a, source_a);
-    let _ = test.update_virtual_text(&path_b, source_b);
+    let _ = test.apply_text(&path_a, source_a);
+    let _ = test.apply_text(&path_b, source_b);
 
     let response_before = test
         .service

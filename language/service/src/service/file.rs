@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use destack_session::{FileChangeKind, FileUpdate as SessionFileUpdate};
+use destack_session::{FileUpdate as SessionFileUpdate, FileUpdateKind};
 use destack_source::{Diagnostic, File, FileContent, FileId, FileType, ModuleId, Uri};
 
 /// In-memory image for one updated file.
@@ -50,10 +50,12 @@ pub struct FileUpdate {
     pub diagnostic_uri: Uri,
     /// Protocol file version for diagnostics when the file is open.
     pub diagnostic_version: Option<i32>,
-    /// Updated file image.
-    pub file: FileImage,
+    /// Updated file image when the file still exists.
+    pub file: Option<FileImage>,
+    /// Whether this update removed the file.
+    pub is_removed: bool,
     /// The coarse change kind for this file.
-    pub kind: FileChangeKind,
+    pub kind: FileUpdateKind,
     /// Diagnostics for this file.
     pub diagnostics: Vec<Diagnostic>,
 }
@@ -61,14 +63,38 @@ pub struct FileUpdate {
 impl From<SessionFileUpdate> for FileUpdate {
     /// Project one session file update into a service payload.
     fn from(update: SessionFileUpdate) -> Self {
-        Self {
-            module_id: update.module_id,
-            file_id: update.file_id,
-            diagnostic_uri: update.uri,
-            diagnostic_version: None,
-            file: FileImage::from(update.file.as_ref()),
-            kind: update.kind,
-            diagnostics: Vec::new(),
+        match update {
+            SessionFileUpdate::Updated {
+                module_id,
+                file_id,
+                uri,
+                file,
+                kind,
+            } => Self {
+                module_id,
+                file_id,
+                diagnostic_uri: uri,
+                diagnostic_version: None,
+                file: Some(FileImage::from(file.as_ref())),
+                is_removed: false,
+                kind,
+                diagnostics: Vec::new(),
+            },
+            SessionFileUpdate::Removed {
+                module_id,
+                file_id,
+                uri,
+                kind,
+            } => Self {
+                module_id,
+                file_id,
+                diagnostic_uri: uri,
+                diagnostic_version: None,
+                file: None,
+                is_removed: true,
+                kind,
+                diagnostics: Vec::new(),
+            },
         }
     }
 }

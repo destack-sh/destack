@@ -26,12 +26,12 @@ pub enum LanguageServiceError {
         /// The current tracked client file version.
         current: i32,
     },
-    /// The query expected revision is missing for mutating requests.
-    MissingExpectedRevision,
-    /// The read query path received an unexpected revision precondition.
-    UnexpectedExpectedRevision {
-        /// The unexpected revision carried on the request.
-        expected_revision: Revision,
+    /// The requested text change is invalid.
+    InvalidTextChange {
+        /// The changed file path.
+        path: PathBuf,
+        /// The validation failure detail.
+        detail: String,
     },
     /// The query execution mode does not match the called API.
     QueryModeMismatch {
@@ -92,13 +92,11 @@ impl std::fmt::Display for LanguageServiceError {
                     path.display()
                 )
             }
-            LanguageServiceError::MissingExpectedRevision => {
-                write!(formatter, "missing expected revision for mutating query")
-            }
-            LanguageServiceError::UnexpectedExpectedRevision { expected_revision } => {
+            LanguageServiceError::InvalidTextChange { path, detail } => {
                 write!(
                     formatter,
-                    "read query must not carry expected revision: {expected_revision}"
+                    "invalid text change for {}: {detail}",
+                    path.display()
                 )
             }
             LanguageServiceError::QueryModeMismatch {
@@ -159,17 +157,6 @@ impl From<RepositoryError> for LanguageServiceError {
 
 impl From<SessionError> for LanguageServiceError {
     fn from(error: SessionError) -> Self {
-        match error {
-            SessionError::StaleOpenFile {
-                path,
-                incoming,
-                current,
-            } => LanguageServiceError::StaleOpenFile {
-                path,
-                incoming,
-                current,
-            },
-            error => LanguageServiceError::Session(error),
-        }
+        LanguageServiceError::Session(error)
     }
 }

@@ -1,6 +1,7 @@
+use crate::FileChange;
 use crate::tests::harness::TestLanguageService;
 
-/// Emit diagnostics after a virtual update with invalid syntax.
+/// Emit diagnostics after a file update with invalid syntax.
 #[test]
 fn test_apply_file_emits_diagnostics() {
     let test = TestLanguageService::new("service_update");
@@ -8,7 +9,7 @@ fn test_apply_file_emits_diagnostics() {
     let invalid_source = "export const x = ;\n";
     let path = test.write_text("main.ds", valid_source);
 
-    let initial = test.update_virtual_text(&path, valid_source);
+    let initial = test.apply_text(&path, valid_source);
 
     assert!(
         initial
@@ -18,7 +19,7 @@ fn test_apply_file_emits_diagnostics() {
         "expected no diagnostics for valid content"
     );
 
-    let updated = test.update_virtual_text(&path, invalid_source);
+    let updated = test.apply_text(&path, invalid_source);
 
     assert!(
         updated
@@ -40,7 +41,14 @@ fn test_close_file_restores_filesystem_diagnostics() {
 
     let opened = test
         .service
-        .open_file(&path, uri.clone(), 1, invalid_source.to_string())
+        .open_file(
+            &path,
+            uri.clone(),
+            1,
+            FileChange::Text {
+                content: invalid_source.to_string(),
+            },
+        )
         .expect("expected open file");
 
     assert!(
@@ -79,6 +87,32 @@ fn test_apply_watch_event_emits_diagnostics() {
     );
 }
 
+/// Emit an explicit removed update when a tracked file is deleted.
+#[test]
+fn test_apply_file_emits_removed_update() {
+    let test = TestLanguageService::new("service_remove_file");
+    let source = "export const value = 1;\n";
+    let path = test.write_text("main.ds", source);
+    let uri = test.uri_for_path(&path);
+
+    // load the file before removing it from the revision
+    let _ = test.apply_text(&path, source);
+    std::fs::remove_file(&path)
+        .unwrap_or_else(|error| panic!("failed to remove {}: {error}", path.display()));
+
+    let removed = test
+        .service
+        .apply_file(&path, FileChange::Removed)
+        .expect("expected removed file update");
+
+    assert!(
+        removed.updates.iter().any(|update| {
+            update.diagnostic_uri == uri && update.is_removed && update.file.is_none()
+        }),
+        "expected an explicit removed update"
+    );
+}
+
 /// Keep config updates scoped to direct file publishes.
 #[test]
 fn test_apply_config_update_stays_direct() {
@@ -92,19 +126,19 @@ fn test_apply_config_update_stays_direct() {
     let module_b = test.write_text("b.ds", "export const b = ;\n");
 
     // load the modules and config into the live program first
-    let _ = test.update_virtual_text(&module_a, "export const a = ;\n");
-    let _ = test.update_virtual_text(&module_b, "export const b = ;\n");
-    let _ = test.update_virtual_text(&config_path, "{ \"compilerOptions\": {} }\n");
+    let _ = test.apply_text(&module_a, "export const a = ;\n");
+    let _ = test.apply_text(&module_b, "export const b = ;\n");
+    let _ = test.apply_text(&config_path, "{ \"compilerOptions\": {} }\n");
 
     // change the config and expect only the config publish
-    let updated = test.update_virtual_text(
+    let updated = test.apply_text(
         &config_path,
         "{ \"compilerOptions\": { \"noImplicitAny\": true } }\n",
     );
     let updated_paths: Vec<_> = updated
         .updates
         .iter()
-        .filter_map(|update| update.file.path.as_ref())
+        .filter_map(|update| update.file.as_ref().and_then(|file| file.path.as_ref()))
         .cloned()
         .collect();
 
