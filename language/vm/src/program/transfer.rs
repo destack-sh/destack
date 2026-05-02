@@ -24,7 +24,7 @@ pub(crate) enum Transfer {
         /// Lowered or imported call target.
         target: CallTarget,
         /// Destination for return value.
-        destination: mir::Value,
+        destination: Option<mir::Value>,
         /// Arguments to pass.
         arguments: ArgumentRange,
         /// Optional callable environment to pass.
@@ -45,9 +45,9 @@ pub(crate) enum Transfer {
         /// Optional callable environment to pass.
         env: Option<Word>,
         /// The normal continuation resume point.
-        normal_resume_point: engine::ResumePointId,
+        normal_state: engine::FrameStateId,
         /// The unwind continuation resume point.
-        unwind_resume_point: engine::ResumePointId,
+        unwind_state: engine::FrameStateId,
     },
     /// Tail call another function.
     TailCall {
@@ -69,7 +69,7 @@ pub(crate) enum Transfer {
         /// The MIR value that produced the yielded value.
         source: mir::Value,
         /// The resume point captured in the continuation.
-        resume_point: engine::ResumePointId,
+        frame_state: engine::FrameStateId,
     },
     /// Throw one managed exception value.
     Throw(Word),

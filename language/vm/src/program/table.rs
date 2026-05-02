@@ -1,8 +1,8 @@
 use {destack_heap as heap, destack_mir as mir};
 
 use super::{
-    AllocationLayout, ElementAccess, FieldAccess, FrameAccess, PointeeAccess, SliceElementAccess,
-    SwitchCase,
+    AllocationLayout, ConstValue, ElementAccess, FieldAccess, FrameAccess, PointeeAccess,
+    SliceElementAccess, SwitchCase,
 };
 
 /// Identifier for one pooled check constraint.
@@ -29,6 +29,10 @@ pub(crate) struct SwitchTable {
 /// Identifier for one pooled allocation layout.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct AllocationLayoutId(u32);
+
+/// Identifier for one pooled constant value.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ConstValueId(u32);
 
 /// Identifier for one pooled allocation class.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -91,6 +95,8 @@ pub(crate) struct TensorScatterId(u32);
 pub(crate) struct OperandTable {
     /// Pooled allocation layouts.
     allocation_layout: Box<[AllocationLayout]>,
+    /// Pooled constants.
+    constant: Box<[ConstValue]>,
     /// Pooled allocation classes.
     allocation_class: Box<[heap::AllocationClass]>,
     /// Pooled reference maps.
@@ -145,6 +151,8 @@ pub(crate) struct OperandTableBuilder {
     switch_table: Vec<SwitchTable>,
     /// Pooled allocation layouts.
     allocation_layout: Vec<AllocationLayout>,
+    /// Pooled constants.
+    constant: Vec<ConstValue>,
     /// Pooled allocation classes.
     allocation_class: Vec<heap::AllocationClass>,
     /// Pooled reference maps.
@@ -183,6 +191,7 @@ impl OperandTableBuilder {
             switch_cases,
             switch_table,
             allocation_layout,
+            constant,
             allocation_class,
             reference_map,
             field_access,
@@ -214,6 +223,7 @@ impl OperandTableBuilder {
 
         OperandTable {
             allocation_layout: allocation_layout.into_boxed_slice(),
+            constant: constant.into_boxed_slice(),
             allocation_class: allocation_class.into_boxed_slice(),
             reference_map: reference_map.into_boxed_slice(),
             field_access: field_access.into_boxed_slice(),
@@ -258,6 +268,14 @@ impl OperandTableBuilder {
         self.allocation_layout.push(allocation);
 
         AllocationLayoutId(id)
+    }
+
+    /// Add one constant to the operand table.
+    pub(crate) fn push_constant(&mut self, constant: ConstValue) -> ConstValueId {
+        let id = self.constant.len() as u32;
+        self.constant.push(constant);
+
+        ConstValueId(id)
     }
 
     /// Add one allocation class to the operand table.
@@ -469,6 +487,12 @@ impl OperandTable {
     #[inline(always)]
     pub(crate) fn allocation_layout(&self, id: AllocationLayoutId) -> &AllocationLayout {
         &self.allocation_layout[id.0 as usize]
+    }
+
+    /// Borrow one pooled constant.
+    #[inline(always)]
+    pub(crate) fn constant(&self, id: ConstValueId) -> &ConstValue {
+        &self.constant[id.0 as usize]
     }
 
     /// Return one pooled allocation class.

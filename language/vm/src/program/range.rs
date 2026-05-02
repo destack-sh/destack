@@ -1,8 +1,5 @@
 use destack_mir as mir;
 
-/// Sentinel value id used for optional destinations.
-pub(crate) const INVALID_VALUE_ID: u32 = u32::MAX;
-
 /// Argument range within one function argument pool.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct ArgumentRange {
@@ -40,9 +37,18 @@ impl ArgumentRange {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct MovePair {
     /// Destination SSA value id.
-    pub dest: u32,
-    /// Source SSA value id.
-    pub src: u32,
+    pub dest: mir::Value,
+    /// Source value or void fill.
+    pub source: MoveSource,
+}
+
+/// Source for one lowered frame move.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) enum MoveSource {
+    /// Move from an SSA value.
+    Value(mir::Value),
+    /// Write the canonical void value.
+    Void,
 }
 
 /// Move range within one function move pool.
@@ -76,14 +82,4 @@ impl MoveRange {
         // return move slice
         &pool[start..start + len]
     }
-}
-
-/// Pack an optional SSA value into the lowered program encoding.
-pub(crate) fn pack_optional_value(value: Option<mir::Value>) -> mir::Value {
-    value.unwrap_or(mir::Value(INVALID_VALUE_ID))
-}
-
-/// Return whether one lowered SSA value carries the packed absent-value marker.
-pub(crate) fn is_invalid_value(value: mir::Value) -> bool {
-    value.0 == INVALID_VALUE_ID
 }
