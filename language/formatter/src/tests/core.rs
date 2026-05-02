@@ -66,7 +66,7 @@ impl TestFormatter {
         let file = Arc::new(file);
 
         // parse
-        let language = LanguageType::from(file_type);
+        let language = LanguageType::try_from(file_type).expect("file type has no parser language");
         let (side_span, tree, tokens, side_tokens, strings, n) = {
             let mut parser = Parser::lex_file_with_options(
                 file.clone(),
@@ -134,7 +134,8 @@ fn normalize_test_options_for_file_type(
     mut options: DestackFormatOptions,
     file_type: FileType,
 ) -> DestackFormatOptions {
-    options.language_type = LanguageType::from(file_type);
+    options.language_type =
+        LanguageType::try_from(file_type).expect("file type has no parser language");
     options
 }
 

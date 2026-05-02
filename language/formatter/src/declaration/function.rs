@@ -159,7 +159,7 @@ pub(crate) fn function_parameter_container_span(
     context
         .tree
         .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Parameters))
-        .unwrap_or_else(|| unreachable!("function declaration should own its parameter container"))
+        .unwrap_or_else(|| context.span(node_id))
 }
 
 /// Collect parameters, including `this`.

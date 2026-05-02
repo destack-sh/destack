@@ -168,7 +168,7 @@ fn print_builtin_parse_diagnostics(path: &Path, source: &str) {
             None
         }
     };
-    let language_type = LanguageType::from(file.ty);
+    let language_type = LanguageType::try_from(file.ty).expect("file type has no parser language");
     let mut parser = Parser::lex_file_with_options(
         file.clone(),
         language_type,
@@ -180,7 +180,7 @@ fn print_builtin_parse_diagnostics(path: &Path, source: &str) {
     parser.parse();
 
     let mut diagnostics = DiagnosticCollection::new();
-    for diagnostic in parser.diagnostics.iter() {
+    for diagnostic in parser.diagnostics.to_vec() {
         diagnostics.insert(diagnostic);
     }
 
