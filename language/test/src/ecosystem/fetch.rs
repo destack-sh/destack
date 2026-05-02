@@ -1,9 +1,10 @@
-use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
+
+use destack_core::StableHasher;
 
 use crate::core::fixtures_dir;
 
@@ -40,7 +41,7 @@ fn compute_patch_stamp(root: &Path) -> Result<String, String> {
     collect_files_recursive(root, &mut files)?;
     files.sort();
 
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = StableHasher::new();
     for file in files {
         let relative = file.strip_prefix(root).unwrap_or(file.as_path());
         relative.to_string_lossy().hash(&mut hasher);
@@ -50,7 +51,7 @@ fn compute_patch_stamp(root: &Path) -> Result<String, String> {
         content.hash(&mut hasher);
     }
 
-    Ok(format!("{:016x}", hasher.finish()))
+    Ok(format!("{:016x}", hasher.finish_u64()))
 }
 
 /// Collect file paths recursively from a directory.

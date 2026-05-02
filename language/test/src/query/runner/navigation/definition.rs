@@ -357,7 +357,7 @@ fn validate_definition_invariants(
     }
 
     // validate ordering and duplicates
-    let mut previous: Option<(u64, u32, u32)> = None;
+    let mut previous: Option<(u128, u32, u32)> = None;
     for span in locations {
         // build a stable ordering key for the span
         let key = location_key(*span);
@@ -389,7 +389,7 @@ fn validate_definition_invariants(
 }
 
 /// Build a stable ordering key for a span.
-fn location_key(span: Span) -> (u64, u32, u32) {
+fn location_key(span: Span) -> (u128, u32, u32) {
     (span.file.0, span.start, span.end)
 }
 

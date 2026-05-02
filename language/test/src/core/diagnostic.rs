@@ -29,8 +29,10 @@ where
 
     // individual diagnostics
     for diagnostic in diagnostics.iter() {
-        let file = file_for_id(diagnostic.file_id)
-            .unwrap_or_else(|| panic!("missing diagnostic file: {:?}", diagnostic.file_id));
+        let primary = diagnostic.primary_label();
+        let file_id = primary.span.file;
+        let file = file_for_id(file_id)
+            .unwrap_or_else(|| panic!("missing diagnostic file: {:?}", file_id));
         let annotate_options = annotate_options
             .clone()
             .with_highlight_color(diagnostic.severity.color());
@@ -43,26 +45,10 @@ where
         ));
 
         let header_message = annotate_options.color_normal.apply(&diagnostic.message);
-        let header = {
-            // include original code and severity if it exists and differs
-            if let Some(original_code) = &diagnostic.original_code
-                && let Some(original_severity) = diagnostic.original_severity
-                && (*original_code != diagnostic.code || original_severity != diagnostic.severity)
-            {
-                let original_options = annotate_options
-                    .clone()
-                    .with_highlight_color(original_severity.color());
-                let header_preamble_original = original_options
-                    .color_highlight
-                    .apply_bold(&original_code.to_string());
-                let header_preamble = format!("{header_preamble} ({header_preamble_original})");
-                format!("{header_preamble}: {header_message}")
-            } else {
-                format!("{header_preamble}: {header_message}")
-            }
-        };
-
-        let body = annotate_file(&file, &diagnostic.primary_span, annotate_options);
+        let header = format!("{header_preamble}: {header_message}");
+        let primary = primary.to_labeled_span(&diagnostic.message);
+        let body = annotate_file(&file, &primary, annotate_options)
+            .unwrap_or_else(|error| panic!("failed to render diagnostic: {error}"));
 
         let _ = writeln!(output, "{header}");
         let _ = writeln!(output, "{body}");
@@ -184,7 +170,7 @@ pub fn render_unexpected_diagnostic_collection(
     // filter to unexpected diagnostics (at or above min_fail_severity)
     let unexpected_diagnostics: Vec<_> = diagnostics
         .iter()
-        .into_iter()
+        .cloned()
         .filter(|d| severity_at_or_above(d.severity, min_fail_severity))
         .collect();
 

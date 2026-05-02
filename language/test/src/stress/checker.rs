@@ -2,12 +2,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use destack_artifact::ArtifactKey;
-use destack_compiler::{Compiler, CompilerOptions};
-use destack_workspace::{AmbientSnapshot, Repository};
+use destack_compiler::Compiler;
+use destack_source::{FileSystem, PhysicalFileSystem};
 
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Suite, current_workspace_revision,
-    default_profile_id_for_module, discover_file_cases, fixtures_dir, provide_workspace_artifacts,
+    default_profile_id_for_module, discover_file_cases, fixtures_dir, module_id_for_path,
+    open_repository_with_options, provide_workspace_artifacts,
 };
 
 /// Stress test suite for the type checker.
@@ -58,30 +59,23 @@ fn run_checker_stress(test: &Case) -> CaseResult {
 
     // set up compiler
     let cwd = test.path.parent().unwrap().to_path_buf();
-    let repository = Arc::new(Repository::open_root(
+    let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+    let repository = open_repository_with_options(
         cwd.clone(),
-        AmbientSnapshot::capture_process(),
-    ));
+        file_system,
+        Default::default(),
+        Default::default(),
+    );
     let program = repository.clone();
-    let compiler = Arc::new(Compiler::new(
-        repository.clone(),
-        CompilerOptions::default(),
-    ));
+    let compiler = Arc::new(Compiler::new(repository.clone()));
 
     // resolve module
     let revision = current_workspace_revision(&repository);
-    let module_id = match compiler.resolve_path_to_module(revision, &test.path) {
-        Ok(module_id) => module_id,
-        Err(error) => {
-            return CaseResult::Failed {
-                message: format!("failed to resolve module: {error:?}"),
-            };
-        }
-    };
+    let module_id = module_id_for_path(&repository, revision, &test.path);
 
-    // analyze schedules import + bind + resolve automatically
+    // check schedules import, bind, and export automatically
     let profile = default_profile_id_for_module(&program, revision, module_id);
-    let artifact_keys = vec![ArtifactKey::DirAnalyzed {
+    let artifact_keys = vec![ArtifactKey::DirChecked {
         module: module_id,
         profile,
     }];

@@ -10,7 +10,7 @@ use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_session::Session;
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId};
-use destack_workspace::{AmbientSnapshot, Profile, ProfileEnv, Ref, Repository, Revision, Target};
+use destack_workspace::{HostEnvironment, Profile, Ref, Repository, Revision, Target};
 
 use crate::core::{CaseResult, discover_file_cases, load_expected_failures};
 
@@ -131,7 +131,7 @@ pub fn select_profile_for_mdtest(
 ) -> (Profile, bool) {
     // load base profile state
     let base_profile = repository
-        .default_profile_for_module(revision, module_id)
+        .module_profile(revision, module_id)
         .unwrap_or_else(|error| panic!("failed to resolve default profile: {error}"));
     let overrides = parse_mdtest_profile_overrides(test);
     let lib_override = parse_mdtest_libs(test);
@@ -189,29 +189,21 @@ pub fn select_profile_for_mdtest(
 
     // recompute test flag when needed
     if recompute_test {
-        let (_, _, _, test_flag) = ProfileEnv::mode_from_snapshot(
-            &key.env,
-            &repository
-                .revision(revision)
-                .unwrap_or_else(|error| panic!("failed to load revision state: {error}"))
-                .ambient
-                .environment,
-            key.debug,
-        );
-        key.test = test_flag;
+        let profile = repository
+            .profile_from_key(revision, key.clone())
+            .unwrap_or_else(|error| panic!("failed to resolve profile: {error}"));
+        key.test = profile.env.test;
     }
 
     // return the resolved profile
     if key != base_profile.key {
-        let environment = &repository
-            .revision(revision)
-            .unwrap_or_else(|error| panic!("failed to load revision state: {error}"))
-            .ambient
-            .environment;
+        let profile = repository
+            .profile_from_key(revision, key)
+            .unwrap_or_else(|error| panic!("failed to resolve profile: {error}"));
 
-        (Profile::from_key(key, environment), load_libraries)
+        (profile, load_libraries)
     } else {
-        (base_profile, load_libraries)
+        ((*base_profile).clone(), load_libraries)
     }
 }
 
@@ -277,22 +269,21 @@ pub fn setup_test_environment_with_repository(
     // choose the main file and create the repository root
     let main_path = main_path.expect("test should have at least one file");
     let head = Ref::for_workspace_root(repository.workspace_root());
-    let compiler = Arc::new(Compiler::new(repository.clone(), Default::default()));
+    let compiler = Arc::new(Compiler::new(repository.clone()));
     let linter = Arc::new(Linter::new(repository.clone()));
     let session = Session::new(
         repository.workspace_root().to_path_buf(),
         root.clone(),
         repository.clone(),
         head,
-        None,
         compiler,
         linter,
-        None,
+        1,
         None,
     )
-    .expect("failed to initialize mdtest session");
+    .expect("failed to create mdtest session");
     session
-        .discover_filesystem()
+        .import_from_fs(session.head())
         .expect("failed to materialize mdtest workspace");
     (repository, root, main_path)
 }
@@ -303,11 +294,12 @@ pub fn setup_test_environment(test: &MdTestCase) -> (Arc<Repository>, PathBuf, P
     let memory_fs = Arc::new(MemoryFileSystem::new());
     let cwd = PathBuf::from("/test");
     let fs: Arc<dyn FileSystem> = memory_fs.clone();
-    let repository = Arc::new(
-        Repository::open_root_from_fs(cwd.clone(), fs, AmbientSnapshot::capture_process())
-            .expect("failed to import repository from mdtest file system")
-            .with_cache(Arc::new(MemoryCacheStore::new())),
-    );
+    let repository = Arc::new(Repository::new(
+        cwd.clone(),
+        Arc::new(MemoryCacheStore::new()),
+        fs,
+        HostEnvironment::capture_process(),
+    ));
 
     // delegate to repository based setup
     setup_test_environment_with_repository(test, repository, memory_fs, cwd)

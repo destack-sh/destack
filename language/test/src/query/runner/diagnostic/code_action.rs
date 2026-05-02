@@ -2,7 +2,7 @@ use destack_query as query;
 use destack_query::{CodeAction, CodeActionKind};
 use destack_source::{Edit, FileEdit, FileId, Span};
 
-use crate::core::CaseResult;
+use crate::core::{CaseResult, default_profile_id_for_module, module_artifact_diagnostics};
 use crate::query::runner::position::resolve_query_position;
 use crate::query::runner::snapshot::{
     compare_snapshot_lines, looks_like_snapshot, parse_snapshot_top_directive,
@@ -240,19 +240,13 @@ fn diagnostics_for_file(
     else {
         return Vec::new();
     };
-    let Ok(profile_id) = session
-        .repository
-        .default_profile_id_for_module(session.revision, module_id)
-    else {
-        return Vec::new();
-    };
+    let profile_id =
+        default_profile_id_for_module(&session.repository, session.revision, module_id);
 
-    session
-        .repository
-        .module_artifact_diagnostics(session.revision, module_id, profile_id)
+    module_artifact_diagnostics(&session.repository, session.revision, module_id, profile_id)
         .iter()
-        .into_iter()
-        .filter(|diagnostic| diagnostic.file_id == file_id)
+        .filter(|diagnostic| diagnostic.primary_label().span.file == file_id)
+        .cloned()
         .collect()
 }
 
@@ -460,7 +454,7 @@ fn file_edit_key(file_id: FileId, edits: &[Edit]) -> String {
 }
 
 /// Build a stable key for a single edit.
-fn edit_key(edit: &Edit) -> (u32, u32, u64, String) {
+fn edit_key(edit: &Edit) -> (u32, u32, u128, String) {
     // extract span coordinates and replacement text
     let file = edit.span.file.0;
     let start = edit.span.start;

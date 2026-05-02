@@ -5,20 +5,21 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
-use destack_compiler::{Compiler, CompilerOptions, StatsSnapshot};
+use destack_compiler::Compiler;
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
     Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileId, FileSystem, FileType,
-    LanguageType, MemoryFileSystem, ModuleId, PathExt, PhysicalFileSystem, PrintOptions, Uri, glob,
+    LanguageType, MemoryFileSystem, ModuleId, PathExt, PhysicalFileSystem, PrintOptions, TargetId,
+    Uri, glob,
 };
 use destack_workspace::{
-    AmbientSnapshot, FormatterOptions, LinterOptions, PackageJson, Repository, Revision,
-    TsConfigDeclaration,
+    FormatterOptions, LinterOptions, PackageJson, Repository, Revision, TsConfigDeclaration,
 };
 
 use crate::core::print::color;
 use crate::core::{
     CaseResult, current_workspace_revision, default_profile_id_for_module, format_diagnostics,
+    module_artifact_diagnostics, module_id_for_path, module_target_artifact_diagnostics,
     open_repository_with_options, profile_id_for_target_or_default, provide_workspace_artifacts,
 };
 use crate::ecosystem::manifest::{
@@ -149,21 +150,13 @@ fn run_compiler_phase(
 
     // construct one compiler session for the package
     let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
-    let repository = Arc::new(
-        Repository::open_root_from_fs(
-            package_dir.to_path_buf(),
-            file_system,
-            AmbientSnapshot::capture_process(),
-        )
-        .expect("failed to import repository from ecosystem file system"),
+    let repository = open_repository_with_options(
+        package_dir.to_path_buf(),
+        file_system,
+        Default::default(),
+        Default::default(),
     );
-    let compiler = Arc::new(Compiler::new(
-        repository.clone(),
-        CompilerOptions {
-            workers: 1,
-            ..Default::default()
-        },
-    ));
+    let compiler = Arc::new(Compiler::new(repository.clone()));
 
     let revision = current_workspace_revision(&repository);
 
@@ -171,17 +164,7 @@ fn run_compiler_phase(
     let mut module_ids = BTreeSet::new();
     for path in &entrypoints {
         let path = path.to_path_buf();
-        let module_id = match compiler.resolve_path_to_module(revision, &path) {
-            Ok(id) => id,
-            Err(error) => {
-                return PhaseTierResult {
-                    result: CaseResult::Failed {
-                        message: format!("failed to resolve module {}: {error:?}", path.display()),
-                    },
-                    stats,
-                };
-            }
-        };
+        let module_id = module_id_for_path(&repository, revision, &path);
 
         module_ids.insert(module_id);
     }
@@ -205,13 +188,13 @@ fn run_compiler_phase(
         }
     }
 
-    // run the selected roots and snapshot timings
+    // run the selected roots
     let revision = if artifact_keys.is_empty() {
         revision
     } else {
         provide_workspace_artifacts(repository.clone(), compiler.clone(), &artifact_keys)
     };
-    let module_count = match repository.workspace_module_ids(revision) {
+    let module_count = match repository.module_ids(revision) {
         Ok(module_ids) => module_ids.len(),
         Err(error) => {
             return PhaseTierResult {
@@ -222,9 +205,6 @@ fn run_compiler_phase(
             };
         }
     };
-    let compiler_stats = compiler
-        .stats
-        .snapshot_with_repository(module_count, Some(&repository));
     drop(compiler);
 
     // collect loaded graph stats when requested
@@ -244,8 +224,8 @@ fn run_compiler_phase(
     let diagnostics = collect_phase_diagnostics(&repository, revision, &module_ids, phase);
     let errors = diagnostics
         .iter()
-        .into_iter()
         .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
+        .cloned()
         .collect::<Vec<_>>();
     let has_destack_errors = !errors.is_empty();
 
@@ -284,7 +264,6 @@ fn run_compiler_phase(
             &[],
         );
 
-        append_compiler_stats_context_maybe(&mut message, &compiler_stats);
         append_tsc_context_maybe(&mut message, tsc_result.as_ref());
 
         return PhaseTierResult {
@@ -328,8 +307,7 @@ fn run_compiler_phase(
         );
 
         let diagnostic_output =
-            match format_phase_error_diagnostics(&repository, revision, &errors, entrypoints.len())
-            {
+            match format_phase_error_diagnostics(&repository, revision, &errors, module_count) {
                 Ok(output) => output,
                 Err(error) => {
                     return PhaseTierResult {
@@ -341,7 +319,6 @@ fn run_compiler_phase(
         message.push_str("\n\n");
         message.push_str(diagnostic_output.trim_end());
 
-        append_compiler_stats_context_maybe(&mut message, &compiler_stats);
         append_tsc_context_maybe(&mut message, tsc_result.as_ref());
 
         return PhaseTierResult {
@@ -352,7 +329,7 @@ fn run_compiler_phase(
 
     // report full diagnostics when no expectation list is configured
     let diagnostic_output =
-        match format_phase_error_diagnostics(&repository, revision, &errors, entrypoints.len()) {
+        match format_phase_error_diagnostics(&repository, revision, &errors, module_count) {
             Ok(output) => output,
             Err(error) => {
                 return PhaseTierResult {
@@ -370,7 +347,6 @@ fn run_compiler_phase(
         diagnostic_output.trim_end()
     );
 
-    append_compiler_stats_context_maybe(&mut message, &compiler_stats);
     append_tsc_context_maybe(&mut message, tsc_result.as_ref());
 
     PhaseTierResult {
@@ -387,7 +363,7 @@ fn collect_compiler_phase_stats(
     let mut lines = 0usize;
 
     let module_ids = repository
-        .workspace_module_ids(revision)
+        .module_ids(revision)
         .map_err(|error| format!("failed to collect module snapshots: {error}"))?;
 
     // sum line counts across visible module snapshots
@@ -421,25 +397,27 @@ fn collect_phase_diagnostics(
         match phase {
             EcosystemPhase::Parse => {}
             EcosystemPhase::Resolve | EcosystemPhase::Analyze => {
-                let profile_id = repository
-                    .default_profile_id_for_module(revision, *module_id)
-                    .unwrap_or_else(|error| panic!("failed to resolve default profile: {error}"));
-                diagnostics.merge_from(
-                    &repository.module_artifact_diagnostics(revision, *module_id, profile_id),
-                );
+                let profile_id = default_profile_id_for_module(repository, revision, *module_id);
+                let artifact_diagnostics =
+                    module_artifact_diagnostics(repository, revision, *module_id, profile_id);
+                diagnostics.merge_from(&artifact_diagnostics);
             }
             EcosystemPhase::Lower => {
+                let module = repository
+                    .module(revision, *module_id)
+                    .unwrap_or_else(|error| panic!("failed to read module: {error}"))
+                    .unwrap_or_else(|| panic!("missing module {module_id:?}"));
                 let target = repository
-                    .diagnostic_target_for_module(revision, *module_id)
-                    .unwrap_or_else(|error| panic!("failed to resolve diagnostic target: {error}"));
-                let profile_id = repository
-                    .profile_id_for_target_or_default(revision, *module_id, &target)
-                    .unwrap_or_else(|error| panic!("failed to resolve target profile: {error}"));
-                diagnostics.merge_from(
-                    &repository.module_target_artifact_diagnostics(
-                        revision, *module_id, profile_id, target,
-                    ),
+                    .package_default_target(revision, module.package_id)
+                    .unwrap_or_else(|error| panic!("failed to resolve diagnostic target: {error}"))
+                    .map(|(target_id, _)| target_id)
+                    .unwrap_or_else(|| TargetId::new(module.package_id, "default"));
+                let profile_id =
+                    profile_id_for_target_or_default(repository, revision, *module_id, &target);
+                let artifact_diagnostics = module_target_artifact_diagnostics(
+                    repository, revision, *module_id, profile_id, target,
                 );
+                diagnostics.merge_from(&artifact_diagnostics);
             }
         }
     }
@@ -500,12 +478,9 @@ fn normalize_diagnostic_file(
     package_dir: &Path,
     diagnostic: &Diagnostic,
 ) -> Result<String, String> {
-    let file = file_for_id(diagnostic.file_id)?.ok_or_else(|| {
-        format!(
-            "missing diagnostic file snapshot for {:?}",
-            diagnostic.file_id
-        )
-    })?;
+    let file_id = diagnostic.primary_label().span.file;
+    let file = file_for_id(file_id)?
+        .ok_or_else(|| format!("missing diagnostic file snapshot for {file_id:?}"))?;
 
     // use package relative paths when available
     if let Some(path) = file.path.as_deref() {
@@ -624,46 +599,6 @@ fn format_phase_error_diagnostics(
             .with_colorizer(source_colorizer())
             .with_module_count(module_count),
     ))
-}
-
-/// Append optional compiler stats context to one failure message.
-fn append_compiler_stats_context_maybe(message: &mut String, stats: &StatsSnapshot) {
-    let stats_message = compiler_stats_to_failure_context(stats);
-    if stats_message.is_empty() {
-        return;
-    }
-
-    message.push_str("\n\n");
-    message.push_str(&stats_message);
-}
-
-/// Build one compiler stats summary for ecosystem failure triage.
-fn compiler_stats_to_failure_context(stats: &StatsSnapshot) -> String {
-    const TOP_TIMINGS: usize = 15;
-
-    let mut lines = Vec::new();
-    lines.push("compiler stats:".to_string());
-    lines.push(format!("  elapsed: {}", format_duration_ms(stats.elapsed)));
-
-    // report timing tags when detailed timings are enabled
-    if !stats.timings.is_empty() {
-        lines.push(format!("  top timing tags ({TOP_TIMINGS}):"));
-        for timing in stats.timings.iter().take(TOP_TIMINGS) {
-            lines.push(format!(
-                "   - {}: {} ({})",
-                timing.name,
-                format_duration_ms(timing.duration),
-                timing.sample_count,
-            ));
-        }
-    }
-
-    lines.join("\n")
-}
-
-/// Format one duration as milliseconds.
-fn format_duration_ms(duration: std::time::Duration) -> String {
-    format!("{:.3}ms", duration.as_secs_f64() * 1000.0)
 }
 
 /// Append optional tsc context to one failure message.
@@ -1062,22 +997,28 @@ fn phase_root_for_module(
         EcosystemPhase::Parse => None,
         EcosystemPhase::Resolve => {
             let profile_id = default_profile_id_for_module(repository, revision, module_id);
-            Some(ArtifactKey::DirResolved {
+            Some(ArtifactKey::DirExported {
                 module: module_id,
                 profile: profile_id,
             })
         }
         EcosystemPhase::Analyze => {
             let profile_id = default_profile_id_for_module(repository, revision, module_id);
-            Some(ArtifactKey::DirAnalyzed {
+            Some(ArtifactKey::DirChecked {
                 module: module_id,
                 profile: profile_id,
             })
         }
         EcosystemPhase::Lower => {
+            let module = repository
+                .module(revision, module_id)
+                .unwrap_or_else(|error| panic!("failed to read module: {error}"))
+                .unwrap_or_else(|| panic!("missing module {module_id:?}"));
             let target = repository
-                .diagnostic_target_for_module(revision, module_id)
-                .unwrap_or_else(|error| panic!("failed to resolve diagnostic target: {error}"));
+                .package_default_target(revision, module.package_id)
+                .unwrap_or_else(|error| panic!("failed to resolve diagnostic target: {error}"))
+                .map(|(target_id, _)| target_id)
+                .unwrap_or_else(|| TargetId::new(module.package_id, "default"));
             let profile_id =
                 profile_id_for_target_or_default(repository, revision, module_id, &target);
             Some(ArtifactKey::MirOptimized {
@@ -2069,7 +2010,7 @@ fn parse_file(path: &Path, manifest: &EcosystemManifest) -> Result<(), String> {
 
     let errors = parser
         .diagnostics
-        .iter()
+        .to_vec()
         .into_iter()
         .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
         .collect::<Vec<_>>();
@@ -2104,7 +2045,7 @@ fn language_type_for_parse(
         return LanguageType::JavaScriptXml;
     }
 
-    LanguageType::from(file_type)
+    LanguageType::try_from(file_type).expect("file type has no parser language")
 }
 
 #[cfg(test)]

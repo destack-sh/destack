@@ -110,7 +110,7 @@ fn validate_implementation_invariants(
     }
 
     // validate ordering and duplicates
-    let mut previous: Option<(u64, u32, u32)> = None;
+    let mut previous: Option<(u128, u32, u32)> = None;
     for span in locations {
         let key = (span.file.0, span.start, span.end);
         if let Some(prev) = previous {

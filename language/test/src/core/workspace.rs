@@ -6,9 +6,11 @@ use destack_artifact::{ArtifactKey, MemoryCacheStore};
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_session::Session;
-use destack_source::{FileContent, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
+use destack_source::{
+    DiagnosticCollection, FileContent, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId,
+};
 use destack_workspace::{
-    AmbientSnapshot, Change, Edit, FormatterOptions, LinterOptions, Ref, Repository, Revision,
+    Edit, FormatterOptions, HostEnvironment, LinterOptions, Ref, Repository, Revision,
 };
 use serde_json::{Map, Value, json};
 
@@ -32,15 +34,12 @@ impl SharedMemoryWorkspace {
         let fs = Arc::new(MemoryFileSystem::new());
         fs.create_dir_all(&root)
             .expect("failed to create core workspace root");
-        let repository = Arc::new(
-            Repository::open_root_from_fs(
-                root.clone(),
-                fs.clone(),
-                AmbientSnapshot::capture_process(),
-            )
-            .expect("failed to import repository from core workspace fs")
-            .with_cache(Arc::new(MemoryCacheStore::new())),
-        );
+        let repository = Arc::new(Repository::new(
+            root.clone(),
+            Arc::new(MemoryCacheStore::new()),
+            fs.clone(),
+            HostEnvironment::capture_process(),
+        ));
         materialize_workspace_root(repository.clone(), &root);
 
         Self {
@@ -84,11 +83,12 @@ pub fn open_repository_with_options(
     fs.create_dir_all(&root)
         .expect("failed to create core workspace root");
 
-    let repository = Arc::new(
-        Repository::open_root_from_fs(root, fs, AmbientSnapshot::capture_process())
-            .expect("failed to import repository from core workspace fs")
-            .with_cache(Arc::new(MemoryCacheStore::new())),
-    );
+    let repository = Arc::new(Repository::new(
+        root,
+        Arc::new(MemoryCacheStore::new()),
+        fs,
+        HostEnvironment::capture_process(),
+    ));
     let root = repository.workspace_root().to_path_buf();
     materialize_workspace_root(repository.clone(), &root);
     materialize_workspace_options(repository.as_ref(), formatter, linter);
@@ -112,7 +112,7 @@ fn materialize_workspace_options(
     let content = format!("{content}\n");
 
     repository
-        .apply(&reference, Change::set_text("destack.json", content))
+        .apply_to_ref(&reference, [Edit::set_text("destack.json", content)])
         .expect("failed to materialize workspace test config");
 }
 
@@ -230,6 +230,14 @@ pub fn current_workspace_revision(repository: &Repository) -> Revision {
         .expect("missing current workspace revision")
 }
 
+/// Return the module id for one workspace path.
+pub fn module_id_for_path(repository: &Repository, revision: Revision, path: &Path) -> ModuleId {
+    repository
+        .module_id_for_path(revision, path)
+        .unwrap_or_else(|error| panic!("failed to resolve module path: {error}"))
+        .unwrap_or_else(|| panic!("missing module for path {}", path.display()))
+}
+
 /// Apply one full file write to the current workspace revision.
 pub fn write_workspace_file(
     repository: &Repository,
@@ -237,14 +245,14 @@ pub fn write_workspace_file(
     content: FileContent,
 ) -> Revision {
     let reference = Ref::for_workspace_root(repository.workspace_root());
-    let logical_path = repository.normalize_workspace_path(path);
-    let change = Change::single(Edit::SetFile {
+    let logical_path = repository.logical_path(path);
+    let edit = Edit::SetFile {
         logical_path,
         content,
-    });
+    };
 
     repository
-        .apply(&reference, change)
+        .apply_to_ref(&reference, [edit])
         .expect("failed to apply workspace file change")
 }
 
@@ -266,8 +274,9 @@ pub fn default_profile_id_for_module(
     module_id: ModuleId,
 ) -> ProfileId {
     repository
-        .default_profile_id_for_module(revision, module_id)
+        .module_profile(revision, module_id)
         .unwrap_or_else(|error| panic!("failed to resolve default profile: {error}"))
+        .id()
 }
 
 /// Return the target profile id for one module, or the default profile.
@@ -277,9 +286,66 @@ pub fn profile_id_for_target_or_default(
     module_id: ModuleId,
     target_id: &TargetId,
 ) -> ProfileId {
-    repository
-        .profile_id_for_target_or_default(revision, module_id, target_id)
+    if let Some(profile) = repository
+        .module_target_profile(revision, module_id, *target_id)
         .unwrap_or_else(|error| panic!("failed to resolve target profile: {error}"))
+    {
+        return profile.id();
+    }
+
+    default_profile_id_for_module(repository, revision, module_id)
+}
+
+/// Return diagnostics for one module compile slice.
+pub fn module_artifact_diagnostics(
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
+    profile: ProfileId,
+) -> DiagnosticCollection {
+    let mut diagnostics = DiagnosticCollection::new();
+    let keys = [
+        ArtifactKey::ast(module_id),
+        ArtifactKey::dir_declared(module_id, profile),
+        ArtifactKey::dir_exported(module_id, profile),
+        ArtifactKey::dir_checked(module_id, profile),
+    ];
+
+    // gather the module scoped diagnostics currently published for this revision
+    for key in keys {
+        let artifact_diagnostics = repository
+            .artifact_diagnostics(revision, &key)
+            .unwrap_or_else(|error| panic!("failed to read artifact diagnostics: {error}"));
+        diagnostics.merge_from(&artifact_diagnostics);
+    }
+
+    diagnostics
+}
+
+/// Return diagnostics for one module target compile slice.
+pub fn module_target_artifact_diagnostics(
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
+    profile: ProfileId,
+    target_id: TargetId,
+) -> DiagnosticCollection {
+    let mut diagnostics = module_artifact_diagnostics(repository, revision, module_id, profile);
+    let keys = [
+        ArtifactKey::mir_lowered(module_id, profile, target_id),
+        ArtifactKey::mir_optimized(module_id, profile, target_id),
+        ArtifactKey::module_output(module_id, target_id),
+    ];
+
+    // gather target scoped diagnostics after the profile scoped surface
+    for key in keys {
+        let artifact_diagnostics = repository
+            .artifact_diagnostics(revision, &key)
+            .unwrap_or_else(|error| panic!("failed to read artifact diagnostics: {error}"));
+        diagnostics.merge_from(&artifact_diagnostics);
+    }
+
+    diagnostics
 }
 
 /// Provide one root artifact slice through a workspace-root session.
@@ -296,40 +362,43 @@ pub fn provide_workspace_artifacts(
         root,
         repository,
         head,
-        None,
         compiler,
         linter,
-        None,
+        1,
         None,
     )
-    .unwrap_or_else(|error| panic!("failed to initialize workspace session: {error}"));
+    .expect("failed to create workspace session");
 
+    let revision = session
+        .revision(session.head())
+        .unwrap_or_else(|error| panic!("failed to read workspace revision: {error}"));
     session
-        .provide(artifact_keys)
+        .provide(revision, artifact_keys)
         .unwrap_or_else(|error| panic!("failed to provide workspace artifacts: {error}"));
 
-    session.revision()
+    session
+        .revision(session.head())
+        .unwrap_or_else(|error| panic!("failed to read workspace revision: {error}"))
 }
 
 /// Materialize one workspace root through one session driven reload.
 fn materialize_workspace_root(repository: Arc<Repository>, root: &Path) {
     let head = Ref::for_workspace_root(root);
-    let compiler = Arc::new(Compiler::new(repository.clone(), Default::default()));
+    let compiler = Arc::new(Compiler::new(repository.clone()));
     let linter = Arc::new(Linter::new(repository.clone()));
     let session = Session::new(
         root.to_path_buf(),
         root.to_path_buf(),
         repository,
         head,
-        None,
         compiler,
         linter,
-        None,
+        1,
         None,
     )
-    .unwrap_or_else(|error| panic!("failed to initialize workspace session: {error}"));
+    .expect("failed to create workspace session");
 
     session
-        .discover_filesystem()
+        .import_from_fs(session.head())
         .unwrap_or_else(|error| panic!("failed to materialize workspace root: {error}"));
 }

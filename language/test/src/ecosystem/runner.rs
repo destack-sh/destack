@@ -1,11 +1,11 @@
-use std::collections::hash_map::DefaultHasher;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 use std::sync::Mutex;
 
+use destack_core::StableHasher;
 use destack_source::{FileType, glob, matches as glob_matches};
 
 use crate::core::print::color;
@@ -1973,7 +1973,7 @@ fn ensure_prepare_commands_applied(
 
 /// Build one stable prepare stamp from manifest config and checkout ref.
 fn prepare_stamp_for_manifest(manifest: &EcosystemManifest) -> String {
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = StableHasher::new();
 
     manifest.package.git_ref.hash(&mut hasher);
 
@@ -1985,7 +1985,7 @@ fn prepare_stamp_for_manifest(manifest: &EcosystemManifest) -> String {
         command_tokens.hash(&mut hasher);
     }
 
-    format!("{:016x}", hasher.finish())
+    format!("{:016x}", hasher.finish_u64())
 }
 
 /// Format one tokenized command for diagnostics.

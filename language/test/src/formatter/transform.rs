@@ -128,7 +128,7 @@ pub(super) fn run(test: &MdTestCase) -> CaseResult {
     };
 
     // parse
-    let language_type = LanguageType::from(file.ty);
+    let language_type = LanguageType::try_from(file.ty).expect("file type has no parser language");
     let mut parser = Parser::lex_file_with_options(
         file.clone(),
         language_type,
@@ -142,12 +142,12 @@ pub(super) fn run(test: &MdTestCase) -> CaseResult {
     // bail on parse errors
     let has_errors = parser
         .diagnostics
-        .iter()
+        .to_vec()
         .into_iter()
         .any(|d| d.severity == DiagnosticSeverity::Error);
     if has_errors {
         let mut diagnostics = DiagnosticCollection::new();
-        for d in parser.diagnostics.iter() {
+        for d in parser.diagnostics.to_vec() {
             diagnostics.insert(d);
         }
         let options = PrintOptions::new().with_colorizer(source_colorizer());

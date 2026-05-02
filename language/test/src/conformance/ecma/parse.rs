@@ -4,17 +4,17 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use destack_artifact::{ArtifactKey, MemoryCacheStore};
-use destack_compiler::{Compiler, CompilerOptions, ImportError, ResolveMode};
+use destack_compiler::{Compiler, ImportError};
 use destack_parser::{Parser, ParserOptions};
 use destack_source::{
     DiagnosticSeverity, File, FileContent, FileId, FileSystem, FileType, LanguageType,
     MemoryFileSystem, ModuleId, Uri,
 };
-use destack_workspace::{AmbientSnapshot, Repository, Revision};
+use destack_workspace::{HostEnvironment, Repository, Revision};
 
 use crate::core::{
-    default_profile_id_for_module, provide_workspace_artifacts, write_workspace_file,
-    write_workspace_text_file,
+    default_profile_id_for_module, module_artifact_diagnostics, module_id_for_path,
+    provide_workspace_artifacts, write_workspace_file, write_workspace_text_file,
 };
 
 /// Outcome of checking a file for conformance testing.
@@ -153,15 +153,12 @@ impl SharedConformanceEnvironment {
         let cwd = PathBuf::from("/test/parser/conformance");
         fs.create_dir_all(&cwd)
             .expect("failed to create conformance workspace root");
-        let repository = Arc::new(
-            Repository::open_root_from_fs(
-                cwd.clone(),
-                fs.clone(),
-                AmbientSnapshot::capture_process(),
-            )
-            .expect("failed to import repository from conformance file system")
-            .with_cache(Arc::new(MemoryCacheStore::new())),
-        );
+        let repository = Arc::new(Repository::new(
+            cwd.clone(),
+            Arc::new(MemoryCacheStore::new()),
+            fs.clone(),
+            HostEnvironment::capture_process(),
+        ));
         Self {
             repository,
             fs,
@@ -235,7 +232,7 @@ fn parse_file_with_parser(
     ));
 
     // parse and collect diagnostics
-    let language = LanguageType::from(file_type);
+    let language = LanguageType::try_from(file_type).expect("file type has no parser language");
     let mut parser = Parser::lex_file_with_options(
         file.clone(),
         language,
@@ -249,7 +246,7 @@ fn parse_file_with_parser(
     // collect parse errors for relevance checks
     let errors: Vec<_> = parser
         .diagnostics
-        .iter()
+        .to_vec()
         .into_iter()
         .filter(|d| d.severity == DiagnosticSeverity::Error)
         .collect();
@@ -290,10 +287,7 @@ fn apply_default_destack_config(
         .write_string(&destack_config_path, &content)
         .expect("failed to write conformance destack.json");
     let revision = write_workspace_text_file(program, &destack_config_path, &content);
-    let module_id = program
-        .module_id_for_path(revision, main_path)
-        .expect("failed to resolve conformance module after config write")
-        .expect("missing conformance module after config write");
+    let module_id = module_id_for_path(program, revision, main_path);
 
     (revision, module_id)
 }
@@ -329,29 +323,11 @@ fn parse_file_with_compiler(
     let (revision, module_id) = apply_default_destack_config(&program, &root, &file_path);
 
     // create compiler and compile the module
-    let compiler = Arc::new(Compiler::new(
-        repository.clone(),
-        CompilerOptions {
-            workers: 1,
-            follow_imports: false,
-            resolve_mode: ResolveMode::Lenient,
-            disallow_ambiguous_tree_literal: options.disallow_ambiguous_tree_literal,
-            inject_prelude: false,
-            load_libraries: false,
-            source_map: false,
-            elaborate_with_ternary: false,
-            elaborate_split_declarators: false,
-            elaborate_explicit_return: false,
-            emit_overwrite: false,
-            emit_create_dirs: false,
-            emit_dry_run: true,
-            ..Default::default()
-        },
-    ));
+    let compiler = Arc::new(Compiler::new(repository.clone()));
 
-    // run up to analyze
+    // run up to check
     let profile = default_profile_id_for_module(&program, revision, module_id);
-    let artifact_keys = vec![ArtifactKey::DirAnalyzed {
+    let artifact_keys = vec![ArtifactKey::DirChecked {
         module: module_id,
         profile,
     }];
@@ -366,7 +342,7 @@ fn parse_file_with_compiler(
     }
 
     // collect compiler errors for relevance checks
-    let diagnostics = program.module_artifact_diagnostics(revision, module_id, profile);
+    let diagnostics = module_artifact_diagnostics(&program, revision, module_id, profile);
     let errors: Vec<_> = diagnostics
         .iter()
         .into_iter()
