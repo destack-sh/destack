@@ -409,7 +409,6 @@ impl Drop for ExternalCallContext<'_> {
     }
 }
 
-#[allow(clippy::mut_from_ref)]
 impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
     /// Return the external call context immutably.
     pub(super) fn context(&self) -> &ExternalCallContext<'ctx> {
@@ -462,7 +461,6 @@ impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
     }
 }
 
-#[allow(clippy::mut_from_ref)]
 impl<'call, 'ctx> ExternalWriteContext<'call, 'ctx> {
     /// Return the external call context mutably.
     pub(super) fn context_mut(&self) -> &mut ExternalCallContext<'ctx> {

@@ -2,6 +2,7 @@ use std::mem;
 use std::ptr::NonNull;
 
 use destack_mir::ReferenceMap;
+use serde::{Deserialize, Serialize};
 use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
@@ -21,6 +22,15 @@ enum ScalarRoot {
     Shared,
 }
 
+/// One active exceptional call parked on a caller frame.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExceptionalCall {
+    /// The frame state to enter when the callee returns normally.
+    pub(crate) normal_state: engine::FrameStateId,
+    /// The frame state to enter when the callee throws.
+    pub(crate) unwind_state: engine::FrameStateId,
+}
+
 /// Call frame in the interpreter.
 #[derive(Debug)]
 pub struct Frame {
@@ -32,8 +42,8 @@ pub struct Frame {
     pub(crate) block_ptr: NonNull<Block>,
     /// Program counter within the current block.
     pub(crate) resume_pc: usize,
-    /// The pending transfer owned by this frame while one callee runs.
-    pub(crate) transfer: Option<engine::ControlTransfer>,
+    /// The active exceptional call owned by this frame while one callee runs.
+    pub(crate) exceptional_call: Option<ExceptionalCall>,
     /// The byte offset in the interpreter stack arena.
     pub(crate) stack_offset: usize,
     /// The frame byte width.
@@ -51,7 +61,6 @@ unsafe impl Send for Frame {}
 
 impl Frame {
     /// Create a new frame for a function.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         frame_layout: engine::FrameLayoutId,
         function_ptr: NonNull<Function>,
@@ -65,7 +74,7 @@ impl Frame {
             function_ptr,
             block_ptr,
             resume_pc: 0,
-            transfer: None,
+            exceptional_call: None,
             stack_offset,
             byte_len: layout.byte_len as usize,
             base,
@@ -120,6 +129,26 @@ impl Frame {
     #[inline(always)]
     pub(crate) fn region_address(&self, region: &engine::FrameRegion) -> usize {
         self.base_address() + region.offset as usize
+    }
+
+    /// Read one word from a byte offset.
+    #[inline(always)]
+    pub(crate) fn read_word_at(&self, offset: u32) -> Word {
+        let address = self.base_address() + offset as usize;
+        debug_assert_eq!((address % mem::align_of::<Word>()), 0);
+
+        unsafe { std::ptr::read(address as *const Word) }
+    }
+
+    /// Write one word into a byte offset.
+    #[inline(always)]
+    pub(crate) fn write_word_at(&mut self, offset: u32, value: Word) {
+        let address = self.base_address() + offset as usize;
+        debug_assert_eq!((address % mem::align_of::<Word>()), 0);
+
+        unsafe {
+            std::ptr::write(address as *mut Word, value);
+        }
     }
 
     /// Read one word from a region.
@@ -187,7 +216,7 @@ impl Frame {
         value: mir::Value,
     ) -> Result<Word, Error> {
         let region = layout
-            .value_index(value.0)
+            .value(value.0)
             .ok_or(Error::UndefinedValue { value })?;
 
         Ok(self.read_operand(region))
@@ -202,7 +231,7 @@ impl Frame {
         word: Word,
     ) -> Result<(), Error> {
         let region = layout
-            .value_index(value.0)
+            .value(value.0)
             .ok_or(Error::UndefinedValue { value })?;
         if !region.is_word {
             return Err(Error::TypeMismatch {
@@ -219,7 +248,7 @@ impl Frame {
     /// Check if a value is defined in this frame.
     #[inline]
     pub fn has_value(&self, layout: &engine::FrameLayout, value: mir::Value) -> bool {
-        layout.value_index(value.0).is_some()
+        layout.value(value.0).is_some()
     }
 
     /// Get a local variable.
@@ -240,7 +269,7 @@ impl Frame {
         local: mir::LocalNodeId<mir::Local>,
     ) -> Result<Word, Error> {
         let region = layout
-            .local_index(local.id)
+            .local(local.id)
             .ok_or(Error::UndefinedLocal { local })?;
 
         Ok(self.read_operand(region))
@@ -253,31 +282,35 @@ impl Frame {
         local: mir::LocalNodeId<mir::Local>,
     ) -> Result<usize, Error> {
         let region = layout
-            .local_index(local.id)
+            .local(local.id)
             .ok_or(Error::UndefinedLocal { local })?;
 
         Ok(self.region_address(region))
     }
 
     /// Return the callable environment for this frame.
-    pub(crate) fn environment(&self, layout: &engine::FrameLayout) -> Result<Word, Error> {
-        let Some(region) = layout.environment.as_ref() else {
-            return Ok(Word::VOID);
+    pub(crate) fn environment(&self, layout: &engine::FrameLayout) -> Result<Option<Word>, Error> {
+        let Some(region) = layout.environment() else {
+            return Ok(None);
         };
 
-        Ok(self.read_word(region))
+        Ok(Some(self.read_word(region)))
     }
 
     /// Store the callable environment for this frame.
-    pub(crate) fn set_environment(&mut self, layout: &engine::FrameLayout, value: Word) {
-        if let Some(region) = layout.environment.as_ref() {
+    pub(crate) fn set_environment(&mut self, layout: &engine::FrameLayout, value: Option<Word>) {
+        let Some(region) = layout.environment() else {
+            return;
+        };
+
+        if let Some(value) = value {
             self.write_word(region, value);
         }
     }
 
     /// Clear all values (but keep locals).
     pub fn clear_values(&mut self, layout: &engine::FrameLayout) {
-        for region in &layout.values {
+        for region in layout.values() {
             self.region_bytes_mut(region).fill(0);
         }
     }
@@ -305,17 +338,17 @@ impl Frame {
             })?;
 
         // ssa values
-        for region in &layout.values {
+        for region in layout.values() {
             self.visit_region_roots(program, region, roots)?;
         }
 
         // locals
-        for region in &layout.locals {
+        for region in layout.locals() {
             self.visit_region_roots(program, region, roots)?;
         }
 
         // callable environment
-        if let Some(region) = layout.environment.as_ref() {
+        if let Some(region) = layout.environment() {
             self.visit_region_roots(program, region, roots)?;
         }
 
@@ -336,17 +369,17 @@ impl Frame {
             })?;
 
         // ssa values
-        for region in &layout.values {
+        for region in layout.values() {
             self.visit_region_root_slots(program, region, visit)?;
         }
 
         // locals
-        for region in &layout.locals {
+        for region in layout.locals() {
             self.visit_region_root_slots(program, region, visit)?;
         }
 
         // callable environment
-        if let Some(region) = layout.environment.as_ref() {
+        if let Some(region) = layout.environment() {
             self.visit_region_root_slots(program, region, visit)?;
         }
 
@@ -730,7 +763,7 @@ impl Frame {
             function_ptr: self.function_ptr,
             block_ptr: self.block_ptr,
             resume_pc: self.resume_pc,
-            transfer: self.transfer.clone(),
+            exceptional_call: self.exceptional_call.clone(),
             stack_offset: self.stack_offset,
             byte_len: self.byte_len,
             base: self.base,
@@ -744,7 +777,7 @@ impl Frame {
             function: self.function(),
             current_block: self.current_block(),
             resume_pc: self.resume_pc,
-            transfer: self.transfer.clone(),
+            exceptional_call: self.exceptional_call.clone(),
             bytes: self.bytes().to_vec(),
         }
     }
@@ -787,7 +820,7 @@ impl Frame {
             function_ptr,
             block_ptr: NonNull::from(block),
             resume_pc: image.resume_pc,
-            transfer: image.transfer.clone(),
+            exceptional_call: image.exceptional_call.clone(),
             stack_offset,
             byte_len: layout.byte_len as usize,
             base,

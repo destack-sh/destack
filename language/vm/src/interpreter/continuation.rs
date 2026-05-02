@@ -4,7 +4,7 @@ use super::{Frame, Stack};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::options::IsolateOptions;
 use crate::program::{FunctionTable, Program};
-use crate::snapshot::ContinuationImage;
+use crate::snapshot::{ContinuationFrame, ContinuationImage};
 use crate::{RootSink, Word};
 use destack_heap::{HeapResult, RootSlot};
 
@@ -19,8 +19,8 @@ pub struct Continuation {
     pub(crate) frames: Vec<Frame>,
     /// The frame index to resume execution in.
     pub(crate) resume_frame_index: usize,
-    /// The resume point for this continuation.
-    pub(crate) resume_point: engine::ResumePointId,
+    /// The frame state for this continuation.
+    pub(crate) frame_state: engine::FrameStateId,
 }
 
 impl Continuation {
@@ -42,7 +42,7 @@ impl Continuation {
             stack,
             frames,
             resume_frame_index: self.resume_frame_index,
-            resume_point: self.resume_point,
+            frame_state: self.frame_state,
         })
     }
 
@@ -58,7 +58,7 @@ impl Continuation {
                     frame,
                     frame_index,
                     self.resume_frame_index,
-                    self.resume_point,
+                    self.frame_state,
                 )
             })
             .collect::<RuntimeResult<Vec<_>>>()?;
@@ -81,7 +81,7 @@ impl Continuation {
                 frame,
                 frame_index,
                 self.resume_frame_index,
-                self.resume_point,
+                self.frame_state,
             )?;
 
             frame.visit_materialized_roots(program, materialization, roots)?;
@@ -104,7 +104,7 @@ impl Continuation {
                     frame,
                     frame_index,
                     self.resume_frame_index,
-                    self.resume_point,
+                    self.frame_state,
                 )?
             };
 
@@ -174,18 +174,18 @@ impl Continuation {
         }
 
         let resume_frame_index = image.frames.len() - 1;
-        let resume_point = image
+        let frame_state = image
             .frames
             .last()
             .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?
-            .resume_point;
+            .frame_state;
 
         Ok(Self {
             isolate_id: image.engine_id,
             stack,
             frames,
             resume_frame_index,
-            resume_point,
+            frame_state,
         })
     }
 }
@@ -196,23 +196,18 @@ fn continuation_frame_materialization<'a>(
     frame: &Frame,
     frame_index: usize,
     resume_frame_index: usize,
-    resume_point: engine::ResumePointId,
+    frame_state: engine::FrameStateId,
 ) -> Result<&'a engine::MaterializationFrame, Error> {
-    let (_resume_point, materialization) = frame_capture_materialization(
-        program,
-        frame,
-        frame_index,
-        resume_frame_index,
-        resume_point,
-    )
-    .map_err(|error| error.error)?;
+    let (_frame_state, materialization) =
+        frame_capture_materialization(program, frame, frame_index, resume_frame_index, frame_state)
+            .map_err(|error| error.error)?;
 
     Ok(materialization)
 }
 
 /// Visit heap roots from one captured frame image.
 fn visit_frame_image_roots(
-    image: &engine::FrameImage,
+    image: &ContinuationFrame,
     program: &Program,
     roots: &mut impl RootSink,
 ) -> Result<(), Error> {
@@ -224,7 +219,7 @@ fn visit_frame_image_roots(
     }
 
     let materialization = program
-        .materialization_frame(image.resume_point)
+        .materialization_frame(image.frame_state)
         .ok_or(Error::InvalidContinuation)?;
     visit_materialized_image_roots(image, program, layout, materialization, roots)?;
 
@@ -233,7 +228,7 @@ fn visit_frame_image_roots(
 
 /// Visit mutable local root slots from one captured frame image.
 fn visit_frame_image_root_slots(
-    image: &mut engine::FrameImage,
+    image: &mut ContinuationFrame,
     program: &Program,
     visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
 ) -> Result<(), Error> {
@@ -245,7 +240,7 @@ fn visit_frame_image_root_slots(
     }
 
     let materialization = program
-        .materialization_frame(image.resume_point)
+        .materialization_frame(image.frame_state)
         .ok_or(Error::InvalidContinuation)?;
     visit_materialized_image_root_slots(image, program, layout, materialization, visit)?;
 
@@ -254,7 +249,7 @@ fn visit_frame_image_root_slots(
 
 /// Visit heap roots from materialized frame image regions.
 fn visit_materialized_image_roots(
-    image: &engine::FrameImage,
+    image: &ContinuationFrame,
     program: &Program,
     layout: &engine::FrameLayout,
     materialization: &engine::MaterializationFrame,
@@ -281,7 +276,7 @@ fn visit_materialized_image_roots(
 
 /// Visit mutable local root slots from materialized frame image regions.
 fn visit_materialized_image_root_slots(
-    image: &mut engine::FrameImage,
+    image: &mut ContinuationFrame,
     program: &Program,
     layout: &engine::FrameLayout,
     materialization: &engine::MaterializationFrame,
@@ -308,7 +303,7 @@ fn visit_materialized_image_root_slots(
 
 /// Visit heap roots from one frame image region.
 fn visit_region_image_roots(
-    image: &engine::FrameImage,
+    image: &ContinuationFrame,
     program: &Program,
     region: &engine::FrameRegion,
     roots: &mut impl RootSink,
@@ -335,7 +330,7 @@ fn visit_region_image_roots(
 
 /// Visit mutable local root slots from one frame image region.
 fn visit_region_image_root_slots(
-    image: &mut engine::FrameImage,
+    image: &mut ContinuationFrame,
     program: &Program,
     region: &engine::FrameRegion,
     visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
@@ -347,68 +342,63 @@ fn visit_region_image_root_slots(
     Frame::visit_byte_root_slots(program, program.type_for_id(region.ty), bytes, visit)
 }
 
-/// Resolve the captured resume point and materialization frame for one suspended frame.
+/// Resolve the captured frame state and materialization frame for one suspended frame.
 pub(crate) fn frame_capture_materialization<'a>(
     program: &'a Program,
     frame: &Frame,
     frame_index: usize,
     resume_frame_index: usize,
-    resume_point: engine::ResumePointId,
-) -> RuntimeResult<(engine::ResumePointId, &'a engine::MaterializationFrame)> {
-    let resume_point = captured_resume_point(
-        program,
-        frame,
-        frame_index,
-        resume_frame_index,
-        resume_point,
-    )?;
+    frame_state: engine::FrameStateId,
+) -> RuntimeResult<(engine::FrameStateId, &'a engine::MaterializationFrame)> {
+    let frame_state =
+        captured_frame_state(program, frame, frame_index, resume_frame_index, frame_state)?;
 
-    let materialization_frame = program.materialization_frame(resume_point).ok_or_else(|| {
+    let materialization_frame = program.materialization_frame(frame_state).ok_or_else(|| {
         RuntimeError::new(Error::InvariantViolation {
-            context: format!("missing materialization frame for resume point: {resume_point:?}"),
+            context: format!("missing materialization frame for frame state: {frame_state:?}"),
         })
     })?;
 
     debug_assert_eq!(
-        materialization_frame.resume_point, resume_point,
-        "vm safepoint materialization should target the captured resume point"
+        materialization_frame.frame_state, frame_state,
+        "vm safepoint materialization should target the captured frame state"
     );
     debug_assert_eq!(
         materialization_frame.frame_layout, frame.frame_layout,
         "vm safepoint materialization should target the captured frame layout"
     );
 
-    Ok((resume_point, materialization_frame))
+    Ok((frame_state, materialization_frame))
 }
 
-/// Resolve the captured resume point for one suspended frame.
-fn captured_resume_point(
+/// Resolve the captured frame state for one suspended frame.
+fn captured_frame_state(
     program: &Program,
     frame: &Frame,
     frame_index: usize,
     resume_frame_index: usize,
-    resume_point: engine::ResumePointId,
-) -> RuntimeResult<engine::ResumePointId> {
+    frame_state: engine::FrameStateId,
+) -> RuntimeResult<engine::FrameStateId> {
     if frame_index == resume_frame_index {
-        return Ok(resume_point);
+        return Ok(frame_state);
     }
 
-    program
-        .resume_point_for_position(
-            frame.function(),
-            frame.current_block(),
-            frame.resume_pc as u32,
-        )
-        .ok_or_else(|| {
-            RuntimeError::new(Error::InvariantViolation {
-                context: format!(
-                    "missing generic resume point for frame position: {:?} {:?} {}",
-                    frame.function(),
-                    frame.current_block(),
-                    frame.resume_pc
-                ),
-            })
+    let point = program.point(
+        frame.function(),
+        frame.current_block(),
+        frame.resume_pc as u32,
+    );
+
+    program.frame_state_at(point).ok_or_else(|| {
+        RuntimeError::new(Error::InvariantViolation {
+            context: format!(
+                "missing frame state for frame position: {:?} {:?} {}",
+                frame.function(),
+                frame.current_block(),
+                frame.resume_pc
+            ),
         })
+    })
 }
 
 /// Capture one durable frame from one live frame.
@@ -417,27 +407,27 @@ fn capture_continuation_frame(
     frame: &Frame,
     frame_index: usize,
     resume_frame_index: usize,
-    resume_point: engine::ResumePointId,
-) -> RuntimeResult<engine::FrameImage> {
-    let (resume_point, _materialization_frame) = frame_capture_materialization(
+    frame_state: engine::FrameStateId,
+) -> RuntimeResult<ContinuationFrame> {
+    let (frame_state, _materialization_frame) = frame_capture_materialization(
         program,
         frame,
         frame_index,
         resume_frame_index,
-        resume_point,
+        frame_state,
     )?;
 
-    Ok(engine::FrameImage {
+    Ok(ContinuationFrame {
         frame_layout: frame.frame_layout,
-        resume_point,
-        transfer: frame.transfer.clone(),
+        frame_state,
+        exceptional_call: frame.exceptional_call.clone(),
         bytes: frame.bytes().to_vec(),
     })
 }
 
 /// Restore one live frame from one logical frame image.
 fn restore_frame_image(
-    image: &engine::FrameImage,
+    image: &ContinuationFrame,
     program: &Program,
     functions: &FunctionTable,
     stack_offset: usize,
@@ -446,16 +436,15 @@ fn restore_frame_image(
     let layout = program
         .frame_layout_by_id(image.frame_layout)
         .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-    let resume_point = program
-        .resume_point(image.resume_point)
+    let _frame_state = program
+        .frame_state(image.frame_state)
+        .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
+    let point = program
+        .point_for_frame_state(image.frame_state)
         .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
 
-    if resume_point.frame_layout != image.frame_layout || resume_point.function != layout.function {
-        return Err(RuntimeError::new(Error::InvalidContinuation));
-    }
-
-    let function_id = program.function_for_id(layout.function);
-    let block_id = program.block_for_id(resume_point.block);
+    let function_id = point.function;
+    let block_id = point.block;
     let function_ptr = functions.pointer_for(function_id).ok_or_else(|| {
         RuntimeError::new(Error::UndefinedFunction {
             function: function_id,
@@ -482,8 +471,8 @@ fn restore_frame_image(
         frame_base,
     );
     frame.block_ptr = std::ptr::NonNull::from(block);
-    frame.resume_pc = resume_point.instruction_offset as usize;
-    frame.transfer = image.transfer.clone();
+    frame.resume_pc = point.instruction_index as usize;
+    frame.exceptional_call = image.exceptional_call.clone();
 
     Ok(frame)
 }
