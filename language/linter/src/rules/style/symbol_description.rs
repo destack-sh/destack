@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::expression_target_symbol;
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require symbol descriptions.
@@ -105,19 +105,18 @@ impl<'a, 'b> SymbolDescriptionVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             SYMBOL_DESCRIPTION.id,
             SYMBOL_DESCRIPTION.code,
             SYMBOL_DESCRIPTION.category,
             severity,
             "Symbol() called without description",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("add a description string to Symbol()");
+        .label("add a description string to Symbol()");
 
         if let Some(fix) = symbol_description_fix(self.ctx, *left, span) {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

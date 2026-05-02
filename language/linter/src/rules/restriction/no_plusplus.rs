@@ -2,7 +2,7 @@ use destack_ast::{self as ast, UnaryOperator};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_statement_ancestor;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `++` and `--` operators.
@@ -63,16 +63,15 @@ impl LintRule for NoPlusplus {
             }
 
             // add a safe fix when the increment value is not used
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_PLUSPLUS.id,
                 NO_PLUSPLUS.code,
                 NO_PLUSPLUS.category,
                 severity,
                 "`++` and `--` operators are not allowed",
-                ctx.module.file_id,
                 ctx.tree.get_span(node_id),
             )
-            .with_label("use `+= 1` or `-= 1` instead");
+            .label("use `+= 1` or `-= 1` instead");
 
             // attach fix when enabled
             if ctx.compute_fixes && is_discarded_update_expression(ctx, node_id) {
@@ -96,7 +95,7 @@ impl LintRule for NoPlusplus {
                     .into_edits();
                 let fix = LintFix::safe("Replace increment or decrement with assignment")
                     .with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

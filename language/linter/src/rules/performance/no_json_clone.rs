@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_is_symbol_or_global_qualified_member, expression_unwrap_parenthesized,
     expression_unwrap_transparent,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow JSON parse stringify clones.
@@ -127,16 +127,15 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_JSON_CLONE.id,
             NO_JSON_CLONE.code,
             NO_JSON_CLONE.category,
             severity,
             "JSON clone usage",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use a structured clone or manual copy");
+        .label("use a structured clone or manual copy");
 
         // compute fixes only when requested by the runner
         if self.ctx.include_fixes
@@ -144,7 +143,7 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
             && let Some(fix) =
                 self.no_json_clone_fix(expression_id, arguments, stringify_argument_id)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

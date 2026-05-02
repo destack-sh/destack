@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use destack_source::Span;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow multiple declarators in a single let/const statement.
@@ -56,21 +56,20 @@ impl LintRule for NoMultiDeclarators {
                 }
 
                 let span = ctx.tree.get_span(expression_id);
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_MULTI_DECLARATORS.id,
                     NO_MULTI_DECLARATORS.code,
                     NO_MULTI_DECLARATORS.category,
                     severity,
                     "multiple declarators in single statement",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("split into separate statements");
+                .label("split into separate statements");
 
                 if let Some(kind) = let_kind
                     && let Some(fix) = split_declarator_fix(ctx, expression_id, declarators, kind)
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow patterns that bind nothing useful.
@@ -59,16 +59,15 @@ impl LintRule for NoRedundantPattern {
                 }
 
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_REDUNDANT_PATTERN.id,
                         NO_REDUNDANT_PATTERN.code,
                         NO_REDUNDANT_PATTERN.category,
                         severity,
                         "pattern binds no values",
-                        ctx.module.file_id,
                         ctx.tree.get_span(declarator.pattern),
                     )
-                    .with_label("this destructuring doesn't bind any values"),
+                    .label("this destructuring doesn't bind any values"),
                 );
             }
         }

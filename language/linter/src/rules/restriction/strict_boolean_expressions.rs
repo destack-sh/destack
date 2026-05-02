@@ -4,7 +4,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression,
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::is_strict_boolean_type;
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow non-boolean values in boolean contexts.
@@ -258,16 +258,15 @@ fn check_is_boolean(
     // report the diagnostic
     let span = ctx.get_span(expression_id);
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             STRICT_BOOLEAN_EXPRESSIONS.id,
             STRICT_BOOLEAN_EXPRESSIONS.code,
             STRICT_BOOLEAN_EXPRESSIONS.category,
             severity,
             format!("non-boolean expression in {context}"),
-            ctx.module.file_id,
             span,
         )
-        .with_label("use an explicit comparison"),
+        .label("use an explicit comparison"),
     );
 }
 

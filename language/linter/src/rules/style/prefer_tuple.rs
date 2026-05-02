@@ -3,7 +3,7 @@ use destack_ast::{self as ast, Argument, Expression, ScalarLiteral};
 use destack_source::LanguageType;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest tuple type for fixed-length heterogeneous arrays.
@@ -112,17 +112,16 @@ impl LintRule for PreferTuple {
             let fix = LintFix::safe("Convert to tuple").with_edits(edits);
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     PREFER_TUPLE.id,
                     PREFER_TUPLE.code,
                     PREFER_TUPLE.category,
                     severity,
                     "array has heterogeneous element types",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("use tuple form instead")
-                .with_fix(fix),
+                .label("use tuple form instead")
+                .fix(fix),
             );
         }
     }

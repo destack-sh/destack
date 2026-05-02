@@ -2,7 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression,
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{TypeNullishness, TypeTruthiness, type_nullishness, type_truthiness};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow conditions that are always truthy, always falsy, or nullish-fixed.
@@ -125,16 +125,15 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
         // resolve diagnostic span
         let span = self.ctx.get_span(diagnostic_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_UNNECESSARY_CONDITION.id,
                 NO_UNNECESSARY_CONDITION.code,
                 NO_UNNECESSARY_CONDITION.category,
                 severity,
                 message,
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label(label),
+            .label(label),
         );
     }
 
@@ -171,16 +170,15 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
         // report the full expression span
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_UNNECESSARY_CONDITION.id,
                 NO_UNNECESSARY_CONDITION.code,
                 NO_UNNECESSARY_CONDITION.category,
                 severity,
                 message,
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label(label),
+            .label(label),
         );
     }
 
@@ -226,16 +224,15 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
         // report the full expression span
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_UNNECESSARY_CONDITION.id,
                 NO_UNNECESSARY_CONDITION.code,
                 NO_UNNECESSARY_CONDITION.category,
                 severity,
                 message,
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label(label),
+            .label(label),
         );
     }
 

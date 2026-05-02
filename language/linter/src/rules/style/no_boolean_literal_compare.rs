@@ -3,7 +3,7 @@ use destack_ast::{self as ast, BinaryOperator, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_negated_source_text;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow comparing boolean expressions to boolean literals.
@@ -106,17 +106,16 @@ impl LintRule for NoBooleanLiteralCompare {
             let fix = LintFix::safe("Simplify boolean comparison").with_edits(edits);
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_BOOLEAN_LITERAL_COMPARE.id,
                     NO_BOOLEAN_LITERAL_COMPARE.code,
                     NO_BOOLEAN_LITERAL_COMPARE.category,
                     severity,
                     message,
-                    ctx.module.file_id,
                     expression_span,
                 )
-                .with_label(suggestion)
-                .with_fix(fix),
+                .label(suggestion)
+                .fix(fix),
             );
         }
     }

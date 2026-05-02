@@ -1,4 +1,4 @@
-use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 use destack_ast::{self as ast, LocalNodeId, Tree, TypeExpression};
 use destack_workspace::LintSeverity;
 
@@ -52,16 +52,15 @@ impl LintRule for NoComplexType {
 
             // report one complex type diagnostic
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_COMPLEX_TYPE.id,
                     NO_COMPLEX_TYPE.code,
                     NO_COMPLEX_TYPE.category,
                     severity,
                     format!("type has complexity {complexity} (max {max_type_complexity})"),
-                    ctx.module.file_id,
                     ctx.tree.get_span(type_expression_id),
                 )
-                .with_label("consider extracting a named type alias"),
+                .label("consider extracting a named type alias"),
             );
         }
     }

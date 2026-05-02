@@ -13,7 +13,7 @@ use crate::rules::common::{
     expression_target_symbol, expression_unwrap_parenthesized, is_string_type,
     single_quoted_string_literal, span_has_comment, symbol_initializer_expression,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `replaceAll()` over `replace()` with a global regex.
@@ -161,16 +161,15 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
                 return;
             };
             let first_argument_span = self.ctx.get_span(*first_argument_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 PREFER_STRING_REPLACE_ALL.id,
                 PREFER_STRING_REPLACE_ALL.code,
                 PREFER_STRING_REPLACE_ALL.category,
                 severity,
                 "regex pattern can be replaced with a string literal",
-                self.ctx.module.file_id,
                 first_argument_span,
             )
-            .with_label("use a string literal pattern");
+            .label("use a string literal pattern");
             if let Some(fix) = self.replace_call_fix(
                 expression_id,
                 left,
@@ -178,7 +177,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
                 *first_argument_id,
                 Some(pattern_replacement),
             ) {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             self.ctx.report(diagnostic);
@@ -187,16 +186,15 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
 
         // report replace method suggestions
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_STRING_REPLACE_ALL.id,
             PREFER_STRING_REPLACE_ALL.code,
             PREFER_STRING_REPLACE_ALL.category,
             severity,
             "prefer replaceAll() over replace() with a global regex",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use replaceAll() for global replacements");
+        .label("use replaceAll() for global replacements");
         if let Some(fix) = self.replace_call_fix(
             expression_id,
             left,
@@ -204,7 +202,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             *first_argument_id,
             pattern_replacement,
         ) {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

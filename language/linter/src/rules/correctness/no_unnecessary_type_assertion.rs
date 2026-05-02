@@ -5,7 +5,7 @@ use crate::rules::common::{
     expression_declared_or_inferred_type_id, expression_target_symbol, is_any_type,
     symbol_value_type_id_for, unwrap_value_type_id,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow explicit type assertions that do not change semantics.
@@ -185,17 +185,16 @@ fn redundant_assertion_diagnostic(
     source_expression: dir::LocalNodeId<dir::Expression>,
     label: &str,
     include_fixes: bool,
-) -> LintDiagnostic {
-    let diagnostic = LintDiagnostic::new(
+) -> LintReport {
+    let diagnostic = LintReport::new(
         NO_UNNECESSARY_TYPE_ASSERTION.id,
         NO_UNNECESSARY_TYPE_ASSERTION.code,
         NO_UNNECESSARY_TYPE_ASSERTION.category,
         severity,
         "unnecessary type assertion",
-        ctx.module.file_id,
         assertion_span,
     )
-    .with_label(label);
+    .label(label);
 
     // keep a no fix diagnostic when fixes are disabled
     if !include_fixes {
@@ -210,7 +209,7 @@ fn redundant_assertion_diagnostic(
         .replace(assertion_span, source_text)
         .into_edits();
     let fix = LintFix::safe("Remove redundant assertion").with_edits(edits);
-    diagnostic.with_fix(fix)
+    diagnostic.fix(fix)
 }
 
 /// One assertion expression shape normalized across DIR phases.

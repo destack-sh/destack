@@ -5,7 +5,7 @@ use crate::rules::common::{
     block_expression_ancestor, block_is_empty_without_comment, block_is_function_body,
     block_is_static_block_body, span_has_comment,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow empty block statements.
@@ -68,16 +68,15 @@ impl LintRule for NoEmpty {
 
             // build the diagnostic for this empty block
             let span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_EMPTY.id,
                 NO_EMPTY.code,
                 NO_EMPTY.category,
                 severity,
                 "empty block statement",
-                ctx.module.file_id,
                 span,
             )
-            .with_label("this block is empty");
+            .label("this block is empty");
 
             // add an intent preserving comment fix when requested
             if ctx.compute_fixes {
@@ -86,7 +85,7 @@ impl LintRule for NoEmpty {
                     .replace(span, "{\n    // intentionally empty\n}")
                     .into_edits();
                 let fix = LintFix::safe("Add intentional empty block comment").with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);
@@ -110,16 +109,15 @@ impl LintRule for NoEmpty {
             }
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_EMPTY.id,
                     NO_EMPTY.code,
                     NO_EMPTY.category,
                     severity,
                     "empty switch statement",
-                    ctx.module.file_id,
                     ctx.tree.get_span(expression_id),
                 )
-                .with_label("this switch has no cases"),
+                .label("this switch has no cases"),
             );
         }
     }

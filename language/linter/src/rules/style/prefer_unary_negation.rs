@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, BinaryOperator, ScalarLiteral, UnaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer unary negation over multiplying by -1.
@@ -79,17 +79,16 @@ impl LintRule for PreferUnaryNegation {
                 let fix = LintFix::safe("Use unary negation").with_edits(edits);
 
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         PREFER_UNARY_NEGATION.id,
                         PREFER_UNARY_NEGATION.code,
                         PREFER_UNARY_NEGATION.category,
                         severity,
                         "prefer unary negation over multiplying by -1",
-                        ctx.module.file_id,
                         expression_span,
                     )
-                    .with_label("use `-x` instead")
-                    .with_fix(fix),
+                    .label("use `-x` instead")
+                    .fix(fix),
                 );
             }
         }

@@ -1,4 +1,5 @@
-use destack_source::{Applicability, Edit, FileId, LabeledSpan, Span, Suggestion, SuggestionStyle};
+use destack_artifact::{DiagnosticAnchor, DiagnosticContext, DiagnosticError};
+use destack_source::{Applicability, BatchEdit, DiagnosticSuggestion, Edit, FileId, Span};
 
 /// A suggested fix for a lint.
 #[derive(Debug, Clone)]
@@ -66,43 +67,45 @@ impl LintFix {
         self
     }
 
-    /// Convert to a Suggestion.
-    pub(crate) fn into_suggestion(self) -> Suggestion {
-        // for now, we only support single-span fixes in the Suggestion format
-        // multi-span fixes need more sophisticated handling
-        let (spans, replacement) = if self.edits.len() == 1 {
-            let edit = &self.edits[0];
-            (
-                vec![LabeledSpan {
-                    span: edit.span,
-                    label: self.description.clone(),
-                }],
-                Some(edit.new_text.clone()),
-            )
-        } else {
-            // multiple edits: show spans but can't express replacement simply
-            (
-                self.edits
-                    .iter()
-                    .map(|e| LabeledSpan {
-                        span: e.span,
-                        label: String::new(),
-                    })
-                    .collect(),
-                None,
-            )
-        };
+    /// Convert to a final diagnostic suggestion.
+    pub(crate) fn into_suggestion(
+        &self,
+        context: &dyn DiagnosticContext,
+    ) -> Result<DiagnosticSuggestion, DiagnosticError> {
+        let edits = self
+            .edits
+            .iter()
+            .cloned()
+            .fold(BatchEdit::new(), |mut batch, edit| {
+                batch.add(edit);
+                batch
+            });
+        let labels = self
+            .edits
+            .iter()
+            .enumerate()
+            .map(|(index, edit)| {
+                if index == 0 {
+                    context.label(
+                        &DiagnosticAnchor::Span(edit.span),
+                        Some(self.description.clone()),
+                    )
+                } else {
+                    context.label(&DiagnosticAnchor::Span(edit.span), None)
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
 
-        Suggestion {
-            spans,
-            replacement,
-            message: self.description,
-            style: SuggestionStyle::Normal,
-            applicability: match self.applicability {
-                Fixability::Safe => Applicability::Automatic,
-                Fixability::Unsafe | Fixability::Suggestion => Applicability::Dangerous,
-            },
-        }
+        let applicability = match self.applicability {
+            Fixability::Safe => Applicability::Automatic,
+            Fixability::Unsafe => Applicability::Unsafe,
+            Fixability::Suggestion => Applicability::Dangerous,
+        };
+        let mut suggestion =
+            DiagnosticSuggestion::new(self.description.clone(), edits, applicability);
+        suggestion.labels = labels;
+
+        Ok(suggestion)
     }
 }
 

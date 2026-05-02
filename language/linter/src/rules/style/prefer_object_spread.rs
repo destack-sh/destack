@@ -10,7 +10,7 @@ use crate::rules::common::{
     expression_is_global_qualified_member, expression_static_property_access,
     expression_target_symbol, expression_unwrap_parenthesized, span_has_comment,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer object spread over `Object.assign()`.
@@ -137,19 +137,18 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
 
         // report the diagnostic and attach fix when safe
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_OBJECT_SPREAD.id,
             PREFER_OBJECT_SPREAD.code,
             PREFER_OBJECT_SPREAD.category,
             severity,
             "prefer object spread over Object.assign()",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use { ...value } instead of Object.assign");
+        .label("use { ...value } instead of Object.assign");
         if let Some(fix) = self.object_spread_fix(expression_id, left, generic_arguments, arguments)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

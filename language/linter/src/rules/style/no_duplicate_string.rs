@@ -7,7 +7,7 @@ use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_statement_ancestor;
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 const MIN_DUPLICATE_STRING_LENGTH: usize = 10;
 const IGNORED_DUPLICATE_STRINGS: [&str; 1] = ["application/json"];
@@ -80,7 +80,7 @@ impl LintRule for NoDuplicateString {
                     format!("\"{}\"", &*string_value)
                 };
 
-                let mut lint = LintDiagnostic::new(
+                let mut lint = LintReport::new(
                     NO_DUPLICATE_STRING.id,
                     NO_DUPLICATE_STRING.code,
                     NO_DUPLICATE_STRING.category,
@@ -89,12 +89,11 @@ impl LintRule for NoDuplicateString {
                         "string {display_value} is repeated {} times (max {max_occurrences})",
                         occurrences.len()
                     ),
-                    ctx.module.file_id,
                     ctx.tree.get_span(first_occurrence),
                 )
-                .with_label("consider extracting to a constant");
+                .label("consider extracting to a constant");
                 for occurrence in occurrences.iter().skip(1) {
-                    lint = lint.with_secondary(LabeledSpan::new(
+                    lint = lint.secondary(LabeledSpan::new(
                         ctx.tree.get_span(*occurrence),
                         "consider extracting to a constant",
                     ));

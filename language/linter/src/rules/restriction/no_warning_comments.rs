@@ -3,7 +3,7 @@ use destack_source::Span;
 use destack_workspace::{LintSeverity, WarningCommentLocation};
 
 use crate::rules::common::{comment_contains_warning_term, is_directive_comment};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow specified warning terms in comments.
@@ -86,22 +86,21 @@ fn report_warning_comment(
             break;
         }
 
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_WARNING_COMMENTS.id,
             NO_WARNING_COMMENTS.code,
             NO_WARNING_COMMENTS.category,
             severity,
             format!("warning comment contains `{term}`"),
-            ctx.module.file_id,
             span,
         )
-        .with_label("resolve before committing");
+        .label("resolve before committing");
 
         // compute fixes only when requested by the runner
         if ctx.compute_fixes
             && let Some(fix) = warning_comment_fix(ctx, span)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         ctx.report(diagnostic);

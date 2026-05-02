@@ -5,7 +5,7 @@ use crate::rules::common::{
     assign_pattern_target_expression, expression_unwrap_transparent,
     expressions_have_equivalent_source_form,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow increment/decrement whose result is unused.
@@ -156,16 +156,15 @@ impl<'a, 'b> UselessIncrementVisitor<'a, 'b> {
             dir::UnaryOperator::PostDecrement => "decrement",
             _ => "update",
         };
-        let diagnostic = LintDiagnostic::new(
+        let diagnostic = LintReport::new(
             NO_USELESS_INCREMENT.id,
             NO_USELESS_INCREMENT.code,
             NO_USELESS_INCREMENT.category,
             severity,
             format!("postfix {op_name} {context} has no effect"),
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("the updated value is discarded");
+        .label("the updated value is discarded");
 
         self.ctx.report(diagnostic);
     }

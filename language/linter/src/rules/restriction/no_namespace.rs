@@ -2,7 +2,7 @@ use destack_ast::{self as ast, Declaration, Name, NamespaceKind};
 use destack_source::FileType;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow namespace declarations.
@@ -52,16 +52,15 @@ impl LintRule for NoNamespace {
             }
             let span = ctx.tree.get_span(node_id);
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_NAMESPACE.id,
                     NO_NAMESPACE.code,
                     NO_NAMESPACE.category,
                     severity,
                     "namespace declaration is not allowed",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("use ES modules instead"),
+                .label("use ES modules instead"),
             );
         }
     }

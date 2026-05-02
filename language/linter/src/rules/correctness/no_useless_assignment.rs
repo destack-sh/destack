@@ -7,7 +7,7 @@ use crate::rules::common::{
     assign_pattern_target_symbol, collect_expression_read_symbol_usage,
     collect_pattern_value_binding_symbols, expression_target_symbol,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow assignments that are immediately overwritten.
@@ -175,16 +175,15 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        let diagnostic = LintDiagnostic::new(
+        let diagnostic = LintReport::new(
             NO_USELESS_ASSIGNMENT.id,
             NO_USELESS_ASSIGNMENT.code,
             NO_USELESS_ASSIGNMENT.category,
             severity,
             "assignment is immediately overwritten",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("this value is never used");
+        .label("this value is never used");
 
         self.ctx.report(diagnostic);
     }

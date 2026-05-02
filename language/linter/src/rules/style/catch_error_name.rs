@@ -6,7 +6,7 @@ use crate::rules::common::{
     local_symbol_has_direct_references, parameter_binding_name_and_symbol,
     promise_rejection_callback, rename_local_symbol_fix, symbol_primary_declaration_for,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce a specific name for caught errors.
@@ -127,16 +127,15 @@ fn report_try_catch_binding(
     }
 
     // report the mismatch and offer one symbol-aware rename fix
-    let mut diagnostic = LintDiagnostic::new(
+    let mut diagnostic = LintReport::new(
         CATCH_ERROR_NAME.id,
         CATCH_ERROR_NAME.code,
         CATCH_ERROR_NAME.category,
         severity,
         format!("catch error should be named `{expected_name}`, not `{actual_name}`"),
-        ctx.module.file_id,
         ctx.get_span(*pattern_id),
     )
-    .with_label("rename this catch binding to the configured name");
+    .label("rename this catch binding to the configured name");
     if ctx.include_fixes
         && let Some(replacement_name) =
             fresh_name_in_symbol_scope_for_rename(ctx, *symbol, expected_name)
@@ -147,7 +146,7 @@ fn report_try_catch_binding(
             &format!("Rename catch binding `{actual_name}` to `{replacement_name}`"),
         )
     {
-        diagnostic = diagnostic.with_fix(fix);
+        diagnostic = diagnostic.fix(fix);
     }
 
     ctx.report(diagnostic);
@@ -205,7 +204,7 @@ fn report_promise_rejection_callback(
     }
 
     // report the mismatch and offer one symbol-aware rename fix
-    let mut diagnostic = LintDiagnostic::new(
+    let mut diagnostic = LintReport::new(
         CATCH_ERROR_NAME.id,
         CATCH_ERROR_NAME.code,
         CATCH_ERROR_NAME.category,
@@ -213,10 +212,9 @@ fn report_promise_rejection_callback(
         format!(
             "promise rejection parameter should be named `{expected_name}`, not `{actual_name}`"
         ),
-        ctx.module.file_id,
         ctx.get_span(parameter_id),
     )
-    .with_label("rename this callback parameter to the configured name");
+    .label("rename this callback parameter to the configured name");
     if ctx.include_fixes
         && let Some(replacement_name) =
             fresh_name_in_symbol_scope_for_rename(ctx, symbol_id, expected_name)
@@ -227,7 +225,7 @@ fn report_promise_rejection_callback(
             &format!("Rename callback parameter `{actual_name}` to `{replacement_name}`"),
         )
     {
-        diagnostic = diagnostic.with_fix(fix);
+        diagnostic = diagnostic.fix(fix);
     }
 
     ctx.report(diagnostic);

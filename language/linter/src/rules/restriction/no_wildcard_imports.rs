@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow wildcard imports.
@@ -57,20 +57,19 @@ impl LintRule for NoWildcardImports {
                     if !severity.is_enabled() {
                         continue;
                     }
-                    let mut diagnostic = LintDiagnostic::new(
+                    let mut diagnostic = LintReport::new(
                         NO_WILDCARD_IMPORTS.id,
                         NO_WILDCARD_IMPORTS.code,
                         NO_WILDCARD_IMPORTS.category,
                         severity,
                         "wildcard import",
-                        ctx.module.file_id,
                         ctx.tree.get_span(*item_id),
                     )
-                    .with_label("use named imports instead");
+                    .label("use named imports instead");
                     if ctx.compute_fixes
                         && let Some(fix) = no_wildcard_imports_fix(ctx, node_id, items, item_id)
                     {
-                        diagnostic = diagnostic.with_fix(fix);
+                        diagnostic = diagnostic.fix(fix);
                     }
 
                     ctx.report(diagnostic);

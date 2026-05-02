@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_static_string_literal_source_form, expression_unwrap_parenthesized_source_form,
     is_comparison_operator, source_text_contains_comment_token,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow "Yoda" conditions.
@@ -98,16 +98,15 @@ impl LintRule for Yoda {
                 "right"
             };
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 YODA.id,
                 YODA.code,
                 YODA.category,
                 severity,
                 format!("expected literal to be on the {expected_side} side of comparison"),
-                ctx.module.file_id,
                 expression_span,
             )
-            .with_label(format!("move the literal to the {expected_side} side"));
+            .label(format!("move the literal to the {expected_side} side"));
 
             if !source_text_contains_comment_token(ctx.get_span_text(expression_span)) {
                 let flipped_op = flip_operator(operator);
@@ -117,7 +116,7 @@ impl LintRule for Yoda {
                     .replace(expression_span, replacement)
                     .into_edits();
                 let fix = LintFix::safe("Flip comparison").with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

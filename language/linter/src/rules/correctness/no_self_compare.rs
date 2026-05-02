@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expressions_have_equivalent_source_form, is_binary_comparison_operator,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow comparing a value to itself.
@@ -69,16 +69,15 @@ impl LintRule for NoSelfCompare {
             // report self comparison diagnostic
             let span = ctx.get_span(node_id);
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_SELF_COMPARE.id,
                     NO_SELF_COMPARE.code,
                     NO_SELF_COMPARE.category,
                     severity,
                     "comparing a value to itself",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("both sides of this comparison are identical"),
+                .label("both sides of this comparison are identical"),
             );
         }
     }

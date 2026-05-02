@@ -20,7 +20,7 @@ use crate::linter::artifact::{
 };
 use crate::linter::library::is_builtin_library_module;
 use crate::{
-    ConstValue, GLOBAL_QUALIFIER_SYMBOLS, LintDiagnostic, LintDirAnalysisCache, LintMeta,
+    ConstValue, GLOBAL_QUALIFIER_SYMBOLS, LintDirAnalysisCache, LintMeta, LintReport,
     LintRequirement,
 };
 
@@ -92,7 +92,7 @@ pub struct LintModuleDirContext<'a> {
     analysis: LintDirAnalysisCache,
 
     /// Collected diagnostics.
-    diagnostics: Vec<LintDiagnostic>,
+    diagnostics: Vec<LintReport>,
 }
 
 impl<'a> std::fmt::Debug for LintModuleDirContext<'a> {
@@ -534,19 +534,19 @@ impl<'a> LintModuleDirContext<'a> {
     }
 
     /// Report a lint diagnostic.
-    pub fn report(&mut self, diagnostic: LintDiagnostic) {
+    pub fn report(&mut self, diagnostic: LintReport) {
         if diagnostic.is_enabled() {
             self.diagnostics.push(diagnostic);
         }
     }
 
     /// Take the collected diagnostics.
-    pub fn take_diagnostics(&mut self) -> Vec<LintDiagnostic> {
+    pub fn take_diagnostics(&mut self) -> Vec<LintReport> {
         std::mem::take(&mut self.diagnostics)
     }
 
     /// Return a reference to collected diagnostics.
-    pub fn diagnostics(&self) -> &[LintDiagnostic] {
+    pub fn diagnostics(&self) -> &[LintReport] {
         &self.diagnostics
     }
 

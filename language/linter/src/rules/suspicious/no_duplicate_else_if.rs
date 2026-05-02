@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_is_else_if_branch, expression_is_equal, expression_unwrap_parenthesized_source_form,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow duplicate conditions in if-else-if chains.
@@ -67,23 +67,22 @@ impl LintRule for NoDuplicateElseIf {
             }
 
             // report one covered duplicate diagnostic
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_DUPLICATE_ELSE_IF.id,
                 NO_DUPLICATE_ELSE_IF.code,
                 NO_DUPLICATE_ELSE_IF.category,
                 severity,
                 "this branch can never execute, condition is duplicate or already covered",
-                ctx.module.file_id,
                 ctx.tree.get_span(*condition_id),
             )
-            .with_label("this condition is already handled by earlier branch conditions");
+            .label("this condition is already handled by earlier branch conditions");
 
             // attach one focused fix only for exact duplicate else-if branches
             if ctx.compute_fixes
                 && has_exact_duplicate_in_ancestor_chain(ctx, node_id, *condition_id)
                 && let Some(fix) = no_duplicate_else_if_fix(ctx, node_id)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

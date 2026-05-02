@@ -6,7 +6,7 @@ use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
     expression_is_symbol_or_global_qualified_member, expression_static_property_access,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow insecure random number generators.
@@ -113,16 +113,15 @@ impl<'a, 'b> NoInsecureRandomVisitor<'a, 'b> {
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_INSECURE_RANDOM.id,
                 NO_INSECURE_RANDOM.code,
                 NO_INSECURE_RANDOM.category,
                 severity,
                 "insecure random number usage",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("use a cryptographically secure RNG"),
+            .label("use a cryptographically secure RNG"),
         );
     }
 

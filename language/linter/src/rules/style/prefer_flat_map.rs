@@ -7,7 +7,7 @@ use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     const_i64, expression_method_call, is_array_type, member_receiver_text,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest `.flatMap()` over `.map().flat()`.
@@ -220,18 +220,17 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_FLAT_MAP.id,
             PREFER_FLAT_MAP.code,
             PREFER_FLAT_MAP.category,
             severity,
             "prefer flatMap() over map().flat()",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use array.flatMap(...) instead");
+        .label("use array.flatMap(...) instead");
         if let Some(fix) = self.flat_map_fix(expression_id, map_member_id, map_arguments) {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

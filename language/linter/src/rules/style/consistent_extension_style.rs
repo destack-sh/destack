@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, Declaration};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce consistent extension naming style.
@@ -47,16 +47,15 @@ impl LintRule for ConsistentExtensionStyle {
                     continue;
                 }
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         CONSISTENT_EXTENSION_STYLE.id,
                         CONSISTENT_EXTENSION_STYLE.code,
                         CONSISTENT_EXTENSION_STYLE.category,
                         severity,
                         "extension should have a name",
-                        ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label("add a name like `extension MyExt of ...`"),
+                    .label("add a name like `extension MyExt of ...`"),
                 );
             }
         }

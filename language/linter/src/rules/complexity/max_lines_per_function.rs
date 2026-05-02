@@ -6,7 +6,7 @@ use crate::rules::common::{
     CallableOwnerId, callable_owner_span, count_file_span_lines, declaration_expression,
     expression_is_immediately_invoked, for_each_callable_signature,
 };
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of lines per function.
@@ -109,16 +109,15 @@ fn report_line_limit_violation<T: ast::Node>(
 
     // report one line-count overflow diagnostic
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             MAX_LINES_PER_FUNCTION.id,
             MAX_LINES_PER_FUNCTION.code,
             MAX_LINES_PER_FUNCTION.category,
             severity,
             format!("function has {line_count} lines (max {max_lines})"),
-            ctx.module.file_id,
             ctx.tree.get_span(body_id),
         )
-        .with_label("consider breaking into smaller functions"),
+        .label("consider breaking into smaller functions"),
     );
 }
 

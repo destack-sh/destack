@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_is_equal, expression_negated_source_text, source_text_contains_comment_token,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow ternary operators that can be simplified.
@@ -66,16 +66,15 @@ impl LintRule for NoUnneededTernary {
                 }
 
                 // make fix: replace `x ? true : false` with `x`
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_UNNEEDED_TERNARY.id,
                     NO_UNNEEDED_TERNARY.code,
                     NO_UNNEEDED_TERNARY.category,
                     severity,
                     "unnecessary ternary `x ? true : false`",
-                    ctx.module.file_id,
                     expression_span,
                 )
-                .with_label("use the condition directly");
+                .label("use the condition directly");
 
                 if can_fix {
                     let edits = ctx
@@ -83,7 +82,7 @@ impl LintRule for NoUnneededTernary {
                         .replace(expression_span, condition_text)
                         .into_edits();
                     let fix = LintFix::safe("Simplify to condition").with_edits(edits);
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);
@@ -96,16 +95,15 @@ impl LintRule for NoUnneededTernary {
                 }
 
                 // make fix: replace `x ? false : true` with `!x`
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_UNNEEDED_TERNARY.id,
                     NO_UNNEEDED_TERNARY.code,
                     NO_UNNEEDED_TERNARY.category,
                     severity,
                     "unnecessary ternary `x ? false : true`",
-                    ctx.module.file_id,
                     expression_span,
                 )
-                .with_label("use `!x` instead");
+                .label("use `!x` instead");
 
                 if can_fix {
                     let replacement = expression_negated_source_text(ctx, condition_id);
@@ -114,7 +112,7 @@ impl LintRule for NoUnneededTernary {
                         .replace(expression_span, replacement)
                         .into_edits();
                     let fix = LintFix::safe("Simplify to negated condition").with_edits(edits);
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);
@@ -130,16 +128,15 @@ impl LintRule for NoUnneededTernary {
 
                 let alternate_span = ctx.tree.get_span(*else_expression);
                 let alternate_text = ctx.get_span_text(alternate_span);
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_UNNEEDED_TERNARY.id,
                     NO_UNNEEDED_TERNARY.code,
                     NO_UNNEEDED_TERNARY.category,
                     severity,
                     "unnecessary ternary default assignment",
-                    ctx.module.file_id,
                     expression_span,
                 )
-                .with_label("use `||` default assignment instead");
+                .label("use `||` default assignment instead");
 
                 if can_fix {
                     let replacement = format!("{condition_text} || {alternate_text}");
@@ -148,7 +145,7 @@ impl LintRule for NoUnneededTernary {
                         .replace(expression_span, replacement)
                         .into_edits();
                     let fix = LintFix::safe("Simplify to default assignment").with_edits(edits);
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

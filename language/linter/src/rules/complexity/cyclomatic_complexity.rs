@@ -10,7 +10,7 @@ use crate::rules::common::{
     expression_starts_nested_declaration_scope, parameter_default_expression_id,
     pattern_field_default_expression_id,
 };
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit cyclomatic complexity of functions.
@@ -162,7 +162,7 @@ fn report_body_complexity<T: ast::Node>(
 
     // report one complexity overflow diagnostic
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             CYCLOMATIC_COMPLEXITY.id,
             CYCLOMATIC_COMPLEXITY.code,
             CYCLOMATIC_COMPLEXITY.category,
@@ -171,10 +171,9 @@ fn report_body_complexity<T: ast::Node>(
                 "cyclomatic complexity {} exceeds maximum of {}",
                 visitor.complexity, max_complexity
             ),
-            ctx.module.file_id,
             ctx.tree.get_span(body_expression_id),
         )
-        .with_label("consider breaking into smaller functions"),
+        .label("consider breaking into smaller functions"),
     );
 }
 

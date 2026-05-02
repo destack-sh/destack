@@ -7,7 +7,7 @@ use crate::rules::common::{
     const_i64, expression_regex_literal, expression_unwrap_parenthesized, flip_binary_operator,
     is_string_type, regex_prefix_literal, single_quoted_string_literal, strip_dot_member_suffix,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `startsWith()` over `indexOf() === 0`.
@@ -172,22 +172,21 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
 
         // build diagnostic and attach fix
         let span = self.ctx.get_span(expression_id);
-        let diagnostic = LintDiagnostic::new(
+        let diagnostic = LintReport::new(
             PREFER_STRING_STARTS_WITH.id,
             PREFER_STRING_STARTS_WITH.code,
             PREFER_STRING_STARTS_WITH.category,
             severity,
             "prefer startsWith() over indexOf() === 0",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use startsWith() to check the prefix");
+        .label("use startsWith() to check the prefix");
 
         let mut diagnostic = diagnostic;
         if self.ctx.include_fixes
             && let Some(fix) = self.starts_with_fix(expression_id, starts_with_match)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);
@@ -253,20 +252,19 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
 
         // build diagnostic and attach safe fix
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_STRING_STARTS_WITH.id,
             PREFER_STRING_STARTS_WITH.code,
             PREFER_STRING_STARTS_WITH.category,
             severity,
             "prefer startsWith() over regex test() prefix checks",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use startsWith() for anchored prefix checks");
+        .label("use startsWith() for anchored prefix checks");
         if self.ctx.include_fixes
             && let Some(fix) = self.regex_starts_with_fix(expression_id, *argument_id, &prefix_text)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

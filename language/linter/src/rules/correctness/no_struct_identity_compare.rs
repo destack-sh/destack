@@ -2,7 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, SymbolType, walk
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_unwrap_transparent, is_reference_symbol_type};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow identity comparison on value types.
@@ -112,16 +112,15 @@ impl<'a, 'b> StructCompareVisitor<'a, 'b> {
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_STRUCT_IDENTITY_COMPARE.id,
                 NO_STRUCT_IDENTITY_COMPARE.code,
                 NO_STRUCT_IDENTITY_COMPARE.category,
                 severity,
                 "identity comparison on struct type",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("structs have no identity; use == or != instead"),
+            .label("structs have no identity; use == or != instead"),
         );
     }
 }

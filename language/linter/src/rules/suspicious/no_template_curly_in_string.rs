@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow template interpolation in regular strings.
@@ -56,21 +56,20 @@ impl LintRule for NoTemplateCurlyInString {
                 continue;
             }
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_TEMPLATE_CURLY_IN_STRING.id,
                 NO_TEMPLATE_CURLY_IN_STRING.code,
                 NO_TEMPLATE_CURLY_IN_STRING.category,
                 severity,
                 "template interpolation in regular string",
-                ctx.module.file_id,
                 span,
             )
-            .with_label("use a template literal `...` instead of \"...\"");
+            .label("use a template literal `...` instead of \"...\"");
 
             if ctx.compute_fixes
                 && let Some(fix) = template_literal_fix(ctx, span, literal_text)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

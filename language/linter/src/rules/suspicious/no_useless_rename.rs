@@ -4,7 +4,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow renaming import, export, and destructured assignments to the same name.
@@ -59,16 +59,15 @@ impl LintRule for NoUselessRename {
                 // build one diagnostic message
                 let name_text: String = ctx.strings.get(name_id).as_ref().to_string();
                 let field_span = ctx.tree.get_span(node_id);
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_USELESS_RENAME.id,
                     NO_USELESS_RENAME.code,
                     NO_USELESS_RENAME.category,
                     severity,
                     format!("useless rename: `{name_text}: {name_text}` can be `{name_text}`"),
-                    ctx.module.file_id,
                     field_span,
                 )
-                .with_label("this rename is unnecessary");
+                .label("this rename is unnecessary");
 
                 // attach one fix for safe local rewrites
                 if ctx.compute_fixes
@@ -80,7 +79,7 @@ impl LintRule for NoUselessRename {
                         default_expression_id,
                     )
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);
@@ -138,7 +137,7 @@ impl LintRule for NoUselessRename {
                 // build one diagnostic for this dependency item
                 let name_text: String = ctx.strings.get(*name_id).as_ref().to_string();
                 let item_span = ctx.tree.get_span(*item_id);
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_USELESS_RENAME.id,
                     NO_USELESS_RENAME.code,
                     NO_USELESS_RENAME.category,
@@ -147,16 +146,15 @@ impl LintRule for NoUselessRename {
                         "useless rename: {} `{name_text}` renamed to itself",
                         rename_kind.label()
                     ),
-                    ctx.module.file_id,
                     item_span,
                 )
-                .with_label("this rename is unnecessary");
+                .label("this rename is unnecessary");
 
                 // attach one safe fix when text shape is trivial and comment free
                 if ctx.compute_fixes
                     && let Some(fix) = useless_dependency_item_rename_fix(ctx, item_span)
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

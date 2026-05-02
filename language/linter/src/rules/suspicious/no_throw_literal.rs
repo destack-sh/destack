@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_unwrap_parenthesized;
-use crate::{LintDiagnostic, LintFix, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow throwing literals.
@@ -63,22 +63,21 @@ impl LintRule for NoThrowLiteral {
             } else {
                 "throwing a literal value"
             };
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_THROW_LITERAL.id,
                 NO_THROW_LITERAL.code,
                 NO_THROW_LITERAL.category,
                 severity,
                 message,
-                ctx.module.file_id,
                 span,
             )
-            .with_label("throw an Error object instead");
+            .label("throw an Error object instead");
 
             // compute fixes only when requested by the runner
             if ctx.include_fixes
                 && let Some(fix) = no_throw_literal_fix(ctx, node_id, thrown_id)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

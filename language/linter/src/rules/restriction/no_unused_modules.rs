@@ -7,7 +7,7 @@ use destack_workspace::{
     EntryResolutionMode, EntrySource, TargetDiscovery, TargetDiscoveryOptions,
 };
 
-use crate::{LintDiagnostic, LintRule, LintWorkspaceDirContext, declare_lint};
+use crate::{LintReport, LintRule, LintWorkspaceDirContext, declare_lint};
 
 declare_lint! {
     /// Disallow exported modules that are never imported by another module.
@@ -94,17 +94,16 @@ impl LintRule for NoUnusedModules {
             };
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_UNUSED_MODULES.id,
                     NO_UNUSED_MODULES.code,
                     NO_UNUSED_MODULES.category,
                     severity,
                     "unused exported module",
-                    module.file_id,
                     Span::empty(module.file_id),
                 )
-                .with_label("this module exports symbols but is never imported")
-                .with_note(format!("module: {}", file.name)),
+                .label("this module exports symbols but is never imported")
+                .note(format!("module: {}", file.name)),
             );
         }
     }
@@ -285,7 +284,7 @@ mod tests {
         modules: &[(&str, &str)],
         entry_paths: &[&str],
         configure: impl FnOnce(&mut destack_workspace::LinterOptions),
-    ) -> (TestProgram, Vec<LintDiagnostic>) {
+    ) -> (TestProgram, Vec<LintReport>) {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoUnusedModules)])
             .with_options(configure);
 
@@ -466,7 +465,7 @@ export const dead = 1;
         let lint_file_names = diagnostics
             .iter()
             .filter(|diagnostic| diagnostic.rule_id == "no-unused-modules")
-            .map(|diagnostic| test.repository_file(diagnostic.file_id).name.clone())
+            .map(|diagnostic| test.repository_file(diagnostic.primary.file).name.clone())
             .collect::<Vec<_>>();
 
         assert!(

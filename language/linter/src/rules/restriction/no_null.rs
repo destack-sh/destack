@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_path_segments, expression_static_property_access_source_form,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow the use of `null`.
@@ -51,23 +51,22 @@ impl LintRule for NoNull {
                     continue;
                 }
                 let span = ctx.tree.get_span(node_id);
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_NULL.id,
                     NO_NULL.code,
                     NO_NULL.category,
                     severity,
                     "use of `null`",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("use `undefined` instead");
+                .label("use `undefined` instead");
 
                 // compute fixes only when requested by the runner
                 if ctx.compute_fixes {
                     let edits = ctx.edit_builder().replace(span, "undefined").into_edits();
                     let fix =
                         LintFix::r#unsafe("Replace `null` with `undefined`").with_edits(edits);
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);
@@ -94,21 +93,20 @@ impl LintRule for NoNull {
                 continue;
             }
             let span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_NULL.id,
                 NO_NULL.code,
                 NO_NULL.category,
                 severity,
                 "use of `null`",
-                ctx.module.file_id,
                 span,
             )
-            .with_label("use `undefined` instead");
+            .label("use `undefined` instead");
 
             if ctx.compute_fixes {
                 let edits = ctx.edit_builder().replace(span, "undefined").into_edits();
                 let fix = LintFix::r#unsafe("Replace `null` with `undefined`").with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow misleading characters in regex character classes.
@@ -50,16 +50,15 @@ impl LintRule for NoMisleadingCharacterClass {
             }
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_MISLEADING_CHARACTER_CLASS.id,
                     NO_MISLEADING_CHARACTER_CLASS.code,
                     NO_MISLEADING_CHARACTER_CLASS.category,
                     severity,
                     format!("misleading character in regex character class: {problem}"),
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label("this character class may not match as expected"),
+                .label("this character class may not match as expected"),
             );
         }
     }

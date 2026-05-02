@@ -4,7 +4,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{collect_pattern_value_binding_symbols, expression_target_symbol};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 /// Method names that mutate collections.
 const MUTATING_METHODS: &[&str] = &[
@@ -143,16 +143,15 @@ impl<'a, 'b> IteratorInvalidationVisitor<'a, 'b> {
         // report
         let span = self.ctx.get_span(call_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_ITERATOR_INVALIDATION.id,
                 NO_ITERATOR_INVALIDATION.code,
                 NO_ITERATOR_INVALIDATION.category,
                 severity,
                 format!("collection mutated during iteration via '{method_name}'"),
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("modifying a collection while iterating can cause bugs"),
+            .label("modifying a collection while iterating can cause bugs"),
         );
     }
 

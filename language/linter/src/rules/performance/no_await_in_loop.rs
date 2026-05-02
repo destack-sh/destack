@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `await` inside loops.
@@ -51,16 +51,15 @@ impl LintRule for NoAwaitInLoop {
 
                 let (message, label) = await_loop_candidate_message(candidate);
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_AWAIT_IN_LOOP.id,
                         NO_AWAIT_IN_LOOP.code,
                         NO_AWAIT_IN_LOOP.category,
                         severity,
                         message,
-                        ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label(label),
+                    .label(label),
                 );
                 continue;
             }
@@ -90,16 +89,15 @@ impl LintRule for NoAwaitInLoop {
                     }
                     let (message, label) = await_loop_candidate_message(candidate);
                     ctx.report(
-                        LintDiagnostic::new(
+                        LintReport::new(
                             NO_AWAIT_IN_LOOP.id,
                             NO_AWAIT_IN_LOOP.code,
                             NO_AWAIT_IN_LOOP.category,
                             severity,
                             message,
-                            ctx.module.file_id,
                             ctx.tree.get_span(node_id),
                         )
-                        .with_label(label),
+                        .label(label),
                     );
                     break;
                 }

@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_unwrap_parenthesized_source_form, is_comparison_operator};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow comparing to negative zero.
@@ -68,16 +68,15 @@ impl LintRule for NoCompareNegZero {
 
             // resolve diagnostic span
             let expression_span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_COMPARE_NEG_ZERO.id,
                 NO_COMPARE_NEG_ZERO.code,
                 NO_COMPARE_NEG_ZERO.category,
                 severity,
                 "comparison to negative zero",
-                ctx.module.file_id,
                 expression_span,
             )
-            .with_label("use Object.is(x, -0) to check for negative zero");
+            .label("use Object.is(x, -0) to check for negative zero");
 
             // construct fix for equality operators only
             if ctx.compute_fixes
@@ -90,7 +89,7 @@ impl LintRule for NoCompareNegZero {
                     expression_span,
                 )
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

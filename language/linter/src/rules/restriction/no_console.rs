@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_is_standalone_statement, expression_is_symbol_or_global_qualified_member,
     expression_static_property_name,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow console usage.
@@ -111,22 +111,21 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_CONSOLE.id,
             NO_CONSOLE.code,
             NO_CONSOLE.category,
             severity,
             "console usage",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("remove console usage");
+        .label("remove console usage");
 
         // compute fixes only when requested by the runner
         if self.ctx.include_fixes
             && let Some(fix) = no_console_fix(self.ctx, expression_id)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

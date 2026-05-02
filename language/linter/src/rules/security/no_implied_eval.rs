@@ -8,7 +8,7 @@ use crate::rules::common::{
     expression_is_symbol_or_global_qualified_member, expression_type_or_call_return_type_map,
     expression_unwrap_parenthesized, is_string_type,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow string execution APIs that act like eval.
@@ -174,16 +174,15 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_IMPLIED_EVAL.id,
                 NO_IMPLIED_EVAL.code,
                 NO_IMPLIED_EVAL.category,
                 severity,
                 "implied eval usage",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("avoid passing strings to execution APIs"),
+            .label("avoid passing strings to execution APIs"),
         );
     }
 

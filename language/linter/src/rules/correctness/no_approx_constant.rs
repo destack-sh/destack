@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow approximate representations of mathematical constants.
@@ -68,16 +68,15 @@ impl LintRule for NoApproxConstant {
                 }
 
                 // build diagnostic
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_APPROX_CONSTANT.id,
                     NO_APPROX_CONSTANT.code,
                     NO_APPROX_CONSTANT.category,
                     severity,
                     format!("approximate value of `Math.{name}`"),
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label(format!("use `Math.{name}` instead"));
+                .label(format!("use `Math.{name}` instead"));
 
                 // attach canonical replacement fix when enabled
                 if ctx.compute_fixes {
@@ -85,7 +84,7 @@ impl LintRule for NoApproxConstant {
                     let edits = ctx.edit_builder().replace(span, replacement).into_edits();
                     let fix = LintFix::r#unsafe("Replace approximation with Math constant")
                         .with_edits(edits);
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 // report lint

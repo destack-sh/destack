@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, IfKind, UnaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow negated conditions in if-else and ternary expressions.
@@ -70,16 +70,15 @@ impl LintRule for NoNegatedCondition {
                 IfKind::Ternary => "unexpected negated condition in ternary",
             };
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_NEGATED_CONDITION.id,
                     NO_NEGATED_CONDITION.code,
                     NO_NEGATED_CONDITION.category,
                     severity,
                     message,
-                    ctx.module.file_id,
                     expression_span,
                 )
-                .with_label("prefer positive conditions"),
+                .label("prefer positive conditions"),
             );
         }
     }

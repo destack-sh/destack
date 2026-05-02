@@ -6,7 +6,7 @@ use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     expression_enters_nested_declaration_scope, expression_method_call, is_array_type,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `unshift` in loops.
@@ -117,16 +117,15 @@ impl<'a, 'b> NoArrayUnshiftLoopVisitor<'a, 'b> {
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_ARRAY_UNSHIFT_LOOP.id,
                 NO_ARRAY_UNSHIFT_LOOP.code,
                 NO_ARRAY_UNSHIFT_LOOP.category,
                 severity,
                 "unshift in a loop causes O(n²) performance",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("each unshift shifts all elements"),
+            .label("each unshift shifts all elements"),
         );
     }
 

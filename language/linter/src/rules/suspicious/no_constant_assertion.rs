@@ -3,7 +3,7 @@ use destack_ast::{self as ast, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_path_segments, expression_statement_span};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow assertions on constant values.
@@ -95,23 +95,22 @@ impl LintRule for NoConstantAssertion {
                 )
             };
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_CONSTANT_ASSERTION.id,
                 NO_CONSTANT_ASSERTION.code,
                 NO_CONSTANT_ASSERTION.category,
                 severity,
                 message,
-                ctx.module.file_id,
                 ctx.tree.get_span(node_id),
             )
-            .with_label(label);
+            .label(label);
 
             // compute fixes only when requested by the runner
             if ctx.compute_fixes
                 && constant_truthiness
                 && let Some(fix) = constant_true_assertion_fix(ctx, node_id, arg_value)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

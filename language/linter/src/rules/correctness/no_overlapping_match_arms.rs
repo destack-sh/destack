@@ -3,7 +3,7 @@ use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{pattern_is_total, pattern_subsumes_semantically};
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow match or switch arms that are subsumed by previous arms.
@@ -65,17 +65,16 @@ impl LintRule for NoOverlappingMatchArms {
                         continue;
                     }
 
-                    let mut diagnostic = LintDiagnostic::new(
+                    let mut diagnostic = LintReport::new(
                         NO_OVERLAPPING_MATCH_ARMS.id,
                         NO_OVERLAPPING_MATCH_ARMS.code,
                         NO_OVERLAPPING_MATCH_ARMS.category,
                         severity,
                         "match arm is subsumed by a previous arm",
-                        ctx.module.file_id,
                         ctx.get_span(*case_id),
                     )
-                    .with_label("this arm can never be selected")
-                    .with_secondary(LabeledSpan::new(
+                    .label("this arm can never be selected")
+                    .secondary(LabeledSpan::new(
                         ctx.get_span(prior_case_id),
                         "previous arm already covers every value matched here",
                     ));
@@ -84,7 +83,7 @@ impl LintRule for NoOverlappingMatchArms {
                     if ctx.include_fixes
                         && let Some(fix) = overlapping_match_arm_fix(ctx, *case_id)
                     {
-                        diagnostic = diagnostic.with_fix(fix);
+                        diagnostic = diagnostic.fix(fix);
                     }
 
                     ctx.report(diagnostic);

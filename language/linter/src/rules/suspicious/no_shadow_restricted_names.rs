@@ -10,7 +10,7 @@ use crate::rules::common::{
     assign_pattern_is_unqualified_path_name, expression_is_unqualified_path_name,
     is_simple_identifier, subtree_mentions_identifier_name,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow shadowing of restricted or builtin names.
@@ -107,20 +107,19 @@ impl LintRule for NoShadowRestrictedNames {
                 continue;
             }
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_SHADOW_RESTRICTED_NAMES.id,
                 NO_SHADOW_RESTRICTED_NAMES.code,
                 NO_SHADOW_RESTRICTED_NAMES.category,
                 severity,
                 format!("shadowing of restricted name '{name_str}'"),
-                ctx.module.file_id,
                 ctx.tree.get_span(node_id),
             )
-            .with_label(format!("'{name_str}' is a restricted name"));
+            .label(format!("'{name_str}' is a restricted name"));
             if ctx.compute_fixes
                 && let Some(fix) = no_shadow_restricted_names_fix_for_pattern(ctx, node_id, name)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);
@@ -145,16 +144,15 @@ impl LintRule for NoShadowRestrictedNames {
             }
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_SHADOW_RESTRICTED_NAMES.id,
                     NO_SHADOW_RESTRICTED_NAMES.code,
                     NO_SHADOW_RESTRICTED_NAMES.category,
                     severity,
                     format!("shadowing of restricted name '{name_str}'"),
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label(format!("'{name_str}' is a restricted name")),
+                .label(format!("'{name_str}' is a restricted name")),
             );
         }
 
@@ -178,20 +176,19 @@ impl LintRule for NoShadowRestrictedNames {
                 continue;
             }
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_SHADOW_RESTRICTED_NAMES.id,
                 NO_SHADOW_RESTRICTED_NAMES.code,
                 NO_SHADOW_RESTRICTED_NAMES.category,
                 severity,
                 format!("shadowing of restricted name '{name_str}'"),
-                ctx.module.file_id,
                 ctx.tree.get_span(node_id),
             )
-            .with_label(format!("'{name_str}' is a restricted name"));
+            .label(format!("'{name_str}' is a restricted name"));
             if ctx.compute_fixes
                 && let Some(fix) = no_shadow_restricted_names_fix_for_parameter(ctx, node_id, name)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

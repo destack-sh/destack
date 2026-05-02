@@ -4,9 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     ExpressionDuplicateTracker, expression_numeric_value, match_selector_expression_id,
 };
-use crate::{
-    ConstValue, LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint,
-};
+use crate::{ConstValue, LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow duplicate case labels in switch statements.
@@ -110,22 +108,21 @@ impl LintRule for NoDuplicateCase {
                     if !severity.is_enabled() {
                         continue;
                     }
-                    let mut diagnostic = LintDiagnostic::new(
+                    let mut diagnostic = LintReport::new(
                         NO_DUPLICATE_CASE.id,
                         NO_DUPLICATE_CASE.code,
                         NO_DUPLICATE_CASE.category,
                         severity,
                         "duplicate case label",
-                        ctx.module.file_id,
                         ctx.tree.get_span(*case_id),
                     )
-                    .with_label("this case was already handled");
+                    .label("this case was already handled");
 
                     // compute fixes only when requested by the runner
                     if ctx.compute_fixes
                         && let Some(fix) = duplicate_case_fix(ctx, *case_id)
                     {
-                        diagnostic = diagnostic.with_fix(fix);
+                        diagnostic = diagnostic.fix(fix);
                     }
 
                     ctx.report(diagnostic);

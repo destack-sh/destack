@@ -4,7 +4,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary computed property keys in objects.
@@ -58,16 +58,15 @@ impl LintRule for NoUselessComputedKey {
             }
 
             let property_span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_USELESS_COMPUTED_KEY.id,
                 NO_USELESS_COMPUTED_KEY.code,
                 NO_USELESS_COMPUTED_KEY.category,
                 severity,
                 "useless computed key",
-                ctx.module.file_id,
                 property_span,
             )
-            .with_label(format!("use `{label_text}` without a computed key"));
+            .label(format!("use `{label_text}` without a computed key"));
 
             if ctx.compute_fixes
                 && let Some(key_span) = computed_key_bracket_span(ctx, *expr_id)
@@ -78,7 +77,7 @@ impl LintRule for NoUselessComputedKey {
                     .replace(key_span, replacement_text)
                     .into_edits();
                 let fix = LintFix::safe("Convert to static key").with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

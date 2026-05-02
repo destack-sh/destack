@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow loops that execute at most once.
@@ -78,22 +78,21 @@ impl LintRule for NoLoopSingleIteration {
                 };
 
                 // build diagnostic payload
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_LOOP_SINGLE_ITERATION.id,
                     NO_LOOP_SINGLE_ITERATION.code,
                     NO_LOOP_SINGLE_ITERATION.category,
                     severity,
                     format!("{loop_type} loop executes at most once"),
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label("body unconditionally exits on first iteration");
+                .label("body unconditionally exits on first iteration");
 
                 // rewrite trivial `loop { return ... }` and `loop { throw ... }` forms
                 if ctx.compute_fixes
                     && let Some(fix) = no_loop_single_iteration_fix(ctx, node_id, expression)
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

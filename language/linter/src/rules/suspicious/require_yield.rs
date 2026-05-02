@@ -5,7 +5,7 @@ use destack_ast::{
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_starts_nested_declaration_scope;
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require a `yield` keyword in generator functions.
@@ -135,17 +135,16 @@ fn report_missing_generator_yield<T: ast::Node>(
         return;
     }
 
-    let diagnostic = LintDiagnostic::new(
+    let diagnostic = LintReport::new(
         REQUIRE_YIELD.id,
         REQUIRE_YIELD.code,
         REQUIRE_YIELD.category,
         severity,
         message,
-        ctx.module.file_id,
         ctx.tree
             .get_span(ast::LocalNodeId::<T>::new(callable_raw_id)),
     )
-    .with_label("add a `yield` expression or remove the `*`");
+    .label("add a `yield` expression or remove the `*`");
 
     ctx.report(diagnostic);
 }

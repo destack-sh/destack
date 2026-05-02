@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, TypeLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow explicit `any` type annotations.
@@ -54,22 +54,21 @@ impl LintRule for NoExplicitAny {
                 continue;
             }
             let span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_EXPLICIT_ANY.id,
                 NO_EXPLICIT_ANY.code,
                 NO_EXPLICIT_ANY.category,
                 severity,
                 "`any` type is not allowed",
-                ctx.module.file_id,
                 span,
             )
-            .with_label("use `unknown` or a specific type instead");
+            .label("use `unknown` or a specific type instead");
 
             // compute fixes only when requested by the runner
             if ctx.compute_fixes {
                 let edits = ctx.edit_builder().replace(span, "unknown").into_edits();
                 let fix = LintFix::safe("Replace `any` with `unknown`").with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

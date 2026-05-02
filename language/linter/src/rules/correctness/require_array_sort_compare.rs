@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{is_array_type, is_string_array_type};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require comparison function for array `.sort()`.
@@ -147,16 +147,15 @@ impl<'a, 'b> ArraySortVisitor<'a, 'b> {
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 REQUIRE_ARRAY_SORT_COMPARE.id,
                 REQUIRE_ARRAY_SORT_COMPARE.code,
                 REQUIRE_ARRAY_SORT_COMPARE.category,
                 severity,
                 "array sort call requires a comparison function",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("provide a comparison function for non-string array ordering"),
+            .label("provide a comparison function for non-string array ordering"),
         );
     }
 }

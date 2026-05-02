@@ -8,7 +8,7 @@ use crate::rules::common::{
     binary_expression_chain_members, binary_expression_is_nested_same_operator,
     expression_is_in_type_position, expression_type_map, normalized_flow_type_id,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow type constituents made redundant by stronger constituents.
@@ -168,20 +168,19 @@ fn report_redundant_constituents(
         }
 
         let redundant_span = ctx.get_span(constituent.expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_REDUNDANT_TYPE_CONSTITUENTS.id,
             NO_REDUNDANT_TYPE_CONSTITUENTS.code,
             NO_REDUNDANT_TYPE_CONSTITUENTS.category,
             severity,
             "redundant type constituent",
-            ctx.module.file_id,
             redundant_span,
         )
-        .with_label("this constituent does not affect the resulting type");
+        .label("this constituent does not affect the resulting type");
 
         if let Some(dominant_index) = dominant_by_redundant.get(&index).copied() {
             let dominant_span = ctx.get_span(constituents[dominant_index].expression_id);
-            diagnostic = diagnostic.with_secondary(LabeledSpan::new(
+            diagnostic = diagnostic.secondary(LabeledSpan::new(
                 dominant_span,
                 "this constituent already determines the combined type",
             ));
@@ -202,7 +201,7 @@ fn report_redundant_constituents(
                 .replace(chain_span, replacement_text)
                 .into_edits();
             let fix = LintFix::safe("Remove redundant type constituents").with_edits(edits);
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         ctx.report(diagnostic);

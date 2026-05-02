@@ -5,7 +5,7 @@ use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{assign_pattern_target_symbol, collect_pattern_value_binding_symbols};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow sequential independent awaits in the same block.
@@ -83,17 +83,16 @@ fn report_sequential_independent_awaits(
             if severity.is_enabled() {
                 let current_span = ctx.get_span(current_await.statement_expression_id);
                 let previous_span = ctx.get_span(previous_await_statement.statement_expression_id);
-                let diagnostic = LintDiagnostic::new(
+                let diagnostic = LintReport::new(
                     NO_SEQUENTIAL_INDEPENDENT_AWAIT.id,
                     NO_SEQUENTIAL_INDEPENDENT_AWAIT.code,
                     NO_SEQUENTIAL_INDEPENDENT_AWAIT.category,
                     severity,
                     "sequential await expressions appear independent",
-                    ctx.module.file_id,
                     current_span,
                 )
-                .with_label("this await can likely run in parallel with the previous await")
-                .with_secondary(LabeledSpan::new(
+                .label("this await can likely run in parallel with the previous await")
+                .secondary(LabeledSpan::new(
                     previous_span,
                     "previous await does not feed this await",
                 ));

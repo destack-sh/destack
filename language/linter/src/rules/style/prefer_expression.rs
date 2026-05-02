@@ -7,7 +7,7 @@ use destack_core::StringId;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{assign_pattern_expression, expression_path_segments};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer expression-based if over statement-based pattern.
@@ -133,20 +133,19 @@ fn check_block(
             continue;
         }
 
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_EXPRESSION.id,
             PREFER_EXPRESSION.code,
             PREFER_EXPRESSION.category,
             severity,
             "prefer expression-based if over statement pattern",
-            ctx.module.file_id,
             tree.get_span(candidate.let_expression_id),
         )
-        .with_label("use `const x = if (condition) { a } else { b }` instead");
+        .label("use `const x = if (condition) { a } else { b }` instead");
         if ctx.compute_fixes
             && let Some(fix) = prefer_expression_fix(ctx, candidate)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         ctx.report(diagnostic);

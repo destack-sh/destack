@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     CallableOwnerId, callable_owner_span, for_each_callable_signature, parameter_type_expression_id,
 };
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow too many boolean parameters or type fields.
@@ -71,7 +71,7 @@ impl LintRule for NoExcessiveBooleans {
 
             // emit one callable boolean parameter overflow diagnostic
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_EXCESSIVE_BOOLEANS.id,
                     NO_EXCESSIVE_BOOLEANS.code,
                     NO_EXCESSIVE_BOOLEANS.category,
@@ -79,10 +79,8 @@ impl LintRule for NoExcessiveBooleans {
                     format!(
                         "function has {boolean_parameter_count} boolean parameters (max {max_booleans})"
                     ),
-                    ctx.module.file_id,
-                    owner_span,
-                )
-                .with_label("consider using an options object or enum"),
+                    owner_span)
+                .label("consider using an options object or enum"),
             );
         });
 
@@ -174,16 +172,15 @@ fn report_boolean_field_overflow<T: ast::Node + Clone>(
 
     // emit one field count overflow diagnostic
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             NO_EXCESSIVE_BOOLEANS.id,
             NO_EXCESSIVE_BOOLEANS.code,
             NO_EXCESSIVE_BOOLEANS.category,
             severity,
             format!("{type_kind} has {boolean_field_count} boolean fields (max {max_booleans})"),
-            ctx.module.file_id,
             owner_span,
         )
-        .with_label("consider grouping flags into enums or dedicated subtypes"),
+        .label("consider grouping flags into enums or dedicated subtypes"),
     );
 }
 

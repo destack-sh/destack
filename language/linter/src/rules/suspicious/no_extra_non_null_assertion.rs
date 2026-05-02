@@ -2,7 +2,7 @@ use destack_ast::{self as ast, Expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_optional_chain_target;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow extra non-null assertions.
@@ -58,16 +58,15 @@ impl LintRule for NoExtraNonNullAssertion {
 
             // build the nested assertion diagnostic
             let outer_span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_EXTRA_NON_NULL_ASSERTION.id,
                 NO_EXTRA_NON_NULL_ASSERTION.code,
                 NO_EXTRA_NON_NULL_ASSERTION.category,
                 severity,
                 "extra non-null assertion",
-                ctx.module.file_id,
                 outer_span,
             )
-            .with_label("remove the extra `!`");
+            .label("remove the extra `!`");
 
             // replace the outer expression with the inner assertion text
             if ctx.compute_fixes {
@@ -78,7 +77,7 @@ impl LintRule for NoExtraNonNullAssertion {
                     .replace(outer_span, inner_text)
                     .into_edits();
                 let fix = LintFix::safe("Remove extra `!`").with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

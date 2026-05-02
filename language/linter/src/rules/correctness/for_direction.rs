@@ -5,7 +5,7 @@ use crate::rules::common::{
     assign_pattern_expression, expression_numeric_sign, expression_path_segments,
     expression_unwrap_parenthesized_source_form,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow for loops that go in the wrong direction.
@@ -101,22 +101,21 @@ impl LintRule for ForDirection {
                 Direction::Increasing => "increase",
                 Direction::Decreasing => "decrease",
             };
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 FOR_DIRECTION.id,
                 FOR_DIRECTION.code,
                 FOR_DIRECTION.category,
                 severity,
                 format!("for loop counter should {direction_word} to match condition"),
-                ctx.module.file_id,
                 ctx.tree.get_span(node_id),
             )
-            .with_label("counter moves in wrong direction");
+            .label("counter moves in wrong direction");
 
             // attach a direction flip fix when supported
             if ctx.compute_fixes
                 && let Some(fix) = build_for_direction_fix(ctx, *increment_id, expected_direction)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             // report the lint

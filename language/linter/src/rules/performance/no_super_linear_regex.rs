@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 use regex_syntax::hir::{Hir, HirKind};
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow regular expressions with super-linear worst-case complexity.
@@ -69,16 +69,15 @@ impl LintRule for NoSuperLinearRegex {
                 continue;
             }
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_SUPER_LINEAR_REGEX.id,
                     NO_SUPER_LINEAR_REGEX.code,
                     NO_SUPER_LINEAR_REGEX.category,
                     severity,
                     problem,
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label("this pattern may cause catastrophic backtracking"),
+                .label("this pattern may cause catastrophic backtracking"),
             );
         }
     }

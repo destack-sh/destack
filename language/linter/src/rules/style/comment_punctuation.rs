@@ -7,7 +7,7 @@ use crate::rules::common::{
     has_doc_terminal_punctuation, is_directive_comment, is_doc_comment_source,
     is_non_prose_doc_line, is_separator_comment, parse_keyword_comment_with_options,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce comment punctuation conventions.
@@ -69,22 +69,21 @@ impl LintRule for CommentPunctuation {
                     continue;
                 }
 
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     COMMENT_PUNCTUATION.id,
                     COMMENT_PUNCTUATION.code,
                     COMMENT_PUNCTUATION.category,
                     severity,
                     "inline comment should not end with a period",
-                    ctx.module.file_id,
                     comment.span,
                 )
-                .with_label("remove trailing period");
+                .label("remove trailing period");
 
                 // compute fixes only when requested by the runner
                 if ctx.compute_fixes
                     && let Some(fix) = inline_comment_trailing_period_fix(ctx, comment.span)
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);
@@ -122,16 +121,15 @@ impl LintRule for CommentPunctuation {
                 }
 
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         COMMENT_PUNCTUATION.id,
                         COMMENT_PUNCTUATION.code,
                         COMMENT_PUNCTUATION.category,
                         severity,
                         "doc comment lines should end with punctuation",
-                        ctx.module.file_id,
                         comment.span,
                     )
-                    .with_label("add punctuation to each sentence line"),
+                    .label("add punctuation to each sentence line"),
                 );
             }
         }

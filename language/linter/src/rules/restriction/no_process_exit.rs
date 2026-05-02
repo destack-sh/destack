@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_is_symbol_or_global_qualified_member, expression_static_property_access,
     statement_expression_ancestor,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow process exit calls.
@@ -135,22 +135,21 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_PROCESS_EXIT.id,
             NO_PROCESS_EXIT.code,
             NO_PROCESS_EXIT.category,
             severity,
             "process exit usage",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("avoid calling process.exit");
+        .label("avoid calling process.exit");
 
         // compute fixes only when requested by the runner
         if self.ctx.include_fixes
             && let Some(fix) = no_process_exit_fix(self.ctx, expression_id)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

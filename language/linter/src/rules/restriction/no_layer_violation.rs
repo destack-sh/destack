@@ -6,7 +6,7 @@ use destack_source::{FileId, FileType, ModuleId, Span};
 use destack_workspace::{DiagnosticPolicy, LintModuleBoundariesOptions, LintSeverity};
 
 use crate::rules::common::glob_matches;
-use crate::{LintDiagnostic, LintRule, LintWorkspaceDirContext, declare_lint};
+use crate::{LintReport, LintRule, LintWorkspaceDirContext, declare_lint};
 
 declare_lint! {
     /// Disallow imports that violate configured module boundary constraints.
@@ -150,7 +150,7 @@ fn collect_forbidden_dependency_diagnostics(
     descriptors: &[ModuleDescriptor],
     descriptor_index: &HashMap<ModuleId, usize>,
     ctx: &LintWorkspaceDirContext,
-) -> Vec<LintDiagnostic> {
+) -> Vec<LintReport> {
     let mut diagnostics = Vec::new();
 
     // inspect dependency edges from each eligible source module
@@ -194,7 +194,7 @@ fn collect_forbidden_dependency_diagnostics(
             }
 
             diagnostics.push(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_LAYER_VIOLATION.id,
                     NO_LAYER_VIOLATION.code,
                     NO_LAYER_VIOLATION.category,
@@ -202,13 +202,11 @@ fn collect_forbidden_dependency_diagnostics(
                     format!(
                         "forbidden module boundary dependency from `{from_component}` to `{to_component}`"
                     ),
-                    source.file_id,
-                    Span::empty(source.file_id),
-                )
-                .with_label("this module imports across a forbidden boundary")
-                .with_note(format!("source module: {}", source.file_name))
-                .with_note(format!("target module: {}", target.file_name))
-                .with_note(format!(
+                    Span::empty(source.file_id))
+                .label("this module imports across a forbidden boundary")
+                .note(format!("source module: {}", source.file_name))
+                .note(format!("target module: {}", target.file_name))
+                .note(format!(
                     "allowed dependencies for `{from_component}` are configured by linter.moduleBoundaries.rules"
                 )),
             );
@@ -271,18 +269,17 @@ fn report_unknown_component_modules(
         }
 
         ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_LAYER_VIOLATION.id,
                 NO_LAYER_VIOLATION.code,
                 NO_LAYER_VIOLATION.category,
                 severity,
                 "module is not assigned to any configured component",
-                descriptor.file_id,
                 Span::empty(descriptor.file_id),
             )
-            .with_label("this module does not match any linter.moduleBoundaries.components pattern")
-            .with_note(format!("module: {}", descriptor.file_name))
-            .with_note("add a matching component pattern or relax unknownComponentPolicy"),
+            .label("this module does not match any linter.moduleBoundaries.components pattern")
+            .note(format!("module: {}", descriptor.file_name))
+            .note("add a matching component pattern or relax unknownComponentPolicy"),
         );
     }
 }
@@ -431,7 +428,7 @@ mod tests {
     fn lint_workspace_with_modules(
         modules: &[(&str, &str)],
         configure: impl FnOnce(&mut destack_workspace::LinterOptions),
-    ) -> (TestProgram, Vec<LintDiagnostic>) {
+    ) -> (TestProgram, Vec<LintReport>) {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoLayerViolation)])
             .with_options(configure);
         let diagnostics = test.lint_workspace_dir_with_modules(modules);
@@ -470,7 +467,7 @@ mod tests {
     }
 
     /// Return diagnostics emitted by this rule only.
-    fn no_layer_violation_diagnostics(diagnostics: &[LintDiagnostic]) -> Vec<&LintDiagnostic> {
+    fn no_layer_violation_diagnostics(diagnostics: &[LintReport]) -> Vec<&LintReport> {
         diagnostics
             .iter()
             .filter(|diagnostic| diagnostic.rule_id == "no-layer-violation")
@@ -478,7 +475,7 @@ mod tests {
     }
 
     /// Return diagnostics emitted for forbidden dependency edges only.
-    fn forbidden_dependency_diagnostics(diagnostics: &[LintDiagnostic]) -> Vec<&LintDiagnostic> {
+    fn forbidden_dependency_diagnostics(diagnostics: &[LintReport]) -> Vec<&LintReport> {
         no_layer_violation_diagnostics(diagnostics)
             .into_iter()
             .filter(|diagnostic| {
@@ -490,11 +487,11 @@ mod tests {
     }
 
     /// Return diagnostics emitted for unknown component modules only.
-    fn unknown_component_diagnostics(diagnostics: &[LintDiagnostic]) -> Vec<&LintDiagnostic> {
+    fn unknown_component_diagnostics(diagnostics: &[LintReport]) -> Vec<&LintReport> {
         no_layer_violation_diagnostics(diagnostics)
             .into_iter()
             .filter(|diagnostic| {
-                diagnostic.message == "module is not assigned to any configured component"
+                diagnostic.message() == "module is not assigned to any configured component"
             })
             .collect()
     }

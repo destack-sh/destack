@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, Declaration};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer named extensions for foreign types.
@@ -60,16 +60,15 @@ impl LintRule for PreferNamedExtension {
                 }
 
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         PREFER_NAMED_EXTENSION.id,
                         PREFER_NAMED_EXTENSION.code,
                         PREFER_NAMED_EXTENSION.category,
                         severity,
                         "prefer named extension for foreign type",
-                        ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label("add a name to this extension"),
+                    .label("add a name to this extension"),
                 );
             }
         }

@@ -6,8 +6,9 @@ use std::sync::{Arc, LazyLock, Once};
 
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload,
-    ArtifactProvider, ArtifactVersion, Ast, EmitFormat, MemoryCacheStore, Platform, ProfileFlags,
-    ProfileKey, ProvideError, ProviderContext, RequireError, Runtime,
+    ArtifactProvider, ArtifactVersion, Ast, DiagnosticAnchor, DiagnosticContext, DiagnosticError,
+    EmitFormat, MemoryCacheStore, Platform, ProfileFlags, ProfileKey, ProviderContext,
+    ProviderError, RequireError, Runtime, ToDiagnostic,
 };
 use destack_ast as ast;
 use destack_ast::NodeParentIndex;
@@ -18,9 +19,10 @@ use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_li
 use destack_parser::{Parser, ParserSettings};
 use destack_session::open_repository_from_fs;
 use destack_source::{
-    DiagnosticCollection, DiagnosticSeverity, DiffOptions, Edit as SourceEdit, File, FileId,
-    FileSystem, FileType, LanguageType, Loader, ModuleId, OverlayFileSystem, PackageId,
-    PhysicalFileSystem, PrintOptions, Uri, print_diagnostics, print_diff,
+    DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, DiffOptions, Edit as SourceEdit,
+    File, FileContentId, FileId, FileSystem, FileType, LanguageType, Loader, ModuleId,
+    OverlayFileSystem, PackageId, PhysicalFileSystem, PrintOptions, Span, TargetId, Uri,
+    print_diagnostics, print_diff,
 };
 use destack_workspace::{
     Edit as RepositoryEdit, HostEnvironment, LintCategory, LintSeverity, LinterOptions, Module,
@@ -29,8 +31,8 @@ use destack_workspace::{
 use parking_lot::Mutex;
 
 use crate::{
-    BoxedLintRule, Fixability, LintDiagnostic, LintLevel, LintModuleReport, LintRequirement,
-    LintRule, LintRunReport, LintRunner,
+    BoxedLintRule, Fixability, LintLevel, LintModuleReport, LintReport, LintRequirement, LintRule,
+    LintRunReport, LintRunner,
 };
 
 /// Shared memory cache store for linter tests.
@@ -89,11 +91,37 @@ impl TestProviderContext {
             .fail_artifact(self.revision, version, dependencies, diagnostics, failure)
             .expect("linter test provider should record failed artifact version");
     }
+
+    /// Build one invalid diagnostic anchor error.
+    fn invalid_anchor(message: impl Into<String>) -> DiagnosticError {
+        DiagnosticError::InvalidAnchor {
+            message: message.into(),
+        }
+    }
+
+    /// Return one exact file content id.
+    fn file_content_id(&self, file_id: FileId) -> Result<FileContentId, DiagnosticError> {
+        let content = self
+            .repository
+            .file_content_id(self.revision, file_id)
+            .map_err(|error| {
+                Self::invalid_anchor(format!(
+                    "failed to read diagnostic file content id: {error}"
+                ))
+            })?;
+        let Some(content) = content else {
+            return Err(Self::invalid_anchor(format!(
+                "diagnostic file is not tracked in revision: {file_id:?}"
+            )));
+        };
+
+        Ok(content)
+    }
 }
 
 /// Seed one source-derived artifact for linter compiler tests.
 fn provide_source_artifact(compiler: &Compiler, context: &TestProviderContext) -> ArtifactPayload {
-    match context.key() {
+    match context.artifact_key() {
         ArtifactKey::Ast { module } => provide_ast(compiler, module, context),
         ArtifactKey::Data { module } => {
             panic!("data artifact reached linter test source provider for {module:?}")
@@ -154,7 +182,7 @@ fn source_file(
         .unwrap_or_else(|error| panic!("failed to load source file: {error}"))
         .unwrap_or_else(|| panic!("missing source file for {file_id:?}"));
 
-    context.dependency(ArtifactDependency::file_content(file_id, content_id));
+    context.track(ArtifactDependency::file_content(file_id, content_id));
 
     file
 }
@@ -185,7 +213,7 @@ fn parse_code_ast(
     let mut parser =
         Parser::lex_file_with_settings(file.clone(), language_type, ParserSettings::default());
     let expressions = parser.parse();
-    context.diagnostics(parser.diagnostics.collect());
+    context.emit_collection(parser.diagnostics.collect());
 
     let (tokens, side_tokens) = parser.take_tokens();
     let strings = StringPool::from_local(parser.strings);
@@ -244,7 +272,7 @@ fn language_type_for_code_file(
             .file_content_id(context.revision(), file_id)
             .unwrap_or_else(|error| panic!("failed to load source content id: {error}"))
             .unwrap_or_else(|| panic!("missing source content id for {file_id:?}"));
-        context.dependency(ArtifactDependency::file_content(file_id, content_id));
+        context.track(ArtifactDependency::file_content(file_id, content_id));
     }
 
     let package_options = compiler
@@ -258,6 +286,128 @@ fn language_type_for_code_file(
     LanguageType::JavaScript
 }
 
+impl DiagnosticContext for TestProviderContext {
+    /// Resolve one provider diagnostic anchor into a final source label.
+    fn label(
+        &self,
+        anchor: &DiagnosticAnchor,
+        message: Option<String>,
+    ) -> Result<DiagnosticLabel, DiagnosticError> {
+        let span = match anchor {
+            DiagnosticAnchor::Span(span) => {
+                self.file_content_id(span.file)?;
+
+                *span
+            }
+            DiagnosticAnchor::File(file) => {
+                self.file_content_id(*file)?;
+
+                Span::empty(*file)
+            }
+            DiagnosticAnchor::Module(module) => {
+                let module_id = *module;
+                let module = self
+                    .repository
+                    .module(self.revision, module_id)
+                    .expect("linter test provider should read module");
+                let Some(module) = module else {
+                    return Err(Self::invalid_anchor(format!(
+                        "diagnostic module is not tracked in revision: {module_id:?}"
+                    )));
+                };
+                self.file_content_id(module.file_id)?;
+
+                Span::empty(module.file_id)
+            }
+            DiagnosticAnchor::Package(package) => {
+                let package_id = *package;
+                let package = self
+                    .repository
+                    .package(self.revision, package_id)
+                    .expect("linter test provider should read package");
+                let Some(package) = package else {
+                    return Err(Self::invalid_anchor(format!(
+                        "diagnostic package is not tracked in revision: {package_id:?}"
+                    )));
+                };
+                let Some(file_id) = package.destack_file_id.or(package.package_file_id) else {
+                    return Err(Self::invalid_anchor(format!(
+                        "diagnostic package has no manifest file: {package_id:?}"
+                    )));
+                };
+                self.file_content_id(file_id)?;
+
+                Span::empty(file_id)
+            }
+        };
+
+        let content = self.file_content_id(span.file)?;
+
+        Ok(DiagnosticLabel {
+            content,
+            span,
+            message,
+        })
+    }
+
+    /// Format one module id when the context can resolve it.
+    fn format_module_id(&self, module: ModuleId) -> Result<String, DiagnosticError> {
+        let module_id = module;
+        let module = self
+            .repository
+            .module(self.revision, module_id)
+            .expect("linter test provider should read module");
+        let Some(module) = module else {
+            return Err(Self::invalid_anchor(format!(
+                "diagnostic module is not tracked in revision: {module_id:?}"
+            )));
+        };
+
+        Ok(module.uri.to_string())
+    }
+
+    /// Format one package id when the context can resolve it.
+    fn format_package_id(&self, package: PackageId) -> Result<String, DiagnosticError> {
+        let package_id = package;
+        let package = self
+            .repository
+            .package(self.revision, package_id)
+            .expect("linter test provider should read package");
+        let Some(package) = package else {
+            return Err(Self::invalid_anchor(format!(
+                "diagnostic package is not tracked in revision: {package_id:?}"
+            )));
+        };
+        let name = package
+            .name
+            .clone()
+            .or_else(|| package.path.as_ref().map(|path| path.display().to_string()));
+        let Some(name) = name else {
+            return Err(Self::invalid_anchor(format!(
+                "diagnostic package has no display name: {package_id:?}"
+            )));
+        };
+
+        Ok(name)
+    }
+
+    /// Format one target id when the context can resolve it.
+    fn format_target_id(&self, target: TargetId) -> Result<String, DiagnosticError> {
+        let target_id = target;
+        let target = self
+            .repository
+            .effective_target(self.revision, target_id)
+            .expect("linter test provider should read target");
+        let Some(target) = target else {
+            return Err(Self::invalid_anchor(format!(
+                "diagnostic target is not tracked in revision: {target_id:?}"
+            )));
+        };
+
+        Ok(target.name)
+    }
+}
+
 impl ProviderContext for TestProviderContext {
     type Revision = Revision;
 
@@ -267,7 +417,7 @@ impl ProviderContext for TestProviderContext {
     }
 
     /// Return the artifact key being built.
-    fn key(&self) -> ArtifactKey {
+    fn artifact_key(&self) -> ArtifactKey {
         self.artifact_key
     }
 
@@ -309,20 +459,35 @@ impl ProviderContext for TestProviderContext {
     }
 
     /// Record one exact dependency read by this attempt.
-    fn dependency(&self, dependency: ArtifactDependency) {
+    fn track(&self, dependency: ArtifactDependency) {
         let mut dependencies = self.dependencies.lock();
         if !dependencies.iter().any(|existing| existing == &dependency) {
             dependencies.push(dependency);
         }
     }
 
-    /// Record diagnostics produced by this attempt.
-    fn diagnostics(&self, diagnostics: DiagnosticCollection) {
+    /// Record an already-final diagnostic collection produced by this attempt.
+    fn emit_collection(&self, diagnostics: DiagnosticCollection) {
         if diagnostics.is_empty() {
             return;
         }
 
         self.diagnostics.lock().merge_from(&diagnostics);
+    }
+
+    /// Record one diagnostic produced by this attempt.
+    fn emit(
+        &self,
+        diagnostic: &dyn destack_artifact::DiagnosticLike,
+    ) -> Result<(), DiagnosticError> {
+        let diagnostic = diagnostic
+            .to_diagnostic(self)
+            .expect("linter test provider should finalize diagnostic");
+        let diagnostics = DiagnosticCollection::from_diagnostics(vec![diagnostic]);
+
+        self.emit_collection(diagnostics);
+
+        Ok(())
     }
 }
 
@@ -718,22 +883,26 @@ impl TestProgram {
 
             match self.compiler.provide(context.as_ref()) {
                 Ok(payload) => context.publish(payload),
-                Err(ProvideError::Blocked { keys }) => {
-                    pending_artifact_keys.push(artifact_key);
-                    pending_artifact_keys.extend(keys);
-                }
-                Err(ProvideError::RequirementFailed { key }) => {
-                    context.fail(ArtifactFailure::requirement(key));
-                }
-                Err(ProvideError::Corrupt { version }) => {
-                    panic!(
-                        "failed to provide linter test artifact {artifact_key:?}: corrupt artifact {version:?}"
-                    );
-                }
-                Err(ProvideError::Failed { failure }) => context.fail(failure),
-                Err(ProvideError::Internal { message }) => {
-                    panic!("failed to provide linter test artifact {artifact_key:?}: {message}");
-                }
+                Err(error) => match *error {
+                    ProviderError::Blocked { keys } => {
+                        pending_artifact_keys.push(artifact_key);
+                        pending_artifact_keys.extend(keys);
+                    }
+                    ProviderError::RequirementFailed { key } => {
+                        context.fail(ArtifactFailure::requirement(key));
+                    }
+                    ProviderError::Corrupt { version } => {
+                        panic!(
+                            "failed to provide linter test artifact {artifact_key:?}: corrupt artifact {version:?}"
+                        );
+                    }
+                    ProviderError::Failed { failure } => context.fail(failure),
+                    ProviderError::Internal { message } => {
+                        panic!(
+                            "failed to provide linter test artifact {artifact_key:?}: {message}"
+                        );
+                    }
+                },
             }
         }
     }
@@ -784,7 +953,7 @@ impl TestProgram {
     }
 
     /// Lint a module at the given level.
-    pub(crate) fn lint_module(&self, module: ModuleId, level: LintLevel) -> Vec<LintDiagnostic> {
+    pub(crate) fn lint_module(&self, module: ModuleId, level: LintLevel) -> Vec<LintReport> {
         let revision = self.current_revision();
         let module = self.repository_module(module);
         let profile = self.profile.clone();
@@ -818,7 +987,7 @@ impl TestProgram {
     }
 
     /// Add module, compile through analysis, and lint at DIR level.
-    pub(crate) fn lint_dir(&self, path: &str, content: &str) -> Vec<LintDiagnostic> {
+    pub(crate) fn lint_dir(&self, path: &str, content: &str) -> Vec<LintReport> {
         let module = self.add_module(path, content);
         self.import_module(module);
         self.enqueue_profile_resolution_once();
@@ -828,7 +997,7 @@ impl TestProgram {
     }
 
     /// Add module, import only (parse), and lint at AST level.
-    pub(crate) fn lint_ast(&self, path: &str, content: &str) -> Vec<LintDiagnostic> {
+    pub(crate) fn lint_ast(&self, path: &str, content: &str) -> Vec<LintReport> {
         let module = self.add_module(path, content);
         self.import_module(module);
         self.compile();
@@ -869,7 +1038,7 @@ impl TestProgram {
         &self,
         modules: &[(&str, &str)],
         target_path: &str,
-    ) -> Vec<LintDiagnostic> {
+    ) -> Vec<LintReport> {
         let module_entries = self.prepare_dir_modules(modules);
 
         // resolve target module id from path
@@ -885,7 +1054,7 @@ impl TestProgram {
     pub(crate) fn lint_package_dir_with_modules(
         &self,
         modules: &[(&str, &str)],
-    ) -> Vec<LintDiagnostic> {
+    ) -> Vec<LintReport> {
         self.prepare_dir_modules(modules);
         self.lint_package_dir()
     }
@@ -894,13 +1063,13 @@ impl TestProgram {
     pub(crate) fn lint_workspace_dir_with_modules(
         &self,
         modules: &[(&str, &str)],
-    ) -> Vec<LintDiagnostic> {
+    ) -> Vec<LintReport> {
         self.prepare_dir_modules(modules);
         self.lint_workspace_dir()
     }
 
     /// Lint the full workspace with workspace-scope rules.
-    pub(crate) fn lint_workspace_ast(&self) -> Vec<LintDiagnostic> {
+    pub(crate) fn lint_workspace_ast(&self) -> Vec<LintReport> {
         let revision = self.current_revision();
         self.runner
             .lint_workspace_ast(self.repository.clone(), revision, &self.linter_options)
@@ -917,7 +1086,7 @@ impl TestProgram {
     }
 
     /// Lint the active package with package-scope AST rules.
-    pub(crate) fn lint_package_ast(&self) -> Vec<LintDiagnostic> {
+    pub(crate) fn lint_package_ast(&self) -> Vec<LintReport> {
         let revision = self.current_revision();
         self.runner.lint_package_ast(
             self.repository.clone(),
@@ -939,7 +1108,7 @@ impl TestProgram {
     }
 
     /// Lint the active package with package-scope DIR rules.
-    pub(crate) fn lint_package_dir(&self) -> Vec<LintDiagnostic> {
+    pub(crate) fn lint_package_dir(&self) -> Vec<LintReport> {
         let revision = self.current_revision();
         self.runner.lint_package_dir(
             self.repository.clone(),
@@ -963,7 +1132,7 @@ impl TestProgram {
     }
 
     /// Lint the active workspace with workspace-scope DIR rules.
-    pub(crate) fn lint_workspace_dir(&self) -> Vec<LintDiagnostic> {
+    pub(crate) fn lint_workspace_dir(&self) -> Vec<LintReport> {
         let revision = self.current_revision();
         self.runner.lint_workspace_dir(
             self.repository.clone(),
@@ -985,7 +1154,7 @@ impl TestProgram {
     }
 
     /// Lint the active workspace and package scope rules.
-    pub(crate) fn lint_workspace(&self) -> Vec<LintDiagnostic> {
+    pub(crate) fn lint_workspace(&self) -> Vec<LintReport> {
         let mut diagnostics = self.lint_workspace_ast();
         diagnostics.extend(self.lint_package_ast());
         diagnostics.extend(self.lint_workspace_dir());
@@ -1033,7 +1202,8 @@ impl TestProgram {
                 &|file_id| self.repository.file(revision, file_id).ok().flatten(),
                 &diagnostics,
                 PrintOptions::new().with_line_width(120),
-            );
+            )
+            .expect("compiler diagnostics should print");
             let severity_name = min_severity.family_name().to_ascii_lowercase();
             panic!(
                 "repository has {} unexpected {severity_name}s",
@@ -1049,7 +1219,7 @@ impl TestProgram {
     }
 
     /// Wrap diagnostics in a LintResult for assertion methods.
-    pub(crate) fn result(&self, diagnostics: Vec<LintDiagnostic>) -> LintResult<'_> {
+    pub(crate) fn result(&self, diagnostics: Vec<LintReport>) -> LintResult<'_> {
         LintResult::new(
             diagnostics,
             self.repository.as_ref(),
@@ -1060,7 +1230,7 @@ impl TestProgram {
 
 /// Result of linting that can be asserted on.
 pub(crate) struct LintResult<'a> {
-    diagnostics: Vec<LintDiagnostic>,
+    diagnostics: Vec<LintReport>,
     repository: &'a Repository,
     revision: Revision,
 }
@@ -1069,7 +1239,7 @@ pub(crate) struct LintResult<'a> {
 impl<'a> LintResult<'a> {
     /// Create a new lint result.
     pub(crate) fn new(
-        diagnostics: Vec<LintDiagnostic>,
+        diagnostics: Vec<LintReport>,
         repository: &'a Repository,
         revision: Revision,
     ) -> Self {
@@ -1090,21 +1260,26 @@ impl<'a> LintResult<'a> {
     }
 
     /// Get the diagnostics.
-    pub(crate) fn diagnostics(&self) -> &[LintDiagnostic] {
+    pub(crate) fn diagnostics(&self) -> &[LintReport] {
         &self.diagnostics
     }
 
     /// Print lint diagnostics using the standard diagnostic printer.
-    fn print_diagnostics(&self, diagnostics: &[LintDiagnostic]) {
+    fn print_diagnostics(&self, diagnostics: &[LintReport]) {
         let mut collection = DiagnosticCollection::new();
-        for d in diagnostics {
-            collection.insert(d.clone().into_diagnostic());
+        for diagnostic in diagnostics {
+            let diagnostic = diagnostic
+                .to_diagnostic(self)
+                .expect("lint test diagnostic should resolve");
+            collection.insert(diagnostic);
         }
+
         print_diagnostics(
             &|file_id| self.repository.file(self.revision, file_id).ok().flatten(),
             &collection,
             PrintOptions::new().with_line_width(120),
-        );
+        )
+        .expect("lint diagnostics should print");
     }
 
     /// Assert diagnostics contain a lint with the given rule id.
@@ -1160,8 +1335,9 @@ impl<'a> LintResult<'a> {
         }
 
         for diagnostic in &matching {
-            let file = self.repository_file(diagnostic.file_id);
-            if let Some((line_index, _)) = file.get_position(diagnostic.span.start) {
+            let span = diagnostic.primary;
+            let file = self.repository_file(span.file);
+            if let Some((line_index, _)) = file.get_position(span.start) {
                 let diagnostic_line = line_index + 1;
                 if diagnostic_line == line {
                     return self;
@@ -1172,8 +1348,8 @@ impl<'a> LintResult<'a> {
         let lines: Vec<_> = matching
             .iter()
             .filter_map(|d| {
-                let file = self.repository_file(d.file_id);
-                file.get_position(d.span.start)
+                let file = self.repository_file(d.primary.file);
+                file.get_position(d.primary.start)
                     .map(|(line_index, _)| line_index + 1)
             })
             .collect();
@@ -1186,7 +1362,7 @@ impl<'a> LintResult<'a> {
         // return original source if no edits
         if edits.is_empty() {
             if let Some(d) = self.diagnostics.first() {
-                let file = self.repository_file(d.file_id);
+                let file = self.repository_file(d.primary.file);
                 return file.text().to_string();
             }
             return String::new();
@@ -1347,5 +1523,107 @@ impl<'a> LintResult<'a> {
         }
 
         result
+    }
+}
+
+impl DiagnosticContext for LintResult<'_> {
+    /// Resolve one lint diagnostic anchor into a final source label.
+    fn label(
+        &self,
+        anchor: &DiagnosticAnchor,
+        message: Option<String>,
+    ) -> Result<DiagnosticLabel, DiagnosticError> {
+        let span = match anchor {
+            DiagnosticAnchor::Span(span) => *span,
+            DiagnosticAnchor::File(file) => Span::empty(*file),
+            DiagnosticAnchor::Module(module) => {
+                let module = self
+                    .repository
+                    .module(self.revision, *module)
+                    .map_err(|error| DiagnosticError::InvalidAnchor {
+                        message: format!("failed to read diagnostic module: {error}"),
+                    })?;
+                let Some(module) = module else {
+                    return Err(DiagnosticError::InvalidAnchor {
+                        message: format!("diagnostic module is not tracked: {module:?}"),
+                    });
+                };
+
+                Span::empty(module.file_id)
+            }
+            DiagnosticAnchor::Package(package) => {
+                let package =
+                    self.repository
+                        .package(self.revision, *package)
+                        .map_err(|error| DiagnosticError::InvalidAnchor {
+                            message: format!("failed to read diagnostic package: {error}"),
+                        })?;
+                let Some(package) = package else {
+                    return Err(DiagnosticError::InvalidAnchor {
+                        message: format!("diagnostic package is not tracked: {package:?}"),
+                    });
+                };
+                let Some(file_id) = package.destack_file_id.or(package.package_file_id) else {
+                    return Err(DiagnosticError::InvalidAnchor {
+                        message: "diagnostic package has no manifest file".to_string(),
+                    });
+                };
+
+                Span::empty(file_id)
+            }
+        };
+        let content = self
+            .repository
+            .file_content_id(self.revision, span.file)
+            .map_err(|error| DiagnosticError::InvalidAnchor {
+                message: format!("failed to read diagnostic file content id: {error}"),
+            })?;
+        let Some(content) = content else {
+            return Err(DiagnosticError::InvalidAnchor {
+                message: format!("diagnostic file is not tracked: {:?}", span.file),
+            });
+        };
+
+        Ok(DiagnosticLabel {
+            content,
+            span,
+            message,
+        })
+    }
+
+    /// Format one module id when the context can resolve it.
+    fn format_module_id(&self, module: ModuleId) -> Result<String, DiagnosticError> {
+        self.repository
+            .module_display(self.revision, module)
+            .map_err(|error| DiagnosticError::InvalidAnchor {
+                message: format!("failed to format diagnostic module: {error}"),
+            })?
+            .ok_or_else(|| DiagnosticError::InvalidAnchor {
+                message: format!("diagnostic module is not tracked: {module:?}"),
+            })
+    }
+
+    /// Format one package id when the context can resolve it.
+    fn format_package_id(&self, package: PackageId) -> Result<String, DiagnosticError> {
+        self.repository
+            .package_display(self.revision, package)
+            .map_err(|error| DiagnosticError::InvalidAnchor {
+                message: format!("failed to format diagnostic package: {error}"),
+            })?
+            .ok_or_else(|| DiagnosticError::InvalidAnchor {
+                message: format!("diagnostic package has no display name: {package:?}"),
+            })
+    }
+
+    /// Format one target id when the context can resolve it.
+    fn format_target_id(&self, target: TargetId) -> Result<String, DiagnosticError> {
+        self.repository
+            .target_display(self.revision, target)
+            .map_err(|error| DiagnosticError::InvalidAnchor {
+                message: format!("failed to format diagnostic target: {error}"),
+            })?
+            .ok_or_else(|| DiagnosticError::InvalidAnchor {
+                message: format!("diagnostic target is not tracked: {target:?}"),
+            })
     }
 }

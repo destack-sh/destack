@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{fresh_name_in_symbol_scope, rename_local_symbol_fix};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow value bindings that shadow outer value bindings.
@@ -60,17 +60,16 @@ impl LintRule for NoShadow {
             let shadowed_note = symbol_name_text(ctx, shadowed_symbol)
                 .map(|name| format!("shadows outer binding `{name}`"))
                 .unwrap_or_else(|| "shadows an outer binding".to_string());
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_SHADOW.id,
                 NO_SHADOW.code,
                 NO_SHADOW.category,
                 severity,
                 format!("shadowed binding `{symbol_name}`"),
-                ctx.module.file_id,
                 span,
             )
-            .with_label("rename this binding to avoid shadowing")
-            .with_note(shadowed_note);
+            .label("rename this binding to avoid shadowing")
+            .note(shadowed_note);
 
             // offer a local rename fix when symbol references are directly editable
             if ctx.include_fixes
@@ -83,7 +82,7 @@ impl LintRule for NoShadow {
                     &format!("Rename `{symbol_name}` to `{replacement_name}`"),
                 )
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

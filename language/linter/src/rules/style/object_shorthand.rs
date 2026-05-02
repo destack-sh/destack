@@ -4,7 +4,7 @@ use destack_workspace::{LintSeverity, ObjectShorthandMode};
 use regex::Regex;
 
 use crate::rules::common::{expression_path_segments, span_has_comment};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer object shorthand form.
@@ -166,16 +166,15 @@ fn report_longform_property_if_needed(
         }
 
         let property_span = ctx.tree.get_span(property_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             OBJECT_SHORTHAND.id,
             OBJECT_SHORTHAND.code,
             OBJECT_SHORTHAND.category,
             severity,
             format!("property `{property_name}` can use shorthand form"),
-            ctx.module.file_id,
             property_span,
         )
-        .with_label("use shorthand `{ x }` instead of `{ x: x }`");
+        .label("use shorthand `{ x }` instead of `{ x: x }`");
 
         if ctx.compute_fixes && !span_has_comment(ctx.tree, property_span) {
             let edits = ctx
@@ -183,7 +182,7 @@ fn report_longform_property_if_needed(
                 .replace(property_span, property_name.clone())
                 .into_edits();
             let fix = LintFix::safe("Use property shorthand").with_edits(edits);
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         ctx.report(diagnostic);
@@ -200,16 +199,15 @@ fn report_longform_property_if_needed(
 
         let property_span = ctx.tree.get_span(property_id);
         ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 OBJECT_SHORTHAND.id,
                 OBJECT_SHORTHAND.code,
                 OBJECT_SHORTHAND.category,
                 severity,
                 format!("method `{method_name}` can use shorthand form"),
-                ctx.module.file_id,
                 property_span,
             )
-            .with_label("use shorthand method form"),
+            .label("use shorthand method form"),
         );
     }
 }
@@ -230,16 +228,15 @@ fn report_shorthand_property_if_needed(
     }
 
     let property_span = ctx.tree.get_span(property_id);
-    let mut diagnostic = LintDiagnostic::new(
+    let mut diagnostic = LintReport::new(
         OBJECT_SHORTHAND.id,
         OBJECT_SHORTHAND.code,
         OBJECT_SHORTHAND.category,
         severity,
         format!("property `{property_name}` should use longform form"),
-        ctx.module.file_id,
         property_span,
     )
-    .with_label("use longform property form");
+    .label("use longform property form");
 
     if matches!(ctx.tree.get(property_id), ast::Property::Field { .. })
         && ctx.compute_fixes
@@ -251,7 +248,7 @@ fn report_shorthand_property_if_needed(
             .replace(property_span, replacement)
             .into_edits();
         let fix = LintFix::safe("Use longform property form").with_edits(edits);
-        diagnostic = diagnostic.with_fix(fix);
+        diagnostic = diagnostic.fix(fix);
     }
 
     ctx.report(diagnostic);
@@ -270,16 +267,15 @@ fn report_object_mix(
 
     let span = ctx.tree.get_span(expression_id);
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             OBJECT_SHORTHAND.id,
             OBJECT_SHORTHAND.code,
             OBJECT_SHORTHAND.category,
             severity,
             "unexpected mix of shorthand and non-shorthand properties",
-            ctx.module.file_id,
             span,
         )
-        .with_label("use one shorthand style consistently within this object"),
+        .label("use one shorthand style consistently within this object"),
     );
 }
 
@@ -296,16 +292,15 @@ fn report_object_all_shorthand(
 
     let span = ctx.tree.get_span(expression_id);
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             OBJECT_SHORTHAND.id,
             OBJECT_SHORTHAND.code,
             OBJECT_SHORTHAND.category,
             severity,
             "expected shorthand for all properties",
-            ctx.module.file_id,
             span,
         )
-        .with_label("all eligible properties in this object can use shorthand"),
+        .label("all eligible properties in this object can use shorthand"),
     );
 }
 

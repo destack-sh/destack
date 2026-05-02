@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, Expression, MatchCase, Pattern, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest using if/else instead of match on booleans.
@@ -77,20 +77,19 @@ impl LintRule for PreferIfElseOverMatchBool {
                 continue;
             }
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 PREFER_IF_ELSE_OVER_MATCH_BOOL.id,
                 PREFER_IF_ELSE_OVER_MATCH_BOOL.code,
                 PREFER_IF_ELSE_OVER_MATCH_BOOL.category,
                 severity,
                 "use `if/else` instead of `match` on boolean",
-                ctx.module.file_id,
                 ctx.tree.get_span(node_id),
             )
-            .with_label("replace with if/else");
+            .label("replace with if/else");
             if ctx.compute_fixes
                 && let Some(fix) = prefer_if_else_over_match_bool_fix(ctx, node_id, *value, cases)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

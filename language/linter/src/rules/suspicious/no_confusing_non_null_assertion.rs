@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     assign_pattern_expression, expression_is_optional_chain_target, expression_trailing_bang_span,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow confusing non null assertions.
@@ -86,16 +86,15 @@ impl LintRule for NoConfusingNonNullAssertion {
                 ),
             };
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_CONFUSING_NON_NULL_ASSERTION.id,
                 NO_CONFUSING_NON_NULL_ASSERTION.code,
                 NO_CONFUSING_NON_NULL_ASSERTION.category,
                 severity,
                 message,
-                ctx.module.file_id,
                 ctx.tree.get_span(node_id),
             )
-            .with_label(label);
+            .label(label);
 
             if ctx.compute_fixes
                 && let Some(fix) = confusing_operator_fix(
@@ -104,7 +103,7 @@ impl LintRule for NoConfusingNonNullAssertion {
                     operator_case.kind,
                 )
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);
@@ -230,22 +229,21 @@ fn report_optional_chain_confusion_before(
     }
 
     // build one diagnostic for optional chain clarity
-    let mut diagnostic = LintDiagnostic::new(
+    let mut diagnostic = LintReport::new(
         NO_CONFUSING_NON_NULL_ASSERTION.id,
         NO_CONFUSING_NON_NULL_ASSERTION.code,
         NO_CONFUSING_NON_NULL_ASSERTION.category,
         severity,
         "confusing non-null assertion before optional chain",
-        ctx.module.file_id,
         ctx.tree.get_span(expression_id),
     )
-    .with_label("`!` before `?.` is confusing");
+    .label("`!` before `?.` is confusing");
 
     // attach one safe grouping fix when requested
     if ctx.compute_fixes
         && let Some(fix) = parenthesize_non_null_before_optional_chain_fix(ctx, expression_id)
     {
-        diagnostic = diagnostic.with_fix(fix);
+        diagnostic = diagnostic.fix(fix);
     }
 
     ctx.report(diagnostic);
@@ -265,16 +263,15 @@ fn report_optional_chain_confusion_after(
     }
 
     // build one diagnostic for optional chain clarity
-    let mut diagnostic = LintDiagnostic::new(
+    let mut diagnostic = LintReport::new(
         NO_CONFUSING_NON_NULL_ASSERTION.id,
         NO_CONFUSING_NON_NULL_ASSERTION.code,
         NO_CONFUSING_NON_NULL_ASSERTION.category,
         severity,
         "confusing non-null assertion after optional chain",
-        ctx.module.file_id,
         ctx.tree.get_span(must_expression_id),
     )
-    .with_label("`!` after `?.` chain is confusing");
+    .label("`!` after `?.` chain is confusing");
 
     // attach one safe grouping fix when requested
     if ctx.compute_fixes
@@ -284,7 +281,7 @@ fn report_optional_chain_confusion_after(
             optional_chain_id,
         )
     {
-        diagnostic = diagnostic.with_fix(fix);
+        diagnostic = diagnostic.fix(fix);
     }
 
     ctx.report(diagnostic);

@@ -7,7 +7,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_unwrap_parenthesized_source_form;
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the depth of nested callbacks.
@@ -61,7 +61,7 @@ impl LintRule for MaxNestedCallbacks {
             }
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     MAX_NESTED_CALLBACKS.id,
                     MAX_NESTED_CALLBACKS.code,
                     MAX_NESTED_CALLBACKS.category,
@@ -70,10 +70,9 @@ impl LintRule for MaxNestedCallbacks {
                         "callback nesting depth {} exceeds maximum of {}",
                         violation.depth, max_callbacks
                     ),
-                    ctx.module.file_id,
                     violation.span,
                 )
-                .with_label("consider using async and await or extracting to a named function"),
+                .label("consider using async and await or extracting to a named function"),
             );
         }
     }

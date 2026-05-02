@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_is_symbol_or_global_qualified_member, expression_static_property_access,
     span_has_comment,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `**` over `Math.pow()`.
@@ -112,18 +112,17 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
 
         // build diagnostic and attach fix when safe
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_EXPONENTIATION_OPERATOR.id,
             PREFER_EXPONENTIATION_OPERATOR.code,
             PREFER_EXPONENTIATION_OPERATOR.category,
             severity,
             "prefer ** operator over Math.pow()",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use base ** exponent instead");
+        .label("use base ** exponent instead");
         if let Some(fix) = self.math_pow_fix(expression_id, generic_arguments, arguments) {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

@@ -3,7 +3,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{declaration_at_allowed_root, declaration_expression};
-use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow function and `var` declarations in nested blocks.
@@ -109,16 +109,15 @@ fn report_nested_declaration<T: ast::Node>(
     }
 
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             NO_INNER_DECLARATIONS.id,
             NO_INNER_DECLARATIONS.code,
             NO_INNER_DECLARATIONS.category,
             severity,
             message,
-            ctx.module.file_id,
             span,
         )
-        .with_label("move declaration to a module, function, or static block root"),
+        .label("move declaration to a module, function, or static block root"),
     );
 }
 

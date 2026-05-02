@@ -8,7 +8,7 @@ use crate::rules::common::{
     function_parameter_types_at, is_explicit_any_type, is_promise_type, promise_rejection_callback,
     symbol_primary_declaration_for,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require `unknown` instead of `any` for Promise rejection callback variables.
@@ -118,7 +118,7 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
                     continue;
                 }
 
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.id,
                     USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.code,
                     USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.category,
@@ -127,17 +127,16 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
                         "{} callback parameter should be unknown",
                         callback.callback_kind
                     ),
-                    ctx.module.file_id,
                     diagnostic_span,
                 )
-                .with_label("use `unknown` instead of `any` for promise rejection callbacks");
+                .label("use `unknown` instead of `any` for promise rejection callbacks");
 
                 // compute fixes only when requested by the runner
                 if ctx.include_fixes
                     && let Some(parameter_id) = callback_parameter_id
                     && let Some(fix) = catch_callback_unknown_fix(ctx, parameter_id)
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

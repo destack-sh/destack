@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::callable_return_usage;
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow returning a value from a constructor.
@@ -65,22 +65,21 @@ impl LintRule for NoConstructorReturn {
                     continue;
                 }
 
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_CONSTRUCTOR_RETURN.id,
                     NO_CONSTRUCTOR_RETURN.code,
                     NO_CONSTRUCTOR_RETURN.category,
                     severity,
                     "return with value in constructor",
-                    ctx.module.file_id,
                     ctx.get_span(return_expression_id),
                 )
-                .with_label("constructors should not return values");
+                .label("constructors should not return values");
 
                 // attach the unsafe rewrite when requested
                 if ctx.include_fixes
                     && let Some(fix) = no_constructor_return_fix(ctx, return_expression_id)
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

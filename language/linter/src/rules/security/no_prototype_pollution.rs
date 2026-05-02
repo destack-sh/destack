@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{assign_pattern_target_expression, expression_target_symbol};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow patterns that may pollute Object.prototype.
@@ -202,16 +202,15 @@ impl<'a, 'b> NoPrototypePollutionVisitor<'a, 'b> {
         // report
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_PROTOTYPE_POLLUTION.id,
                 NO_PROTOTYPE_POLLUTION.code,
                 NO_PROTOTYPE_POLLUTION.category,
                 severity,
                 format!("potential prototype pollution via {context}"),
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("modifying prototypes can lead to security vulnerabilities"),
+            .label("modifying prototypes can lead to security vulnerabilities"),
         );
     }
 }

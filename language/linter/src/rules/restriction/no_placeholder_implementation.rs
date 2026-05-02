@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{argument_value_expression_id, expression_path_segments};
-use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow placeholder implementations.
@@ -66,16 +66,15 @@ impl LintRule for NoPlaceholderImplementation {
                     continue;
                 }
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_PLACEHOLDER_IMPLEMENTATION.id,
                         NO_PLACEHOLDER_IMPLEMENTATION.code,
                         NO_PLACEHOLDER_IMPLEMENTATION.category,
                         severity,
                         "placeholder implementation",
-                        ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label("implement the functionality"),
+                    .label("implement the functionality"),
                 );
             }
         }

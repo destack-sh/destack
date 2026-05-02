@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, TypeExpression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of variants in a union type or enum.
@@ -133,16 +133,15 @@ fn report_variant_overflow<T: ast::Node + Clone>(
 
     // emit one variant count overflow diagnostic
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             MAX_TYPE_VARIANTS.id,
             MAX_TYPE_VARIANTS.code,
             MAX_TYPE_VARIANTS.category,
             severity,
             format!("{type_kind} has {variant_count} variants (max {max_type_variants})"),
-            ctx.module.file_id,
             owner_span,
         )
-        .with_label("consider grouping related variants"),
+        .label("consider grouping related variants"),
     );
 }
 

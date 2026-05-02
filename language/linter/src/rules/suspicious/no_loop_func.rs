@@ -6,7 +6,7 @@ use destack_dir::{
 use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow functions in loops that capture mutable outer bindings.
@@ -139,20 +139,19 @@ impl<'a, 'b> NoLoopFuncVisitor<'a, 'b> {
 
         // report one diagnostic per function declaration
         let function_span = self.ctx.get_span(function_expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_LOOP_FUNC.id,
             NO_LOOP_FUNC.code,
             NO_LOOP_FUNC.category,
             severity,
             description,
-            self.ctx.module.file_id,
             function_span,
         )
-        .with_label("this function captures mutable state across loop iterations");
+        .label("this function captures mutable state across loop iterations");
 
         if let Some((_, reference_expression_id)) = collector.captured_symbols.iter().next() {
             let reference_span = self.ctx.get_span(*reference_expression_id);
-            diagnostic = diagnostic.with_secondary(LabeledSpan::new(
+            diagnostic = diagnostic.secondary(LabeledSpan::new(
                 reference_span,
                 "captured mutable binding referenced here",
             ));

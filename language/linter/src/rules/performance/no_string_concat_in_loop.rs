@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_enters_nested_declaration_scope, expression_reference_path,
     expression_unwrap_parenthesized, is_string_type,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow string concatenation in loops.
@@ -148,16 +148,15 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_STRING_CONCAT_IN_LOOP.id,
                 NO_STRING_CONCAT_IN_LOOP.code,
                 NO_STRING_CONCAT_IN_LOOP.category,
                 severity,
                 "string concatenation inside a loop can be costly",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("consider collecting and joining instead"),
+            .label("consider collecting and joining instead"),
         );
     }
 

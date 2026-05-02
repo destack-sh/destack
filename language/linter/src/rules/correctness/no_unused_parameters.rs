@@ -7,7 +7,7 @@ use crate::rules::common::{
     collect_module_resolved_read_symbol_usage, collect_parameter_value_binding_symbols,
     parameter_binding_span,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow parameters that are never used.
@@ -82,22 +82,21 @@ impl LintRule for NoUnusedParameters {
 
                     // report one unused named parameter
                     let span = ctx.get_span(parameter_id);
-                    let mut diagnostic = LintDiagnostic::new(
+                    let mut diagnostic = LintReport::new(
                         NO_UNUSED_PARAMETERS.id,
                         NO_UNUSED_PARAMETERS.code,
                         NO_UNUSED_PARAMETERS.category,
                         severity,
                         "unused parameter",
-                        ctx.module.file_id,
                         span,
                     )
-                    .with_label("this parameter is never used");
+                    .label("this parameter is never used");
 
                     // compute fixes only when requested by the runner
                     if ctx.include_fixes
                         && let Some(fix) = unused_named_parameter_fix(ctx, parameter_id)
                     {
-                        diagnostic = diagnostic.with_fix(fix);
+                        diagnostic = diagnostic.fix(fix);
                     }
 
                     ctx.report(diagnostic);
@@ -172,16 +171,15 @@ impl LintRule for NoUnusedParameters {
                         // report one unused pattern binding
                         let span = parameter_binding_span(ctx, parameter_id, local_node_id);
                         ctx.report(
-                            LintDiagnostic::new(
+                            LintReport::new(
                                 NO_UNUSED_PARAMETERS.id,
                                 NO_UNUSED_PARAMETERS.code,
                                 NO_UNUSED_PARAMETERS.category,
                                 severity,
                                 "unused parameter binding",
-                                ctx.module.file_id,
                                 span,
                             )
-                            .with_label("this parameter binding is never used"),
+                            .label("this parameter binding is never used"),
                         );
                     }
                 }

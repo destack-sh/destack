@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{BlockDuplicateTracker, ExpressionDuplicateTracker, span_has_comment};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Warn on match arms with identical bodies.
@@ -72,22 +72,21 @@ impl LintRule for NoDuplicateMatchArms {
                         continue;
                     }
 
-                    let mut diagnostic = LintDiagnostic::new(
+                    let mut diagnostic = LintReport::new(
                         NO_DUPLICATE_MATCH_ARMS.id,
                         NO_DUPLICATE_MATCH_ARMS.code,
                         NO_DUPLICATE_MATCH_ARMS.category,
                         severity,
                         "duplicate match arm body",
-                        ctx.module.file_id,
                         ctx.tree.get_span(*case_id),
                     )
-                    .with_label("this arm has the same body as a previous arm");
+                    .label("this arm has the same body as a previous arm");
 
                     // compute fixes only when requested by the runner
                     if ctx.compute_fixes
                         && let Some(fix) = duplicate_match_arm_fix(ctx, *case_id)
                     {
-                        diagnostic = diagnostic.with_fix(fix);
+                        diagnostic = diagnostic.fix(fix);
                     }
 
                     ctx.report(diagnostic);

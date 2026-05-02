@@ -3,7 +3,7 @@ use destack_core::StringId;
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow default exports.
@@ -46,16 +46,15 @@ impl LintRule for NoDefaultExport {
             }
             let span = ctx.get_span(node_id);
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_DEFAULT_EXPORT.id,
                     NO_DEFAULT_EXPORT.code,
                     NO_DEFAULT_EXPORT.category,
                     severity,
                     "default export",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("use named exports instead"),
+                .label("use named exports instead"),
             );
         }
 
@@ -79,22 +78,21 @@ impl LintRule for NoDefaultExport {
                     continue;
                 }
                 let span = ctx.get_span(node_id);
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_DEFAULT_EXPORT.id,
                     NO_DEFAULT_EXPORT.code,
                     NO_DEFAULT_EXPORT.category,
                     severity,
                     "default export",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("use named exports instead");
+                .label("use named exports instead");
 
                 // compute fixes only when requested by the runner
                 if ctx.include_fixes
                     && let Some(fix) = default_export_declaration_fix(ctx, node_id)
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);
@@ -221,7 +219,7 @@ mod tests {
     fn lint_module_with_modules(
         modules: &[(&str, &str)],
         target_path: &str,
-    ) -> (TestProgram, Vec<LintDiagnostic>) {
+    ) -> (TestProgram, Vec<LintReport>) {
         let test = TestProgram::for_rule_without_prelude(NoDefaultExport);
         let diagnostics = test.lint_module_dir_with_modules(modules, target_path);
         test.check_clean();

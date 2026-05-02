@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Warn on single-element tuples that may be accidental.
@@ -44,22 +44,21 @@ impl LintRule for NoSingleElementTuple {
                     continue;
                 }
 
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_SINGLE_ELEMENT_TUPLE.id,
                     NO_SINGLE_ELEMENT_TUPLE.code,
                     NO_SINGLE_ELEMENT_TUPLE.category,
                     severity,
                     "single-element tuple",
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label("consider using an array or newtype instead");
+                .label("consider using an array or newtype instead");
 
                 // compute fixes only when requested by the runner
                 if ctx.compute_fixes
                     && let Some(fix) = no_single_element_tuple_fix(ctx, node_id, elements[0])
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

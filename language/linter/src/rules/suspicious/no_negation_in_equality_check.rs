@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_can_start_expression_statement, expression_is_direct_statement,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow negation in equality checks.
@@ -86,16 +86,15 @@ impl LintRule for NoNegationInEqualityCheck {
             let unary_argument_span = ctx.tree.get_span(*unary_argument_id);
             let unary_argument_text = ctx.get_span_text(unary_argument_span).to_string();
             let expression_span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_NEGATION_IN_EQUALITY_CHECK.id,
                 NO_NEGATION_IN_EQUALITY_CHECK.code,
                 NO_NEGATION_IN_EQUALITY_CHECK.category,
                 severity,
                 "negated expression in equality check is confusing",
-                ctx.module.file_id,
                 expression_span,
             )
-            .with_label("remove `!` and invert the equality operator");
+            .label("remove `!` and invert the equality operator");
 
             // attach a fix when text extraction is stable
             if ctx.compute_fixes && !unary_argument_text.trim().is_empty() {
@@ -114,7 +113,7 @@ impl LintRule for NoNegationInEqualityCheck {
                         .into_edits();
                     let fix = LintFix::suggestion("Invert equality and remove leading negation")
                         .with_edits(edits);
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
             }
 

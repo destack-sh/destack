@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_is_standalone_statement, is_array_type, is_async_function_type,
     strip_dot_member_suffix,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `forEach` with async callback.
@@ -146,20 +146,19 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_ASYNC_FOREACH.id,
             NO_ASYNC_FOREACH.code,
             NO_ASYNC_FOREACH.category,
             severity,
             "async callback in forEach will not be awaited",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use for...of with await, or Promise.all() with map()");
+        .label("use for...of with await, or Promise.all() with map()");
         if self.ctx.include_fixes
             && let Some(fix) = self.no_async_foreach_fix(expression_id)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

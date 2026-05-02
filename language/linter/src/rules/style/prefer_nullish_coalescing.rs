@@ -7,7 +7,7 @@ use crate::rules::common::{
     has_non_nullish_falsy_type, is_maybe_nullish_type, is_strict_boolean_type, span_has_comment,
 };
 use crate::{
-    ConstValue, LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint,
+    ConstValue, LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint,
 };
 
 declare_lint! {
@@ -108,18 +108,17 @@ impl<'a, 'b> PreferNullishCoalescingVisitor<'a, 'b> {
 
         // report one nullish-coalescing suggestion
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_NULLISH_COALESCING.id,
             PREFER_NULLISH_COALESCING.code,
             PREFER_NULLISH_COALESCING.category,
             severity,
             "prefer nullish coalescing for defaults",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use `??` to default only on nullish values");
+        .label("use `??` to default only on nullish values");
         if let Some(fix) = make_nullish_fix(self.ctx, expression_id, left_id, right_id) {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);
@@ -145,18 +144,17 @@ impl<'a, 'b> PreferNullishCoalescingVisitor<'a, 'b> {
 
         // report one nullish-assignment suggestion
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_NULLISH_COALESCING.id,
             PREFER_NULLISH_COALESCING.code,
             PREFER_NULLISH_COALESCING.category,
             severity,
             "prefer nullish coalescing assignment for defaults",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use `??=` to default only on nullish values");
+        .label("use `??=` to default only on nullish values");
         if let Some(fix) = make_nullish_assignment_fix(self.ctx, expression_id, left_id, right_id) {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);
@@ -196,23 +194,22 @@ impl<'a, 'b> PreferNullishCoalescingVisitor<'a, 'b> {
 
         // report one ternary nullish suggestion
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_NULLISH_COALESCING.id,
             PREFER_NULLISH_COALESCING.code,
             PREFER_NULLISH_COALESCING.category,
             severity,
             "prefer nullish coalescing over ternary null checks",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use `??` to default only on nullish values");
+        .label("use `??` to default only on nullish values");
         if let Some(fix) = make_nullish_fix(
             self.ctx,
             expression_id,
             left_expression_id,
             fallback_expression_id,
         ) {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow continue statements.
@@ -44,16 +44,15 @@ impl LintRule for NoContinue {
             }
             let span = ctx.tree.get_span(node_id);
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_CONTINUE.id,
                     NO_CONTINUE.code,
                     NO_CONTINUE.category,
                     severity,
                     "unexpected use of continue statement",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("avoid continue statements"),
+                .label("avoid continue statements"),
             );
         }
     }

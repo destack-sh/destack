@@ -5,7 +5,7 @@ use crate::rules::common::{
     collect_callable_parameter_value_binding_symbols, expression_assignment_target,
     expression_is_standalone_statement, expression_target_symbol, fresh_name_in_expression_scope,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow reassigning function and method parameters.
@@ -76,23 +76,22 @@ impl LintRule for NoParameterReassignment {
 
             // build the parameter reassignment diagnostic
             let span = ctx.get_span(expression_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_PARAMETER_REASSIGNMENT.id,
                 NO_PARAMETER_REASSIGNMENT.code,
                 NO_PARAMETER_REASSIGNMENT.category,
                 severity,
                 "parameter reassignment",
-                ctx.module.file_id,
                 span,
             )
-            .with_label("do not reassign function parameters");
+            .label("do not reassign function parameters");
 
             // rewrite standalone assignments to local shadow declarations when redeclaration policy allows it
             if ctx.include_fixes
                 && let Some(fix) =
                     no_parameter_reassignment_fix(ctx, expression_id, expression, target_symbol)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             // report the diagnostic

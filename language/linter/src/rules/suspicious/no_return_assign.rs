@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_contains_assignment, expression_subtree_mentions_identifier_name,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow assignment operators in return statements.
@@ -54,22 +54,21 @@ impl LintRule for NoReturnAssign {
                 continue;
             }
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_RETURN_ASSIGN.id,
                 NO_RETURN_ASSIGN.code,
                 NO_RETURN_ASSIGN.category,
                 severity,
                 "assignment in return statement",
-                ctx.module.file_id,
                 ctx.tree.get_span(node_id),
             )
-            .with_label("separate assignment from return");
+            .label("separate assignment from return");
 
             // compute fixes only when requested by the runner
             if ctx.compute_fixes
                 && let Some(fix) = no_return_assign_fix(ctx, node_id, *value_id)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);
@@ -99,16 +98,15 @@ impl LintRule for NoReturnAssign {
                 continue;
             }
 
-            let diagnostic = LintDiagnostic::new(
+            let diagnostic = LintReport::new(
                 NO_RETURN_ASSIGN.id,
                 NO_RETURN_ASSIGN.code,
                 NO_RETURN_ASSIGN.category,
                 severity,
                 "assignment in implicit return expression",
-                ctx.module.file_id,
                 ctx.tree.get_span(body_expression_id),
             )
-            .with_label("extract assignment before returning from this expression body");
+            .label("extract assignment before returning from this expression body");
             ctx.report(diagnostic);
         }
     }

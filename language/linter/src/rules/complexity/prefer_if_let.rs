@@ -3,7 +3,7 @@ use destack_ast::{self as ast, MatchCase};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::pattern_matches_all;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest if-let over single-arm match.
@@ -73,20 +73,19 @@ impl LintRule for PreferIfLet {
                 continue;
             }
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 PREFER_IF_LET.id,
                 PREFER_IF_LET.code,
                 PREFER_IF_LET.category,
                 severity,
                 "match with single pattern and wildcard can be if-let",
-                ctx.module.file_id,
                 ctx.tree.get_span(node_id),
             )
-            .with_label("use if-let instead");
+            .label("use if-let instead");
             if ctx.compute_fixes
                 && let Some(fix) = prefer_if_let_fix(ctx, node_id, *value, first_case, second_case)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

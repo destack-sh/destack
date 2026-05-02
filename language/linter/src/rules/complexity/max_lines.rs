@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::count_file_lines;
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of lines per file.
@@ -57,16 +57,15 @@ impl LintRule for MaxLines {
         // report at file start for one file level diagnostic
         let span = destack_source::Span::new(ctx.module.file_id, 0, 0);
         ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 MAX_LINES.id,
                 MAX_LINES.code,
                 MAX_LINES.category,
                 severity,
                 format!("file has {line_count} lines (max {max_lines})"),
-                ctx.module.file_id,
                 span,
             )
-            .with_label("consider splitting into smaller modules"),
+            .label("consider splitting into smaller modules"),
         );
     }
 }

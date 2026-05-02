@@ -12,7 +12,7 @@ use crate::rules::common::{
     expression_unwrap_parenthesized, is_promise_type, remove_first_async_keyword,
     well_known_symbol_candidates,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow async functions with no await expression.
@@ -211,22 +211,21 @@ fn check_async_callable<T: dir::Node>(
 
     // build one diagnostic
     let span = ctx.get_span(dir::LocalNodeId::<T>::new(node_id_raw));
-    let mut diagnostic = LintDiagnostic::new(
+    let mut diagnostic = LintReport::new(
         REQUIRE_AWAIT.id,
         REQUIRE_AWAIT.code,
         REQUIRE_AWAIT.category,
         severity,
         "async function has no await expression",
-        ctx.module.file_id,
         span,
     )
-    .with_label("add await or remove async keyword");
+    .label("add await or remove async keyword");
 
     // attach one unsafe async removal fix when token shape is known
     if ctx.include_fixes
         && let Some(fix) = require_await_fix(ctx, span)
     {
-        diagnostic = diagnostic.with_fix(fix);
+        diagnostic = diagnostic.fix(fix);
     }
 
     ctx.report(diagnostic);

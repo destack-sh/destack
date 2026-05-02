@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow empty destructuring patterns.
@@ -69,20 +69,19 @@ impl LintRule for NoEmptyPattern {
             };
 
             ctx.report({
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_EMPTY_PATTERN.id,
                     NO_EMPTY_PATTERN.code,
                     NO_EMPTY_PATTERN.category,
                     severity,
                     format!("empty {kind} destructuring pattern"),
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label("this pattern doesn't bind any values");
+                .label("this pattern doesn't bind any values");
                 if ctx.compute_fixes
                     && let Some(fix) = no_empty_pattern_fix(ctx, node_id)
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 diagnostic

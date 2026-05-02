@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use std::collections::HashSet;
 
 use crate::rules::common::{regex_pattern_info, regexp_global_qualifier_names};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary escape characters in strings and regex literals.
@@ -150,16 +150,15 @@ fn report_string_literal_escapes(
             continue;
         };
 
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_USELESS_ESCAPE.id,
             NO_USELESS_ESCAPE.code,
             NO_USELESS_ESCAPE.category,
             severity,
             format!("unnecessary escape character: \\{escape_character}"),
-            ctx.module.file_id,
             literal_span,
         )
-        .with_label("this escape is unnecessary");
+        .label("this escape is unnecessary");
 
         // attach one safe backslash removal fix
         if ctx.compute_fixes
@@ -168,7 +167,7 @@ fn report_string_literal_escapes(
         {
             let edits = ctx.edit_builder().delete(backslash_span).into_edits();
             let fix = LintFix::suggestion("Remove unnecessary escape backslash").with_edits(edits);
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         ctx.report(diagnostic);
@@ -228,16 +227,15 @@ fn report_regex_escapes(
             continue;
         };
 
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_USELESS_ESCAPE.id,
             NO_USELESS_ESCAPE.code,
             NO_USELESS_ESCAPE.category,
             severity,
             format!("unnecessary escape character: \\{escape_character}"),
-            ctx.module.file_id,
             literal_span,
         )
-        .with_label("this escape is unnecessary");
+        .label("this escape is unnecessary");
 
         // attach one safe backslash removal fix
         if ctx.compute_fixes
@@ -246,7 +244,7 @@ fn report_regex_escapes(
         {
             let edits = ctx.edit_builder().delete(backslash_span).into_edits();
             let fix = LintFix::suggestion("Remove unnecessary escape backslash").with_edits(edits);
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         ctx.report(diagnostic);

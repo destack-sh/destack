@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{assign_pattern_expression, assign_pattern_is_equal};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow assignments where both sides are the same.
@@ -76,16 +76,15 @@ impl LintRule for NoSelfAssign {
 
             let expression_span = ctx.tree.get_span(node_id);
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_SELF_ASSIGN.id,
                 NO_SELF_ASSIGN.code,
                 NO_SELF_ASSIGN.category,
                 severity,
                 "self-assignment",
-                ctx.module.file_id,
                 expression_span,
             )
-            .with_label("this assignment has no effect");
+            .label("this assignment has no effect");
 
             // add fix for direct assignment only when source extraction is valid
             if *operator == ast::AssignOperator::Assign && !left_span.is_empty() {
@@ -97,7 +96,7 @@ impl LintRule for NoSelfAssign {
                         .replace(expression_span, replacement)
                         .into_edits();
                     let fix = LintFix::suggestion("Remove self-assignment").with_edits(edits);
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
             }
 

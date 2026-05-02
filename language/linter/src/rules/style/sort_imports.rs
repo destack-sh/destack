@@ -3,7 +3,7 @@ use destack_source::Span;
 use destack_workspace::{LintSeverity, SortImportsMemberSyntax};
 
 use crate::rules::common::source_text_contains_comment_token;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce sorted import declarations.
@@ -129,7 +129,7 @@ fn check_declaration_sorting(
             let severity = ctx.get_effective_severity(meta, import.root_expression_id);
             if severity.is_enabled() {
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         SORT_IMPORTS.id,
                         SORT_IMPORTS.code,
                         SORT_IMPORTS.category,
@@ -139,10 +139,9 @@ fn check_declaration_sorting(
                             member_form_label(current_group),
                             member_form_label(previous_group),
                         ),
-                        ctx.module.file_id,
                         import.span,
                     )
-                    .with_label("import declarations are out of form order"),
+                    .label("import declarations are out of form order"),
                 );
             }
         } else if current_group_index == previous_group_index {
@@ -161,16 +160,15 @@ fn check_declaration_sorting(
                 let severity = ctx.get_effective_severity(meta, import.root_expression_id);
                 if severity.is_enabled() {
                     ctx.report(
-                        LintDiagnostic::new(
+                        LintReport::new(
                             SORT_IMPORTS.id,
                             SORT_IMPORTS.code,
                             SORT_IMPORTS.category,
                             severity,
                             "imports should be sorted alphabetically",
-                            ctx.module.file_id,
                             import.span,
                         )
-                        .with_label("this import should come earlier"),
+                        .label("this import should come earlier"),
                     );
                 }
             }
@@ -215,21 +213,20 @@ fn check_member_sorting(
     }
 
     let mismatch_name = dependency_item_name(ctx, mismatch_item_id);
-    let mut diagnostic = LintDiagnostic::new(
+    let mut diagnostic = LintReport::new(
         SORT_IMPORTS.id,
         SORT_IMPORTS.code,
         SORT_IMPORTS.category,
         severity,
         format!("member `{mismatch_name}` should be sorted alphabetically"),
-        ctx.module.file_id,
         ctx.tree.get_span(mismatch_item_id),
     )
-    .with_label("import members should be sorted alphabetically");
+    .label("import members should be sorted alphabetically");
 
     if ctx.compute_fixes
         && let Some(fix) = build_member_sort_fix(ctx, &named_items)
     {
-        diagnostic = diagnostic.with_fix(fix);
+        diagnostic = diagnostic.fix(fix);
     }
 
     ctx.report(diagnostic);

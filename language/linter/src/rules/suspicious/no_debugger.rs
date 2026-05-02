@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_statement_ancestor;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow debugger statements in production code.
@@ -48,16 +48,15 @@ impl LintRule for NoDebugger {
 
             // build one base diagnostic before optional fix attachment
             let span = ctx.tree.get_span(node_id);
-            let diagnostic = LintDiagnostic::new(
+            let diagnostic = LintReport::new(
                 NO_DEBUGGER.id,
                 NO_DEBUGGER.code,
                 NO_DEBUGGER.category,
                 severity,
                 "debugger statement is not allowed",
-                ctx.module.file_id,
                 span,
             )
-            .with_label("remove this debugger statement");
+            .label("remove this debugger statement");
 
             // report without fix payload when fixes are disabled
             if !ctx.compute_fixes {
@@ -71,7 +70,7 @@ impl LintRule for NoDebugger {
             {
                 let statement_span = ctx.tree.get_span(statement_expression_id);
                 let diagnostic = diagnostic
-                    .with_fix(LintFix::safe("Remove debugger statement").delete(statement_span));
+                    .fix(LintFix::safe("Remove debugger statement").delete(statement_span));
                 ctx.report(diagnostic);
                 continue;
             }

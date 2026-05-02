@@ -4,7 +4,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow match guards that are always true or false.
@@ -60,23 +60,22 @@ impl LintRule for NoRedundantMatchGuard {
                 ("match guard is always false", "this arm will never match")
             };
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_REDUNDANT_MATCH_GUARD.id,
                 NO_REDUNDANT_MATCH_GUARD.code,
                 NO_REDUNDANT_MATCH_GUARD.category,
                 severity,
                 message,
-                ctx.module.file_id,
                 ctx.tree.get_span(guard_id),
             )
-            .with_label(label);
+            .label(label);
 
             // remove guards that are always true
             if is_truthy
                 && ctx.compute_fixes
                 && let Some(fix) = redundant_true_guard_fix(ctx, pattern_id, guard_id)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `throw` and `try/catch` in favor of Result types.
@@ -50,7 +50,7 @@ fn build_throw_diagnostic(
     ctx: &LintModuleDirContext<'_>,
     meta: &LintMeta,
     expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<LintDiagnostic> {
+) -> Option<LintReport> {
     // honor per node severity
     let severity = ctx.get_effective_severity(meta, expression_id);
     if !severity.is_enabled() {
@@ -59,16 +59,15 @@ fn build_throw_diagnostic(
 
     // return the diagnostic
     Some(
-        LintDiagnostic::new(
+        LintReport::new(
             NO_EXCEPTIONS.id,
             NO_EXCEPTIONS.code,
             NO_EXCEPTIONS.category,
             severity,
             "avoid throw statements",
-            ctx.module.file_id,
             ctx.get_span(expression_id),
         )
-        .with_label("use Result type instead of throwing"),
+        .label("use Result type instead of throwing"),
     )
 }
 
@@ -77,7 +76,7 @@ fn build_try_diagnostic(
     ctx: &LintModuleDirContext<'_>,
     meta: &LintMeta,
     expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<LintDiagnostic> {
+) -> Option<LintReport> {
     // honor per node severity
     let severity = ctx.get_effective_severity(meta, expression_id);
     if !severity.is_enabled() {
@@ -86,16 +85,15 @@ fn build_try_diagnostic(
 
     // return the diagnostic
     Some(
-        LintDiagnostic::new(
+        LintReport::new(
             NO_EXCEPTIONS.id,
             NO_EXCEPTIONS.code,
             NO_EXCEPTIONS.category,
             severity,
             "avoid try/catch blocks",
-            ctx.module.file_id,
             ctx.get_span(expression_id),
         )
-        .with_label("use Result type instead of catching exceptions"),
+        .label("use Result type instead of catching exceptions"),
     )
 }
 

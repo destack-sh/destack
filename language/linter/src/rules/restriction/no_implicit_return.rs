@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require explicit return statements.
@@ -53,16 +53,15 @@ impl LintRule for NoImplicitReturn {
 
                 // resolve diagnostic span
                 let body_span = ctx.tree.get_span(body_id);
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_IMPLICIT_RETURN.id,
                     NO_IMPLICIT_RETURN.code,
                     NO_IMPLICIT_RETURN.category,
                     severity,
                     "implicit return in function",
-                    ctx.module.file_id,
                     body_span,
                 )
-                .with_label("use explicit `return` statement");
+                .label("use explicit `return` statement");
 
                 // compute fixes only when requested by the runner
                 if ctx.compute_fixes {
@@ -74,7 +73,7 @@ impl LintRule for NoImplicitReturn {
                         .into_edits();
                     let fix = LintFix::safe("Wrap implicit return in an explicit block")
                         .with_edits(edits);
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

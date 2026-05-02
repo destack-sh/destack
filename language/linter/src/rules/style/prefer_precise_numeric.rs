@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, TypeLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer precise numeric types over `number`.
@@ -53,17 +53,16 @@ impl LintRule for PreferPreciseNumeric {
             let fix = LintFix::safe("Replace `number` with `float64`").with_edits(edits);
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     PREFER_PRECISE_NUMERIC.id,
                     PREFER_PRECISE_NUMERIC.code,
                     PREFER_PRECISE_NUMERIC.category,
                     severity,
                     "prefer precise numeric type over `number`",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("use int32, int64, float32, or float64")
-                .with_fix(fix),
+                .label("use int32, int64, float32, or float64")
+                .fix(fix),
             );
         }
     }

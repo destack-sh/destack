@@ -6,7 +6,7 @@ use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
     expression_enters_nested_declaration_scope, expression_is_symbol_or_global_qualified_member,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `RegExp(...)` construction inside loops.
@@ -118,16 +118,15 @@ impl<'a, 'b> NoRegexInLoopVisitor<'a, 'b> {
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_REGEX_IN_LOOP.id,
                 NO_REGEX_IN_LOOP.code,
                 NO_REGEX_IN_LOOP.category,
                 severity,
                 "RegExp construction inside loop causes unnecessary allocations",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("move regex outside loop or use a regex literal"),
+            .label("move regex outside loop or use a regex literal"),
         );
     }
 

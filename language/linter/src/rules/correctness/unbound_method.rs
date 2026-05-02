@@ -7,7 +7,7 @@ use crate::rules::common::{
     has_non_void_this_parameter_type, member_receiver_text, parent_is_receiver_helper,
     resolution_target_symbols, symbol_primary_declaration_for, symbol_value_type_id_for,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unbound instance methods.
@@ -125,20 +125,19 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
         // report the full method reference span
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             UNBOUND_METHOD.id,
             UNBOUND_METHOD.code,
             UNBOUND_METHOD.category,
             severity,
             "unbound method reference",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("bind this method or wrap it in a lambda");
+        .label("bind this method or wrap it in a lambda");
         if self.ctx.include_fixes
             && let Some(fix) = self.unbound_method_fix(expression_id)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

@@ -3,7 +3,7 @@ use destack_ast::{self as ast, Block};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `if` as the only statement in an `else` block.
@@ -86,16 +86,15 @@ impl LintRule for NoLonelyIf {
                 let else_span = ctx.tree.get_span(*else_id);
                 let lonely_span = ctx.tree.get_span(lonely_id);
                 let lonely_text = ctx.get_span_text(lonely_span);
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_LONELY_IF.id,
                     NO_LONELY_IF.code,
                     NO_LONELY_IF.category,
                     severity,
                     "lonely `if` in `else` block",
-                    ctx.module.file_id,
                     lonely_span,
                 )
-                .with_label("use `else if` instead");
+                .label("use `else if` instead");
 
                 // avoid rewrites when else block contains trivia
                 if ctx.compute_fixes && !span_has_comment(ctx.tree, else_span) {
@@ -104,7 +103,7 @@ impl LintRule for NoLonelyIf {
                         .replace(else_span, lonely_text)
                         .into_edits();
                     let fix = LintFix::safe("Convert to `else if`").with_edits(edits);
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

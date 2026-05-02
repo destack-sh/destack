@@ -6,7 +6,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_target_symbol, find_cycle_path, strongly_connected_components,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow functions that recurse without conditional guards.
@@ -104,16 +104,15 @@ impl LintRule for NoInfiniteRecursion {
                 } else {
                     "functions form an unconditional recursion cycle"
                 };
-                let diagnostic = LintDiagnostic::new(
+                let diagnostic = LintReport::new(
                     NO_INFINITE_RECURSION.id,
                     NO_INFINITE_RECURSION.code,
                     NO_INFINITE_RECURSION.category,
                     severity,
                     message,
-                    ctx.module.file_id,
                     ctx.get_span(function.decl_id),
                 )
-                .with_label(format!("recursive cycle path: {cycle_label}"));
+                .label(format!("recursive cycle path: {cycle_label}"));
 
                 ctx.report(diagnostic);
             }

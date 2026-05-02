@@ -6,7 +6,7 @@ use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
     TaintAnalysis, TaintCache, expression_is_symbol_or_global_qualified_member,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow tainted values in dynamic regular expression patterns.
@@ -162,16 +162,15 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
         // report
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_REGEX_INJECTION.id,
                 NO_REGEX_INJECTION.code,
                 NO_REGEX_INJECTION.category,
                 severity,
                 "potential regex injection",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("user-controlled input in RegExp may cause ReDoS"),
+            .label("user-controlled input in RegExp may cause ReDoS"),
         );
     }
 

@@ -11,7 +11,7 @@ use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     assign_pattern_contains_expression, expand_span_to_statement_terminator, expression_method_call,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer array literal over empty array followed by push.
@@ -250,20 +250,19 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
             }
 
             let span = self.ctx.get_span(decl.expression_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 PREFER_ARRAY_LITERAL.id,
                 PREFER_ARRAY_LITERAL.code,
                 PREFER_ARRAY_LITERAL.category,
                 severity,
                 "prefer array literal over empty array + push",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("initialize with values directly");
+            .label("initialize with values directly");
             if self.ctx.include_fixes
                 && let Some(fix) = self.prefer_array_literal_fix(&decl)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
             self.ctx.report(diagnostic);
         }

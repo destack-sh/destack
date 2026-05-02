@@ -4,7 +4,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `as const` over literal type assertions.
@@ -62,17 +62,16 @@ impl LintRule for PreferAsConst {
                 LintFix::safe("Replace literal type assertion with `as const`").with_edits(edits);
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     PREFER_AS_CONST.id,
                     PREFER_AS_CONST.code,
                     PREFER_AS_CONST.category,
                     severity,
                     "use `as const` instead of literal type assertion",
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label("prefer `as const`")
-                .with_fix(fix),
+                .label("prefer `as const`")
+                .fix(fix),
             );
         }
 
@@ -95,18 +94,17 @@ impl LintRule for PreferAsConst {
             }
 
             let type_span = ctx.tree.get_span(type_expression_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 PREFER_AS_CONST.id,
                 PREFER_AS_CONST.code,
                 PREFER_AS_CONST.category,
                 severity,
                 "use `as const` instead of literal type annotation",
-                ctx.module.file_id,
                 type_span,
             )
-            .with_label("prefer `as const`");
+            .label("prefer `as const`");
             if let Some(fix) = declarator_literal_annotation_fix(ctx, declarator_id) {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);
@@ -133,18 +131,17 @@ impl LintRule for PreferAsConst {
             }
 
             let type_span = ctx.tree.get_span(*type_expression_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 PREFER_AS_CONST.id,
                 PREFER_AS_CONST.code,
                 PREFER_AS_CONST.category,
                 severity,
                 "use `as const` instead of literal type annotation",
-                ctx.module.file_id,
                 type_span,
             )
-            .with_label("prefer `as const`");
+            .label("prefer `as const`");
             if let Some(fix) = member_field_literal_annotation_fix(ctx, member_id) {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

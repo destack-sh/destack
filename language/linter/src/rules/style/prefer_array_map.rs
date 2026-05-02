@@ -7,7 +7,7 @@ use crate::rules::common::{
     expand_span_to_statement_terminator, expression_method_call, is_array_type,
     member_receiver_text, statement_expression_ancestor,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest `.map()` over `forEach` with push.
@@ -401,20 +401,19 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_ARRAY_MAP.id,
             PREFER_ARRAY_MAP.code,
             PREFER_ARRAY_MAP.category,
             severity,
             "prefer map() over forEach with push",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use array.map(...) instead");
+        .label("use array.map(...) instead");
         if self.ctx.include_fixes
             && let Some(fix) = self.map_fix(expression_id, pattern)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

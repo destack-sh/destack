@@ -7,7 +7,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_else_if_branch;
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the depth of nested blocks.
@@ -59,7 +59,7 @@ impl LintRule for MaxDepth {
                 continue;
             }
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     MAX_DEPTH.id,
                     MAX_DEPTH.code,
                     MAX_DEPTH.category,
@@ -68,10 +68,9 @@ impl LintRule for MaxDepth {
                         "nesting depth {} exceeds maximum of {}",
                         violation.depth, max_depth
                     ),
-                    ctx.module.file_id,
                     violation.span,
                 )
-                .with_label("consider extracting into a function"),
+                .label("consider extracting into a function"),
             );
         }
     }

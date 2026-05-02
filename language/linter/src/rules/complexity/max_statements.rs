@@ -10,7 +10,7 @@ use crate::rules::common::{
     CallableOwnerId, callable_owner_span, expression_starts_nested_declaration_scope,
     expression_unwrap_statement_source_form, for_each_callable_signature,
 };
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of statements per function.
@@ -244,16 +244,15 @@ fn report_statement_limit_violation<T: ast::Node>(
 
     // report one statement count overflow diagnostic
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             MAX_STATEMENTS.id,
             MAX_STATEMENTS.code,
             MAX_STATEMENTS.category,
             severity,
             format!("function has {statement_count} statements (max {max_statements})"),
-            ctx.module.file_id,
             ctx.tree.get_span(body_id),
         )
-        .with_label("consider breaking into smaller functions"),
+        .label("consider breaking into smaller functions"),
     );
 }
 

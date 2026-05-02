@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Declaration};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow struct declarations.
@@ -47,16 +47,15 @@ impl LintRule for NoStruct {
             }
             let span = ctx.tree.get_span(node_id);
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_STRUCT.id,
                     NO_STRUCT.code,
                     NO_STRUCT.category,
                     severity,
                     "struct declaration is not allowed",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("use class instead"),
+                .label("use class instead"),
             );
         }
     }

@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::argument_value_expression_id;
-use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow sparse arrays and tuples.
@@ -57,16 +57,15 @@ impl LintRule for NoSparseArrays {
                         continue;
                     }
                     let span = ctx.tree.get_span(*element_id);
-                    let diagnostic = LintDiagnostic::new(
+                    let diagnostic = LintReport::new(
                         NO_SPARSE_ARRAYS.id,
                         NO_SPARSE_ARRAYS.code,
                         NO_SPARSE_ARRAYS.category,
                         severity,
                         "sparse array or tuple with hole",
-                        ctx.module.file_id,
                         span,
                     )
-                    .with_label("use explicit `undefined` instead of a hole");
+                    .label("use explicit `undefined` instead of a hole");
 
                     ctx.report(diagnostic);
                 }

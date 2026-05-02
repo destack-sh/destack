@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow large try blocks.
@@ -49,7 +49,7 @@ impl LintRule for NoLargeTryBlock {
                 }
 
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_LARGE_TRY_BLOCK.id,
                         NO_LARGE_TRY_BLOCK.code,
                         NO_LARGE_TRY_BLOCK.category,
@@ -57,10 +57,9 @@ impl LintRule for NoLargeTryBlock {
                         format!(
                             "try block has {statement_count} statements (max {max_statements})"
                         ),
-                        ctx.module.file_id,
                         ctx.tree.get_span(*try_expression),
                     )
-                    .with_label("consider narrowing the try block to the specific failing code"),
+                    .label("consider narrowing the try block to the specific failing code"),
                 );
             }
         }

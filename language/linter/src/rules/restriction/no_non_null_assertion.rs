@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_trailing_bang_span;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow non-null assertions (`!`).
@@ -45,16 +45,15 @@ impl LintRule for NoNonNullAssertion {
                 continue;
             }
             let span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_NON_NULL_ASSERTION.id,
                 NO_NON_NULL_ASSERTION.code,
                 NO_NON_NULL_ASSERTION.category,
                 severity,
                 "non-null assertion is not allowed",
-                ctx.module.file_id,
                 span,
             )
-            .with_label("use null checks instead of `!`");
+            .label("use null checks instead of `!`");
 
             // compute fixes only when requested by the runner
             if ctx.compute_fixes
@@ -62,7 +61,7 @@ impl LintRule for NoNonNullAssertion {
             {
                 let edits = ctx.edit_builder().delete(bang_span).into_edits();
                 let fix = LintFix::suggestion("Remove non-null assertion").with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

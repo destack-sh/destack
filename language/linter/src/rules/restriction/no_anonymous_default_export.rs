@@ -4,7 +4,7 @@ use destack_ast::{self as ast, Declaration, DependencyMode, ExportMode, Expressi
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_path_segments, expression_unwrap_parenthesized_source_form};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow anonymous default exports.
@@ -66,23 +66,22 @@ impl LintRule for NoAnonymousDefaultExport {
 
             // build declaration diagnostic
             let span = ctx.tree.get_span(declaration_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_ANONYMOUS_DEFAULT_EXPORT.id,
                 NO_ANONYMOUS_DEFAULT_EXPORT.code,
                 NO_ANONYMOUS_DEFAULT_EXPORT.category,
                 severity,
                 "anonymous default export",
-                ctx.module.file_id,
                 span,
             )
-            .with_label("assign a name to this export");
+            .label("assign a name to this export");
 
             // compute fixes only when requested by the runner
             if ctx.compute_fixes
                 && let Some(fix) =
                     anonymous_default_declaration_fix(ctx, declaration_id, declaration)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             // report declaration diagnostic
@@ -132,16 +131,15 @@ impl LintRule for NoAnonymousDefaultExport {
                 // report expression diagnostic
                 let span = ctx.tree.get_span(expression_id);
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_ANONYMOUS_DEFAULT_EXPORT.id,
                         NO_ANONYMOUS_DEFAULT_EXPORT.code,
                         NO_ANONYMOUS_DEFAULT_EXPORT.category,
                         severity,
                         "anonymous default export",
-                        ctx.module.file_id,
                         span,
                     )
-                    .with_label("assign a name to this export"),
+                    .label("assign a name to this export"),
                 );
             }
         }

@@ -6,7 +6,7 @@ use destack_workspace::{ArrayTypeStyle, LintSeverity};
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{expression_type_map, is_array_type, well_known_symbol_candidates};
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce one consistent array type form.
@@ -80,21 +80,20 @@ impl LintRule for ArrayType {
             }
 
             let span = ctx.ast.get_span(source_expression_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 ARRAY_TYPE.id,
                 ARRAY_TYPE.code,
                 ARRAY_TYPE.category,
                 severity,
                 mismatch_message(preferred_style),
-                ctx.module.file_id,
                 span,
             )
-            .with_label(mismatch_label(preferred_style));
+            .label(mismatch_label(preferred_style));
 
             if ctx.include_fixes
                 && let Some(fix) = array_type_fix(ctx, source_expression_id, form, preferred_style)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

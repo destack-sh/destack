@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_has_side_effects, pattern_is_underscore_binding_or_wildcard,
 };
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Warn on underscore bindings with no side effects.
@@ -69,16 +69,15 @@ impl LintRule for NoUselessUnderscoreBinding {
                 }
 
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_USELESS_UNDERSCORE_BINDING.id,
                         NO_USELESS_UNDERSCORE_BINDING.code,
                         NO_USELESS_UNDERSCORE_BINDING.category,
                         severity,
                         "underscore binding with no side effects is useless",
-                        ctx.module.file_id,
                         ctx.tree.get_span(*declarator_id),
                     )
-                    .with_label("remove this binding"),
+                    .label("remove this binding"),
                 );
             }
         }

@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, IfKind};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow ternary expressions.
@@ -47,16 +47,15 @@ impl LintRule for NoTernary {
             }
             let span = ctx.tree.get_span(node_id);
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_TERNARY.id,
                     NO_TERNARY.code,
                     NO_TERNARY.category,
                     severity,
                     "ternary expression is not allowed",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("use if-else instead"),
+                .label("use if-else instead"),
             );
         }
     }

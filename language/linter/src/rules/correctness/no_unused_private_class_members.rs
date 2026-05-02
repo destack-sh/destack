@@ -7,7 +7,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     collect_module_resolved_read_symbol_usage, collect_module_symbol_usage,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow private class members that are never used.
@@ -127,22 +127,21 @@ impl LintRule for NoUnusedPrivateClassMembers {
 
                 // report one unused private member
                 let span = ctx.get_span(*member_id);
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_UNUSED_PRIVATE_CLASS_MEMBERS.id,
                     NO_UNUSED_PRIVATE_CLASS_MEMBERS.code,
                     NO_UNUSED_PRIVATE_CLASS_MEMBERS.category,
                     severity,
                     "unused private class member",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("this private class member is never used");
+                .label("this private class member is never used");
 
                 // compute fixes only when requested by the runner
                 if ctx.include_fixes
                     && let Some(fix) = unused_private_member_fix(ctx, *member_id, member)
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

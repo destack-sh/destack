@@ -3,7 +3,7 @@ use destack_ast::{self as ast, Block};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_unwrap_parenthesized_source_form, span_has_comment};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest merging nested if statements without else.
@@ -97,16 +97,15 @@ impl LintRule for NoCollapsibleIf {
             }
 
             let outer_span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_COLLAPSIBLE_IF.id,
                 NO_COLLAPSIBLE_IF.code,
                 NO_COLLAPSIBLE_IF.category,
                 severity,
                 "nested `if` statements can be merged",
-                ctx.module.file_id,
                 outer_span,
             )
-            .with_label("combine conditions using `&&`");
+            .label("combine conditions using `&&`");
 
             // skip fixes when nested if range includes comment trivia
             if ctx.compute_fixes && !span_has_comment(ctx.tree, outer_span) {
@@ -123,7 +122,7 @@ impl LintRule for NoCollapsibleIf {
                     .replace(outer_span, replacement)
                     .into_edits();
                 let fix = LintFix::safe("Merge nested if statements").with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

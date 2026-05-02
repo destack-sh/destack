@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_method_call, expression_unwrap_parenthesized, is_float_type,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow direct `==` comparison of floats.
@@ -121,16 +121,15 @@ impl<'a, 'b> FloatEqualityVisitor<'a, 'b> {
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_FLOATING_POINT_EQUALITY.id,
                 NO_FLOATING_POINT_EQUALITY.code,
                 NO_FLOATING_POINT_EQUALITY.category,
                 severity,
                 "avoid direct equality comparison of floating-point numbers",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("use an epsilon-based comparison instead"),
+            .label("use an epsilon-based comparison instead"),
         );
     }
 

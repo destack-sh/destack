@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_path_segments;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest using `match` instead of complex if-else-if chains or switch statements.
@@ -77,20 +77,19 @@ impl LintRule for PreferMatch {
                     continue;
                 }
 
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     PREFER_MATCH.id,
                     PREFER_MATCH.code,
                     PREFER_MATCH.category,
                     severity,
                     format!("consider using `match` for this {branch_count}-branch if-else chain"),
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label("a `match` expression would be clearer here");
+                .label("a `match` expression would be clearer here");
                 if ctx.compute_fixes
                     && let Some(fix) = prefer_match_fix(ctx, node_id, &if_chain)
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

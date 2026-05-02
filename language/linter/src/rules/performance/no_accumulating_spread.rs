@@ -10,7 +10,7 @@ use crate::rules::common::{
     expression_enters_nested_declaration_scope, expression_method_call, expression_target_symbol,
     is_array_type,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow spreading in accumulators.
@@ -307,16 +307,15 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
         // report one diagnostic
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_ACCUMULATING_SPREAD.id,
                 NO_ACCUMULATING_SPREAD.code,
                 NO_ACCUMULATING_SPREAD.category,
                 severity,
                 message,
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("use in-place mutation instead"),
+            .label("use in-place mutation instead"),
         );
     }
 }

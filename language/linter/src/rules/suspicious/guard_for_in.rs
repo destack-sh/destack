@@ -9,7 +9,7 @@ use crate::rules::common::{
     expressions_have_equivalent_source_form, pattern_binding_name_and_symbol,
     positional_argument_value,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require guard in for-in loops.
@@ -146,21 +146,20 @@ impl<'a, 'b> GuardForInVisitor<'a, 'b> {
             return;
         }
 
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             GUARD_FOR_IN.id,
             GUARD_FOR_IN.code,
             GUARD_FOR_IN.category,
             severity,
             "for-in loop should have a real own-property guard",
-            self.ctx.module.file_id,
             self.ctx.get_span(expression_id),
         )
-        .with_label("add an own-property guard like Object.hasOwn(value, key)");
+        .label("add an own-property guard like Object.hasOwn(value, key)");
 
         if self.ctx.include_fixes
             && let Some(fix) = guard_for_in_fix(self.ctx, binding, iterator_id, body_id)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

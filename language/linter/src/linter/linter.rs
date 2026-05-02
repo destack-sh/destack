@@ -3,19 +3,19 @@ use std::fmt;
 use std::sync::{Arc, LazyLock};
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPayload, ModuleLinted, PackageLinted, ProvideError, ProviderContext,
+    ArtifactKey, ArtifactPayload, ModuleLinted, PackageLinted, ProviderContext, ProviderError,
     ProviderResult, WorkspaceLinted,
 };
-use destack_source::{DiagnosticCollection, FileId, ModuleId, PackageId};
+use destack_source::{FileId, ModuleId, PackageId};
 use destack_workspace::{
     LintPreset, LinterOptions, Module, Profile, ProfileId, Repository, Revision,
 };
 
-use crate::{LintDiagnostic, LintLevel, LintRunner};
+use crate::{LintLevel, LintReport, LintRunner};
 
 /// Key used to deduplicate lint diagnostics.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-struct LintDiagnosticKey {
+struct LintReportKey {
     /// The diagnostic code.
     code: String,
     /// The file id.
@@ -64,7 +64,7 @@ impl Linter {
     }
 
     /// Reuse immutable lint runners by preset to avoid per-module rule allocation.
-    fn cached_runner_for_options(options: &LinterOptions) -> &'static LintRunner {
+    fn cached_runner(options: &LinterOptions) -> &'static LintRunner {
         static NONE: LazyLock<LintRunner> =
             LazyLock::new(|| LintRunner::from_preset(LintPreset::None).with_fixes(false));
         static RECOMMENDED: LazyLock<LintRunner> =
@@ -109,33 +109,41 @@ impl Linter {
     }
 
     /// Convert one lint diagnostic to a dedupe key.
-    fn lint_key_from_lint_diagnostic(diagnostic: &LintDiagnostic) -> LintDiagnosticKey {
-        LintDiagnosticKey {
-            code: diagnostic.code.to_string(),
-            file_id: diagnostic.file_id,
-            start: diagnostic.span.start,
-            end: diagnostic.span.end,
-            message: diagnostic.message.clone(),
+    fn lint_key_from_lint_report(diagnostic: &LintReport) -> LintReportKey {
+        let primary_span = diagnostic.primary;
+
+        LintReportKey {
+            code: diagnostic.code().to_string(),
+            file_id: primary_span.file,
+            start: primary_span.start,
+            end: primary_span.end,
+            message: diagnostic.message().to_string(),
         }
     }
 
-    /// Build one owned diagnostics collection from lint diagnostics.
-    fn collect_lint_diagnostics(
+    /// Record lint diagnostics on one provider context.
+    fn record_lint_diagnostics(
         &self,
-        diagnostics: impl IntoIterator<Item = LintDiagnostic>,
-    ) -> DiagnosticCollection {
+        context: &dyn ProviderContext<Revision = Revision>,
+        diagnostics: impl IntoIterator<Item = LintReport>,
+    ) -> Result<(), LinterError> {
         let mut seen = HashSet::new();
-        let mut collection = DiagnosticCollection::new();
 
         // keep only the first copy of each lint diagnostic
         for diagnostic in diagnostics {
-            let key = Self::lint_key_from_lint_diagnostic(&diagnostic);
-            if seen.insert(key) {
-                collection.insert(diagnostic.into_diagnostic());
+            let key = Self::lint_key_from_lint_report(&diagnostic);
+            if !seen.insert(key) || !diagnostic.is_enabled() {
+                continue;
             }
+
+            context
+                .emit(&diagnostic)
+                .map_err(|error| LinterError::Repository {
+                    message: format!("failed to emit lint diagnostic: {error}"),
+                })?;
         }
 
-        collection
+        Ok(())
     }
 
     /// Return workspace scoped lint options for one revision.
@@ -213,10 +221,11 @@ impl Linter {
     /// Lint one module and return fresh diagnostics.
     pub fn lint_module(
         &self,
+        context: &dyn ProviderContext<Revision = Revision>,
         revision: Revision,
         module_id: ModuleId,
         profile: Profile,
-    ) -> Result<DiagnosticCollection, LinterError> {
+    ) -> Result<(), LinterError> {
         let profile_id = profile.id();
 
         // validate the required compiler products up front
@@ -230,20 +239,20 @@ impl Linter {
 
         // skip non code modules after validation
         let Some(module) = self.repository_module(revision, module_id) else {
-            return Ok(DiagnosticCollection::new());
+            return Ok(());
         };
         if !module.is_code() {
-            return Ok(DiagnosticCollection::new());
+            return Ok(());
         }
 
         // skip disabled linter configurations
         let options = self.module_linter_options(revision, module_id)?;
         if !options.enabled {
-            return Ok(DiagnosticCollection::new());
+            return Ok(());
         }
 
         // run module scoped AST and DIR lint rules
-        let runner = Self::cached_runner_for_options(&options);
+        let runner = Self::cached_runner(&options);
         let ast_diagnostics = runner.lint_module_by_id(
             self.repository.clone(),
             revision,
@@ -261,17 +270,16 @@ impl Linter {
             LintLevel::Dir,
         );
 
-        Ok(self.collect_lint_diagnostics(ast_diagnostics.into_iter().chain(dir_diagnostics)))
+        self.record_lint_diagnostics(context, ast_diagnostics.into_iter().chain(dir_diagnostics))
     }
 
-    /// Lint one package and return package scoped diagnostics.
+    /// Lint one package and record package scoped diagnostics.
     pub fn lint_package(
         &self,
+        context: &dyn ProviderContext<Revision = Revision>,
         revision: Revision,
         package_id: PackageId,
-    ) -> Result<DiagnosticCollection, LinterError> {
-        let mut diagnostics = DiagnosticCollection::new();
-
+    ) -> Result<(), LinterError> {
         // collect package modules in a stable order
         let mut module_ids: Vec<_> = self
             .repository
@@ -289,20 +297,20 @@ impl Linter {
                 .flatten()
                 .is_some_and(|module| module.is_code())
         }) else {
-            return Ok(diagnostics);
+            return Ok(());
         };
 
         // skip disabled linter configurations
         let options = self.package_linter_options(revision, package_id)?;
         if !options.enabled {
-            return Ok(diagnostics);
+            return Ok(());
         }
 
         // run package scoped AST rules once
-        let runner = Self::cached_runner_for_options(&options);
+        let runner = Self::cached_runner(&options);
         let ast_diagnostics =
             runner.lint_package_ast(self.repository.clone(), revision, package_id, &options);
-        diagnostics.merge_from(&self.collect_lint_diagnostics(ast_diagnostics));
+        self.record_lint_diagnostics(context, ast_diagnostics)?;
 
         // run package scoped DIR rules once per active profile
         let mut profiles = HashSet::new();
@@ -318,27 +326,29 @@ impl Linter {
                 profile_id,
                 &options,
             );
-            diagnostics.merge_from(&self.collect_lint_diagnostics(dir_diagnostics));
+            self.record_lint_diagnostics(context, dir_diagnostics)?;
         }
 
-        Ok(diagnostics)
+        Ok(())
     }
 
-    /// Lint one workspace and return workspace scoped diagnostics.
-    pub fn lint_workspace(&self, revision: Revision) -> Result<DiagnosticCollection, LinterError> {
-        let mut diagnostics = DiagnosticCollection::new();
-
+    /// Lint one workspace and record workspace scoped diagnostics.
+    pub fn lint_workspace(
+        &self,
+        context: &dyn ProviderContext<Revision = Revision>,
+        revision: Revision,
+    ) -> Result<(), LinterError> {
         // skip disabled linter configurations
         let options = self.workspace_linter_options(revision)?;
         if !options.enabled {
-            return Ok(diagnostics);
+            return Ok(());
         }
 
         // run workspace scoped AST rules once
-        let runner = Self::cached_runner_for_options(&options);
+        let runner = Self::cached_runner(&options);
         let ast_diagnostics =
             runner.lint_workspace_ast(self.repository.clone(), revision, &options);
-        diagnostics.merge_from(&self.collect_lint_diagnostics(ast_diagnostics));
+        self.record_lint_diagnostics(context, ast_diagnostics)?;
 
         // run workspace scoped DIR rules once per active profile
         let mut profiles = HashSet::new();
@@ -356,10 +366,10 @@ impl Linter {
         for profile_id in profiles {
             let dir_diagnostics =
                 runner.lint_workspace_dir(self.repository.clone(), revision, profile_id, &options);
-            diagnostics.merge_from(&self.collect_lint_diagnostics(dir_diagnostics));
+            self.record_lint_diagnostics(context, dir_diagnostics)?;
         }
 
-        Ok(diagnostics)
+        Ok(())
     }
 
     /// Provide one lint artifact key.
@@ -367,15 +377,16 @@ impl Linter {
         &self,
         context: &dyn ProviderContext<Revision = Revision>,
     ) -> ProviderResult<ArtifactPayload> {
-        match context.key() {
+        match context.artifact_key() {
             ArtifactKey::ModuleLinted { module, profile } => {
                 self.provide_module(context, module, profile)
             }
             ArtifactKey::PackageLinted { package } => self.provide_package(context, package),
             ArtifactKey::WorkspaceLinted => self.provide_workspace(context),
-            artifact_key => Err(ProvideError::internal(
+            artifact_key => Err(ProviderError::internal(
                 LinterError::UnsupportedArtifact { artifact_key }.to_string(),
-            )),
+            )
+            .into()),
         }
     }
 
@@ -389,12 +400,12 @@ impl Linter {
         let revision = context.revision();
         let dependency_keys = self
             .module_lint_dependency_keys(revision, module_id, profile_id)
-            .map_err(|error| ProvideError::internal(error.to_string()))?;
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
 
         for dependency_key in dependency_keys {
             context
                 .require(dependency_key)
-                .map_err(ProvideError::from)?;
+                .map_err(ProviderError::from)?;
         }
 
         let profile = self
@@ -403,18 +414,15 @@ impl Linter {
             .map_err(|error| LinterError::Repository {
                 message: error.to_string(),
             })
-            .map_err(|error| ProvideError::internal(error.to_string()))?
+            .map_err(|error| ProviderError::internal(error.to_string()))?
             .ok_or_else(|| LinterError::Repository {
                 message: format!(
                     "missing profile {profile_id:?} for module {module_id:?} at revision {revision}"
                 ),
             })
-            .map_err(|error| ProvideError::internal(error.to_string()))?;
-        let diagnostics = self
-            .lint_module(revision, module_id, profile.as_ref().clone())
-            .map_err(|error| ProvideError::internal(error.to_string()))?;
-
-        context.diagnostics(diagnostics);
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
+        self.lint_module(context, revision, module_id, profile.as_ref().clone())
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
 
         Ok(ArtifactPayload::ModuleLinted(ModuleLinted))
     }
@@ -428,19 +436,16 @@ impl Linter {
         let revision = context.revision();
         let dependency_keys = self
             .package_lint_dependency_keys(revision, package_id)
-            .map_err(|error| ProvideError::internal(error.to_string()))?;
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
 
         for dependency_key in dependency_keys {
             context
                 .require(dependency_key)
-                .map_err(ProvideError::from)?;
+                .map_err(ProviderError::from)?;
         }
 
-        let diagnostics = self
-            .lint_package(revision, package_id)
-            .map_err(|error| ProvideError::internal(error.to_string()))?;
-
-        context.diagnostics(diagnostics);
+        self.lint_package(context, revision, package_id)
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
 
         Ok(ArtifactPayload::PackageLinted(PackageLinted))
     }
@@ -453,19 +458,16 @@ impl Linter {
         let revision = context.revision();
         let dependency_keys = self
             .workspace_lint_dependency_keys(revision)
-            .map_err(|error| ProvideError::internal(error.to_string()))?;
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
 
         for dependency_key in dependency_keys {
             context
                 .require(dependency_key)
-                .map_err(ProvideError::from)?;
+                .map_err(ProviderError::from)?;
         }
 
-        let diagnostics = self
-            .lint_workspace(revision)
-            .map_err(|error| ProvideError::internal(error.to_string()))?;
-
-        context.diagnostics(diagnostics);
+        self.lint_workspace(context, revision)
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
 
         Ok(ArtifactPayload::WorkspaceLinted(WorkspaceLinted))
     }

@@ -3,7 +3,7 @@ use destack_ast::{self as ast, Declaration};
 use destack_source::FileType;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow class declarations.
@@ -58,16 +58,15 @@ impl LintRule for NoClass {
             let span = ctx.tree.get_span(node_id);
             let file = ctx.file.as_ref();
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_CLASS.id,
                     NO_CLASS.code,
                     NO_CLASS.category,
                     severity,
                     "class declaration is not allowed in this codebase",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label(no_class_label(file.ty)),
+                .label(no_class_label(file.ty)),
             );
         }
     }
@@ -140,12 +139,12 @@ class MyClass {
             .unwrap_or_else(|| panic!("expected no-class diagnostic"));
 
         assert_eq!(
-            diagnostic.message,
+            diagnostic.message(),
             "class declaration is not allowed in this codebase"
         );
         assert_eq!(
-            diagnostic.label,
-            "prefer interfaces, objects, or functions over classes"
+            diagnostic.label_message(),
+            Some("prefer interfaces, objects, or functions over classes")
         );
     }
 
@@ -241,8 +240,8 @@ class ExternalClass {
             .unwrap_or_else(|| panic!("expected no-class diagnostic"));
 
         assert_eq!(
-            diagnostic.label,
-            "prefer structs or interface-based composition"
+            diagnostic.label_message(),
+            Some("prefer structs or interface-based composition")
         );
     }
 }

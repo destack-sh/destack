@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::block_is_empty_without_comment;
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of cases in a switch statement.
@@ -56,16 +56,15 @@ impl LintRule for MaxSwitchCases {
                     continue;
                 }
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         MAX_SWITCH_CASES.id,
                         MAX_SWITCH_CASES.code,
                         MAX_SWITCH_CASES.category,
                         severity,
                         format!("switch has {case_count} cases (max {max_switch_cases})"),
-                        ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label("consider using a lookup table or refactoring"),
+                    .label("consider using a lookup table or refactoring"),
                 );
             }
         }

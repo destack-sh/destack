@@ -8,7 +8,7 @@ use crate::rules::common::{
     expression_is_global_qualified_member, expression_is_symbol_or_global_qualified_member,
     expression_static_property_access,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow tainted values in browser redirect APIs.
@@ -166,16 +166,15 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
         // report
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_OPEN_REDIRECT.id,
                 NO_OPEN_REDIRECT.code,
                 NO_OPEN_REDIRECT.category,
                 severity,
                 format!("potential open redirect via {context}"),
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("user-controlled URL may redirect to malicious site"),
+            .label("user-controlled URL may redirect to malicious site"),
         );
     }
 
