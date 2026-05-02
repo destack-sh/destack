@@ -44,9 +44,9 @@ pub(crate) enum Transfer {
         arguments: ArgumentRange,
         /// Optional callable environment to pass.
         env: Option<Word>,
-        /// The normal continuation resume point.
+        /// The normal continuation frame state.
         normal_state: engine::FrameStateId,
-        /// The unwind continuation resume point.
+        /// The unwind continuation frame state.
         unwind_state: engine::FrameStateId,
     },
     /// Tail call another function.
@@ -68,7 +68,7 @@ pub(crate) enum Transfer {
         value: Word,
         /// The MIR value that produced the yielded value.
         source: mir::Value,
-        /// The resume point captured in the continuation.
+        /// The frame state captured in the continuation.
         frame_state: engine::FrameStateId,
     },
     /// Throw one managed exception value.

@@ -23,8 +23,8 @@ pub(crate) struct Block {
     pub mir_block: mir::LocalNodeId<mir::Block>,
     /// Instructions including terminator.
     pub instructions: Vec<Instruction>,
-    /// MIR instruction boundary for each lowered PC in this block.
-    pub mir_instruction_offsets: Vec<u32>,
+    /// Completed source instruction count for each lowered PC in this block.
+    pub source_completed_instruction_counts: Vec<u32>,
 }
 
 /// Lowered function with predecoded dispatch metadata.

@@ -1,8 +1,8 @@
 use destack_mir as mir;
 
 use crate::program::{
-    FrameAccess, INVALID_VALUE_ID, Instruction, Opcode, Operands, PointeeAccess, PointerClass,
-    word_layout_from_type,
+    FrameAccess, Instruction, LoadFrame, MoveFrame, Opcode, PointeeAccess, PointerClass,
+    StoreFrame, word_layout_from_type,
 };
 use crate::{Error, Result};
 
@@ -62,7 +62,7 @@ impl<'a> BlockLowerer<'a> {
         Ok(instructions)
     }
 
-    /// Lower one aggregate field read into a word load or frame copy.
+    /// Lower one aggregate field read into a word load or frame move.
     pub(super) fn lower_field_read(
         &self,
         pool: &mut Pool<'_>,
@@ -107,18 +107,17 @@ impl<'a> BlockLowerer<'a> {
 
         // read word fields directly
         if field_layout.is_word() {
-            return Ok(vec![Instruction {
-                opcode: Opcode::LoadFrame,
-                operands: Operands::LoadFrame {
+            return Ok(vec![Instruction::new(
+                Opcode::LoadFrame,
+                LoadFrame {
                     dest: destination,
                     base: aggregate,
-                    index: mir::Value(INVALID_VALUE_ID),
                     access: pool.frame_access(field.into()),
                 },
-            }]);
+            )]);
         }
 
-        // copy non-word fields as frame bytes
+        // move non-word fields as frame bytes
         let destination_access = FrameRange {
             value_type: destination_type,
             byte_offset: 0,
@@ -130,20 +129,18 @@ impl<'a> BlockLowerer<'a> {
             byte_len: field.byte_len,
         };
 
-        Ok(vec![Instruction {
-            opcode: Opcode::CopyFrame,
-            operands: Operands::CopyFrame {
+        Ok(vec![Instruction::new(
+            Opcode::MoveFrame,
+            MoveFrame {
                 destination,
-                destination_index: mir::Value(INVALID_VALUE_ID),
                 destination_access: pool.frame_access(destination_access.into()),
                 source: aggregate,
-                source_index: mir::Value(INVALID_VALUE_ID),
                 source_access: pool.frame_access(source_access.into()),
             },
-        }])
+        )])
     }
 
-    /// Lower one aggregate element read into a word load or frame copy.
+    /// Lower one aggregate element read into a word load or frame move.
     pub(super) fn lower_element_read(
         &self,
         pool: &mut Pool<'_>,
@@ -167,9 +164,6 @@ impl<'a> BlockLowerer<'a> {
         let array = array.value().ok_or_else(|| Error::MissingRepresentation {
             context: "element get array".to_string(),
         })?;
-        let index = index.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "element get index".to_string(),
-        })?;
         let destination_type = self.value_type_for_value(destination)?;
         let array_type = self.value_type_for_value(array)?;
         if matches!(self.tree.get(array_type), mir::Type::Slice { .. }) {
@@ -182,41 +176,37 @@ impl<'a> BlockLowerer<'a> {
         let element = element_access(self.tree, self.layouts(), array_type, PointerClass::Frame)
             .ok_or(Error::InvalidInstruction)?;
         let element_layout = self.layout_for_type(element.value_type)?;
+        let element_offset = element.byte_stride * *index as usize;
 
         // read word elements directly
         if element_layout.is_word() {
-            return Ok(vec![Instruction {
-                opcode: Opcode::LoadFrame,
-                operands: Operands::LoadFrame {
+            return Ok(vec![Instruction::new(
+                Opcode::LoadFrame,
+                LoadFrame {
                     dest: destination,
                     base: array,
-                    index,
-                    access: pool.frame_access(
-                        element.into_frame_access(0, self.array_length_for_value(array)?),
-                    ),
+                    access: pool.frame_access(element.into_frame_access(element_offset, 0)),
                 },
-            }]);
+            )]);
         }
 
-        // copy non-word elements as frame bytes
+        // move non-word elements as frame bytes
         let destination_access = FrameRange {
             value_type: destination_type,
             byte_offset: 0,
             byte_len: element.byte_len,
         };
-        let source_access = element.into_frame_access(0, self.array_length_for_value(array)?);
+        let source_access = element.into_frame_access(element_offset, 0);
 
-        Ok(vec![Instruction {
-            opcode: Opcode::CopyFrame,
-            operands: Operands::CopyFrame {
+        Ok(vec![Instruction::new(
+            Opcode::MoveFrame,
+            MoveFrame {
                 destination,
-                destination_index: mir::Value(INVALID_VALUE_ID),
                 destination_access: pool.frame_access(destination_access.into()),
                 source: array,
-                source_index: index,
                 source_access: pool.frame_access(source_access),
             },
-        }])
+        )])
     }
 
     /// Lower one functional field update into frame stores.
@@ -240,7 +230,7 @@ impl<'a> BlockLowerer<'a> {
             context: "field set value".to_string(),
         })?;
 
-        // resolve copied object and replacement field
+        // resolve original aggregate and replacement field
         let destination_type = self.value_type_for_value(destination)?;
         let layout = self.layout_for_type(destination_type)?;
         let field_count = layout.field_count().ok_or(Error::InvalidInstruction)?;
@@ -258,7 +248,7 @@ impl<'a> BlockLowerer<'a> {
             byte_len: field.byte_len,
         };
 
-        // copy the old aggregate and overwrite one field
+        // move the original aggregate and overwrite one field
         Ok(vec![
             self.store_frame_range(pool, destination, base, whole)?,
             self.store_frame_range(pool, destination, value, field)?,
@@ -271,7 +261,7 @@ impl<'a> BlockLowerer<'a> {
         pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         array: mir::ValueReference,
-        index: mir::ValueReference,
+        index: u32,
         value: mir::ValueReference,
     ) -> Result<Vec<Instruction>> {
         let destination = destination
@@ -282,14 +272,11 @@ impl<'a> BlockLowerer<'a> {
         let array = array.value().ok_or_else(|| Error::MissingRepresentation {
             context: "element set array".to_string(),
         })?;
-        let index = index.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "element set index".to_string(),
-        })?;
         let value = value.value().ok_or_else(|| Error::MissingRepresentation {
             context: "element set value".to_string(),
         })?;
 
-        // resolve copied object and replacement element
+        // resolve original aggregate and replacement element
         let destination_type = self.value_type_for_value(destination)?;
         if matches!(self.tree.get(destination_type), mir::Type::Slice { .. }) {
             return Err(Error::TypeMismatch {
@@ -310,44 +297,47 @@ impl<'a> BlockLowerer<'a> {
             destination_type,
             PointerClass::Frame,
         )
-        .ok_or(Error::InvalidInstruction)?;
-        let array_length = self.array_length_for_value(destination)?;
-        let (opcode, operands) = if element.is_word() {
-            (
+        .ok_or_else(|| Error::InvariantViolation {
+            context: format!(
+                "missing element access for {:?}: {:?}",
+                destination_type,
+                self.tree.get(destination_type)
+            ),
+        })?;
+        let element_offset = element.byte_stride * index as usize;
+        let instruction = if element.is_word() {
+            Instruction::new(
                 Opcode::StoreFrame,
-                Operands::StoreFrame {
+                StoreFrame {
                     base: destination,
-                    index,
                     value,
                     reference: reference_meta_for_value(self.value_layout_map(), destination),
-                    access: pool.frame_access(element.into_frame_access(0, array_length)),
+                    access: pool.frame_access(element.into_frame_access(element_offset, 0)),
                 },
             )
         } else {
-            let destination_access = element.into_frame_access(0, array_length);
+            let destination_access = element.into_frame_access(element_offset, 0);
             let source_access = FrameRange {
                 value_type: element.value_type,
                 byte_offset: 0,
                 byte_len: element.byte_len,
             };
 
-            (
-                Opcode::CopyFrame,
-                Operands::CopyFrame {
+            Instruction::new(
+                Opcode::MoveFrame,
+                MoveFrame {
                     destination,
-                    destination_index: index,
                     destination_access: pool.frame_access(destination_access),
                     source: value,
-                    source_index: mir::Value(INVALID_VALUE_ID),
                     source_access: pool.frame_access(source_access.into()),
                 },
             )
         };
 
-        // copy the old aggregate and overwrite one element
+        // move the original aggregate and overwrite one element
         Ok(vec![
             self.store_frame_range(pool, destination, array, whole)?,
-            Instruction { opcode, operands },
+            instruction,
         ])
     }
 
@@ -375,7 +365,7 @@ impl<'a> BlockLowerer<'a> {
         // fall back to fixed indexed elements
         let element = layout.element().ok_or_else(|| Error::TypeMismatch {
             expected: "frame-backed layout".to_string(),
-            actual: format!("{value_type:?}"),
+            actual: format!("{value_type:?} for {:?}", self.tree.get(value_type)),
         })?;
         let element_count = layout.element_count().ok_or(Error::InvalidInstruction)?;
         let mut ranges = Vec::with_capacity(element_count);
@@ -406,16 +396,14 @@ impl<'a> BlockLowerer<'a> {
         value: mir::Value,
         range: FrameRange,
     ) -> Result<Instruction> {
-        // copy non-word values as frame bytes
+        // move non-word values as frame bytes
         if word_layout_from_type(self.tree, range.value_type).is_none() {
-            return Ok(Instruction {
-                opcode: Opcode::CopyFrame,
-                operands: Operands::CopyFrame {
+            return Ok(Instruction::new(
+                Opcode::MoveFrame,
+                MoveFrame {
                     destination,
-                    destination_index: mir::Value(INVALID_VALUE_ID),
                     destination_access: pool.frame_access(range.into()),
                     source: value,
-                    source_index: mir::Value(INVALID_VALUE_ID),
                     source_access: pool.frame_access(
                         FrameRange {
                             byte_offset: 0,
@@ -424,7 +412,7 @@ impl<'a> BlockLowerer<'a> {
                         .into(),
                     ),
                 },
-            });
+            ));
         }
 
         // store word values through the normal frame store path
@@ -436,16 +424,15 @@ impl<'a> BlockLowerer<'a> {
             word_layout: word_layout_from_type(self.tree, range.value_type),
         };
 
-        Ok(Instruction {
-            opcode: Opcode::StoreFrame,
-            operands: Operands::StoreFrame {
+        Ok(Instruction::new(
+            Opcode::StoreFrame,
+            StoreFrame {
                 base: destination,
-                index: mir::Value(INVALID_VALUE_ID),
                 value,
                 reference: reference_meta_for_value(self.value_layout_map(), destination),
                 access: pool.frame_access(access.into()),
             },
-        })
+        ))
     }
 }
 

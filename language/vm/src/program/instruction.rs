@@ -26,7 +26,7 @@ impl Instruction {
 
     /// Borrow this instruction's typed payload.
     #[inline(always)]
-    pub(crate) fn payload_ref<T>(&self) -> &T {
+    pub(crate) fn payload_as<T>(&self) -> &T {
         self.payload.get_ref()
     }
 }

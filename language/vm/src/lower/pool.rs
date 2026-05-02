@@ -4,22 +4,20 @@ use destack_mir as mir;
 
 use crate::program::{
     AllocationClassId, AllocationLayout, AllocationLayoutId, ArgumentRange, CallTarget, CheckId,
-    ElementAccess, ElementAccessId, FieldAccess, FieldAccessId, FrameAccess, FrameAccessId,
-    MovePair, MoveRange, OperandTableBuilder, PointeeAccess, PointeeAccessId, ReferenceMapId,
-    SliceElementAccess, SliceElementAccessId, SwitchCase, SwitchCasesId, SwitchTable,
-    SwitchTableId, TensorConvolutionId, TensorDotId, TensorGatherId, TensorScatterId,
-    TensorWindowId, TypeRangeId, U32RangeId,
+    ConstValue, ConstValueId, ElementAccess, ElementAccessId, FieldAccess, FieldAccessId,
+    FrameAccess, FrameAccessId, MovePair, MoveRange, MoveSource, OperandTableBuilder,
+    PointeeAccess, PointeeAccessId, ReferenceMapId, SliceElementAccess, SliceElementAccessId,
+    SwitchCase, SwitchCasesId, SwitchTable, SwitchTableId, TensorConvolutionId, TensorDotId,
+    TensorGatherId, TensorScatterId, TensorWindowId, TypeRangeId, U32RangeId,
 };
 use crate::{Error, Result};
 
 /// Return the lowered move source for one argument index.
-fn move_source(arguments: &[mir::Value], index: usize) -> Result<u32> {
-    arguments
-        .get(index)
-        .map(|value| value.0)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing edge argument at index {index}"),
-        })
+fn move_source(arguments: &[mir::Value], index: usize) -> MoveSource {
+    match arguments.get(index) {
+        Some(value) => MoveSource::Value(*value),
+        None => MoveSource::Void,
+    }
 }
 
 /// One lowering pool for shared variable-length lowering data.
@@ -50,6 +48,11 @@ impl<'a> Pool<'a> {
     /// Return one pooled allocation layout id.
     pub(super) fn allocation_layout(&mut self, allocation: AllocationLayout) -> AllocationLayoutId {
         self.operand_table.push_allocation_layout(allocation)
+    }
+
+    /// Return one pooled constant id.
+    pub(super) fn constant(&mut self, constant: ConstValue) -> ConstValueId {
+        self.operand_table.push_constant(constant)
     }
 
     /// Return one pooled allocation class id.
@@ -280,8 +283,11 @@ fn move_range(
 
     // append move pairs
     for (index, param) in parameters.iter().enumerate() {
-        let src = move_source(arguments, index)?;
-        pool.push(MovePair { dest: param.0, src });
+        let source = move_source(arguments, index);
+        pool.push(MovePair {
+            dest: *param,
+            source,
+        });
     }
 
     // return range
@@ -318,10 +324,10 @@ fn parameter_move_range(
             .ok_or_else(|| Error::MissingRepresentation {
                 context: "function parameter value".to_string(),
             })?;
-        let src = move_source(arguments, index)?;
+        let source = move_source(arguments, index);
         pool.push(MovePair {
-            dest: parameter.0,
-            src,
+            dest: parameter,
+            source,
         });
     }
 

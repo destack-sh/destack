@@ -1,6 +1,8 @@
 use destack_mir as mir;
 
-use crate::program::{Instruction, Opcode, Operands};
+use crate::program::{
+    Assume, AsyncDispose, AtomicFence, Dispose, DropValue, Instruction, Opcode, Pin, UnpinValue,
+};
 use crate::{Error, Result};
 
 use super::lower::BlockLowerer;
@@ -89,7 +91,7 @@ impl<'a> BlockLowerer<'a> {
                 });
             }
             mir::Instruction::Const { destination, value } => {
-                self.lower_const(*destination, value)?
+                self.lower_const(pool, *destination, value)?
             }
 
             mir::Instruction::Binary {
@@ -187,15 +189,11 @@ impl<'a> BlockLowerer<'a> {
                 self.lower_store(pool, *pointer, *value)?
             }
 
-            mir::Instruction::Dispose { .. } => Instruction {
-                opcode: Opcode::Dispose,
-                operands: Operands::Dispose,
-            },
+            mir::Instruction::Dispose { .. } => Instruction::new(Opcode::Dispose, Dispose),
 
-            mir::Instruction::AsyncDispose { .. } => Instruction {
-                opcode: Opcode::AsyncDispose,
-                operands: Operands::AsyncDispose,
-            },
+            mir::Instruction::AsyncDispose { .. } => {
+                Instruction::new(Opcode::AsyncDispose, AsyncDispose)
+            }
 
             mir::Instruction::Pin { value } => {
                 let value = (*value)
@@ -204,10 +202,7 @@ impl<'a> BlockLowerer<'a> {
                         context: "pin value".to_string(),
                     })?;
 
-                Instruction {
-                    opcode: Opcode::Pin,
-                    operands: Operands::Pin { value },
-                }
+                Instruction::new(Opcode::Pin, Pin { value })
             }
 
             mir::Instruction::Unpin { value } => {
@@ -217,10 +212,7 @@ impl<'a> BlockLowerer<'a> {
                         context: "unpin value".to_string(),
                     })?;
 
-                Instruction {
-                    opcode: Opcode::Unpin,
-                    operands: Operands::Unpin { value },
-                }
+                Instruction::new(Opcode::Unpin, UnpinValue { value })
             }
 
             mir::Instruction::Drop { value } => {
@@ -230,16 +222,10 @@ impl<'a> BlockLowerer<'a> {
                         context: "drop value".to_string(),
                     })?;
 
-                Instruction {
-                    opcode: Opcode::Drop,
-                    operands: Operands::Drop { value },
-                }
+                Instruction::new(Opcode::Drop, DropValue { value })
             }
 
-            mir::Instruction::Assume { condition: _ } => Instruction {
-                opcode: Opcode::Assume,
-                operands: Operands::Assume,
-            },
+            mir::Instruction::Assume { condition: _ } => Instruction::new(Opcode::Assume, Assume),
 
             mir::Instruction::FieldGet { .. } => return Err(Error::InvalidInstruction),
 
@@ -382,10 +368,9 @@ impl<'a> BlockLowerer<'a> {
                 ..
             } => self.lower_atomic_rmw(*destination, *operator, *pointer, *value)?,
 
-            mir::Instruction::AtomicFence { .. } => Instruction {
-                opcode: Opcode::AtomicFence,
-                operands: Operands::AtomicFence,
-            },
+            mir::Instruction::AtomicFence { .. } => {
+                Instruction::new(Opcode::AtomicFence, AtomicFence)
+            }
 
             mir::Instruction::BarrierWrite {
                 object,

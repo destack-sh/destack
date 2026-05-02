@@ -1,6 +1,11 @@
 use destack_mir as mir;
 
-use crate::program::{ElementAccess, Instruction, Opcode, Operands};
+use crate::program::{
+    ElementAccess, Instruction, Opcode, TensorBroadcast, TensorCast, TensorCompare, TensorConcat,
+    TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill,
+    TensorGather, TensorLoad, TensorPad, TensorReduce, TensorReshape, TensorScatter, TensorSelect,
+    TensorSlice, TensorSplat, TensorStore, TensorTranspose, TensorView,
+};
 use crate::{Error, Result};
 
 use super::access::{tensor_element_access, tensor_element_type, tensor_view_pointer_class};
@@ -20,14 +25,14 @@ impl<'a> BlockLowerer<'a> {
                 let value = tensor_value(*value, "tensor splat value")?;
                 let tensor_type = self.value_type_for_value(destination)?;
 
-                Instruction {
-                    opcode: Opcode::TensorSplat,
-                    operands: Operands::TensorSplat {
+                Instruction::new(
+                    Opcode::TensorSplat,
+                    TensorSplat {
                         dest: destination,
                         value,
                         tensor_type,
                     },
-                }
+                )
             }
             mir::Instruction::TensorLoad {
                 destination,
@@ -45,16 +50,16 @@ impl<'a> BlockLowerer<'a> {
                     .tensor_element_access(view_type)
                     .map(|element| pool.element_access(element));
 
-                Instruction {
-                    opcode: Opcode::TensorLoad,
-                    operands: Operands::TensorLoad {
+                Instruction::new(
+                    Opcode::TensorLoad,
+                    TensorLoad {
                         dest: destination,
                         view,
                         indices,
                         view_type,
                         element,
                     },
-                }
+                )
             }
             mir::Instruction::TensorExtract {
                 destination,
@@ -69,15 +74,15 @@ impl<'a> BlockLowerer<'a> {
                     "tensor extract index",
                 )?;
 
-                Instruction {
-                    opcode: Opcode::TensorExtract,
-                    operands: Operands::TensorExtract {
+                Instruction::new(
+                    Opcode::TensorExtract,
+                    TensorExtract {
                         dest: destination,
                         tensor,
                         indices,
                         tensor_type,
                     },
-                }
+                )
             }
             mir::Instruction::TensorStore {
                 view,
@@ -95,16 +100,16 @@ impl<'a> BlockLowerer<'a> {
                     .tensor_element_access(view_type)
                     .map(|element| pool.element_access(element));
 
-                Instruction {
-                    opcode: Opcode::TensorStore,
-                    operands: Operands::TensorStore {
+                Instruction::new(
+                    Opcode::TensorStore,
+                    TensorStore {
                         view,
                         indices,
                         value,
                         view_type,
                         element,
                     },
-                }
+                )
             }
             mir::Instruction::TensorFill { view, value } => {
                 let view = tensor_value(*view, "tensor fill view")?;
@@ -114,15 +119,15 @@ impl<'a> BlockLowerer<'a> {
                     .tensor_element_access(view_type)
                     .map(|element| pool.element_access(element));
 
-                Instruction {
-                    opcode: Opcode::TensorFill,
-                    operands: Operands::TensorFill {
+                Instruction::new(
+                    Opcode::TensorFill,
+                    TensorFill {
                         view,
                         value,
                         view_type,
                         element,
                     },
-                }
+                )
             }
             mir::Instruction::TensorCopy { target, source } => {
                 let target = tensor_value(*target, "tensor move target")?;
@@ -136,9 +141,9 @@ impl<'a> BlockLowerer<'a> {
                     .tensor_element_access(source_type)
                     .map(|element| pool.element_access(element));
 
-                Instruction {
-                    opcode: Opcode::TensorCopy,
-                    operands: Operands::TensorCopy {
+                Instruction::new(
+                    Opcode::TensorCopy,
+                    TensorCopy {
                         target,
                         source,
                         target_type,
@@ -146,7 +151,7 @@ impl<'a> BlockLowerer<'a> {
                         target_element,
                         source_element,
                     },
-                }
+                )
             }
             mir::Instruction::TensorReshape {
                 destination,
@@ -161,15 +166,15 @@ impl<'a> BlockLowerer<'a> {
                     "tensor reshape shape",
                 )?;
 
-                Instruction {
-                    opcode: Opcode::TensorReshape,
-                    operands: Operands::TensorReshape {
+                Instruction::new(
+                    Opcode::TensorReshape,
+                    TensorReshape {
                         dest: destination,
                         tensor,
                         shape,
                         dest_type,
                     },
-                }
+                )
             }
             mir::Instruction::TensorBroadcast {
                 destination,
@@ -181,16 +186,16 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
 
-                Instruction {
-                    opcode: Opcode::TensorBroadcast,
-                    operands: Operands::TensorBroadcast {
+                Instruction::new(
+                    Opcode::TensorBroadcast,
+                    TensorBroadcast {
                         dest: destination,
                         tensor,
                         dimensions: pool.u32_range(dimensions),
                         source_type,
                         dest_type,
                     },
-                }
+                )
             }
             mir::Instruction::TensorTranspose {
                 destination,
@@ -202,16 +207,16 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
 
-                Instruction {
-                    opcode: Opcode::TensorTranspose,
-                    operands: Operands::TensorTranspose {
+                Instruction::new(
+                    Opcode::TensorTranspose,
+                    TensorTranspose {
                         dest: destination,
                         tensor,
                         permutation: pool.u32_range(permutation),
                         source_type,
                         dest_type,
                     },
-                }
+                )
             }
             mir::Instruction::TensorSlice {
                 destination,
@@ -230,9 +235,9 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
 
-                Instruction {
-                    opcode: Opcode::TensorSlice,
-                    operands: Operands::TensorSlice {
+                Instruction::new(
+                    Opcode::TensorSlice,
+                    TensorSlice {
                         dest: destination,
                         tensor,
                         arguments,
@@ -242,7 +247,7 @@ impl<'a> BlockLowerer<'a> {
                         source_type,
                         dest_type,
                     },
-                }
+                )
             }
             mir::Instruction::TensorPad {
                 destination,
@@ -263,9 +268,9 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
 
-                Instruction {
-                    opcode: Opcode::TensorPad,
-                    operands: Operands::TensorPad {
+                Instruction::new(
+                    Opcode::TensorPad,
+                    TensorPad {
                         dest: destination,
                         tensor,
                         arguments,
@@ -276,7 +281,7 @@ impl<'a> BlockLowerer<'a> {
                         source_type,
                         dest_type,
                     },
-                }
+                )
             }
             mir::Instruction::TensorConcat {
                 destination,
@@ -294,16 +299,16 @@ impl<'a> BlockLowerer<'a> {
                 }
                 let dest_type = self.value_type_for_value(destination)?;
 
-                Instruction {
-                    opcode: Opcode::TensorConcat,
-                    operands: Operands::TensorConcat {
+                Instruction::new(
+                    Opcode::TensorConcat,
+                    TensorConcat {
                         dest: destination,
                         tensors,
                         tensor_types: pool.type_range(&tensor_types),
                         axis: *axis,
                         dest_type,
                     },
-                }
+                )
             }
             mir::Instruction::TensorReduce {
                 destination,
@@ -318,9 +323,9 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
 
-                Instruction {
-                    opcode: Opcode::TensorReduce,
-                    operands: Operands::TensorReduce {
+                Instruction::new(
+                    Opcode::TensorReduce,
+                    TensorReduce {
                         dest: destination,
                         operator: *operator,
                         tensor,
@@ -329,7 +334,7 @@ impl<'a> BlockLowerer<'a> {
                         source_type,
                         dest_type,
                     },
-                }
+                )
             }
             mir::Instruction::TensorDot {
                 destination,
@@ -344,9 +349,9 @@ impl<'a> BlockLowerer<'a> {
                 let left_type = self.value_type_for_value(left)?;
                 let right_type = self.value_type_for_value(right)?;
 
-                Instruction {
-                    opcode: Opcode::TensorDot,
-                    operands: Operands::TensorDot {
+                Instruction::new(
+                    Opcode::TensorDot,
+                    TensorDot {
                         dest: destination,
                         left,
                         right,
@@ -355,7 +360,7 @@ impl<'a> BlockLowerer<'a> {
                         right_type,
                         dest_type,
                     },
-                }
+                )
             }
             mir::Instruction::TensorConvolution {
                 destination,
@@ -373,9 +378,9 @@ impl<'a> BlockLowerer<'a> {
                 let input_type = self.value_type_for_value(input)?;
                 let kernel_type = self.value_type_for_value(kernel)?;
 
-                Instruction {
-                    opcode: Opcode::TensorConvolution,
-                    operands: Operands::TensorConvolution {
+                Instruction::new(
+                    Opcode::TensorConvolution,
+                    TensorConvolution {
                         dest: destination,
                         input,
                         kernel,
@@ -387,7 +392,7 @@ impl<'a> BlockLowerer<'a> {
                         kernel_type,
                         dest_type,
                     },
-                }
+                )
             }
             mir::Instruction::TensorGather {
                 destination,
@@ -403,9 +408,9 @@ impl<'a> BlockLowerer<'a> {
                 let operand_type = self.value_type_for_value(operand)?;
                 let indices_type = self.value_type_for_value(indices)?;
 
-                Instruction {
-                    opcode: Opcode::TensorGather,
-                    operands: Operands::TensorGather {
+                Instruction::new(
+                    Opcode::TensorGather,
+                    TensorGather {
                         dest: destination,
                         operand,
                         indices,
@@ -415,7 +420,7 @@ impl<'a> BlockLowerer<'a> {
                         indices_type,
                         dest_type,
                     },
-                }
+                )
             }
             mir::Instruction::TensorScatter {
                 destination,
@@ -434,9 +439,9 @@ impl<'a> BlockLowerer<'a> {
                 let indices_type = self.value_type_for_value(indices)?;
                 let updates_type = self.value_type_for_value(updates)?;
 
-                Instruction {
-                    opcode: Opcode::TensorScatter,
-                    operands: Operands::TensorScatter {
+                Instruction::new(
+                    Opcode::TensorScatter,
+                    TensorScatter {
                         dest: destination,
                         operand,
                         indices,
@@ -448,7 +453,7 @@ impl<'a> BlockLowerer<'a> {
                         updates_type,
                         dest_type,
                     },
-                }
+                )
             }
             mir::Instruction::TensorCompare {
                 destination,
@@ -463,9 +468,9 @@ impl<'a> BlockLowerer<'a> {
                 let left_type = self.value_type_for_value(left)?;
                 let right_type = self.value_type_for_value(right)?;
 
-                Instruction {
-                    opcode: Opcode::TensorCompare,
-                    operands: Operands::TensorCompare {
+                Instruction::new(
+                    Opcode::TensorCompare,
+                    TensorCompare {
                         dest: destination,
                         operator: *operator,
                         left,
@@ -474,7 +479,7 @@ impl<'a> BlockLowerer<'a> {
                         right_type,
                         dest_type,
                     },
-                }
+                )
             }
             mir::Instruction::TensorSelect {
                 destination,
@@ -488,16 +493,16 @@ impl<'a> BlockLowerer<'a> {
                 let else_value = tensor_value(*else_value, "tensor select else value")?;
                 let dest_type = self.value_type_for_value(destination)?;
 
-                Instruction {
-                    opcode: Opcode::TensorSelect,
-                    operands: Operands::TensorSelect {
+                Instruction::new(
+                    Opcode::TensorSelect,
+                    TensorSelect {
                         dest: destination,
                         mask,
                         then_value,
                         else_value,
                         dest_type,
                     },
-                }
+                )
             }
             mir::Instruction::TensorConvert {
                 destination,
@@ -509,27 +514,27 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
 
-                Instruction {
-                    opcode: Opcode::TensorConvert,
-                    operands: Operands::TensorConvert {
+                Instruction::new(
+                    Opcode::TensorConvert,
+                    TensorConvert {
                         dest: destination,
                         mode: *mode,
                         tensor,
                         source_type,
                         dest_type,
                     },
-                }
+                )
             }
             mir::Instruction::TensorCast {
                 destination,
                 tensor,
-            } => Instruction {
-                opcode: Opcode::TensorCast,
-                operands: Operands::TensorCast {
+            } => Instruction::new(
+                Opcode::TensorCast,
+                TensorCast {
                     dest: tensor_value(*destination, "tensor cast destination")?,
                     tensor: tensor_value(*tensor, "tensor cast source")?,
                 },
-            },
+            ),
             mir::Instruction::TensorView {
                 destination,
                 view,
@@ -550,9 +555,9 @@ impl<'a> BlockLowerer<'a> {
                     .tensor_element_access(source_type)
                     .map(|element| pool.element_access(element));
 
-                Instruction {
-                    opcode: Opcode::TensorView,
-                    operands: Operands::TensorView {
+                Instruction::new(
+                    Opcode::TensorView,
+                    TensorView {
                         dest: destination,
                         view,
                         arguments,
@@ -563,7 +568,7 @@ impl<'a> BlockLowerer<'a> {
                         dest_type,
                         element,
                     },
-                }
+                )
             }
             _ => return Err(Error::InvalidInstruction),
         })

@@ -31,14 +31,15 @@ pub(super) fn select_binary_opcode(
     use mir::BinaryOperator::*;
 
     match layout {
-        Some(ValueLayout::Int { width, signed }) => select_integer_opcode(operator, signed, width)
-            .unwrap_or_else(|| {
-                if signed {
-                    Opcode::BinaryWideInt
-                } else {
-                    Opcode::BinaryWideUint
-                }
-            }),
+        Some(ValueLayout::Int { width, signed }) => {
+            let wide_opcode = if signed {
+                Opcode::BinaryWideInt
+            } else {
+                Opcode::BinaryWideUint
+            };
+
+            select_integer_opcode(operator, signed, width).unwrap_or(wide_opcode)
+        }
         Some(ValueLayout::Float { width: 32 }) => select_float_opcode(operator, false),
         Some(ValueLayout::Float { width: 64 }) => select_float_opcode(operator, true),
         Some(ValueLayout::Bool) => match operator {

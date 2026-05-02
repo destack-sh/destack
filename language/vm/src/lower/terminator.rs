@@ -1,6 +1,10 @@
 use destack_mir as mir;
 
-use crate::program::{Instruction, Opcode, Operands, pack_optional_value};
+use crate::program::{
+    Branch, CallBranch, CallIndirectBranch, CallInterfaceBranch, CallVirtualBranch, Check,
+    Instruction, Jump, Opcode, Return, Switch, TableSwitch, TailCall, TailCallIndirect,
+    TailCallInterface, TailCallSelf, TailCallVirtual, Throw, Trap, Unreachable, Yield,
+};
 use crate::{Error, Result};
 
 use super::access::{interface_table_field, virtual_table_field};
@@ -24,20 +28,18 @@ impl<'a> BlockLowerer<'a> {
                     context: "terminator".to_string(),
                 });
             }
-            mir::Terminator::Return { value } => Instruction {
-                opcode: Opcode::Return,
-                operands: Operands::Return {
-                    value: pack_optional_value(
-                        (*value)
-                            .map(|value| {
-                                value.value().ok_or_else(|| Error::MissingRepresentation {
-                                    context: "return value".to_string(),
-                                })
+            mir::Terminator::Return { value } => Instruction::new(
+                Opcode::Return,
+                Return {
+                    value: (*value)
+                        .map(|value| {
+                            value.value().ok_or_else(|| Error::MissingRepresentation {
+                                context: "return value".to_string(),
                             })
-                            .transpose()?,
-                    ),
+                        })
+                        .transpose()?,
                 },
-            },
+            ),
 
             mir::Terminator::Jump { target } => {
                 let target_block =
@@ -65,13 +67,13 @@ impl<'a> BlockLowerer<'a> {
                     .unwrap_or_default();
                 let moves = pool.edge_move_plan(target_parameters, &arguments)?;
 
-                Instruction {
-                    opcode: Opcode::Jump,
-                    operands: Operands::Jump {
+                Instruction::new(
+                    Opcode::Jump,
+                    Jump {
                         target: target_index as u32,
                         moves,
                     },
-                }
+                )
             }
 
             mir::Terminator::Branch {
@@ -134,16 +136,16 @@ impl<'a> BlockLowerer<'a> {
                 let then_moves = pool.edge_move_plan(then_parameters, &then_arguments)?;
                 let else_moves = pool.edge_move_plan(else_parameters, &else_arguments)?;
 
-                Instruction {
-                    opcode: select_branch_opcode(self.value_layout_map(), condition),
-                    operands: Operands::Branch {
+                Instruction::new(
+                    select_branch_opcode(self.value_layout_map(), condition),
+                    Branch {
                         condition,
                         then_target: then_index as u32,
                         then_moves,
                         else_target: else_index as u32,
                         else_moves,
                     },
-                }
+                )
             }
 
             mir::Terminator::Check {
@@ -200,16 +202,16 @@ impl<'a> BlockLowerer<'a> {
                 let success_moves = pool.edge_move_plan(success_parameters, &success_arguments)?;
                 let failure_moves = pool.edge_move_plan(failure_parameters, &failure_arguments)?;
 
-                Instruction {
-                    opcode: Opcode::Check,
-                    operands: Operands::Check {
+                Instruction::new(
+                    Opcode::Check,
+                    Check {
                         constraint: pool.check(constraint.clone()),
                         then_target: success_index as u32,
                         then_moves: success_moves,
                         else_target: failure_index as u32,
                         else_moves: failure_moves,
                     },
-                }
+                )
             }
 
             mir::Terminator::Switch {
@@ -261,53 +263,48 @@ impl<'a> BlockLowerer<'a> {
                         default_moves,
                     )?
                 {
-                    Instruction {
-                        opcode: select_switch_table_opcode(self.value_layout_map(), value),
-                        operands: Operands::SwitchTable {
+                    Instruction::new(
+                        select_switch_table_opcode(self.value_layout_map(), value),
+                        TableSwitch {
                             value,
                             table,
                             default_target: default_index as u32,
                             default_moves,
                         },
-                    }
+                    )
                 } else {
                     let cases = pool.switch_case_range(
                         &self.block_index_by_id,
                         &self.block_parameter,
                         cases,
                     )?;
-                    Instruction {
-                        opcode: select_switch_opcode(self.value_layout_map(), value),
-                        operands: Operands::Switch {
+                    Instruction::new(
+                        select_switch_opcode(self.value_layout_map(), value),
+                        Switch {
                             value,
                             cases,
                             default_target: default_index as u32,
                             default_moves,
                         },
-                    }
+                    )
                 }
             }
 
-            mir::Terminator::Trap { kind, payload } => Instruction {
-                opcode: Opcode::Trap,
-                operands: Operands::Trap {
+            mir::Terminator::Trap { kind, payload } => Instruction::new(
+                Opcode::Trap,
+                Trap {
                     kind: *kind,
-                    payload: pack_optional_value(
-                        (*payload)
-                            .map(|value| {
-                                value.value().ok_or_else(|| Error::MissingRepresentation {
-                                    context: "trap payload".to_string(),
-                                })
+                    payload: (*payload)
+                        .map(|value| {
+                            value.value().ok_or_else(|| Error::MissingRepresentation {
+                                context: "trap payload".to_string(),
                             })
-                            .transpose()?,
-                    ),
+                        })
+                        .transpose()?,
                 },
-            },
+            ),
 
-            mir::Terminator::Unreachable => Instruction {
-                opcode: Opcode::Unreachable,
-                operands: Operands::Unreachable,
-            },
+            mir::Terminator::Unreachable => Instruction::new(Opcode::Unreachable, Unreachable),
 
             mir::Terminator::Yield { value, .. } => {
                 let value = (*value)
@@ -315,37 +312,37 @@ impl<'a> BlockLowerer<'a> {
                     .ok_or_else(|| Error::MissingRepresentation {
                         context: "yield value".to_string(),
                     })?;
-                let resume_point = self
-                    .yield_resume_points
+                let frame_state = self
+                    .yield_frame_states
                     .get(&self.block_id())
                     .copied()
                     .ok_or_else(|| Error::InvariantViolation {
                         context: format!(
-                            "missing yield resume point for block: {:?}",
+                            "missing yield frame state for block: {:?}",
                             self.block_id()
                         ),
                     })?;
 
-                Instruction {
-                    opcode: Opcode::Yield,
-                    operands: Operands::Yield {
+                Instruction::new(
+                    Opcode::Yield,
+                    Yield {
                         value,
                         source: value,
-                        resume_point,
+                        frame_state,
                     },
-                }
+                )
             }
 
-            mir::Terminator::Throw { value } => Instruction {
-                opcode: Opcode::Throw,
-                operands: Operands::Throw {
-                    value: pack_optional_value(Some((*value).value().ok_or_else(|| {
-                        Error::MissingRepresentation {
+            mir::Terminator::Throw { value } => Instruction::new(
+                Opcode::Throw,
+                Throw {
+                    value: (*value)
+                        .value()
+                        .ok_or_else(|| Error::MissingRepresentation {
                             context: "throw value".to_string(),
-                        }
-                    })?)),
+                        })?,
                 },
-            },
+            ),
 
             mir::Terminator::Invoke { function, call, .. } => {
                 let function =
@@ -355,26 +352,26 @@ impl<'a> BlockLowerer<'a> {
                             context: "invoke callee".to_string(),
                         })?;
                 let args = pool.argument_reference_range(&call.arguments, "invoke argument")?;
-                let &(normal_resume_point, unwind_resume_point) = self
-                    .exceptional_call_resume_points
+                let &(normal_state, unwind_state) = self
+                    .exceptional_call_frame_states
                     .get(&self.block_id())
                     .ok_or_else(|| Error::InvariantViolation {
                         context: format!(
-                            "missing exceptional call resume points for block: {:?}",
+                            "missing exceptional call frame states for block: {:?}",
                             self.block_id()
                         ),
                     })?;
 
-                Instruction {
-                    opcode: Opcode::Invoke,
-                    operands: Operands::CallBranch {
+                Instruction::new(
+                    Opcode::Invoke,
+                    CallBranch {
                         function: function.id,
                         target: self.call_target(function)?,
                         arguments: args,
-                        normal_resume_point,
-                        unwind_resume_point,
+                        normal_state,
+                        unwind_state,
                     },
-                }
+                )
             }
 
             mir::Terminator::InvokeIndirect { callee, call, .. } => {
@@ -385,25 +382,25 @@ impl<'a> BlockLowerer<'a> {
                     })?;
                 let arguments =
                     pool.argument_reference_range(&call.arguments, "invoke indirect argument")?;
-                let &(normal_resume_point, unwind_resume_point) = self
-                    .exceptional_call_resume_points
+                let &(normal_state, unwind_state) = self
+                    .exceptional_call_frame_states
                     .get(&self.block_id())
                     .ok_or_else(|| Error::InvariantViolation {
                         context: format!(
-                            "missing exceptional call resume points for block: {:?}",
+                            "missing exceptional call frame states for block: {:?}",
                             self.block_id()
                         ),
                     })?;
 
-                Instruction {
-                    opcode: Opcode::InvokeIndirect,
-                    operands: Operands::CallIndirectBranch {
+                Instruction::new(
+                    Opcode::InvokeIndirect,
+                    CallIndirectBranch {
                         callee,
                         arguments,
-                        normal_resume_point,
-                        unwind_resume_point,
+                        normal_state,
+                        unwind_state,
                     },
-                }
+                )
             }
 
             mir::Terminator::InvokeVirtual {
@@ -419,19 +416,19 @@ impl<'a> BlockLowerer<'a> {
                     })?;
                 let arguments =
                     pool.argument_reference_range(&call.arguments, "invoke virtual argument")?;
-                let &(normal_resume_point, unwind_resume_point) = self
-                    .exceptional_call_resume_points
+                let &(normal_state, unwind_state) = self
+                    .exceptional_call_frame_states
                     .get(&self.block_id())
                     .ok_or_else(|| Error::InvariantViolation {
                         context: format!(
-                            "missing exceptional call resume points for block: {:?}",
+                            "missing exceptional call frame states for block: {:?}",
                             self.block_id()
                         ),
                     })?;
 
-                Instruction {
-                    opcode: Opcode::InvokeVirtual,
-                    operands: Operands::CallVirtualBranch {
+                Instruction::new(
+                    Opcode::InvokeVirtual,
+                    CallVirtualBranch {
                         receiver,
                         table_field: virtual_table_field(
                             self.tree,
@@ -442,10 +439,10 @@ impl<'a> BlockLowerer<'a> {
                         .map(|field| pool.field_access(field)),
                         method_index: method.0,
                         arguments,
-                        normal_resume_point,
-                        unwind_resume_point,
+                        normal_state,
+                        unwind_state,
                     },
-                }
+                )
             }
 
             mir::Terminator::InvokeInterface {
@@ -461,19 +458,19 @@ impl<'a> BlockLowerer<'a> {
                     })?;
                 let arguments =
                     pool.argument_reference_range(&call.arguments, "invoke interface argument")?;
-                let &(normal_resume_point, unwind_resume_point) = self
-                    .exceptional_call_resume_points
+                let &(normal_state, unwind_state) = self
+                    .exceptional_call_frame_states
                     .get(&self.block_id())
                     .ok_or_else(|| Error::InvariantViolation {
                         context: format!(
-                            "missing exceptional call resume points for block: {:?}",
+                            "missing exceptional call frame states for block: {:?}",
                             self.block_id()
                         ),
                     })?;
 
-                Instruction {
-                    opcode: Opcode::InvokeInterface,
-                    operands: Operands::CallInterfaceBranch {
+                Instruction::new(
+                    Opcode::InvokeInterface,
+                    CallInterfaceBranch {
                         receiver,
                         table_field: interface_table_field(
                             self.tree,
@@ -484,10 +481,10 @@ impl<'a> BlockLowerer<'a> {
                         .map(|field| pool.field_access(field)),
                         method_index: method.0,
                         arguments,
-                        normal_resume_point,
-                        unwind_resume_point,
+                        normal_state,
+                        unwind_state,
                     },
-                }
+                )
             }
 
             mir::Terminator::TailCall { function, call, .. } => {
@@ -500,13 +497,13 @@ impl<'a> BlockLowerer<'a> {
                 if function == self.function_id {
                     let args =
                         pool.argument_reference_range(&call.arguments, "tail call argument")?;
-                    Instruction {
-                        opcode: Opcode::TailCallSelf,
-                        operands: Operands::TailCallSelf {
+                    Instruction::new(
+                        Opcode::TailCallSelf,
+                        TailCallSelf {
                             entry: self.entry_block,
                             arguments: args,
                         },
-                    }
+                    )
                 } else {
                     let callee = self.tree.get(function);
                     let arguments = call
@@ -523,14 +520,14 @@ impl<'a> BlockLowerer<'a> {
                     let moves = pool.parameter_move_range(&callee.parameters, &arguments)?;
                     let target = self.call_target(function)?;
 
-                    Instruction {
-                        opcode: Opcode::TailCall,
-                        operands: Operands::TailCall {
+                    Instruction::new(
+                        Opcode::TailCall,
+                        TailCall {
                             function: function.id,
                             target,
                             moves,
                         },
-                    }
+                    )
                 }
             }
 
@@ -542,13 +539,13 @@ impl<'a> BlockLowerer<'a> {
                     })?;
                 let args =
                     pool.argument_reference_range(&call.arguments, "tail indirect argument")?;
-                Instruction {
-                    opcode: Opcode::TailCallIndirect,
-                    operands: Operands::TailCallIndirect {
+                Instruction::new(
+                    Opcode::TailCallIndirect,
+                    TailCallIndirect {
                         callee,
                         arguments: args,
                     },
-                }
+                )
             }
 
             mir::Terminator::TailCallVirtual {
@@ -564,9 +561,9 @@ impl<'a> BlockLowerer<'a> {
                     })?;
                 let args =
                     pool.argument_reference_range(&call.arguments, "tail virtual argument")?;
-                Instruction {
-                    opcode: Opcode::TailCallVirtual,
-                    operands: Operands::TailCallVirtual {
+                Instruction::new(
+                    Opcode::TailCallVirtual,
+                    TailCallVirtual {
                         receiver,
                         table_field: virtual_table_field(
                             self.tree,
@@ -578,7 +575,7 @@ impl<'a> BlockLowerer<'a> {
                         method_index: method.0,
                         arguments: args,
                     },
-                }
+                )
             }
 
             mir::Terminator::TailCallInterface {
@@ -594,9 +591,9 @@ impl<'a> BlockLowerer<'a> {
                     })?;
                 let args =
                     pool.argument_reference_range(&call.arguments, "tail interface argument")?;
-                Instruction {
-                    opcode: Opcode::TailCallInterface,
-                    operands: Operands::TailCallInterface {
+                Instruction::new(
+                    Opcode::TailCallInterface,
+                    TailCallInterface {
                         receiver,
                         table_field: interface_table_field(
                             self.tree,
@@ -608,7 +605,7 @@ impl<'a> BlockLowerer<'a> {
                         method_index: method.0,
                         arguments: args,
                     },
-                }
+                )
             }
         })
     }

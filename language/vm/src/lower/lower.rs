@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 
-use {destack_heap as heap, destack_mir as mir};
+use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
 use crate::program::{Block, CallTarget, Function, Layout, OperandTableBuilder};
 use crate::{Error, Result};
@@ -15,7 +15,7 @@ use super::value::{ValueLayoutMap, ValueLayoutMapBuilder};
 struct FunctionLowerer<'a, 'table> {
     context: FunctionContext<'a>,
     func: &'a mir::Function,
-    frame_layout: destack_engine::FrameLayoutId,
+    frame_layout: &'a engine::FrameLayout,
     pool: Pool<'table>,
 }
 
@@ -24,14 +24,11 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
     fn new(
         tree: &'a mir::Tree,
         func_id: mir::LocalNodeId<mir::Function>,
-        frame_layout: destack_engine::FrameLayoutId,
-        yield_resume_points: &'a HashMap<
+        frame_layout: &'a engine::FrameLayout,
+        yield_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, engine::FrameStateId>,
+        exceptional_call_frame_states: &'a HashMap<
             mir::LocalNodeId<mir::Block>,
-            destack_engine::ResumePointId,
-        >,
-        exceptional_call_resume_points: &'a HashMap<
-            mir::LocalNodeId<mir::Block>,
-            (destack_engine::ResumePointId, destack_engine::ResumePointId),
+            (engine::FrameStateId, engine::FrameStateId),
         >,
         call_targets: &'a HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &'a HashMap<mir::LocalNodeId<mir::Type>, Layout>,
@@ -67,9 +64,10 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             tree,
             function_id: func_id,
             entry_block,
-            yield_resume_points,
-            exceptional_call_resume_points,
+            yield_frame_states,
+            exceptional_call_frame_states,
             call_targets,
+            frame_layout,
             value_layout_map,
             value_type,
             layouts,
@@ -121,7 +119,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
 
         Ok(Function {
             mir_function: self.context.function_id,
-            frame_layout: self.frame_layout,
+            frame_layout: self.frame_layout.id,
             parameters: parameter,
             entry: self.context.entry_block,
             blocks: block,
@@ -188,11 +186,11 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
 pub(crate) fn lower_function(
     tree: &mir::Tree,
     func_id: mir::LocalNodeId<mir::Function>,
-    frame_layout: destack_engine::FrameLayoutId,
-    yield_resume_points: &HashMap<mir::LocalNodeId<mir::Block>, destack_engine::ResumePointId>,
-    exceptional_call_resume_points: &HashMap<
+    frame_layout: &engine::FrameLayout,
+    yield_frame_states: &HashMap<mir::LocalNodeId<mir::Block>, engine::FrameStateId>,
+    exceptional_call_frame_states: &HashMap<
         mir::LocalNodeId<mir::Block>,
-        (destack_engine::ResumePointId, destack_engine::ResumePointId),
+        (engine::FrameStateId, engine::FrameStateId),
     >,
     call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
@@ -205,8 +203,8 @@ pub(crate) fn lower_function(
         tree,
         func_id,
         frame_layout,
-        yield_resume_points,
-        exceptional_call_resume_points,
+        yield_frame_states,
+        exceptional_call_frame_states,
         call_targets,
         layouts,
         heap_options,
@@ -242,8 +240,9 @@ impl<'a> BlockLowerer<'a> {
     /// Lower the block into program form.
     fn lower(self, pool: &mut Pool<'_>) -> Result<Block> {
         let mut instructions = Vec::with_capacity(self.block.instructions.len() + 1);
-        let mut mir_instruction_offsets = Vec::with_capacity(self.block.instructions.len() + 2);
-        mir_instruction_offsets.push(0);
+        let mut source_completed_instruction_counts =
+            Vec::with_capacity(self.block.instructions.len() + 2);
+        source_completed_instruction_counts.push(0);
 
         // convert regular instructions
         let mut inst_index = 0usize;
@@ -259,7 +258,7 @@ impl<'a> BlockLowerer<'a> {
             ) {
                 instructions.push(instruction);
                 inst_index += skip;
-                mir_instruction_offsets.push(inst_index as u32);
+                source_completed_instruction_counts.push(inst_index as u32);
                 continue;
             }
 
@@ -267,7 +266,7 @@ impl<'a> BlockLowerer<'a> {
             let lowered = self.lower_instructions(inst, pool)?;
             instructions.extend(lowered);
             inst_index += 1;
-            mir_instruction_offsets.push(inst_index as u32);
+            source_completed_instruction_counts.push(inst_index as u32);
         }
 
         let terminator = self.tree.get(self.block.terminator);
@@ -280,12 +279,12 @@ impl<'a> BlockLowerer<'a> {
             instructions.push(lowered_terminator);
         }
 
-        mir_instruction_offsets.push((self.block.instructions.len() + 1) as u32);
+        source_completed_instruction_counts.push((self.block.instructions.len() + 1) as u32);
 
         Ok(Block {
             mir_block: self.mir_block,
             instructions,
-            mir_instruction_offsets,
+            source_completed_instruction_counts,
         })
     }
 
