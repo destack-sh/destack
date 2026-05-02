@@ -35,7 +35,7 @@ impl Ast {
         // derive parent index
         let parents = ast::NodeParentIndex::from_tree(&tree);
 
-        // build module ast from parts
+        // build module ast
         Self {
             tree,
             parents,

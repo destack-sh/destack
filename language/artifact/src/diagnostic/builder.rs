@@ -1,25 +1,21 @@
-use std::hash::Hash;
+use destack_source::{Diagnostic, DiagnosticHelp, DiagnosticNote, DiagnosticSuggestion};
 
-use destack_source::{
-    Diagnostic, DiagnosticHelp, DiagnosticLabel, DiagnosticNote, DiagnosticSuggestion,
-};
+use crate::{DiagnosticAnchor, DiagnosticContext, DiagnosticError, ToDiagnostic};
 
-use crate::{DiagnosticContext, DiagnosticError, DiagnosticSite, IntoDiagnostic};
-
-/// One pending secondary diagnostic label.
+/// Secondary source label attached by a diagnostic builder.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DiagnosticBuilderLabel {
-    /// The provider-side source site.
-    pub site: DiagnosticSite,
+struct SecondaryLabel {
+    /// The provider-side source anchor.
+    anchor: DiagnosticAnchor,
     /// The label message.
-    pub message: String,
+    message: String,
 }
 
-impl DiagnosticBuilderLabel {
-    /// Create one pending diagnostic label.
-    pub fn new(site: impl Into<DiagnosticSite>, message: impl Into<String>) -> Self {
+impl SecondaryLabel {
+    /// Create one secondary source label.
+    fn new(anchor: impl Into<DiagnosticAnchor>, message: impl Into<String>) -> Self {
         Self {
-            site: site.into(),
+            anchor: anchor.into(),
             message: message.into(),
         }
     }
@@ -29,15 +25,15 @@ impl DiagnosticBuilderLabel {
 #[derive(Debug, Clone, PartialEq)]
 pub struct DiagnosticBuilder<T> {
     /// The provider diagnostic value.
-    pub diagnostic: T,
+    diagnostic: T,
     /// Secondary source labels to add.
-    pub labels: Vec<DiagnosticBuilderLabel>,
+    labels: Vec<SecondaryLabel>,
     /// Notes to add.
-    pub notes: Vec<DiagnosticNote>,
+    notes: Vec<DiagnosticNote>,
     /// Help messages to add.
-    pub helps: Vec<DiagnosticHelp>,
+    helps: Vec<DiagnosticHelp>,
     /// Source edit suggestions to add.
-    pub suggestions: Vec<DiagnosticSuggestion>,
+    suggestions: Vec<DiagnosticSuggestion>,
 }
 
 impl<T> DiagnosticBuilder<T> {
@@ -58,30 +54,30 @@ impl<T> DiagnosticBuilder<T> {
     }
 
     /// Add one secondary source label.
-    pub fn label(mut self, site: impl Into<DiagnosticSite>, message: impl Into<String>) -> Self {
-        self.labels.push(DiagnosticBuilderLabel::new(site, message));
-
+    pub fn label(
+        mut self,
+        anchor: impl Into<DiagnosticAnchor>,
+        message: impl Into<String>,
+    ) -> Self {
+        self.labels.push(SecondaryLabel::new(anchor, message));
         self
     }
 
     /// Add one note.
     pub fn note(mut self, note: impl Into<DiagnosticNote>) -> Self {
         self.notes.push(note.into());
-
         self
     }
 
     /// Add one help message.
     pub fn help(mut self, help: impl Into<DiagnosticHelp>) -> Self {
         self.helps.push(help.into());
-
         self
     }
 
     /// Add one source edit suggestion.
     pub fn suggestion(mut self, suggestion: DiagnosticSuggestion) -> Self {
         self.suggestions.push(suggestion);
-
         self
     }
 
@@ -98,32 +94,35 @@ impl<T> From<T> for DiagnosticBuilder<T> {
     }
 }
 
-impl<R, T> IntoDiagnostic<R> for DiagnosticBuilder<T>
+impl<T> ToDiagnostic for DiagnosticBuilder<T>
 where
-    R: Copy + Eq + Hash,
-    T: IntoDiagnostic<R>,
+    T: ToDiagnostic,
 {
     /// Convert the decorated provider diagnostic into one final diagnostic.
-    fn into_diagnostic(
+    fn to_diagnostic(
         &self,
-        context: &dyn DiagnosticContext<Revision = R>,
+        context: &dyn DiagnosticContext,
     ) -> Result<Diagnostic, DiagnosticError> {
-        let mut diagnostic = self.diagnostic.into_diagnostic(context)?;
+        // base diagnostic
+        let mut diagnostic = self.diagnostic.to_diagnostic(context)?;
 
+        // secondary labels
         for label in &self.labels {
-            let anchor = context.anchor(&label.site)?;
-            let span = context.span(&anchor)?;
-            diagnostic = diagnostic.label(DiagnosticLabel::message(span, label.message.clone()));
+            let label = context.label(&label.anchor, Some(label.message.clone()))?;
+            diagnostic = diagnostic.label(label);
         }
 
+        // notes
         for note in &self.notes {
             diagnostic = diagnostic.note(note.clone());
         }
 
+        // help messages
         for help in &self.helps {
             diagnostic = diagnostic.help(help.clone());
         }
 
+        // suggestions
         for suggestion in &self.suggestions {
             diagnostic = diagnostic.suggestion(suggestion.clone());
         }

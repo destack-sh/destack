@@ -17,8 +17,8 @@ pub struct DirDeclared {
     /// The top-level expressions.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
 
-    /// Stable fallback node for diagnostics and synthetic types.
-    pub anchor_node: dir::LocalNodeIdAny,
+    /// Stable module-level node for generated module state.
+    pub module_node: dir::LocalNodeIdAny,
     /// The module namespace symbol.
     pub namespace_symbol: dir::LocalSymbolId,
     /// The module namespace scope.
