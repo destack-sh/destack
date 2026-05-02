@@ -1,9 +1,7 @@
-mod core;
-mod frame;
-mod safepoint;
-mod r#static;
+mod engine;
+mod execution;
+mod memory;
 
-pub use core::*;
-pub use frame::*;
-pub use safepoint::*;
-pub use r#static::*;
+pub use engine::*;
+pub use execution::*;
+pub use memory::*;
