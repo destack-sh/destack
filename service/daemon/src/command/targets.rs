@@ -1,6 +1,7 @@
 use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
 
+use super::CommandResult;
 use super::context::CommandContext;
 use super::dispatch::CommandOutcome;
 
@@ -44,7 +45,7 @@ impl CommandContext<'_> {
     pub(super) fn run_targets_command(
         &mut self,
         options: &CommandTargetsOptions,
-    ) -> super::CommandResult<CommandOutcome> {
+    ) -> CommandResult<CommandOutcome> {
         // resolve workspace context
         let revision = self.revision()?;
         // resolve config selection

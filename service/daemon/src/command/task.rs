@@ -7,6 +7,7 @@ use destack_workspace::{Repository, Revision, Workspace, WorkspaceOptions};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::CommandResult;
 use super::context::CommandContext;
 use super::dispatch::CommandOutcome;
 
@@ -85,7 +86,7 @@ impl CommandContext<'_> {
     pub(super) fn run_task_command(
         &mut self,
         options: &CommandTaskOptions,
-    ) -> super::CommandResult<CommandOutcome> {
+    ) -> CommandResult<CommandOutcome> {
         // resolve the task scope first
         let projects = self.resolve_task_projects(options)?;
 
@@ -142,7 +143,13 @@ impl CommandContext<'_> {
                         .tasks
                         .iter()
                         .find(|task| task.name == *name)
-                        .expect("task presence checked above");
+                        .ok_or_else(|| {
+                            task_missing_from_projects_error(
+                                name,
+                                std::slice::from_ref(&project.project),
+                                std::slice::from_ref(&project),
+                            )
+                        })?;
                     let command = task_command(task, args);
                     let cwd = task
                         .cwd
@@ -214,7 +221,7 @@ impl CommandContext<'_> {
     fn resolve_task_projects(
         &self,
         options: &CommandTaskOptions,
-    ) -> super::CommandResult<Vec<TaskProject>> {
+    ) -> CommandResult<Vec<TaskProject>> {
         let resolver = self.resolver();
         let revision = self.revision()?;
         let workspace = self
@@ -312,7 +319,7 @@ fn load_tasks(
     revision: Revision,
     project_path: &Path,
     destack_config_path: Option<&Path>,
-) -> super::CommandResult<Vec<TaskSpec>> {
+) -> CommandResult<Vec<TaskSpec>> {
     let mut tasks = if let Some(destack_config_path) = destack_config_path {
         load_destack_tasks(repository, revision, destack_config_path)?
     } else {
@@ -337,7 +344,7 @@ fn load_task_project(
     resolver: &destack_resolver::Resolver,
     workspace_root: &Path,
     project_path: &Path,
-) -> super::CommandResult<TaskProject> {
+) -> CommandResult<TaskProject> {
     let repository = resolver.repository();
     let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
     let revision = repository
@@ -347,11 +354,12 @@ fn load_task_project(
     let project = relative_project_path(project_path, workspace_root);
     let destack_config_path = exact_destack_config_path(repository, revision, project_path);
     let declaration = if let Some(destack_config_path) = destack_config_path.as_ref() {
+        let mut context = destack_resolver::ResolverContext::new(revision);
         Some(
             resolver
                 .read_destack(
-                    revision,
                     destack_config_path,
+                    &mut context,
                     destack_resolver::CachePolicy::UseCache,
                 )
                 .map_err(|error| error.to_string())?,
@@ -391,7 +399,7 @@ fn load_workspace_task_projects(
     repository: &Repository,
     revision: Revision,
     workspace: &Workspace,
-) -> super::CommandResult<Vec<TaskProject>> {
+) -> CommandResult<Vec<TaskProject>> {
     let mut project_paths = Vec::new();
     let mut seen = HashSet::new();
 
@@ -418,7 +426,7 @@ fn load_destack_tasks(
     repository: &Repository,
     revision: Revision,
     destack_config_path: &Path,
-) -> super::CommandResult<Vec<TaskSpec>> {
+) -> CommandResult<Vec<TaskSpec>> {
     let file_id = repository.file_id(destack_config_path);
     let file = repository
         .file(revision, file_id)
@@ -487,7 +495,7 @@ fn load_package_scripts(
     repository: &Repository,
     revision: Revision,
     project_path: &Path,
-) -> super::CommandResult<Vec<TaskSpec>> {
+) -> CommandResult<Vec<TaskSpec>> {
     let package = repository
         .nearest_package(revision, project_path)
         .map_err(|error| error.to_string())?;
@@ -530,7 +538,7 @@ fn load_package_name(
     repository: &Repository,
     revision: Revision,
     project_path: &Path,
-) -> super::CommandResult<Option<String>> {
+) -> CommandResult<Option<String>> {
     let package = repository
         .nearest_package(revision, project_path)
         .map_err(|error| error.to_string())?;
@@ -563,7 +571,7 @@ fn resolve_task_project_selection_names(
     projects: &[TaskProject],
     selected_projects: &[String],
     selected_groups: &[String],
-) -> super::CommandResult<HashSet<String>> {
+) -> CommandResult<HashSet<String>> {
     let mut selected_names = HashSet::new();
 
     // expand explicit project selectors first
@@ -601,10 +609,7 @@ fn resolve_task_project_selection_names(
 }
 
 /// Resolve one project selector into one stable project id.
-fn resolve_project_selector(
-    selector: &str,
-    projects: &[TaskProject],
-) -> super::CommandResult<String> {
+fn resolve_project_selector(selector: &str, projects: &[TaskProject]) -> CommandResult<String> {
     if let Some(project) = projects.iter().find(|project| project.project == selector) {
         return Ok(project.project.clone());
     }
@@ -788,7 +793,7 @@ fn resolve_task_project_path(
     revision: Revision,
     cwd: &Path,
     override_path: Option<&Path>,
-) -> super::CommandResult<PathBuf> {
+) -> CommandResult<PathBuf> {
     let base_path = if let Some(override_path) = override_path {
         let resolved = if override_path.is_absolute() {
             override_path.to_path_buf()

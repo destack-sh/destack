@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+use super::CommandResult;
 use super::cache::resolve_cache_directory;
 use super::context::CommandContext;
 use super::dispatch::CommandOutcome;
@@ -40,7 +41,7 @@ impl CommandContext<'_> {
         &mut self,
         root: &Path,
         options: &CommandCleanOptions,
-    ) -> super::CommandResult<CommandOutcome> {
+    ) -> CommandResult<CommandOutcome> {
         let cwd = options.dir.as_deref().unwrap_or(root);
         let fs = self.daemon.repository.file_system().clone();
 

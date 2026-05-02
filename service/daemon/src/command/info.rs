@@ -1,6 +1,7 @@
 use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
 
+use super::CommandResult;
 use super::context::CommandContext;
 use super::dispatch::CommandOutcome;
 
@@ -59,7 +60,7 @@ impl CommandContext<'_> {
     pub(super) fn run_info_command(
         &mut self,
         options: &CommandInfoOptions,
-    ) -> super::CommandResult<CommandOutcome> {
+    ) -> CommandResult<CommandOutcome> {
         // build workspace snapshot
         let revision = self.revision()?;
         let workspace = self

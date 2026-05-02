@@ -3,9 +3,10 @@ use destack_workspace::Revision;
 use std::path::Path;
 
 use crate::Daemon;
-use crate::command::context::CommandContext;
-use crate::command::{CommandPayload, CommonCommandOptions, DaemonCommandError};
 use crate::protocol::{CommandOutputChunk, OutputStream};
+
+use super::context::CommandContext;
+use super::{CommandPayload, CommandResult, CommonCommandOptions, DaemonCommandError};
 
 /// Result of executing a daemon command.
 #[derive(Debug, Clone)]
@@ -108,7 +109,7 @@ impl Daemon {
         root: &Path,
         common: &CommonCommandOptions,
         payload: &CommandPayload,
-    ) -> super::CommandResult<DaemonCommandResult> {
+    ) -> CommandResult<DaemonCommandResult> {
         // resolve root repository and compiler handles before command execution
         self.language_service
             .with_session(root, |repository, compiler| {
@@ -153,7 +154,7 @@ impl Daemon {
                     revision,
                     success,
                     exit_code,
-                    diagnostics: result.diagnostics.iter(),
+                    diagnostics: result.diagnostics.iter().cloned().collect(),
                     output: output.chunks,
                     data,
                     module_count: result.module_count,

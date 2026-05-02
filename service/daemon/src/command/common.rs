@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use destack_artifact::{EmitFormat, Platform, Runtime};
-use destack_source::{DiagnosticOptions, FileType};
+use destack_source::FileType;
 use destack_workspace::{
     DebugInfoLevel, EmitArtifact, LinkMode, LtoMode, OptimizeLevel, RuntimeOptionsJson,
     SourceMapMode, StripLevel, Target,
@@ -266,8 +266,6 @@ pub struct CommonCommandOptions {
     pub runtime_overrides: Option<RuntimeOptionsJson>,
     /// Optional profile name override.
     pub profile: Option<String>,
-    /// Optional diagnostic options override.
-    pub diagnostic: Option<DiagnosticOptions>,
     /// Optional environment overrides.
     pub env: Vec<CommandEnvVar>,
     /// Optional config overrides.

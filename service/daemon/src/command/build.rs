@@ -4,6 +4,7 @@ use destack_artifact::ArtifactKey;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
+use super::CommandResult;
 use super::context::{CommandContext, ResolvedTarget};
 use super::dispatch::CommandOutcome;
 
@@ -16,16 +17,18 @@ impl CommandContext<'_> {
     pub(super) fn run_build_command(
         &mut self,
         _options: &CommandBuildOptions,
-    ) -> super::CommandResult<CommandOutcome> {
+    ) -> CommandResult<CommandOutcome> {
         // resolve inputs for the command
         let inputs = self.resolve_command_inputs()?;
         let modules = self.resolve_modules(&inputs)?;
+        let revision = self.revision()?;
+
         // resolve the target configuration for each module
         let target_overrides = self.common.target_overrides.as_ref();
         let mut module_targets = Vec::new();
         let mut target_ids = HashSet::new();
         for module_id in &modules {
-            let target = self.resolve_target_for_module(*module_id, target_overrides)?;
+            let target = self.resolve_target_for_module(revision, *module_id, target_overrides)?;
             target_ids.insert(target.id);
             module_targets.push((*module_id, target));
         }
@@ -37,16 +40,13 @@ impl CommandContext<'_> {
         }
 
         // provide the requested build roots
-        let revision = self.revision()?;
         self.session
             .provide(revision, &artifact_keys)
             .map_err(|error| error.to_string())?;
-        let raw_diagnostics = self
+        let diagnostics = self
             .repository
             .diagnostics(revision)
             .map_err(|error| error.to_string())?;
-        self.commit_diagnostics_for_modules(&modules, &raw_diagnostics)?;
-        let diagnostics = raw_diagnostics.map(&self.diagnostic_options);
         let exit_code = diagnostics.get_status_code();
         let profile_count = module_targets
             .iter()
