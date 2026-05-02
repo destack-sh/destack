@@ -26,7 +26,6 @@ members = [
 	"language/compiler/generate/native/wasmtime-math",
 	"language/compiler/generate/core",
 	"language/compiler/generate/js",
-	"language/compiler/macros",
 	"language/core",
 	"language/css",
 	"language/dir",
@@ -87,7 +86,6 @@ destack_codegen_js = { path = "language/compiler/generate/js" }
 destack_codegen_lib = { path = "language/compiler/generate/core" }
 destack_codegen_native = { path = "language/compiler/generate/native" }
 destack_compiler = { path = "language/compiler" }
-destack_compiler_macros = { path = "language/compiler/macros" }
 destack_core = { path = "language/core" }
 destack_css = { path = "language/css" }
 destack_dir = { path = "language/dir" }
