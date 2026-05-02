@@ -488,33 +488,26 @@ pub struct TestIsolate {
     heap: Heap,
     /// The world-shared heap for the isolate.
     shared: SharedHeap,
+    /// The shared collector worker used by the isolate.
+    shared_gc: destack_vm::SharedGcWorker,
 }
 
 impl TestIsolate {
-    /// Run a MIR function by name and return the full execution output.
-    pub fn run_function_by_name_output(
-        &mut self,
-        function: &str,
-        arguments: &[Value],
-    ) -> destack_vm::RuntimeResult<destack_vm::Output> {
-        let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
-
-        self.isolate.run_function_by_name(
-            &mut self.statics,
-            &mut self.heap,
-            &self.shared,
-            function,
-            &arguments,
-        )
-    }
-
     /// Run a MIR function by name and return its output value.
     pub fn run_function_by_name(&mut self, function: &str, arguments: &[Value]) -> Value {
-        let output = self
-            .run_function_by_name_output(function, arguments)
+        let value = self
+            .isolate
+            .run_function_by_name(
+                &mut self.statics,
+                &mut self.heap,
+                &self.shared,
+                &self.shared_gc,
+                function,
+                arguments,
+            )
             .expect("execution failed");
 
-        materialized_plain_value(&output.value)
+        materialized_plain_value(&value)
     }
 }
 
@@ -2779,6 +2772,7 @@ impl TestProgram {
                 .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
         let mut statics = StaticSpace::empty();
         let (heap, shared) = create_test_heaps();
+        let shared_gc = shared.gc_worker(0);
 
         isolate
             .initialize(&heap, &shared, &mut statics)
@@ -2789,6 +2783,7 @@ impl TestProgram {
             statics,
             heap,
             shared,
+            shared_gc,
         }
     }
 
