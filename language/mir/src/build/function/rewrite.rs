@@ -263,19 +263,15 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(aggregate, from, to);
                     Self::replace_value_in_slot(value, from, to);
                 }
-                Instruction::ElementGet { array, index, .. }
-                | Instruction::ElementAddr { array, index, .. } => {
+                Instruction::ElementGet { array, .. } => {
+                    Self::replace_value_in_slot(array, from, to);
+                }
+                Instruction::ElementAddr { array, index, .. } => {
                     Self::replace_value_in_slot(array, from, to);
                     Self::replace_value_in_slot(index, from, to);
                 }
-                Instruction::ElementSet {
-                    array,
-                    index,
-                    value,
-                    ..
-                } => {
+                Instruction::ElementSet { array, value, .. } => {
                     Self::replace_value_in_slot(array, from, to);
-                    Self::replace_value_in_slot(index, from, to);
                     Self::replace_value_in_slot(value, from, to);
                 }
                 Instruction::NewSlice { length, .. } => {

@@ -1190,14 +1190,13 @@ fn test_build_element_get_array() {
     let i64_type = module.type_i64();
     let array_type = module.type_array(i32_type, 3, Copy::Yes);
 
-    // build function that extracts an element at a given index
+    // build function that extracts one fixed element
     let mut builder = module.function("getElement", &[array_type, i64_type], i32_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
     let arr = builder.function_parameter(0);
-    let index = builder.function_parameter(1);
-    let element = builder.element_get(arr, index);
+    let element = builder.element_get(arr, 1);
     builder.return_(Some(element));
     builder.seal_block(entry_block);
     builder.finish();
@@ -1208,7 +1207,7 @@ fn test_build_element_get_array() {
     let expected = "\
 function getElement(value0: int32[3], value1: int64): int32 {
 entry0(value0: int32[3], value1: int64):
-    value2: int32 = element.get value0, value1
+    value2: int32 = element.get value0, 1
     return value2
 }";
     assert_eq!(output, expected);
