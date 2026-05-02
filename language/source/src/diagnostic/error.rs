@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-use crate::{FileContentId, FileId};
+use crate::{EditApplyError, FileContentId, FileId};
 
 /// Error produced while annotating one source span.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -115,37 +115,10 @@ pub enum DiagnosticRenderError {
         /// The annotation error.
         error: AnnotateError,
     },
-    /// A suggestion edit is attached to the wrong file.
-    EditFileMismatch {
-        /// The file being edited.
-        file: FileId,
-        /// The file carried by the edit span.
-        edit_file: FileId,
-    },
-    /// Suggestion edits overlap or are not ordered.
-    OverlappingEdits {
-        /// The edited file.
-        file: FileId,
-    },
-    /// A suggestion edit span is outside the file.
-    EditOutsideFile {
-        /// The edited file.
-        file: FileId,
-        /// The edit start byte offset.
-        start: u32,
-        /// The edit end byte offset.
-        end: u32,
-        /// The file length in bytes.
-        len: usize,
-    },
-    /// A suggestion edit span does not land on UTF-8 boundaries.
-    EditBoundary {
-        /// The edited file.
-        file: FileId,
-        /// The edit start byte offset.
-        start: u32,
-        /// The edit end byte offset.
-        end: u32,
+    /// One diagnostic suggestion edit could not be applied.
+    Edit {
+        /// The edit application error.
+        error: EditApplyError,
     },
 }
 
@@ -164,29 +137,7 @@ impl Display for DiagnosticRenderError {
                 "diagnostic references content {expected} but file {file:?} has content {actual}"
             ),
             Self::Annotate { error } => Display::fmt(error, formatter),
-            Self::EditFileMismatch { file, edit_file } => write!(
-                formatter,
-                "diagnostic suggestion edit file {edit_file:?} does not match {file:?}"
-            ),
-            Self::OverlappingEdits { file } => {
-                write!(
-                    formatter,
-                    "diagnostic suggestion edits overlap or are out of order in file {file:?}"
-                )
-            }
-            Self::EditOutsideFile {
-                file,
-                start,
-                end,
-                len,
-            } => write!(
-                formatter,
-                "diagnostic suggestion edit span {start}..{end} is outside file {file:?} with length {len}"
-            ),
-            Self::EditBoundary { file, start, end } => write!(
-                formatter,
-                "diagnostic suggestion edit span {start}..{end} is not on UTF-8 boundaries in file {file:?}"
-            ),
+            Self::Edit { error } => Display::fmt(error, formatter),
         }
     }
 }
@@ -195,6 +146,7 @@ impl Error for DiagnosticRenderError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Annotate { error } => Some(error),
+            Self::Edit { error } => Some(error),
             _ => None,
         }
     }
@@ -203,5 +155,11 @@ impl Error for DiagnosticRenderError {
 impl From<AnnotateError> for DiagnosticRenderError {
     fn from(error: AnnotateError) -> Self {
         Self::Annotate { error }
+    }
+}
+
+impl From<EditApplyError> for DiagnosticRenderError {
+    fn from(error: EditApplyError) -> Self {
+        Self::Edit { error }
     }
 }
