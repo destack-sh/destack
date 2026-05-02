@@ -8,10 +8,14 @@ pub(crate) enum Opcode {
     LoadConst,
     /// Copy bytes between frame values.
     CopyFrame,
-    /// Load bytes from memory into a frame value.
-    LoadFrameBytes,
-    /// Store bytes from a frame value into memory.
-    StoreFrameBytes,
+    /// Copy bytes from a frame element into a frame value.
+    CopyFrameElementToFrame,
+    /// Copy bytes from a frame value into a frame element.
+    CopyFrameToFrameElement,
+    /// Copy bytes from memory into a frame value.
+    CopyAddressToFrame,
+    /// Copy bytes from a frame value into memory.
+    CopyFrameToAddress,
     /// Select one of two word values.
     Select,
 
@@ -52,6 +56,8 @@ pub(crate) enum Opcode {
     LoadStack,
     /// Load a word from frame memory.
     LoadFrame,
+    /// Load a word from a frame element.
+    LoadFrameElement,
     /// Load a word from static memory.
     LoadStatic,
 
@@ -70,6 +76,8 @@ pub(crate) enum Opcode {
     StoreStack,
     /// Store a word to frame memory.
     StoreFrame,
+    /// Store a word to a frame element.
+    StoreFrameElement,
     /// Store a word to static memory.
     StoreStatic,
 
@@ -78,6 +86,8 @@ pub(crate) enum Opcode {
     // ============================================================================
     /// Compute an address in frame memory.
     AddressFrame,
+    /// Compute a frame element address.
+    AddressFrameElement,
     /// Compute a field address in local heap memory.
     AddressHeapField,
     /// Compute a field address in shared heap memory.

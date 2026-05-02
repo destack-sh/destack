@@ -26,6 +26,19 @@ fn align_offset(offset: usize, alignment: usize) -> Result<usize> {
         .ok_or(Error::InvalidInstruction)
 }
 
+/// Build one lowered program point from MIR ids.
+fn program_point(
+    function: mir::LocalNodeId<mir::Function>,
+    block: mir::LocalNodeId<mir::Block>,
+    instruction_offset: u32,
+) -> engine::ProgramPoint {
+    engine::ProgramPoint {
+        function: engine::FunctionId(function.id),
+        block: engine::BlockId(block.id),
+        instruction_offset,
+    }
+}
+
 /// Lowered MIR program and execution metadata shared across isolates.
 pub struct Program {
     /// The MIR tree executed by this program.
@@ -53,26 +66,18 @@ pub struct Program {
     pub(crate) frame_layout_id_by_function:
         HashMap<mir::LocalNodeId<mir::Function>, engine::FrameLayoutId>,
 
-    /// Resume points by dense resume point id.
-    pub(crate) resume_points: Vec<engine::ResumePoint>,
-    /// Resume transfers by dense transfer id.
-    pub(crate) resume_transfers: Vec<engine::ResumeTransfer>,
-    /// Generic resume point ids keyed by function, block, and instruction offset.
-    pub(crate) resume_point_id_by_position: HashMap<
-        (
-            mir::LocalNodeId<mir::Function>,
-            mir::LocalNodeId<mir::Block>,
-            u32,
-        ),
-        engine::ResumePointId,
-    >,
-
+    /// Frame states by dense frame state id.
+    pub(crate) frame_states: Vec<engine::FrameState>,
+    /// Entry transfers by dense transfer id.
+    pub(crate) entry_transfers: Vec<engine::EntryTransfer>,
+    /// Frame state ids keyed by lowered program point.
+    pub(crate) frame_state_by_site: HashMap<engine::ProgramPoint, engine::FrameStateId>,
     /// Safepoints by dense safepoint id.
     pub(crate) safepoints: Vec<engine::Safepoint>,
-    /// Safepoint id keyed by semantic resume point.
-    pub(crate) safepoint_id_by_resume_point: HashMap<engine::ResumePointId, engine::SafepointId>,
-    /// Materialization maps by dense map id.
-    pub(crate) materialization_maps: Vec<engine::MaterializationMap>,
+    /// Safepoint id keyed by logical frame state.
+    pub(crate) safepoint_id_by_frame_state: HashMap<engine::FrameStateId, engine::SafepointId>,
+    /// Materializations by dense materialization id.
+    pub(crate) materializations: Vec<engine::Materialization>,
 }
 
 impl Program {
@@ -113,6 +118,19 @@ impl Program {
         let _ = self;
 
         mir::LocalNodeId::new(block.0)
+    }
+
+    /// Convert one current frame location into one lowered program point.
+    #[inline]
+    pub(crate) fn point(
+        &self,
+        function: mir::LocalNodeId<mir::Function>,
+        block: mir::LocalNodeId<mir::Block>,
+        instruction_offset: u32,
+    ) -> engine::ProgramPoint {
+        let _ = self;
+
+        program_point(function, block, instruction_offset)
     }
 
     /// Convert one MIR type id into one program type id.
@@ -156,20 +174,20 @@ impl Program {
         self.frame_layouts.get(frame_layout.0 as usize)
     }
 
-    /// Return one resume point by id.
-    pub(crate) fn resume_point(
+    /// Return one frame state by id.
+    pub(crate) fn frame_state(
         &self,
-        resume_point: engine::ResumePointId,
-    ) -> Option<&engine::ResumePoint> {
-        self.resume_points.get(resume_point.0 as usize)
+        frame_state: engine::FrameStateId,
+    ) -> Option<&engine::FrameState> {
+        self.frame_states.get(frame_state.0 as usize)
     }
 
-    /// Return one resume transfer by id.
-    pub(crate) fn resume_transfer(
+    /// Return one entry transfer by id.
+    pub(crate) fn entry_transfer(
         &self,
-        resume_transfer: engine::ResumeTransferId,
-    ) -> Option<&engine::ResumeTransfer> {
-        self.resume_transfers.get(resume_transfer.0 as usize)
+        entry_transfer: engine::EntryTransferId,
+    ) -> Option<&engine::EntryTransfer> {
+        self.entry_transfers.get(entry_transfer.0 as usize)
     }
 
     /// Return one safepoint by id.
@@ -177,40 +195,40 @@ impl Program {
         self.safepoints.get(safepoint.0 as usize)
     }
 
-    /// Return one safepoint id for one semantic resume point.
-    pub(crate) fn safepoint_for_resume_point(
+    /// Return one safepoint id for one frame state.
+    pub(crate) fn safepoint_for_frame_state(
         &self,
-        resume_point: engine::ResumePointId,
+        frame_state: engine::FrameStateId,
     ) -> Option<engine::SafepointId> {
-        self.safepoint_id_by_resume_point
-            .get(&resume_point)
+        self.safepoint_id_by_frame_state
+            .get(&frame_state)
             .copied()
     }
 
-    /// Return one materialization map by id.
-    pub(crate) fn materialization_map(
+    /// Return one materialization by id.
+    pub(crate) fn materialization(
         &self,
-        materialization_map: engine::MaterializationMapId,
-    ) -> Option<&engine::MaterializationMap> {
-        self.materialization_maps
-            .get(materialization_map.0 as usize)
+        materialization: engine::MaterializationId,
+    ) -> Option<&engine::Materialization> {
+        self.materializations
+            .get(materialization.0 as usize)
     }
 
-    /// Return the single-frame materialization recipe for one resume point.
+    /// Return the single-frame materialization recipe for one frame state.
     pub(crate) fn materialization_frame(
         &self,
-        resume_point: engine::ResumePointId,
+        frame_state: engine::FrameStateId,
     ) -> Option<&engine::MaterializationFrame> {
-        let safepoint = self.safepoint_for_resume_point(resume_point)?;
+        let safepoint = self.safepoint_for_frame_state(frame_state)?;
         let safepoint = self.safepoint(safepoint)?;
-        let materialization_map = safepoint.materialization_map?;
-        let materialization_map = self.materialization_map(materialization_map)?;
+        let materialization = safepoint.materialization?;
+        let materialization = self.materialization(materialization)?;
 
-        if materialization_map.frames.len() != 1 {
+        if materialization.frames.len() != 1 {
             return None;
         }
 
-        materialization_map.frames.first()
+        materialization.frames.first()
     }
 
     /// Return the compiled layout for one MIR type.
@@ -294,35 +312,31 @@ impl Program {
         None
     }
 
-    /// Return one generic resume point id for one execution position.
-    pub(crate) fn resume_point_for_position(
+    /// Return one frame state id for one lowered program point.
+    pub(crate) fn frame_state_at(
         &self,
-        function: mir::LocalNodeId<mir::Function>,
-        block: mir::LocalNodeId<mir::Block>,
-        instruction_offset: u32,
-    ) -> Option<engine::ResumePointId> {
-        self.resume_point_id_by_position
-            .get(&(function, block, instruction_offset))
-            .copied()
+        point: engine::ProgramPoint,
+    ) -> Option<engine::FrameStateId> {
+        self.frame_state_by_site.get(&point).copied()
     }
 
-    /// Return the caller return destination implied by one resume point.
-    pub(crate) fn return_destination_for_resume_point(
+    /// Return the caller return destination implied by one frame state.
+    pub(crate) fn return_destination_for_frame_state(
         &self,
-        resume_point: engine::ResumePointId,
+        frame_state: engine::FrameStateId,
     ) -> Result<Option<mir::Value>> {
-        let Some(resume_point) = self.resume_point(resume_point) else {
+        let Some(frame_state) = self.frame_state(frame_state) else {
             return Ok(None);
         };
 
         // a resume at the start of a block has no preceding call
-        if resume_point.source_instruction_offset == 0 {
+        if frame_state.mir_instruction_offset == 0 {
             return Ok(None);
         }
 
         // resolve the preceding MIR instruction in the resumed block
-        let block = self.tree.get(self.block_for_id(resume_point.block));
-        let instruction_index = resume_point.source_instruction_offset as usize - 1;
+        let block = self.tree.get(self.block_for_id(frame_state.point.block));
+        let instruction_index = frame_state.mir_instruction_offset as usize - 1;
         let Some(instruction_id) = block.instructions.get(instruction_index).copied() else {
             return Ok(None);
         };
@@ -344,19 +358,16 @@ impl Program {
         }
     }
 
-    /// Return the caller return destination implied by one execution position.
-    pub(crate) fn return_destination_for_position(
+    /// Return the caller return destination implied by one lowered program point.
+    pub(crate) fn return_destination_at(
         &self,
-        function: mir::LocalNodeId<mir::Function>,
-        block: mir::LocalNodeId<mir::Block>,
-        instruction_offset: u32,
+        point: engine::ProgramPoint,
     ) -> Result<Option<mir::Value>> {
-        let Some(resume_point) =
-            self.resume_point_for_position(function, block, instruction_offset)
-        else {
+        let Some(frame_state) = self.frame_state_at(point) else {
             return Ok(None);
         };
-        self.return_destination_for_resume_point(resume_point)
+
+        self.return_destination_for_frame_state(frame_state)
     }
 }
 
@@ -368,10 +379,10 @@ impl fmt::Debug for Program {
                 &format!("<{} functions>", self.function_id_by_name.len()),
             )
             .field("frame_layouts", &self.frame_layouts.len())
-            .field("resume_points", &self.resume_points.len())
-            .field("resume_transfers", &self.resume_transfers.len())
+            .field("frame_states", &self.frame_states.len())
+            .field("entry_transfers", &self.entry_transfers.len())
             .field("safepoints", &self.safepoints.len())
-            .field("materialization_maps", &self.materialization_maps.len())
+            .field("materializations", &self.materializations.len())
             .field("statics", &self.statics.len())
             .finish_non_exhaustive()
     }
@@ -665,19 +676,12 @@ struct ProgramBuilder {
     strings: ImmutableStringPool,
     frame_layouts: Vec<engine::FrameLayout>,
     frame_layout_id_by_function: HashMap<mir::LocalNodeId<mir::Function>, engine::FrameLayoutId>,
-    resume_points: Vec<engine::ResumePoint>,
-    resume_transfers: Vec<engine::ResumeTransfer>,
+    frame_states: Vec<engine::FrameState>,
+    entry_transfers: Vec<engine::EntryTransfer>,
     safepoints: Vec<engine::Safepoint>,
-    safepoint_id_by_resume_point: HashMap<engine::ResumePointId, engine::SafepointId>,
-    materialization_maps: Vec<engine::MaterializationMap>,
-    resume_point_id_by_position: HashMap<
-        (
-            mir::LocalNodeId<mir::Function>,
-            mir::LocalNodeId<mir::Block>,
-            u32,
-        ),
-        engine::ResumePointId,
-    >,
+    safepoint_id_by_frame_state: HashMap<engine::FrameStateId, engine::SafepointId>,
+    materializations: Vec<engine::Materialization>,
+    frame_state_by_site: HashMap<engine::ProgramPoint, engine::FrameStateId>,
 }
 
 impl ProgramBuilder {
@@ -695,12 +699,12 @@ impl ProgramBuilder {
             strings,
             frame_layouts: Vec::new(),
             frame_layout_id_by_function: HashMap::new(),
-            resume_points: Vec::new(),
-            resume_transfers: Vec::new(),
+            frame_states: Vec::new(),
+            entry_transfers: Vec::new(),
             safepoints: Vec::new(),
-            safepoint_id_by_resume_point: HashMap::new(),
-            materialization_maps: Vec::new(),
-            resume_point_id_by_position: HashMap::new(),
+            safepoint_id_by_frame_state: HashMap::new(),
+            materializations: Vec::new(),
+            frame_state_by_site: HashMap::new(),
         }
     }
 
@@ -731,13 +735,13 @@ impl ProgramBuilder {
             layout_id_by_type,
             frame_layouts: self.frame_layouts,
             frame_layout_id_by_function: self.frame_layout_id_by_function,
-            resume_points: self.resume_points,
-            resume_transfers: self.resume_transfers,
+            frame_states: self.frame_states,
+            entry_transfers: self.entry_transfers,
             safepoints: self.safepoints,
-            safepoint_id_by_resume_point: self.safepoint_id_by_resume_point,
-            materialization_maps: self.materialization_maps,
+            safepoint_id_by_frame_state: self.safepoint_id_by_frame_state,
+            materializations: self.materializations,
             type_layouts,
-            resume_point_id_by_position: self.resume_point_id_by_position,
+            frame_state_by_site: self.frame_state_by_site,
             functions,
             operand_table,
         })
@@ -1013,16 +1017,16 @@ impl ProgramBuilder {
         // derive the logical frame shape before lowering
         let frame_layout = self.build_frame_layout(function_id, function, &value_types, layouts)?;
         let liveness = { mir::FunctionLiveness::build(function, &self.tree) };
-        let (yield_resume_points, exceptional_call_resume_points) =
-            self.build_resume_points(function_id, &frame_layout, &liveness)?;
+        let (yield_frame_states, exceptional_call_frame_states) =
+            self.build_frame_states(function_id, &frame_layout, &liveness)?;
 
         // lower the function with the preassigned yield resume ids
         let function = lower_function(
             &self.tree,
             function_id,
-            frame_layout.id,
-            &yield_resume_points,
-            &exceptional_call_resume_points,
+            &frame_layout,
+            &yield_frame_states,
+            &exceptional_call_frame_states,
             call_targets,
             layouts,
             &self.heap_options,
@@ -1039,27 +1043,23 @@ impl ProgramBuilder {
             .insert(function_id, frame_layout.id);
         self.frame_layouts.push(frame_layout.clone());
 
-        // append the generic lowered pc resume points
+        // append states for every lowered instruction boundary
         for block in &function.blocks {
-            for (instruction_offset, source_instruction_offset) in
+            for (instruction_offset, mir_instruction_offset) in
                 block.mir_instruction_offsets.iter().copied().enumerate()
             {
-                let resume_point_id = engine::ResumePointId(self.resume_points.len() as u32);
-                let resume_point = engine::ResumePoint {
-                    id: resume_point_id,
-                    function: engine::FunctionId(function_id.id),
+                let point = program_point(function_id, block.mir_block, instruction_offset as u32);
+                let frame_state_id = engine::FrameStateId(self.frame_states.len() as u32);
+                let frame_state = engine::FrameState {
+                    id: frame_state_id,
                     frame_layout: frame_layout.id,
-                    block: engine::BlockId(block.mir_block.id),
-                    instruction_offset: instruction_offset as u32,
-                    source_instruction_offset,
-                    transfer: None,
+                    point,
+                    mir_instruction_offset,
+                    entry_transfer: None,
                 };
 
-                self.resume_point_id_by_position.insert(
-                    (function_id, block.mir_block, instruction_offset as u32),
-                    resume_point_id,
-                );
-                self.append_resume_point(&frame_layout, &liveness, &resume_point)?;
+                self.frame_state_by_site.insert(point, frame_state_id);
+                self.append_frame_state(&frame_layout, &liveness, &frame_state)?;
             }
         }
 
@@ -1176,20 +1176,20 @@ impl ProgramBuilder {
     }
 
     /// Build the semantic resume lookups for one function.
-    fn build_resume_points(
+    fn build_frame_states(
         &mut self,
         function_id: mir::LocalNodeId<mir::Function>,
         frame_layout: &engine::FrameLayout,
         liveness: &mir::FunctionLiveness,
     ) -> Result<(
-        HashMap<mir::LocalNodeId<mir::Block>, engine::ResumePointId>,
-        HashMap<mir::LocalNodeId<mir::Block>, (engine::ResumePointId, engine::ResumePointId)>,
+        HashMap<mir::LocalNodeId<mir::Block>, engine::FrameStateId>,
+        HashMap<mir::LocalNodeId<mir::Block>, (engine::FrameStateId, engine::FrameStateId)>,
     )> {
         let block_ids = self.tree.get(function_id).blocks.clone();
-        let mut yield_resume_points = HashMap::new();
-        let mut exceptional_call_resume_points = HashMap::new();
+        let mut yield_frame_states = HashMap::new();
+        let mut exceptional_call_frame_states = HashMap::new();
 
-        // assign semantic resume points to suspension and exceptional call edges
+        // assign frame states to suspension and exceptional call edges
         for block_id in block_ids {
             let yield_edge = {
                 let block = self.tree.get(block_id);
@@ -1222,7 +1222,7 @@ impl ProgramBuilder {
             if let Some((resume, resume_arguments)) = yield_edge {
                 // yield resumes may bind one trailing resume value
                 let resume_value = self.infer_resume_value(resume, resume_arguments.len())?;
-                let resume_point_id = self.append_resume_entry(
+                let frame_state_id = self.append_resume_entry(
                     function_id,
                     frame_layout,
                     liveness,
@@ -1231,7 +1231,7 @@ impl ProgramBuilder {
                     resume_value,
                 )?;
 
-                yield_resume_points.insert(block_id, resume_point_id);
+                yield_frame_states.insert(block_id, frame_state_id);
                 continue;
             }
 
@@ -1296,14 +1296,14 @@ impl ProgramBuilder {
                 }
             };
 
-            // exceptional call continuations branch to one normal or unwind resume point
+            // exceptional call continuations branch to normal or unwind states
             if let Some((normal_target, normal_arguments, unwind_target, unwind_arguments)) =
                 exceptional_call_edge
             {
                 // normal and unwind edges may each bind one trailing implicit value
                 let normal_resume_value =
                     self.infer_resume_value(normal_target, normal_arguments.len())?;
-                let normal_resume_point_id = self.append_resume_entry(
+                let normal_state_id = self.append_resume_entry(
                     function_id,
                     frame_layout,
                     liveness,
@@ -1314,7 +1314,7 @@ impl ProgramBuilder {
 
                 let unwind_resume_value =
                     self.infer_resume_value(unwind_target, unwind_arguments.len())?;
-                let unwind_resume_point_id = self.append_resume_entry(
+                let unwind_state_id = self.append_resume_entry(
                     function_id,
                     frame_layout,
                     liveness,
@@ -1323,12 +1323,12 @@ impl ProgramBuilder {
                     unwind_resume_value,
                 )?;
 
-                exceptional_call_resume_points
-                    .insert(block_id, (normal_resume_point_id, unwind_resume_point_id));
+                exceptional_call_frame_states
+                    .insert(block_id, (normal_state_id, unwind_state_id));
             }
         }
 
-        Ok((yield_resume_points, exceptional_call_resume_points))
+        Ok((yield_frame_states, exceptional_call_frame_states))
     }
 
     /// Return the trailing implicit resume value for one edge when present.
@@ -1357,18 +1357,18 @@ impl ProgramBuilder {
         Ok(None)
     }
 
-    /// Append one semantic resume point and transfer for one block entry.
-    fn append_resume_entry(
+    /// Append one frame state and entry transfer for one block entry.
+    fn append_entry_state(
         &mut self,
         function_id: mir::LocalNodeId<mir::Function>,
         frame_layout: &engine::FrameLayout,
         liveness: &mir::FunctionLiveness,
         block: mir::LocalNodeId<mir::Block>,
         arguments: &[mir::Value],
-        resume_value: Option<mir::Value>,
-    ) -> Result<engine::ResumePointId> {
+        incoming_value: Option<mir::Value>,
+    ) -> Result<engine::FrameStateId> {
         let resume_block = self.tree.get(block);
-        let copy_parameters = if resume_value.is_some() {
+        let copy_parameters = if incoming_value.is_some() {
             &resume_block.parameters[..resume_block.parameters.len() - 1]
         } else {
             &resume_block.parameters[..]
@@ -1391,18 +1391,18 @@ impl ProgramBuilder {
                     .value_region_id(engine::ValueId(destination.0))
                     .ok_or(Error::InvalidInstruction)?;
 
-                Ok(engine::ResumeCopy {
+                Ok(engine::EntryCopy {
                     source,
                     destination,
                 })
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let transfer_id = engine::ResumeTransferId(self.resume_transfers.len() as u32);
-        self.resume_transfers.push(engine::ResumeTransfer {
+        let transfer_id = engine::EntryTransferId(self.entry_transfers.len() as u32);
+        self.entry_transfers.push(engine::EntryTransfer {
             id: transfer_id,
             copies,
-            resume_value: resume_value
+            incoming_value: incoming_value
                 .map(|value| {
                     frame_layout
                         .value_region_id(engine::ValueId(value.0))
@@ -1411,34 +1411,32 @@ impl ProgramBuilder {
                 .transpose()?,
         });
 
-        let resume_point_id = engine::ResumePointId(self.resume_points.len() as u32);
-        let resume_point = engine::ResumePoint {
-            id: resume_point_id,
-            function: engine::FunctionId(function_id.id),
+        let frame_state_id = engine::FrameStateId(self.frame_states.len() as u32);
+        let frame_state = engine::FrameState {
+            id: frame_state_id,
             frame_layout: frame_layout.id,
-            block: engine::BlockId(block.id),
-            instruction_offset: 0,
-            source_instruction_offset: 0,
-            transfer: Some(transfer_id),
+            point: program_point(function_id, block, 0),
+            mir_instruction_offset: 0,
+            entry_transfer: Some(transfer_id),
         };
 
-        self.append_resume_point(frame_layout, liveness, &resume_point)?;
+        self.append_frame_state(frame_layout, liveness, &frame_state)?;
 
-        Ok(resume_point_id)
+        Ok(frame_state_id)
     }
 
-    /// Append one semantic resume point and its attached metadata.
-    fn append_resume_point(
+    /// Append one frame state and its attached metadata.
+    fn append_frame_state(
         &mut self,
         frame_layout: &engine::FrameLayout,
         liveness: &mir::FunctionLiveness,
-        resume_point: &engine::ResumePoint,
+        frame_state: &engine::FrameState,
     ) -> Result<()> {
         let safepoint_id = engine::SafepointId(self.safepoints.len() as u32);
-        let materialization_map_id =
-            engine::MaterializationMapId(self.materialization_maps.len() as u32);
-        let materialized_values = self.materialized_values(frame_layout, liveness, resume_point)?;
-        let materialized_locals = self.materialized_locals(liveness, resume_point);
+        let materialization_id =
+            engine::MaterializationId(self.materializations.len() as u32);
+        let materialized_values = self.materialized_values(frame_layout, liveness, frame_state)?;
+        let materialized_locals = self.materialized_locals(liveness, frame_state);
         let regions = frame_layout
             .region_ids()
             .map(|region| {
@@ -1455,27 +1453,25 @@ impl ProgramBuilder {
             })
             .collect();
 
-        self.materialization_maps.push(engine::MaterializationMap {
-            id: materialization_map_id,
+        self.materializations.push(engine::Materialization {
+            id: materialization_id,
             safepoint: safepoint_id,
             frames: vec![engine::MaterializationFrame {
                 frame_layout: frame_layout.id,
-                resume_point: resume_point.id,
+                frame_state: frame_state.id,
                 regions,
             }],
         });
 
         self.safepoints.push(engine::Safepoint {
             id: safepoint_id,
-            function: resume_point.function,
-            frame_layout: frame_layout.id,
-            resume_point: resume_point.id,
+            frame_state: frame_state.id,
             stack_map: None,
-            materialization_map: Some(materialization_map_id),
+            materialization: Some(materialization_id),
         });
-        self.safepoint_id_by_resume_point
-            .insert(resume_point.id, safepoint_id);
-        self.resume_points.push(resume_point.clone());
+        self.safepoint_id_by_frame_state
+            .insert(frame_state.id, safepoint_id);
+        self.frame_states.push(frame_state.clone());
 
         Ok(())
     }
@@ -1485,23 +1481,23 @@ impl ProgramBuilder {
         &self,
         frame_layout: &engine::FrameLayout,
         liveness: &mir::FunctionLiveness,
-        resume_point: &engine::ResumePoint,
+        frame_state: &engine::FrameState,
     ) -> Result<HashSet<mir::Value>> {
-        let Some(resume_transfer) = resume_point
-            .transfer
-            .and_then(|resume_transfer| self.resume_transfers.get(resume_transfer.0 as usize))
+        let Some(entry_transfer) = frame_state
+            .entry_transfer
+            .and_then(|entry_transfer| self.entry_transfers.get(entry_transfer.0 as usize))
         else {
-            let block = mir::LocalNodeId::new(resume_point.block.0);
+            let block = mir::LocalNodeId::new(frame_state.point.block.0);
 
             return Ok(liveness.value_live_before_instruction(
                 &self.tree,
                 block,
-                resume_point.source_instruction_offset as usize,
+                frame_state.mir_instruction_offset as usize,
             ));
         };
 
         // materialize live in values that survive the resume edge
-        let block = mir::LocalNodeId::new(resume_point.block.0);
+        let block = mir::LocalNodeId::new(frame_state.point.block.0);
         let live_in = liveness.value_live_in(block);
         let resume_block = self.tree.get(block);
         let parameter_values: HashSet<mir::Value> = resume_block
@@ -1519,7 +1515,7 @@ impl ProgramBuilder {
             live_in.difference(&parameter_values).copied().collect();
 
         // resume copies are the source bytes for resumed block parameters
-        for copy in &resume_transfer.copies {
+        for copy in &entry_transfer.copies {
             let source = frame_layout
                 .value_for_region(copy.source)
                 .ok_or(Error::InvalidInstruction)?;
@@ -1535,9 +1531,9 @@ impl ProgramBuilder {
     fn materialized_locals(
         &self,
         liveness: &mir::FunctionLiveness,
-        resume_point: &engine::ResumePoint,
+        frame_state: &engine::FrameState,
     ) -> HashSet<mir::LocalNodeId<mir::Local>> {
-        let block = mir::LocalNodeId::new(resume_point.block.0);
+        let block = mir::LocalNodeId::new(frame_state.point.block.0);
 
         liveness.local_live_in(block).clone()
     }
