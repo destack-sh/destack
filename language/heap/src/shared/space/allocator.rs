@@ -2,14 +2,11 @@ use std::sync::Arc;
 
 use super::{SharedSmallSpan, SpanList};
 use crate::allocator::{SizeClassTable, SpanSlot};
-use crate::shared::gc::SharedGcWorker;
 use crate::{AllocationLayout, SharedHeapReference, SmallAllocationLayout, SmallSpanClass};
 
 /// One worker-local shared heap allocator.
 #[derive(Debug)]
 pub struct SharedAllocator {
-    /// The collector worker associated with this allocator.
-    pub(super) gc_worker: Option<*const SharedGcWorker>,
     /// The worker-local dense allocation runs.
     pub(super) runs: Vec<SmallRun>,
     /// The worker-local small allocation buckets.
@@ -99,26 +96,7 @@ impl SharedAllocator {
             }
         }
 
-        Self {
-            gc_worker: None,
-            runs,
-            small,
-        }
-    }
-
-    /// Associate this allocator with one shared collector worker.
-    #[inline(always)]
-    pub fn set_gc_worker(&mut self, worker: Option<&SharedGcWorker>) {
-        self.gc_worker = worker.map(|worker| worker as *const SharedGcWorker);
-    }
-
-    /// Return the shared collector worker associated with this allocator.
-    #[inline(always)]
-    pub(crate) fn gc_worker(&self) -> Option<&SharedGcWorker> {
-        let worker = self.gc_worker?;
-
-        // worker ownership is held by the runtime worker that owns this allocator
-        Some(unsafe { &*worker })
+        Self { runs, small }
     }
 
     /// Return the byte charge for acquiring an allocation run.

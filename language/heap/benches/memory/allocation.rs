@@ -110,7 +110,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 // prime the allocation run outside the timed loop
                 let warm_reference = fixture
                     .heap
-                    .allocate_zeroed(&mut fixture.allocator, &layout)
+                    .allocate_zeroed(&fixture.worker, &mut fixture.allocator, &layout)
                     .expect("shared heap allocation should prime");
                 black_box(warm_reference);
 
@@ -120,7 +120,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 for _ in 0..SMALL_ALLOCATIONS {
                     let reference = fixture
                         .heap
-                        .allocate_zeroed(&mut fixture.allocator, &layout)
+                        .allocate_zeroed(&fixture.worker, &mut fixture.allocator, &layout)
                         .expect("shared heap allocation should succeed");
                     black_box(reference);
                 }
@@ -145,7 +145,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 // prime the allocation run outside the timed loop
                 let warm_reference = fixture
                     .heap
-                    .allocate_bytes(&mut fixture.allocator, &layout, &payload)
+                    .allocate_bytes(&fixture.worker, &mut fixture.allocator, &layout, &payload)
                     .expect("shared heap allocation should prime");
                 black_box(warm_reference);
 
@@ -155,7 +155,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 for _ in 0..SMALL_ALLOCATIONS {
                     let reference = fixture
                         .heap
-                        .allocate_bytes(&mut fixture.allocator, &layout, &payload)
+                        .allocate_bytes(&fixture.worker, &mut fixture.allocator, &layout, &payload)
                         .expect("shared heap allocation should succeed");
                     black_box(reference);
                 }
@@ -237,7 +237,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 for _ in 0..LARGE_ALLOCATIONS {
                     let reference = fixture
                         .heap
-                        .allocate_zeroed(&mut fixture.allocator, &layout)
+                        .allocate_zeroed(&fixture.worker, &mut fixture.allocator, &layout)
                         .expect("shared large allocation should succeed");
                     black_box(reference);
                 }
@@ -264,7 +264,12 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 for _ in 0..LARGE_ALLOCATIONS {
                     let reference = fixture
                         .heap
-                        .allocate_bytes(&mut fixture.allocator, &layout, &large_payload)
+                        .allocate_bytes(
+                            &fixture.worker,
+                            &mut fixture.allocator,
+                            &layout,
+                            &large_payload,
+                        )
                         .expect("shared large allocation should succeed");
                     black_box(reference);
                 }
@@ -386,7 +391,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                         // prime the allocation run outside the timed loop
                         let warm_reference = fixture
                             .heap
-                            .allocate_zeroed(&mut fixture.allocator, &layout)
+                            .allocate_zeroed(&fixture.worker, &mut fixture.allocator, &layout)
                             .expect("shared zeroed allocation should prime");
                         black_box(warm_reference);
 
@@ -396,7 +401,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                         for _ in 0..allocation_count {
                             let reference = fixture
                                 .heap
-                                .allocate_zeroed(&mut fixture.allocator, &layout)
+                                .allocate_zeroed(&fixture.worker, &mut fixture.allocator, &layout)
                                 .expect("shared zeroed allocation should succeed");
                             black_box(reference);
                         }
@@ -428,7 +433,12 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                         // prime the allocation run outside the timed loop
                         let warm_reference = fixture
                             .heap
-                            .allocate_bytes(&mut fixture.allocator, &layout, &payload)
+                            .allocate_bytes(
+                                &fixture.worker,
+                                &mut fixture.allocator,
+                                &layout,
+                                &payload,
+                            )
                             .expect("shared byte allocation should prime");
                         black_box(warm_reference);
 
@@ -438,7 +448,12 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                         for _ in 0..allocation_count {
                             let reference = fixture
                                 .heap
-                                .allocate_bytes(&mut fixture.allocator, &layout, &payload)
+                                .allocate_bytes(
+                                    &fixture.worker,
+                                    &mut fixture.allocator,
+                                    &layout,
+                                    &payload,
+                                )
                                 .expect("shared byte allocation should succeed");
                             black_box(reference);
                         }
@@ -494,12 +509,13 @@ pub(crate) fn bench_shared_parallel_allocation(criterion: &mut Criterion) {
 
                                 scope.spawn(move || {
                                     let mut allocator = shared.allocator();
+                                    let worker = shared.register_collector_worker();
                                     barrier.wait();
 
                                     // measure the parallel public allocation path
                                     for _ in 0..PARALLEL_ALLOCATIONS_PER_WORKER {
                                         let reference = shared
-                                            .allocate_zeroed(&mut allocator, &layout)
+                                            .allocate_zeroed(&worker, &mut allocator, &layout)
                                             .expect("shared parallel allocation should succeed");
                                         black_box(reference);
                                     }

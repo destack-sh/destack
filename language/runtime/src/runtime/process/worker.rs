@@ -65,6 +65,8 @@ pub struct Worker {
 
     /// Shared GC worker queue handle.
     pub(crate) shared_gc_worker: heap::SharedGcWorker,
+    /// Worker-local shared heap allocator.
+    pub(crate) shared_allocator: heap::SharedAllocator,
     /// Authoritative worker heap.
     pub(crate) heap: heap::Heap,
     /// Worker-owned static byte space.
@@ -216,14 +218,6 @@ impl Worker {
         ExecutionContextId(fnv1a_64(&bytes))
     }
 
-    /// Return the shared GC worker handle for one worker.
-    fn shared_gc_worker(
-        shared: &RuntimeSharedHeap,
-        worker_id: WorkerId,
-    ) -> RuntimeResult<heap::SharedGcWorker> {
-        shared.worker(worker_id)
-    }
-
     /// Create one worker with explicit runtime options in one shared world.
     pub(crate) fn new_in_world(
         platform_args: impl Into<Arc<[String]>>,
@@ -312,10 +306,12 @@ impl Worker {
         .map_err(Box::<RuntimeError>::from)?;
         let mut heap = heap;
         let mut statics = engine::StaticSpace::empty();
-        let shared_gc_worker = Self::shared_gc_worker(shared, worker_id)?;
+        let shared_gc_worker = shared.register_collector_worker();
+        let mut shared_allocator = shared.shared().allocator();
         let context = crate::runtime::engine::Context {
             heap: &mut heap,
             shared_heap: shared.shared(),
+            shared_allocator: &mut shared_allocator,
             shared_gc: &shared_gc_worker,
             worker_static: &mut statics,
             runtime_static,
@@ -345,6 +341,7 @@ impl Worker {
             bindings,
             handles: HeapHandleTable::default(),
             shared_gc_worker,
+            shared_allocator,
             heap,
             statics,
             engine,
@@ -709,7 +706,7 @@ impl Worker {
 
     /// Publish allocator-local shared heap buffers.
     pub(crate) fn flush_shared_allocator(&mut self, shared: &heap::SharedHeap) {
-        self.engine.flush_shared_allocator(shared);
+        shared.flush_allocator(&mut self.shared_allocator);
     }
 
     /// Scan bounded local-to-shared reference work into the provided root buffer.
@@ -735,8 +732,6 @@ impl Worker {
         shared: &RuntimeSharedHeap,
         runtime_static: &engine::StaticSpace,
     ) -> RuntimeResult<WorkerImage> {
-        let shared_gc_worker = Self::shared_gc_worker(shared, self.id)?;
-
         // runtime callback barrier
         if self.runtime_callbacks.has_active_callbacks() {
             return Err(self.runtime_callbacks.capture_barrier_error(mode));
@@ -787,7 +782,8 @@ impl Worker {
             engine_image: self.engine.image(engine::Context {
                 heap: &mut self.heap,
                 shared_heap: shared.shared(),
-                shared_gc: &shared_gc_worker,
+                shared_allocator: &mut self.shared_allocator,
+                shared_gc: &self.shared_gc_worker,
                 worker_static: &mut self.statics,
                 runtime_static,
             })?,
@@ -841,9 +837,11 @@ impl Worker {
 
         let mut heap = self.heap.fork()?;
         let mut statics = self.statics.clone();
+        let mut shared_allocator = shared.shared().allocator();
         let mut engine = self.engine.fork(engine::Context {
             heap: &mut heap,
             shared_heap: shared.shared(),
+            shared_allocator: &mut shared_allocator,
             shared_gc: &shared_gc_worker,
             worker_static: &mut statics,
             runtime_static,
@@ -869,6 +867,7 @@ impl Worker {
             bindings,
             handles: HeapHandleTable::default(),
             shared_gc_worker,
+            shared_allocator,
             heap,
             statics,
             engine,
@@ -918,7 +917,8 @@ impl Worker {
         )
         .map_err(Box::<RuntimeError>::from)?;
         let mut statics = image.statics.clone();
-        let shared_gc_worker = Self::shared_gc_worker(shared, worker_id)?;
+        let shared_gc_worker = shared.register_collector_worker();
+        let mut shared_allocator = shared.shared().allocator();
 
         // rebuild the engine from the materialized worker image
         let mut engine = Engine::from_image(&image.engine_image)?;
@@ -927,6 +927,7 @@ impl Worker {
         let context = crate::runtime::engine::Context {
             heap: &mut heap,
             shared_heap: shared.shared(),
+            shared_allocator: &mut shared_allocator,
             shared_gc: &shared_gc_worker,
             worker_static: &mut statics,
             runtime_static,
@@ -936,6 +937,7 @@ impl Worker {
             engine::Context {
                 heap: &mut heap,
                 shared_heap: shared.shared(),
+                shared_allocator: &mut shared_allocator,
                 shared_gc: &shared_gc_worker,
                 worker_static: &mut statics,
                 runtime_static,
@@ -975,6 +977,7 @@ impl Worker {
             bindings,
             handles: HeapHandleTable::default(),
             shared_gc_worker,
+            shared_allocator,
             heap,
             statics,
             engine,

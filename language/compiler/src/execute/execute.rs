@@ -163,12 +163,9 @@ impl Compiler {
 
             // execute the MIR with the interpreter
             let mut options = vm::IsolateOptions::comptime();
-            let trust_policy = match self.comptime_target.trust_policy {
-                TrustPolicy::Untrusted => vm::TrustPolicy::Untrusted,
-                TrustPolicy::Trusted => vm::TrustPolicy::Trusted,
-                TrustPolicy::Internal => vm::TrustPolicy::Internal,
-            };
-            options.apply_trust_policy(trust_policy);
+            if matches!(self.comptime_target.trust_policy, TrustPolicy::Untrusted) {
+                options.checks = vm::CheckOptions::debug();
+            }
 
             // TODO #Cleanup: figure out a nicer way to create the Isolate for comptime
             let mut isolate = vm::Isolate::build_with_options(
@@ -203,7 +200,7 @@ impl Compiler {
                 module: module_id,
                 message: format!("{error}"),
             })?;
-            let mut shared = SharedHeap::with_allocator_limits_and_options(
+            let shared = SharedHeap::with_allocator_limits_and_options(
                 allocator,
                 SharedHeapLimits::default(),
                 shared_options,
@@ -212,7 +209,8 @@ impl Compiler {
                 module: module_id,
                 message: format!("{error}"),
             })?;
-            let shared_gc = shared.gc_worker(0);
+            let shared_gc = shared.register_collector_worker();
+            let mut shared_allocator = shared.allocator();
 
             isolate
                 .initialize(&heap, &shared, &mut statics)
@@ -224,7 +222,8 @@ impl Compiler {
                 .run_function(
                     &mut statics,
                     &mut heap,
-                    &mut shared,
+                    &shared,
+                    &mut shared_allocator,
                     &shared_gc,
                     function_id,
                     &[],

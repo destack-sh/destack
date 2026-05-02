@@ -36,23 +36,24 @@ pub struct SharedGcWorker {
 pub(crate) struct SharedTraceQueue {
     /// Work published without a worker context.
     global: Injector<SharedTraceWork>,
+    /// The next worker-local queue index.
+    next_worker: AtomicUsize,
     /// Stealing handles for registered collector workers.
     stealers: Mutex<Vec<Option<Stealer<SharedTraceWork>>>>,
 }
 
 impl SharedTraceQueue {
-    /// Return the GC worker registered for one runtime worker.
-    pub(crate) fn worker(&self, worker_index: usize) -> SharedGcWorker {
+    /// Register one GC worker.
+    pub(crate) fn register_worker(&self) -> SharedGcWorker {
         let local = Worker::new_fifo();
         let stealer = local.stealer();
+        let worker_index = self.next_worker.fetch_add(1, Ordering::Relaxed);
         let mut stealers = self.stealers.lock();
 
-        // preserve worker ids as direct indexes
+        // publish the stealing handle for other workers
         if stealers.len() <= worker_index {
             stealers.resize_with(worker_index + 1, || None);
         }
-
-        // publish the stealing handle for other workers
         stealers[worker_index] = Some(stealer);
 
         SharedGcWorker {
@@ -385,7 +386,7 @@ mod tests {
     #[test]
     fn test_pop_worker_local_work_first() {
         let queue = SharedTraceQueue::default();
-        let worker = queue.worker(7);
+        let worker = queue.register_worker();
         queue.push(
             Some(&worker),
             SharedTraceWork::Large {

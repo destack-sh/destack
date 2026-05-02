@@ -97,13 +97,9 @@ impl RuntimeSharedHeap {
         &self.collector_work
     }
 
-    /// Return one shared GC worker handle.
-    pub(crate) fn worker(&self, worker_id: WorkerId) -> RuntimeResult<heap::SharedGcWorker> {
-        let worker_index = usize::try_from(worker_id.0).map_err(|_| RuntimeError::Internal {
-            message: format!("worker id {} cannot index shared gc work", worker_id.0),
-        })?;
-
-        Ok(self.shared.gc_worker(worker_index))
+    /// Register one shared GC worker.
+    pub(crate) fn register_collector_worker(&self) -> heap::SharedGcWorker {
+        self.shared.register_collector_worker()
     }
 
     /// Suspend shared GC and wait for in-flight work to drain.

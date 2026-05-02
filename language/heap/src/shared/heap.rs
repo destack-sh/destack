@@ -403,6 +403,7 @@ impl SharedHeap {
     #[inline(always)]
     pub fn allocate(
         &self,
+        worker: &SharedGcWorker,
         allocator: &mut SharedAllocator,
         layout: &AllocationLayout<'_>,
         allocation: Payload<'_>,
@@ -433,7 +434,7 @@ impl SharedHeap {
         let pressure_bytes = allocator.layout_run_charge_bytes(layout);
 
         // mark assist before acquiring another shared allocation run
-        self.assist_allocation(allocator.gc_worker(), pressure_bytes)?;
+        self.assist_allocation(worker, pressure_bytes)?;
 
         let reference = self
             .heap
@@ -450,6 +451,7 @@ impl SharedHeap {
     #[inline(always)]
     pub fn allocate_bytes(
         &self,
+        worker: &SharedGcWorker,
         allocator: &mut SharedAllocator,
         layout: &AllocationLayout<'_>,
         bytes: &[u8],
@@ -487,7 +489,7 @@ impl SharedHeap {
         let pressure_bytes = allocator.layout_run_charge_bytes(layout);
 
         // mark assist before acquiring another shared allocation run
-        self.assist_allocation(allocator.gc_worker(), pressure_bytes)?;
+        self.assist_allocation(worker, pressure_bytes)?;
 
         let reference = self.heap.allocate(
             allocator,
@@ -507,6 +509,7 @@ impl SharedHeap {
     #[inline(always)]
     pub fn allocate_zeroed(
         &self,
+        worker: &SharedGcWorker,
         allocator: &mut SharedAllocator,
         layout: &AllocationLayout<'_>,
     ) -> HeapResult<SharedHeapReference> {
@@ -525,7 +528,7 @@ impl SharedHeap {
             return Ok(reference);
         }
 
-        self.allocate_zeroed_refill(allocator, layout)
+        self.allocate_zeroed_refill(worker, allocator, layout)
     }
 
     /// Refill zeroed allocation state or allocate from published space.
@@ -533,6 +536,7 @@ impl SharedHeap {
     #[inline(never)]
     fn allocate_zeroed_refill(
         &self,
+        worker: &SharedGcWorker,
         allocator: &mut SharedAllocator,
         layout: &AllocationLayout<'_>,
     ) -> HeapResult<SharedHeapReference> {
@@ -558,7 +562,7 @@ impl SharedHeap {
         let pressure_bytes = allocator.layout_run_charge_bytes(layout);
 
         // mark assist before acquiring another shared allocation run
-        self.assist_allocation(allocator.gc_worker(), pressure_bytes)?;
+        self.assist_allocation(worker, pressure_bytes)?;
 
         let reference =
             self.heap
@@ -660,9 +664,9 @@ impl SharedHeap {
         self.collect_step_for_worker(None, roots, roots_complete, budget_bytes)
     }
 
-    /// Return the shared GC worker handle for one runtime worker.
-    pub fn gc_worker(&self, worker_index: usize) -> SharedGcWorker {
-        self.heap.gc.trace_queue.worker(worker_index)
+    /// Register one shared GC worker.
+    pub fn register_collector_worker(&self) -> SharedGcWorker {
+        self.heap.gc.trace_queue.register_worker()
     }
 
     /// Run one shared collection step for one worker with one explicit byte budget.
@@ -892,11 +896,7 @@ impl SharedHeap {
     }
 
     /// Run shared collector work proportional to one allocation.
-    fn assist_allocation(
-        &self,
-        worker: Option<&SharedGcWorker>,
-        allocated_bytes: usize,
-    ) -> HeapResult<()> {
+    fn assist_allocation(&self, worker: &SharedGcWorker, allocated_bytes: usize) -> HeapResult<()> {
         if allocated_bytes == 0 || self.gc_phase() == SharedGcPhase::Idle {
             return Ok(());
         }
@@ -912,7 +912,7 @@ impl SharedHeap {
             return Ok(());
         }
 
-        self.collect_step_for_worker(worker, &[], false, budget_bytes)?;
+        self.collect_step_for_worker(Some(worker), &[], false, budget_bytes)?;
 
         Ok(())
     }

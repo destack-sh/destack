@@ -80,7 +80,8 @@ fn run_vm_random_call(
         destack_vm::HeapOptions::shared(),
     )
     .expect("test vm shared heap should build");
-    let shared_gc = shared.gc_worker(0);
+    let shared_gc = shared.register_collector_worker();
+    let mut shared_allocator = shared.allocator();
     runtime.install_vm_defaults(&mut isolate);
     isolate
         .initialize(&heap, &shared, &mut statics)
@@ -89,7 +90,15 @@ fn run_vm_random_call(
     // execute entry function
     let output = runtime
         .with_native_call_context(|_| {
-            isolate.run_function_by_name(&mut statics, &mut heap, &shared, &shared_gc, "main", &[])
+            isolate.run_function_by_name(
+                &mut statics,
+                &mut heap,
+                &shared,
+                &mut shared_allocator,
+                &shared_gc,
+                "main",
+                &[],
+            )
         })
         .expect("vm execution");
     let engine::Value::UInt { value, width } = output else {

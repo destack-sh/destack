@@ -55,6 +55,7 @@ impl Worker {
         let context = Context {
             heap: &mut self.heap,
             shared_heap: shared.shared(),
+            shared_allocator: &mut self.shared_allocator,
             shared_gc: &self.shared_gc_worker,
             worker_static: &mut self.statics,
             runtime_static,
@@ -679,6 +680,7 @@ impl Worker {
         let context = Context {
             heap: &mut self.heap,
             shared_heap: shared.shared(),
+            shared_allocator: &mut self.shared_allocator,
             shared_gc: &self.shared_gc_worker,
             worker_static: &mut self.statics,
             runtime_static,

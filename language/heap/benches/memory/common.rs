@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use destack_heap::{
     AddressSpace, AllocationPlan, Allocator, DEFAULT_PAGE_BYTES, Heap, HeapLimits, HeapOptions,
-    HeapReference, SharedAllocator, SharedHeap, SharedHeapLimits, SharedHeapReference,
+    HeapReference, SharedAllocator, SharedGcWorker, SharedHeap, SharedHeapLimits,
+    SharedHeapReference,
 };
 use destack_mir::ReferenceMap;
 
@@ -50,6 +51,8 @@ pub(crate) struct SharedFixture {
     pub(crate) heap: SharedHeap,
     /// The worker-local allocator cache.
     pub(crate) allocator: SharedAllocator,
+    /// The shared collector worker used by this fixture.
+    pub(crate) worker: SharedGcWorker,
 }
 
 /// Reserve one address space for memory benchmarks.
@@ -105,10 +108,12 @@ pub(crate) fn shared_fixture() -> SharedFixture {
 
     // attach one worker-local allocator cache
     let allocator = shared.allocator();
+    let worker = shared.register_collector_worker();
 
     SharedFixture {
         heap: shared,
         allocator,
+        worker,
     }
 }
 

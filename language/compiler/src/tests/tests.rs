@@ -2772,7 +2772,7 @@ impl TestProgram {
                 .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
         let mut statics = StaticSpace::empty();
         let (heap, shared) = create_test_heaps();
-        let shared_gc = shared.gc_worker(0);
+        let shared_gc = shared.register_collector_worker();
 
         isolate
             .initialize(&heap, &shared, &mut statics)

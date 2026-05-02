@@ -1210,12 +1210,14 @@ pub(crate) fn start_worker_continuation(
         heap,
         statics,
         engine,
+        shared_allocator,
         shared_gc_worker,
         ..
     } = worker;
     let context = Context {
         heap,
         shared_heap: shared.shared(),
+        shared_allocator,
         shared_gc: shared_gc_worker,
         worker_static: statics,
         runtime_static,
