@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use destack_engine::{self as engine, Context, Entry, Outcome, Value};
-use destack_heap as heap;
+use destack_engine::{Context, Engine as EngineTrait, EngineId, Entry, Outcome, Value};
 
 use crate::{Continuation, Image, Program};
 
@@ -23,25 +22,36 @@ pub enum Error {
 /// Worker-local native execution backend.
 pub struct Engine {
     /// The live engine identity.
-    engine_id: destack_engine::EngineId,
-    /// The executable program used by this engine.
+    engine_id: EngineId,
+    /// The loaded native program.
     program: Arc<Program>,
 }
 
 impl Engine {
     /// Create one native engine over one loaded program.
-    pub const fn new(engine_id: destack_engine::EngineId, program: Arc<Program>) -> Self {
+    pub const fn new(engine_id: EngineId, program: Arc<Program>) -> Self {
         Self { engine_id, program }
     }
 
     /// Return the live engine identity.
-    pub const fn engine_id(&self) -> destack_engine::EngineId {
+    pub const fn engine_id(&self) -> EngineId {
         self.engine_id
     }
 
-    /// Borrow the executable program.
+    /// Borrow the loaded native program.
     pub fn program(&self) -> &Program {
         self.program.as_ref()
+    }
+
+    /// Resolve one runtime entry name into an engine entry handle.
+    pub fn entry_by_name(&self, name: &str) -> Result<Entry, Error> {
+        let Some(entry) = self.program.object().entry_by_name(name) else {
+            return Err(Error::EntryNotFound {
+                name: name.to_string(),
+            });
+        };
+
+        Ok(Entry::new(entry.id.0))
     }
 
     /// Capture one native engine image.
@@ -50,7 +60,7 @@ impl Engine {
     }
 }
 
-impl engine::Engine for Engine {
+impl EngineTrait for Engine {
     type Continuation = Continuation;
     type Error = Error;
     type Image = Image;
@@ -58,12 +68,12 @@ impl engine::Engine for Engine {
     fn run(
         &mut self,
         _context: Context<'_>,
-        entry: &Entry,
+        entry: Entry,
         _args: &[Value],
     ) -> Result<Outcome<Self::Continuation, Value>, Self::Error> {
-        let Some(_entry) = self.program.entry_by_name(entry.name()) else {
+        let Some(_entry) = self.program.entry(crate::EntryId(entry.index())) else {
             return Err(Error::EntryNotFound {
-                name: entry.name().to_string(),
+                name: format!("entry {}", entry.index()),
             });
         };
 
@@ -81,15 +91,15 @@ impl engine::Engine for Engine {
         })
     }
 
-    fn fork(&mut self, _heap: &mut heap::Heap) -> Result<Self, Self::Error> {
+    fn fork(&self, _context: Context<'_>) -> Result<Self, Self::Error> {
         Err(Error::Unsupported { operation: "fork" })
     }
 
-    fn image(&mut self) -> Result<Self::Image, Self::Error> {
+    fn image(&self, _context: Context<'_>) -> Result<Self::Image, Self::Error> {
         Ok(Engine::image(self))
     }
 
-    fn restore(&mut self, _heap: &mut heap::Heap, _image: &Self::Image) -> Result<(), Self::Error> {
+    fn restore(&mut self, _context: Context<'_>, _image: &Self::Image) -> Result<(), Self::Error> {
         Err(Error::Unsupported {
             operation: "restore",
         })

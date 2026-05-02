@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use crate::Relocation;
 
-/// Object file text bytes and relocations.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// Native text section.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Text {
     /// The generated machine code bytes.
     pub bytes: Vec<u8>,
