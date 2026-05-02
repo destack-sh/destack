@@ -699,32 +699,32 @@ impl ProtocolServer {
                     .map_err(|error| self.protocol_error_from_service("current revision", error))?;
                 DaemonQueryResponse::CurrentRevision(revision)
             }
-            DaemonQuery::RootQuery { handle, request } => {
+            DaemonQuery::Execute { handle, request } => {
                 let root = self.root_for_handle(handle)?;
                 let response = self.execute_query(&root, request)?;
-                DaemonQueryResponse::RootQuery(response)
+                DaemonQueryResponse::Query(response)
             }
-            DaemonQuery::RootQueryBatch { handle, requests } => {
+            DaemonQuery::ExecuteBatch { handle, requests } => {
                 let root = self.root_for_handle(handle)?;
                 let responses = requests
                     .into_iter()
                     .map(|request| self.execute_query(&root, request))
                     .collect::<Result<Vec<_>, ProtocolError>>()?;
-                DaemonQueryResponse::RootQueryBatch(responses)
+                DaemonQueryResponse::QueryBatch(responses)
             }
         };
 
         Ok(DaemonResponse::QueryResult(response))
     }
 
-    /// Execute a root query against the current session.
+    /// Execute a query against the current session.
     fn execute_query(
         &self,
         root: &Path,
         request: QueryRequestPayload,
     ) -> Result<QueryResponsePayload, ProtocolError> {
-        // decode the semantic query request payload
-        let request = request.decode_envelope().map_err(|error| {
+        // decode the query request payload
+        let request = request.decode_request().map_err(|error| {
             self.protocol_error(
                 ProtocolErrorCode::InvalidPayload,
                 &format!("invalid query request payload: {error}"),
@@ -734,36 +734,60 @@ impl ProtocolServer {
         // capture request kind before dispatch
         let request_method_id = request.request.method_id();
 
-        // execute the semantic query through the language service
+        // execute the query through the language service
         let response = match request.request.execution_mode() {
-            query::QueryExecutionMode::Read => self
-                .daemon
-                .language_service
-                .read_root_query_envelope(root, request),
+            query::QueryExecutionMode::Read => {
+                if let Some(expected_revision) = request.expected_revision {
+                    return Err(self.protocol_error(
+                        ProtocolErrorCode::InvalidRequest,
+                        &format!(
+                            "read query must not carry expected revision: {expected_revision}"
+                        ),
+                    ));
+                }
+
+                self.daemon
+                    .language_service
+                    .read_root_query(root, request.request)
+            }
             query::QueryExecutionMode::Write => {
-                self.daemon.language_service.write_root_query(root, request)
+                let expected_revision = request.expected_revision.ok_or_else(|| {
+                    self.protocol_error(
+                        ProtocolErrorCode::InvalidRequest,
+                        "missing expected revision for mutating query",
+                    )
+                })?;
+
+                self.daemon.language_service.write_root_query(
+                    root,
+                    expected_revision,
+                    request.request,
+                )
             }
         }
-        .map_err(|error| self.protocol_error_from_service("root query", error))?;
+        .map_err(|error| self.protocol_error_from_service("query", error))?;
 
         // keep query response variants aligned with query request variants
         if response.response.method_id() != request_method_id {
             return Err(self.protocol_error(
                 ProtocolErrorCode::Internal,
                 &format!(
-                    "root query response kind mismatch: request={request_method_id:?} response={:?}",
+                    "query response kind mismatch: request={request_method_id:?} response={:?}",
                     response.response.method_id(),
                 ),
             ));
         }
 
-        // encode the semantic query response payload
-        let mut response = QueryResponsePayload::from_envelope(response).map_err(|error| {
-            self.protocol_error(
-                ProtocolErrorCode::Internal,
-                &format!("failed to encode query response payload: {error}"),
-            )
-        })?;
+        // encode the query response payload
+        let mut response =
+            QueryResponsePayload::from_response(response.revision, response.response).map_err(
+                |error| {
+                    self.protocol_error(
+                        ProtocolErrorCode::Internal,
+                        &format!("failed to encode query response payload: {error}"),
+                    )
+                },
+            )?;
 
         // route large query responses through deferred payload streaming
         response.payload = self.prepare_payload(response.payload)?;
@@ -893,10 +917,7 @@ impl ProtocolServer {
             service::LanguageServiceError::FileMissing { .. }
             | service::LanguageServiceError::PathNotInRoot { .. } => ProtocolErrorCode::NotFound,
             service::LanguageServiceError::StaleOpenFile { .. } => ProtocolErrorCode::Conflict,
-            service::LanguageServiceError::MissingExpectedRevision => {
-                ProtocolErrorCode::InvalidRequest
-            }
-            service::LanguageServiceError::UnexpectedExpectedRevision { .. }
+            service::LanguageServiceError::InvalidFileChange { .. }
             | service::LanguageServiceError::QueryModeMismatch { .. } => {
                 ProtocolErrorCode::InvalidRequest
             }

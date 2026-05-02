@@ -2,9 +2,10 @@ use std::io::{IsTerminal, Read};
 use std::path::{Path, PathBuf};
 
 use clap::Args;
+use destack_daemon::protocol::QueryRequestBody;
 use destack_query::{
-    QueryExecutionMode, QueryMethod, QueryMethodId, QueryRequest, QueryRequestEnvelope, assist,
-    navigation, parse_query_request, query_method, query_methods, refactor,
+    QueryExecutionMode, QueryMethod, QueryMethodId, QueryRequest, assist, navigation,
+    parse_query_request, query_method, query_methods, refactor,
 };
 use destack_source::Uri;
 use serde_json::Value;
@@ -361,7 +362,7 @@ where
 fn run_query_request(
     daemon: &ProtocolDaemonClient,
     root: &Path,
-    mut request: QueryRequestEnvelope,
+    mut request: QueryRequestBody,
     pretty: bool,
 ) -> Result<String, String> {
     // provide the current revision when write queries omit a precondition
@@ -384,7 +385,7 @@ fn run_query_request(
 }
 
 /// Collect query batch indices that need an implicit write revision precondition.
-fn missing_write_precondition_indices(requests: &[QueryRequestEnvelope]) -> Vec<usize> {
+fn missing_write_precondition_indices(requests: &[QueryRequestBody]) -> Vec<usize> {
     requests
         .iter()
         .enumerate()
@@ -404,7 +405,7 @@ fn missing_write_precondition_indices(requests: &[QueryRequestEnvelope]) -> Vec<
 fn run_query_batch_request(
     daemon: &ProtocolDaemonClient,
     root: &Path,
-    mut requests: Vec<QueryRequestEnvelope>,
+    mut requests: Vec<QueryRequestBody>,
     pretty: bool,
 ) -> Result<String, String> {
     // collect write queries that are missing a revision precondition
@@ -612,14 +613,14 @@ fn run_method_mode(
     } else {
         return Err("no params provided, use --params/--stdin or position args".to_string());
     };
-    let envelope = QueryRequestEnvelope {
+    let request = QueryRequestBody {
         request,
         expected_revision: None,
     };
 
     // execute the query
     run_with_daemon(args, |daemon, root| {
-        run_query_request(daemon, root, envelope, args.pretty)
+        run_query_request(daemon, root, request, args.pretty)
     })
 }
 
@@ -640,14 +641,14 @@ fn run_raw_mode(args: &QueryArgs, input_path: Option<&Path>) -> Result<String, S
     run_with_daemon(args, |daemon, root| {
         // run the query batch
         if value.is_array() {
-            let requests: Vec<QueryRequestEnvelope> = serde_json::from_value(value)
+            let requests: Vec<QueryRequestBody> = serde_json::from_value(value)
                 .map_err(|error| format!("invalid query batch: {error}"))?;
 
             return run_query_batch_request(daemon, root, requests, args.pretty);
         }
 
         // otherwise run a single query
-        let request: QueryRequestEnvelope = serde_json::from_value(value)
+        let request: QueryRequestBody = serde_json::from_value(value)
             .map_err(|error| format!("invalid query request: {error}"))?;
 
         run_query_request(daemon, root, request, args.pretty)
@@ -900,26 +901,26 @@ mod tests {
     fn test_query_missing_write_precondition_indices() {
         // build a mixed query batch
         let requests = vec![
-            QueryRequestEnvelope {
+            QueryRequestBody {
                 expected_revision: None,
                 request: QueryRequest::Hover(assist::HoverRequest {
                     uri: Uri::from_string("/workspace/main.ds"),
                     offset: 1,
                 }),
             },
-            QueryRequestEnvelope {
+            QueryRequestBody {
                 expected_revision: None,
                 request: QueryRequest::RenameFiles(refactor::RenameFilesRequest {
                     renames: Vec::new(),
                 }),
             },
-            QueryRequestEnvelope {
+            QueryRequestBody {
                 expected_revision: Some(destack_workspace::Revision::from_test_value(9)),
                 request: QueryRequest::RenameFiles(refactor::RenameFilesRequest {
                     renames: Vec::new(),
                 }),
             },
-            QueryRequestEnvelope {
+            QueryRequestBody {
                 expected_revision: None,
                 request: QueryRequest::Rename(refactor::RenameRequest {
                     uri: Uri::from_string("/workspace/main.ds"),

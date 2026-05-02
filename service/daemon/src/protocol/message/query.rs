@@ -1,11 +1,32 @@
 use serde::{Deserialize, Serialize};
 
-use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
+use destack_query::{QueryRequest, QueryResponse};
 use destack_workspace::Revision;
 
 use super::{BinaryPayload, DiagnosticBatch, RootHandleId};
 
-/// Encoded root query request payload.
+/// Request payload for one query.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct QueryRequestBody {
+    /// Expected workspace semantic revision for mutating requests.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expected_revision: Option<Revision>,
+    /// Query request.
+    #[serde(flatten)]
+    pub request: QueryRequest,
+}
+
+/// Response payload for one query.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct QueryResponseBody {
+    /// Workspace semantic revision after request execution.
+    pub revision: Revision,
+    /// Query response.
+    #[serde(flatten)]
+    pub response: QueryResponse,
+}
+
+/// Encoded query request payload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QueryRequestPayload {
     /// Encoded request payload.
@@ -13,10 +34,19 @@ pub struct QueryRequestPayload {
 }
 
 impl QueryRequestPayload {
-    /// Encode a semantic request envelope as protocol payload bytes.
-    pub fn from_envelope(envelope: QueryRequestEnvelope) -> Result<Self, QueryPayloadCodecError> {
-        // encode the semantic request envelope as json bytes
-        let bytes = serde_json::to_vec(&envelope).map_err(QueryPayloadCodecError::EncodeRequest)?;
+    /// Encode a query request as protocol payload bytes.
+    pub fn from_request(
+        expected_revision: Option<Revision>,
+        request: QueryRequest,
+    ) -> Result<Self, QueryPayloadCodecError> {
+        // build the json payload body
+        let request = QueryRequestBody {
+            expected_revision,
+            request,
+        };
+
+        // encode the query request as json bytes
+        let bytes = serde_json::to_vec(&request).map_err(QueryPayloadCodecError::EncodeRequest)?;
         let payload = BinaryPayload {
             format: super::PayloadFormat::Json,
             body: super::PayloadBody::Inline { bytes },
@@ -25,8 +55,13 @@ impl QueryRequestPayload {
         Ok(Self { payload })
     }
 
-    /// Decode protocol payload bytes into a semantic request envelope.
-    pub fn decode_envelope(&self) -> Result<QueryRequestEnvelope, QueryPayloadCodecError> {
+    /// Encode a prepared query request as protocol payload bytes.
+    pub fn from_body(request: QueryRequestBody) -> Result<Self, QueryPayloadCodecError> {
+        Self::from_request(request.expected_revision, request.request)
+    }
+
+    /// Decode protocol payload bytes into a query request.
+    pub fn decode_request(&self) -> Result<QueryRequestBody, QueryPayloadCodecError> {
         // reject non-json payload formats
         if self.payload.format != super::PayloadFormat::Json {
             return Err(QueryPayloadCodecError::DecodeRequestUnexpectedFormat {
@@ -39,12 +74,12 @@ impl QueryRequestPayload {
             return Err(QueryPayloadCodecError::DecodeRequestPayloadDeferred);
         };
 
-        // decode the semantic request envelope
+        // decode the query request
         serde_json::from_slice(bytes).map_err(QueryPayloadCodecError::DecodeRequest)
     }
 }
 
-/// Encoded root query response payload.
+/// Encoded query response payload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QueryResponsePayload {
     /// Encoded response payload.
@@ -52,11 +87,17 @@ pub struct QueryResponsePayload {
 }
 
 impl QueryResponsePayload {
-    /// Encode a semantic response envelope as protocol payload bytes.
-    pub fn from_envelope(envelope: QueryResponseEnvelope) -> Result<Self, QueryPayloadCodecError> {
-        // encode the semantic response envelope as json bytes
+    /// Encode a query response as protocol payload bytes.
+    pub fn from_response(
+        revision: Revision,
+        response: QueryResponse,
+    ) -> Result<Self, QueryPayloadCodecError> {
+        // build the json payload body
+        let response = QueryResponseBody { revision, response };
+
+        // encode the query response as json bytes
         let bytes =
-            serde_json::to_vec(&envelope).map_err(QueryPayloadCodecError::EncodeResponse)?;
+            serde_json::to_vec(&response).map_err(QueryPayloadCodecError::EncodeResponse)?;
         let payload = BinaryPayload {
             format: super::PayloadFormat::Json,
             body: super::PayloadBody::Inline { bytes },
@@ -65,8 +106,8 @@ impl QueryResponsePayload {
         Ok(Self { payload })
     }
 
-    /// Decode protocol payload bytes into a semantic response envelope.
-    pub fn decode_envelope(&self) -> Result<QueryResponseEnvelope, QueryPayloadCodecError> {
+    /// Decode protocol payload bytes into a query response.
+    pub fn decode_response(&self) -> Result<QueryResponseBody, QueryPayloadCodecError> {
         // reject non-json payload formats
         if self.payload.format != super::PayloadFormat::Json {
             return Err(QueryPayloadCodecError::DecodeResponseUnexpectedFormat {
@@ -79,7 +120,7 @@ impl QueryResponsePayload {
             return Err(QueryPayloadCodecError::DecodeResponsePayloadDeferred);
         };
 
-        // decode the semantic response envelope
+        // decode the query response
         serde_json::from_slice(bytes).map_err(QueryPayloadCodecError::DecodeResponse)
     }
 }
@@ -87,9 +128,9 @@ impl QueryResponsePayload {
 /// Errors emitted by query payload encoding and decoding.
 #[derive(Debug)]
 pub enum QueryPayloadCodecError {
-    /// Request envelope encoding failed.
+    /// Request encoding failed.
     EncodeRequest(serde_json::Error),
-    /// Request envelope decoding failed.
+    /// Request decoding failed.
     DecodeRequest(serde_json::Error),
     /// Request payload format is not json.
     DecodeRequestUnexpectedFormat {
@@ -98,9 +139,9 @@ pub enum QueryPayloadCodecError {
     },
     /// Request payload body is deferred.
     DecodeRequestPayloadDeferred,
-    /// Response envelope encoding failed.
+    /// Response encoding failed.
     EncodeResponse(serde_json::Error),
-    /// Response envelope decoding failed.
+    /// Response decoding failed.
     DecodeResponse(serde_json::Error),
     /// Response payload format is not json.
     DecodeResponseUnexpectedFormat {
@@ -160,15 +201,15 @@ pub enum DaemonQuery {
     Diagnostics { handle: RootHandleId },
     /// Request the current semantic revision.
     CurrentRevision { handle: RootHandleId },
-    /// Execute a root query.
-    RootQuery {
+    /// Execute a query.
+    Execute {
         /// Root handle.
         handle: RootHandleId,
         /// Encoded query request payload.
         request: QueryRequestPayload,
     },
-    /// Execute a batch of root queries.
-    RootQueryBatch {
+    /// Execute a batch of queries.
+    ExecuteBatch {
         /// Root handle.
         handle: RootHandleId,
         /// Encoded query request payloads.
@@ -183,10 +224,10 @@ pub enum DaemonQueryResponse {
     Diagnostics(Vec<DiagnosticBatch>),
     /// The current semantic revision.
     CurrentRevision(Revision),
-    /// Encoded root query response payload.
-    RootQuery(QueryResponsePayload),
-    /// Encoded root query batch response payloads.
-    RootQueryBatch(Vec<QueryResponsePayload>),
+    /// Encoded query response payload.
+    Query(QueryResponsePayload),
+    /// Encoded query batch response payloads.
+    QueryBatch(Vec<QueryResponsePayload>),
 }
 
 #[cfg(test)]
@@ -196,11 +237,11 @@ mod tests {
     use destack_query::{HoverRequest, HoverResponse, QueryRequest, QueryResponse};
     use destack_source::Uri;
 
-    /// Preserves query request envelopes across payload encoding and decoding.
+    /// Preserves query requests across payload encoding and decoding.
     #[test]
     fn test_roundtrip_query_request_payload() {
-        // build a representative query request envelope
-        let envelope = QueryRequestEnvelope {
+        // build a representative query request
+        let request = QueryRequestBody {
             expected_revision: Some(Revision::from_test_value(7)),
             request: QueryRequest::Hover(HoverRequest {
                 uri: Uri::from_string("/root/main.ds"),
@@ -209,11 +250,11 @@ mod tests {
         };
 
         // encode and decode through the query request payload
-        let payload = QueryRequestPayload::from_envelope(envelope.clone()).expect("encode");
-        let decoded = payload.decode_envelope().expect("decode");
+        let payload = QueryRequestPayload::from_body(request.clone()).expect("encode");
+        let decoded = payload.decode_request().expect("decode");
 
         // assert full roundtrip preservation
-        assert_eq!(decoded, envelope);
+        assert_eq!(decoded, request);
     }
 
     /// Rejects request payloads that are not json encoded.
@@ -230,7 +271,7 @@ mod tests {
         };
 
         // assert decoding fails with an unexpected format error
-        let error = payload.decode_envelope().expect_err("decode should fail");
+        let error = payload.decode_request().expect_err("decode should fail");
         assert!(matches!(
             error,
             QueryPayloadCodecError::DecodeRequestUnexpectedFormat { .. }
@@ -252,27 +293,29 @@ mod tests {
         };
 
         // assert decoding fails until payload streaming resolves inline bytes
-        let error = payload.decode_envelope().expect_err("decode should fail");
+        let error = payload.decode_request().expect_err("decode should fail");
         assert!(matches!(
             error,
             QueryPayloadCodecError::DecodeRequestPayloadDeferred
         ));
     }
 
-    /// Preserves query response envelopes across payload encoding and decoding.
+    /// Preserves query responses across payload encoding and decoding.
     #[test]
     fn test_roundtrip_query_response_payload() {
-        // build a representative query response envelope
-        let envelope = QueryResponseEnvelope {
+        // build a representative query response
+        let response = QueryResponseBody {
             revision: Revision::from_test_value(7),
             response: QueryResponse::Hover(HoverResponse { hover: None }),
         };
 
         // encode and decode through the query response payload
-        let payload = QueryResponsePayload::from_envelope(envelope.clone()).expect("encode");
-        let decoded = payload.decode_envelope().expect("decode");
+        let payload =
+            QueryResponsePayload::from_response(response.revision, response.response.clone())
+                .expect("encode");
+        let decoded = payload.decode_response().expect("decode");
 
         // assert full roundtrip preservation
-        assert_eq!(decoded, envelope);
+        assert_eq!(decoded, response);
     }
 }

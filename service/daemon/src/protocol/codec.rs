@@ -377,9 +377,7 @@ impl Default for ProtocolCodec {
 
 #[cfg(test)]
 mod tests {
-    use destack_source::{
-        Diagnostic, DiagnosticSeverity, FileId, FileType, LabeledSpan, Span, Uri,
-    };
+    use destack_source::{Diagnostic, DiagnosticLabel, FileContentId, FileId, FileType, Span, Uri};
 
     use super::{DEFAULT_MAX_FRAME_SIZE_BYTES, FrameCodec, ProtocolCodec, ProtocolMessage};
     use crate::protocol::{
@@ -525,18 +523,12 @@ mod tests {
     fn test_protocol_command_response_roundtrip() {
         // build a minimal diagnostic payload
         let file_id = FileId::new(1);
-        let diagnostic = Diagnostic {
-            code: "E001".to_string(),
-            original_code: None,
-            severity: DiagnosticSeverity::Error,
-            original_severity: None,
-            message: "example error".to_string(),
-            file_id,
-            primary_span: LabeledSpan::new(Span::new(file_id, 0, 1), "primary"),
-            primary_highlight_spans: None,
-            secondary_spans: None,
-            suggestions: None,
-        };
+        let content = FileContentId::for_text("export const answer = 42;\n");
+        let diagnostic = Diagnostic::error(
+            "E001",
+            "example error",
+            DiagnosticLabel::message(content, Span::new(file_id, 0, 1), "primary"),
+        );
         let diagnostics = vec![DiagnosticBatch {
             file_id,
             diagnostics: vec![diagnostic],
