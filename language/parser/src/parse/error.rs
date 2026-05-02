@@ -1,7 +1,7 @@
 use core::fmt;
 
 use destack_ast::{NodeType, TokenSpan, TokenType};
-use destack_source::{Diagnostic, DiagnosticSeverity, File, LabeledSpan, Span};
+use destack_source::{Diagnostic, DiagnosticLabel, File, Span};
 
 /// Error when parsing the AST.
 #[derive(Debug, Clone, PartialEq)]
@@ -166,8 +166,10 @@ impl std::error::Error for ParseError {
 }
 
 impl ParseError {
-    pub fn to_diagnostic(&self, _source: &File, tokens: &[TokenSpan]) -> Diagnostic {
+    /// Convert this parse error into one source diagnostic.
+    pub fn to_diagnostic(&self, source: &File, tokens: &[TokenSpan]) -> Diagnostic {
         let (span, node_type, expected) = self.leaf_content();
+        let content = source.content_id();
 
         let token_at_primary_span = tokens
             .iter()
@@ -178,26 +180,19 @@ impl ParseError {
             Some(node_type) => format!(" in {node_type:?}"),
             None => "".to_string(),
         };
-        Diagnostic {
-            code: "EP001".to_string(),
-            original_code: None,
-            severity: DiagnosticSeverity::Error,
-            original_severity: None,
-            message: match expected {
-                Some(token_type) => format!("parse error: expected {token_type}{in_node_str}"),
-                None => format!("parse error: unexpected {token_at_primary_span}{in_node_str}"),
+        let message = match expected {
+            Some(token_type) => format!("parse error: expected {token_type}{in_node_str}"),
+            None => format!("parse error: unexpected {token_at_primary_span}{in_node_str}"),
+        };
+        let primary = DiagnosticLabel::message(
+            content,
+            span,
+            match expected {
+                Some(token_type) => format!("expected {token_type}{in_node_str}"),
+                None => format!("unexpected {token_at_primary_span}{in_node_str}"),
             },
-            file_id: span.file,
-            primary_span: LabeledSpan {
-                span,
-                label: match expected {
-                    Some(token_type) => format!("expected {token_type}{in_node_str}"),
-                    None => format!("unexpected {token_at_primary_span}{in_node_str}"),
-                },
-            },
-            primary_highlight_spans: None,
-            secondary_spans: None,
-            suggestions: None,
-        }
+        );
+
+        Diagnostic::error("EP001", message, primary)
     }
 }

@@ -55,13 +55,16 @@ fn test_reject_labelled_lexical_declaration() {
     let _ = parser.parse();
     let diagnostic = parser
         .diagnostics
-        .iter()
+        .to_vec()
         .into_iter()
         .find(|diagnostic| diagnostic.code.starts_with("EP"))
         .expect("expected parse diagnostic");
 
     // let a
-    assert_eq!(parser.get_span_str(diagnostic.primary_span.span), "let a");
+    assert_eq!(
+        parser.get_span_str(diagnostic.primary_label().span),
+        "let a"
+    );
 }
 
 /// Parse a leading elementwise operator in a type expression.
