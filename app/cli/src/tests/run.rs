@@ -45,7 +45,6 @@ fn test_run_watch_handles_update() {
         program: program.program_args(),
         target: TargetArgs::default(),
         runtime: RuntimeArgs::default(),
-        diagnostics: DiagnosticArgs::default(),
         report: ReportArgs::default(),
         entry: "main".to_string(),
         args: Vec::new(),

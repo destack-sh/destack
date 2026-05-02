@@ -292,7 +292,7 @@ fn test_fmt_payload_includes_changed_and_error_files() {
     });
 
     // run the daemon command directly so we can inspect payload data
-    let result = run_root_command_once(&program.program_args(), None, common, payload, None)
+    let result = run_root_command_once(&program.program_args(), common, payload, None)
         .expect("format command should return a response");
 
     // parse and decode the format payload
