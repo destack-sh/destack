@@ -190,6 +190,7 @@ pub enum Instruction {
         /// The SSA value to define with the hidden environment pointer.
         destination: ValueReference,
     },
+
     // memory (pointers)
     /// Load from a pointer (dereference).
     ///
@@ -250,8 +251,8 @@ pub enum Instruction {
         destination: ValueReference,
         /// The array value to extract from.
         array: ValueReference,
-        /// The index of the element (runtime value).
-        index: ValueReference,
+        /// The zero-based element index.
+        index: u32,
     },
     /// Get the address of an element from an addressable indexed value (element.address).
     ElementAddr {
@@ -270,8 +271,8 @@ pub enum Instruction {
         destination: ValueReference,
         /// The original array value.
         array: ValueReference,
-        /// The index of the element to update (runtime value).
-        index: ValueReference,
+        /// The zero-based element index to update.
+        index: u32,
         /// The value to insert at the index.
         value: ValueReference,
     },
@@ -1008,14 +1009,9 @@ impl Instruction {
             Instruction::FieldSet {
                 aggregate, value, ..
             } => smallvec![*aggregate, *value],
-            Instruction::ElementGet { array, index, .. } => smallvec![*array, *index],
+            Instruction::ElementGet { array, .. } => smallvec![*array],
             Instruction::ElementAddr { array, index, .. } => smallvec![*array, *index],
-            Instruction::ElementSet {
-                array,
-                index,
-                value,
-                ..
-            } => smallvec![*array, *index, *value],
+            Instruction::ElementSet { array, value, .. } => smallvec![*array, *value],
             // arguments stored externally - return empty
             Instruction::Struct { .. } => smallvec![],
             Instruction::Tuple { .. } => smallvec![],

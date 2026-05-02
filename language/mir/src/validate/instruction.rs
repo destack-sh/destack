@@ -1852,8 +1852,6 @@ impl<'a> Validator<'a> {
                     anchor,
                     "element.get destination",
                 )?;
-                let index_type =
-                    self.value_type_or_error(function, *index, anchor, "element.get index")?;
 
                 let element_type =
                     self.fixed_element_type_for_array(array_type, anchor, "element.get")?;
@@ -1865,11 +1863,7 @@ impl<'a> Validator<'a> {
                     });
                 }
 
-                self.expect_integer_like_type(
-                    index_type,
-                    anchor,
-                    "element.get index must be an integer type",
-                )?;
+                self.validate_fixed_element_index(array_type, *index, anchor, "element.get")?;
             }
             Instruction::ElementSet {
                 destination,
@@ -1885,8 +1879,6 @@ impl<'a> Validator<'a> {
                     anchor,
                     "element.set destination",
                 )?;
-                let index_type =
-                    self.value_type_or_error(function, *index, anchor, "element.set index")?;
                 let value_type =
                     self.value_type_or_error(function, *value, anchor, "element.set value")?;
 
@@ -1906,11 +1898,7 @@ impl<'a> Validator<'a> {
                     });
                 }
 
-                self.expect_integer_like_type(
-                    index_type,
-                    anchor,
-                    "element.set index must be an integer type",
-                )?;
+                self.validate_fixed_element_index(array_type, *index, anchor, "element.set")?;
             }
             Instruction::ElementAddr {
                 array,
@@ -2256,7 +2244,6 @@ impl<'a> Validator<'a> {
         }
     }
 
-    /// Resolve the element type for an indexed value.
     /// Resolve the element type for a fixed array aggregate.
     fn fixed_element_type_for_array(
         &self,
@@ -2271,6 +2258,31 @@ impl<'a> Validator<'a> {
                 anchor,
             }),
         }
+    }
+
+    /// Validate one immediate fixed-array element index.
+    fn validate_fixed_element_index(
+        &self,
+        array_type: LocalNodeId<Type>,
+        index: u32,
+        anchor: ValidateAnchor,
+        operation: &'static str,
+    ) -> ValidateResult<()> {
+        let Type::Array { length, .. } = self.tree.get(array_type) else {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: format!("{operation} expects a fixed array aggregate"),
+                anchor,
+            });
+        };
+
+        if u64::from(index) >= *length {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: format!("{operation} index is out of bounds"),
+                anchor,
+            });
+        }
+
+        Ok(())
     }
 
     /// Resolve one projected element type from an addressable indexed base.

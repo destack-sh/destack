@@ -55,14 +55,14 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Extract an element from an array.
-    pub fn element_get(&mut self, array: Value, index: Value) -> Value {
+    pub fn element_get(&mut self, array: Value, index: u32) -> Value {
         let destination = self.allocate_value();
         let array_type = self.value_type_or_panic(array, "element.get array");
         let element_type = self.element_type_for_array(array_type);
         self.insert_instruction(Instruction::ElementGet {
             destination: destination.into(),
             array: array.into(),
-            index: index.into(),
+            index,
         });
         self.define_value(destination, element_type);
         destination
@@ -87,13 +87,13 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Insert a value into an array element.
-    pub fn element_set(&mut self, array: Value, index: Value, value: Value) -> Value {
+    pub fn element_set(&mut self, array: Value, index: u32, value: Value) -> Value {
         let destination = self.allocate_value();
         let array_type = self.value_type_or_panic(array, "element.set array");
         self.insert_instruction(Instruction::ElementSet {
             destination: destination.into(),
             array: array.into(),
-            index: index.into(),
+            index,
             value: value.into(),
         });
         self.define_value(destination, array_type);

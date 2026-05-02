@@ -430,7 +430,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         array,
                         token(","),
                         space(),
-                        index
+                        text(&index.to_string())
                     ]
                 )
             }
@@ -476,7 +476,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         array,
                         token(","),
                         space(),
-                        index,
+                        text(&index.to_string()),
                         token(","),
                         space(),
                         value

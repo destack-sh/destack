@@ -972,29 +972,29 @@ b0:
     );
 }
 
-/// Reject element projections with non integer index values.
+/// Reject element projections with out of bounds indices.
 #[test]
-fn test_reject_element_get_with_non_integer_index() {
-    let source = r#"function bad(v0: int32[4], v1: float32): int32 {
-b0(v0: int32[4], v1: float32):
-    v2: int32 = element.get v0, v1
-    return v2
+fn test_reject_element_get_with_out_of_bounds_index() {
+    let source = r#"function bad(v0: int32[4]): int32 {
+b0(v0: int32[4]):
+    v1: int32 = element.get v0, 4
+    return v1
 }"#;
 
     let error = assert_validate_error(source);
     assert_eq!(
         error.message,
-        "metadata invariant violation: element.get index must be an integer type"
+        "metadata invariant violation: element.get index is out of bounds"
     );
 }
 
 /// Reject element gets on slices.
 #[test]
 fn test_reject_element_get_with_slice() {
-    let source = r#"function bad(v0: slice<int32>, v1: int64): int32 {
-b0(v0: slice<int32>, v1: int64):
-    v2: int32 = element.get v0, v1
-    return v2
+    let source = r#"function bad(v0: slice<int32>): int32 {
+b0(v0: slice<int32>):
+    v1: int32 = element.get v0, 0
+    return v1
 }"#;
 
     let error = assert_validate_error(source);
@@ -1007,10 +1007,10 @@ b0(v0: slice<int32>, v1: int64):
 /// Reject element sets on slices.
 #[test]
 fn test_reject_element_set_with_slice() {
-    let source = r#"function bad(v0: slice<int32>, v1: int64, v2: int32): slice<int32> {
-b0(v0: slice<int32>, v1: int64, v2: int32):
-    v3: slice<int32> = element.set v0, v1, v2
-    return v3
+    let source = r#"function bad(v0: slice<int32>, v1: int32): slice<int32> {
+b0(v0: slice<int32>, v1: int32):
+    v2: slice<int32> = element.set v0, 0, v1
+    return v2
 }"#;
 
     let error = assert_validate_error(source);

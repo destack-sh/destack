@@ -436,7 +436,9 @@ impl Parser {
                     "element.get" => {
                         let array = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_value_segment(&mut segment_spans)?;
+                        let index = self.parse_int_segment(&mut segment_spans)?;
+                        let index = u32::try_from(index)
+                            .map_err(|_| ParseError::invalid("element index", self.pos()))?;
                         Instruction::ElementGet {
                             destination,
                             array,
@@ -457,7 +459,9 @@ impl Parser {
                     "element.set" => {
                         let array = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_value_segment(&mut segment_spans)?;
+                        let index = self.parse_int_segment(&mut segment_spans)?;
+                        let index = u32::try_from(index)
+                            .map_err(|_| ParseError::invalid("element index", self.pos()))?;
                         self.eat_token(TokenType::Comma)?;
                         let value = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::ElementSet {
