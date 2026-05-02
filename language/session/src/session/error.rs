@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use destack_source::{FileId, ModuleId};
+use destack_artifact::{ArtifactFailure, ArtifactKey, DiagnosticError};
+use destack_source::{FileId, ModuleId, PackageId};
 use destack_workspace::RepositoryError;
 
 /// Errors produced by live session operations.
@@ -27,15 +28,32 @@ pub enum SessionError {
         /// The failure detail.
         detail: String,
     },
-    /// The file id is not tracked.
-    FileIdNotTracked {
+    /// The file is not tracked.
+    FileNotTracked {
         /// The missing file id.
         file_id: FileId,
     },
-    /// The module id is not tracked.
-    ModuleIdNotTracked {
+    /// The module is not tracked.
+    ModuleNotTracked {
         /// The missing module id.
         module_id: ModuleId,
+    },
+    /// The package is not tracked.
+    PackageNotTracked {
+        /// The missing package id.
+        package_id: PackageId,
+    },
+    /// The worker limit is not usable.
+    InvalidWorkerLimit {
+        /// The invalid worker limit.
+        worker_limit: usize,
+    },
+    /// Artifact provision reached a failed terminal outcome.
+    ArtifactFailed {
+        /// The failed artifact key.
+        key: ArtifactKey,
+        /// The artifact failure.
+        failure: ArtifactFailure,
     },
     /// Repository work failed inside the session.
     Repository(RepositoryError),
@@ -58,11 +76,23 @@ impl std::fmt::Display for SessionError {
             SessionError::ReadPathFailed { path, detail } => {
                 write!(formatter, "read failed for {}: {detail}", path.display())
             }
-            SessionError::FileIdNotTracked { file_id } => {
-                write!(formatter, "file id not tracked: {file_id:?}")
+            SessionError::FileNotTracked { file_id } => {
+                write!(formatter, "file not tracked: {file_id:?}")
             }
-            SessionError::ModuleIdNotTracked { module_id } => {
-                write!(formatter, "module id not tracked: {module_id:?}")
+            SessionError::ModuleNotTracked { module_id } => {
+                write!(formatter, "module not tracked: {module_id:?}")
+            }
+            SessionError::PackageNotTracked { package_id } => {
+                write!(formatter, "package not tracked: {package_id:?}")
+            }
+            SessionError::InvalidWorkerLimit { worker_limit } => {
+                write!(formatter, "invalid session worker limit: {worker_limit}")
+            }
+            SessionError::ArtifactFailed { key, failure } => {
+                write!(
+                    formatter,
+                    "artifact failed while providing {key:?}: {failure:?}"
+                )
             }
             SessionError::Repository(error) => {
                 write!(formatter, "session repository error: {error}")
@@ -86,5 +116,13 @@ impl std::error::Error for SessionError {
 impl From<RepositoryError> for SessionError {
     fn from(error: RepositoryError) -> Self {
         SessionError::Repository(error)
+    }
+}
+
+impl From<DiagnosticError> for SessionError {
+    fn from(error: DiagnosticError) -> Self {
+        SessionError::Internal {
+            detail: format!("failed to finalize provider diagnostic: {error}"),
+        }
     }
 }
