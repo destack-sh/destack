@@ -116,8 +116,8 @@ struct FieldSetEntry {
 struct ElementSetEntry {
     /// The original array being modified.
     array: mir::Value,
-    /// The index value (may be constant or dynamic).
-    index: mir::Value,
+    /// The element index being updated.
+    index: u32,
     /// The new value inserted at the index.
     value: mir::Value,
 }
@@ -134,8 +134,8 @@ struct FieldGetEntry {
 struct ElementGetEntry {
     /// The array being extracted from.
     array: mir::Value,
-    /// The index value (may be constant or dynamic).
-    index: mir::Value,
+    /// The element index being extracted.
+    index: u32,
 }
 
 /// Core instruction combine logic.
@@ -224,12 +224,9 @@ fn run_instruction_combine(
                     index,
                     value,
                 } => {
-                    let (Some(destination), Some(array), Some(index), Some(value)) = (
-                        destination.value(),
-                        array.value(),
-                        index.value(),
-                        value.value(),
-                    ) else {
+                    let (Some(destination), Some(array), Some(value)) =
+                        (destination.value(), array.value(), value.value())
+                    else {
                         continue;
                     };
 
@@ -237,7 +234,7 @@ fn run_instruction_combine(
                         destination,
                         ElementSetEntry {
                             array,
-                            index,
+                            index: *index,
                             value,
                         },
                     );
@@ -266,13 +263,18 @@ fn run_instruction_combine(
                     array,
                     index,
                 } => {
-                    let (Some(destination), Some(array), Some(index)) =
-                        (destination.value(), array.value(), index.value())
+                    let (Some(destination), Some(array)) = (destination.value(), array.value())
                     else {
                         continue;
                     };
 
-                    element_gets.insert(destination, ElementGetEntry { array, index });
+                    element_gets.insert(
+                        destination,
+                        ElementGetEntry {
+                            array,
+                            index: *index,
+                        },
+                    );
                 }
                 _ => {}
             }
@@ -361,14 +363,8 @@ fn run_instruction_combine(
                     }
 
                     mir::Instruction::ElementGet { array, index, .. } => {
-                        if let (Some(array), Some(index)) = (array.value(), index.value()) {
-                            simplify_element_get(
-                                array,
-                                index,
-                                &aggregate_operands,
-                                &element_sets,
-                                &constant_lookup,
-                            )
+                        if let Some(array) = array.value() {
+                            simplify_element_get(array, *index, &aggregate_operands, &element_sets)
                         } else {
                             None
                         }
@@ -393,16 +389,8 @@ fn run_instruction_combine(
                         value,
                         ..
                     } => {
-                        if let (Some(array), Some(index), Some(value)) =
-                            (array.value(), index.value(), value.value())
-                        {
-                            simplify_element_set(
-                                array,
-                                index,
-                                value,
-                                &element_gets,
-                                &constant_lookup,
-                            )
+                        if let (Some(array), Some(value)) = (array.value(), value.value()) {
+                            simplify_element_set(array, *index, value, &element_gets)
                         } else {
                             None
                         }
@@ -975,65 +963,37 @@ fn simplify_field_get(
     None
 }
 
-/// Convert a constant to a non-negative index, rejecting negative values.
-fn constant_to_index(constant: &Constant) -> Option<usize> {
-    match constant {
-        Constant::Int { value, .. } => {
-            // reject negative indices
-            if *value < 0 {
-                return None;
-            }
-            usize::try_from(*value).ok()
-        }
-        Constant::UInt { value, .. } => usize::try_from(*value).ok(),
-        _ => None,
-    }
-}
-
 /// Simplify an element.get instruction.
 ///
-/// Handles extraction from array constructions and from element.set operations
-/// when indices are known non-negative constants.
+/// Handles extraction from array constructions and from element.set operations.
 /// Uses iterative traversal with depth limit to avoid stack overflow.
 fn simplify_element_get(
     array: mir::Value,
-    index: mir::Value,
+    index: u32,
     aggregate_operands: &HashMap<mir::Value, Vec<mir::Value>>,
     element_sets: &HashMap<mir::Value, ElementSetEntry>,
-    constants: &ConstantLookup<'_>,
 ) -> Option<Simplification> {
-    // resolve the index to a non-negative constant value
-    let index_value = constants.get(index).as_ref().and_then(constant_to_index);
-
     let mut current = array;
 
     // iterate through chained element.set operations
     for _ in 0..MAX_AGGREGATE_CHAIN_DEPTH {
         // check array constructions
-        if let Some(operands) = aggregate_operands.get(&current)
-            && let Some(idx) = index_value
-        {
-            return operands.get(idx).map(|&op| Simplification::Substitute(op));
+        if let Some(operands) = aggregate_operands.get(&current) {
+            return operands
+                .get(index as usize)
+                .map(|&op| Simplification::Substitute(op));
         }
 
         // check element.set: element.get(element.set(arr, i, val), j)
         if let Some(entry) = element_sets.get(&current) {
-            // need both indices to be non-negative constants for comparison
-            let set_index_value = constants
-                .get(entry.index)
-                .as_ref()
-                .and_then(constant_to_index);
-
-            if let (Some(get_idx), Some(set_idx)) = (index_value, set_index_value) {
-                // same index: return the inserted value
-                if get_idx == set_idx {
-                    return Some(Simplification::Substitute(entry.value));
-                }
-
-                // different index: continue through original array
-                current = entry.array;
-                continue;
+            // same index: return the inserted value
+            if index == entry.index {
+                return Some(Simplification::Substitute(entry.value));
             }
+
+            // different index: continue through original array
+            current = entry.array;
+            continue;
         }
 
         // no more simplifications possible
@@ -1067,31 +1027,20 @@ fn simplify_field_set(
 ///
 /// Detects identity pattern: `element.set(arr, i, element.get(arr, i))` → `arr`
 /// Setting an element to its own current value is a no-op.
-/// Requires constant indices for comparison.
 fn simplify_element_set(
     array: mir::Value,
-    index: mir::Value,
+    index: u32,
     value: mir::Value,
     element_gets: &HashMap<mir::Value, ElementGetEntry>,
-    constants: &ConstantLookup<'_>,
 ) -> Option<Simplification> {
     // check if value comes from an element.get on the same array
     if let Some(get_entry) = element_gets.get(&value)
         && get_entry.array == array
+        && get_entry.index == index
     {
-        // need both indices to be constants for comparison
-        let set_idx = constants.get(index).as_ref().and_then(constant_to_index);
-        let get_idx = constants
-            .get(get_entry.index)
-            .as_ref()
-            .and_then(constant_to_index);
-
-        if let (Some(s), Some(g)) = (set_idx, get_idx)
-            && s == g
-        {
-            return Some(Simplification::Substitute(array));
-        }
+        return Some(Simplification::Substitute(array));
     }
+
     None
 }
 

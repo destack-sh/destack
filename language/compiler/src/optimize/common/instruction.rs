@@ -708,7 +708,7 @@ pub fn instruction_substitute_uses(
         } => mir::Instruction::ElementGet {
             destination: *destination,
             array: substitute(array),
-            index: substitute(index),
+            index: *index,
         },
         mir::Instruction::ElementAddr {
             destination,
@@ -729,7 +729,7 @@ pub fn instruction_substitute_uses(
         } => mir::Instruction::ElementSet {
             destination: *destination,
             array: substitute(array),
-            index: substitute(index),
+            index: *index,
             value: substitute(value),
         },
         mir::Instruction::VectorSplat { destination, value } => mir::Instruction::VectorSplat {
@@ -2192,7 +2192,7 @@ pub fn instruction_map(
         } => mir::Instruction::ElementGet {
             destination: remap(*destination),
             array: remap(*array),
-            index: remap(*index),
+            index: *index,
         },
         mir::Instruction::ElementAddr {
             destination,
@@ -2213,7 +2213,7 @@ pub fn instruction_map(
         } => mir::Instruction::ElementSet {
             destination: remap(*destination),
             array: remap(*array),
-            index: remap(*index),
+            index: *index,
             value: remap(*value),
         },
         mir::Instruction::LocalGet { destination, local } => mir::Instruction::LocalGet {
@@ -3319,7 +3319,7 @@ pub fn instruction_map_with_locals(
         } => mir::Instruction::ElementGet {
             destination: remap(*destination),
             array: remap(*array),
-            index: remap(*index),
+            index: *index,
         },
         mir::Instruction::ElementAddr {
             destination,
@@ -3340,7 +3340,7 @@ pub fn instruction_map_with_locals(
         } => mir::Instruction::ElementSet {
             destination: remap(*destination),
             array: remap(*array),
-            index: remap(*index),
+            index: *index,
             value: remap(*value),
         },
         mir::Instruction::New {

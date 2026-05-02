@@ -510,7 +510,7 @@ impl FunctionLowerer<'_> {
         Ok(())
     }
 
-    /// Lower an index expression to an element_get.
+    /// Lower an index expression to an element address and load.
     ///
     /// ```ds
     /// function read(values: int32[3]): int32 {
@@ -520,7 +520,8 @@ impl FunctionLowerer<'_> {
     /// ->
     /// ```mir
     /// v1: int32 = const 1
-    /// v2: int32 = element.get v0, v1
+    /// v2: ref<int32, raw, readonly, space(frame)> = element.address v0, v1
+    /// v3: int32 = load v2
     /// ```
     pub(crate) fn lower_index_expression(
         &mut self,
@@ -555,8 +556,19 @@ impl FunctionLowerer<'_> {
             // get the result type for the element
             let result_type = self.lower_type_for_expression(expression_id)?;
 
-            // emit element_get
-            let value = self.state.builder.element_get(array_value, index_value);
+            // dynamic indexing projects an address first
+            let reference_type = self.state.builder.type_reference(
+                mir::ReferenceKind::Raw,
+                result_type,
+                mir::Mutability::Immutable,
+                mir::AddressSpace::Frame,
+                false,
+            );
+            let pointer = self
+                .state
+                .builder
+                .element_addr(array_value, index_value, reference_type);
+            let value = self.state.builder.load(pointer, result_type);
             return Ok((value, result_type));
         }
 

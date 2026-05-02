@@ -449,7 +449,7 @@ fn expression_operands(key: &ExpressionKey) -> Vec<mir::Value> {
             else_value,
         } => vec![*condition, *then_value, *else_value],
         ExpressionKey::FieldGet { aggregate, .. } => vec![*aggregate],
-        ExpressionKey::ElementGet { array, index } => vec![*array, *index],
+        ExpressionKey::ElementGet { array, .. } => vec![*array],
     }
 }
 
@@ -742,7 +742,7 @@ fn build_instruction_from_key(
             mir::Instruction::ElementGet {
                 destination: destination.into(),
                 array: (*array).into(),
-                index: (*index).into(),
+                index: *index,
             }
         }
         _ => panic!("mismatched expression template"),

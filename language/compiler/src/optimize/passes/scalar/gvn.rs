@@ -474,7 +474,7 @@ fn process_block(
     tree: &mir::Tree,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
-    constants: &ConstantPropagation,
+    _constants: &ConstantPropagation,
     value_types: &ValueTypeMap,
     _type_context: TypeContext,
     value_table: &mut ScopedValueTable,
@@ -483,9 +483,6 @@ fn process_block(
 ) {
     // load the block for inspection
     let block = tree.get(block_id);
-
-    // capture constant propagation facts for this block
-    let block_constants = constants.exit(block_id);
 
     // scan the block instructions
     for &instruction_id in &block.instructions {
@@ -564,21 +561,16 @@ fn process_block(
                 index,
                 ..
             } => {
-                if let (Some(destination), Some(array), Some(index)) =
-                    (destination.value(), array.value(), index.value())
-                {
+                if let (Some(destination), Some(array)) = (destination.value(), array.value()) {
                     let agg = substitutions.get(&array).copied().unwrap_or(array);
-                    let mut result = None;
 
-                    if let Some(index_constant) = block_constants.get(&index)
-                        && let Some(index_value) = constant_index_to_usize(index_constant)
-                        && let Some(operands) = value_table.get_aggregate(&agg)
-                        && let Some(&operand) = operands.get(index_value)
+                    if let Some(operands) = value_table.get_aggregate(&agg)
+                        && let Some(&operand) = operands.get(*index as usize)
                     {
-                        result = Some((destination, operand, instruction_id));
+                        Some((destination, operand, instruction_id))
+                    } else {
+                        None
                     }
-
-                    result
                 } else {
                     None
                 }
@@ -713,16 +705,6 @@ fn process_block(
         else {
             value_table.insert(key, destination);
         }
-    }
-}
-
-/// Convert an integer constant into an array index when possible.
-fn constant_index_to_usize(constant: &mir::Constant) -> Option<usize> {
-    // map integer constants to indices
-    match constant {
-        mir::Constant::Int { value, .. } if *value >= 0 => usize::try_from(*value).ok(),
-        mir::Constant::UInt { value, .. } => usize::try_from(*value).ok(),
-        _ => None,
     }
 }
 
