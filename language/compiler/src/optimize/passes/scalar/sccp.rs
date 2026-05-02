@@ -816,13 +816,9 @@ impl<'a> SccpState<'a> {
                 let Some(array) = array.value() else {
                     return LatticeValue::Overdefined;
                 };
-                let Some(index) = index.value() else {
-                    return LatticeValue::Overdefined;
-                };
 
                 let array_state = self.value_state(array);
-                let index_state = self.value_state(index);
-                self.evaluate_element_get(array_state, index_state)
+                self.evaluate_element_get(array_state, *index as usize)
             }
             mir::Instruction::ElementSet {
                 array,
@@ -834,17 +830,13 @@ impl<'a> SccpState<'a> {
                 let Some(array) = array.value() else {
                     return LatticeValue::Overdefined;
                 };
-                let Some(index) = index.value() else {
-                    return LatticeValue::Overdefined;
-                };
                 let Some(value) = value.value() else {
                     return LatticeValue::Overdefined;
                 };
 
                 let array_state = self.value_state(array);
-                let index_state = self.value_state(index);
                 let value_state = self.value_state(value);
-                self.evaluate_element_set(array_state, index_state, value_state)
+                self.evaluate_element_set(array_state, *index as usize, value_state)
             }
             mir::Instruction::Intrinsic {
                 intrinsic,
@@ -934,23 +926,7 @@ impl<'a> SccpState<'a> {
     }
 
     /// Evaluate an element.get on an array lattice value.
-    fn evaluate_element_get(
-        &self,
-        array_state: LatticeValue,
-        index_state: LatticeValue,
-    ) -> LatticeValue {
-        // resolve constant index
-        let index = match index_state {
-            LatticeValue::Constant(constant) => constant_index_to_usize(&constant),
-            LatticeValue::Unknown => return LatticeValue::Unknown,
-            LatticeValue::Overdefined => return LatticeValue::Overdefined,
-            LatticeValue::Aggregate(_) => return LatticeValue::Overdefined,
-        };
-
-        let Some(index) = index else {
-            return LatticeValue::Overdefined;
-        };
-
+    fn evaluate_element_get(&self, array_state: LatticeValue, index: usize) -> LatticeValue {
         // extract element from array state
         match array_state {
             LatticeValue::Aggregate(elements) => elements
@@ -967,21 +943,9 @@ impl<'a> SccpState<'a> {
     fn evaluate_element_set(
         &self,
         array_state: LatticeValue,
-        index_state: LatticeValue,
+        index: usize,
         value_state: LatticeValue,
     ) -> LatticeValue {
-        // resolve constant index
-        let index = match index_state {
-            LatticeValue::Constant(constant) => constant_index_to_usize(&constant),
-            LatticeValue::Unknown => return LatticeValue::Unknown,
-            LatticeValue::Overdefined => return LatticeValue::Overdefined,
-            LatticeValue::Aggregate(_) => return LatticeValue::Overdefined,
-        };
-
-        let Some(index) = index else {
-            return LatticeValue::Overdefined;
-        };
-
         // update element when array shape is known
         match array_state {
             LatticeValue::Aggregate(mut elements) => {
@@ -1005,16 +969,6 @@ fn switch_constant_value(constant: &mir::Constant) -> Option<i128> {
     match constant {
         mir::Constant::Int { value, .. } => Some(*value),
         mir::Constant::UInt { value, .. } => i128::try_from(*value).ok(),
-        _ => None,
-    }
-}
-
-/// Convert a constant to a usable array index.
-fn constant_index_to_usize(constant: &mir::Constant) -> Option<usize> {
-    // map integer constants to indices
-    match constant {
-        mir::Constant::Int { value, .. } => usize::try_from(*value).ok(),
-        mir::Constant::UInt { value, .. } => usize::try_from(*value).ok(),
         _ => None,
     }
 }

@@ -784,7 +784,6 @@ impl<'a> FunctionLowerer<'a> {
             } => {
                 let destination = self.value_id(*destination, "element get destination")?;
                 let array = self.value_id(*array, "element get array")?;
-                let index = self.value_id(*index, "element get index")?;
 
                 // array type
                 let array_type_id = self.value_type_or_error(array, instruction_id.into_any())?;
@@ -803,15 +802,16 @@ impl<'a> FunctionLowerer<'a> {
                 };
                 let element_type = lower_type(self.tree, element_type_id, self.pointer_bytes)?;
                 let element_size = element_type.bytes() as i64;
+                let element_offset = element_size * i64::from(*index);
 
                 // array pointer + index * element_size
                 let array_ptr = value_map[&array];
-                let idx_value = value_map[&index];
-                let offset = builder.ins().imul_imm(idx_value, element_size);
-                let element_ptr = builder.ins().iadd(array_ptr, offset);
-                let result = builder
-                    .ins()
-                    .load(element_type, cir::MemFlags::new(), element_ptr, 0);
+                let result = builder.ins().load(
+                    element_type,
+                    cir::MemFlags::new(),
+                    array_ptr,
+                    element_offset as i32,
+                );
                 value_map.insert(destination, result);
             }
 
@@ -867,7 +867,6 @@ impl<'a> FunctionLowerer<'a> {
             } => {
                 let destination = self.value_id(*destination, "element set destination")?;
                 let array = self.value_id(*array, "element set array")?;
-                let index = self.value_id(*index, "element set index")?;
                 let value = self.value_id(*value, "element set value")?;
 
                 // array type
@@ -887,16 +886,17 @@ impl<'a> FunctionLowerer<'a> {
                 };
                 let element_type = lower_type(self.tree, element_type_id, self.pointer_bytes)?;
                 let element_size = element_type.bytes() as i64;
+                let element_offset = element_size * i64::from(*index);
 
                 // array pointer + index * element_size
                 let array_ptr = value_map[&array];
-                let idx_value = value_map[&index];
                 let store_value = value_map[&value];
-                let offset = builder.ins().imul_imm(idx_value, element_size);
-                let element_ptr = builder.ins().iadd(array_ptr, offset);
-                builder
-                    .ins()
-                    .store(cir::MemFlags::new(), store_value, element_ptr, 0);
+                builder.ins().store(
+                    cir::MemFlags::new(),
+                    store_value,
+                    array_ptr,
+                    element_offset as i32,
+                );
                 // the result is the array pointer itself
                 value_map.insert(destination, array_ptr);
             }

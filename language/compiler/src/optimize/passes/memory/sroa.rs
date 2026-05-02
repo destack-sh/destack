@@ -707,13 +707,10 @@ fn rewrite_base_store(
 
         // handle array extraction using element indices
         if is_array {
-            let (index_value, index_inst) = insert_index_constant(function, tree, index);
-            new_instructions.push(index_inst);
-
             let element_get = mir::Instruction::ElementGet {
                 destination: element_value.into(),
                 array: stored_value.into(),
-                index: index_value.into(),
+                index: index as u32,
             };
             let element_get_id = tree.insert(element_get);
             new_instructions.push(element_get_id);
@@ -772,38 +769,6 @@ fn build_aggregate_instruction(
         },
         _ => panic!("sroa base load expects an aggregate layout type"),
     }
-}
-
-/// Insert a constant instruction for an array index value.
-fn insert_index_constant(
-    function: &mut mir::Function,
-    tree: &mut mir::Tree,
-    index: usize,
-) -> (mir::Value, mir::LocalNodeId<mir::Instruction>) {
-    // convert index to a signed 64 bit constant
-    let index_value = match i64::try_from(index) {
-        Ok(value) => value,
-        Err(_) => panic!("array index does not fit in i64"),
-    };
-
-    // emit constant index
-    let type_id = tree.insert_type(mir::Type::Int {
-        width: 64,
-        is_signed: true,
-    });
-    let destination = function.next_typed_value(type_id);
-    let constant = mir::Constant::Int {
-        value: i128::from(index_value),
-        width: 64,
-        is_signed: true,
-    };
-    let inst = mir::Instruction::Const {
-        destination: destination.into(),
-        value: constant,
-    };
-    let inst_id = tree.insert(inst);
-
-    (destination, inst_id)
 }
 
 /// Apply value substitutions to all instructions and terminators.

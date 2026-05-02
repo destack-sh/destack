@@ -46,10 +46,7 @@ pub enum ExpressionKey {
     /// Field access from aggregate.
     FieldGet { aggregate: mir::Value, index: u32 },
     /// Element access from array.
-    ElementGet {
-        array: mir::Value,
-        index: mir::Value,
-    },
+    ElementGet { array: mir::Value, index: u32 },
 }
 
 /// Cached value equivalence for pure expressions.
@@ -346,8 +343,16 @@ impl<'a> ValueEquivalence<'a> {
                     index: right_index,
                     ..
                 },
-            )
-            | (
+            ) => {
+                let (Some(left_array), Some(right_array)) =
+                    (left_array.value(), right_array.value())
+                else {
+                    return false;
+                };
+
+                left_index == right_index && self.equivalent(left_array, right_array)
+            }
+            (
                 mir::Instruction::ElementAddr {
                     array: left_array,
                     index: left_index,
@@ -584,7 +589,7 @@ pub fn expression_key_from_instruction(
         // element access (pure if no bounds check side effects)
         mir::Instruction::ElementGet { array, index, .. } => Some(ExpressionKey::ElementGet {
             array: array.value()?,
-            index: index.value()?,
+            index: *index,
         }),
 
         // constants are not CSE'd by expression keys (handled by constant folding)
@@ -754,7 +759,6 @@ pub fn expression_key_substitute(
 
         ExpressionKey::ElementGet { array, index } => {
             let array = *substitutions.get(&array).unwrap_or(&array);
-            let index = *substitutions.get(&index).unwrap_or(&index);
             ExpressionKey::ElementGet { array, index }
         }
     }
