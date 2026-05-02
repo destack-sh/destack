@@ -4,7 +4,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{collect_module_resolved_read_symbol_usage, import_item_removal_span};
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow imported bindings that are never used.
@@ -61,22 +61,21 @@ impl LintRule for NoUnusedImports {
 
                 // resolve diagnostic span
                 let span = ctx.get_span(*item_id);
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_UNUSED_IMPORTS.id,
                     NO_UNUSED_IMPORTS.code,
                     NO_UNUSED_IMPORTS.category,
                     severity,
                     "unused import binding",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("this import is never used");
+                .label("this import is never used");
 
                 // attach fix when enabled
                 if ctx.include_fixes
                     && let Some(fix) = unused_import_fix(ctx, clause, index)
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

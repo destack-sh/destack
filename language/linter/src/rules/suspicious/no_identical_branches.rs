@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_is_else_if_branch, expression_is_equal, if_expression_branch_chain,
 };
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow identical if/else branches.
@@ -73,16 +73,15 @@ impl LintRule for NoIdenticalBranches {
             }
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_IDENTICAL_BRANCHES.id,
                     NO_IDENTICAL_BRANCHES.code,
                     NO_IDENTICAL_BRANCHES.category,
                     severity,
                     "identical conditional branches",
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label("this conditional evaluates to the same branch body"),
+                .label("this conditional evaluates to the same branch body"),
             );
         }
     }

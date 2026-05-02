@@ -3,7 +3,7 @@ use destack_ast::{self as ast, BinaryOperator};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_numeric_value, expression_unwrap_parenthesized_source_form};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest simplifying comparisons.
@@ -68,17 +68,16 @@ impl LintRule for PreferSimplifiedComparison {
             let fix = LintFix::safe("Simplify comparison by removing +/- 1").with_edits(edits);
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     PREFER_SIMPLIFIED_COMPARISON.id,
                     PREFER_SIMPLIFIED_COMPARISON.code,
                     PREFER_SIMPLIFIED_COMPARISON.category,
                     severity,
                     simplification.message,
-                    ctx.module.file_id,
                     expression_span,
                 )
-                .with_label("simplify this comparison")
-                .with_fix(fix),
+                .label("simplify this comparison")
+                .fix(fix),
             );
         }
     }

@@ -5,7 +5,7 @@ use crate::rules::common::{
     expression_constant_to_bool, expression_has_side_effects, expression_is_equal,
     expression_path_segments, expression_unwrap_parenthesized_source_form,
 };
-use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow expressions where the operation doesn't affect the value.
@@ -57,16 +57,15 @@ impl LintRule for NoConstantBinaryExpression {
                 }
                 let span = ctx.tree.get_span(node_id);
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_CONSTANT_BINARY_EXPRESSION.id,
                         NO_CONSTANT_BINARY_EXPRESSION.code,
                         NO_CONSTANT_BINARY_EXPRESSION.category,
                         severity,
                         message,
-                        ctx.module.file_id,
                         span,
                     )
-                    .with_label("this expression always produces the same result"),
+                    .label("this expression always produces the same result"),
                 );
             }
         }

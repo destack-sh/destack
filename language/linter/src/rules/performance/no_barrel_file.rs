@@ -3,7 +3,7 @@ use destack_ast::{self as ast, Expression};
 use destack_source::FileType;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow barrel files that re-export everything.
@@ -100,16 +100,15 @@ impl LintRule for NoBarrelFile {
                 return;
             }
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_BARREL_FILE.id,
                     NO_BARREL_FILE.code,
                     NO_BARREL_FILE.category,
                     severity,
                     "barrel file re-exporting other modules hurts tree-shaking",
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label("import directly from source modules instead"),
+                .label("import directly from source modules instead"),
             );
         }
     }

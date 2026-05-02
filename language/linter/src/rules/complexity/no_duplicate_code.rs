@@ -10,7 +10,7 @@ use crate::rules::common::{
     stable_hash_bool, stable_hash_bytes, stable_hash_char, stable_hash_debug, stable_hash_f64,
     stable_hash_i64, stable_hash_none, stable_hash_token_hashed_value, stable_hash_usize,
 };
-use crate::{LintDiagnostic, LintRule, LintWorkspaceAstContext, declare_lint};
+use crate::{LintReport, LintRule, LintWorkspaceAstContext, declare_lint};
 
 declare_lint! {
     /// Warn on duplicate and near duplicate code blocks.
@@ -858,17 +858,16 @@ fn report_group_diagnostics(
             label.push_str(&reference_file.name);
         }
 
-        let diagnostic = LintDiagnostic::new(
+        let diagnostic = LintReport::new(
             NO_DUPLICATE_CODE.id,
             NO_DUPLICATE_CODE.code,
             NO_DUPLICATE_CODE.category,
             severity,
             duplicate_kind.title(),
-            occurrence.file_id,
             occurrence.span,
         )
-        .with_label(label)
-        .with_note(format!(
+        .label(label)
+        .note(format!(
             "{}: {} lines, {} tokens",
             occurrence.block_kind, occurrence.line_count, occurrence.token_count
         ));
@@ -1852,7 +1851,7 @@ function {function_name}(input: int32): int32 {{
     }
 
     /// Count duplicate code diagnostics.
-    fn duplicate_lint_count(diagnostics: &[LintDiagnostic]) -> usize {
+    fn duplicate_lint_count(diagnostics: &[LintReport]) -> usize {
         diagnostics
             .iter()
             .filter(|diagnostic| diagnostic.rule_id == "no-duplicate-code")
@@ -1864,7 +1863,7 @@ function {function_name}(input: int32): int32 {{
         first_source: &str,
         second_source: &str,
         configure: impl FnOnce(&mut destack_workspace::LinterOptions),
-    ) -> Vec<LintDiagnostic> {
+    ) -> Vec<LintReport> {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {
                 options.complexity.min_duplicate_code_lines = 3;
@@ -2408,11 +2407,11 @@ function second(x: int32): int32 {
             .filter(|diagnostic| diagnostic.rule_id == "no-duplicate-code")
             .collect::<Vec<_>>();
         assert_eq!(diagnostics.len(), 2);
-        assert!(
-            diagnostics
-                .iter()
-                .all(|diagnostic| diagnostic.label.contains("another block in this file"))
-        );
+        assert!(diagnostics.iter().all(|diagnostic| {
+            diagnostic
+                .label_message()
+                .is_some_and(|label| label.contains("another block in this file"))
+        }));
     }
 
     /// Emit stable diagnostic metadata for duplicate code reports.
@@ -2462,27 +2461,27 @@ function second(x: int32): int32 {
         assert!(
             diagnostics
                 .iter()
-                .all(|diagnostic| diagnostic.code == NO_DUPLICATE_CODE.code)
+                .all(|diagnostic| diagnostic.code() == NO_DUPLICATE_CODE.code)
         );
         assert!(
             diagnostics
                 .iter()
-                .all(|diagnostic| diagnostic.message == "duplicate code block")
+                .all(|diagnostic| diagnostic.message() == "duplicate code block")
         );
         assert!(
             diagnostics
                 .iter()
-                .all(|diagnostic| diagnostic.notes.iter().any(|note| note.contains("lines")))
+                .all(|diagnostic| diagnostic.notes().any(|note| note.contains("lines")))
         );
         assert!(
             diagnostics
                 .iter()
-                .all(|diagnostic| diagnostic.notes.iter().any(|note| note.contains("tokens")))
+                .all(|diagnostic| diagnostic.notes().any(|note| note.contains("tokens")))
         );
         assert!(
             diagnostics
                 .iter()
-                .all(|diagnostic| diagnostic.fixes.is_empty())
+                .all(|diagnostic| diagnostic.has_no_fixes())
         );
     }
 
@@ -2608,7 +2607,7 @@ function second(x: int32): int32 {
             diagnostics
                 .iter()
                 .filter(|diagnostic| diagnostic.rule_id == "no-duplicate-code")
-                .all(|diagnostic| diagnostic.message == "duplicate code block")
+                .all(|diagnostic| diagnostic.message() == "duplicate code block")
         );
     }
 }

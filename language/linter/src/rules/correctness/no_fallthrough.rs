@@ -5,7 +5,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{compiled_no_fallthrough_comment_pattern, fallthrough_comment_matches};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow fallthrough from one switch case to another.
@@ -92,22 +92,21 @@ impl LintRule for NoFallthrough {
                             // empty block falls through
                             let severity = ctx.get_effective_severity(meta, node_id);
                             if severity.is_enabled() {
-                                let mut diagnostic = LintDiagnostic::new(
+                                let mut diagnostic = LintReport::new(
                                     NO_FALLTHROUGH.id,
                                     NO_FALLTHROUGH.code,
                                     NO_FALLTHROUGH.category,
                                     severity,
                                     "empty case falls through to next case",
-                                    ctx.module.file_id,
                                     ctx.tree.get_span(*case_id),
                                 )
-                                .with_label("add a `break` statement or `// fallthrough` comment");
+                                .label("add a `break` statement or `// fallthrough` comment");
 
                                 // compute fixes only when requested by the runner
                                 if ctx.compute_fixes
                                     && let Some(fix) = no_fallthrough_fix(ctx, *case_id)
                                 {
-                                    diagnostic = diagnostic.with_fix(fix);
+                                    diagnostic = diagnostic.fix(fix);
                                 }
 
                                 ctx.report(diagnostic);
@@ -143,22 +142,21 @@ impl LintRule for NoFallthrough {
                     if !severity.is_enabled() {
                         continue;
                     }
-                    let mut diagnostic = LintDiagnostic::new(
+                    let mut diagnostic = LintReport::new(
                         NO_FALLTHROUGH.id,
                         NO_FALLTHROUGH.code,
                         NO_FALLTHROUGH.category,
                         severity,
                         "case falls through to next case",
-                        ctx.module.file_id,
                         ctx.tree.get_span(*case_id),
                     )
-                    .with_label("add a `break` statement or `// fallthrough` comment");
+                    .label("add a `break` statement or `// fallthrough` comment");
 
                     // compute fixes only when requested by the runner
                     if ctx.compute_fixes
                         && let Some(fix) = no_fallthrough_fix(ctx, *case_id)
                     {
-                        diagnostic = diagnostic.with_fix(fix);
+                        diagnostic = diagnostic.fix(fix);
                     }
 
                     ctx.report(diagnostic);
@@ -220,16 +218,15 @@ fn report_unused_fallthrough_comment(
     }
 
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             NO_FALLTHROUGH.id,
             NO_FALLTHROUGH.code,
             NO_FALLTHROUGH.category,
             severity,
             "unused fallthrough comment",
-            ctx.module.file_id,
             comment_span,
         )
-        .with_label("this case cannot fall through, so the comment is misleading"),
+        .label("this case cannot fall through, so the comment is misleading"),
     );
 }
 

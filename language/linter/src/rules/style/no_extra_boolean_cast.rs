@@ -9,7 +9,7 @@ use crate::rules::common::{
     expression_is_symbol_or_global_qualified_member, expression_parent_id,
     expression_unwrap_parenthesized, source_text_contains_comment_token,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary boolean casts.
@@ -103,20 +103,19 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
         }
 
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_EXTRA_BOOLEAN_CAST.id,
             NO_EXTRA_BOOLEAN_CAST.code,
             NO_EXTRA_BOOLEAN_CAST.category,
             severity,
             message,
-            self.ctx.module.file_id,
             span,
         )
-        .with_label(label);
+        .label(label);
 
         if let Some(fix) = build_no_extra_boolean_cast_fix(self.ctx, expression_id, replacement_id)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

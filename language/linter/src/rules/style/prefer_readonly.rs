@@ -6,7 +6,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     canonical_symbol_for, collect_assigned_symbol_usage, expression_unwrap_parenthesized,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `readonly` for private fields that are never mutated.
@@ -58,16 +58,15 @@ impl LintRule for PreferReadonly {
 
             let span = ctx.get_span(member_id);
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     PREFER_READONLY.id,
                     PREFER_READONLY.code,
                     PREFER_READONLY.category,
                     severity,
                     "private field is never mutated",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("mark this field as `readonly`"),
+                .label("mark this field as `readonly`"),
             );
         }
     }

@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, DependencyMode, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `export * from "..."`.
@@ -58,16 +58,15 @@ impl LintRule for NoReExportAll {
 
                     // both `export * from` and `export * as foo from` re-export the full module surface
                     ctx.report(
-                        LintDiagnostic::new(
+                        LintReport::new(
                             NO_RE_EXPORT_ALL.id,
                             NO_RE_EXPORT_ALL.code,
                             NO_RE_EXPORT_ALL.category,
                             severity,
                             "avoid using export * from",
-                            ctx.module.file_id,
                             ctx.tree.get_span(node_id),
                         )
-                        .with_label("use named exports instead"),
+                        .label("use named exports instead"),
                     );
                     break; // only report once per export statement
                 }

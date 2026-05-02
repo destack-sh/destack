@@ -1,5 +1,5 @@
-mod diagnostic;
 mod fix;
+mod report;
 
-pub use diagnostic::*;
 pub use fix::*;
+pub use report::*;

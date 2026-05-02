@@ -10,7 +10,7 @@ use crate::rules::common::{
     function_parameter_types_at, function_return_type, is_any_type, is_async_function_type,
     is_function_type, is_promise_or_any_type, supports_promise_spread_elements,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow Promise values in contexts that do not handle them.
@@ -137,16 +137,15 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
         // report the diagnostic
         let span = self.ctx.get_span(dir::LocalNodeId::<T>::new(node_id_raw));
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_MISUSED_PROMISES.id,
                 NO_MISUSED_PROMISES.code,
                 NO_MISUSED_PROMISES.category,
                 severity,
                 message,
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label(label),
+            .label(label),
         );
     }
 

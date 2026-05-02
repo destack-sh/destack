@@ -5,7 +5,7 @@ use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     expression_is_standalone_statement, expression_unwrap_parenthesized, is_array_type,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow deleting array elements.
@@ -109,22 +109,21 @@ impl<'a, 'b> ArrayDeleteVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_ARRAY_DELETE.id,
             NO_ARRAY_DELETE.code,
             NO_ARRAY_DELETE.category,
             severity,
             "avoid deleting array elements",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use a method like `splice` instead");
+        .label("use a method like `splice` instead");
 
         // compute fixes only when requested by the runner
         if self.ctx.include_fixes
             && let Some(fix) = no_array_delete_fix(self.ctx, expression_id, target_id)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

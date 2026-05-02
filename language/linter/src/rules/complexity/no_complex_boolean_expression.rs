@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_is_equal, expression_is_type_annotation, expression_unwrap_parenthesized_source_form,
 };
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest simplifying complex boolean expressions.
@@ -64,16 +64,15 @@ impl LintRule for NoComplexBooleanExpression {
                     }
 
                     ctx.report(
-                        LintDiagnostic::new(
+                        LintReport::new(
                             NO_COMPLEX_BOOLEAN_EXPRESSION.id,
                             NO_COMPLEX_BOOLEAN_EXPRESSION.code,
                             NO_COMPLEX_BOOLEAN_EXPRESSION.category,
                             severity,
                             "double negation can be simplified",
-                            ctx.module.file_id,
                             ctx.tree.get_span(node_id),
                         )
-                        .with_label("simplify to just the inner expression"),
+                        .label("simplify to just the inner expression"),
                     );
                     continue;
                 }
@@ -99,7 +98,7 @@ impl LintRule for NoComplexBooleanExpression {
                     }
 
                     ctx.report(
-                        LintDiagnostic::new(
+                        LintReport::new(
                             NO_COMPLEX_BOOLEAN_EXPRESSION.id,
                             NO_COMPLEX_BOOLEAN_EXPRESSION.code,
                             NO_COMPLEX_BOOLEAN_EXPRESSION.category,
@@ -112,10 +111,9 @@ impl LintRule for NoComplexBooleanExpression {
                                     "||"
                                 }
                             ),
-                            ctx.module.file_id,
                             ctx.tree.get_span(node_id),
                         )
-                        .with_label("simplify to just one operand"),
+                        .label("simplify to just one operand"),
                     );
                     continue;
                 }
@@ -133,16 +131,15 @@ impl LintRule for NoComplexBooleanExpression {
                         ("always true", "replace with `true`")
                     };
                     ctx.report(
-                        LintDiagnostic::new(
+                        LintReport::new(
                             NO_COMPLEX_BOOLEAN_EXPRESSION.id,
                             NO_COMPLEX_BOOLEAN_EXPRESSION.code,
                             NO_COMPLEX_BOOLEAN_EXPRESSION.category,
                             severity,
                             format!("expression is {result}"),
-                            ctx.module.file_id,
                             ctx.tree.get_span(node_id),
                         )
-                        .with_label(suggestion),
+                        .label(suggestion),
                     );
                 }
             }

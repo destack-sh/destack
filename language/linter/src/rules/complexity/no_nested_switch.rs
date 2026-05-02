@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_starts_nested_declaration_scope;
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow nested switch statements.
@@ -49,16 +49,15 @@ impl LintRule for NoNestedSwitch {
                 }
 
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_NESTED_SWITCH.id,
                         NO_NESTED_SWITCH.code,
                         NO_NESTED_SWITCH.category,
                         severity,
                         "nested switch statement",
-                        ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label("consider extracting to a separate function"),
+                    .label("consider extracting to a separate function"),
                 );
             }
         }

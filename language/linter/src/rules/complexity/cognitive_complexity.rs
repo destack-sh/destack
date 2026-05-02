@@ -9,7 +9,7 @@ use crate::rules::common::{
     CallableOwnerId, expression_starts_nested_declaration_scope,
     expression_unwrap_statement_source_form, for_each_callable_signature,
 };
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit cognitive complexity of functions.
@@ -112,16 +112,15 @@ fn report_cognitive_complexity_violation<T: ast::Node>(
 
     // emit one cognitive complexity overflow diagnostic
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             COGNITIVE_COMPLEXITY.id,
             COGNITIVE_COMPLEXITY.code,
             COGNITIVE_COMPLEXITY.category,
             severity,
             format!("cognitive complexity {complexity} exceeds maximum of {max_complexity}"),
-            ctx.module.file_id,
             ctx.tree.get_span(body_id),
         )
-        .with_label("consider simplifying or extracting logic"),
+        .label("consider simplifying or extracting logic"),
     );
 }
 

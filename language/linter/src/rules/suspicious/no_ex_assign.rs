@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_is_direct_statement, expression_is_unqualified_path_name,
     expression_subtree_mentions_identifier_name,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow reassigning exceptions in catch clauses.
@@ -112,20 +112,19 @@ fn report_ex_assign(
     }
 
     let span = ctx.tree.get_span(expr_id);
-    let mut diagnostic = LintDiagnostic::new(
+    let mut diagnostic = LintReport::new(
         NO_EX_ASSIGN.id,
         NO_EX_ASSIGN.code,
         NO_EX_ASSIGN.category,
         severity,
         "do not reassign the exception variable",
-        ctx.module.file_id,
         span,
     )
-    .with_label("this reassignment loses the original error");
+    .label("this reassignment loses the original error");
     if ctx.compute_fixes
         && let Some(fix) = no_ex_assign_fix(ctx, catch_expression_id, expr_id, catch_name)
     {
-        diagnostic = diagnostic.with_fix(fix);
+        diagnostic = diagnostic.fix(fix);
     }
 
     ctx.report(diagnostic);

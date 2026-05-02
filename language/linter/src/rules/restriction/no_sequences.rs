@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_statement_ancestor;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow sequence expressions (comma operator).
@@ -49,20 +49,19 @@ impl LintRule for NoSequences {
                 continue;
             }
             let span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_SEQUENCES.id,
                 NO_SEQUENCES.code,
                 NO_SEQUENCES.category,
                 severity,
                 "sequence expression is not allowed",
-                ctx.module.file_id,
                 span,
             )
-            .with_label("use separate statements instead of comma operator");
+            .label("use separate statements instead of comma operator");
             if ctx.compute_fixes
                 && let Some(fix) = no_sequences_fix(ctx, node_id, expression)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

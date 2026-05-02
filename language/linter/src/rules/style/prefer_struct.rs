@@ -6,7 +6,7 @@ use crate::rules::common::{
     declaration_has_embedded_types, declaration_has_extends_heritage,
     local_symbol_has_other_declarations, members_are_all_fields,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer struct for data-only classes.
@@ -57,16 +57,15 @@ impl LintRule for PreferStruct {
                 continue;
             }
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 PREFER_STRUCT.id,
                 PREFER_STRUCT.code,
                 PREFER_STRUCT.category,
                 severity,
                 "class with only fields should be a struct",
-                ctx.module.file_id,
                 ctx.get_span(declaration_id),
             )
-            .with_label("use struct instead");
+            .label("use struct instead");
 
             // attach the rewrite only when the declaration has no merge complexity
             if ctx.include_fixes
@@ -75,7 +74,7 @@ impl LintRule for PreferStruct {
                     ctx.source_node_id::<ast::Declaration>(declaration_id.into_any())
                 && let Some(fix) = prefer_struct_fix(ctx, source_declaration_id)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

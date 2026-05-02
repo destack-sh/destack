@@ -4,7 +4,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{regex_pattern_info, regexp_global_qualifier_names};
-use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 
 /// The set of accepted JavaScript regular expression flags.
 const VALID_REGEX_FLAGS: [char; 8] = ['d', 'g', 'i', 'm', 's', 'u', 'v', 'y'];
@@ -62,16 +62,15 @@ impl LintRule for NoInvalidRegexp {
                 }
 
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_INVALID_REGEXP.id,
                         NO_INVALID_REGEXP.code,
                         NO_INVALID_REGEXP.category,
                         severity,
                         format!("invalid regular expression flags: {flags_error}"),
-                        ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label("this regex flag set is invalid"),
+                    .label("this regex flag set is invalid"),
                 );
 
                 continue;
@@ -96,16 +95,15 @@ impl LintRule for NoInvalidRegexp {
                 }
 
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_INVALID_REGEXP.id,
                         NO_INVALID_REGEXP.code,
                         NO_INVALID_REGEXP.category,
                         severity,
                         format!("invalid regular expression: {message}"),
-                        ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label("this regex is invalid for all supported flag modes"),
+                    .label("this regex is invalid for all supported flag modes"),
                 );
 
                 continue;
@@ -122,16 +120,15 @@ impl LintRule for NoInvalidRegexp {
             }
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_INVALID_REGEXP.id,
                     NO_INVALID_REGEXP.code,
                     NO_INVALID_REGEXP.category,
                     severity,
                     format!("invalid regular expression: {}", parse_error.message),
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label("this regex is invalid"),
+                .label("this regex is invalid"),
             );
         }
     }

@@ -5,7 +5,7 @@ use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     expression_type_or_call_return_type_map, is_template_interpolation_type,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Restrict template interpolations to string or numeric values.
@@ -61,16 +61,15 @@ impl LintRule for RestrictTemplateExpressions {
 
                 let span = ctx.get_span(value_expression_id);
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         RESTRICT_TEMPLATE_EXPRESSIONS.id,
                         RESTRICT_TEMPLATE_EXPRESSIONS.code,
                         RESTRICT_TEMPLATE_EXPRESSIONS.category,
                         severity,
                         "template interpolation should be string or number typed",
-                        ctx.module.file_id,
                         span,
                     )
-                    .with_label("convert this value to string before interpolation"),
+                    .label("convert this value to string before interpolation"),
                 );
             }
         }

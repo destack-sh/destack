@@ -10,7 +10,7 @@ use crate::rules::common::{
     assign_pattern_contains_expression, assign_pattern_target_symbol,
     fresh_name_in_expression_scope, is_array_type, strip_dot_member_suffix,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `for-of` over index-based `for` loops.
@@ -142,20 +142,19 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_FOR_OF.id,
             PREFER_FOR_OF.code,
             PREFER_FOR_OF.category,
             severity,
             "prefer for-of over index-based for loop",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use for-of to iterate directly over elements");
+        .label("use for-of to iterate directly over elements");
         if self.ctx.include_fixes
             && let Some(fix) = self.prefer_for_of_fix(expression_id, body, pattern, &index_accesses)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

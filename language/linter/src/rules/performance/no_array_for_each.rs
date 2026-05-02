@@ -7,7 +7,7 @@ use crate::rules::common::{
     collect_local_symbol_direct_reference_expression_ids, expression_method_call, is_array_type,
     is_simple_identifier, statement_expression_ancestor, strip_dot_member_suffix,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `for-of` over `Array.forEach()`.
@@ -110,20 +110,19 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_ARRAY_FOR_EACH.id,
             NO_ARRAY_FOR_EACH.code,
             NO_ARRAY_FOR_EACH.category,
             severity,
             "prefer for-of over forEach",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use a for-of loop instead");
+        .label("use a for-of loop instead");
         if self.ctx.include_fixes
             && let Some(fix) = self.no_array_for_each_fix(expression_id)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

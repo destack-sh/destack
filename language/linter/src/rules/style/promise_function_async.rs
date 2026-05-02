@@ -5,7 +5,7 @@ use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     function_return_type, is_promise_type_with_candidates, well_known_symbol_candidates,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require `async` on Promise-returning function bodies.
@@ -190,16 +190,15 @@ fn report_promise_function_async<T: dir::Node>(
 
     let span = ctx.get_span(node_id);
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             PROMISE_FUNCTION_ASYNC.id,
             PROMISE_FUNCTION_ASYNC.code,
             PROMISE_FUNCTION_ASYNC.category,
             severity,
             "Promise-returning function should be marked async",
-            ctx.module.file_id,
             span,
         )
-        .with_label("add `async` to this function"),
+        .label("add `async` to this function"),
     );
 }
 

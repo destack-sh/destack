@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{regex_pattern_info, regexp_global_qualifier_names};
-use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow control characters in regular expressions.
@@ -64,7 +64,7 @@ impl LintRule for NoControlRegex {
 
             // report diagnostic
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_CONTROL_REGEX.id,
                     NO_CONTROL_REGEX.code,
                     NO_CONTROL_REGEX.category,
@@ -73,10 +73,9 @@ impl LintRule for NoControlRegex {
                         "unexpected control character(s) in regular expression: {}",
                         control_characters.join(", ")
                     ),
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label("control characters are rarely intended"),
+                .label("control characters are rarely intended"),
             );
         }
     }

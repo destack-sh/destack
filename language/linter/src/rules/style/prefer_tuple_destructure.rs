@@ -8,7 +8,7 @@ use crate::rules::common::{
     expression_declared_or_inferred_type_id, expression_target_symbol,
     expression_unwrap_parenthesized, tuple_type_arity,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer tuple destructuring over indexed access.
@@ -72,7 +72,7 @@ impl LintRule for PreferTupleDestructure {
                 continue;
             }
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 PREFER_TUPLE_DESTRUCTURE.id,
                 PREFER_TUPLE_DESTRUCTURE.code,
                 PREFER_TUPLE_DESTRUCTURE.category,
@@ -81,16 +81,15 @@ impl LintRule for PreferTupleDestructure {
                     "multiple indexed accesses to `{}` could use tuple destructuring",
                     access_group.source_text
                 ),
-                ctx.module.file_id,
                 ctx.get_span(first_access.declarator_id),
             )
-            .with_label("use tuple destructuring instead");
+            .label("use tuple destructuring instead");
 
             // attach the multi declarator rewrite only when one exact source rewrite is safe
             if ctx.include_fixes
                 && let Some(fix) = prefer_tuple_destructure_fix(ctx, &access_group)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

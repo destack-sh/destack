@@ -3,7 +3,7 @@ use destack_ast::{
 };
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow control flow statements in finally blocks.
@@ -57,7 +57,6 @@ impl LintRule for NoUnsafeFinally {
             let mut visitor = FinallyVisitor {
                 options: NodeVisitorOptions::default(),
                 severity,
-                file_id: ctx.module.file_id,
                 diagnostics: Vec::new(),
                 breakable_scope_depth: 0,
                 continuable_scope_depth: 0,
@@ -82,10 +81,8 @@ struct FinallyVisitor {
     options: NodeVisitorOptions,
     /// The lint severity.
     severity: LintSeverity,
-    /// The source file id.
-    file_id: destack_source::FileId,
     /// Collected diagnostics.
-    diagnostics: Vec<LintDiagnostic>,
+    diagnostics: Vec<LintReport>,
     /// The count of breakable scopes entered within the finally traversal.
     breakable_scope_depth: usize,
     /// The count of continuable loop scopes entered within the finally traversal.
@@ -138,16 +135,15 @@ impl FinallyVisitor {
         label: &'static str,
     ) {
         self.diagnostics.push(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_UNSAFE_FINALLY.id,
                 NO_UNSAFE_FINALLY.code,
                 NO_UNSAFE_FINALLY.category,
                 self.severity,
                 message,
-                self.file_id,
                 tree.get_span(id),
             )
-            .with_label(label),
+            .label(label),
         );
     }
 

@@ -5,7 +5,7 @@ use crate::rules::common::{
     TaintAnalysis, TaintCache, TaintLabels, assign_pattern_target_expression,
     expression_sink_taint_labels,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow flows of tainted values into security-sensitive sinks.
@@ -169,16 +169,15 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
 
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_TAINTED_SINK.id,
                 NO_TAINTED_SINK.code,
                 NO_TAINTED_SINK.category,
                 severity,
                 message,
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("tainted data reaches a security sink"),
+            .label("tainted data reaches a security sink"),
         );
     }
 }

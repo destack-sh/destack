@@ -5,7 +5,7 @@ use crate::rules::common::{
     declaration_has_extends_heritage, expression_target_symbol, expression_unwrap_statement,
     source_text_contains_comment_token,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary constructors.
@@ -81,16 +81,15 @@ impl LintRule for NoUselessConstructor {
                 continue;
             }
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_USELESS_CONSTRUCTOR.id,
                 NO_USELESS_CONSTRUCTOR.code,
                 NO_USELESS_CONSTRUCTOR.category,
                 severity,
                 "useless constructor",
-                ctx.module.file_id,
                 ctx.get_span(member_id),
             )
-            .with_label("remove this constructor");
+            .label("remove this constructor");
 
             // keep fixes out of explicit modifier and comment carrying constructors
             let member_span = ctx.get_span(member_id);
@@ -99,7 +98,7 @@ impl LintRule for NoUselessConstructor {
                 let edits = ctx.edit_builder().delete(member_span).into_edits();
                 let fix =
                     LintFix::suggestion("Remove useless constructor declaration").with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

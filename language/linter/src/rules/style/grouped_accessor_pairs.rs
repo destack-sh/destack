@@ -6,7 +6,7 @@ use destack_source::Span;
 use destack_workspace::{GroupedAccessorPairsOrder, LintSeverity};
 
 use crate::rules::common::{expression_signature_for_tree, span_has_comment};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require grouped accessor pairs in object literals and classes.
@@ -338,20 +338,19 @@ fn check_ungrouped_accessors<T>(
             } else {
                 accessor_order_message(order, &accessor_name)
             };
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 GROUPED_ACCESSOR_PAIRS.id,
                 GROUPED_ACCESSOR_PAIRS.code,
                 GROUPED_ACCESSOR_PAIRS.category,
                 severity,
                 message,
-                ctx.module.file_id,
                 ctx.tree.get_span(later_item_id),
             )
-            .with_label(label);
+            .label(label);
 
             if ctx.compute_fixes && allow_fix && diff != 1 && !has_reported_reorder_fix {
                 if let Some(fix) = grouped_accessor_fix(ctx, items, getter_idx, setter_idx) {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 has_reported_reorder_fix = true;

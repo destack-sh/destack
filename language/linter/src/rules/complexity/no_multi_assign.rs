@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_path_segments, expression_statement_ancestor,
     expression_unwrap_parenthesized_source_form,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow chained assignment expressions.
@@ -61,22 +61,21 @@ impl LintRule for NoMultiAssign {
 
             // build the base diagnostic for this chain node
             let span = ctx.tree.get_span(expression_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_MULTI_ASSIGN.id,
                 NO_MULTI_ASSIGN.code,
                 NO_MULTI_ASSIGN.category,
                 severity,
                 "chained assignment expression",
-                ctx.module.file_id,
                 span,
             )
-            .with_label("write each assignment on its own line");
+            .label("write each assignment on its own line");
 
             // compute fixes only when requested by the runner
             if ctx.compute_fixes
                 && let Some(fix) = no_multi_assign_fix(ctx, expression_id)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

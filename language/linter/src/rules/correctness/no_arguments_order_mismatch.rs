@@ -7,7 +7,7 @@ use crate::rules::common::{
     argument_expression_id, expression_candidate_symbols, expression_declared_or_inferred_type_id,
     expression_unwrap_parenthesized, is_string_type, symbol_primary_declaration_for,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow positional arguments that appear swapped by parameter name.
@@ -101,21 +101,20 @@ impl LintRule for NoArgumentsOrderMismatch {
             let second_argument_span = ctx.get_span(argument_ids[second_index]);
             let span = ctx.get_span(expression_id);
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_ARGUMENTS_ORDER_MISMATCH.id,
                     NO_ARGUMENTS_ORDER_MISMATCH.code,
                     NO_ARGUMENTS_ORDER_MISMATCH.category,
                     severity,
                     "positional arguments appear to be in the wrong order",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("these arguments look swapped for this call")
-                .with_secondary(LabeledSpan::new(
+                .label("these arguments look swapped for this call")
+                .secondary(LabeledSpan::new(
                     first_argument_span,
                     format!("this argument matches parameter `{second_parameter_name_text}`"),
                 ))
-                .with_secondary(LabeledSpan::new(
+                .secondary(LabeledSpan::new(
                     second_argument_span,
                     format!("this argument matches parameter `{first_parameter_name_text}`"),
                 )),

@@ -3,7 +3,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{ExpressionDuplicateTracker, span_has_comment};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow duplicate decorators on the same target.
@@ -59,21 +59,20 @@ impl LintRule for NoDuplicateDecorators {
                         .unwrap_or_else(|| "<unknown>".to_string());
 
                     let span = ctx.tree.get_span(*decorator_id);
-                    let mut diagnostic = LintDiagnostic::new(
+                    let mut diagnostic = LintReport::new(
                         NO_DUPLICATE_DECORATORS.id,
                         NO_DUPLICATE_DECORATORS.code,
                         NO_DUPLICATE_DECORATORS.category,
                         severity,
                         format!("duplicate decorator '@{name}'"),
-                        ctx.module.file_id,
                         span,
                     )
-                    .with_label("this decorator is already applied with identical arguments");
+                    .label("this decorator is already applied with identical arguments");
                     if ctx.compute_fixes && !span_has_comment(ctx.tree, span) {
                         let fix_span = duplicate_decorator_fix_span(ctx, span);
                         let fix =
                             LintFix::suggestion("Remove duplicate decorator").delete(fix_span);
-                        diagnostic = diagnostic.with_fix(fix);
+                        diagnostic = diagnostic.fix(fix);
                     }
 
                     ctx.report(diagnostic);

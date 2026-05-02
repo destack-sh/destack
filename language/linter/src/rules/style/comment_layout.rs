@@ -8,7 +8,7 @@ use crate::rules::common::{
     is_doc_comment_source, is_non_prose_doc_line, is_separator_comment,
     parse_keyword_comment_with_options,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce comment layout conventions.
@@ -73,16 +73,15 @@ impl LintRule for CommentLayout {
                 }
 
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         COMMENT_LAYOUT.id,
                         COMMENT_LAYOUT.code,
                         COMMENT_LAYOUT.category,
                         severity,
                         "doc comment should have one sentence per line",
-                        ctx.module.file_id,
                         comment.span,
                     )
-                    .with_label("split sentences across multiple lines"),
+                    .label("split sentences across multiple lines"),
                 );
             }
 
@@ -94,16 +93,15 @@ impl LintRule for CommentLayout {
                 }
 
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         COMMENT_LAYOUT.id,
                         COMMENT_LAYOUT.code,
                         COMMENT_LAYOUT.category,
                         severity,
                         "prefer colons or commas over hyphens in comments",
-                        ctx.module.file_id,
                         comment.span,
                     )
-                    .with_label("replace hyphen with colon or comma"),
+                    .label("replace hyphen with colon or comma"),
                 );
             }
         }
@@ -135,23 +133,22 @@ impl LintRule for CommentLayout {
 
                 // enforce uppercase keyword comments
                 if !keyword_info.keyword_is_uppercase {
-                    let mut diagnostic = LintDiagnostic::new(
+                    let mut diagnostic = LintReport::new(
                         COMMENT_LAYOUT.id,
                         COMMENT_LAYOUT.code,
                         COMMENT_LAYOUT.category,
                         severity,
                         "keyword comments should use uppercase keywords",
-                        ctx.module.file_id,
                         comment.span,
                     )
-                    .with_label(known_comment_tag_label(&ctx.options.style.comment_keywords));
+                    .label(known_comment_tag_label(&ctx.options.style.comment_keywords));
 
                     // compute fixes only when requested by the runner
                     if ctx.compute_fixes
                         && let Some(fix) =
                             uppercase_keyword_comment_fix(ctx, comment.span, &keyword_info.keyword)
                     {
-                        diagnostic = diagnostic.with_fix(fix);
+                        diagnostic = diagnostic.fix(fix);
                     }
 
                     ctx.report(diagnostic);
@@ -160,16 +157,15 @@ impl LintRule for CommentLayout {
                 // reject unknown keyword tags
                 if keyword_info.has_unknown_tag {
                     ctx.report(
-                        LintDiagnostic::new(
+                        LintReport::new(
                             COMMENT_LAYOUT.id,
                             COMMENT_LAYOUT.code,
                             COMMENT_LAYOUT.category,
                             severity,
                             "keyword comments should use known AGENTS tags only",
-                            ctx.module.file_id,
                             comment.span,
                         )
-                        .with_label(known_comment_tag_label(
+                        .label(known_comment_tag_label(
                             &ctx.options.style.comment_keyword_tags,
                         )),
                     );
@@ -178,16 +174,15 @@ impl LintRule for CommentLayout {
                 // enforce tags on keyword comments
                 if !keyword_info.has_known_tag && !keyword_info.has_unknown_tag {
                     ctx.report(
-                        LintDiagnostic::new(
+                        LintReport::new(
                             COMMENT_LAYOUT.id,
                             COMMENT_LAYOUT.code,
                             COMMENT_LAYOUT.category,
                             severity,
                             "keyword comments should include at least one known tag",
-                            ctx.module.file_id,
                             comment.span,
                         )
-                        .with_label("add a tag like #Cleanup or #Suspicious"),
+                        .label("add a tag like #Cleanup or #Suspicious"),
                     );
                 }
             }
@@ -200,16 +195,15 @@ impl LintRule for CommentLayout {
                 }
 
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         COMMENT_LAYOUT.id,
                         COMMENT_LAYOUT.code,
                         COMMENT_LAYOUT.category,
                         severity,
                         "inline comments should stay below one sentence",
-                        ctx.module.file_id,
                         comment.span,
                     )
-                    .with_label("split into separate comments"),
+                    .label("split into separate comments"),
                 );
             }
 
@@ -220,16 +214,15 @@ impl LintRule for CommentLayout {
                     continue;
                 }
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         COMMENT_LAYOUT.id,
                         COMMENT_LAYOUT.code,
                         COMMENT_LAYOUT.category,
                         severity,
                         "prefer colons or commas over hyphens in comments",
-                        ctx.module.file_id,
                         comment.span,
                     )
-                    .with_label("replace hyphen with colon or comma"),
+                    .label("replace hyphen with colon or comma"),
                 );
             }
         }

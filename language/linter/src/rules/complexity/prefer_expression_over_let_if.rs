@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     assign_pattern_is_unqualified_path_name, expression_unwrap_statement_source_form,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer direct expressions over let-if sequences.
@@ -156,16 +156,15 @@ impl LintRule for PreferExpressionOverLetIf {
                     continue;
                 }
 
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     PREFER_EXPRESSION_OVER_LET_IF.id,
                     PREFER_EXPRESSION_OVER_LET_IF.code,
                     PREFER_EXPRESSION_OVER_LET_IF.category,
                     severity,
                     "prefer direct expression over let-if sequence",
-                    ctx.module.file_id,
                     ctx.tree.get_span(first_id),
                 )
-                .with_label("use if expression to initialize directly");
+                .label("use if expression to initialize directly");
                 if ctx.compute_fixes
                     && let Some(fix) = prefer_expression_over_let_if_fix(
                         ctx,
@@ -177,7 +176,7 @@ impl LintRule for PreferExpressionOverLetIf {
                         var_name,
                     )
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

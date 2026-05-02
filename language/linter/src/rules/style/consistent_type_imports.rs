@@ -7,7 +7,7 @@ use crate::rules::common::{
     dependency_item_insert_inline_type_keyword, dependency_item_strip_inline_type_keyword,
     expression_is_in_type_position, import_type_keyword_removal_span,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce consistent type import style.
@@ -219,16 +219,15 @@ fn report_type_import_annotation(
         return;
     }
 
-    let diagnostic = LintDiagnostic::new(
+    let diagnostic = LintReport::new(
         CONSISTENT_TYPE_IMPORTS.id,
         CONSISTENT_TYPE_IMPORTS.code,
         CONSISTENT_TYPE_IMPORTS.category,
         severity,
         "`import(...)` type annotations are forbidden",
-        ctx.module.file_id,
         ctx.get_span(node_id),
     )
-    .with_label("use named type imports instead of `import(...)`");
+    .label("use named type imports instead of `import(...)`");
     ctx.report(diagnostic);
 }
 
@@ -255,16 +254,15 @@ fn report_import_style(
             return;
         }
 
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             CONSISTENT_TYPE_IMPORTS.id,
             CONSISTENT_TYPE_IMPORTS.code,
             CONSISTENT_TYPE_IMPORTS.category,
             severity,
             "use value imports without `type` modifiers",
-            ctx.module.file_id,
             ctx.get_span(clause.expression_id),
         )
-        .with_label("remove type import modifiers");
+        .label("remove type import modifiers");
         if ctx.include_fixes
             && let Some(fix) = consistent_type_import_no_type_fix(
                 ctx,
@@ -273,7 +271,7 @@ fn report_import_style(
                 &inline_type_item_ids,
             )
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         ctx.report(diagnostic);
@@ -291,16 +289,15 @@ fn report_import_style(
                 return;
             }
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 CONSISTENT_TYPE_IMPORTS.id,
                 CONSISTENT_TYPE_IMPORTS.code,
                 CONSISTENT_TYPE_IMPORTS.category,
                 severity,
                 "use inline `type` specifiers for type-only imports",
-                ctx.module.file_id,
                 ctx.get_span(clause.expression_id),
             )
-            .with_label("prefer inline `type` modifiers");
+            .label("prefer inline `type` modifiers");
             if ctx.include_fixes
                 && let Some(fix) = consistent_type_import_inline_fix(
                     ctx,
@@ -309,7 +306,7 @@ fn report_import_style(
                     &clause.items,
                 )
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);
@@ -347,21 +344,20 @@ fn report_import_style(
             return;
         }
 
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             CONSISTENT_TYPE_IMPORTS.id,
             CONSISTENT_TYPE_IMPORTS.code,
             CONSISTENT_TYPE_IMPORTS.category,
             severity,
             "use `import type { ... }` for type-only imports",
-            ctx.module.file_id,
             ctx.get_span(clause.expression_id),
         )
-        .with_label("prefer top-level `import type`");
+        .label("prefer top-level `import type`");
         if ctx.include_fixes
             && let Some(fix) =
                 consistent_type_import_top_level_fix(ctx, clause.expression_id, &clause.items)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         ctx.report(diagnostic);
@@ -378,22 +374,21 @@ fn report_import_style(
             return;
         }
 
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             CONSISTENT_TYPE_IMPORTS.id,
             CONSISTENT_TYPE_IMPORTS.code,
             CONSISTENT_TYPE_IMPORTS.category,
             severity,
             "all imports in this declaration are only used as types",
-            ctx.module.file_id,
             ctx.get_span(clause.expression_id),
         )
-        .with_label("prefer top-level `import type`");
+        .label("prefer top-level `import type`");
         if ctx.include_fixes
             && !clause.has_arguments
             && let Some(fix) =
                 consistent_type_import_top_level_fix(ctx, clause.expression_id, &clause.items)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         ctx.report(diagnostic);
@@ -442,20 +437,19 @@ fn report_partial_type_only_imports(
     }
 
     let item_names = format_import_item_names(ctx, item_ids);
-    let mut diagnostic = LintDiagnostic::new(
+    let mut diagnostic = LintReport::new(
         CONSISTENT_TYPE_IMPORTS.id,
         CONSISTENT_TYPE_IMPORTS.code,
         CONSISTENT_TYPE_IMPORTS.category,
         severity,
         format!("imports `{item_names}` are only used as types"),
-        ctx.module.file_id,
         ctx.get_span(clause.expression_id),
     )
-    .with_label(label);
+    .label(label);
     if ctx.include_fixes
         && let Some(fix) = fix
     {
-        diagnostic = diagnostic.with_fix(fix);
+        diagnostic = diagnostic.fix(fix);
     }
 
     ctx.report(diagnostic);

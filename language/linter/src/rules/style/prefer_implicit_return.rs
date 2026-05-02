@@ -3,7 +3,7 @@ use destack_ast::{self as ast, Block, Declaration, Expression, FunctionKind};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::source_text_contains_comment_token;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer implicit return for simple arrow functions.
@@ -86,18 +86,17 @@ impl LintRule for PreferImplicitReturn {
                 Some(LintFix::safe("Use concise implicit return").with_edits(edits))
             };
 
-            let diagnostic = LintDiagnostic::new(
+            let diagnostic = LintReport::new(
                 PREFER_IMPLICIT_RETURN.id,
                 PREFER_IMPLICIT_RETURN.code,
                 PREFER_IMPLICIT_RETURN.category,
                 severity,
                 "use implicit return instead of block with return",
-                ctx.module.file_id,
                 ctx.tree.get_span(body_id),
             )
-            .with_label("use `() => x` instead of `() => { return x }`");
+            .label("use `() => x` instead of `() => { return x }`");
             let diagnostic = if let Some(fix) = maybe_fix {
-                diagnostic.with_fix(fix)
+                diagnostic.fix(fix)
             } else {
                 diagnostic
             };

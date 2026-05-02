@@ -5,7 +5,7 @@ use url::Url;
 use crate::rules::common::{
     expression_path_segments, expression_static_string_literal_source_form,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `target="_blank"` without `rel="noopener noreferrer"`.
@@ -121,22 +121,21 @@ impl LintRule for NoBlankTarget {
             } else {
                 "add rel=\"noopener\""
             };
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_BLANK_TARGET.id,
                 NO_BLANK_TARGET.code,
                 NO_BLANK_TARGET.category,
                 severity,
                 "target=\"_blank\" without rel=\"noopener\" is a security risk",
-                ctx.module.file_id,
                 ctx.tree.get_span(node_id),
             )
-            .with_label(rel_requirement_message);
+            .label(rel_requirement_message);
 
             // compute fixes only when requested by the runner
             if ctx.compute_fixes
                 && let Some(fix) = blank_target_fix(ctx, args, rel_argument_id)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

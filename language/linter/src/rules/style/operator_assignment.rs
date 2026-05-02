@@ -6,7 +6,7 @@ use crate::rules::common::{
     assign_pattern_expression, expression_is_equal, expression_path_segments,
     expression_unwrap_parenthesized_source_form, span_has_comment,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer compound assignment operators.
@@ -108,7 +108,7 @@ impl LintRule for OperatorAssignment {
             }
 
             let expression_span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 OPERATOR_ASSIGNMENT.id,
                 OPERATOR_ASSIGNMENT.code,
                 OPERATOR_ASSIGNMENT.category,
@@ -117,10 +117,9 @@ impl LintRule for OperatorAssignment {
                     "assignment can be simplified with `{}`",
                     shorthand.assignment_text
                 ),
-                ctx.module.file_id,
                 expression_span,
             )
-            .with_label(format!("use `{}` instead", shorthand.assignment_text));
+            .label(format!("use `{}` instead", shorthand.assignment_text));
 
             // add safe fixes only for left side replacement candidates
             if ctx.compute_fixes
@@ -137,7 +136,7 @@ impl LintRule for OperatorAssignment {
                     .into_edits();
                 let fix = LintFix::safe(format!("Replace with `{}`", shorthand.assignment_text))
                     .with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);
@@ -171,7 +170,7 @@ impl OperatorAssignment {
         let expression_span = ctx.tree.get_span(node_id);
         let left_text = ctx.get_span_text(ctx.tree.get_span(left_id));
         ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 OPERATOR_ASSIGNMENT.id,
                 OPERATOR_ASSIGNMENT.code,
                 OPERATOR_ASSIGNMENT.category,
@@ -180,10 +179,9 @@ impl OperatorAssignment {
                     "unexpected shorthand assignment `{}`",
                     assignment_operator_text(operator)
                 ),
-                ctx.module.file_id,
                 expression_span,
             )
-            .with_label(format!(
+            .label(format!(
                 "use `{left_text} = {left_text} {binary_text} …` instead"
             )),
         );

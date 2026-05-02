@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::is_array_like_iteration_type;
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow iterating over arrays with for-in.
@@ -104,16 +104,15 @@ impl<'a, 'b> ForInArrayVisitor<'a, 'b> {
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_FOR_IN_ARRAY.id,
                 NO_FOR_IN_ARRAY.code,
                 NO_FOR_IN_ARRAY.category,
                 severity,
                 "do not use for-in with arrays",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("use for-of to iterate over array values"),
+            .label("use for-of to iterate over array values"),
         );
     }
 }

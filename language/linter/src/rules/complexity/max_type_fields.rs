@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, Member, TypeExpression, TypeMember};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of fields in one type declaration.
@@ -166,16 +166,15 @@ fn report_type_field_overflow<T: ast::Node + Clone>(
 
     // emit one field count overflow diagnostic
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             MAX_TYPE_FIELDS.id,
             MAX_TYPE_FIELDS.code,
             MAX_TYPE_FIELDS.category,
             severity,
             format!("{type_kind} has {field_count} fields (max {max_type_fields})"),
-            ctx.module.file_id,
             owner_span,
         )
-        .with_label("consider grouping related fields"),
+        .label("consider grouping related fields"),
     );
 }
 

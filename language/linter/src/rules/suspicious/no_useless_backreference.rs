@@ -1,5 +1,5 @@
 use crate::rules::common::{regex_pattern_info, regexp_global_qualifier_names};
-use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
@@ -55,16 +55,15 @@ impl LintRule for NoUselessBackreference {
             }
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_USELESS_BACKREFERENCE.id,
                     NO_USELESS_BACKREFERENCE.code,
                     NO_USELESS_BACKREFERENCE.category,
                     severity,
                     problem,
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label("this backreference will never match"),
+                .label("this backreference will never match"),
             );
         }
     }

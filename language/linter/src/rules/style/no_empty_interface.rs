@@ -4,7 +4,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::local_symbol_has_class_merge;
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow empty interface declarations.
@@ -74,16 +74,15 @@ impl LintRule for NoEmptyInterface {
             let span = ctx.get_span(declaration_id);
             if extends_count == 0 {
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_EMPTY_INTERFACE.id,
                         NO_EMPTY_INTERFACE.code,
                         NO_EMPTY_INTERFACE.category,
                         severity,
                         "empty interface declaration",
-                        ctx.module.file_id,
                         span,
                     )
-                    .with_label("use `type X = {}` or add members"),
+                    .label("use `type X = {}` or add members"),
                 );
                 continue;
             }
@@ -94,16 +93,15 @@ impl LintRule for NoEmptyInterface {
             }
 
             // report single-extends interfaces and attach one safe fix when merging allows it
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_EMPTY_INTERFACE.id,
                 NO_EMPTY_INTERFACE.code,
                 NO_EMPTY_INTERFACE.category,
                 severity,
                 "interface extends single type without adding members",
-                ctx.module.file_id,
                 span,
             )
-            .with_label("use `type X = Parent` or `newtype X = Parent` instead");
+            .label("use `type X = Parent` or `newtype X = Parent` instead");
             if ctx.include_fixes
                 && !local_symbol_has_class_merge(ctx.tree, ctx.symbols, declaration.symbol)
                 && let Some(fix) = no_empty_interface_single_extends_fix(
@@ -113,7 +111,7 @@ impl LintRule for NoEmptyInterface {
                     source_declaration,
                 )
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

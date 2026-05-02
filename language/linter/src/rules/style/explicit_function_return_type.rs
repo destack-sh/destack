@@ -6,7 +6,7 @@ use destack_ast::{
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require explicit return type annotations on functions.
@@ -192,22 +192,21 @@ fn report_missing_return_type(
     body_expression_id: Option<ast::LocalNodeId<ast::Expression>>,
     message: &str,
 ) {
-    let mut diagnostic = LintDiagnostic::new(
+    let mut diagnostic = LintReport::new(
         EXPLICIT_FUNCTION_RETURN_TYPE.id,
         EXPLICIT_FUNCTION_RETURN_TYPE.code,
         EXPLICIT_FUNCTION_RETURN_TYPE.category,
         severity,
         message,
-        ctx.module.file_id,
         function_span,
     )
-    .with_label("add return type annotation");
+    .label("add return type annotation");
 
     if ctx.compute_fixes
         && let Some(body_expression_id) = body_expression_id
         && let Some(fix) = explicit_function_return_type_fix(ctx, function_span, body_expression_id)
     {
-        diagnostic = diagnostic.with_fix(fix);
+        diagnostic = diagnostic.fix(fix);
     }
 
     ctx.report(diagnostic);

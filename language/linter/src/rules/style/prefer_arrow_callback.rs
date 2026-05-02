@@ -6,7 +6,7 @@ use crate::rules::common::{
     expression_enters_nested_declaration_scope, expression_is_new_target, expression_target_symbol,
     expression_unwrap_parenthesized, signature_declares_value_name,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer arrow functions for callbacks.
@@ -140,20 +140,19 @@ fn check_callback_argument(
             && declaration.signature.this_parameter.is_none()
             && (!body_usage.uses_this || candidate.is_lexical_this);
 
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_ARROW_CALLBACK.id,
             PREFER_ARROW_CALLBACK.code,
             PREFER_ARROW_CALLBACK.category,
             severity,
             "prefer arrow function for callback",
-            ctx.module.file_id,
             candidate.replacement_span,
         )
-        .with_label("use an arrow function for this callback");
+        .label("use an arrow function for this callback");
 
         // attach the source rewrite when the wrapper shape is fixable
         if can_fix && let Some(fix) = callback_fix(ctx, &candidate) {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         ctx.report(diagnostic);

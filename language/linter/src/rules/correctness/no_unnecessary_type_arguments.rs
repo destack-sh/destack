@@ -5,7 +5,7 @@ use {destack_ast as ast, destack_dir as dir};
 use crate::rules::common::{
     expression_signature_for_tree, symbol_primary_declaration_for, trailing_argument_removal_span,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow explicit trailing type arguments equal to declared defaults.
@@ -82,16 +82,15 @@ impl LintRule for NoUnnecessaryTypeArguments {
             // resolve redundant argument id
             let redundant_argument_id = generic_arguments[first_redundant_index];
             let span = ctx.get_span(redundant_argument_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_UNNECESSARY_TYPE_ARGUMENTS.id,
                 NO_UNNECESSARY_TYPE_ARGUMENTS.code,
                 NO_UNNECESSARY_TYPE_ARGUMENTS.category,
                 severity,
                 "unnecessary trailing type arguments",
-                ctx.module.file_id,
                 span,
             )
-            .with_label("these trailing type arguments repeat declared defaults");
+            .label("these trailing type arguments repeat declared defaults");
 
             // attach fix when enabled
             if ctx.include_fixes
@@ -102,7 +101,7 @@ impl LintRule for NoUnnecessaryTypeArguments {
                     first_redundant_index,
                 )
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

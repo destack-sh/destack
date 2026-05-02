@@ -8,7 +8,7 @@ use crate::rules::common::{
     expression_type_or_call_return_type_map, expression_unwrap_parenthesized,
     well_known_symbol_candidates,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow redundant `return await` in async callables.
@@ -249,16 +249,15 @@ fn check_return_value_expression(
     } = returned_value_kind
         && thenable_certainty == ThenableCertainty::Never
     {
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             RETURN_AWAIT.id,
             RETURN_AWAIT.code,
             RETURN_AWAIT.category,
             severity,
             "returning an awaited value that is not a promise is not allowed",
-            ctx.module.file_id,
             ctx.get_span(await_expression_id),
         )
-        .with_label("remove await from this non-promise return value");
+        .label("remove await from this non-promise return value");
         if ctx.include_fixes {
             let awaited_span = ctx.get_span(awaited_value_id);
             let awaited_text = ctx.get_span_text(awaited_span).to_string();
@@ -267,7 +266,7 @@ fn check_return_value_expression(
                 .replace(ctx.get_span(await_expression_id), awaited_text)
                 .into_edits();
             let fix = LintFix::suggestion("Remove await from non-promise return").with_edits(edits);
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         ctx.report(diagnostic);
@@ -291,16 +290,15 @@ fn check_return_value_expression(
         && let ReturnValueKind::Plain { value_id } = returned_value_kind
     {
         let return_value_span = ctx.get_span(value_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             RETURN_AWAIT.id,
             RETURN_AWAIT.code,
             RETURN_AWAIT.category,
             severity,
             "returning an awaited promise is required in this context",
-            ctx.module.file_id,
             return_value_span,
         )
-        .with_label("add await so this return follows configured await policy");
+        .label("add await so this return follows configured await policy");
         if ctx.include_fixes {
             let return_value_text = ctx.get_span_text(return_value_span).to_string();
             let replacement = format!("await ({return_value_text})");
@@ -309,7 +307,7 @@ fn check_return_value_expression(
                 .replace(return_value_span, replacement)
                 .into_edits();
             let fix = LintFix::suggestion("Add await to returned promise").with_edits(edits);
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         ctx.report(diagnostic);
@@ -324,16 +322,15 @@ fn check_return_value_expression(
         } = returned_value_kind
     {
         let await_span = ctx.get_span(await_expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             RETURN_AWAIT.id,
             RETURN_AWAIT.code,
             RETURN_AWAIT.category,
             severity,
             "returning an awaited promise is not allowed in this context",
-            ctx.module.file_id,
             await_span,
         )
-        .with_label("remove await so this return follows configured await policy");
+        .label("remove await so this return follows configured await policy");
         if ctx.include_fixes {
             let awaited_span = ctx.get_span(awaited_value_id);
             let awaited_text = ctx.get_span_text(awaited_span).to_string();
@@ -342,7 +339,7 @@ fn check_return_value_expression(
                 .replace(await_span, awaited_text)
                 .into_edits();
             let fix = LintFix::suggestion("Remove redundant await in return").with_edits(edits);
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         ctx.report(diagnostic);

@@ -6,7 +6,7 @@ use crate::rules::common::{
     CallableOwnerId, ThisParameterCount, for_each_callable_signature,
     function_signature_parameter_count,
 };
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of function parameters.
@@ -103,16 +103,15 @@ fn report_excessive_parameter_count<T: ast::Node + Clone>(
 
     // report one over-limit callable diagnostic
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             MAX_PARAMS.id,
             MAX_PARAMS.code,
             MAX_PARAMS.category,
             severity,
             format!("function has {parameter_count} parameters (max {max_params})"),
-            ctx.module.file_id,
             owner_span,
         )
-        .with_label("consider using an options object"),
+        .label("consider using an options object"),
     );
 }
 

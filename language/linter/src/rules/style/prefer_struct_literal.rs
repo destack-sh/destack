@@ -2,7 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, SymbolType, walk
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_target_symbol, symbol_primary_declaration_for};
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer struct literal form over constructor calls.
@@ -202,22 +202,21 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
 
         // build the base diagnostic
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_STRUCT_LITERAL.id,
             PREFER_STRUCT_LITERAL.code,
             PREFER_STRUCT_LITERAL.category,
             severity,
             "prefer struct literal form over struct constructor call",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("replace this constructor call with a tagged struct literal");
+        .label("replace this constructor call with a tagged struct literal");
 
         // attach fix when argument to field mapping is unambiguous
         if let Some(fix) =
             self.struct_literal_fix(expression_id, callee_id, generic_arguments, arguments)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

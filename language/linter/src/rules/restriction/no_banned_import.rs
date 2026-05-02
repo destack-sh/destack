@@ -5,7 +5,7 @@ use crate::rules::common::{
     expression_import_target_specifier, expression_is_global_qualified_member,
     expression_static_string_literal, expression_unwrap_transparent, glob_matches,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow imports from configured banned module specifiers.
@@ -141,17 +141,16 @@ impl<'a, 'b> NoBannedImportVisitor<'a, 'b> {
         // report one banned import target
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_BANNED_IMPORT.id,
                 NO_BANNED_IMPORT.code,
                 NO_BANNED_IMPORT.category,
                 severity,
                 format!("banned import target `{specifier_text}`"),
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("this import target is restricted by project configuration")
-            .with_note(format!(
+            .label("this import target is restricted by project configuration")
+            .note(format!(
                 "matched restricted pattern `{}` against {} `{}`",
                 matched_target.pattern,
                 matched_target.surface.label(),

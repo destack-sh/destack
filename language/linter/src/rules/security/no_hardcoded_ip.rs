@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow hardcoded IP addresses.
@@ -57,16 +57,15 @@ impl LintRule for NoHardcodedIp {
                     continue;
                 }
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_HARDCODED_IP.id,
                         NO_HARDCODED_IP.code,
                         NO_HARDCODED_IP.category,
                         severity,
                         format!("hardcoded IP address: {ip}"),
-                        ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label("use configuration or DNS instead"),
+                    .label("use configuration or DNS instead"),
                 );
             }
 
@@ -79,16 +78,15 @@ impl LintRule for NoHardcodedIp {
                     continue;
                 }
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_HARDCODED_IP.id,
                         NO_HARDCODED_IP.code,
                         NO_HARDCODED_IP.category,
                         severity,
                         format!("hardcoded IP address: {ip}"),
-                        ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label("use configuration or DNS instead"),
+                    .label("use configuration or DNS instead"),
                 );
             }
         }

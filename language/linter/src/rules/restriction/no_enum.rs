@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow TypeScript enums.
@@ -42,16 +42,15 @@ impl LintRule for NoEnum {
                     continue;
                 }
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_ENUM.id,
                         NO_ENUM.code,
                         NO_ENUM.category,
                         severity,
                         "enum declaration",
-                        ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label("use union types or const objects instead"),
+                    .label("use union types or const objects instead"),
                 );
             }
         }

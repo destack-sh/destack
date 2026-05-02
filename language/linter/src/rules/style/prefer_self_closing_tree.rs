@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer self-closing tree elements when possible.
@@ -92,17 +92,16 @@ impl LintRule for PreferSelfClosingTree {
             let fix = LintFix::safe("Convert to self-closing").with_edits(edits);
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     PREFER_SELF_CLOSING_TREE.id,
                     PREFER_SELF_CLOSING_TREE.code,
                     PREFER_SELF_CLOSING_TREE.category,
                     severity,
                     "use self-closing form `<Component />` for elements without children",
-                    ctx.module.file_id,
                     expression_span,
                 )
-                .with_label("replace with `<... />`")
-                .with_fix(fix),
+                .label("replace with `<... />`")
+                .fix(fix),
             );
         }
     }

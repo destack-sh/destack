@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum LabelTargetKind {
@@ -82,16 +82,15 @@ impl LintRule for NoLabels {
             }
             let span = ctx.tree.get_span(node_id);
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_LABELS.id,
                     NO_LABELS.code,
                     NO_LABELS.category,
                     severity,
                     message,
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label(label),
+                .label(label),
             );
         }
     }

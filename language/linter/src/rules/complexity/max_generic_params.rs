@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     CallableOwnerId, for_each_callable_signature, function_signature_generic_parameter_count,
 };
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of generic parameters on a declaration.
@@ -54,7 +54,7 @@ impl LintRule for MaxGenericParams {
                 }
 
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         MAX_GENERIC_PARAMS.id,
                         MAX_GENERIC_PARAMS.code,
                         MAX_GENERIC_PARAMS.category,
@@ -62,10 +62,8 @@ impl LintRule for MaxGenericParams {
                         format!(
                             "declaration has {param_count} generic parameters (max {max_generic_params})"
                         ),
-                        ctx.module.file_id,
-                        ctx.tree.get_span(declaration_id),
-                    )
-                    .with_label("consider splitting into smaller components"),
+                        ctx.tree.get_span(declaration_id))
+                    .label("consider splitting into smaller components"),
                 );
             }
         }
@@ -122,16 +120,15 @@ fn report_method_generic_params<T: ast::Node + Clone>(
 
     // report one method generic-parameter overflow
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             MAX_GENERIC_PARAMS.id,
             MAX_GENERIC_PARAMS.code,
             MAX_GENERIC_PARAMS.category,
             severity,
             format!("method has {param_count} generic parameters (max {max_generic_params})"),
-            ctx.module.file_id,
             owner_span,
         )
-        .with_label("consider splitting into smaller components"),
+        .label("consider splitting into smaller components"),
     );
 }
 

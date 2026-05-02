@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, ForEachBinding, ForEachDeclarationKind, LetKind};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `var` declarations.
@@ -45,21 +45,20 @@ impl LintRule for NoVar {
                 }
 
                 let expression_span = ctx.tree.get_span(node_id);
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_VAR.id,
                     NO_VAR.code,
                     NO_VAR.category,
                     severity,
                     "unexpected `var` declaration",
-                    ctx.module.file_id,
                     expression_span,
                 )
-                .with_label("use `let` or `const` instead");
+                .label("use `let` or `const` instead");
 
                 if ctx.compute_fixes
                     && let Some(fix) = no_var_fix(ctx, expression_span)
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);
@@ -87,16 +86,15 @@ impl LintRule for NoVar {
             }
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_VAR.id,
                     NO_VAR.code,
                     NO_VAR.category,
                     severity,
                     "unexpected `var` declaration",
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label("use `let` or `const` instead"),
+                .label("use `let` or `const` instead"),
             );
         }
     }

@@ -4,7 +4,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::all_rules;
-use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unknown lint rule IDs in `@allow`/`@warn`/`@deny`/`@forbid` decorators.
@@ -127,16 +127,15 @@ impl LintRule for NoUnknownRuleDecorator {
                     }
 
                     ctx.report(
-                        LintDiagnostic::new(
+                        LintReport::new(
                             NO_UNKNOWN_RULE_DECORATOR.id,
                             NO_UNKNOWN_RULE_DECORATOR.code,
                             NO_UNKNOWN_RULE_DECORATOR.category,
                             severity,
                             format!("unknown lint rule '{specifier}'"),
-                            ctx.module.file_id,
                             ctx.tree.get_span(*value),
                         )
-                        .with_label("this lint rule does not exist"),
+                        .label("this lint rule does not exist"),
                     );
                 }
             }

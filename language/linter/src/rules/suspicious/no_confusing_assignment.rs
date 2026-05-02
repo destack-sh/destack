@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     ConditionAssignmentStyle, condition_assignment_style, control_flow_condition_expression,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Warn on assignments that look like comparisons.
@@ -68,17 +68,16 @@ impl LintRule for NoConfusingAssignment {
                     .with_edits(edits);
 
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_CONFUSING_ASSIGNMENT.id,
                         NO_CONFUSING_ASSIGNMENT.code,
                         NO_CONFUSING_ASSIGNMENT.category,
                         severity,
                         "assignment in condition",
-                        ctx.module.file_id,
                         condition_span,
                     )
-                    .with_label("use `===` for comparison or wrap assignment in extra parentheses")
-                    .with_fix(fix),
+                    .label("use `===` for comparison or wrap assignment in extra parentheses")
+                    .fix(fix),
                 );
             }
         }

@@ -7,7 +7,7 @@ use crate::rules::common::{
     const_i64, expression_regex_literal, expression_unwrap_parenthesized, flip_binary_operator,
     is_array_type, is_string_type, single_quoted_string_literal, strip_dot_member_suffix,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `includes()` over `indexOf()` comparisons and simple regex tests.
@@ -216,20 +216,19 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
 
         // build diagnostic and attach fix when safe
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_INCLUDES.id,
             PREFER_INCLUDES.code,
             PREFER_INCLUDES.category,
             severity,
             "prefer includes() over indexOf() comparison",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label(label);
+        .label(label);
         if self.ctx.include_fixes
             && let Some(fix) = self.includes_fix(expression_id, includes_match)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);
@@ -301,20 +300,19 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
 
         // build the diagnostic and optional fix
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_INCLUDES.id,
             PREFER_INCLUDES.code,
             PREFER_INCLUDES.category,
             severity,
             "prefer includes() over simple regex test()",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use includes() for simple substring checks");
+        .label("use includes() for simple substring checks");
         if self.ctx.include_fixes
             && let Some(fix) = self.regex_test_fix(expression_id, *argument_id, &pattern_text)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

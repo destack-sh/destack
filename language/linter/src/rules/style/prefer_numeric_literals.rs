@@ -7,7 +7,7 @@ use crate::rules::common::{
     const_i64, expression_is_symbol_or_global_qualified_member, expression_static_property_access,
     expression_static_string_literal, expression_unwrap_transparent, span_has_comment,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer numeric literals over `parseInt()`.
@@ -146,16 +146,15 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
 
         // report the diagnostic and attach fix when safe
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_NUMERIC_LITERALS.id,
             PREFER_NUMERIC_LITERALS.code,
             PREFER_NUMERIC_LITERALS.category,
             severity,
             format!("prefer {prefix} literal over parseInt"),
-            self.ctx.module.file_id,
             span,
         )
-        .with_label(format!("use a {prefix} numeric literal instead"));
+        .label(format!("use a {prefix} numeric literal instead"));
         if let Some(fix) = self.numeric_literal_fix(
             expression_id,
             generic_arguments.as_slice(),
@@ -164,7 +163,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
             radix,
             prefix,
         ) {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

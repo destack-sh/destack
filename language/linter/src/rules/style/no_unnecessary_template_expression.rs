@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{expression_type_or_call_return_type_map, is_string_type};
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary template literal interpolation.
@@ -147,16 +147,15 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
         }
 
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_UNNECESSARY_TEMPLATE_EXPRESSION.id,
             NO_UNNECESSARY_TEMPLATE_EXPRESSION.code,
             NO_UNNECESSARY_TEMPLATE_EXPRESSION.category,
             severity,
             "unnecessary template interpolation",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("this template expression can be replaced by the string value directly");
+        .label("this template expression can be replaced by the string value directly");
 
         // build a safe replacement from the interpolated expression
         if self.ctx.include_fixes {
@@ -168,7 +167,7 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
                 .replace(span, value_text)
                 .into_edits();
             let fix = LintFix::safe("Remove unnecessary template interpolation").with_edits(edits);
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         // report the redundant template interpolation

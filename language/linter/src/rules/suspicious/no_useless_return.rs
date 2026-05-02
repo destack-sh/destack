@@ -6,7 +6,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     CallableOwnerId, callable_owner_span, for_each_callable_signature, span_has_comment,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow redundant return statements at the end of functions.
@@ -71,16 +71,15 @@ fn report_trailing_bare_return(
     }
 
     let return_span = ctx.tree.get_span(return_id);
-    let mut diagnostic = LintDiagnostic::new(
+    let mut diagnostic = LintReport::new(
         NO_USELESS_RETURN.id,
         NO_USELESS_RETURN.code,
         NO_USELESS_RETURN.category,
         severity,
         "useless return statement",
-        ctx.module.file_id,
         callable_owner_span(ctx.tree, owner_id),
     )
-    .with_label("this return is unnecessary");
+    .label("this return is unnecessary");
 
     // avoid deleting commented returns
     if ctx.compute_fixes
@@ -89,7 +88,7 @@ fn report_trailing_bare_return(
     {
         let edits = ctx.edit_builder().delete(return_span).into_edits();
         let fix = LintFix::safe("Remove useless return").with_edits(edits);
-        diagnostic = diagnostic.with_fix(fix);
+        diagnostic = diagnostic.fix(fix);
     }
 
     ctx.report(diagnostic);

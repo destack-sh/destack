@@ -11,7 +11,7 @@ use regex::bytes::{
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow hardcoded secrets and credentials.
@@ -578,16 +578,15 @@ impl LintRule for NoSecrets {
                             }
                         };
                         ctx.report(
-                            LintDiagnostic::new(
+                            LintReport::new(
                                 NO_SECRETS.id,
                                 NO_SECRETS.code,
                                 NO_SECRETS.category,
                                 severity,
                                 message,
-                                ctx.module.file_id,
                                 ctx.tree.get_span(node_id),
                             )
-                            .with_label("use environment variables instead"),
+                            .label("use environment variables instead"),
                         );
                     }
                 }
@@ -628,16 +627,15 @@ impl LintRule for NoSecrets {
                                 continue;
                             }
                             ctx.report(
-                                LintDiagnostic::new(
+                                LintReport::new(
                                     NO_SECRETS.id,
                                     NO_SECRETS.code,
                                     NO_SECRETS.category,
                                     severity,
                                     format!("possible hardcoded secret in '{name}'"),
-                                    ctx.module.file_id,
                                     ctx.tree.get_span(*declarator_id),
                                 )
-                                .with_label("use environment variables instead"),
+                                .label("use environment variables instead"),
                             );
                         }
                     }

@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use destack_workspace::{FilenameCase, LintSeverity};
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce a specific case style for filenames.
@@ -65,16 +65,15 @@ impl LintRule for FilenameCaseRule {
         if !matches_case(normalized_name, expected_case) {
             let expected = case_name(expected_case);
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     FILENAME_CASE_RULE.id,
                     FILENAME_CASE_RULE.code,
                     FILENAME_CASE_RULE.category,
                     severity,
                     format!("filename `{base_name}` should be {expected}"),
-                    ctx.module.file_id,
                     ctx.tree.get_span(root_expression_id),
                 )
-                .with_label(format!("rename to {expected}")),
+                .label(format!("rename to {expected}")),
             );
         }
     }

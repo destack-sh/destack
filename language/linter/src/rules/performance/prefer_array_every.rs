@@ -6,7 +6,7 @@ use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     ReferencePath, expression_reference_path, expression_unwrap_parenthesized, is_array_type,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `every()` over `filter().length === array.length`.
@@ -131,22 +131,21 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_ARRAY_EVERY.id,
             PREFER_ARRAY_EVERY.code,
             PREFER_ARRAY_EVERY.category,
             severity,
             "prefer every() over filter().length comparison",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use array.every(...) to check if all elements match");
+        .label("use array.every(...) to check if all elements match");
 
         // compute fixes only when requested by the runner
         if self.ctx.include_fixes
             && let Some(fix) = self.prefer_array_every_fix(expression_id, filter_match)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

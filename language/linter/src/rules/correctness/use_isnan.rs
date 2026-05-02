@@ -2,7 +2,7 @@ use destack_ast::{self as ast, BinaryOperator, Expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_path_segments, match_selector_expression_id};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require `Number.isNaN()` instead of comparisons with `NaN`.
@@ -110,22 +110,21 @@ fn check_binary_nan_comparison(
     }
 
     let expression_span = ctx.tree.get_span(node_id);
-    let mut diagnostic = LintDiagnostic::new(
+    let mut diagnostic = LintReport::new(
         USE_ISNAN.id,
         USE_ISNAN.code,
         USE_ISNAN.category,
         severity,
         comparison_message(operator),
-        ctx.module.file_id,
         expression_span,
     )
-    .with_label("use Number.isNaN() instead");
+    .label("use Number.isNaN() instead");
 
     // construct fix for equality operators only
     if ctx.compute_fixes
         && let Some(fix) = make_isnan_fix(ctx, left, right, operator, left_is_nan, expression_span)
     {
-        diagnostic = diagnostic.with_fix(fix);
+        diagnostic = diagnostic.fix(fix);
     }
 
     ctx.report(diagnostic);
@@ -144,16 +143,15 @@ fn check_switch_nan_comparisons(
         if severity.is_enabled() {
             let span = ctx.tree.get_span(value);
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     USE_ISNAN.id,
                     USE_ISNAN.code,
                     USE_ISNAN.category,
                     severity,
                     "switch discriminant is NaN",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("switch cases are compared with `===`, so this never matches"),
+                .label("switch cases are compared with `===`, so this never matches"),
             );
         }
     }
@@ -175,16 +173,15 @@ fn check_switch_nan_comparisons(
 
         let span = ctx.tree.get_span(selector_expression_id);
         ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 USE_ISNAN.id,
                 USE_ISNAN.code,
                 USE_ISNAN.category,
                 severity,
                 "switch case compares with NaN",
-                ctx.module.file_id,
                 span,
             )
-            .with_label("switch cases are compared with `===`, so this case never matches"),
+            .label("switch cases are compared with `===`, so this case never matches"),
         );
     }
 }
@@ -231,16 +228,15 @@ fn check_index_of_nan_call(
 
     let span = ctx.tree.get_span(node_id);
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             USE_ISNAN.id,
             USE_ISNAN.code,
             USE_ISNAN.category,
             severity,
             format!("{} cannot find NaN", method_name.as_ref()),
-            ctx.module.file_id,
             span,
         )
-        .with_label("use a Number.isNaN-aware search instead"),
+        .label("use a Number.isNaN-aware search instead"),
     );
 }
 

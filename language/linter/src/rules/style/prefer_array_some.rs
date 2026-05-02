@@ -6,7 +6,7 @@ use destack_workspace::LintSeverity;
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{const_i64, flip_binary_operator, is_array_type, member_receiver_text};
 use crate::{
-    ConstValue, LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint,
+    ConstValue, LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint,
 };
 
 declare_lint! {
@@ -236,22 +236,21 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
 
         // build diagnostic and attach fix for findIndex rewrites
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_ARRAY_SOME.id,
             PREFER_ARRAY_SOME.code,
             PREFER_ARRAY_SOME.category,
             severity,
             format!("prefer some() over {target} comparison"),
-            self.ctx.module.file_id,
             span,
         )
-        .with_label(label);
+        .label(label);
         if matches!(
             match_info.kind,
             ArraySomeKind::FindIndex | ArraySomeKind::Find
         ) && let Some(fix) = self.find_call_comparison_fix(expression_id, match_info)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

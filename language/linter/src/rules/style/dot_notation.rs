@@ -7,7 +7,7 @@ use destack_workspace::LintSeverity;
 use regex::Regex;
 
 use crate::rules::common::{expression_static_string_literal_source_form, span_has_comment};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer dot notation over bracket notation for property access.
@@ -79,16 +79,15 @@ impl LintRule for DotNotation {
             let expression_span = ctx.tree.get_span(node_id);
             let left_span = ctx.tree.get_span(*left);
             let bracket_span = Span::new(expression_span.file, left_span.end, expression_span.end);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 DOT_NOTATION.id,
                 DOT_NOTATION.code,
                 DOT_NOTATION.category,
                 severity,
                 format!("use `.{name_str}` instead of `[\"{name_str}\"]`"),
-                ctx.module.file_id,
                 expression_span,
             )
-            .with_label("prefer dot notation");
+            .label("prefer dot notation");
 
             if ctx.compute_fixes && !span_has_comment(ctx.tree, bracket_span) {
                 let left_expression = ctx.tree.get(*left);
@@ -103,7 +102,7 @@ impl LintRule for DotNotation {
                     .replace(bracket_span, replacement)
                     .into_edits();
                 let fix = LintFix::safe("Convert to dot notation").with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_is_symbol_or_global_qualified_member, expression_unwrap_parenthesized,
     positional_argument_value,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `Object.hasOwn()` over prototype `hasOwnProperty` chains.
@@ -200,19 +200,18 @@ impl<'a, 'b> PreferObjectHasOwnVisitor<'a, 'b> {
         }
 
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_OBJECT_HAS_OWN.id,
             PREFER_OBJECT_HAS_OWN.code,
             PREFER_OBJECT_HAS_OWN.category,
             severity,
             "prefer Object.hasOwn()",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use Object.hasOwn(value, key) instead of prototype hasOwnProperty call");
+        .label("use Object.hasOwn(value, key) instead of prototype hasOwnProperty call");
 
         if let Some(fix) = self.prototype_has_own_fix(expression_id, invocation_kind, arguments) {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

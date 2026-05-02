@@ -4,7 +4,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{is_simple_identifier, rename_local_symbol_fix};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow parameters that are only used in recursive self calls.
@@ -126,16 +126,15 @@ fn report_recursive_only_parameters(
 
         // report recursion only parameter
         let span = ctx.get_span(parameter_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_UNUSED_EXCEPT_RECURSION.id,
             NO_UNUSED_EXCEPT_RECURSION.code,
             NO_UNUSED_EXCEPT_RECURSION.category,
             severity,
             "parameter used only for recursion",
-            ctx.module.file_id,
             span,
         )
-        .with_label("this parameter is only forwarded into recursive self calls");
+        .label("this parameter is only forwarded into recursive self calls");
         if ctx.include_fixes
             && let Some(replacement_name) =
                 recursion_parameter_replacement_name(ctx, parameter_symbol)
@@ -146,7 +145,7 @@ fn report_recursive_only_parameters(
                 &format!("Rename recursion-only parameter to `{replacement_name}`"),
             )
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         ctx.report(diagnostic);

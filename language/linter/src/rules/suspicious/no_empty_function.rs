@@ -5,7 +5,7 @@ use crate::rules::common::{
     CallableOwnerId, block_is_empty_without_comment, callable_owner_span,
     for_each_callable_signature,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow empty functions.
@@ -83,22 +83,21 @@ fn report_empty_function_body(
     }
 
     // build the empty function diagnostic
-    let mut diagnostic = LintDiagnostic::new(
+    let mut diagnostic = LintReport::new(
         NO_EMPTY_FUNCTION.id,
         NO_EMPTY_FUNCTION.code,
         NO_EMPTY_FUNCTION.category,
         severity,
         "empty function",
-        ctx.module.file_id,
         callable_owner_span(ctx.tree, owner_id),
     )
-    .with_label("add implementation or a comment explaining why empty");
+    .label("add implementation or a comment explaining why empty");
 
     // attach a safe comment insertion fix when enabled
     if ctx.compute_fixes
         && let Some(fix) = no_empty_function_fix(ctx, block_id)
     {
-        diagnostic = diagnostic.with_fix(fix);
+        diagnostic = diagnostic.fix(fix);
     }
 
     ctx.report(diagnostic);

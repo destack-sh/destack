@@ -7,7 +7,7 @@ use crate::rules::common::{
     first_alphabetic_character, is_directive_comment, is_doc_comment_source, is_non_prose_doc_line,
     is_separator_comment, is_separator_heading_line, parse_keyword_comment_with_options,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce comment casing conventions.
@@ -94,23 +94,22 @@ impl LintRule for CommentCasing {
                     continue;
                 }
 
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     COMMENT_CASING.id,
                     COMMENT_CASING.code,
                     COMMENT_CASING.category,
                     severity,
                     "inline comment should start with lowercase",
-                    ctx.module.file_id,
                     comment.span,
                 )
-                .with_label("use lowercase for inline comments");
+                .label("use lowercase for inline comments");
 
                 // compute fixes only when requested by the runner
                 if ctx.compute_fixes
                     && let Some(fix) =
                         comment_casing_fix(ctx, comment.span, CasingFixKind::LowercaseInline)
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);
@@ -144,23 +143,22 @@ impl LintRule for CommentCasing {
                 }
 
                 let comment_span = comment.span;
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     COMMENT_CASING.id,
                     COMMENT_CASING.code,
                     COMMENT_CASING.category,
                     severity,
                     "doc comment should start with uppercase",
-                    ctx.module.file_id,
                     comment_span,
                 )
-                .with_label("use uppercase for doc comments");
+                .label("use uppercase for doc comments");
 
                 // compute fixes only when requested by the runner
                 if ctx.compute_fixes
                     && let Some(fix) =
                         comment_casing_fix(ctx, comment_span, CasingFixKind::UppercaseDoc)
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

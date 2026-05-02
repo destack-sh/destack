@@ -9,7 +9,7 @@ use crate::rules::common::{
     CallableOwnerId, expression_starts_nested_declaration_scope,
     expression_unwrap_statement_source_form, for_each_callable_signature,
 };
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of return statements per function.
@@ -128,16 +128,15 @@ fn report_return_limit_violation<T: ast::Node>(
 
     // report one return overflow diagnostic
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             MAX_RETURN_STATEMENTS.id,
             MAX_RETURN_STATEMENTS.code,
             MAX_RETURN_STATEMENTS.category,
             severity,
             format!("function has {return_count} return statements (max {max_return_statements})"),
-            ctx.module.file_id,
             ctx.tree.get_span(body_id),
         )
-        .with_label("consider reducing return points"),
+        .label("consider reducing return points"),
     );
 }
 

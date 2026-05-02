@@ -8,7 +8,7 @@ use crate::rules::common::{
     expression_target_symbol, expression_type_map, is_definitely_non_error_value_type,
     parameter_binding_name_and_symbol, symbol_matches_or_canonical,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer Error objects in Promise rejections.
@@ -136,16 +136,15 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
 
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 PREFER_PROMISE_REJECT_ERRORS.id,
                 PREFER_PROMISE_REJECT_ERRORS.code,
                 PREFER_PROMISE_REJECT_ERRORS.category,
                 severity,
                 "prefer rejecting with Error objects",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("pass an Error instance to Promise rejection"),
+            .label("pass an Error instance to Promise rejection"),
         );
     }
 

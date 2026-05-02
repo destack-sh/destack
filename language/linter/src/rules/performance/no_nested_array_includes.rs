@@ -6,7 +6,7 @@ use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     expression_enters_nested_declaration_scope, expression_method_call, is_array_type,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `includes` or `indexOf` style lookups inside loops over another array.
@@ -137,16 +137,15 @@ impl<'a, 'b> NoNestedArrayIncludesVisitor<'a, 'b> {
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_NESTED_ARRAY_INCLUDES.id,
                 NO_NESTED_ARRAY_INCLUDES.code,
                 NO_NESTED_ARRAY_INCLUDES.category,
                 severity,
                 format!("{method_name}() in a loop causes O(n²) performance"),
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("consider using a Set for O(1) lookups"),
+            .label("consider using a Set for O(1) lookups"),
         );
     }
 

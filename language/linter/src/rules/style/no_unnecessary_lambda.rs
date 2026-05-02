@@ -5,7 +5,7 @@ use crate::rules::common::{
     block_single_return_value, expression_reference_path, expression_target_symbol,
     expression_unwrap_statement, expression_unwrap_transparent,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow lambdas that only wrap a direct function call.
@@ -107,17 +107,16 @@ impl LintRule for NoUnnecessaryLambda {
                 .replace(declaration_span, callee_text.clone());
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_UNNECESSARY_LAMBDA.id,
                     NO_UNNECESSARY_LAMBDA.code,
                     NO_UNNECESSARY_LAMBDA.category,
                     severity,
                     format!("unnecessary lambda wrapping `{callee_text}`"),
-                    ctx.module.file_id,
                     declaration_span,
                 )
-                .with_label(format!("use `{callee_text}` directly"))
-                .with_fix(fix),
+                .label(format!("use `{callee_text}` directly"))
+                .fix(fix),
             );
         }
     }

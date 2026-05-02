@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use destack_ast::{self as ast, Parameter};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce default parameters to be last.
@@ -110,16 +110,15 @@ fn check_parameters(
         }
 
         ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 DEFAULT_PARAM_LAST.id,
                 DEFAULT_PARAM_LAST.code,
                 DEFAULT_PARAM_LAST.category,
                 severity,
                 "default parameter should be last",
-                ctx.module.file_id,
                 ctx.tree.get_span(*parameter_id),
             )
-            .with_label("move default parameters after required parameters"),
+            .label("move default parameters after required parameters"),
         );
     }
 }

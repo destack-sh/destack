@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::block_is_empty_without_comment;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow empty static initialization blocks in classes.
@@ -56,16 +56,15 @@ impl LintRule for NoEmptyStaticBlock {
 
             // build the empty static block diagnostic
             let member_span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_EMPTY_STATIC_BLOCK.id,
                 NO_EMPTY_STATIC_BLOCK.code,
                 NO_EMPTY_STATIC_BLOCK.category,
                 severity,
                 "empty static initialization block",
-                ctx.module.file_id,
                 member_span,
             )
-            .with_label("remove or add initialization code");
+            .label("remove or add initialization code");
 
             // add comment insertion fix when enabled
             if ctx.compute_fixes {
@@ -76,7 +75,7 @@ impl LintRule for NoEmptyStaticBlock {
                     .into_edits();
                 let fix = LintFix::suggestion("Add intentional empty static block comment")
                     .with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

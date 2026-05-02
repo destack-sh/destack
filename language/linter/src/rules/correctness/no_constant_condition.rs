@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::control_flow_condition_expression;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow constant expressions in conditions.
@@ -69,22 +69,21 @@ impl LintRule for NoConstantCondition {
             }
 
             // build diagnostic payload
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_CONSTANT_CONDITION.id,
                 NO_CONSTANT_CONDITION.code,
                 NO_CONSTANT_CONDITION.category,
                 severity,
                 "unexpected constant condition",
-                ctx.module.file_id,
                 ctx.tree.get_span(condition_id),
             )
-            .with_label("this condition is always the same");
+            .label("this condition is always the same");
 
             // attach conservative autofix when available
             if ctx.compute_fixes
                 && let Some(fix) = no_constant_condition_fix(ctx, node_id)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

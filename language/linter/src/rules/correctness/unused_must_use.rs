@@ -5,7 +5,7 @@ use crate::rules::common::{
     expression_discarded_call_like_value, expression_has_decorator,
     expression_is_standalone_statement, expression_unwrap_parenthesized,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow ignoring return values from `@mustUse` APIs.
@@ -105,22 +105,21 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
         }
 
         let span = self.ctx.get_span(statement_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             UNUSED_MUST_USE.id,
             UNUSED_MUST_USE.code,
             UNUSED_MUST_USE.category,
             severity,
             "ignored return value from @mustUse API",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use, return, or explicitly handle this result");
+        .label("use, return, or explicitly handle this result");
 
         // compute fixes only when requested by the runner
         if self.ctx.include_fixes
             && let Some(fix) = unused_must_use_fix(self.ctx, fix_expression_id)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

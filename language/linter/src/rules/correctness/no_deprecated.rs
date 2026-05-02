@@ -2,7 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_decorator_map;
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow usage of APIs marked as `@deprecated`.
@@ -98,21 +98,20 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
 
         // resolve diagnostic span
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_DEPRECATED.id,
             NO_DEPRECATED.code,
             NO_DEPRECATED.category,
             severity,
             "deprecated API usage",
-            self.ctx.module.file_id,
             span,
         );
 
         // enforce this lint guard
         if let Some(message) = deprecated_message {
-            diagnostic = diagnostic.with_label(format!("deprecated: {message}"));
+            diagnostic = diagnostic.label(format!("deprecated: {message}"));
         } else {
-            diagnostic = diagnostic.with_label("this API is marked as deprecated");
+            diagnostic = diagnostic.label("this API is marked as deprecated");
         }
 
         self.ctx.report(diagnostic);

@@ -5,7 +5,7 @@ use crate::rules::common::{
     expression_path_segments, expression_unwrap_parenthesized_source_form,
     path_is_regexp_constructor, regex_pattern_info, regexp_global_qualifier_names,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require a configured Unicode flag on regular expressions.
@@ -84,16 +84,15 @@ impl LintRule for RequireUnicodeRegexp {
                 );
                 let label = format!("use the '{required_flag_char}' flag for Unicode support");
 
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     REQUIRE_UNICODE_REGEXP.id,
                     REQUIRE_UNICODE_REGEXP.code,
                     REQUIRE_UNICODE_REGEXP.category,
                     severity,
                     message,
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label(label);
+                .label(label);
 
                 // compute fixes only when requested by the runner
                 if ctx.compute_fixes
@@ -105,7 +104,7 @@ impl LintRule for RequireUnicodeRegexp {
                         required_flag,
                     )
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

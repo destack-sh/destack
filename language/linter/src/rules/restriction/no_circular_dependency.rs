@@ -2,7 +2,7 @@ use crate::LintMeta;
 use std::collections::{HashMap, HashSet};
 
 use crate::rules::common::{find_cycle_path, strongly_connected_components};
-use crate::{LintDiagnostic, LintPackageDirContext, LintRule, declare_lint};
+use crate::{LintPackageDirContext, LintReport, LintRule, declare_lint};
 use destack_artifact::DirExported;
 use destack_source::{FileType, ModuleId, Span};
 
@@ -98,26 +98,25 @@ fn build_cycle_diagnostic(
     severity: destack_workspace::LintSeverity,
     rule_id: &str,
     ctx: &LintPackageDirContext,
-) -> LintDiagnostic {
+) -> LintReport {
     let module = ctx
         .repository_module(module_id)
         .unwrap_or_else(|| panic!("missing module for {module_id:?}"));
     let module = module.as_ref();
 
-    let mut diagnostic = LintDiagnostic::new(
+    let mut diagnostic = LintReport::new(
         NO_CIRCULAR_DEPENDENCY.id,
         NO_CIRCULAR_DEPENDENCY.code,
         NO_CIRCULAR_DEPENDENCY.category,
         severity,
         "circular module dependency",
-        module.file_id,
         Span::empty(module.file_id),
     )
-    .with_label("this module participates in an import cycle")
-    .with_note(format!("cycle members: {members_note}"))
-    .with_note(format!("rule: {rule_id}"));
+    .label("this module participates in an import cycle")
+    .note(format!("cycle members: {members_note}"))
+    .note(format!("rule: {rule_id}"));
     if let Some(cycle_path_note) = cycle_path_note {
-        diagnostic = diagnostic.with_note(cycle_path_note.to_string());
+        diagnostic = diagnostic.note(cycle_path_note.to_string());
     }
 
     diagnostic
@@ -289,7 +288,7 @@ mod tests {
     fn lint_package_with_modules(
         modules: &[(&str, &str)],
         configure: impl FnOnce(&mut destack_workspace::LinterOptions),
-    ) -> (TestProgram, Vec<LintDiagnostic>) {
+    ) -> (TestProgram, Vec<LintReport>) {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoCircularDependency)])
             .with_options(configure);
         let diagnostics = test.lint_package_dir_with_modules(modules);
@@ -297,7 +296,7 @@ mod tests {
     }
 
     /// Collect diagnostics for this rule only.
-    fn circular_diagnostics(diagnostics: &[LintDiagnostic]) -> Vec<&LintDiagnostic> {
+    fn circular_diagnostics(diagnostics: &[LintReport]) -> Vec<&LintReport> {
         diagnostics
             .iter()
             .filter(|diagnostic| diagnostic.rule_id == "no-circular-dependency")
@@ -563,7 +562,7 @@ export let E = D;
 
         let mut file_names = circular
             .iter()
-            .map(|diagnostic| test.repository_file(diagnostic.file_id).name.clone())
+            .map(|diagnostic| test.repository_file(diagnostic.primary.file).name.clone())
             .collect::<Vec<_>>();
         file_names.sort();
         assert_eq!(
@@ -602,13 +601,13 @@ export let A = B;
         let circular = circular_diagnostics(&result);
         assert_eq!(circular.len(), 2);
         for diagnostic in circular {
+            let notes = diagnostic.notes().collect::<Vec<_>>();
             assert!(
-                diagnostic
-                    .notes
+                notes
                     .iter()
-                    .any(|note| { note == "cycle members: note_a.ds, note_b.ds" }),
+                    .any(|note| { *note == "cycle members: note_a.ds, note_b.ds" }),
                 "expected sorted cycle member note, notes={:?}",
-                diagnostic.notes
+                notes
             );
         }
     }

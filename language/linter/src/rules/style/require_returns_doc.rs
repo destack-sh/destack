@@ -3,7 +3,7 @@ use destack_ast::{self as ast, Declaration};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_or_declaration_docs;
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require return type documentation.
@@ -75,16 +75,15 @@ impl LintRule for RequireReturnsDoc {
                 }
 
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         REQUIRE_RETURNS_DOC.id,
                         REQUIRE_RETURNS_DOC.code,
                         REQUIRE_RETURNS_DOC.category,
                         severity,
                         "function with return type lacks @returns documentation",
-                        ctx.module.file_id,
                         ctx.tree.get_span(expr_id),
                     )
-                    .with_label("add @returns to documentation"),
+                    .label("add @returns to documentation"),
                 );
             }
         }

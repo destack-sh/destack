@@ -7,7 +7,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{expression_method_call, is_array_type};
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow object spread in reduce accumulators.
@@ -204,16 +204,15 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
             // report the diagnostic
             let span = self.ctx.get_span(expression_id);
             self.ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_OBJECT_SPREAD_IN_REDUCE.id,
                     NO_OBJECT_SPREAD_IN_REDUCE.code,
                     NO_OBJECT_SPREAD_IN_REDUCE.category,
                     severity,
                     "object spread in reduce causes O(n²) allocations",
-                    self.ctx.module.file_id,
                     span,
                 )
-                .with_label("use direct assignment with mutation instead"),
+                .label("use direct assignment with mutation instead"),
             );
 
             return;
@@ -296,16 +295,15 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_OBJECT_SPREAD_IN_REDUCE.id,
                 NO_OBJECT_SPREAD_IN_REDUCE.code,
                 NO_OBJECT_SPREAD_IN_REDUCE.category,
                 severity,
                 "Object.assign with accumulator clone in reduce causes O(n²) allocations",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("use direct assignment with mutation instead"),
+            .label("use direct assignment with mutation instead"),
         );
     }
 }

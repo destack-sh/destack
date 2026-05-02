@@ -6,7 +6,7 @@ use crate::rules::common::{
     binary_expression_chain_members, binary_expression_is_nested_same_operator,
     expression_is_in_type_position, expression_type_map, normalized_flow_type_id,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow duplicate constituents in union and intersection types.
@@ -137,17 +137,16 @@ fn report_duplicate_constituents(
         // report the duplicate constituent span and the first occurrence
         let duplicate_span = ctx.get_span(duplicate_constituent.expression_id);
         let first_span = ctx.get_span(first_constituent.expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_DUPLICATE_TYPE_CONSTITUENTS.id,
             NO_DUPLICATE_TYPE_CONSTITUENTS.code,
             NO_DUPLICATE_TYPE_CONSTITUENTS.category,
             severity,
             "duplicate type constituent",
-            ctx.module.file_id,
             duplicate_span,
         )
-        .with_label("this constituent duplicates an earlier constituent")
-        .with_secondary(LabeledSpan::new(first_span, "first occurrence is here"));
+        .label("this constituent duplicates an earlier constituent")
+        .secondary(LabeledSpan::new(first_span, "first occurrence is here"));
 
         // attach one replacement fix once to avoid overlapping edit conflicts
         if duplicate_position == 0
@@ -161,7 +160,7 @@ fn report_duplicate_constituents(
                 .into_edits();
             let fix = LintFix::safe("Remove duplicate type constituents and keep unique members")
                 .with_edits(edits);
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         ctx.report(diagnostic);

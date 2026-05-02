@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_has_side_effects, expression_unwrap_parenthesized_source_form,
 };
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow statement expressions that have no effect.
@@ -123,16 +123,15 @@ fn check_statement_candidate(
 
     // report one unused expression diagnostic
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             NO_UNUSED_EXPRESSIONS.id,
             NO_UNUSED_EXPRESSIONS.code,
             NO_UNUSED_EXPRESSIONS.category,
             severity,
             "expression statement has no effect",
-            ctx.module.file_id,
             ctx.tree.get_span(statement_expression_id),
         )
-        .with_label("expected an assignment or call in statement position"),
+        .label("expected an assignment or call in statement position"),
     );
 }
 

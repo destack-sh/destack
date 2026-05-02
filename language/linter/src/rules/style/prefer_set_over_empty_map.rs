@@ -8,7 +8,7 @@ use crate::rules::common::{
     contains_map_with_empty_value_type, expression_type_map, is_void_or_never_type,
     symbol_matches_any_or_canonical, well_known_symbol_candidates,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `Set<K>` over `Map<K, void | never>`.
@@ -142,16 +142,15 @@ fn report_prefer_set_over_empty_map<T: dir::Node>(
     }
 
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             PREFER_SET_OVER_EMPTY_MAP.id,
             PREFER_SET_OVER_EMPTY_MAP.code,
             PREFER_SET_OVER_EMPTY_MAP.category,
             severity,
             "prefer Set over Map with empty value type",
-            ctx.module.file_id,
             span,
         )
-        .with_label("use `Set<K>` instead of `Map<K, void | never>`"),
+        .label("use `Set<K>` instead of `Map<K, void | never>`"),
     );
 }
 

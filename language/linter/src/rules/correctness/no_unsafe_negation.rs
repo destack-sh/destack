@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow negation of the left operand of relational operators.
@@ -79,19 +79,17 @@ impl LintRule for NoUnsafeNegation {
                 let fix = LintFix::safe("Wrap in parentheses").with_edits(edits);
 
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_UNSAFE_NEGATION.id,
                         NO_UNSAFE_NEGATION.code,
                         NO_UNSAFE_NEGATION.category,
                         severity,
                         format!("negation of left operand of `{operator_name}`"),
-                        ctx.module.file_id,
-                        expression_span,
-                    )
-                    .with_label(format!(
+                        expression_span)
+                    .label(format!(
                         "this parses as `(!a) {operator_name} b`, use `!(a {operator_name} b)` instead"
                     ))
-                    .with_fix(fix),
+                    .fix(fix),
                 );
             }
         }

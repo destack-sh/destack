@@ -8,7 +8,7 @@ use crate::rules::common::{
     is_string_type, regex_suffix_literal, single_quoted_string_literal,
     string_literal_utf16_length, strip_dot_member_suffix,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `endsWith()` over `slice(-n) === suffix`.
@@ -202,22 +202,21 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
 
         // build diagnostic and attach fix
         let span = self.ctx.get_span(expression_id);
-        let diagnostic = LintDiagnostic::new(
+        let diagnostic = LintReport::new(
             PREFER_STRING_ENDS_WITH.id,
             PREFER_STRING_ENDS_WITH.code,
             PREFER_STRING_ENDS_WITH.category,
             severity,
             "prefer endsWith() over slice(-n) comparison",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use endsWith() to check the suffix");
+        .label("use endsWith() to check the suffix");
 
         let mut diagnostic = diagnostic;
         if self.ctx.include_fixes
             && let Some(fix) = self.ends_with_fix(expression_id, ends_with_match)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);
@@ -286,20 +285,19 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
 
         // build diagnostic and attach safe fix
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_STRING_ENDS_WITH.id,
             PREFER_STRING_ENDS_WITH.code,
             PREFER_STRING_ENDS_WITH.category,
             severity,
             "prefer endsWith() over regex test() suffix checks",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use endsWith() for anchored suffix checks");
+        .label("use endsWith() for anchored suffix checks");
         if self.ctx.include_fixes
             && let Some(fix) = self.regex_ends_with_fix(expression_id, *argument_id, &suffix_text)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

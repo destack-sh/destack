@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_unqualified_path_name;
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow catch clauses that only rethrow the caught error.
@@ -68,16 +68,15 @@ impl LintRule for NoUselessCatch {
                     ctx.tree.get_span(node_id)
                 };
 
-                let diagnostic = LintDiagnostic::new(
+                let diagnostic = LintReport::new(
                     NO_USELESS_CATCH.id,
                     NO_USELESS_CATCH.code,
                     NO_USELESS_CATCH.category,
                     severity,
                     "useless catch clause",
-                    ctx.module.file_id,
                     diagnostic_span,
                 )
-                .with_label("this catch only rethrows the original error");
+                .label("this catch only rethrows the original error");
 
                 ctx.report(diagnostic);
             }

@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_target_symbol, expression_unwrap_parenthesized, pattern_binding_name_and_symbol,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest moving match guards into the pattern.
@@ -67,16 +67,15 @@ impl LintRule for PreferPatternOverGuard {
                 continue;
             }
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 PREFER_PATTERN_OVER_GUARD.id,
                 PREFER_PATTERN_OVER_GUARD.code,
                 PREFER_PATTERN_OVER_GUARD.category,
                 severity,
                 "guard comparing binding to literal can be a pattern",
-                ctx.module.file_id,
                 ctx.get_span(match_case_id),
             )
-            .with_label("replace with literal pattern");
+            .label("replace with literal pattern");
 
             // attach the rewrite only when the source still contains one explicit guard separator
             if ctx.include_fixes
@@ -87,7 +86,7 @@ impl LintRule for PreferPatternOverGuard {
                     literal_expression_id,
                 )
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

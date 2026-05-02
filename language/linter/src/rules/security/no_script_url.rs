@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_static_string_literal_source_form;
-use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `javascript:` URLs.
@@ -51,16 +51,15 @@ impl LintRule for NoScriptUrl {
                     continue;
                 }
                 ctx.report(
-                    LintDiagnostic::new(
+                    LintReport::new(
                         NO_SCRIPT_URL.id,
                         NO_SCRIPT_URL.code,
                         NO_SCRIPT_URL.category,
                         severity,
                         "javascript: URLs are a security risk",
-                        ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label("avoid using javascript: URLs"),
+                    .label("avoid using javascript: URLs"),
                 );
             }
         }

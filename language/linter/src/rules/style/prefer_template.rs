@@ -3,7 +3,7 @@ use destack_ast::{self as ast, BinaryOperator, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer template literals over string concatenation.
@@ -64,16 +64,15 @@ impl LintRule for PreferTemplate {
             }
 
             let expression_span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 PREFER_TEMPLATE.id,
                 PREFER_TEMPLATE.code,
                 PREFER_TEMPLATE.category,
                 severity,
                 "prefer template literal for string concatenation",
-                ctx.module.file_id,
                 expression_span,
             )
-            .with_label("use template literal: `` `...${x}...` ``");
+            .label("use template literal: `` `...${x}...` ``");
 
             // keep fix generation conservative for comments and unsupported numeric escapes
             if !span_has_comment(ctx.tree, expression_span)
@@ -86,7 +85,7 @@ impl LintRule for PreferTemplate {
                     .replace(expression_span, replacement)
                     .into_edits();
                 let fix = LintFix::safe("Convert to template literal").with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

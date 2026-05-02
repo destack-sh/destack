@@ -12,7 +12,7 @@ use crate::rules::common::{
     expression_assignment_target, expression_is_standalone_statement, expression_reference_is_read,
     statement_expression_ancestor,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require `const` declarations for never reassigned variables.
@@ -95,22 +95,21 @@ impl LintRule for PreferConst {
                     .name()
                     .map(|name| ctx.strings.get(name).to_string())
                     .unwrap_or_else(|| "binding".to_string());
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     PREFER_CONST.id,
                     PREFER_CONST.code,
                     PREFER_CONST.category,
                     severity,
                     format!("`{symbol_name}` is never reassigned, use const instead"),
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("this binding can be const");
+                .label("this binding can be const");
 
                 if can_fix_declaration
                     && ctx.include_fixes
                     && let Some(fix) = build_prefer_const_fix(ctx, declaration.expression_id)
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

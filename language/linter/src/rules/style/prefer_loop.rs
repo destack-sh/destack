@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `loop` over `while(true)` or `for(;;)`.
@@ -81,17 +81,16 @@ impl LintRule for PreferLoop {
             let fix = LintFix::safe("Replace with `loop`").with_edits(edits);
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     PREFER_LOOP.id,
                     PREFER_LOOP.code,
                     PREFER_LOOP.category,
                     severity,
                     "use `loop` instead of infinite loop pattern",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("replace with `loop { ... }`")
-                .with_fix(fix),
+                .label("replace with `loop { ... }`")
+                .fix(fix),
             );
         }
     }

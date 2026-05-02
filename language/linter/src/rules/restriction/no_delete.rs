@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_statement_ancestor, expression_unwrap_parenthesized_source_form,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow the delete operator.
@@ -54,22 +54,21 @@ impl LintRule for NoDelete {
 
             // report the diagnostic
             let span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_DELETE.id,
                 NO_DELETE.code,
                 NO_DELETE.category,
                 severity,
                 "delete operator is not allowed",
-                ctx.module.file_id,
                 span,
             )
-            .with_label("avoid using delete");
+            .label("avoid using delete");
 
             // compute fixes only when requested by the runner
             if ctx.compute_fixes
                 && let Some(fix) = no_delete_fix(ctx, node_id)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

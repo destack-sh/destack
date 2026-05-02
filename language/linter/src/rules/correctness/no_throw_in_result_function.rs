@@ -5,7 +5,7 @@ use crate::rules::common::{
     expression_enters_nested_declaration_scope,
     function_signature_return_type_contains_reference_segment,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `throw` in functions returning `Result`.
@@ -150,16 +150,15 @@ impl<'a, 'b> ThrowInResultVisitor<'a, 'b> {
         // report
         let span = self.ctx.get_span(throw_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_THROW_IN_RESULT_FUNCTION.id,
                 NO_THROW_IN_RESULT_FUNCTION.code,
                 NO_THROW_IN_RESULT_FUNCTION.category,
                 severity,
                 "throw in Result-returning function",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("use Result.err() instead of throw"),
+            .label("use Result.err() instead of throw"),
         );
     }
 }

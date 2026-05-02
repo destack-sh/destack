@@ -9,9 +9,9 @@ use destack_workspace::{
 
 use crate::linter::artifact::{read_ast, read_dir_checked, read_dir_declared, read_dir_exported};
 use crate::{
-    BoxedLintRule, LintAstContext, LintDiagnostic, LintLevel, LintModuleDirContext,
-    LintPackageAstContext, LintPackageDirContext, LintScope, LintWorkspaceAstContext,
-    LintWorkspaceDirContext, all_rules, recommended_rules, strict_rules,
+    BoxedLintRule, LintAstContext, LintLevel, LintModuleDirContext, LintPackageAstContext,
+    LintPackageDirContext, LintReport, LintScope, LintWorkspaceAstContext, LintWorkspaceDirContext,
+    all_rules, recommended_rules, strict_rules,
 };
 
 /// Per lint rule performance metrics.
@@ -126,7 +126,7 @@ impl LintPerformanceReport {
 #[derive(Debug, Clone, Default)]
 pub struct LintModuleReport {
     /// The emitted diagnostics.
-    pub diagnostics: Vec<LintDiagnostic>,
+    pub diagnostics: Vec<LintReport>,
     /// Rule execution performance metrics.
     pub performance: LintPerformanceReport,
 }
@@ -135,7 +135,7 @@ pub struct LintModuleReport {
 #[derive(Debug, Clone, Default)]
 pub struct LintRunReport {
     /// The emitted diagnostics.
-    pub diagnostics: Vec<LintDiagnostic>,
+    pub diagnostics: Vec<LintReport>,
     /// Rule execution performance metrics.
     pub performance: LintPerformanceReport,
 }
@@ -263,7 +263,7 @@ impl LintRunner {
         profile: Profile,
         options: &LinterOptions,
         level: LintLevel,
-    ) -> Vec<LintDiagnostic> {
+    ) -> Vec<LintReport> {
         self.lint_module_profiled(repository, revision, module, profile, options, level)
             .diagnostics
     }
@@ -318,7 +318,7 @@ impl LintRunner {
         _profile: Profile,
         options: &LinterOptions,
         mut performance: Option<&mut LintPerformanceReport>,
-    ) -> Vec<LintDiagnostic> {
+    ) -> Vec<LintReport> {
         let module = module.as_ref();
         let ast = read_ast(&repository, revision, module.id)
             .expect("lint AST pass requires committed AST artifact");
@@ -383,7 +383,7 @@ impl LintRunner {
         profile: Profile,
         options: &LinterOptions,
         mut performance: Option<&mut LintPerformanceReport>,
-    ) -> Vec<LintDiagnostic> {
+    ) -> Vec<LintReport> {
         // context
         let module = module.as_ref();
         let ast = read_ast(&repository, revision, module.id)
@@ -469,7 +469,7 @@ impl LintRunner {
         profile: Profile,
         options: &LinterOptions,
         level: LintLevel,
-    ) -> Vec<LintDiagnostic> {
+    ) -> Vec<LintReport> {
         let Some(module) = Self::repository_module(repository.as_ref(), revision, module_id) else {
             return Vec::new();
         };
@@ -483,7 +483,7 @@ impl LintRunner {
         revision: Revision,
         options: &LinterOptions,
         level: LintLevel,
-    ) -> Vec<LintDiagnostic> {
+    ) -> Vec<LintReport> {
         self.lint_all_modules_profiled(repository, revision, options, level)
             .diagnostics
     }
@@ -537,7 +537,7 @@ impl LintRunner {
         repository: Arc<Repository>,
         revision: Revision,
         options: &LinterOptions,
-    ) -> Vec<LintDiagnostic> {
+    ) -> Vec<LintReport> {
         self.lint_workspace_ast_profiled(repository, revision, options)
             .diagnostics
     }
@@ -601,7 +601,7 @@ impl LintRunner {
         revision: Revision,
         package_id: PackageId,
         options: &LinterOptions,
-    ) -> Vec<LintDiagnostic> {
+    ) -> Vec<LintReport> {
         self.lint_package_ast_profiled(repository, revision, package_id, options)
             .diagnostics
     }
@@ -666,7 +666,7 @@ impl LintRunner {
         revision: Revision,
         profile: ProfileId,
         options: &LinterOptions,
-    ) -> Vec<LintDiagnostic> {
+    ) -> Vec<LintReport> {
         self.lint_workspace_dir_profiled(repository, revision, profile, options)
             .diagnostics
     }
@@ -732,7 +732,7 @@ impl LintRunner {
         package_id: PackageId,
         profile: ProfileId,
         options: &LinterOptions,
-    ) -> Vec<LintDiagnostic> {
+    ) -> Vec<LintReport> {
         self.lint_package_dir_profiled(repository, revision, package_id, profile, options)
             .diagnostics
     }

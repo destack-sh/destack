@@ -6,7 +6,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_unwrap_parenthesized_source_form, single_quoted_string_literal,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary concatenation of string literals.
@@ -68,16 +68,15 @@ impl LintRule for NoUselessConcat {
             }
 
             let expression_span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_USELESS_CONCAT.id,
                 NO_USELESS_CONCAT.code,
                 NO_USELESS_CONCAT.category,
                 severity,
                 "useless string concatenation",
-                ctx.module.file_id,
                 expression_span,
             )
-            .with_label("combine these into a single string literal");
+            .label("combine these into a single string literal");
 
             // keep fixes for direct literal pairs only:
             // nested chain rewrites need operator-local edits and are left diagnostic-only
@@ -86,7 +85,7 @@ impl LintRule for NoUselessConcat {
                 && is_string_literal(ctx, *right)
                 && let Some(fix) = no_useless_concat_fix(ctx, node_id, *left, *right)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

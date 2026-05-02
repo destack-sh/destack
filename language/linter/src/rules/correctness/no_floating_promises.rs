@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_is_promise_like, expression_is_standalone_statement,
     expression_unwrap_parenthesized, is_function_type, supports_promise_spread_elements,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require Promise results to be handled.
@@ -245,7 +245,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(statement_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_FLOATING_PROMISES.id,
             NO_FLOATING_PROMISES.code,
             NO_FLOATING_PROMISES.category,
@@ -255,10 +255,9 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
             } else {
                 "Promise result is ignored"
             },
-            self.ctx.module.file_id,
             span,
         )
-        .with_label(if is_promise_array_expression {
+        .label(if is_promise_array_expression {
             "await Promise.all(...), return it, or handle the Promises explicitly"
         } else {
             "await, return, or attach a Promise handler"
@@ -268,7 +267,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         if self.ctx.include_fixes
             && let Some(fix) = self.no_floating_promises_fix(inner_id)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

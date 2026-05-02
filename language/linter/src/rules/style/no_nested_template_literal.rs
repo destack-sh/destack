@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow nested template literals.
@@ -53,16 +53,15 @@ impl LintRule for NoNestedTemplateLiteral {
             }
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_NESTED_TEMPLATE_LITERAL.id,
                     NO_NESTED_TEMPLATE_LITERAL.code,
                     NO_NESTED_TEMPLATE_LITERAL.category,
                     severity,
                     "nested template literal",
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label("consider extracting to a variable"),
+                .label("consider extracting to a variable"),
             );
         }
     }

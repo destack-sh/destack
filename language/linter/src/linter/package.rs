@@ -10,7 +10,7 @@ use destack_workspace::{
 
 use crate::linter::artifact::{read_ambient_environment, read_ast, read_dir_exported};
 use crate::linter::library::is_builtin_library_module;
-use crate::{LintDiagnostic, LintMeta, LintRequirement};
+use crate::{LintMeta, LintReport, LintRequirement};
 
 /// Context for AST-level package linting.
 pub struct LintPackageAstContext {
@@ -23,7 +23,7 @@ pub struct LintPackageAstContext {
     /// Linter configuration.
     options: LinterOptions,
     /// Collected diagnostics.
-    diagnostics: Vec<LintDiagnostic>,
+    diagnostics: Vec<LintReport>,
 }
 
 impl std::fmt::Debug for LintPackageAstContext {
@@ -124,19 +124,19 @@ impl LintPackageAstContext {
     }
 
     /// Report a lint diagnostic.
-    pub fn report(&mut self, diagnostic: LintDiagnostic) {
+    pub fn report(&mut self, diagnostic: LintReport) {
         if diagnostic.is_enabled() {
             self.diagnostics.push(diagnostic);
         }
     }
 
     /// Take the collected diagnostics.
-    pub fn take_diagnostics(&mut self) -> Vec<LintDiagnostic> {
+    pub fn take_diagnostics(&mut self) -> Vec<LintReport> {
         std::mem::take(&mut self.diagnostics)
     }
 
     /// Get reference to collected diagnostics.
-    pub fn diagnostics(&self) -> &[LintDiagnostic] {
+    pub fn diagnostics(&self) -> &[LintReport] {
         &self.diagnostics
     }
 }
@@ -154,7 +154,7 @@ pub struct LintPackageDirContext {
     /// Linter configuration.
     options: LinterOptions,
     /// Collected diagnostics.
-    diagnostics: Vec<LintDiagnostic>,
+    diagnostics: Vec<LintReport>,
 }
 
 impl std::fmt::Debug for LintPackageDirContext {
@@ -303,19 +303,19 @@ impl LintPackageDirContext {
     }
 
     /// Report a lint diagnostic.
-    pub fn report(&mut self, diagnostic: LintDiagnostic) {
+    pub fn report(&mut self, diagnostic: LintReport) {
         if diagnostic.is_enabled() {
             self.diagnostics.push(diagnostic);
         }
     }
 
     /// Take the collected diagnostics.
-    pub fn take_diagnostics(&mut self) -> Vec<LintDiagnostic> {
+    pub fn take_diagnostics(&mut self) -> Vec<LintReport> {
         std::mem::take(&mut self.diagnostics)
     }
 
     /// Get reference to collected diagnostics.
-    pub fn diagnostics(&self) -> &[LintDiagnostic] {
+    pub fn diagnostics(&self) -> &[LintReport] {
         &self.diagnostics
     }
 }

@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_method_call, expression_target_symbol, has_useful_to_string_type,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `.toString()` on objects without useful representation.
@@ -141,16 +141,15 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_BASE_TO_STRING.id,
                 NO_BASE_TO_STRING.code,
                 NO_BASE_TO_STRING.category,
                 severity,
                 "toString() may produce '[object Object]'",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("this type has no useful toString representation"),
+            .label("this type has no useful toString representation"),
         );
     }
 
@@ -202,16 +201,15 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_BASE_TO_STRING.id,
                 NO_BASE_TO_STRING.code,
                 NO_BASE_TO_STRING.category,
                 severity,
                 "String() may produce '[object Object]'",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("this value has no useful toString representation"),
+            .label("this value has no useful toString representation"),
         );
     }
 
@@ -242,16 +240,15 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_BASE_TO_STRING.id,
                 NO_BASE_TO_STRING.code,
                 NO_BASE_TO_STRING.category,
                 severity,
                 "join() may stringify elements as '[object Object]'",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("array elements should have useful toString representations"),
+            .label("array elements should have useful toString representations"),
         );
     }
 
@@ -285,16 +282,15 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
             // report the diagnostic
             let span = self.ctx.get_span(value_expression_id);
             self.ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_BASE_TO_STRING.id,
                     NO_BASE_TO_STRING.code,
                     NO_BASE_TO_STRING.category,
                     severity,
                     "template interpolation may produce '[object Object]'",
-                    self.ctx.module.file_id,
                     span,
                 )
-                .with_label("this value has no useful toString representation"),
+                .label("this value has no useful toString representation"),
             );
         }
     }

@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, Declaration, TypeExpression};
 use destack_workspace::{LintSeverity, TypeDefinitionStyle};
 
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce consistent type definition style.
@@ -45,20 +45,19 @@ impl LintRule for ConsistentTypeDefinitions {
                     if !severity.is_enabled() {
                         continue;
                     }
-                    let mut diagnostic = LintDiagnostic::new(
+                    let mut diagnostic = LintReport::new(
                         CONSISTENT_TYPE_DEFINITIONS.id,
                         CONSISTENT_TYPE_DEFINITIONS.code,
                         CONSISTENT_TYPE_DEFINITIONS.category,
                         severity,
                         "use `type` instead of `interface`",
-                        ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label("prefer type alias");
+                    .label("prefer type alias");
                     if ctx.compute_fixes
                         && let Some(fix) = interface_to_type_fix(ctx, node_id, declaration)
                     {
-                        diagnostic = diagnostic.with_fix(fix);
+                        diagnostic = diagnostic.fix(fix);
                     }
 
                     ctx.report(diagnostic);
@@ -74,20 +73,19 @@ impl LintRule for ConsistentTypeDefinitions {
                         if !severity.is_enabled() {
                             continue;
                         }
-                        let mut diagnostic = LintDiagnostic::new(
+                        let mut diagnostic = LintReport::new(
                             CONSISTENT_TYPE_DEFINITIONS.id,
                             CONSISTENT_TYPE_DEFINITIONS.code,
                             CONSISTENT_TYPE_DEFINITIONS.category,
                             severity,
                             "use `interface` instead of `type`",
-                            ctx.module.file_id,
                             ctx.tree.get_span(node_id),
                         )
-                        .with_label("prefer interface declaration");
+                        .label("prefer interface declaration");
                         if ctx.compute_fixes
                             && let Some(fix) = type_to_interface_fix(ctx, node_id, declaration)
                         {
-                            diagnostic = diagnostic.with_fix(fix);
+                            diagnostic = diagnostic.fix(fix);
                         }
 
                         ctx.report(diagnostic);

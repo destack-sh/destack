@@ -7,7 +7,7 @@ use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     const_i64, expression_method_call, is_array_type, member_receiver_text,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest `.find()` over `.filter()[0]`.
@@ -339,16 +339,15 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         };
 
         // attach a fix when the replacement is well-formed
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             PREFER_ARRAY_FIND.id,
             PREFER_ARRAY_FIND.code,
             PREFER_ARRAY_FIND.category,
             severity,
             format!("prefer {preferred_method}() over {pattern}"),
-            self.ctx.module.file_id,
             span,
         )
-        .with_label(format!("use array.{preferred_method}(...) instead"));
+        .label(format!("use array.{preferred_method}(...) instead"));
         if self.ctx.include_fixes
             && let Some(replacement) = self.build_find_replacement(filter_call_id, preferred_method)
         {
@@ -359,7 +358,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
                 .into_edits();
             let fix =
                 LintFix::safe("Replace filter first-element access with find").with_edits(edits);
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

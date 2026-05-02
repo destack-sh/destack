@@ -3,7 +3,7 @@ use destack_ast::{self as ast, AssignOperator, BinaryOperator, UnaryOperator};
 use destack_workspace::{BitwiseOperator, LintSeverity};
 
 use crate::rules::common::expression_unwrap_parenthesized_source_form;
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow bitwise operators.
@@ -134,16 +134,15 @@ impl LintRule for NoBitwise {
             }
             let span = ctx.tree.get_span(node_id);
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_BITWISE.id,
                     NO_BITWISE.code,
                     NO_BITWISE.category,
                     severity,
                     format!("bitwise operator `{}` is not allowed", operator.as_str()),
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label("avoid bitwise operators"),
+                .label("avoid bitwise operators"),
             );
         }
     }

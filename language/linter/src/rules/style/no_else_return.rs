@@ -4,7 +4,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_is_else_if_branch, source_text_contains_comment_token};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `else` blocks after `return` in `if` statements.
@@ -68,22 +68,21 @@ impl LintRule for NoElseReturn {
                 }
 
                 let else_span = ctx.tree.get_span(*else_id);
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     NO_ELSE_RETURN.id,
                     NO_ELSE_RETURN.code,
                     NO_ELSE_RETURN.category,
                     severity,
                     "unnecessary `else` after `return`",
-                    ctx.module.file_id,
                     else_span,
                 )
-                .with_label("remove the `else` and un-indent this code");
+                .label("remove the `else` and un-indent this code");
 
                 // only apply safe fixes for block else branches without binding declarations
                 if ctx.compute_fixes
                     && let Some(fix) = no_else_return_fix(ctx, node_id, *then_expression, *else_id)
                 {
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);

@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_else_if_branch;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require final else in if-else-if chains.
@@ -59,20 +59,19 @@ impl LintRule for RequireElseInIfChain {
                 continue;
             }
 
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 REQUIRE_ELSE_IN_IF_CHAIN.id,
                 REQUIRE_ELSE_IN_IF_CHAIN.code,
                 REQUIRE_ELSE_IN_IF_CHAIN.category,
                 severity,
                 "if-else-if chain lacks final else clause",
-                ctx.module.file_id,
                 ctx.tree.get_span(terminal_else_if_id),
             )
-            .with_label("add final else clause");
+            .label("add final else clause");
             if ctx.compute_fixes
                 && let Some(fix) = require_else_in_if_chain_fix(ctx, terminal_else_if_id)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
             ctx.report(diagnostic);
         }

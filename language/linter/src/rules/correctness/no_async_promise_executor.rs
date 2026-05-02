@@ -6,7 +6,7 @@ use crate::rules::common::{
     CallLikeExpressionInfo, expression_call_like, expression_target_symbol,
     expression_unwrap_parenthesized, is_async_function_type, remove_first_async_keyword,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow async functions as Promise executors.
@@ -117,22 +117,21 @@ impl<'a, 'b> AsyncPromiseExecutorVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_ASYNC_PROMISE_EXECUTOR.id,
             NO_ASYNC_PROMISE_EXECUTOR.code,
             NO_ASYNC_PROMISE_EXECUTOR.category,
             severity,
             "async Promise executor detected",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("remove async from the executor function");
+        .label("remove async from the executor function");
 
         // compute fixes only when requested by the runner
         if self.ctx.include_fixes
             && let Some(fix) = async_promise_executor_fix(self.ctx, value_id)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

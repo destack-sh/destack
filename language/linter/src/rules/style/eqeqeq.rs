@@ -3,7 +3,7 @@ use destack_ast::{self as ast, BinaryOperator, Expression, ScalarLiteral, TypeEx
 use destack_workspace::{EqeqeqMode, EqeqeqNullPolicy, LintSeverity};
 
 use crate::rules::common::source_text_contains_comment_token;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require strict equality operators.
@@ -85,16 +85,15 @@ impl LintRule for Eqeqeq {
                 }
 
                 let expression_span = ctx.tree.get_span(node_id);
-                let mut diagnostic = LintDiagnostic::new(
+                let mut diagnostic = LintReport::new(
                     EQEQEQ.id,
                     EQEQEQ.code,
                     EQEQEQ.category,
                     severity,
                     message,
-                    ctx.module.file_id,
                     expression_span,
                 )
-                .with_label(label);
+                .label(label);
 
                 // only apply autofix where operator replacement is semantics preserving
                 if ctx.compute_fixes
@@ -110,7 +109,7 @@ impl LintRule for Eqeqeq {
                         .into_edits();
                     let fix =
                         LintFix::safe(format!("Replace with `{strict_op}`")).with_edits(edits);
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
 
                 ctx.report(diagnostic);
@@ -147,16 +146,15 @@ impl LintRule for Eqeqeq {
             }
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     EQEQEQ.id,
                     EQEQEQ.code,
                     EQEQEQ.category,
                     severity,
                     message,
-                    ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label(label),
+                .label(label),
             );
         }
     }

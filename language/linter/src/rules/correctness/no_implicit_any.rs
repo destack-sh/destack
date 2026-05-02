@@ -6,7 +6,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     collect_pattern_value_binding_symbols, is_any_type, is_error_type, is_infer_var_type,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow implicit `any` in parameters and declarators.
@@ -52,22 +52,21 @@ impl LintRule for NoImplicitAny {
 
             // resolve diagnostic span
             let span = ctx.get_span(declarator_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_IMPLICIT_ANY.id,
                 NO_IMPLICIT_ANY.code,
                 NO_IMPLICIT_ANY.category,
                 severity,
                 "implicit any in variable declaration",
-                ctx.module.file_id,
                 span,
             )
-            .with_label("add an explicit type annotation or initializer");
+            .label("add an explicit type annotation or initializer");
 
             // compute fixes only when requested by the runner
             if ctx.include_fixes
                 && let Some(fix) = no_implicit_any_declarator_fix(ctx, declarator_id)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);
@@ -87,22 +86,21 @@ impl LintRule for NoImplicitAny {
 
             // resolve diagnostic span
             let span = ctx.get_span(parameter_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_IMPLICIT_ANY.id,
                 NO_IMPLICIT_ANY.code,
                 NO_IMPLICIT_ANY.category,
                 severity,
                 "implicit any in parameter",
-                ctx.module.file_id,
                 span,
             )
-            .with_label("add an explicit type annotation");
+            .label("add an explicit type annotation");
 
             // compute fixes only when requested by the runner
             if ctx.include_fixes
                 && let Some(fix) = no_implicit_any_parameter_fix(ctx, parameter_id)
             {
-                diagnostic = diagnostic.with_fix(fix);
+                diagnostic = diagnostic.fix(fix);
             }
 
             ctx.report(diagnostic);

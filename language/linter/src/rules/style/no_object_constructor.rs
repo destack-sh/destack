@@ -7,7 +7,7 @@ use crate::rules::common::{
     CallLikeExpressionInfo, expression_call_like, expression_is_standalone_statement,
     expression_is_symbol_or_global_qualified_member,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow using the Object constructor.
@@ -106,16 +106,15 @@ impl<'a, 'b> ObjectConstructorVisitor<'a, 'b> {
 
         // build diagnostic and attach fix when safe
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_OBJECT_CONSTRUCTOR.id,
             NO_OBJECT_CONSTRUCTOR.code,
             NO_OBJECT_CONSTRUCTOR.category,
             severity,
             "avoid using the Object constructor",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label(format!(
+        .label(format!(
             "replace this {} with an object literal",
             if call_like.is_new {
                 "constructor"
@@ -124,7 +123,7 @@ impl<'a, 'b> ObjectConstructorVisitor<'a, 'b> {
             }
         ));
         if let Some(fix) = self.object_constructor_fix(expression_id, call_like) {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

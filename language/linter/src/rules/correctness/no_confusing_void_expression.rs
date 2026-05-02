@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_is_standalone_statement, expression_outer_transparent_ancestor,
     expression_parent_id, function_return_type, is_void_or_never_type,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `void` expressions where a value is expected.
@@ -122,16 +122,15 @@ impl<'a, 'b> NoConfusingVoidExpressionVisitor<'a, 'b> {
         // report one diagnostic
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_CONFUSING_VOID_EXPRESSION.id,
                 NO_CONFUSING_VOID_EXPRESSION.code,
                 NO_CONFUSING_VOID_EXPRESSION.category,
                 severity,
                 "confusing void expression in value position",
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("use `void` as a standalone statement or refactor this expression"),
+            .label("use `void` as a standalone statement or refactor this expression"),
         );
     }
 }

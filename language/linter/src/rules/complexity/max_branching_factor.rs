@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_else_if_branch;
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of branches in one conditional.
@@ -125,16 +125,15 @@ fn report_branching_violation(
 
     // emit one branching overflow diagnostic
     ctx.report(
-        LintDiagnostic::new(
+        LintReport::new(
             MAX_BRANCHING_FACTOR.id,
             MAX_BRANCHING_FACTOR.code,
             MAX_BRANCHING_FACTOR.category,
             severity,
             format!("{expression_kind} has {branch_count} branches (max {max_branches})"),
-            ctx.module.file_id,
             ctx.tree.get_span(expression_id),
         )
-        .with_label("consider simplifying this conditional"),
+        .label("consider simplifying this conditional"),
     );
 }
 

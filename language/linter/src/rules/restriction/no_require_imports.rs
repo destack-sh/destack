@@ -11,7 +11,7 @@ use crate::rules::common::{
     expression_is_standalone_statement, expression_static_string_literal,
     expression_unwrap_transparent, statement_prefix_span,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow CommonJS style `require()` imports.
@@ -138,16 +138,15 @@ impl<'a, 'b> NoRequireImportsVisitor<'a, 'b> {
 
         // resolve diagnostic span
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_REQUIRE_IMPORTS.id,
             NO_REQUIRE_IMPORTS.code,
             NO_REQUIRE_IMPORTS.category,
             severity,
             "require() import usage",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use an ESM import instead of require()");
+        .label("use an ESM import instead of require()");
 
         // compute fixes only when requested by the runner
         if self.ctx.include_fixes
@@ -159,7 +158,7 @@ impl<'a, 'b> NoRequireImportsVisitor<'a, 'b> {
                 self.require_name,
             )
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

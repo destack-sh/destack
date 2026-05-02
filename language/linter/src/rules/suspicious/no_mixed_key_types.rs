@@ -5,7 +5,7 @@ use crate::rules::common::{
     expression_type_map, is_numeric_property_key_type, is_string_like_property_key_type,
     is_symbol_like_property_key_type,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow object literals that mix incompatible key kinds.
@@ -59,16 +59,15 @@ impl LintRule for NoMixedKeyTypes {
                 .first_mixed_key_span
                 .unwrap_or_else(|| ctx.get_span(expression_id));
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     NO_MIXED_KEY_TYPES.id,
                     NO_MIXED_KEY_TYPES.code,
                     NO_MIXED_KEY_TYPES.category,
                     severity,
                     "mixed object key kinds",
-                    ctx.module.file_id,
                     span,
                 )
-                .with_label(
+                .label(
                     "keep object literal keys consistently string-like, numeric, or symbol-like",
                 ),
             );

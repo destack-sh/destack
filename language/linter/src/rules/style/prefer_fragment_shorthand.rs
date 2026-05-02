@@ -3,7 +3,7 @@ use destack_ast::{self as ast, Expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_path_segments;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 // #Correctness: prefer-fragment-shorthand works but would be better with canonical DIR symbols?
 
@@ -92,17 +92,16 @@ impl LintRule for PreferFragmentShorthand {
             let fix = LintFix::safe("Convert to fragment shorthand").with_edits(edits);
 
             ctx.report(
-                LintDiagnostic::new(
+                LintReport::new(
                     PREFER_FRAGMENT_SHORTHAND.id,
                     PREFER_FRAGMENT_SHORTHAND.code,
                     PREFER_FRAGMENT_SHORTHAND.category,
                     severity,
                     "use `<>...</>` shorthand instead of `<Fragment>...</Fragment>`",
-                    ctx.module.file_id,
                     expression_span,
                 )
-                .with_label("replace with `<>...</>`")
-                .with_fix(fix),
+                .label("replace with `<>...</>`")
+                .fix(fix),
             );
         }
     }

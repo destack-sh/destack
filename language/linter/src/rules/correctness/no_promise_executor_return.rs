@@ -5,7 +5,7 @@ use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     callable_return_usage, expression_target_symbol, expression_unwrap_transparent,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow returning values from Promise executors.
@@ -121,23 +121,22 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let mut diagnostic = LintReport::new(
             NO_PROMISE_EXECUTOR_RETURN.id,
             NO_PROMISE_EXECUTOR_RETURN.code,
             NO_PROMISE_EXECUTOR_RETURN.category,
             severity,
             "avoid returning values from Promise executors",
-            self.ctx.module.file_id,
             span,
         )
-        .with_label("use resolve or reject instead of returning");
+        .label("use resolve or reject instead of returning");
 
         // compute fixes only when requested by the runner
         if self.ctx.include_fixes
             && !analysis.has_expression_body_return_value
             && let Some(fix) = promise_executor_return_fix(self.ctx, &analysis.return_value_nodes)
         {
-            diagnostic = diagnostic.with_fix(fix);
+            diagnostic = diagnostic.fix(fix);
         }
 
         self.ctx.report(diagnostic);

@@ -3,7 +3,7 @@ use destack_ast::{self as ast, Expression, Pattern};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{assign_pattern_expression, expression_path_segments};
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer tuple swap form over a temporary variable.
@@ -64,7 +64,7 @@ impl LintRule for PreferTupleSwap {
                         continue;
                     }
 
-                    let mut diagnostic = LintDiagnostic::new(
+                    let mut diagnostic = LintReport::new(
                         PREFER_TUPLE_SWAP.id,
                         PREFER_TUPLE_SWAP.code,
                         PREFER_TUPLE_SWAP.category,
@@ -73,10 +73,9 @@ impl LintRule for PreferTupleSwap {
                             "use tuple swap `({}, {}) = ({}, {})` instead of temporary variable",
                             swap_info.var_a, swap_info.var_b, swap_info.var_b, swap_info.var_a
                         ),
-                        ctx.module.file_id,
                         ctx.tree.get_span(first_id),
                     )
-                    .with_label("swap pattern starts here");
+                    .label("swap pattern starts here");
 
                     // compute fixes only when requested by the runner
                     if ctx.compute_fixes {
@@ -96,7 +95,7 @@ impl LintRule for PreferTupleSwap {
                             .replace(replace_span, replacement)
                             .into_edits();
                         let fix = LintFix::safe("Use tuple swap assignment").with_edits(edits);
-                        diagnostic = diagnostic.with_fix(fix);
+                        diagnostic = diagnostic.fix(fix);
                     }
 
                     ctx.report(diagnostic);

@@ -8,7 +8,7 @@ use destack_workspace::{LintSeverity, LinterOptions, Module, Repository, Revisio
 use crate::linter::artifact::read_ast;
 use crate::rules::common::expression_path_segments;
 use crate::{
-    ConstValue, LintAstAnalysisCache, LintDiagnostic, LintMeta, LintRegexParse, LintRequirement,
+    ConstValue, LintAstAnalysisCache, LintMeta, LintRegexParse, LintReport, LintRequirement,
     find_control_character, find_control_characters, find_misleading_character_class,
     find_useless_backreference,
 };
@@ -60,7 +60,7 @@ pub struct LintAstContext<'a> {
     pub analysis: LintAstAnalysisCache,
 
     /// Collected diagnostics.
-    diagnostics: Vec<LintDiagnostic>,
+    diagnostics: Vec<LintReport>,
 }
 
 impl<'a> std::fmt::Debug for LintAstContext<'a> {
@@ -337,19 +337,19 @@ impl<'a> LintAstContext<'a> {
     }
 
     /// Report a lint diagnostic.
-    pub fn report(&mut self, diagnostic: LintDiagnostic) {
+    pub fn report(&mut self, diagnostic: LintReport) {
         if diagnostic.is_enabled() {
             self.diagnostics.push(diagnostic);
         }
     }
 
     /// Take the collected diagnostics.
-    pub fn take_diagnostics(&mut self) -> Vec<LintDiagnostic> {
+    pub fn take_diagnostics(&mut self) -> Vec<LintReport> {
         std::mem::take(&mut self.diagnostics)
     }
 
     /// Return a reference to collected diagnostics.
-    pub fn diagnostics(&self) -> &[LintDiagnostic] {
+    pub fn diagnostics(&self) -> &[LintReport] {
         &self.diagnostics
     }
 

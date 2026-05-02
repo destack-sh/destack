@@ -2,7 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_import_target_static_specifier;
-use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow relative parent path imports.
@@ -96,17 +96,16 @@ impl<'a, 'b> NoRelativeParentImportsVisitor<'a, 'b> {
         // resolve diagnostic span
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
-            LintDiagnostic::new(
+            LintReport::new(
                 NO_RELATIVE_PARENT_IMPORTS.id,
                 NO_RELATIVE_PARENT_IMPORTS.code,
                 NO_RELATIVE_PARENT_IMPORTS.category,
                 severity,
                 format!("parent relative import `{target_text}`"),
-                self.ctx.module.file_id,
                 span,
             )
-            .with_label("avoid importing through parent relative paths")
-            .with_note("prefer package aliases or rooted module paths"),
+            .label("avoid importing through parent relative paths")
+            .note("prefer package aliases or rooted module paths"),
         );
     }
 }

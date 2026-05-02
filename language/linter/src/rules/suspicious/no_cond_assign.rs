@@ -5,7 +5,7 @@ use crate::rules::common::{
     ConditionAssignmentStyle, condition_assignment_style, control_flow_condition_expression,
     expression_contains_assignment,
 };
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow assignment expressions in conditional statements.
@@ -66,16 +66,15 @@ impl LintRule for NoCondAssign {
             }
 
             let condition_span = ctx.tree.get_span(condition_id);
-            let mut diagnostic = LintDiagnostic::new(
+            let mut diagnostic = LintReport::new(
                 NO_COND_ASSIGN.id,
                 NO_COND_ASSIGN.code,
                 NO_COND_ASSIGN.category,
                 severity,
                 "assignment in condition",
-                ctx.module.file_id,
                 condition_span,
             )
-            .with_label("did you mean `==`?");
+            .label("did you mean `==`?");
 
             // only the except-parens mode has an intent preserving wrap fix
             if ctx.options.correctness.no_cond_assign_mode == ConditionAssignmentMode::ExceptParens
@@ -96,7 +95,7 @@ impl LintRule for NoCondAssign {
                         .into_edits();
                     let fix = LintFix::safe("Wrap assignment in explicit extra parentheses")
                         .with_edits(edits);
-                    diagnostic = diagnostic.with_fix(fix);
+                    diagnostic = diagnostic.fix(fix);
                 }
             }
 
