@@ -1,13 +1,13 @@
-use destack_engine::{self as engine, StaticSpace};
-use destack_mir as mir;
+use engine::StaticSpace;
+use {destack_engine as engine, destack_mir as mir};
 
-use crate::Word;
 use crate::diagnostic::{Error, FrameInfo, RuntimeError, RuntimeResult};
 use crate::interpreter::Continuation;
 use crate::isolate::RootSink;
 use crate::options::IsolateOptions;
 use crate::program::Program;
 use crate::snapshot::InterpreterImage;
+use crate::{Result, Word};
 use destack_heap::{HeapResult, RootSlot};
 
 use super::{Frame, Stack};
@@ -143,7 +143,7 @@ impl Interpreter {
 
                 Ok((id, ty, global.is_import(), global.initializer.clone()))
             })
-            .collect::<crate::Result<Vec<_>>>()?;
+            .collect::<Result<Vec<_>>>()?;
 
         // populate static bytes from global initializers
         for (id, ty, is_import, initializer) in global_entries {
@@ -167,16 +167,14 @@ impl Interpreter {
                     .map_err(|error| self.runtime_error(program, error))?,
                 None => vec![0; layout.byte_len],
             };
-            if initialized_statics
-                .define(
-                    program.static_id(id),
-                    program.type_id(ty),
-                    layout.alignment(),
-                    program.tree.get(id).is_mutable(),
-                    &bytes,
-                )
-                .is_none()
-            {
+            let was_defined = initialized_statics.define(
+                program.static_id(id),
+                program.type_id(ty),
+                layout.alignment(),
+                program.tree.get(id).is_mutable(),
+                &bytes,
+            );
+            if !was_defined {
                 return Err(self.runtime_error(program, Error::InvalidInstruction));
             }
         }

@@ -3,18 +3,19 @@ use std::fmt;
 use std::sync::Arc;
 
 use destack_core::{Capture, CaptureMode, ImmutableStringPool, SnapshotCodec};
-use destack_engine::{self as engine, StaticSpace};
-use destack_mir as mir;
+use engine::StaticSpace;
+use {destack_engine as engine, destack_mir as mir};
 
 use super::{ExternalCallContext, ExternalFn, ExternalHandler, RootSet, RootSink};
 use crate::diagnostic::{Error, FrameInfo, RuntimeError, RuntimeResult};
-use crate::interpreter::{Continuation, Interpreter, Outcome, Output};
+use crate::interpreter::{Continuation, Interpreter, Outcome};
 use crate::options::IsolateOptions;
 use crate::program::Program;
 use crate::snapshot::{ContinuationImage, IsolateImage};
-use crate::{SharedHeap, Word};
+use crate::{Result as VmResult, SharedHeap, Word};
 use destack_heap::{
-    Heap, HeapReference, HeapResult, RootSlot, SharedAllocator, SharedGcWorker, SharedRawLimits,
+    AllocationPlan, Heap, HeapReference, HeapResult, RootSlot, SharedAllocator, SharedGcWorker,
+    SharedRawLimits,
 };
 
 /// VM isolate with static data and execution state.
@@ -31,8 +32,6 @@ pub struct Isolate {
     interpreter: Interpreter,
     /// Worker allocator for shared managed heap allocation.
     shared_allocator: Option<SharedAllocator>,
-    /// Current shared collector worker during one engine call.
-    shared_gc: Option<usize>,
 }
 
 impl fmt::Debug for Isolate {
@@ -45,7 +44,6 @@ impl fmt::Debug for Isolate {
     }
 }
 
-#[allow(clippy::arc_with_non_send_sync)]
 impl Isolate {
     /// Create a new isolate from one shared immutable image.
     pub fn new(image: Arc<IsolateImage>) -> RuntimeResult<Self> {
@@ -57,7 +55,6 @@ impl Isolate {
             externals: HashMap::new(),
             interpreter: Interpreter::new(&image.options)?,
             shared_allocator: None,
-            shared_gc: None,
         };
         isolate.interpreter =
             Interpreter::from_image(&isolate.program, &image.interpreter, &isolate.options)?;
@@ -102,31 +99,17 @@ impl Isolate {
             externals: HashMap::new(),
             interpreter,
             shared_allocator: None,
-            shared_gc: None,
         })
     }
 
-    /// Enter one engine call with one shared collector worker.
-    pub(crate) fn enter_shared_gc(&mut self, worker: &SharedGcWorker) {
-        self.shared_gc = Some(worker as *const SharedGcWorker as usize);
-    }
-
-    /// Leave the current engine shared collector worker scope.
-    pub(crate) fn leave_shared_gc(&mut self) {
-        self.shared_gc = None;
-    }
-
     /// Prepare this isolate's shared heap allocator for one engine call.
-    fn prepare_shared_allocator(&mut self, shared: &SharedHeap) {
+    fn prepare_shared_allocator(&mut self, shared: &SharedHeap, shared_gc: &SharedGcWorker) {
         if self.shared_allocator.is_none() {
             self.shared_allocator = Some(shared.allocator());
         }
 
         if let Some(allocator) = self.shared_allocator.as_mut() {
-            let shared_gc = self
-                .shared_gc
-                .map(|worker| unsafe { &*(worker as *const SharedGcWorker) });
-            allocator.set_gc_worker(shared_gc);
+            allocator.set_gc_worker(Some(shared_gc));
         }
     }
 
@@ -134,6 +117,7 @@ impl Isolate {
     pub fn flush_shared_allocator(&mut self, shared: &SharedHeap) {
         if let Some(allocator) = self.shared_allocator.as_mut() {
             shared.flush_allocator(allocator);
+            allocator.set_gc_worker(None);
         }
     }
 
@@ -221,18 +205,34 @@ impl Isolate {
         Ok(func_id)
     }
 
+    /// Resolve one runtime entry name into an engine entry handle.
+    pub fn entry_by_name(&self, name: &str) -> Result<engine::Entry, RuntimeError> {
+        let function = self.function_id_by_name(name)?;
+
+        Ok(engine::Entry::new(function.id))
+    }
+
+    /// Resolve one engine entry into a MIR function id.
+    pub(crate) fn function_for_entry(
+        &self,
+        entry: engine::Entry,
+    ) -> mir::LocalNodeId<mir::Function> {
+        self.program.function_for_entry(entry)
+    }
+
     /// Run a function by name and return its output.
     pub fn run_function_by_name(
         &mut self,
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_gc: &SharedGcWorker,
         name: &str,
         arguments: &[engine::Value],
-    ) -> RuntimeResult<Output> {
+    ) -> RuntimeResult<engine::Value> {
         let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
 
-        self.run_function_by_name_words(statics, heap, shared, name, &arguments)
+        self.run_function_by_name_words(statics, heap, shared, shared_gc, name, &arguments)
     }
 
     /// Run a function by name with VM words and return its output.
@@ -241,10 +241,11 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_gc: &SharedGcWorker,
         name: &str,
         arguments: &[Word],
-    ) -> RuntimeResult<Output> {
-        self.prepare_shared_allocator(shared);
+    ) -> RuntimeResult<engine::Value> {
+        self.prepare_shared_allocator(shared, shared_gc);
         let Self {
             isolate_id,
             program,
@@ -281,12 +282,13 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_gc: &SharedGcWorker,
         name: &str,
         arguments: &[engine::Value],
     ) -> RuntimeResult<Outcome> {
         let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
 
-        self.run_function_by_name_yielding_words(statics, heap, shared, name, &arguments)
+        self.run_function_by_name_yielding_words(statics, heap, shared, shared_gc, name, &arguments)
     }
 
     /// Run a function by name with VM words and allow yielding.
@@ -295,38 +297,13 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_gc: &SharedGcWorker,
         name: &str,
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
-        self.prepare_shared_allocator(shared);
-        let Self {
-            isolate_id,
-            program,
-            options,
-            externals,
-            interpreter,
-            shared_allocator,
-            ..
-        } = self;
-        let shared_allocator = shared_allocator
-            .as_mut()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        let function_id = self.function_id_by_name(name)?;
 
-        let result = interpreter.run_function_by_name_yielding(
-            *isolate_id,
-            program.as_ref(),
-            options,
-            statics,
-            externals,
-            heap,
-            shared,
-            shared_allocator,
-            name,
-            arguments,
-        );
-        shared.flush_allocator(shared_allocator);
-
-        result
+        self.run_function_yielding_words(statics, heap, shared, shared_gc, function_id, arguments)
     }
 
     /// Run a function by id and return its output.
@@ -335,12 +312,13 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_gc: &SharedGcWorker,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[engine::Value],
-    ) -> RuntimeResult<Output> {
+    ) -> RuntimeResult<engine::Value> {
         let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
 
-        self.run_function_words(statics, heap, shared, func_id, &arguments)
+        self.run_function_words(statics, heap, shared, shared_gc, func_id, &arguments)
     }
 
     /// Run a function by id with VM words and return its output.
@@ -349,10 +327,11 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_gc: &SharedGcWorker,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
-    ) -> RuntimeResult<Output> {
-        self.prepare_shared_allocator(shared);
+    ) -> RuntimeResult<engine::Value> {
+        self.prepare_shared_allocator(shared, shared_gc);
         let Self {
             isolate_id,
             program,
@@ -389,12 +368,13 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_gc: &SharedGcWorker,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[engine::Value],
     ) -> RuntimeResult<Outcome> {
         let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
 
-        self.run_function_yielding_words(statics, heap, shared, func_id, &arguments)
+        self.run_function_yielding_words(statics, heap, shared, shared_gc, func_id, &arguments)
     }
 
     /// Run a function by id with VM words and allow yielding.
@@ -403,10 +383,11 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_gc: &SharedGcWorker,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
-        self.prepare_shared_allocator(shared);
+        self.prepare_shared_allocator(shared, shared_gc);
         let Self {
             isolate_id,
             program,
@@ -443,10 +424,11 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
+        shared_gc: &SharedGcWorker,
         continuation: Continuation,
         resume_value: engine::Value,
     ) -> RuntimeResult<Outcome> {
-        self.prepare_shared_allocator(shared);
+        self.prepare_shared_allocator(shared, shared_gc);
         let Self {
             isolate_id,
             program,
@@ -596,7 +578,7 @@ impl Isolate {
     }
 
     /// Capture one immutable VM image.
-    pub fn image(&mut self) -> RuntimeResult<IsolateImage> {
+    pub fn image(&self) -> RuntimeResult<IsolateImage> {
         let interpreter = self.interpreter.image();
 
         Ok(IsolateImage {
@@ -617,7 +599,6 @@ impl Isolate {
             externals: self.externals.clone(),
             interpreter: self.interpreter.fork()?,
             shared_allocator: None,
-            shared_gc: None,
         })
     }
 
@@ -670,10 +651,7 @@ impl Isolate {
     }
 
     /// Return the heap allocation plan for one layout id.
-    pub fn allocation_plan(
-        &self,
-        layout_id: mir::LayoutId,
-    ) -> crate::Result<destack_heap::AllocationPlan<'_>> {
+    pub fn allocation_plan(&self, layout_id: mir::LayoutId) -> VmResult<AllocationPlan<'_>> {
         self.program.allocation_plan(layout_id)
     }
 

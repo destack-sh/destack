@@ -1,11 +1,11 @@
 use std::fmt;
 
-use destack_engine::{self as engine, StaticSpace};
 use destack_heap::{
     AllocationLayout as HeapAllocationLayout, AllocationPlan, Heap, HeapReference, SharedAllocator,
     SharedGcPhase, SharedHeapReference, SmallAllocationLayout,
 };
-use destack_mir as mir;
+use engine::StaticSpace;
+use {destack_engine as engine, destack_mir as mir};
 
 use super::{Frame, Interpreter};
 use crate::diagnostic::{Error, RuntimeError};
@@ -44,7 +44,7 @@ pub(crate) struct DispatchState<'ctx, 'iso> {
     pub reference_kind_checks: bool,
     /// Whether reference mutability checks are enabled for this dispatch.
     pub reference_mutability_checks: bool,
-    /// Pointer to the current frame for fast access.
+    /// Pointer to the current frame.
     frame: *mut Frame,
     /// Pointer to the current frame layout.
     frame_layout: *const engine::FrameLayout,
@@ -74,7 +74,6 @@ impl fmt::Debug for DispatchState<'_, '_> {
 
 impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     /// Create dispatch state for the current frame.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         program: &'iso Program,
         options: &'iso IsolateOptions,
@@ -147,7 +146,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     ) -> Result<mir::LocalNodeId<mir::Type>, Error> {
         let region = self
             .frame_layout()
-            .value_index(value.0)
+            .value(value.0)
             .ok_or(Error::InvalidInstruction)?;
 
         Ok(self.program.type_for_id(region.ty))
@@ -157,7 +156,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     #[inline]
     pub(crate) fn value_region(&self, value: mir::Value) -> Result<&engine::FrameRegion, Error> {
         self.frame_layout()
-            .value_index(value.0)
+            .value(value.0)
             .ok_or(Error::InvalidInstruction)
     }
 
@@ -513,7 +512,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         global: mir::LocalNodeId<mir::Global>,
     ) -> Option<StaticPointer> {
         self.statics
-            .ptr(self.program.static_id(global))
+            .pointer(self.program.static_id(global))
             .or_else(|| self.program.static_pointer(global))
     }
 
@@ -534,17 +533,23 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         unsafe { (*self.frame).read_word(region) }
     }
 
+    /// Read one word by frame byte offset.
+    #[inline(always)]
+    pub(crate) fn get_word_at(&self, offset: u32) -> Word {
+        unsafe { (*self.frame).read_word_at(offset) }
+    }
+
     /// Return the frame region for one SSA value without release checks.
     #[inline(always)]
     fn value_region_unchecked(&self, v: mir::Value) -> &engine::FrameRegion {
         let index = v.0 as usize;
         let layout = self.frame_layout();
         debug_assert!(
-            index < layout.values.len(),
+            index < layout.values().len(),
             "ssa value out of bounds: {v:?}"
         );
 
-        unsafe { layout.values.get_unchecked(index) }
+        unsafe { layout.values().get_unchecked(index) }
     }
 
     /// Write one word by SSA id.
@@ -553,16 +558,22 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         let index = v.0 as usize;
         let layout = self.frame_layout();
         debug_assert!(
-            index < layout.values.len(),
+            index < layout.values().len(),
             "ssa value out of bounds: {v:?}"
         );
-        let region = unsafe { layout.values.get_unchecked(index) };
+        let region = unsafe { layout.values().get_unchecked(index) };
 
         debug_assert!(region.is_word, "attempted word write into frame bytes");
         unsafe { (*self.frame).write_word(region, val) }
     }
 
-    /// Copy one local variable into one SSA value.
+    /// Write one word by frame byte offset.
+    #[inline(always)]
+    pub(crate) fn set_word_at(&mut self, offset: u32, val: Word) {
+        unsafe { (*self.frame).write_word_at(offset, val) }
+    }
+
+    /// Move one local variable into one SSA value.
     #[inline(always)]
     pub(crate) fn move_local_to_value(
         &mut self,
@@ -571,19 +582,17 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     ) -> Result<(), Error> {
         let layout = self.frame_layout();
         let local_region = layout
-            .locals
+            .locals()
             .get(local_index as usize)
             .ok_or(Error::InvalidInstruction)?
             as *const engine::FrameRegion;
-        let value_region = layout
-            .value_index(value.0)
-            .ok_or(Error::InvalidInstruction)?
-            as *const engine::FrameRegion;
+        let value_region =
+            layout.value(value.0).ok_or(Error::InvalidInstruction)? as *const engine::FrameRegion;
 
         self.move_frame_region(unsafe { &*local_region }, unsafe { &*value_region })
     }
 
-    /// Copy one SSA value into one local variable.
+    /// Move one SSA value into one local variable.
     #[inline(always)]
     pub(crate) fn move_value_to_local(
         &mut self,
@@ -591,12 +600,10 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         local_index: u32,
     ) -> Result<(), Error> {
         let layout = self.frame_layout();
-        let value_region = layout
-            .value_index(value.0)
-            .ok_or(Error::InvalidInstruction)?
-            as *const engine::FrameRegion;
+        let value_region =
+            layout.value(value.0).ok_or(Error::InvalidInstruction)? as *const engine::FrameRegion;
         let local_region = layout
-            .locals
+            .locals()
             .get(local_index as usize)
             .ok_or(Error::InvalidInstruction)?
             as *const engine::FrameRegion;
@@ -604,7 +611,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         self.move_frame_region(unsafe { &*value_region }, unsafe { &*local_region })
     }
 
-    /// Copy one SSA value into another SSA value.
+    /// Move one SSA value into another SSA value.
     #[inline(always)]
     pub(crate) fn move_value_to_value(
         &mut self,
@@ -612,21 +619,19 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         destination: mir::Value,
     ) -> Result<(), Error> {
         let layout = self.frame_layout();
-        let source_region = layout
-            .value_index(source.0)
-            .ok_or(Error::InvalidInstruction)?
-            as *const engine::FrameRegion;
+        let source_region =
+            layout.value(source.0).ok_or(Error::InvalidInstruction)? as *const engine::FrameRegion;
         let destination_region = layout
-            .value_index(destination.0)
+            .value(destination.0)
             .ok_or(Error::InvalidInstruction)?
             as *const engine::FrameRegion;
 
         self.move_frame_region(unsafe { &*source_region }, unsafe { &*destination_region })
     }
 
-    /// Copy one frame byte range into another frame byte range.
+    /// Move one frame byte range into another frame byte range.
     #[inline(always)]
-    pub(crate) fn copy_value_range(
+    pub(crate) fn move_value_range(
         &mut self,
         destination: mir::Value,
         destination_offset: usize,
@@ -654,7 +659,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         Ok(())
     }
 
-    /// Copy bytes between two frame regions in the current frame.
+    /// Move bytes between two frame regions in the current frame.
     #[inline(always)]
     fn move_frame_region(
         &mut self,

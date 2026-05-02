@@ -5,8 +5,7 @@ use std::sync::Arc;
 
 use crate::Word;
 use crate::diagnostic::Error;
-use crate::execute::word::{decode_raw_value, encode_raw_value};
-use crate::program::{Layout, repr_type};
+use crate::program::{Layout, decode_word_bytes, encode_word_bytes, repr_type};
 use destack_heap::{AllocationPlan, HeapReference, Payload};
 use destack_mir as mir;
 
@@ -386,7 +385,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
         bytes: &[u8],
     ) -> Result<Word, Error> {
         if self.layout(ty)?.is_scalar() {
-            return decode_raw_value(&self.program().tree, ty, bytes);
+            return decode_word_bytes(&self.program().tree, ty, bytes);
         }
 
         let fields = aggregate_fields(self.layout(ty)?)?;
@@ -434,7 +433,8 @@ impl<'ctx> ExternalCallContext<'ctx> {
     ) -> Result<(), Error> {
         // write scalars directly into the target payload
         if self.layout(ty)?.is_scalar() {
-            let bytes = encode_raw_value(&self.program().tree, ty, value)?;
+            let bytes = encode_word_bytes(&self.program().tree, ty, value)?;
+            let bytes = bytes.as_slice().to_vec();
             self.write_payload(handle, start, &bytes)?;
 
             return Ok(());

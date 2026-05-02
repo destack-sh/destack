@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {destack_engine as engine, destack_heap as heap};
+use destack_engine as engine;
 
 use super::Isolate;
 use crate::Word;
@@ -14,28 +14,31 @@ impl engine::Engine for Isolate {
     type Error = RuntimeError;
 
     fn initialize(&mut self, context: engine::Context<'_>) -> Result<(), Self::Error> {
-        Isolate::initialize(self, context.heap, context.shared, context.worker_static)
+        Isolate::initialize(
+            self,
+            context.heap,
+            context.shared_heap,
+            context.worker_static,
+        )
     }
 
     fn run(
         &mut self,
         context: engine::Context<'_>,
-        entry: &engine::Entry,
+        entry: engine::Entry,
         args: &[engine::Value],
     ) -> Result<Outcome, Self::Error> {
         let args = args.iter().map(Word::from).collect::<Vec<_>>();
+        let function_id = self.function_for_entry(entry);
 
-        self.enter_shared_gc(context.shared_gc);
-        let outcome = self.run_function_by_name_yielding_words(
+        self.run_function_yielding_words(
             context.worker_static,
             context.heap,
-            context.shared,
-            entry.name(),
+            context.shared_heap,
+            context.shared_gc,
+            function_id,
             &args,
-        );
-        self.leave_shared_gc();
-
-        outcome
+        )
     }
 
     fn resume(
@@ -44,29 +47,30 @@ impl engine::Engine for Isolate {
         continuation: Continuation,
         value: engine::Value,
     ) -> Result<Outcome, Self::Error> {
-        self.enter_shared_gc(context.shared_gc);
-        let outcome = Isolate::resume(
+        Isolate::resume(
             self,
             context.worker_static,
             context.heap,
-            context.shared,
+            context.shared_heap,
+            context.shared_gc,
             continuation,
             value,
-        );
-        self.leave_shared_gc();
-
-        outcome
+        )
     }
 
-    fn fork(&mut self, _heap: &mut heap::Heap) -> Result<Self, Self::Error> {
+    fn fork(&self, _context: engine::Context<'_>) -> Result<Self, Self::Error> {
         Isolate::fork(self)
     }
 
-    fn image(&mut self) -> Result<Self::Image, Self::Error> {
+    fn image(&self, _context: engine::Context<'_>) -> Result<Self::Image, Self::Error> {
         Ok(Arc::new(Isolate::image(self)?))
     }
 
-    fn restore(&mut self, heap: &mut heap::Heap, image: &Self::Image) -> Result<(), Self::Error> {
-        Isolate::restore_image(self, heap, image)
+    fn restore(
+        &mut self,
+        context: engine::Context<'_>,
+        image: &Self::Image,
+    ) -> Result<(), Self::Error> {
+        Isolate::restore_image(self, context.heap, image)
     }
 }

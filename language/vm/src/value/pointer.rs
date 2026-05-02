@@ -51,8 +51,8 @@ impl StackPointer {
 
     /// Add one byte offset to this address.
     #[inline]
-    pub fn add_bytes(self, byte_offset: usize) -> Option<Self> {
-        self.0.checked_add(byte_offset).map(Self)
+    pub const fn add_bytes(self, byte_offset: usize) -> Self {
+        Self(self.0 + byte_offset)
     }
 }
 
@@ -82,7 +82,7 @@ impl FramePointer {
 
     /// Add one byte offset to this address.
     #[inline]
-    pub fn add_bytes(self, byte_offset: usize) -> Option<Self> {
-        self.0.checked_add(byte_offset).map(Self)
+    pub const fn add_bytes(self, byte_offset: usize) -> Self {
+        Self(self.0 + byte_offset)
     }
 }
