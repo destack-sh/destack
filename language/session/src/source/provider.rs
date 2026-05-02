@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependency, ArtifactKey, ArtifactPayload, ProviderContext};
+use destack_artifact::{ArtifactDependency, ArtifactKey, ArtifactPayload};
 use destack_source::{File, FileId};
-use destack_workspace::Revision;
+use destack_workspace::{ProviderContext, Revision};
 
 use crate::{SessionError, SessionProviderContext, SessionState};
 

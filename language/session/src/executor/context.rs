@@ -2,14 +2,13 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload,
-    ArtifactVersion, DiagnosticAnchor, DiagnosticContext, DiagnosticError, DiagnosticLike,
-    ProviderContext, RequireError,
+    ArtifactVersion, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
+    DiagnosticLike,
 };
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, PackageId, Span,
-    TargetId,
 };
-use destack_workspace::{Repository, Revision};
+use destack_workspace::{ProviderContext, ProviderError, Repository, Revision};
 use parking_lot::Mutex;
 
 use crate::SessionError;
@@ -220,61 +219,61 @@ impl DiagnosticContext for SessionProviderContext {
         self.resolve_label(anchor, message)
     }
 
-    /// Format one module id when the context can resolve it.
-    fn format_module_id(&self, module: ModuleId) -> Result<String, DiagnosticError> {
-        let display = self
-            .repository
-            .module_display(self.revision, module)
-            .map_err(|error| {
-                Self::invalid_anchor(format!("failed to format diagnostic module: {error}"))
-            })?;
-        let Some(display) = display else {
-            return Err(Self::invalid_anchor(format!(
-                "diagnostic module is not tracked in revision: {module:?}"
-            )));
-        };
+    /// Display one repository-backed value when the context can resolve it.
+    fn display(&self, display: DiagnosticDisplay) -> Result<String, DiagnosticError> {
+        match display {
+            DiagnosticDisplay::Module(module) => {
+                let display = self
+                    .repository
+                    .module_display(self.revision, module)
+                    .map_err(|error| {
+                        Self::invalid_anchor(format!("failed to format diagnostic module: {error}"))
+                    })?;
+                let Some(display) = display else {
+                    return Err(Self::invalid_anchor(format!(
+                        "diagnostic module is not tracked in revision: {module:?}"
+                    )));
+                };
 
-        Ok(display)
-    }
+                Ok(display)
+            }
+            DiagnosticDisplay::Package(package) => {
+                let display = self
+                    .repository
+                    .package_display(self.revision, package)
+                    .map_err(|error| {
+                        Self::invalid_anchor(format!(
+                            "failed to format diagnostic package: {error}"
+                        ))
+                    })?;
+                let Some(display) = display else {
+                    return Err(Self::invalid_anchor(format!(
+                        "diagnostic package has no display name: {package:?}"
+                    )));
+                };
 
-    /// Format one package id when the context can resolve it.
-    fn format_package_id(&self, package: PackageId) -> Result<String, DiagnosticError> {
-        let display = self
-            .repository
-            .package_display(self.revision, package)
-            .map_err(|error| {
-                Self::invalid_anchor(format!("failed to format diagnostic package: {error}"))
-            })?;
-        let Some(display) = display else {
-            return Err(Self::invalid_anchor(format!(
-                "diagnostic package has no display name: {package:?}"
-            )));
-        };
+                Ok(display)
+            }
+            DiagnosticDisplay::Target(target) => {
+                let display = self
+                    .repository
+                    .target_display(self.revision, target)
+                    .map_err(|error| {
+                        Self::invalid_anchor(format!("failed to format diagnostic target: {error}"))
+                    })?;
+                let Some(display) = display else {
+                    return Err(Self::invalid_anchor(format!(
+                        "diagnostic target is not tracked in revision: {target:?}"
+                    )));
+                };
 
-        Ok(display)
-    }
-
-    /// Format one target id when the context can resolve it.
-    fn format_target_id(&self, target: TargetId) -> Result<String, DiagnosticError> {
-        let display = self
-            .repository
-            .target_display(self.revision, target)
-            .map_err(|error| {
-                Self::invalid_anchor(format!("failed to format diagnostic target: {error}"))
-            })?;
-        let Some(display) = display else {
-            return Err(Self::invalid_anchor(format!(
-                "diagnostic target is not tracked in revision: {target:?}"
-            )));
-        };
-
-        Ok(display)
+                Ok(display)
+            }
+        }
     }
 }
 
 impl ProviderContext for SessionProviderContext {
-    type Revision = Revision;
-
     /// Return the pinned repository revision for this attempt.
     fn revision(&self) -> Revision {
         self.revision()
@@ -286,19 +285,19 @@ impl ProviderContext for SessionProviderContext {
     }
 
     /// Require one artifact and return its exact version when ready.
-    fn require(&self, key: ArtifactKey) -> Result<ArtifactVersion, RequireError> {
+    fn require(&self, key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
         if key == self.key {
-            return Err(RequireError::Failed { key });
+            return Err(ProviderError::RequirementFailed { key });
         }
 
         let version = self
             .repository
             .artifact_version(self.revision, &key)
-            .map_err(|error| RequireError::Internal {
+            .map_err(|error| ProviderError::Internal {
                 message: format!("failed to read required artifact version: {error}"),
             })?;
         let Some(version) = version else {
-            return Err(RequireError::blocked(key));
+            return Err(ProviderError::blocked(key));
         };
 
         match self.repository.artifact_store().outcome(&version) {
@@ -306,9 +305,9 @@ impl ProviderContext for SessionProviderContext {
             Some(ArtifactOutcome::Failed(_)) => {
                 self.add_dependency(ArtifactDependency::artifact(version));
 
-                return Err(RequireError::Failed { key });
+                return Err(ProviderError::RequirementFailed { key });
             }
-            None => return Err(RequireError::blocked(key)),
+            None => return Err(ProviderError::blocked(key)),
         }
 
         self.add_dependency(ArtifactDependency::artifact(version));

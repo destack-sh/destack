@@ -1,6 +1,5 @@
-use destack_artifact::{
-    ArtifactFailure, ArtifactPayload, ArtifactProvider, ProviderError, ProviderResult,
-};
+use destack_artifact::{ArtifactFailure, ArtifactPayload, ArtifactProvider};
+use destack_workspace::{ProviderError, ProviderResult};
 
 use super::Worker;
 use super::task::Task;
