@@ -93,7 +93,9 @@ fn format_parser_file_source(
     options: FormatterOptions,
 ) -> Result<String, FormatFileError> {
     // parse the source file
-    let language_type = LanguageType::from(file.ty);
+    let language_type = LanguageType::try_from(file.ty).map_err(|_| FormatFileError {
+        message: format!("formatter received non-code file type: {:?}", file.ty),
+    })?;
     let parser_file = File::from_text(
         file.id,
         file.name.clone(),
@@ -123,7 +125,7 @@ fn format_parser_file_source(
     {
         let message = parser
             .diagnostics
-            .iter()
+            .to_vec()
             .into_iter()
             .map(|diagnostic| diagnostic.message.clone())
             .collect::<Vec<_>>()
