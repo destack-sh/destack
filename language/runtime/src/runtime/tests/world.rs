@@ -389,12 +389,23 @@ fn test_runtime_collect_roots_preserves_task_resume_shared_reference() {
         .expect("runtime should exist");
     let shared_heap = runtime.shared.shared();
     let layout = shared_heap.allocation_layout(plan);
+    let worker = shared_heap.register_collector_worker();
 
     let root = shared_heap
-        .allocate(&mut allocator, &layout, heap::Payload::Bytes(&[0xC3]))
+        .allocate(
+            &worker,
+            &mut allocator,
+            &layout,
+            heap::Payload::Bytes(&[0xC3]),
+        )
         .expect("shared heap allocation should succeed");
     let garbage = shared_heap
-        .allocate(&mut allocator, &layout, heap::Payload::Bytes(&[0xD4]))
+        .allocate(
+            &worker,
+            &mut allocator,
+            &layout,
+            heap::Payload::Bytes(&[0xD4]),
+        )
         .expect("shared heap allocation should succeed");
 
     let continuation = test.yielding_continuation(runtime_id, 8);

@@ -805,7 +805,7 @@ impl Runtime {
         // fork each owned worker first
         let mut workers = BTreeMap::new();
         for (worker_id, worker) in &mut self.workers {
-            let shared_gc_worker = shared.worker(*worker_id)?;
+            let shared_gc_worker = shared.register_collector_worker();
             let Some(worker) = worker.try_fork(
                 execution_mode,
                 &shared,
@@ -942,8 +942,9 @@ mod tests {
         let plan = AllocationPlan::new(bytes.len(), 1, &reference_map);
         let layout = heap.allocation_layout(plan);
         let mut allocator = heap.allocator();
+        let worker = heap.register_collector_worker();
 
-        heap.allocate(&mut allocator, &layout, Payload::Bytes(bytes))
+        heap.allocate(&worker, &mut allocator, &layout, Payload::Bytes(bytes))
     }
 
     /// Build runtime-owned shared heap state for one test world.

@@ -24,9 +24,11 @@ fn shared_heap_retained_bytes_after_allocate(bytes: &[u8]) -> u64 {
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocator();
+    let worker = shared.register_collector_worker();
 
     shared
         .allocate(
+            &worker,
             &mut allocator,
             &shared.allocation_layout(layout.allocation()),
             Payload::Bytes(bytes),
@@ -62,10 +64,12 @@ fn test_track_shared_small_span_retained_bytes() {
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocator();
+    let worker = shared.register_collector_worker();
 
     for _ in 0..SMALL_ALLOCATION_COUNT {
         shared
             .allocate(
+                &worker,
                 &mut allocator,
                 &shared.allocation_layout(layout.allocation()),
                 Payload::Zeroed,
@@ -95,15 +99,18 @@ fn test_flush_publishes_worker_shared_small_allocations() {
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocator();
+    let worker = shared.register_collector_worker();
 
     let first = shared
         .allocate_zeroed(
+            &worker,
             &mut allocator,
             &shared.allocation_layout(layout.allocation()),
         )
         .expect("shared heap allocation should succeed");
     let second = shared
         .allocate_zeroed(
+            &worker,
             &mut allocator,
             &shared.allocation_layout(layout.allocation()),
         )
@@ -143,15 +150,18 @@ fn test_allocate_shared_honors_layout_alignment() {
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocator();
+    let worker = shared.register_collector_worker();
 
     let first = shared
         .allocate_zeroed(
+            &worker,
             &mut allocator,
             &shared.allocation_layout(layout.allocation()),
         )
         .expect("first shared heap allocation should succeed");
     let second = shared
         .allocate_zeroed(
+            &worker,
             &mut allocator,
             &shared.allocation_layout(layout.allocation()),
         )
@@ -178,9 +188,11 @@ fn test_reject_shared_heap_allocation_when_limit_exceeded() {
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocator();
+    let worker = shared.register_collector_worker();
 
     let error = shared
         .allocate(
+            &worker,
             &mut allocator,
             &shared.allocation_layout(layout.allocation()),
             Payload::Bytes(&[1]),
@@ -259,8 +271,10 @@ fn test_reject_shared_heap_image_when_limits_start_over_budget() {
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocator();
+    let worker = shared.register_collector_worker();
     shared
         .allocate(
+            &worker,
             &mut allocator,
             &shared.allocation_layout(layout.allocation()),
             Payload::Bytes(&[1]),
