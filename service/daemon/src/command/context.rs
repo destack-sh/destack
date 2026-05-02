@@ -2,12 +2,13 @@ use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_resolver::{CachePolicy, Resolver, ResolverContext, ResolverOptions};
-use destack_session::{FileMutation, Session};
+use destack_session::{FileChange, Session};
 use destack_source::{FileType, ModuleId, ProfileId, TargetId, glob};
 use destack_workspace::{
-    DestackDeclaration, OptimizeLevel, Repository, Revision, Target, TargetDiscovery,
+    DestackDeclaration, OptimizeLevel, Ref, Repository, Revision, Target, TargetDiscovery,
 };
 
 use crate::Daemon;
@@ -47,12 +48,12 @@ impl<'a> CommandContext<'a> {
         daemon: &'a Daemon,
         root: PathBuf,
         repository: Arc<Repository>,
-        compiler: Arc<destack_compiler::Compiler>,
+        compiler: Arc<Compiler>,
         common: &'a CommonCommandOptions,
         output: &'a mut CommandOutputBuffer,
     ) -> CommandResult<Self> {
         // root revision
-        let reference = destack_workspace::Ref::for_workspace_root(&root);
+        let reference = Ref::for_workspace_root(&root);
         let revision = repository.current(&reference).map_err(|error| {
             DaemonCommandError::internal(format!(
                 "command workspace revision is missing for {}: {error}",
@@ -179,7 +180,7 @@ impl<'a> CommandContext<'a> {
             .apply_file(
                 self.session.head(),
                 path.as_path(),
-                FileMutation::Text {
+                FileChange::Text {
                     content: content.to_string(),
                 },
             )
@@ -507,7 +508,7 @@ fn find_destack_config(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
 
 fn resolver_revision(resolver: &Resolver) -> CommandResult<Revision> {
     let repository = resolver.repository();
-    let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
+    let reference = Ref::for_workspace_root(repository.workspace_root());
 
     repository
         .current(&reference)

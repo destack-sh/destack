@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use destack_service::{
-    FileMutation, FileUpdate, LanguageServiceError, LanguageServiceMessage,
+    FileChange, FileUpdate, LanguageServiceError, LanguageServiceMessage,
     LanguageServiceMessageKind, LanguageServiceResult,
 };
 use destack_source::{FileWatchEvent, FileWatchEventKind, FileWatchRescanReason, FileWatchStatus};
@@ -20,7 +20,7 @@ impl Daemon {
         path: &Path,
         content: String,
     ) -> Result<DaemonUpdateResult, DaemonError> {
-        self.apply_file_update(path, FileMutation::Text { content }, true)
+        self.apply_file_update(path, FileChange::Text { content }, true)
     }
 
     /// Apply a text update without writing to disk.
@@ -29,19 +29,19 @@ impl Daemon {
         path: &Path,
         content: String,
     ) -> Result<DaemonUpdateResult, DaemonError> {
-        self.apply_file_update(path, FileMutation::Text { content }, false)
+        self.apply_file_update(path, FileChange::Text { content }, false)
     }
 
     /// Mark a file as removed without touching the filesystem.
     pub fn remove_virtual_file(&self, path: &Path) -> Result<DaemonUpdateResult, DaemonError> {
-        self.apply_file_update(path, FileMutation::Removed, false)
+        self.apply_file_update(path, FileChange::Removed, false)
     }
 
     /// Apply a file update and optionally write to the filesystem.
     pub fn apply_file_update(
         &self,
         path: &Path,
-        update: FileMutation,
+        update: FileChange,
         write_to_disk: bool,
     ) -> Result<DaemonUpdateResult, DaemonError> {
         // write the update to disk when requested
@@ -157,7 +157,7 @@ impl Daemon {
     }
 
     /// Write a file update to disk before applying it.
-    fn write_update_to_disk(&self, path: &Path, update: &FileMutation) -> Result<(), DaemonError> {
+    fn write_update_to_disk(&self, path: &Path, update: &FileChange) -> Result<(), DaemonError> {
         let parent = path.parent();
         if let Some(parent) = parent {
             self.repository
@@ -170,7 +170,7 @@ impl Daemon {
         }
 
         match update {
-            FileMutation::Text { content } => {
+            FileChange::Text { content } => {
                 self.repository
                     .file_system()
                     .write_string(path, content)
@@ -179,7 +179,7 @@ impl Daemon {
                         error,
                     })?;
             }
-            FileMutation::Bytes { content } => {
+            FileChange::Bytes { content } => {
                 self.repository
                     .file_system()
                     .write(path, content)
@@ -188,7 +188,7 @@ impl Daemon {
                         error,
                     })?;
             }
-            FileMutation::Removed => {
+            FileChange::Removed => {
                 if let Err(error) = self.repository.file_system().remove_file(path)
                     && error.kind() != io::ErrorKind::NotFound
                 {

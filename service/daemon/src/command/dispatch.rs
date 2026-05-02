@@ -110,9 +110,9 @@ impl Daemon {
         common: &CommonCommandOptions,
         payload: &CommandPayload,
     ) -> CommandResult<DaemonCommandResult> {
-        // resolve root repository and compiler handles before command execution
+        // serialize command execution against the root session
         self.language_service
-            .with_session(root, |repository, compiler| {
+            .with_exclusive_root(root, |repository, compiler| {
                 // gather shared context
                 let mut output = CommandOutputBuffer::default();
                 let mut context = CommandContext::new(

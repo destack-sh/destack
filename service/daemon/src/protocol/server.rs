@@ -4,6 +4,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
+use destack_service::FileChange;
+use destack_source::FileType;
 use destack_workspace::Repository;
 use parking_lot::Mutex;
 use {destack_query as query, destack_service as service};
@@ -560,7 +562,7 @@ impl ProtocolServer {
             );
         }
 
-        let update = file_mutation_from_request(&request.update, self.daemon.repository.as_ref())?;
+        let update = file_change_from_request(&request.update, self.daemon.repository.as_ref())?;
         let update_result = self
             .daemon
             .apply_file_update(&request.update.path, update, request.update.write_to_disk)
@@ -748,7 +750,7 @@ impl ProtocolServer {
 
                 self.daemon
                     .language_service
-                    .read_root_query(root, request.request)
+                    .read_query_for_root(root, request.request)
             }
             query::QueryExecutionMode::Write => {
                 let expected_revision = request.expected_revision.ok_or_else(|| {
@@ -758,7 +760,7 @@ impl ProtocolServer {
                     )
                 })?;
 
-                self.daemon.language_service.write_root_query(
+                self.daemon.language_service.write_query_for_root(
                     root,
                     expected_revision,
                     request.request,
@@ -917,7 +919,7 @@ impl ProtocolServer {
             service::LanguageServiceError::FileMissing { .. }
             | service::LanguageServiceError::PathNotInRoot { .. } => ProtocolErrorCode::NotFound,
             service::LanguageServiceError::StaleOpenFile { .. } => ProtocolErrorCode::Conflict,
-            service::LanguageServiceError::InvalidFileChange { .. }
+            service::LanguageServiceError::InvalidTextChange { .. }
             | service::LanguageServiceError::QueryModeMismatch { .. } => {
                 ProtocolErrorCode::InvalidRequest
             }
@@ -1132,20 +1134,20 @@ impl ProtocolServer {
 }
 
 /// Build a service update from a protocol payload.
-fn file_mutation_from_request(
+fn file_change_from_request(
     update: &FileUpdate,
     repository: &Repository,
-) -> Result<service::FileMutation, ProtocolError> {
+) -> Result<FileChange, ProtocolError> {
     let content = match &update.update {
-        FileUpdateKind::Text { content } => service::FileMutation::Text {
+        FileUpdateKind::Text { content } => FileChange::Text {
             content: content.clone(),
         },
-        FileUpdateKind::Bytes { content } => service::FileMutation::Bytes {
+        FileUpdateKind::Bytes { content } => FileChange::Bytes {
             content: content.clone(),
         },
         FileUpdateKind::Touch => {
             let path = &update.path;
-            let file_type = destack_source::FileType::from_path_or_unknown(path);
+            let file_type = FileType::from_path_or_unknown(path);
 
             if file_type.is_binary() {
                 let content =
@@ -1163,7 +1165,7 @@ fn file_mutation_from_request(
                             retry_after_ms: None,
                         })?;
 
-                service::FileMutation::Bytes { content }
+                FileChange::Bytes { content }
             } else {
                 let content = repository
                     .file_system()
@@ -1176,10 +1178,10 @@ fn file_mutation_from_request(
                         retry_after_ms: None,
                     })?;
 
-                service::FileMutation::Text { content }
+                FileChange::Text { content }
             }
         }
-        FileUpdateKind::Removed => service::FileMutation::Removed,
+        FileUpdateKind::Removed => FileChange::Removed,
     };
     Ok(content)
 }
