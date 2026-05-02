@@ -149,7 +149,7 @@ impl EventLoop {
         mode: CaptureMode,
         engine: &mut Engine,
     ) -> RuntimeResult<EventLoopSnapshot> {
-        // fork capture requires a quiescent scheduler state (TODO #Architecture?)
+        // TODO #Architecture: fork capture requires a quiescent scheduler state
         if mode == CaptureMode::Fork && !self.is_quiescent() {
             return Err(RuntimeError::Internal {
                 message: "event loop cannot capture for Fork: queued or watched work is still live"
@@ -162,12 +162,12 @@ impl EventLoop {
         let tasks = self
             .tasks
             .iter()
-            .map(|task| self.task_image(task, mode, engine))
+            .map(|task| self.task_image(task, engine))
             .collect::<RuntimeResult<Vec<_>>>()?;
         let microtasks = self
             .microtasks
             .iter()
-            .map(|microtask| self.microtask_image(microtask, mode, engine))
+            .map(|microtask| self.microtask_image(microtask, engine))
             .collect::<RuntimeResult<Vec<_>>>()?;
 
         // watch payloads
@@ -336,13 +336,8 @@ impl EventLoop {
     }
 
     /// Capture one immutable task image.
-    fn task_image(
-        &self,
-        task: &Task,
-        mode: CaptureMode,
-        engine: &mut Engine,
-    ) -> RuntimeResult<TaskImage> {
-        let runnable = self.capture_continuation_image(&task.runnable, mode, engine)?;
+    fn task_image(&self, task: &Task, engine: &mut Engine) -> RuntimeResult<TaskImage> {
+        let runnable = self.capture_continuation_image(&task.runnable, engine)?;
 
         Ok(TaskImage {
             id: task.id,
@@ -370,11 +365,9 @@ impl EventLoop {
     fn microtask_image(
         &self,
         microtask: &Microtask,
-        mode: CaptureMode,
         engine: &mut Engine,
     ) -> RuntimeResult<MicrotaskImage> {
-        let continuation =
-            self.capture_continuation_image(&microtask.continuation, mode, engine)?;
+        let continuation = self.capture_continuation_image(&microtask.continuation, engine)?;
 
         Ok(MicrotaskImage {
             id: microtask.id,
@@ -565,9 +558,8 @@ impl EventLoop {
     fn capture_continuation_image(
         &self,
         continuation: &Continuation,
-        mode: CaptureMode,
         engine: &mut Engine,
     ) -> RuntimeResult<ContinuationImage> {
-        engine.continuation_image(continuation, mode)
+        engine.continuation_image(continuation)
     }
 }

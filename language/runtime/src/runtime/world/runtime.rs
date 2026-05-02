@@ -5,7 +5,7 @@ use destack_engine as engine;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::ResourceRebinders;
-use crate::runtime::engine::{Engine, Entry, Output};
+use crate::runtime::engine::{Engine, Entry};
 use crate::runtime::trace::{Outcome, SpawnedWorkerImage};
 use crate::runtime::{Runtime, RuntimeImage, Worker, WorkerId, WorkerImage};
 use destack_workspace::{ExecutionMode, RuntimeOptions};
@@ -145,14 +145,7 @@ impl World {
 
         // record mode needs one structural spawn record for suffix replay
         let replay_image = if mode == ExecutionMode::Record {
-            let worker = runtime.worker_mut(worker_id).ok_or_else(|| {
-                RuntimeError::WorkerNotFound {
-                    worker_id: worker_id.0,
-                }
-                .boxed()
-            })?;
-
-            Some(worker.capture_image(CaptureMode::Suspend)?)
+            Some(runtime.capture_worker_image(CaptureMode::Suspend, worker_id)?)
         } else {
             None
         };
@@ -184,7 +177,7 @@ impl World {
         runtime_id: RuntimeId,
         entry: &Entry,
         args: &[engine::Value],
-    ) -> RuntimeResult<Output> {
+    ) -> RuntimeResult<engine::Value> {
         let command = Command::RunEntrypoint {
             runtime_id,
             entry: entry.clone(),
@@ -257,7 +250,7 @@ impl World {
         runtime_id: RuntimeId,
         entry: &Entry,
         args: &[engine::Value],
-    ) -> RuntimeResult<Output> {
+    ) -> RuntimeResult<engine::Value> {
         let world = self.world_scope();
         let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
             RuntimeError::RuntimeNotFound {

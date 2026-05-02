@@ -2,12 +2,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use destack_core::LocalStringPool;
-use destack_engine::{StaticSpace, Value};
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_mir::{ReferenceMap, Tree};
 use destack_source::FileId;
 use destack_workspace::{RuntimeOptions, SchedulerOptions};
-use {destack_heap as heap, destack_vm as vm};
+use {destack_engine as engine, destack_heap as heap, destack_vm as vm};
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::{
@@ -17,7 +16,7 @@ use crate::host::{
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::bindings::BindingEngine;
-use crate::runtime::engine::{Context, Continuation, Engine, Entry, Outcome, Output};
+use crate::runtime::engine::{Context, Continuation, Engine, Entry, Outcome};
 use crate::runtime::poller::{
     HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerEvent, PollerEventFlags,
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
@@ -188,7 +187,7 @@ pub(super) struct TestRuntime {
     /// Runtime-owned shared heap state used by the worker.
     shared: RuntimeSharedHeap,
     /// Runtime-owned static bytes used by the worker.
-    runtime_static: StaticSpace,
+    runtime_static: engine::StaticSpace,
     /// Wrapped host under test.
     host: Session,
 }
@@ -545,10 +544,10 @@ impl crate::runtime::Runtime {
     pub(super) fn with_worker_context<R>(
         &mut self,
         worker_id: WorkerId,
-        callback: impl FnOnce(&RuntimeSharedHeap, &StaticSpace, &mut Worker) -> R,
+        callback: impl FnOnce(&RuntimeSharedHeap, &engine::StaticSpace, &mut Worker) -> R,
     ) -> RuntimeResult<R> {
         let shared = &self.shared as *const RuntimeSharedHeap;
-        let runtime_static = self.runtime_static() as *const StaticSpace;
+        let runtime_static = self.runtime_static() as *const engine::StaticSpace;
         let worker = self
             .worker_mut(worker_id)
             .expect("worker should exist in runtime");
@@ -697,7 +696,7 @@ impl TestRuntime {
         self.worker.event_loop.enqueue_task(Task {
             id: TaskId::new(task_id),
             runnable: continuation,
-            resume_value: Value::Void,
+            resume_value: engine::Value::Void,
             status: TaskStatus::Ready,
             priority,
         });
@@ -710,7 +709,7 @@ impl TestRuntime {
         self.worker.event_loop.enqueue_microtask(Microtask {
             id: MicrotaskId::new(microtask_id),
             continuation,
-            resume_value: Value::Void,
+            resume_value: engine::Value::Void,
             status: TaskStatus::Ready,
         });
     }
@@ -746,7 +745,12 @@ impl TestRuntime {
         let continuation = self.yielding_continuation(continuation_id);
 
         self.worker
-            .watch_timer(ResourceId(handle), continuation, Value::Void, priority)
+            .watch_timer(
+                ResourceId(handle),
+                continuation,
+                engine::Value::Void,
+                priority,
+            )
             .expect("timer watch should register");
     }
 
@@ -791,7 +795,12 @@ impl TestRuntime {
         let continuation = self.yielding_continuation(continuation_id);
 
         self.worker
-            .watch_event(PollerToken(token), continuation, Value::Void, priority)
+            .watch_event(
+                PollerToken(token),
+                continuation,
+                engine::Value::Void,
+                priority,
+            )
             .expect("event watch should register");
     }
 
@@ -805,7 +814,7 @@ impl TestRuntime {
         let continuation = self.yielding_continuation(continuation_id);
 
         self.worker
-            .watch_host_event(kind, continuation, Value::Void, priority)
+            .watch_host_event(kind, continuation, engine::Value::Void, priority)
             .expect("host event watch should register");
     }
 
@@ -859,7 +868,7 @@ impl TestRuntime {
     }
 
     /// Run one synthetic entrypoint and return the engine output.
-    pub(super) fn run_entrypoint(&mut self) -> RuntimeResult<Output> {
+    pub(super) fn run_entrypoint(&mut self) -> RuntimeResult<engine::Value> {
         let world = self.world_scope();
         let mut poller = None;
 
@@ -875,7 +884,10 @@ impl TestRuntime {
     }
 
     /// Run until one task completes.
-    pub(super) fn run_loop_until_task_complete(&mut self, task_id: u64) -> RuntimeResult<Output> {
+    pub(super) fn run_loop_until_task_complete(
+        &mut self,
+        task_id: u64,
+    ) -> RuntimeResult<engine::Value> {
         let world = self.world_scope();
         let mut poller = None;
 
@@ -900,7 +912,7 @@ impl TestRuntime {
         &mut self,
         task_id: u64,
         timeout_nanos: Option<u64>,
-    ) -> RuntimeResult<Option<Output>> {
+    ) -> RuntimeResult<Option<engine::Value>> {
         let world = self.world_scope();
         let mut poller = None;
 
@@ -1084,7 +1096,13 @@ impl TestMultiAgentRuntime {
 #[allow(dead_code)]
 fn worker_for_options(
     options: &RuntimeOptions,
-) -> (World, RuntimeSharedHeap, StaticSpace, Worker, Session) {
+) -> (
+    World,
+    RuntimeSharedHeap,
+    engine::StaticSpace,
+    Worker,
+    Session,
+) {
     agent_for_options_with_engine(options, TestEngine::default())
 }
 
@@ -1101,7 +1119,13 @@ pub(super) fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> Ru
 fn agent_for_options_with_host_clock_source(
     options: &RuntimeOptions,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
-) -> (World, RuntimeSharedHeap, StaticSpace, Worker, Session) {
+) -> (
+    World,
+    RuntimeSharedHeap,
+    engine::StaticSpace,
+    Worker,
+    Session,
+) {
     agent_for_options_with_engine_and_host_clock_source(
         options,
         TestEngine::default(),
@@ -1113,7 +1137,13 @@ fn agent_for_options_with_host_clock_source(
 fn agent_for_options_with_engine(
     options: &RuntimeOptions,
     engine: impl Into<Engine>,
-) -> (World, RuntimeSharedHeap, StaticSpace, Worker, Session) {
+) -> (
+    World,
+    RuntimeSharedHeap,
+    engine::StaticSpace,
+    Worker,
+    Session,
+) {
     agent_for_options_with_engine_and_host_clock_source(options, engine, None)
 }
 
@@ -1122,7 +1152,13 @@ fn agent_for_options_with_engine_and_host_clock_source(
     options: &RuntimeOptions,
     engine: impl Into<Engine>,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
-) -> (World, RuntimeSharedHeap, StaticSpace, Worker, Session) {
+) -> (
+    World,
+    RuntimeSharedHeap,
+    engine::StaticSpace,
+    Worker,
+    Session,
+) {
     let mut world = if let Some(host_clock_source) = host_clock_source.clone() {
         World::new(options, Some(host_clock_source)).expect("runtime test world should build")
     } else {
@@ -1132,7 +1168,7 @@ fn agent_for_options_with_engine_and_host_clock_source(
     // construct one runtime worker from explicit options
     let world_scope = world.world_scope();
     let shared = runtime_shared_heap(&world, options);
-    let runtime_static = StaticSpace::empty();
+    let runtime_static = engine::StaticSpace::empty();
     let mut worker = Worker::new_in_world(
         Vec::new(),
         options,
@@ -1166,7 +1202,7 @@ fn agent_for_options_with_engine_and_host_clock_source(
 pub(crate) fn start_worker_continuation(
     worker: &mut Worker,
     shared: &RuntimeSharedHeap,
-    runtime_static: &StaticSpace,
+    runtime_static: &engine::StaticSpace,
     entry: &str,
     value: i32,
 ) -> Continuation {
@@ -1179,12 +1215,12 @@ pub(crate) fn start_worker_continuation(
     } = worker;
     let context = Context {
         heap,
-        shared: shared.shared(),
+        shared_heap: shared.shared(),
         shared_gc: shared_gc_worker,
         worker_static: statics,
         runtime_static,
     };
-    let args = [Value::int32(value)];
+    let args = [engine::Value::int32(value)];
     let outcome = engine
         .run(context, &Entry::new(entry), &args)
         .expect("test continuation should start");

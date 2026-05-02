@@ -191,6 +191,13 @@ pub enum RuntimeError {
         /// Continuation kind that was requested.
         continuation: String,
     } = 139,
+    /// Engine adapter received an image for the wrong engine kind.
+    EngineImageMismatch {
+        /// Engine kind that received the image.
+        engine: String,
+        /// Image kind that was requested.
+        image: String,
+    } = 149,
     /// Engine backend is not implemented yet.
     EngineUnsupported {
         /// Requested engine kind.
@@ -386,6 +393,9 @@ impl RuntimeError {
                 continuation,
             } => {
                 format!("{engine} engine cannot handle {continuation} continuation")
+            }
+            RuntimeError::EngineImageMismatch { engine, image } => {
+                format!("{engine} engine cannot restore {image} image")
             }
             RuntimeError::EngineUnsupported { engine } => {
                 format!("{engine} engine is not implemented")

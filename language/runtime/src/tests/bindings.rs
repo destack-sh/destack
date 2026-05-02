@@ -1,4 +1,4 @@
-use destack_engine::Value;
+use destack_engine as engine;
 use destack_mir::ModuleBuilder;
 use destack_vm::Isolate;
 
@@ -80,6 +80,7 @@ fn run_vm_random_call(
         destack_vm::HeapOptions::shared(),
     )
     .expect("test vm shared heap should build");
+    let shared_gc = shared.gc_worker(0);
     runtime.install_vm_defaults(&mut isolate);
     isolate
         .initialize(&heap, &shared, &mut statics)
@@ -88,10 +89,10 @@ fn run_vm_random_call(
     // execute entry function
     let output = runtime
         .with_native_call_context(|_| {
-            isolate.run_function_by_name(&mut statics, &mut heap, &shared, "main", &[])
+            isolate.run_function_by_name(&mut statics, &mut heap, &shared, &shared_gc, "main", &[])
         })
         .expect("vm execution");
-    let Value::UInt { value, width } = output.value else {
+    let engine::Value::UInt { value, width } = output else {
         panic!("u64 result")
     };
     assert_eq!(width, 64);

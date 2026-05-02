@@ -100,7 +100,7 @@ pub struct WorkerImage {
     pub engine_image: Image,
 }
 
-/// Captured worker options with one shared-runtime fast path.
+/// Captured worker options with shared runtime storage when possible.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WorkerOptionsImage {
     /// The worker uses the runtime-shared captured options.
@@ -315,7 +315,7 @@ impl Worker {
         let shared_gc_worker = Self::shared_gc_worker(shared, worker_id)?;
         let context = crate::runtime::engine::Context {
             heap: &mut heap,
-            shared: shared.shared(),
+            shared_heap: shared.shared(),
             shared_gc: &shared_gc_worker,
             worker_static: &mut statics,
             runtime_static,
@@ -729,7 +729,14 @@ impl Worker {
     }
 
     /// Capture one materialized worker image.
-    pub(crate) fn capture_image(&mut self, mode: CaptureMode) -> RuntimeResult<WorkerImage> {
+    pub(crate) fn capture_image(
+        &mut self,
+        mode: CaptureMode,
+        shared: &RuntimeSharedHeap,
+        runtime_static: &engine::StaticSpace,
+    ) -> RuntimeResult<WorkerImage> {
+        let shared_gc_worker = Self::shared_gc_worker(shared, self.id)?;
+
         // runtime callback barrier
         if self.runtime_callbacks.has_active_callbacks() {
             return Err(self.runtime_callbacks.capture_barrier_error(mode));
@@ -777,7 +784,13 @@ impl Worker {
                     .boxed()
                 })?,
             statics: self.statics.clone(),
-            engine_image: self.engine.image()?,
+            engine_image: self.engine.image(engine::Context {
+                heap: &mut self.heap,
+                shared_heap: shared.shared(),
+                shared_gc: &shared_gc_worker,
+                worker_static: &mut self.statics,
+                runtime_static,
+            })?,
         })
     }
 
@@ -785,6 +798,8 @@ impl Worker {
     pub(crate) fn try_fork(
         &mut self,
         execution_mode: ExecutionMode,
+        shared: &RuntimeSharedHeap,
+        runtime_static: &engine::StaticSpace,
         shared_gc_worker: heap::SharedGcWorker,
     ) -> RuntimeResult<Option<Self>> {
         // runtime callbacks
@@ -825,8 +840,14 @@ impl Worker {
         Self::apply_capability_profile(&mut bindings, &self.options)?;
 
         let mut heap = self.heap.fork()?;
-        let mut engine = self.engine.fork(&mut heap)?;
-        let statics = self.statics.clone();
+        let mut statics = self.statics.clone();
+        let mut engine = self.engine.fork(engine::Context {
+            heap: &mut heap,
+            shared_heap: shared.shared(),
+            shared_gc: &shared_gc_worker,
+            worker_static: &mut statics,
+            runtime_static,
+        })?;
         let event_loop = Box::new(self.event_loop.fork(&mut self.engine, &mut engine)?);
 
         // platform state
@@ -905,13 +926,22 @@ impl Worker {
         // restore backend execution state over the restored heap
         let context = crate::runtime::engine::Context {
             heap: &mut heap,
-            shared: shared.shared(),
+            shared_heap: shared.shared(),
             shared_gc: &shared_gc_worker,
             worker_static: &mut statics,
             runtime_static,
         };
         engine.initialize(context)?;
-        engine.restore(&mut heap, &image.engine_image)?;
+        engine.restore(
+            engine::Context {
+                heap: &mut heap,
+                shared_heap: shared.shared(),
+                shared_gc: &shared_gc_worker,
+                worker_static: &mut statics,
+                runtime_static,
+            },
+            &image.engine_image,
+        )?;
 
         // restore local state on fresh containers
         let execution_context_id = Self::event_loop_execution_context_id(runtime_id, worker_id);

@@ -1,4 +1,3 @@
-use destack_core::CaptureMode;
 use {destack_engine as engine, destack_heap as heap, destack_native as native, destack_vm as vm};
 
 use super::{Context, Continuation, ContinuationImage, Entry, Image, Outcome};
@@ -275,10 +274,7 @@ impl Engine {
     pub fn continuation_image(
         &mut self,
         continuation: &Continuation,
-        mode: CaptureMode,
     ) -> RuntimeResult<ContinuationImage> {
-        let _ = mode;
-
         match (self, continuation) {
             (Self::Vm(engine), Continuation::Vm(continuation)) => {
                 let image = vm::Isolate::continuation_image(engine, continuation)
@@ -400,9 +396,9 @@ fn engine_continuation_mismatch(engine: &str, continuation: &str) -> Box<Runtime
 
 /// Return one engine image mismatch.
 fn engine_image_mismatch(engine: &str, image: &str) -> Box<RuntimeError> {
-    RuntimeError::EngineEntryMismatch {
+    RuntimeError::EngineImageMismatch {
         engine: engine.to_string(),
-        entry: image.to_string(),
+        image: image.to_string(),
     }
     .boxed()
 }

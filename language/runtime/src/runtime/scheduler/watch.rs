@@ -4,7 +4,6 @@ use crate::host::{HostEvent, HostEventKind};
 use crate::platform::ResourceId;
 use crate::runtime::engine::{Continuation, Engine};
 use crate::runtime::poller::{PollerEvent, PollerToken};
-use destack_core::CaptureMode;
 use destack_engine as engine;
 impl EventLoop {
     /// Register one timer watch.
@@ -126,7 +125,7 @@ impl EventLoop {
         priority: u8,
         engine: &mut Engine,
     ) -> RuntimeResult<EventLoopWatch> {
-        let runnable = engine.continuation_image(&runnable, CaptureMode::Fork)?;
+        let runnable = engine.continuation_image(&runnable)?;
 
         Ok(EventLoopWatch {
             runnable,

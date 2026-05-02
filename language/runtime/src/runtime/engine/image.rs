@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
 use {destack_native as native, destack_vm as vm};
 
 /// Immutable execution image for one engine backend.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Image {
     /// Immutable VM execution image.
     Vm(Arc<vm::snapshot::IsolateImage>),
