@@ -1,38 +1,36 @@
+use std::collections::HashMap;
 use std::ptr::NonNull;
 
 use crate::Word;
 use {destack_engine as engine, destack_mir as mir};
 
 use super::frame::{
-    FrameValue, frame_value_as_external_word, function_return_type, materialize_word,
-    move_arguments_between_frames, move_values, read_arguments, read_planned_arguments,
-    write_parameters,
+    FrameValue, function_return_type, load_arguments, load_planned_arguments, materialize_word,
+    move_arguments_between_frames, move_values, store_parameters,
 };
 use crate::SharedHeap;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::interpreter::{Frame, Interpreter, Outcome};
+use crate::interpreter::{ExceptionalCall, Frame, Interpreter, Outcome};
 use crate::isolate::{ExternalCallContext, ExternalFn};
 use crate::options::IsolateOptions;
-use crate::program::{ArgumentRange, CallTarget, Function, MoveRange, Program, is_invalid_value};
+use crate::program::{ArgumentRange, CallTarget, Function, MoveRange, Program};
 use destack_heap::{Heap, SharedRawLimits};
 
-/// The resolved lowered callee entry for one call.
-struct LocalCallee {
-    /// The MIR function id for the callee.
-    function_id: mir::LocalNodeId<mir::Function>,
+/// The lowered callee entry for one call.
+struct LoweredCallee {
     /// The lowered program function pointer.
     function_ptr: NonNull<Function>,
 }
 
 impl Interpreter {
     /// Require one lowered callee from one call target.
-    fn resolve_local_callee(
+    fn require_lowered_callee(
         program: &Program,
         function_id: mir::LocalNodeId<mir::Function>,
         target: CallTarget,
-    ) -> RuntimeResult<LocalCallee> {
-        // require a lowered target kind first
-        let local_index = match target {
+    ) -> RuntimeResult<LoweredCallee> {
+        // require a lowered target first
+        let function_index = match target {
             CallTarget::Local(index) => index,
             CallTarget::Import => {
                 return Err(RuntimeError::new(Error::UndefinedFunction {
@@ -41,46 +39,39 @@ impl Interpreter {
             }
         };
 
-        // resolve the lowered function pointer
-        let function_ptr = program
-            .functions
-            .get_ptr_by_index(local_index)
-            .ok_or_else(|| {
-                RuntimeError::new(Error::UndefinedFunction {
-                    function: function_id,
-                })
-            })?;
+        // load the lowered function pointer
+        let function_ptr = program.functions.pointer(function_index).ok_or_else(|| {
+            RuntimeError::new(Error::UndefinedFunction {
+                function: function_id,
+            })
+        })?;
 
-        Ok(LocalCallee {
-            function_id,
-            function_ptr,
-        })
+        Ok(LoweredCallee { function_ptr })
     }
 
-    /// Invoke one imported function with pre-collected argument values.
-    #[allow(clippy::too_many_arguments)]
+    /// Call one imported function with pre-collected argument values.
     fn call_imported_function(
         &mut self,
         program: &Program,
         function_id: mir::LocalNodeId<mir::Function>,
-        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals: &HashMap<String, ExternalFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         arguments: &[FrameValue],
     ) -> RuntimeResult<Word> {
-        // resolve the external handler first
+        // load the external handler first
         let function = program.tree.get(function_id);
         let name = program.strings.get(function.name).to_string();
         let handler = externals
             .get(&name)
             .cloned()
-            .ok_or_else(|| self.make_error(program, Error::ExternalFunctionNotFound { name }))?;
+            .ok_or_else(|| self.runtime_error(program, Error::ExternalFunctionNotFound { name }))?;
 
-        // externalize argument values before crossing the runtime boundary
+        // encode argument values before crossing the runtime boundary
         let arguments = arguments
             .iter()
             .cloned()
-            .map(|argument| frame_value_as_external_word(argument).map_err(RuntimeError::new))
+            .map(|argument| argument.into_word().map_err(RuntimeError::new))
             .collect::<RuntimeResult<Vec<_>>>()?;
 
         // call through the external context
@@ -90,69 +81,62 @@ impl Interpreter {
             let result = handler(&mut context, &arguments);
             context
                 .release_pins()
-                .map_err(|error| self.make_error(program, error))?;
+                .map_err(|error| self.runtime_error(program, error))?;
             result
         }
-        .map_err(|error| self.make_error(program, error))?;
+        .map_err(|error| self.runtime_error(program, error))?;
 
         Ok(result)
     }
 
     /// Push one lowered callee frame on the stack.
-    #[allow(clippy::too_many_arguments)]
-    fn push_local_call_frame(
+    fn push_lowered_call_frame(
         &mut self,
         program: &Program,
         options: &IsolateOptions,
         current_func: &Function,
-        callee: LocalCallee,
+        callee: LoweredCallee,
         arguments: ArgumentRange,
         env: Option<Word>,
         moves: Option<MoveRange>,
         resume_pc: usize,
-        transfer: Option<engine::ControlTransfer>,
+        exceptional_call: Option<ExceptionalCall>,
     ) -> RuntimeResult<()> {
         // reject stack overflow before allocating anything
         if self.frames.len() >= options.limits.max_stack_depth {
-            return Err(self.make_error(program, Error::StackOverflow));
+            return Err(self.runtime_error(program, Error::StackOverflow));
         }
 
-        // resolve the lowered callee entry metadata
-        let (entry_block_id, entry_block_ptr, frame_layout) = unsafe {
+        // load the lowered callee entry metadata
+        let (entry_block_ptr, frame_layout) = unsafe {
             let callee = callee.function_ptr.as_ref();
             let entry = callee.entry;
             let entry_block = &callee.blocks[entry as usize];
 
-            (
-                entry_block.mir_block,
-                NonNull::from(entry_block),
-                callee.frame_layout,
-            )
+            (NonNull::from(entry_block), callee.frame_layout)
         };
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let (stack_offset, frame_base) = self.allocate_frame(frame_layout, options)?;
 
-        // record the caller continuation before mutating the stacks
+        // record the caller edge before mutating the stacks
         let caller_frame = self
             .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         caller_frame.resume_pc = resume_pc;
-        caller_frame.transfer = transfer;
+        caller_frame.exceptional_call = exceptional_call;
 
         let mut new_frame = Frame::new(
             unsafe { callee.function_ptr.as_ref().frame_layout },
-            callee.function_id,
             callee.function_ptr,
             entry_block_ptr,
-            entry_block_id,
             frame_layout,
             stack_offset,
             frame_base,
         );
-        new_frame.set_environment(frame_layout, env.unwrap_or(Word::VOID));
+        new_frame.set_environment(frame_layout, env);
 
         // bind arguments from the caller into the new frame
         let caller = self
@@ -192,21 +176,17 @@ impl Interpreter {
         &mut self,
         program: &Program,
         options: &IsolateOptions,
-        callee: LocalCallee,
+        callee: LoweredCallee,
         arguments: &[FrameValue],
         env: Option<Word>,
     ) -> RuntimeResult<()> {
-        // resolve the callee entry metadata first
-        let (entry_block_id, entry_block_ptr, frame_layout) = unsafe {
+        // load the callee entry metadata first
+        let (entry_block_ptr, frame_layout) = unsafe {
             let callee_function = callee.function_ptr.as_ref();
             let entry = callee_function.entry;
             let entry_block = &callee_function.blocks[entry as usize];
 
-            (
-                entry_block.mir_block,
-                NonNull::from(entry_block),
-                callee_function.frame_layout,
-            )
+            (NonNull::from(entry_block), callee_function.frame_layout)
         };
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
@@ -228,18 +208,16 @@ impl Interpreter {
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
         frame.frame_layout = unsafe { callee.function_ptr.as_ref().frame_layout };
-        frame.function = callee.function_id;
         frame.function_ptr = callee.function_ptr;
         frame.block_ptr = entry_block_ptr;
-        frame.current_block = entry_block_id;
         frame.resume_pc = 0;
-        frame.transfer = None;
+        frame.exceptional_call = None;
         frame.replace_bytes(stack_offset, frame_layout.byte_len as usize, frame_base);
-        frame.set_environment(frame_layout, env.unwrap_or(Word::VOID));
+        frame.set_environment(frame_layout, env);
 
         // bind the new arguments into the reused frame
         let callee_function = unsafe { callee.function_ptr.as_ref() };
-        write_parameters(
+        store_parameters(
             program,
             frame,
             callee_function.argument_pool.as_slice(),
@@ -251,25 +229,24 @@ impl Interpreter {
         Ok(())
     }
 
-    /// Apply one call transfer from the current frame.
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn apply_call_transfer(
+    /// Complete one call from the current frame.
+    pub(crate) fn complete_call(
         &mut self,
         program: &Program,
         options: &IsolateOptions,
-        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals: &HashMap<String, ExternalFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         current_func: &Function,
         function: u32,
         target: CallTarget,
-        destination: mir::Value,
+        destination: Option<mir::Value>,
         arguments: ArgumentRange,
         env: Option<Word>,
         moves: Option<MoveRange>,
         resume_pc: usize,
     ) -> RuntimeResult<()> {
-        // resolve the target kind first
+        // classify the call target
         let function_id = mir::LocalNodeId::<mir::Function>::new(function);
 
         // complete imported calls immediately in the caller frame
@@ -279,9 +256,9 @@ impl Interpreter {
                 .last()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-            // materialize the explicit call arguments in caller order
+            // collect explicit call arguments in caller order
             let arguments = if let Some(moves) = moves {
-                read_planned_arguments(
+                load_planned_arguments(
                     program,
                     self.frames.as_slice(),
                     caller,
@@ -289,7 +266,7 @@ impl Interpreter {
                     moves,
                 )?
             } else {
-                read_arguments(
+                load_arguments(
                     program,
                     self.frames.as_slice(),
                     caller,
@@ -298,7 +275,7 @@ impl Interpreter {
                 )?
             };
 
-            // invoke the imported callee outside the lowered machine
+            // call the imported callee outside the lowered machine
             let result = self.call_imported_function(
                 program,
                 function_id,
@@ -308,20 +285,15 @@ impl Interpreter {
                 &arguments,
             )?;
 
-            // write the return value into the caller result
+            // store the return value into the caller result
             let frame = self
                 .frames
                 .last_mut()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-            let return_destination = program
-                .return_destination_for_position(
-                    frame.function,
-                    frame.current_block,
-                    resume_pc as u32,
-                )?
-                .unwrap_or(destination);
+            let point = program.point(frame.function(), frame.current_block(), resume_pc as u32);
+            let return_destination = program.return_destination_at(point)?.or(destination);
 
-            if !is_invalid_value(return_destination) {
+            if let Some(return_destination) = return_destination {
                 let frame_layout = program
                     .frame_layout_by_id(frame.frame_layout)
                     .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -336,8 +308,8 @@ impl Interpreter {
         }
 
         // otherwise enter the lowered callee on a new frame
-        let callee = Self::resolve_local_callee(program, function_id, target)?;
-        self.push_local_call_frame(
+        let callee = Self::require_lowered_callee(program, function_id, target)?;
+        self.push_lowered_call_frame(
             program,
             options,
             current_func,
@@ -350,13 +322,12 @@ impl Interpreter {
         )
     }
 
-    /// Apply one exceptional call transfer from the current frame.
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn apply_call_branch_transfer(
+    /// Complete one exceptional call from the current frame.
+    pub(crate) fn complete_call_branch(
         &mut self,
         program: &Program,
         options: &IsolateOptions,
-        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals: &HashMap<String, ExternalFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         current_func: &Function,
@@ -364,10 +335,10 @@ impl Interpreter {
         target: CallTarget,
         arguments: ArgumentRange,
         env: Option<Word>,
-        normal_resume_point: engine::ResumePointId,
-        unwind_resume_point: engine::ResumePointId,
+        normal_state: engine::FrameStateId,
+        unwind_state: engine::FrameStateId,
     ) -> RuntimeResult<()> {
-        // resolve the target kind first
+        // classify the call target
         let function_id = mir::LocalNodeId::<mir::Function>::new(function);
 
         // imported exceptional calls resume the normal branch immediately
@@ -377,8 +348,8 @@ impl Interpreter {
                 .last()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-            // materialize the explicit branch-call arguments first
-            let arguments = read_arguments(
+            // collect explicit branch-call arguments first
+            let arguments = load_arguments(
                 program,
                 self.frames.as_slice(),
                 caller,
@@ -386,7 +357,7 @@ impl Interpreter {
                 arguments,
             )?;
 
-            // invoke the imported callee and continue through the normal branch
+            // call the imported callee and continue through the normal branch
             let result = self.call_imported_function(
                 program,
                 function_id,
@@ -396,12 +367,12 @@ impl Interpreter {
                 &arguments,
             )?;
 
-            self.apply_resume_point_transfer(program, normal_resume_point, result)?;
+            self.enter_caller_state_word(program, normal_state, result)?;
             return Ok(());
         }
 
-        // otherwise push the lowered callee and record both continuations
-        let callee = Self::resolve_local_callee(program, function_id, target)?;
+        // otherwise push the lowered callee and record the exceptional edge
+        let callee = Self::require_lowered_callee(program, function_id, target)?;
         let caller = self
             .frames
             .last()
@@ -410,12 +381,12 @@ impl Interpreter {
         // resume after the terminator once the branch call completes
         let current_block = unsafe { caller.block_ptr.as_ref() };
         let resume_pc = current_block.instructions.len();
-        let transfer = engine::ControlTransfer::Call(engine::CallTransfer::Branch {
-            normal_resume_point,
-            unwind_resume_point,
-        });
+        let exceptional_call = ExceptionalCall {
+            normal_state,
+            unwind_state,
+        };
 
-        self.push_local_call_frame(
+        self.push_lowered_call_frame(
             program,
             options,
             current_func,
@@ -424,17 +395,16 @@ impl Interpreter {
             env,
             None,
             resume_pc,
-            Some(transfer),
+            Some(exceptional_call),
         )
     }
 
-    /// Apply one tail call transfer on the current frame.
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn apply_tail_call_transfer(
+    /// Complete one tail call in the current frame.
+    pub(crate) fn complete_tail_call(
         &mut self,
         program: &Program,
         options: &IsolateOptions,
-        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals: &HashMap<String, ExternalFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         current_func: &Function,
@@ -450,7 +420,7 @@ impl Interpreter {
             .last()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let argument_values = if let Some(moves) = moves {
-            read_planned_arguments(
+            load_planned_arguments(
                 program,
                 self.frames.as_slice(),
                 caller,
@@ -458,7 +428,7 @@ impl Interpreter {
                 moves,
             )?
         } else {
-            read_arguments(
+            load_arguments(
                 program,
                 self.frames.as_slice(),
                 caller,
@@ -467,7 +437,7 @@ impl Interpreter {
             )?
         };
 
-        // resolve the callee target after the arguments are materialized
+        // classify the call target after arguments are collected
         let function_id = mir::LocalNodeId::<mir::Function>::new(function);
 
         // complete imported tail calls before returning to the caller
@@ -495,19 +465,20 @@ impl Interpreter {
                 let result =
                     materialize_word(program, return_type, result).map_err(RuntimeError::new)?;
 
-                return Ok(Some(self.complete_execution(heap, result)));
+                return Ok(Some(self.complete_execution(result)));
             }
 
-            // otherwise write the result into the caller return destination
+            // otherwise store the result into the caller return destination
             let caller = self
                 .frames
                 .last_mut()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-            if let Some(destination) = program.return_destination_for_position(
-                caller.function,
-                caller.current_block,
+            let point = program.point(
+                caller.function(),
+                caller.current_block(),
                 caller.resume_pc as u32,
-            )? {
+            );
+            if let Some(destination) = program.return_destination_at(point)? {
                 let frame_layout = program
                     .frame_layout_by_id(caller.frame_layout)
                     .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -520,7 +491,7 @@ impl Interpreter {
         }
 
         // otherwise reuse the current frame for the lowered callee
-        let callee = Self::resolve_local_callee(program, function_id, target)?;
+        let callee = Self::require_lowered_callee(program, function_id, target)?;
         self.reuse_tail_call_frame(program, options, callee, &argument_values, env)?;
 
         Ok(None)

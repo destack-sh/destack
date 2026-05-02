@@ -1,33 +1,43 @@
+use std::ptr::NonNull;
+
 use destack_engine as engine;
 
+use super::dispatch::dispatch_block;
 use super::frame::{
-    FrameValue, move_values, read_arguments, read_planned_arguments, write_parameters,
+    FrameValue, load_arguments, load_planned_arguments, move_values, store_parameters,
 };
-use super::prelude::*;
+use super::{access, callable};
+use crate::diagnostic::Error;
+use crate::interpreter::{DispatchState, Frame};
+use crate::program::{
+    ArgumentRange, Call, CallBranch, CallIndirect, CallIndirectBranch, CallInterface,
+    CallInterfaceBranch, CallTarget, CallVirtual, CallVirtualBranch, CallableBind,
+    CallableEnvironment, FieldAccess, FieldAccessId, Function, FunctionAddr, Instruction,
+    MoveRange, PointerClass, TailCall, TailCallIndirect, TailCallInterface, TailCallSelf,
+    TailCallVirtual, Transfer, repr_type,
+};
+use crate::{FunctionPointer, Word};
+use destack_mir as mir;
 
-/// Load one lowered dispatch table field from a receiver.
+/// Load one lowered call table field from a receiver.
 fn load_receiver_field(
     state: &mut DispatchState<'_, '_>,
     receiver: Word,
     field: Option<FieldAccess>,
 ) -> Result<Word, Error> {
     let Some(field) = field else {
-        return Err(Error::ConcreteMirRequired {
-            context: "dispatch table field".to_string(),
+        return Err(Error::MissingRepresentation {
+            context: "call table field".to_string(),
         });
     };
 
     match field.pointer_class {
         PointerClass::Heap => {
-            access::load_field_heap(state, receiver.as_heap_reference(), field, 0, None)
+            access::load_field_heap(state, receiver.as_heap_reference(), field, 0, 1)
         }
-        PointerClass::SharedHeap => access::load_field_shared_heap(
-            state,
-            receiver.as_shared_heap_reference(),
-            field,
-            0,
-            None,
-        ),
+        PointerClass::SharedHeap => {
+            access::load_field_shared_heap(state, receiver.as_shared_heap_reference(), field, 0, 1)
+        }
         _ => Err(Error::TypeMismatch {
             expected: "heap receiver".to_string(),
             actual: format!("{receiver:?}"),
@@ -35,8 +45,16 @@ fn load_receiver_field(
     }
 }
 
-/// Resolve the vtable dispatch target for a virtual call.
-fn resolve_virtual_dispatch_target(
+/// Return one pooled call table field.
+fn load_table_field(
+    state: &DispatchState<'_, '_>,
+    field: Option<FieldAccessId>,
+) -> Option<FieldAccess> {
+    field.map(|field| state.field_access(field))
+}
+
+/// Resolve the callee for one virtual call.
+fn resolve_virtual_callee(
     state: &mut DispatchState<'_, '_>,
     receiver: Word,
     table_field: Option<FieldAccess>,
@@ -47,13 +65,8 @@ fn resolve_virtual_dispatch_target(
     let vtable_pointer = vtable_value.as_static_pointer();
 
     // load the function pointer from static table data
-    let byte_offset = (method_index as usize)
-        .checked_mul(Word::BYTE_LEN)
-        .ok_or(Error::InvalidInstruction)?;
-    let entry_address = vtable_pointer
-        .address()
-        .checked_add(byte_offset)
-        .ok_or(Error::InvalidInstruction)?;
+    let byte_offset = method_index as usize * Word::BYTE_LEN;
+    let entry_address = vtable_pointer.address() + byte_offset;
     let function = unsafe { *(entry_address as *const Word) };
     let function = function.as_function_pointer();
     let function = mir::LocalNodeId::new(function.function_index());
@@ -61,8 +74,8 @@ fn resolve_virtual_dispatch_target(
     Ok(function)
 }
 
-/// Resolve the itab dispatch target for an interface call.
-fn resolve_interface_dispatch_target(
+/// Resolve the callee for one interface call.
+fn resolve_interface_callee(
     state: &mut DispatchState<'_, '_>,
     receiver: Word,
     table_field: Option<FieldAccess>,
@@ -76,7 +89,7 @@ fn resolve_interface_dispatch_target(
     let raw_id = u32::try_from(raw_id).map_err(|_| Error::InvalidInstruction)?;
     let table_id = mir::ItabId::new(raw_id);
 
-    // resolve the itab entry for the interface call
+    // load the itab entry for the interface call
     let table = state.tree().metadata.dispatch.itab(table_id);
     let entry = table
         .entries
@@ -91,14 +104,14 @@ fn resolve_interface_dispatch_target(
     Ok(*target_method)
 }
 
-/// Resolve one indirect callable into function code and environment.
-fn resolve_indirect_callable(
+/// Resolve the callee for one indirect call.
+fn resolve_indirect_callee(
     state: &mut DispatchState<'_, '_>,
     callable: Word,
     callable_type: mir::LocalNodeId<mir::Type>,
 ) -> Result<(mir::LocalNodeId<mir::Function>, Option<Word>), Error> {
-    // dispatch by the actual callee SSA type, not the code signature
-    let callable_type = crate::program::repr_type(state.tree(), callable_type);
+    // use the actual callee SSA type, not the code signature
+    let callable_type = repr_type(state.tree(), callable_type);
     match state.tree().get(callable_type) {
         mir::Type::FunctionPointer { .. } => {
             let function = mir::LocalNodeId::new(callable.as_function_pointer().function_index());
@@ -106,7 +119,7 @@ fn resolve_indirect_callable(
             Ok((function, None))
         }
         mir::Type::Callable { .. } => {
-            let (function, environment_value) = access::decode_callable(state, callable)?;
+            let (function, environment_value) = callable::decode_callable(state, callable)?;
             let function = mir::LocalNodeId::new(function.as_function_pointer().function_index());
 
             Ok((function, Some(environment_value)))
@@ -115,12 +128,12 @@ fn resolve_indirect_callable(
     }
 }
 
-/// Resolve the expected signature for one indirect callable type.
+/// Return the expected signature for one indirect callable type.
 fn indirect_callable_signature(
     tree: &mir::Tree,
     callable_type: mir::LocalNodeId<mir::Type>,
 ) -> Result<mir::LocalNodeId<mir::Type>, Error> {
-    let callable_type = crate::program::repr_type(tree, callable_type);
+    let callable_type = repr_type(tree, callable_type);
     match tree.get(callable_type) {
         mir::Type::FunctionPointer { signature } | mir::Type::Callable { signature } => {
             signature.ty().ok_or(Error::InvalidInstruction)
@@ -166,16 +179,26 @@ fn validate_indirect_signature(
     Ok(())
 }
 
+/// Require one lowered call target for a function id.
+#[inline]
+fn require_call_target(
+    state: &DispatchState<'_, '_>,
+    function: mir::LocalNodeId<mir::Function>,
+) -> Result<CallTarget, Error> {
+    state
+        .program
+        .functions
+        .resolve(function)
+        .ok_or(Error::UndefinedFunction { function })
+}
+
 /// Load a function pointer.
-pub(crate) fn execute_function_addr(
+pub(crate) fn execute_address_function(
     state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
+    instruction: &Instruction,
 ) -> Transfer {
     // decode instruction operands
-    let Operands::FunctionAddr { dest, function } = &block[pc].operands else {
-        unreachable!()
-    };
+    let FunctionAddr { dest, function } = instruction.payload_as::<FunctionAddr>();
 
     // build function pointer value
     let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
@@ -189,28 +212,24 @@ pub(crate) fn execute_function_addr(
 }
 
 /// Build a callable value from one function and environment.
-pub(crate) fn execute_callable_bind(
+pub(crate) fn execute_bind_callable(
     state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
+    instruction: &Instruction,
 ) -> Transfer {
-    let Operands::CallableBind {
+    let CallableBind {
         dest,
         function,
         environment,
-    } = &block[pc].operands
-    else {
-        unreachable!()
-    };
+    } = instruction.payload_as::<CallableBind>();
 
-    // allocate the erased callable payload
+    // bind the function pointer and environment into a callable object
     let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
     let function = Word::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
     let ty = match state.value_type(*dest) {
         Ok(ty) => ty,
         Err(error) => return Transfer::Error(error),
     };
-    let value = match access::allocate_callable(state, ty, function, *environment) {
+    let value = match callable::bind_callable(state, ty, function, *environment) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -223,15 +242,12 @@ pub(crate) fn execute_callable_bind(
 }
 
 /// Load the callable environment pointer for the current frame.
-pub(crate) fn execute_callable_environment(
+pub(crate) fn execute_load_callable_environment(
     state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
+    instruction: &Instruction,
 ) -> Transfer {
     // decode instruction operands
-    let Operands::CallableEnvironment { dest } = &block[pc].operands else {
-        unreachable!()
-    };
+    let CallableEnvironment { dest } = instruction.payload_as::<CallableEnvironment>();
 
     // load current frame environment
     let frame_layout = state.frame_layout() as *const engine::FrameLayout;
@@ -242,9 +258,9 @@ pub(crate) fn execute_callable_environment(
         Ok(environment) => environment,
         Err(error) => return Transfer::Error(error),
     };
-    if environment == Word::VOID {
+    let Some(environment) = environment else {
         return Transfer::Error(Error::InvalidInstruction);
-    }
+    };
 
     // store result
     state.set_word(*dest, environment);
@@ -253,35 +269,30 @@ pub(crate) fn execute_callable_environment(
     Transfer::Continue
 }
 
-/// Resolve one lowered direct-call target for the dispatch fast path.
+/// Return one local callee for a direct call.
 #[inline]
-fn resolve_direct_local_callee(
-    state: &DispatchState<'_, '_>,
-    target: CallTarget,
-) -> Option<NonNull<crate::program::Function>> {
-    // only lowered targets can use the direct fast path
+fn direct_callee(state: &DispatchState<'_, '_>, target: CallTarget) -> Option<NonNull<Function>> {
+    // only local callees can enter directly
     match target {
-        CallTarget::Local(index) => state.program.functions.get_ptr_by_index(index),
+        CallTarget::Local(index) => state.program.functions.pointer(index),
         CallTarget::Import => None,
     }
 }
 
-/// Try to enter one lowered callee without returning to the transfer trampoline.
+/// Try to enter one lowered callee without creating a call transfer.
 #[inline]
-#[allow(clippy::too_many_arguments)]
-fn try_execute_direct_local_call(
+fn try_enter_direct_call(
     state: &mut DispatchState<'_, '_>,
-    function_id: mir::LocalNodeId<mir::Function>,
     target: CallTarget,
     env: Option<Word>,
     move_plan: Option<MoveRange>,
     resume_pc: usize,
 ) -> Option<Transfer> {
-    // NOTE #Performance: keep this path specialized to avoid the transfer trampoline on hot direct calls
+    // NOTE #Performance: avoid call transfers for hot lowered calls
     let move_plan = move_plan?;
 
-    // require one lowered target before entering the fast path
-    let callee_ptr = resolve_direct_local_callee(state, target)?;
+    // require one local callee before entering
+    let callee_ptr = direct_callee(state, target)?;
     let callee = unsafe { callee_ptr.as_ref() };
 
     // reject stack overflow before mutating any live state
@@ -296,7 +307,6 @@ fn try_execute_direct_local_call(
     }
 
     let entry_block = &callee.blocks[callee.entry as usize];
-    let entry_block_id = entry_block.mir_block;
     let entry_block_ptr = NonNull::from(entry_block);
     let layout = match state.program.frame_layout_by_id(callee.frame_layout) {
         Some(layout) => layout,
@@ -308,15 +318,13 @@ fn try_execute_direct_local_call(
     };
     let mut new_frame = Frame::new(
         callee.frame_layout,
-        function_id,
         callee_ptr,
         entry_block_ptr,
-        entry_block_id,
         layout,
         stack_offset,
         frame_base,
     );
-    new_frame.set_environment(layout, env.unwrap_or(Word::VOID));
+    new_frame.set_environment(layout, env);
 
     // bind parameters from the current caller frame
     let caller_index = state.frame_index;
@@ -326,7 +334,7 @@ fn try_execute_direct_local_call(
     };
     let current_function = unsafe { current_function_ptr.as_ref() };
     let caller_ptr = {
-        let Ok(caller) = state.frame_by_index(caller_index) else {
+        let Ok(caller) = state.frame(caller_index) else {
             return Some(Transfer::Error(Error::InvalidHeapReference));
         };
         caller as *const Frame
@@ -349,14 +357,13 @@ fn try_execute_direct_local_call(
     state.enter_frame(new_index, callee);
 
     let entry_instructions = entry_block.instructions.as_slice();
-    Some(dispatch_instruction(state, entry_instructions, 0))
+    Some(dispatch_block(state, entry_instructions, 0))
 }
 
-/// Enter a call with a resolved target function.
-#[allow(clippy::too_many_arguments)]
-fn call_with_target(
+/// Enter one call or return a call transfer.
+fn enter_call(
     state: &mut DispatchState<'_, '_>,
-    dest: mir::Value,
+    dest: Option<mir::Value>,
     function_id: mir::LocalNodeId<mir::Function>,
     target: CallTarget,
     arguments: ArgumentRange,
@@ -365,15 +372,14 @@ fn call_with_target(
     resume_pc: usize,
     allow_direct: bool,
 ) -> Transfer {
-    // run the specialized lowered fast path when the caller allows it
+    // enter local callees without bouncing through transfer handling
     if allow_direct
-        && let Some(transfer) =
-            try_execute_direct_local_call(state, function_id, target, env, move_plan, resume_pc)
+        && let Some(transfer) = try_enter_direct_call(state, target, env, move_plan, resume_pc)
     {
         return transfer;
     }
 
-    // otherwise bounce through the general transfer path
+    // otherwise return the call to transfer handling
     Transfer::Call {
         function: function_id.id,
         target,
@@ -385,53 +391,49 @@ fn call_with_target(
     }
 }
 
-/// Enter a call terminator with explicit normal and unwind continuations.
-#[allow(clippy::too_many_arguments)]
-fn call_branch_with_target(
+/// Build one call branch transfer.
+fn call_branch_transfer(
     function_id: mir::LocalNodeId<mir::Function>,
     target: CallTarget,
     arguments: ArgumentRange,
     env: Option<Word>,
-    normal_resume_point: engine::ResumePointId,
-    unwind_resume_point: engine::ResumePointId,
+    normal_state: engine::FrameStateId,
+    unwind_state: engine::FrameStateId,
 ) -> Transfer {
-    // exceptional calls always go through the general transfer path
+    // exceptional calls always use explicit transfer handling
     Transfer::CallBranch {
         function: function_id.id,
         target,
         arguments,
         env,
-        normal_resume_point,
-        unwind_resume_point,
+        normal_state,
+        unwind_state,
     }
 }
 
-/// Execute function call (returns to trampoline).
+/// Execute direct function call.
 pub(crate) fn execute_call(
     state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
+    instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
     // decode instruction operands
-    let Operands::Call {
+    let Call {
         dest,
         function,
         target,
         arguments,
         moves,
-    } = &block[pc].operands
-    else {
-        unreachable!()
-    };
+    } = instruction.payload_as::<Call>();
 
-    // resolve target function id
+    // load target function id
     let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
     let move_plan = Some(*moves);
 
-    // skip fast path when instruction limits are active
+    // skip direct call when instruction limits are active
     let allow_direct = state.options().limits.max_instructions.is_none();
 
-    call_with_target(
+    enter_call(
         state,
         *dest,
         function_id,
@@ -445,72 +447,62 @@ pub(crate) fn execute_call(
 }
 
 /// Execute exceptional direct call terminator.
-pub(crate) fn execute_call_branch(
+pub(crate) fn execute_invoke(
     _state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
+    instruction: &Instruction,
 ) -> Transfer {
-    let Operands::CallBranch {
+    let CallBranch {
         function,
         target,
         arguments,
-        normal_resume_point,
-        unwind_resume_point,
-    } = &block[pc].operands
-    else {
-        unreachable!()
-    };
+        normal_state,
+        unwind_state,
+    } = instruction.payload_as::<CallBranch>();
 
     let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
 
-    call_branch_with_target(
+    call_branch_transfer(
         function_id,
         *target,
         *arguments,
         None,
-        *normal_resume_point,
-        *unwind_resume_point,
+        *normal_state,
+        *unwind_state,
     )
 }
 
-/// Execute virtual call (returns to trampoline).
+/// Execute virtual function call.
 pub(crate) fn execute_call_virtual(
     state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
+    instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
     // decode instruction operands
-    let Operands::CallVirtual {
+    let CallVirtual {
         dest,
         receiver,
         table_field,
         method_index,
         arguments,
-    } = &block[pc].operands
-    else {
-        unreachable!()
-    };
+    } = instruction.payload_as::<CallVirtual>();
 
-    // resolve dynamic target
+    // resolve dynamic callee
     let receiver_value = state.get(*receiver);
+    let table_field = load_table_field(state, *table_field);
     let function_id =
-        match resolve_virtual_dispatch_target(state, receiver_value, *table_field, *method_index) {
+        match resolve_virtual_callee(state, receiver_value, table_field, *method_index) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
-    let target = match state.program.functions.resolve(function_id) {
-        Some(target) => target,
-        None => {
-            return Transfer::Error(Error::UndefinedFunction {
-                function: function_id,
-            });
-        }
+    let target = match require_call_target(state, function_id) {
+        Ok(target) => target,
+        Err(error) => return Transfer::Error(error),
     };
 
-    // skip fast path when instruction limits are active
+    // skip direct call when instruction limits are active
     let allow_direct = state.options().limits.max_instructions.is_none();
 
-    call_with_target(
+    enter_call(
         state,
         *dest,
         function_id,
@@ -524,87 +516,73 @@ pub(crate) fn execute_call_virtual(
 }
 
 /// Execute exceptional virtual call terminator.
-pub(crate) fn execute_call_virtual_branch(
+pub(crate) fn execute_invoke_virtual(
     state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
+    instruction: &Instruction,
 ) -> Transfer {
-    let Operands::CallVirtualBranch {
+    let CallVirtualBranch {
         receiver,
         table_field,
         method_index,
         arguments,
-        normal_resume_point,
-        unwind_resume_point,
-    } = &block[pc].operands
-    else {
-        unreachable!()
-    };
+        normal_state,
+        unwind_state,
+    } = instruction.payload_as::<CallVirtualBranch>();
 
     let receiver_value = state.get(*receiver);
+    let table_field = load_table_field(state, *table_field);
     let function_id =
-        match resolve_virtual_dispatch_target(state, receiver_value, *table_field, *method_index) {
+        match resolve_virtual_callee(state, receiver_value, table_field, *method_index) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
-    let target = match state.program.functions.resolve(function_id) {
-        Some(target) => target,
-        None => {
-            return Transfer::Error(Error::UndefinedFunction {
-                function: function_id,
-            });
-        }
+    let target = match require_call_target(state, function_id) {
+        Ok(target) => target,
+        Err(error) => return Transfer::Error(error),
     };
 
-    call_branch_with_target(
+    call_branch_transfer(
         function_id,
         target,
         *arguments,
         None,
-        *normal_resume_point,
-        *unwind_resume_point,
+        *normal_state,
+        *unwind_state,
     )
 }
 
-/// Execute interface call (returns to trampoline).
+/// Execute interface function call.
 pub(crate) fn execute_call_interface(
     state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
+    instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
     // decode instruction operands
-    let Operands::CallInterface {
+    let CallInterface {
         dest,
         receiver,
         table_field,
         method_index,
         arguments,
-    } = &block[pc].operands
-    else {
-        unreachable!()
-    };
+    } = instruction.payload_as::<CallInterface>();
 
-    // resolve dynamic target
+    // resolve dynamic callee
     let receiver_value = state.get(*receiver);
+    let table_field = load_table_field(state, *table_field);
     let function_id =
-        match resolve_interface_dispatch_target(state, receiver_value, *table_field, *method_index)
-        {
+        match resolve_interface_callee(state, receiver_value, table_field, *method_index) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
-    let target = match state.program.functions.resolve(function_id) {
-        Some(target) => target,
-        None => {
-            return Transfer::Error(Error::UndefinedFunction {
-                function: function_id,
-            });
-        }
+    let target = match require_call_target(state, function_id) {
+        Ok(target) => target,
+        Err(error) => return Transfer::Error(error),
     };
 
-    // skip fast path when instruction limits are active
+    // skip direct call when instruction limits are active
     let allow_direct = state.options().limits.max_instructions.is_none();
 
-    call_with_target(
+    enter_call(
         state,
         *dest,
         function_id,
@@ -618,69 +596,58 @@ pub(crate) fn execute_call_interface(
 }
 
 /// Execute exceptional interface call terminator.
-pub(crate) fn execute_call_interface_branch(
+pub(crate) fn execute_invoke_interface(
     state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
+    instruction: &Instruction,
 ) -> Transfer {
-    let Operands::CallInterfaceBranch {
+    let CallInterfaceBranch {
         receiver,
         table_field,
         method_index,
         arguments,
-        normal_resume_point,
-        unwind_resume_point,
-    } = &block[pc].operands
-    else {
-        unreachable!()
-    };
+        normal_state,
+        unwind_state,
+    } = instruction.payload_as::<CallInterfaceBranch>();
 
     let receiver_value = state.get(*receiver);
+    let table_field = load_table_field(state, *table_field);
     let function_id =
-        match resolve_interface_dispatch_target(state, receiver_value, *table_field, *method_index)
-        {
+        match resolve_interface_callee(state, receiver_value, table_field, *method_index) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
-    let target = match state.program.functions.resolve(function_id) {
-        Some(target) => target,
-        None => {
-            return Transfer::Error(Error::UndefinedFunction {
-                function: function_id,
-            });
-        }
+    let target = match require_call_target(state, function_id) {
+        Ok(target) => target,
+        Err(error) => return Transfer::Error(error),
     };
 
-    call_branch_with_target(
+    call_branch_transfer(
         function_id,
         target,
         *arguments,
         None,
-        *normal_resume_point,
-        *unwind_resume_point,
+        *normal_state,
+        *unwind_state,
     )
 }
 
-/// Execute indirect call (returns to trampoline).
+/// Execute indirect function call.
 pub(crate) fn execute_call_indirect(
     state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
+    instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
     // decode instruction operands
-    let Operands::CallIndirect {
+    let CallIndirect {
         dest,
         callee,
         arguments,
-    } = &block[pc].operands
-    else {
-        unreachable!()
-    };
+    } = instruction.payload_as::<CallIndirect>();
 
     // load callee value
     let callee_val = state.get(*callee);
 
-    // resolve callable code and environment
+    // resolve callable function and environment
     let callee_type = match state.value_type(*callee) {
         Ok(ty) => ty,
         Err(error) => return Transfer::Error(error),
@@ -689,7 +656,7 @@ pub(crate) fn execute_call_indirect(
         Ok(signature) => signature,
         Err(error) => return Transfer::Error(error),
     };
-    let (function_id, env) = match resolve_indirect_callable(state, callee_val, callee_type) {
+    let (function_id, env) = match resolve_indirect_callee(state, callee_val, callee_type) {
         Ok(resolved) => resolved,
         Err(error) => return Transfer::Error(error),
     };
@@ -699,20 +666,16 @@ pub(crate) fn execute_call_indirect(
         return Transfer::Error(error);
     }
 
-    // resolve the semantic call target directly
-    let resolved_target = match state.program.functions.resolve(function_id) {
-        Some(target) => target,
-        None => {
-            return Transfer::Error(Error::UndefinedFunction {
-                function: function_id,
-            });
-        }
+    // load the lowered call target
+    let target = match require_call_target(state, function_id) {
+        Ok(target) => target,
+        Err(error) => return Transfer::Error(error),
     };
 
-    // return control to trampoline
+    // return control to transfer handling
     Transfer::Call {
         function,
-        target: resolved_target,
+        target,
         destination: *dest,
         arguments: *arguments,
         env,
@@ -722,20 +685,16 @@ pub(crate) fn execute_call_indirect(
 }
 
 /// Execute exceptional indirect call terminator.
-pub(crate) fn execute_call_indirect_branch(
+pub(crate) fn execute_invoke_indirect(
     state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
+    instruction: &Instruction,
 ) -> Transfer {
-    let Operands::CallIndirectBranch {
+    let CallIndirectBranch {
         callee,
         arguments,
-        normal_resume_point,
-        unwind_resume_point,
-    } = &block[pc].operands
-    else {
-        unreachable!()
-    };
+        normal_state,
+        unwind_state,
+    } = instruction.payload_as::<CallIndirectBranch>();
 
     let callee_val = state.get(*callee);
     let callee_type = match state.value_type(*callee) {
@@ -746,46 +705,45 @@ pub(crate) fn execute_call_indirect_branch(
         Ok(signature) => signature,
         Err(error) => return Transfer::Error(error),
     };
-    let (function_id, env) = match resolve_indirect_callable(state, callee_val, callee_type) {
+    let (function_id, env) = match resolve_indirect_callee(state, callee_val, callee_type) {
         Ok(resolved) => resolved,
         Err(error) => return Transfer::Error(error),
     };
     if let Err(error) = validate_indirect_signature(state.tree(), function_id, signature) {
         return Transfer::Error(error);
     }
-    let resolved_target = match state.program.functions.resolve(function_id) {
-        Some(target) => target,
-        None => {
-            return Transfer::Error(Error::UndefinedFunction {
-                function: function_id,
-            });
-        }
+    let target = match require_call_target(state, function_id) {
+        Ok(target) => target,
+        Err(error) => return Transfer::Error(error),
     };
 
-    call_branch_with_target(
+    call_branch_transfer(
         function_id,
-        resolved_target,
+        target,
         *arguments,
         env,
-        *normal_resume_point,
-        *unwind_resume_point,
+        *normal_state,
+        *unwind_state,
     )
 }
 
 /// Enter a tail call by reusing the current frame.
 fn enter_tail_call(
     state: &mut DispatchState<'_, '_>,
-    function_id: mir::LocalNodeId<mir::Function>,
     callee: &Function,
     argument_values: &[FrameValue],
     env: Option<Word>,
 ) -> Result<(), Error> {
-    // update frame metadata
+    // update frame cache
     let entry_block = &callee.blocks[callee.entry as usize];
     let layout = state
         .program
         .frame_layout_by_id(callee.frame_layout)
         .ok_or(Error::InvalidInstruction)?;
+
+    // replace the current frame bytes in place
+    let stack_offset = state.current_frame_mut().stack_offset;
+    state.engine.truncate_stack(stack_offset);
     let (stack_offset, frame_base) = state
         .engine
         .allocate_frame(layout, state.options)
@@ -793,23 +751,21 @@ fn enter_tail_call(
     {
         let frame = state.current_frame_mut();
         frame.frame_layout = callee.frame_layout;
-        frame.function = function_id;
         frame.function_ptr = NonNull::from(callee);
         frame.block_ptr = NonNull::from(entry_block);
-        frame.current_block = entry_block.mir_block;
         frame.resume_pc = 0;
         frame.replace_bytes(stack_offset, layout.byte_len as usize, frame_base);
-        frame.set_environment(layout, env.unwrap_or(Word::VOID));
+        frame.set_environment(layout, env);
     }
 
     // refresh cached pointers for the new function
-    state.refresh_for_function(callee);
+    state.refresh_frame(callee);
 
     // bind function parameters
     let program = state.program;
     let frame_ptr = state.current_frame_mut() as *mut Frame;
     let frame = unsafe { &mut *frame_ptr };
-    write_parameters(
+    store_parameters(
         program,
         frame,
         callee.argument_pool.as_slice(),
@@ -823,27 +779,22 @@ fn enter_tail_call(
 /// Execute tail call to function.
 pub(crate) fn execute_tail_call(
     state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
+    instruction: &Instruction,
 ) -> Transfer {
     // decode instruction operands
-    let Operands::TailCall {
+    let TailCall {
         function,
         target,
         moves,
-    } = &block[pc].operands
-    else {
-        unreachable!()
-    };
+    } = instruction.payload_as::<TailCall>();
 
-    // resolve the lowered fast path target
-    let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
+    // require the local callee
     let resolved_index = match *target {
         CallTarget::Local(index) => Some(index),
         CallTarget::Import => None,
     };
 
-    // fall back to trampoline for unresolved targets
+    // return imported calls to transfer handling
     let Some(resolved_index) = resolved_index else {
         return Transfer::TailCall {
             function: *function,
@@ -853,7 +804,7 @@ pub(crate) fn execute_tail_call(
             moves: Some(*moves),
         };
     };
-    let Some(callee_ptr) = state.program.functions.get_ptr_by_index(resolved_index) else {
+    let Some(callee_ptr) = state.program.functions.pointer(resolved_index) else {
         return Transfer::TailCall {
             function: *function,
             target: *target,
@@ -868,12 +819,12 @@ pub(crate) fn execute_tail_call(
     let argument_values = {
         let function_ptr = state.current_frame_mut().function_ptr;
         let current_func = unsafe { function_ptr.as_ref() };
-        let caller = match state.frame_by_index(state.frame_index) {
+        let caller = match state.frame(state.frame_index) {
             Ok(frame) => frame,
             Err(error) => return Transfer::Error(error),
         };
 
-        match read_planned_arguments(
+        match load_planned_arguments(
             state.program,
             state.engine.frames.as_slice(),
             caller,
@@ -885,8 +836,8 @@ pub(crate) fn execute_tail_call(
         }
     };
 
-    // enter tail call fast path
-    if let Err(error) = enter_tail_call(state, function_id, callee, &argument_values, None) {
+    // enter tail call
+    if let Err(error) = enter_tail_call(state, callee, &argument_values, None) {
         return Transfer::Error(error);
     }
 
@@ -894,21 +845,18 @@ pub(crate) fn execute_tail_call(
     let entry_block_ptr = state.current_frame_mut().block_ptr;
     let entry_block = unsafe { entry_block_ptr.as_ref() };
     let entry_instructions = entry_block.instructions.as_slice();
-    dispatch_instruction(state, entry_instructions, 0)
+    dispatch_block(state, entry_instructions, 0)
 }
 
 /// Execute self tail call by reusing the current frame.
 pub(crate) fn execute_tail_call_self(
     state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
+    instruction: &Instruction,
 ) -> Transfer {
     // decode instruction operands
-    let Operands::TailCallSelf { entry, arguments } = &block[pc].operands else {
-        unreachable!()
-    };
+    let TailCallSelf { entry, arguments } = instruction.payload_as::<TailCallSelf>();
 
-    // resolve current function entry block
+    // load current function entry block
     let function_ptr = {
         let frame = state.current_frame_mut();
         frame.function_ptr
@@ -918,12 +866,12 @@ pub(crate) fn execute_tail_call_self(
 
     // collect argument values before clearing the frame
     let args = {
-        let caller = match state.frame_by_index(state.frame_index) {
+        let caller = match state.frame(state.frame_index) {
             Ok(frame) => frame,
             Err(error) => return Transfer::Error(error),
         };
 
-        match read_arguments(
+        match load_arguments(
             state.program,
             state.engine.frames.as_slice(),
             caller,
@@ -935,26 +883,37 @@ pub(crate) fn execute_tail_call_self(
         }
     };
     let frame_layout = state.frame_layout() as *const engine::FrameLayout;
-    state
-        .current_frame_mut()
-        .clear_values(unsafe { &*frame_layout });
+    let frame_layout = unsafe { &*frame_layout };
+
+    // discard stack allocations from the previous self call
+    {
+        let (stack_offset, frame_base) = {
+            let frame = state.current_frame_mut();
+            (frame.stack_offset, frame.base_address() as *mut u8)
+        };
+        let frame_byte_len = frame_layout.byte_len as usize;
+
+        state.engine.truncate_stack(stack_offset + frame_byte_len);
+        let frame = state.current_frame_mut();
+        frame.replace_bytes(stack_offset, frame_byte_len, frame_base);
+        frame.clear_values(frame_layout);
+    }
 
     // update frame to entry block
     {
         let frame = state.current_frame_mut();
         frame.block_ptr = NonNull::from(entry_block);
-        frame.current_block = entry_block.mir_block;
         frame.resume_pc = 0;
     }
 
     // refresh cached frame pointers after replacing frame bytes
-    state.refresh_for_function(function);
+    state.refresh_frame(function);
 
     // bind function parameters
     let program = state.program;
     let frame_ptr = state.current_frame_mut() as *mut Frame;
     let frame = unsafe { &mut *frame_ptr };
-    if let Err(error) = write_parameters(
+    if let Err(error) = store_parameters(
         program,
         frame,
         function.argument_pool.as_slice(),
@@ -966,40 +925,33 @@ pub(crate) fn execute_tail_call_self(
 
     // continue at entry block
     let entry_instructions = entry_block.instructions.as_slice();
-    dispatch_instruction(state, entry_instructions, 0)
+    dispatch_block(state, entry_instructions, 0)
 }
 
-/// Execute virtual tail call (returns to trampoline).
+/// Execute virtual tail call.
 pub(crate) fn execute_tail_call_virtual(
     state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
+    instruction: &Instruction,
 ) -> Transfer {
     // decode instruction operands
-    let Operands::TailCallVirtual {
+    let TailCallVirtual {
         receiver,
         table_field,
         method_index,
         arguments,
-    } = &block[pc].operands
-    else {
-        unreachable!()
-    };
+    } = instruction.payload_as::<TailCallVirtual>();
 
-    // resolve dynamic target
+    // resolve dynamic callee
     let receiver_value = state.get(*receiver);
+    let table_field = load_table_field(state, *table_field);
     let function_id =
-        match resolve_virtual_dispatch_target(state, receiver_value, *table_field, *method_index) {
+        match resolve_virtual_callee(state, receiver_value, table_field, *method_index) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
-    let target = match state.program.functions.resolve(function_id) {
-        Some(target) => target,
-        None => {
-            return Transfer::Error(Error::UndefinedFunction {
-                function: function_id,
-            });
-        }
+    let target = match require_call_target(state, function_id) {
+        Ok(target) => target,
+        Err(error) => return Transfer::Error(error),
     };
 
     Transfer::TailCall {
@@ -1011,38 +963,30 @@ pub(crate) fn execute_tail_call_virtual(
     }
 }
 
-/// Execute interface tail call (returns to trampoline).
+/// Execute interface tail call.
 pub(crate) fn execute_tail_call_interface(
     state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
+    instruction: &Instruction,
 ) -> Transfer {
     // decode instruction operands
-    let Operands::TailCallInterface {
+    let TailCallInterface {
         receiver,
         table_field,
         method_index,
         arguments,
-    } = &block[pc].operands
-    else {
-        unreachable!()
-    };
+    } = instruction.payload_as::<TailCallInterface>();
 
-    // resolve dynamic target
+    // resolve dynamic callee
     let receiver_value = state.get(*receiver);
+    let table_field = load_table_field(state, *table_field);
     let function_id =
-        match resolve_interface_dispatch_target(state, receiver_value, *table_field, *method_index)
-        {
+        match resolve_interface_callee(state, receiver_value, table_field, *method_index) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
-    let target = match state.program.functions.resolve(function_id) {
-        Some(target) => target,
-        None => {
-            return Transfer::Error(Error::UndefinedFunction {
-                function: function_id,
-            });
-        }
+    let target = match require_call_target(state, function_id) {
+        Ok(target) => target,
+        Err(error) => return Transfer::Error(error),
     };
 
     Transfer::TailCall {
@@ -1057,18 +1001,15 @@ pub(crate) fn execute_tail_call_interface(
 /// Execute indirect tail call.
 pub(crate) fn execute_tail_call_indirect(
     state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
+    instruction: &Instruction,
 ) -> Transfer {
     // decode instruction operands
-    let Operands::TailCallIndirect { callee, arguments } = &block[pc].operands else {
-        unreachable!()
-    };
+    let TailCallIndirect { callee, arguments } = instruction.payload_as::<TailCallIndirect>();
 
     // load callee value
     let callee_val = state.get(*callee);
 
-    // resolve callable code and environment
+    // resolve callable function and environment
     let callee_type = match state.value_type(*callee) {
         Ok(ty) => ty,
         Err(error) => return Transfer::Error(error),
@@ -1077,7 +1018,7 @@ pub(crate) fn execute_tail_call_indirect(
         Ok(signature) => signature,
         Err(error) => return Transfer::Error(error),
     };
-    let (function_id, env) = match resolve_indirect_callable(state, callee_val, callee_type) {
+    let (function_id, env) = match resolve_indirect_callee(state, callee_val, callee_type) {
         Ok(resolved) => resolved,
         Err(error) => return Transfer::Error(error),
     };
@@ -1087,17 +1028,13 @@ pub(crate) fn execute_tail_call_indirect(
         return Transfer::Error(error);
     }
 
-    // resolve the semantic call target
-    let target = match state.program.functions.resolve(function_id) {
-        Some(target) => target,
-        None => {
-            return Transfer::Error(Error::UndefinedFunction {
-                function: function_id,
-            });
-        }
+    // load the lowered call target
+    let target = match require_call_target(state, function_id) {
+        Ok(target) => target,
+        Err(error) => return Transfer::Error(error),
     };
 
-    // fall back to trampoline for imported targets
+    // return imported calls to transfer handling
     let resolved_index = match target {
         CallTarget::Local(index) => Some(index),
         CallTarget::Import => None,
@@ -1111,7 +1048,7 @@ pub(crate) fn execute_tail_call_indirect(
             moves: None,
         };
     };
-    let Some(callee_ptr) = state.program.functions.get_ptr_by_index(resolved_index) else {
+    let Some(callee_ptr) = state.program.functions.pointer(resolved_index) else {
         return Transfer::TailCall {
             function,
             target,
@@ -1123,12 +1060,12 @@ pub(crate) fn execute_tail_call_indirect(
     let callee = unsafe { callee_ptr.as_ref() };
 
     // collect argument values
-    let caller = match state.frame_by_index(state.frame_index) {
+    let caller = match state.frame(state.frame_index) {
         Ok(frame) => frame,
         Err(error) => return Transfer::Error(error),
     };
     let caller_function = unsafe { caller.function_ptr.as_ref() };
-    let argument_values = match read_arguments(
+    let argument_values = match load_arguments(
         state.program,
         state.engine.frames.as_slice(),
         caller,
@@ -1139,8 +1076,8 @@ pub(crate) fn execute_tail_call_indirect(
         Err(error) => return Transfer::Error(error),
     };
 
-    // enter tail call fast path
-    if let Err(error) = enter_tail_call(state, function_id, callee, &argument_values, env) {
+    // enter tail call
+    if let Err(error) = enter_tail_call(state, callee, &argument_values, env) {
         return Transfer::Error(error);
     }
 
@@ -1148,5 +1085,5 @@ pub(crate) fn execute_tail_call_indirect(
     let entry_block_ptr = state.current_frame_mut().block_ptr;
     let entry_block = unsafe { entry_block_ptr.as_ref() };
     let entry_instructions = entry_block.instructions.as_slice();
-    dispatch_instruction(state, entry_instructions, 0)
+    dispatch_block(state, entry_instructions, 0)
 }

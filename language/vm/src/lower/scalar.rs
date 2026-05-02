@@ -53,7 +53,7 @@ fn unary_word(lowerer: &BlockLowerer<'_>, dest: mir::Value, arg: mir::Value) -> 
 }
 
 /// Return one integer value layout.
-fn integer_layout(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Result<(u16, bool)> {
+fn integer_layout(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<(u16, bool)> {
     match value_layout_from_type(tree, ty) {
         ValueLayout::Int { width, signed } => Ok((width, signed)),
         actual => Err(Error::TypeMismatch {

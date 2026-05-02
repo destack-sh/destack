@@ -1,45 +1,65 @@
+use std::cmp::Ordering;
+
 use destack_mir as mir;
+use smallvec::SmallVec;
 
 use crate::diagnostic::{Error, RuntimeResult};
 use crate::program::{
-    Instruction, Operands, PointerClass, Transfer, ValueRepr, is_invalid_value,
-    value_repr_from_type,
+    ArgumentRange, Instruction, Intrinsic, PointerClass, Transfer, ValueLayout, decode_word_bytes,
+    encode_word_bytes, value_layout_from_type, word_byte_len_from_type,
 };
 use crate::{RawPointer, Word};
 
-use super::{access, bytes, collect_values};
 use crate::interpreter::DispatchState;
+
+/// Collect argument words for one intrinsic call.
+#[inline]
+fn load_argument_words(
+    state: &mut DispatchState<'_, '_>,
+    arguments: ArgumentRange,
+) -> SmallVec<[Word; 16]> {
+    let argument_slice = state.argument_slice(arguments);
+    let mut words = SmallVec::with_capacity(argument_slice.len());
+
+    for argument in argument_slice {
+        let word = state.get(*argument);
+        words.push(word);
+    }
+
+    words
+}
 
 /// Execute intrinsic call.
 pub(crate) fn execute_intrinsic(
     state: &mut DispatchState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
+    instruction: &Instruction,
 ) -> Transfer {
     // decode instruction operands
-    let Operands::Intrinsic {
+    let Intrinsic {
         dest,
         intrinsic,
         arguments,
-    } = &block[pc].operands
-    else {
-        unreachable!()
-    };
+    } = instruction.payload_as::<Intrinsic>();
 
     // resolve arguments
-    let args = collect_values(state, *arguments);
+    let args = load_argument_words(state, *arguments);
     let arguments = state.argument_slice(*arguments).to_vec();
 
     // execute intrinsic
-    match state.execute_intrinsic(*dest, *intrinsic, arguments.as_slice(), args.as_slice()) {
+    match state.evaluate_intrinsic(*dest, *intrinsic, arguments.as_slice(), args.as_slice()) {
         Ok(result) => {
-            if !is_invalid_value(*dest) {
-                let is_word = match state.value_is_word(*dest) {
+            if let Some(dest) = *dest {
+                let is_word = match state.value_is_word(dest) {
                     Ok(is_word) => is_word,
                     Err(error) => return Transfer::Error(error),
                 };
                 if is_word {
-                    state.set_word(*dest, result);
+                    state.set_word(dest, result);
+                } else if result != Word::VOID {
+                    return Transfer::Error(Error::TypeMismatch {
+                        expected: "word intrinsic destination".to_string(),
+                        actual: format!("frame-backed value: {dest:?}"),
+                    });
                 }
             }
 
@@ -49,16 +69,15 @@ pub(crate) fn execute_intrinsic(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 impl DispatchState<'_, '_> {
-    /// Materialize one 2-field result in field order.
-    fn materialize_pair(
+    /// Store one 2-field result in field order.
+    fn store_pair(
         &mut self,
         destination: mir::Value,
         first: Word,
         second: Word,
     ) -> RuntimeResult<Word> {
-        super::bytes::write_frame_fields(self, destination, |_state, index, _ty| match index {
+        super::frame::store_frame_fields(self, destination, |_state, index, _ty| match index {
             0 => Ok(first),
             1 => Ok(second),
             _ => Err(Error::InvalidInstruction),
@@ -75,7 +94,7 @@ impl DispatchState<'_, '_> {
         index: usize,
     ) -> RuntimeResult<&'a Word> {
         args.get(index).ok_or_else(|| {
-            self.make_error(Error::InvalidIntrinsicArguments {
+            self.runtime_error(Error::InvalidIntrinsicArguments {
                 intrinsic: intrinsic.to_str().to_string(),
             })
         })
@@ -87,17 +106,17 @@ impl DispatchState<'_, '_> {
         intrinsic: mir::Intrinsic,
         arguments: &[mir::Value],
         index: usize,
-    ) -> RuntimeResult<ValueRepr> {
+    ) -> RuntimeResult<ValueLayout> {
         let argument = arguments.get(index).copied().ok_or_else(|| {
-            self.make_error(Error::InvalidIntrinsicArguments {
+            self.runtime_error(Error::InvalidIntrinsicArguments {
                 intrinsic: intrinsic.to_str().to_string(),
             })
         })?;
         let ty = self
             .value_type(argument)
-            .map_err(|error| self.make_error(error))?;
+            .map_err(|error| self.runtime_error(error))?;
 
-        Ok(value_repr_from_type(self.tree(), ty))
+        Ok(value_layout_from_type(self.tree(), ty))
     }
 
     /// Return one integer argument with its MIR width and signedness.
@@ -112,9 +131,11 @@ impl DispatchState<'_, '_> {
         let layout = self.intrinsic_layout(intrinsic, arguments, index)?;
 
         match layout {
-            ValueRepr::Int { width, signed } => Ok((value, width, signed)),
-            _ => Err(self.make_error(Error::TypeMismatch {
-                expected: "integer".to_string(),
+            ValueLayout::Int { width, signed } if width <= Word::BIT_LEN as u16 => {
+                Ok((value, width as u8, signed))
+            }
+            _ => Err(self.runtime_error(Error::TypeMismatch {
+                expected: "word-sized integer".to_string(),
                 actual: format!("{layout:?}"),
             })),
         }
@@ -132,7 +153,7 @@ impl DispatchState<'_, '_> {
             self.integer_argument(intrinsic, arguments, args, 1)?;
 
         if width != right_width || signed != right_signed {
-            return Err(self.make_error(Error::TypeMismatch {
+            return Err(self.runtime_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
                 actual: format!("{:?}, {:?}", arguments.first(), arguments.get(1)),
             }));
@@ -153,9 +174,11 @@ impl DispatchState<'_, '_> {
         let layout = self.intrinsic_layout(intrinsic, arguments, index)?;
 
         match layout {
-            ValueRepr::Float { width } => Ok((value, width)),
-            _ => Err(self.make_error(Error::TypeMismatch {
-                expected: "float".to_string(),
+            ValueLayout::Float { width } if width <= Word::BIT_LEN as u16 => {
+                Ok((value, width as u8))
+            }
+            _ => Err(self.runtime_error(Error::TypeMismatch {
+                expected: "word-sized float".to_string(),
                 actual: format!("{layout:?}"),
             })),
         }
@@ -172,7 +195,7 @@ impl DispatchState<'_, '_> {
         let (right, right_width) = self.float_argument(intrinsic, arguments, args, 1)?;
 
         if width != right_width {
-            return Err(self.make_error(Error::TypeMismatch {
+            return Err(self.runtime_error(Error::TypeMismatch {
                 expected: "matching float types".to_string(),
                 actual: format!("{:?}, {:?}", arguments.first(), arguments.get(1)),
             }));
@@ -193,11 +216,11 @@ impl DispatchState<'_, '_> {
         let layout = self.intrinsic_layout(intrinsic, arguments, index)?;
 
         match layout {
-            ValueRepr::Pointer {
+            ValueLayout::Pointer {
                 pointer_class: PointerClass::Raw,
                 ..
             } => Ok(value.as_raw_pointer()),
-            _ => Err(self.make_error(Error::InvalidPointerType {
+            _ => Err(self.runtime_error(Error::InvalidPointerType {
                 actual: format!("{layout:?}"),
             })),
         }
@@ -213,138 +236,134 @@ impl DispatchState<'_, '_> {
         let value = self.intrinsic_value(intrinsic, args, index)?.as_uint();
 
         usize::try_from(value).map_err(|_| {
-            self.make_error(Error::InvalidIntrinsicArguments {
+            self.runtime_error(Error::InvalidIntrinsicArguments {
                 intrinsic: intrinsic.to_str().to_string(),
             })
         })
     }
 
-    /// Execute an intrinsic with argument words.
-    pub(crate) fn execute_intrinsic_with_words(
+    /// Require the destination for an intrinsic that writes an aggregate result.
+    fn require_intrinsic_destination(
+        &self,
+        destination: Option<mir::Value>,
+    ) -> RuntimeResult<mir::Value> {
+        destination.ok_or_else(|| {
+            self.runtime_error(Error::MissingRepresentation {
+                context: "intrinsic destination".to_string(),
+            })
+        })
+    }
+
+    /// Evaluate one intrinsic against the current interpreter and heap state.
+    pub(crate) fn evaluate_intrinsic(
         &mut self,
-        destination: mir::Value,
+        destination: Option<mir::Value>,
         intrinsic: mir::Intrinsic,
         arguments: &[mir::Value],
         args: &[Word],
     ) -> RuntimeResult<Word> {
         match intrinsic {
             // bit manipulation
-            mir::Intrinsic::LeadingZeroCount => self.execute_leading_zero_count(arguments, args),
-            mir::Intrinsic::TrailingZeroCount => self.execute_trailing_zero_count(arguments, args),
-            mir::Intrinsic::PopulationCount => self.execute_population_count(arguments, args),
-            mir::Intrinsic::ByteSwap => self.execute_byte_swap(arguments, args),
-            mir::Intrinsic::BitReverse => self.execute_bit_reverse(arguments, args),
-            mir::Intrinsic::RotateLeft => self.execute_rotate_left(arguments, args),
-            mir::Intrinsic::RotateRight => self.execute_rotate_right(arguments, args),
+            mir::Intrinsic::LeadingZeroCount => self.leading_zero_count(arguments, args),
+            mir::Intrinsic::TrailingZeroCount => self.trailing_zero_count(arguments, args),
+            mir::Intrinsic::PopulationCount => self.population_count(arguments, args),
+            mir::Intrinsic::ByteSwap => self.byte_swap(arguments, args),
+            mir::Intrinsic::BitReverse => self.bit_reverse(arguments, args),
+            mir::Intrinsic::RotateLeft => self.rotate_left(arguments, args),
+            mir::Intrinsic::RotateRight => self.rotate_right(arguments, args),
 
             // checked arithmetic
-            mir::Intrinsic::AddOverflow => self.execute_add_overflow(destination, arguments, args),
-            mir::Intrinsic::SubOverflow => self.execute_sub_overflow(destination, arguments, args),
-            mir::Intrinsic::MulOverflow => self.execute_mul_overflow(destination, arguments, args),
+            mir::Intrinsic::AddOverflow => self.add_overflow(
+                self.require_intrinsic_destination(destination)?,
+                arguments,
+                args,
+            ),
+            mir::Intrinsic::SubOverflow => self.sub_overflow(
+                self.require_intrinsic_destination(destination)?,
+                arguments,
+                args,
+            ),
+            mir::Intrinsic::MulOverflow => self.mul_overflow(
+                self.require_intrinsic_destination(destination)?,
+                arguments,
+                args,
+            ),
 
             // unchecked arithmetic
-            mir::Intrinsic::AddUnchecked => self.execute_add_unchecked(arguments, args),
-            mir::Intrinsic::SubUnchecked => self.execute_sub_unchecked(arguments, args),
-            mir::Intrinsic::MulUnchecked => self.execute_mul_unchecked(arguments, args),
-            mir::Intrinsic::DivUnchecked => self.execute_div_unchecked(arguments, args),
-            mir::Intrinsic::RemUnchecked => self.execute_rem_unchecked(arguments, args),
-            mir::Intrinsic::ShlUnchecked => self.execute_shl_unchecked(arguments, args),
-            mir::Intrinsic::ShrUnchecked => self.execute_shr_unchecked(arguments, args),
+            mir::Intrinsic::AddUnchecked => self.add_unchecked(arguments, args),
+            mir::Intrinsic::SubUnchecked => self.sub_unchecked(arguments, args),
+            mir::Intrinsic::MulUnchecked => self.mul_unchecked(arguments, args),
+            mir::Intrinsic::DivUnchecked => self.div_unchecked(arguments, args),
+            mir::Intrinsic::RemUnchecked => self.rem_unchecked(arguments, args),
+            mir::Intrinsic::ShlUnchecked => self.shl_unchecked(arguments, args),
+            mir::Intrinsic::ShrUnchecked => self.shr_unchecked(arguments, args),
 
             // saturating arithmetic
-            mir::Intrinsic::SatAdd => self.execute_sat_add(arguments, args),
-            mir::Intrinsic::SatSub => self.execute_sat_sub(arguments, args),
+            mir::Intrinsic::SatAdd => self.sat_add(arguments, args),
+            mir::Intrinsic::SatSub => self.sat_sub(arguments, args),
 
             // float math (unary)
-            mir::Intrinsic::Sqrt => self.execute_float_unary(
-                mir::Intrinsic::Sqrt,
-                arguments,
-                args,
-                f64::sqrt,
-                f32::sqrt,
-            ),
+            mir::Intrinsic::Sqrt => {
+                self.float_unary(mir::Intrinsic::Sqrt, arguments, args, f64::sqrt, f32::sqrt)
+            }
             mir::Intrinsic::Abs => {
-                self.execute_float_unary(mir::Intrinsic::Abs, arguments, args, f64::abs, f32::abs)
+                self.float_unary(mir::Intrinsic::Abs, arguments, args, f64::abs, f32::abs)
             }
             mir::Intrinsic::Sin => {
-                self.execute_float_unary(mir::Intrinsic::Sin, arguments, args, f64::sin, f32::sin)
+                self.float_unary(mir::Intrinsic::Sin, arguments, args, f64::sin, f32::sin)
             }
             mir::Intrinsic::Cos => {
-                self.execute_float_unary(mir::Intrinsic::Cos, arguments, args, f64::cos, f32::cos)
+                self.float_unary(mir::Intrinsic::Cos, arguments, args, f64::cos, f32::cos)
             }
             mir::Intrinsic::Tan => {
-                self.execute_float_unary(mir::Intrinsic::Tan, arguments, args, f64::tan, f32::tan)
+                self.float_unary(mir::Intrinsic::Tan, arguments, args, f64::tan, f32::tan)
             }
-            mir::Intrinsic::Asin => self.execute_float_unary(
-                mir::Intrinsic::Asin,
-                arguments,
-                args,
-                f64::asin,
-                f32::asin,
-            ),
-            mir::Intrinsic::Acos => self.execute_float_unary(
-                mir::Intrinsic::Acos,
-                arguments,
-                args,
-                f64::acos,
-                f32::acos,
-            ),
-            mir::Intrinsic::Atan => self.execute_float_unary(
-                mir::Intrinsic::Atan,
-                arguments,
-                args,
-                f64::atan,
-                f32::atan,
-            ),
+            mir::Intrinsic::Asin => {
+                self.float_unary(mir::Intrinsic::Asin, arguments, args, f64::asin, f32::asin)
+            }
+            mir::Intrinsic::Acos => {
+                self.float_unary(mir::Intrinsic::Acos, arguments, args, f64::acos, f32::acos)
+            }
+            mir::Intrinsic::Atan => {
+                self.float_unary(mir::Intrinsic::Atan, arguments, args, f64::atan, f32::atan)
+            }
             mir::Intrinsic::Exp => {
-                self.execute_float_unary(mir::Intrinsic::Exp, arguments, args, f64::exp, f32::exp)
+                self.float_unary(mir::Intrinsic::Exp, arguments, args, f64::exp, f32::exp)
             }
-            mir::Intrinsic::Exp2 => self.execute_float_unary(
-                mir::Intrinsic::Exp2,
-                arguments,
-                args,
-                f64::exp2,
-                f32::exp2,
-            ),
+            mir::Intrinsic::Exp2 => {
+                self.float_unary(mir::Intrinsic::Exp2, arguments, args, f64::exp2, f32::exp2)
+            }
             mir::Intrinsic::Log => {
-                self.execute_float_unary(mir::Intrinsic::Log, arguments, args, f64::ln, f32::ln)
+                self.float_unary(mir::Intrinsic::Log, arguments, args, f64::ln, f32::ln)
             }
-            mir::Intrinsic::Log2 => self.execute_float_unary(
-                mir::Intrinsic::Log2,
-                arguments,
-                args,
-                f64::log2,
-                f32::log2,
-            ),
-            mir::Intrinsic::Log10 => self.execute_float_unary(
+            mir::Intrinsic::Log2 => {
+                self.float_unary(mir::Intrinsic::Log2, arguments, args, f64::log2, f32::log2)
+            }
+            mir::Intrinsic::Log10 => self.float_unary(
                 mir::Intrinsic::Log10,
                 arguments,
                 args,
                 f64::log10,
                 f32::log10,
             ),
-            mir::Intrinsic::Floor => self.execute_float_unary(
+            mir::Intrinsic::Floor => self.float_unary(
                 mir::Intrinsic::Floor,
                 arguments,
                 args,
                 f64::floor,
                 f32::floor,
             ),
-            mir::Intrinsic::Ceil => self.execute_float_unary(
-                mir::Intrinsic::Ceil,
-                arguments,
-                args,
-                f64::ceil,
-                f32::ceil,
-            ),
-            mir::Intrinsic::Trunc => self.execute_float_unary(
+            mir::Intrinsic::Ceil => {
+                self.float_unary(mir::Intrinsic::Ceil, arguments, args, f64::ceil, f32::ceil)
+            }
+            mir::Intrinsic::Trunc => self.float_unary(
                 mir::Intrinsic::Trunc,
                 arguments,
                 args,
                 f64::trunc,
                 f32::trunc,
             ),
-            mir::Intrinsic::Round => self.execute_float_unary(
+            mir::Intrinsic::Round => self.float_unary(
                 mir::Intrinsic::Round,
                 arguments,
                 args,
@@ -354,74 +373,70 @@ impl DispatchState<'_, '_> {
 
             // float math (binary)
             mir::Intrinsic::Min => {
-                self.execute_float_binary(mir::Intrinsic::Min, arguments, args, f64::min, f32::min)
+                self.float_binary(mir::Intrinsic::Min, arguments, args, f64::min, f32::min)
             }
             mir::Intrinsic::Max => {
-                self.execute_float_binary(mir::Intrinsic::Max, arguments, args, f64::max, f32::max)
+                self.float_binary(mir::Intrinsic::Max, arguments, args, f64::max, f32::max)
             }
-            mir::Intrinsic::CopySign => self.execute_float_binary(
+            mir::Intrinsic::CopySign => self.float_binary(
                 mir::Intrinsic::CopySign,
                 arguments,
                 args,
                 f64::copysign,
                 f32::copysign,
             ),
-            mir::Intrinsic::Atan2 => self.execute_float_binary(
+            mir::Intrinsic::Atan2 => self.float_binary(
                 mir::Intrinsic::Atan2,
                 arguments,
                 args,
                 f64::atan2,
                 f32::atan2,
             ),
-            mir::Intrinsic::Pow => self.execute_float_binary(
-                mir::Intrinsic::Pow,
-                arguments,
-                args,
-                f64::powf,
-                f32::powf,
-            ),
+            mir::Intrinsic::Pow => {
+                self.float_binary(mir::Intrinsic::Pow, arguments, args, f64::powf, f32::powf)
+            }
 
             // float math (ternary)
-            mir::Intrinsic::Fma => self.execute_fma(arguments, args),
+            mir::Intrinsic::Fma => self.fma(arguments, args),
 
             // branch hints (passthrough)
             mir::Intrinsic::Expect => args.first().copied().ok_or_else(|| {
-                self.make_error(Error::InvalidIntrinsicArguments {
+                self.runtime_error(Error::InvalidIntrinsicArguments {
                     intrinsic: intrinsic.to_str().to_string(),
                 })
             }),
             mir::Intrinsic::BlackBox => args.first().copied().ok_or_else(|| {
-                self.make_error(Error::InvalidIntrinsicArguments {
+                self.runtime_error(Error::InvalidIntrinsicArguments {
                     intrinsic: intrinsic.to_str().to_string(),
                 })
             }),
 
             // comparison
-            mir::Intrinsic::RawEq => self.execute_raw_eq(arguments, args),
+            mir::Intrinsic::RawEq => self.raw_eq(arguments, args),
 
             // transmute and addressSpace.cast
             mir::Intrinsic::Transmute | mir::Intrinsic::AddressSpaceCast => {
                 args.first().copied().ok_or_else(|| {
-                    self.make_error(Error::InvalidIntrinsicArguments {
+                    self.runtime_error(Error::InvalidIntrinsicArguments {
                         intrinsic: intrinsic.to_str().to_string(),
                     })
                 })
             }
 
             // pointer operations
-            mir::Intrinsic::PointerOffsetFrom => self.execute_ptr_offset_from(arguments, args),
+            mir::Intrinsic::PointerOffsetFrom => self.ptr_offset_from(arguments, args),
 
             // memory operations
-            mir::Intrinsic::Memcpy => self.execute_memcpy(arguments, args),
-            mir::Intrinsic::Memmove => self.execute_memmove(arguments, args),
-            mir::Intrinsic::Memset => self.execute_memset(arguments, args),
-            mir::Intrinsic::Memcmp => self.execute_memcmp(arguments, args),
+            mir::Intrinsic::Memcpy => self.memcpy(arguments, args),
+            mir::Intrinsic::Memmove => self.memmove(arguments, args),
+            mir::Intrinsic::Memset => self.memset(arguments, args),
+            mir::Intrinsic::Memcmp => self.memcmp(arguments, args),
 
             // control flow
             mir::Intrinsic::Breakpoint => Ok(Word::VOID),
             // reflection (should be resolved at compile time)
             mir::Intrinsic::TypeOf | mir::Intrinsic::SizeOf | mir::Intrinsic::AlignOf => Err(self
-                .make_error(Error::UnsupportedInstruction {
+                .runtime_error(Error::UnsupportedInstruction {
                     name: format!(
                         "intrinsic.{} (should be resolved at compile time)",
                         intrinsic.to_str()
@@ -431,23 +446,16 @@ impl DispatchState<'_, '_> {
             // prefetch (no-ops in interpreter)
             mir::Intrinsic::PrefetchRead | mir::Intrinsic::PrefetchWrite => Ok(Word::VOID),
 
-            // managed write barrier
-            mir::Intrinsic::WriteBarrier => self.execute_write_barrier(arguments, args),
-
             // runtime introspection
-            mir::Intrinsic::ReturnAddress => self.execute_return_address(),
-            mir::Intrinsic::FrameAddress => self.execute_frame_address(),
+            mir::Intrinsic::ReturnAddress => self.return_address(),
+            mir::Intrinsic::FrameAddress => self.frame_address(),
         }
     }
 
     // bit manipulation
 
     /// Count leading zeros.
-    fn execute_leading_zero_count(
-        &self,
-        arguments: &[mir::Value],
-        args: &[Word],
-    ) -> RuntimeResult<Word> {
+    fn leading_zero_count(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::LeadingZeroCount, arguments, args, 0)?;
         let count = if signed {
@@ -469,52 +477,8 @@ impl DispatchState<'_, '_> {
         Ok(Word::uint(count as u64, width))
     }
 
-    /// Record one managed write barrier.
-    fn execute_write_barrier(
-        &mut self,
-        arguments: &[mir::Value],
-        args: &[Word],
-    ) -> RuntimeResult<Word> {
-        let target = *self.intrinsic_value(mir::Intrinsic::WriteBarrier, args, 0)?;
-        let target_layout = self.intrinsic_layout(mir::Intrinsic::WriteBarrier, arguments, 0)?;
-        let start = self.byte_count_argument(mir::Intrinsic::WriteBarrier, args, 1)?;
-        let byte_len = self.byte_count_argument(mir::Intrinsic::WriteBarrier, args, 2)?;
-
-        match target_layout {
-            ValueRepr::Pointer {
-                pointer_class: PointerClass::Heap,
-                ..
-            } => {
-                self.heap_mut()
-                    .write_barrier(target.as_heap_reference(), start, byte_len)
-                    .map_err(Error::from)
-                    .map_err(|error| self.make_error(error))?;
-            }
-            ValueRepr::Pointer {
-                pointer_class: PointerClass::SharedHeap,
-                ..
-            } => {
-                self.shared()
-                    .write_barrier(target.as_shared_heap_reference(), start, byte_len)
-                    .map_err(Error::from)
-                    .map_err(|error| self.make_error(error))?;
-            }
-            _ => {
-                return Err(self.make_error(Error::InvalidIntrinsicArguments {
-                    intrinsic: "writeBarrier".to_string(),
-                }));
-            }
-        }
-
-        Ok(Word::VOID)
-    }
-
     /// Count trailing zeros.
-    fn execute_trailing_zero_count(
-        &self,
-        arguments: &[mir::Value],
-        args: &[Word],
-    ) -> RuntimeResult<Word> {
+    fn trailing_zero_count(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::TrailingZeroCount, arguments, args, 0)?;
         let count = if signed {
@@ -537,11 +501,7 @@ impl DispatchState<'_, '_> {
     }
 
     /// Count set bits (population count).
-    fn execute_population_count(
-        &self,
-        arguments: &[mir::Value],
-        args: &[Word],
-    ) -> RuntimeResult<Word> {
+    fn population_count(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (arg, width, _) =
             self.integer_argument(mir::Intrinsic::PopulationCount, arguments, args, 0)?;
 
@@ -549,7 +509,7 @@ impl DispatchState<'_, '_> {
     }
 
     /// Reverse byte order (endianness swap).
-    fn execute_byte_swap(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
+    fn byte_swap(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::ByteSwap, arguments, args, 0)?;
 
@@ -577,7 +537,7 @@ impl DispatchState<'_, '_> {
     }
 
     /// Reverse all bits in an integer.
-    fn execute_bit_reverse(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
+    fn bit_reverse(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::BitReverse, arguments, args, 0)?;
 
@@ -607,7 +567,7 @@ impl DispatchState<'_, '_> {
     }
 
     /// Rotate bits left.
-    fn execute_rotate_left(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
+    fn rotate_left(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::RotateLeft, arguments, args, 0)?;
         let amount = self.byte_count_argument(mir::Intrinsic::RotateLeft, args, 1)? as u32;
@@ -638,7 +598,7 @@ impl DispatchState<'_, '_> {
     }
 
     /// Rotate bits right.
-    fn execute_rotate_right(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
+    fn rotate_right(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::RotateRight, arguments, args, 0)?;
         let amount = self.byte_count_argument(mir::Intrinsic::RotateRight, args, 1)? as u32;
@@ -672,7 +632,7 @@ impl DispatchState<'_, '_> {
 
     /// Add with overflow detection.
     #[inline]
-    fn execute_add_overflow(
+    fn add_overflow(
         &mut self,
         destination: mir::Value,
         arguments: &[mir::Value],
@@ -700,11 +660,7 @@ impl DispatchState<'_, '_> {
                 _ => a.overflowing_add(b),
             };
 
-            return self.materialize_pair(
-                destination,
-                Word::int(result, width),
-                Word::bool(overflow),
-            );
+            return self.store_pair(destination, Word::int(result, width), Word::bool(overflow));
         }
 
         let a = left.as_uint();
@@ -725,12 +681,12 @@ impl DispatchState<'_, '_> {
             _ => a.overflowing_add(b),
         };
 
-        self.materialize_pair(destination, Word::uint(result, width), Word::bool(overflow))
+        self.store_pair(destination, Word::uint(result, width), Word::bool(overflow))
     }
 
     /// Subtract with overflow detection.
     #[inline]
-    fn execute_sub_overflow(
+    fn sub_overflow(
         &mut self,
         destination: mir::Value,
         arguments: &[mir::Value],
@@ -758,11 +714,7 @@ impl DispatchState<'_, '_> {
                 _ => a.overflowing_sub(b),
             };
 
-            return self.materialize_pair(
-                destination,
-                Word::int(result, width),
-                Word::bool(overflow),
-            );
+            return self.store_pair(destination, Word::int(result, width), Word::bool(overflow));
         }
 
         let a = left.as_uint();
@@ -783,12 +735,12 @@ impl DispatchState<'_, '_> {
             _ => a.overflowing_sub(b),
         };
 
-        self.materialize_pair(destination, Word::uint(result, width), Word::bool(overflow))
+        self.store_pair(destination, Word::uint(result, width), Word::bool(overflow))
     }
 
     /// Multiply with overflow detection.
     #[inline]
-    fn execute_mul_overflow(
+    fn mul_overflow(
         &mut self,
         destination: mir::Value,
         arguments: &[mir::Value],
@@ -816,11 +768,7 @@ impl DispatchState<'_, '_> {
                 _ => a.overflowing_mul(b),
             };
 
-            return self.materialize_pair(
-                destination,
-                Word::int(result, width),
-                Word::bool(overflow),
-            );
+            return self.store_pair(destination, Word::int(result, width), Word::bool(overflow));
         }
 
         let a = left.as_uint();
@@ -841,17 +789,13 @@ impl DispatchState<'_, '_> {
             _ => a.overflowing_mul(b),
         };
 
-        self.materialize_pair(destination, Word::uint(result, width), Word::bool(overflow))
+        self.store_pair(destination, Word::uint(result, width), Word::bool(overflow))
     }
 
     // unchecked arithmetic
 
     /// Add without overflow checking (wrapping).
-    fn execute_add_unchecked(
-        &self,
-        arguments: &[mir::Value],
-        args: &[Word],
-    ) -> RuntimeResult<Word> {
+    fn add_unchecked(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::AddUnchecked, arguments, args)?;
 
@@ -866,11 +810,7 @@ impl DispatchState<'_, '_> {
     }
 
     /// Subtract without overflow checking (wrapping).
-    fn execute_sub_unchecked(
-        &self,
-        arguments: &[mir::Value],
-        args: &[Word],
-    ) -> RuntimeResult<Word> {
+    fn sub_unchecked(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::SubUnchecked, arguments, args)?;
 
@@ -885,11 +825,7 @@ impl DispatchState<'_, '_> {
     }
 
     /// Multiply without overflow checking (wrapping).
-    fn execute_mul_unchecked(
-        &self,
-        arguments: &[mir::Value],
-        args: &[Word],
-    ) -> RuntimeResult<Word> {
+    fn mul_unchecked(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::MulUnchecked, arguments, args)?;
 
@@ -904,24 +840,20 @@ impl DispatchState<'_, '_> {
     }
 
     /// Divide without overflow checking.
-    fn execute_div_unchecked(
-        &self,
-        arguments: &[mir::Value],
-        args: &[Word],
-    ) -> RuntimeResult<Word> {
+    fn div_unchecked(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::DivUnchecked, arguments, args)?;
 
         if signed {
             if right.as_int() == 0 {
-                return Err(self.make_error(Error::DivisionByZero));
+                return Err(self.runtime_error(Error::DivisionByZero));
             }
 
             return Ok(Word::int(left.as_int().wrapping_div(right.as_int()), width));
         }
 
         if right.as_uint() == 0 {
-            return Err(self.make_error(Error::DivisionByZero));
+            return Err(self.runtime_error(Error::DivisionByZero));
         }
 
         Ok(Word::uint(
@@ -931,24 +863,20 @@ impl DispatchState<'_, '_> {
     }
 
     /// Remainder without overflow checking.
-    fn execute_rem_unchecked(
-        &self,
-        arguments: &[mir::Value],
-        args: &[Word],
-    ) -> RuntimeResult<Word> {
+    fn rem_unchecked(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::RemUnchecked, arguments, args)?;
 
         if signed {
             if right.as_int() == 0 {
-                return Err(self.make_error(Error::DivisionByZero));
+                return Err(self.runtime_error(Error::DivisionByZero));
             }
 
             return Ok(Word::int(left.as_int().wrapping_rem(right.as_int()), width));
         }
 
         if right.as_uint() == 0 {
-            return Err(self.make_error(Error::DivisionByZero));
+            return Err(self.runtime_error(Error::DivisionByZero));
         }
 
         Ok(Word::uint(
@@ -958,11 +886,7 @@ impl DispatchState<'_, '_> {
     }
 
     /// Shift left without overflow checking.
-    fn execute_shl_unchecked(
-        &self,
-        arguments: &[mir::Value],
-        args: &[Word],
-    ) -> RuntimeResult<Word> {
+    fn shl_unchecked(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::ShlUnchecked, arguments, args, 0)?;
         let amount = self.byte_count_argument(mir::Intrinsic::ShlUnchecked, args, 1)? as u32;
@@ -975,11 +899,7 @@ impl DispatchState<'_, '_> {
     }
 
     /// Shift right without overflow checking.
-    fn execute_shr_unchecked(
-        &self,
-        arguments: &[mir::Value],
-        args: &[Word],
-    ) -> RuntimeResult<Word> {
+    fn shr_unchecked(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::ShrUnchecked, arguments, args, 0)?;
         let amount = self.byte_count_argument(mir::Intrinsic::ShrUnchecked, args, 1)? as u32;
@@ -994,7 +914,7 @@ impl DispatchState<'_, '_> {
     // saturating arithmetic
 
     /// Saturating addition.
-    fn execute_sat_add(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
+    fn sat_add(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::SatAdd, arguments, args)?;
 
@@ -1024,7 +944,7 @@ impl DispatchState<'_, '_> {
     }
 
     /// Saturating subtraction.
-    fn execute_sat_sub(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
+    fn sat_sub(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::SatSub, arguments, args)?;
 
@@ -1055,8 +975,8 @@ impl DispatchState<'_, '_> {
 
     // float math helpers
 
-    /// Execute a unary float opcode.
-    fn execute_float_unary(
+    /// Evaluate one unary float intrinsic.
+    fn float_unary(
         &self,
         intrinsic: mir::Intrinsic,
         arguments: &[mir::Value],
@@ -1067,14 +987,14 @@ impl DispatchState<'_, '_> {
         let layout = self.intrinsic_layout(intrinsic, arguments, 0)?;
 
         if matches!(intrinsic, mir::Intrinsic::Abs)
-            && let ValueRepr::Int {
+            && let ValueLayout::Int {
                 width,
                 signed: true,
             } = layout
         {
             let value = self.intrinsic_value(intrinsic, args, 0)?.as_int();
 
-            return Ok(Word::int(value.abs(), width));
+            return Ok(Word::int(value.abs(), width as u8));
         }
 
         let (arg, width) = self.float_argument(intrinsic, arguments, args, 0)?;
@@ -1084,8 +1004,8 @@ impl DispatchState<'_, '_> {
         }
     }
 
-    /// Execute a binary float opcode.
-    fn execute_float_binary(
+    /// Evaluate one binary float intrinsic.
+    fn float_binary(
         &self,
         intrinsic: mir::Intrinsic,
         arguments: &[mir::Value],
@@ -1102,14 +1022,14 @@ impl DispatchState<'_, '_> {
     }
 
     /// Fused multiply-add.
-    fn execute_fma(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
+    fn fma(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let (left, width) = self.float_argument(mir::Intrinsic::Fma, arguments, args, 0)?;
         let (middle, middle_width) =
             self.float_argument(mir::Intrinsic::Fma, arguments, args, 1)?;
         let (right, right_width) = self.float_argument(mir::Intrinsic::Fma, arguments, args, 2)?;
 
         if width != middle_width || width != right_width {
-            return Err(self.make_error(Error::TypeMismatch {
+            return Err(self.runtime_error(Error::TypeMismatch {
                 expected: "matching float types".to_string(),
                 actual: format!("{arguments:?}"),
             }));
@@ -1130,9 +1050,9 @@ impl DispatchState<'_, '_> {
     // comparison
 
     /// Bitwise equality comparison.
-    fn execute_raw_eq(&self, _arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
+    fn raw_eq(&self, _arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         if args.len() < 2 {
-            return Err(self.make_error(Error::InvalidIntrinsicArguments {
+            return Err(self.runtime_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "raw_eq".to_string(),
             }));
         }
@@ -1143,11 +1063,7 @@ impl DispatchState<'_, '_> {
     // pointer operations
 
     /// Compute pointer difference.
-    fn execute_ptr_offset_from(
-        &self,
-        arguments: &[mir::Value],
-        args: &[Word],
-    ) -> RuntimeResult<Word> {
+    fn ptr_offset_from(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let a = self.raw_pointer_argument(mir::Intrinsic::PointerOffsetFrom, arguments, args, 0)?;
         let b = self.raw_pointer_argument(mir::Intrinsic::PointerOffsetFrom, arguments, args, 1)?;
 
@@ -1157,7 +1073,7 @@ impl DispatchState<'_, '_> {
     // memory operations
 
     /// Copy memory between locations.
-    fn execute_memcpy(&mut self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
+    fn memcpy(&mut self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let destination = self.raw_pointer_argument(mir::Intrinsic::Memcpy, arguments, args, 0)?;
         let source = self.raw_pointer_argument(mir::Intrinsic::Memcpy, arguments, args, 1)?;
         let len = self.byte_count_argument(mir::Intrinsic::Memcpy, args, 2)?;
@@ -1171,12 +1087,12 @@ impl DispatchState<'_, '_> {
     }
 
     /// Move memory (handles overlapping regions).
-    fn execute_memmove(&mut self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
-        self.execute_memcpy(arguments, args)
+    fn memmove(&mut self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
+        self.memcpy(arguments, args)
     }
 
     /// Fill memory with a byte value.
-    fn execute_memset(&mut self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
+    fn memset(&mut self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let destination = self.raw_pointer_argument(mir::Intrinsic::Memset, arguments, args, 0)?;
         let byte = self
             .intrinsic_value(mir::Intrinsic::Memset, args, 1)?
@@ -1186,13 +1102,13 @@ impl DispatchState<'_, '_> {
             return Ok(Word::VOID);
         }
 
-        self.write_memory(destination, byte, len)?;
+        self.store_memory(destination, byte, len)?;
 
         Ok(Word::VOID)
     }
 
     /// Compare memory ranges.
-    fn execute_memcmp(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
+    fn memcmp(&self, arguments: &[mir::Value], args: &[Word]) -> RuntimeResult<Word> {
         let left = self.raw_pointer_argument(mir::Intrinsic::Memcmp, arguments, args, 0)?;
         let right = self.raw_pointer_argument(mir::Intrinsic::Memcmp, arguments, args, 1)?;
         let len = self.byte_count_argument(mir::Intrinsic::Memcmp, args, 2)?;
@@ -1219,23 +1135,23 @@ impl DispatchState<'_, '_> {
         self.heap()
             .read_raw_bytes_into(source, 0, &mut bytes)
             .map_err(Error::from)
-            .map_err(|error| self.make_error(error))?;
+            .map_err(|error| self.runtime_error(error))?;
         self.heap_mut()
             .write_raw_bytes(destination, 0, &bytes)
             .map_err(Error::from)
-            .map_err(|error| self.make_error(error))?;
+            .map_err(|error| self.runtime_error(error))?;
 
         Ok(())
     }
 
     /// Set one raw byte range.
-    fn write_memory(&mut self, destination: RawPointer, byte: u8, len: usize) -> RuntimeResult<()> {
+    fn store_memory(&mut self, destination: RawPointer, byte: u8, len: usize) -> RuntimeResult<()> {
         let bytes = vec![byte; len];
 
         self.heap_mut()
             .write_raw_bytes(destination, 0, &bytes)
             .map_err(Error::from)
-            .map_err(|error| self.make_error(error))?;
+            .map_err(|error| self.runtime_error(error))?;
 
         Ok(())
     }
@@ -1253,17 +1169,17 @@ impl DispatchState<'_, '_> {
         self.heap()
             .read_raw_bytes_into(left, 0, &mut left_bytes)
             .map_err(Error::from)
-            .map_err(|error| self.make_error(error))?;
+            .map_err(|error| self.runtime_error(error))?;
         self.heap()
             .read_raw_bytes_into(right, 0, &mut right_bytes)
             .map_err(Error::from)
-            .map_err(|error| self.make_error(error))?;
+            .map_err(|error| self.runtime_error(error))?;
 
         for (left, right) in left_bytes.into_iter().zip(right_bytes) {
             match left.cmp(&right) {
-                std::cmp::Ordering::Less => return Ok(-1),
-                std::cmp::Ordering::Greater => return Ok(1),
-                std::cmp::Ordering::Equal => continue,
+                Ordering::Less => return Ok(-1),
+                Ordering::Greater => return Ok(1),
+                Ordering::Equal => continue,
             }
         }
 
@@ -1271,32 +1187,32 @@ impl DispatchState<'_, '_> {
     }
 
     /// Read one atomic value from memory.
-    fn read_atomic_value(
+    fn load_atomic_value(
         &self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
     ) -> RuntimeResult<Word> {
         let raw_pointer = pointer.as_raw_pointer();
         if raw_pointer.is_null() {
-            return Err(self.make_error(Error::NullPointerDereference));
+            return Err(self.runtime_error(Error::NullPointerDereference));
         }
 
         let Some(raw_pointee) = raw_pointee else {
-            return Err(self.make_error(Error::InvalidPointerType {
+            return Err(self.runtime_error(Error::InvalidPointerType {
                 actual: "raw pointer without pointee type".to_string(),
             }));
         };
 
         let tree = self.tree();
-        let byte_len = access::word_type_byte_len(tree, raw_pointee)
-            .map_err(|error| self.make_error(error))?;
+        let byte_len = word_byte_len_from_type(tree, raw_pointee)
+            .map_err(|error| self.runtime_error(error))?;
         if byte_len > Word::BYTE_LEN {
-            return Err(self.make_error(Error::InvalidInstruction));
+            return Err(self.runtime_error(Error::InvalidInstruction));
         }
 
         let raw_byte_len = self.heap().raw_byte_len(raw_pointer).map_err(Error::from)?;
         if byte_len > raw_byte_len {
-            return Err(self.make_error(Error::InvalidFieldAccess {
+            return Err(self.runtime_error(Error::InvalidFieldAccess {
                 index: 0,
                 field_count: raw_byte_len,
             }));
@@ -1305,17 +1221,17 @@ impl DispatchState<'_, '_> {
         let mut bytes = [0u8; Word::BYTE_LEN];
         let bytes = &mut bytes[..byte_len];
 
-        // read the exact atomic window without materializing the whole raw payload
+        // read the exact atomic window without copying the whole allocation
         self.heap()
             .read_raw_bytes_into(raw_pointer, 0, bytes)
             .map_err(Error::from)
-            .map_err(|error| self.make_error(error))?;
+            .map_err(|error| self.runtime_error(error))?;
 
-        access::decode_raw_value(tree, raw_pointee, bytes).map_err(|error| self.make_error(error))
+        decode_word_bytes(tree, raw_pointee, bytes).map_err(|error| self.runtime_error(error))
     }
 
-    /// Write one atomic value to memory.
-    fn write_atomic_value(
+    /// Store one atomic value to memory.
+    fn store_atomic_value(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
@@ -1323,21 +1239,21 @@ impl DispatchState<'_, '_> {
     ) -> RuntimeResult<()> {
         let raw_pointer = pointer.as_raw_pointer();
         if raw_pointer.is_null() {
-            return Err(self.make_error(Error::NullPointerDereference));
+            return Err(self.runtime_error(Error::NullPointerDereference));
         }
 
         let Some(raw_pointee) = raw_pointee else {
-            return Err(self.make_error(Error::InvalidPointerType {
+            return Err(self.runtime_error(Error::InvalidPointerType {
                 actual: "raw pointer without pointee type".to_string(),
             }));
         };
 
         let tree = self.tree();
-        let bytes = bytes::encode_word_bytes(tree, raw_pointee, value)
-            .map_err(|error| self.make_error(error))?;
+        let bytes = encode_word_bytes(tree, raw_pointee, value)
+            .map_err(|error| self.runtime_error(error))?;
         let byte_len = self.heap().raw_byte_len(raw_pointer).map_err(Error::from)?;
         if bytes.len() > byte_len {
-            return Err(self.make_error(Error::InvalidFieldAccess {
+            return Err(self.runtime_error(Error::InvalidFieldAccess {
                 index: 0,
                 field_count: byte_len,
             }));
@@ -1346,15 +1262,15 @@ impl DispatchState<'_, '_> {
         self.heap_mut()
             .write_raw_bytes(raw_pointer, 0, bytes.as_slice())
             .map_err(Error::from)
-            .map_err(|error| self.make_error(error))?;
+            .map_err(|error| self.runtime_error(error))?;
 
         Ok(())
     }
 
     // atomic operations
 
-    /// Execute an atomic load.
-    pub(crate) fn execute_atomic_load_value(
+    /// Perform one atomic load.
+    pub(crate) fn atomic_load_value(
         &self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
@@ -1363,11 +1279,11 @@ impl DispatchState<'_, '_> {
         _memory_scope: mir::MemoryScope,
         _semantics: mir::MemorySemantics,
     ) -> RuntimeResult<Word> {
-        self.execute_atomic_load(pointer, raw_pointee)
+        self.atomic_load(pointer, raw_pointee)
     }
 
-    /// Execute an atomic store.
-    pub(crate) fn execute_atomic_store_value(
+    /// Perform one atomic store.
+    pub(crate) fn atomic_store_value(
         &mut self,
         pointer: Word,
         value: Word,
@@ -1377,11 +1293,11 @@ impl DispatchState<'_, '_> {
         _memory_scope: mir::MemoryScope,
         _semantics: mir::MemorySemantics,
     ) -> RuntimeResult<()> {
-        self.execute_atomic_store(pointer, raw_pointee, value)
+        self.atomic_store(pointer, raw_pointee, value)
     }
 
-    /// Execute an atomic compare exchange.
-    pub(crate) fn execute_atomic_compare_exchange_value(
+    /// Perform one atomic compare exchange.
+    pub(crate) fn atomic_compare_exchange_value(
         &mut self,
         destination: mir::Value,
         pointer: Word,
@@ -1396,20 +1312,14 @@ impl DispatchState<'_, '_> {
     ) -> RuntimeResult<Word> {
         // the interpreter uses strong semantics for the weak variant
         if is_weak {
-            return self.execute_atomic_cas_weak(
-                destination,
-                pointer,
-                raw_pointee,
-                expected,
-                new_value,
-            );
+            return self.atomic_cas_weak(destination, pointer, raw_pointee, expected, new_value);
         }
 
-        self.execute_atomic_cas(destination, pointer, raw_pointee, expected, new_value)
+        self.atomic_cas(destination, pointer, raw_pointee, expected, new_value)
     }
 
-    /// Execute an atomic read modify write.
-    pub(crate) fn execute_atomic_rmw_value(
+    /// Perform one atomic read-modify-write.
+    pub(crate) fn atomic_rmw_value(
         &mut self,
         operator: mir::AtomicRmwOperator,
         pointer: Word,
@@ -1421,48 +1331,24 @@ impl DispatchState<'_, '_> {
         _semantics: mir::MemorySemantics,
     ) -> RuntimeResult<Word> {
         match operator {
-            mir::AtomicRmwOperator::Exchange => {
-                self.execute_atomic_exchange(pointer, raw_pointee, value)
-            }
-            mir::AtomicRmwOperator::Add => {
-                self.execute_atomic_fetch_add(pointer, raw_pointee, value)
-            }
-            mir::AtomicRmwOperator::Sub => {
-                self.execute_atomic_fetch_sub(pointer, raw_pointee, value)
-            }
-            mir::AtomicRmwOperator::And => {
-                self.execute_atomic_fetch_and(pointer, raw_pointee, value)
-            }
-            mir::AtomicRmwOperator::Or => self.execute_atomic_fetch_or(pointer, raw_pointee, value),
-            mir::AtomicRmwOperator::Xor => {
-                self.execute_atomic_fetch_xor(pointer, raw_pointee, value)
-            }
-            mir::AtomicRmwOperator::Min => {
-                self.execute_atomic_fetch_min(pointer, raw_pointee, value)
-            }
-            mir::AtomicRmwOperator::Max => {
-                self.execute_atomic_fetch_max(pointer, raw_pointee, value)
-            }
-            mir::AtomicRmwOperator::Umin => {
-                self.execute_atomic_fetch_umin(pointer, raw_pointee, value)
-            }
-            mir::AtomicRmwOperator::Umax => {
-                self.execute_atomic_fetch_umax(pointer, raw_pointee, value)
-            }
-            mir::AtomicRmwOperator::Fadd => {
-                self.execute_atomic_fetch_fadd(pointer, raw_pointee, value)
-            }
-            mir::AtomicRmwOperator::Fmin => {
-                self.execute_atomic_fetch_fmin(pointer, raw_pointee, value)
-            }
-            mir::AtomicRmwOperator::Fmax => {
-                self.execute_atomic_fetch_fmax(pointer, raw_pointee, value)
-            }
+            mir::AtomicRmwOperator::Exchange => self.atomic_exchange(pointer, raw_pointee, value),
+            mir::AtomicRmwOperator::Add => self.atomic_fetch_add(pointer, raw_pointee, value),
+            mir::AtomicRmwOperator::Sub => self.atomic_fetch_sub(pointer, raw_pointee, value),
+            mir::AtomicRmwOperator::And => self.atomic_fetch_and(pointer, raw_pointee, value),
+            mir::AtomicRmwOperator::Or => self.atomic_fetch_or(pointer, raw_pointee, value),
+            mir::AtomicRmwOperator::Xor => self.atomic_fetch_xor(pointer, raw_pointee, value),
+            mir::AtomicRmwOperator::Min => self.atomic_fetch_min(pointer, raw_pointee, value),
+            mir::AtomicRmwOperator::Max => self.atomic_fetch_max(pointer, raw_pointee, value),
+            mir::AtomicRmwOperator::Umin => self.atomic_fetch_umin(pointer, raw_pointee, value),
+            mir::AtomicRmwOperator::Umax => self.atomic_fetch_umax(pointer, raw_pointee, value),
+            mir::AtomicRmwOperator::Fadd => self.atomic_fetch_fadd(pointer, raw_pointee, value),
+            mir::AtomicRmwOperator::Fmin => self.atomic_fetch_fmin(pointer, raw_pointee, value),
+            mir::AtomicRmwOperator::Fmax => self.atomic_fetch_fmax(pointer, raw_pointee, value),
         }
     }
 
-    /// Execute an atomic fence.
-    pub(crate) fn execute_atomic_fence(
+    /// Perform one atomic fence.
+    pub(crate) fn atomic_fence(
         &mut self,
         _ordering: mir::MemoryOrdering,
         _scope: mir::AtomicScope,
@@ -1472,37 +1358,27 @@ impl DispatchState<'_, '_> {
         Ok(())
     }
 
-    /// Execute a synchronization barrier.
-    pub(crate) fn execute_barrier(
-        &mut self,
-        _scope: mir::AtomicScope,
-        _memory_scope: mir::MemoryScope,
-        _semantics: mir::MemorySemantics,
-    ) -> RuntimeResult<()> {
-        Ok(())
-    }
-
     /// Atomic load (single-threaded: same as regular load).
-    fn execute_atomic_load(
+    fn atomic_load(
         &self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
     ) -> RuntimeResult<Word> {
-        self.read_atomic_value(pointer, raw_pointee)
+        self.load_atomic_value(pointer, raw_pointee)
     }
 
     /// Atomic store (single-threaded: same as regular store).
-    fn execute_atomic_store(
+    fn atomic_store(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         value: Word,
     ) -> RuntimeResult<()> {
-        self.write_atomic_value(pointer, raw_pointee, value)
+        self.store_atomic_value(pointer, raw_pointee, value)
     }
 
     /// Atomic compare-and-swap.
-    fn execute_atomic_cas(
+    fn atomic_cas(
         &mut self,
         destination: mir::Value,
         pointer: Word,
@@ -1510,20 +1386,20 @@ impl DispatchState<'_, '_> {
         expected: Word,
         desired: Word,
     ) -> RuntimeResult<Word> {
-        let current = self.read_atomic_value(pointer, raw_pointee)?;
+        let current = self.load_atomic_value(pointer, raw_pointee)?;
         let success = self.values_equal(&current, &expected);
 
         if success {
-            self.write_atomic_value(pointer, raw_pointee, desired)?;
+            self.store_atomic_value(pointer, raw_pointee, desired)?;
         }
 
-        self.materialize_pair(destination, current, Word::bool(success))
+        self.store_pair(destination, current, Word::bool(success))
     }
 
     /// Atomic compare-and-swap (weak).
     ///
     /// The interpreter uses strong semantics for the weak variant.
-    fn execute_atomic_cas_weak(
+    fn atomic_cas_weak(
         &mut self,
         destination: mir::Value,
         pointer: Word,
@@ -1531,30 +1407,30 @@ impl DispatchState<'_, '_> {
         expected: Word,
         desired: Word,
     ) -> RuntimeResult<Word> {
-        self.execute_atomic_cas(destination, pointer, raw_pointee, expected, desired)
+        self.atomic_cas(destination, pointer, raw_pointee, expected, desired)
     }
 
     /// Atomic exchange.
-    fn execute_atomic_exchange(
+    fn atomic_exchange(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         value: Word,
     ) -> RuntimeResult<Word> {
-        let old_value = self.read_atomic_value(pointer, raw_pointee)?;
-        self.write_atomic_value(pointer, raw_pointee, value)?;
+        let old_value = self.load_atomic_value(pointer, raw_pointee)?;
+        self.store_atomic_value(pointer, raw_pointee, value)?;
 
         Ok(old_value)
     }
 
     /// Atomic fetch-and-add.
-    fn execute_atomic_fetch_add(
+    fn atomic_fetch_add(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         value: Word,
     ) -> RuntimeResult<Word> {
-        self.execute_atomic_integer_rmw(
+        self.atomic_integer_rmw(
             pointer,
             raw_pointee,
             value,
@@ -1564,13 +1440,13 @@ impl DispatchState<'_, '_> {
     }
 
     /// Atomic fetch-and-subtract.
-    fn execute_atomic_fetch_sub(
+    fn atomic_fetch_sub(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         value: Word,
     ) -> RuntimeResult<Word> {
-        self.execute_atomic_integer_rmw(
+        self.atomic_integer_rmw(
             pointer,
             raw_pointee,
             value,
@@ -1580,121 +1456,121 @@ impl DispatchState<'_, '_> {
     }
 
     /// Atomic fetch-and-and.
-    fn execute_atomic_fetch_and(
+    fn atomic_fetch_and(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         value: Word,
     ) -> RuntimeResult<Word> {
-        self.execute_atomic_integer_rmw(pointer, raw_pointee, value, |a, b| a & b, |a, b| a & b)
+        self.atomic_integer_rmw(pointer, raw_pointee, value, |a, b| a & b, |a, b| a & b)
     }
 
     /// Atomic fetch-and-or.
-    fn execute_atomic_fetch_or(
+    fn atomic_fetch_or(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         value: Word,
     ) -> RuntimeResult<Word> {
-        self.execute_atomic_integer_rmw(pointer, raw_pointee, value, |a, b| a | b, |a, b| a | b)
+        self.atomic_integer_rmw(pointer, raw_pointee, value, |a, b| a | b, |a, b| a | b)
     }
 
     /// Atomic fetch-and-xor.
-    fn execute_atomic_fetch_xor(
+    fn atomic_fetch_xor(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         value: Word,
     ) -> RuntimeResult<Word> {
-        self.execute_atomic_integer_rmw(pointer, raw_pointee, value, |a, b| a ^ b, |a, b| a ^ b)
+        self.atomic_integer_rmw(pointer, raw_pointee, value, |a, b| a ^ b, |a, b| a ^ b)
     }
 
     /// Atomic fetch-and-min.
-    fn execute_atomic_fetch_min(
+    fn atomic_fetch_min(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         value: Word,
     ) -> RuntimeResult<Word> {
-        self.execute_atomic_integer_rmw(pointer, raw_pointee, value, i64::min, u64::min)
+        self.atomic_integer_rmw(pointer, raw_pointee, value, i64::min, u64::min)
     }
 
     /// Atomic fetch-and-max.
-    fn execute_atomic_fetch_max(
+    fn atomic_fetch_max(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         value: Word,
     ) -> RuntimeResult<Word> {
-        self.execute_atomic_integer_rmw(pointer, raw_pointee, value, i64::max, u64::max)
+        self.atomic_integer_rmw(pointer, raw_pointee, value, i64::max, u64::max)
     }
 
     /// Atomic fetch-and-min (unsigned).
-    fn execute_atomic_fetch_umin(
+    fn atomic_fetch_umin(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         value: Word,
     ) -> RuntimeResult<Word> {
-        self.execute_atomic_unsigned_rmw(pointer, raw_pointee, value, u64::min)
+        self.atomic_unsigned_rmw(pointer, raw_pointee, value, u64::min)
     }
 
     /// Atomic fetch-and-max (unsigned).
-    fn execute_atomic_fetch_umax(
+    fn atomic_fetch_umax(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         value: Word,
     ) -> RuntimeResult<Word> {
-        self.execute_atomic_unsigned_rmw(pointer, raw_pointee, value, u64::max)
+        self.atomic_unsigned_rmw(pointer, raw_pointee, value, u64::max)
     }
 
     /// Atomic fetch-and-add (float).
-    fn execute_atomic_fetch_fadd(
+    fn atomic_fetch_fadd(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         value: Word,
     ) -> RuntimeResult<Word> {
-        self.execute_atomic_float_rmw(pointer, raw_pointee, value, |a, b| a + b, |a, b| a + b)
+        self.atomic_float_rmw(pointer, raw_pointee, value, |a, b| a + b, |a, b| a + b)
     }
 
     /// Atomic fetch-and-min (float).
-    fn execute_atomic_fetch_fmin(
+    fn atomic_fetch_fmin(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         value: Word,
     ) -> RuntimeResult<Word> {
-        self.execute_atomic_float_rmw(pointer, raw_pointee, value, f64::min, f32::min)
+        self.atomic_float_rmw(pointer, raw_pointee, value, f64::min, f32::min)
     }
 
     /// Atomic fetch-and-max (float).
-    fn execute_atomic_fetch_fmax(
+    fn atomic_fetch_fmax(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         value: Word,
     ) -> RuntimeResult<Word> {
-        self.execute_atomic_float_rmw(pointer, raw_pointee, value, f64::max, f32::max)
+        self.atomic_float_rmw(pointer, raw_pointee, value, f64::max, f32::max)
     }
 
     /// Return the MIR layout for one atomic pointee type.
     fn atomic_layout(
         &self,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
-    ) -> RuntimeResult<ValueRepr> {
+    ) -> RuntimeResult<ValueLayout> {
         let Some(raw_pointee) = raw_pointee else {
-            return Err(self.make_error(Error::InvalidPointerType {
+            return Err(self.runtime_error(Error::InvalidPointerType {
                 actual: "raw pointer without pointee type".to_string(),
             }));
         };
 
-        Ok(value_repr_from_type(self.tree(), raw_pointee))
+        Ok(value_layout_from_type(self.tree(), raw_pointee))
     }
 
-    /// Execute one integer atomic read-modify-write.
-    fn execute_atomic_integer_rmw<S, U>(
+    /// Perform one integer atomic read-modify-write.
+    fn atomic_integer_rmw<S, U>(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
@@ -1707,28 +1583,36 @@ impl DispatchState<'_, '_> {
         U: FnOnce(u64, u64) -> u64,
     {
         let layout = self.atomic_layout(raw_pointee)?;
-        let old_value = self.read_atomic_value(pointer, raw_pointee)?;
+        let old_value = self.load_atomic_value(pointer, raw_pointee)?;
 
-        let ValueRepr::Int { width, signed } = layout else {
-            return Err(self.make_error(Error::TypeMismatch {
+        let ValueLayout::Int { width, signed } = layout else {
+            return Err(self.runtime_error(Error::TypeMismatch {
                 expected: "integer".to_string(),
                 actual: format!("{layout:?}"),
             }));
         };
 
+        let width = if width <= Word::BIT_LEN as u16 {
+            width as u8
+        } else {
+            return Err(self.runtime_error(Error::TypeMismatch {
+                expected: "word-sized atomic integer".to_string(),
+                actual: format!("{layout:?}"),
+            }));
+        };
         let new_value = if signed {
             Word::int(signed_op(old_value.as_int(), operand.as_int()), width)
         } else {
             Word::uint(unsigned_op(old_value.as_uint(), operand.as_uint()), width)
         };
 
-        self.write_atomic_value(pointer, raw_pointee, new_value)?;
+        self.store_atomic_value(pointer, raw_pointee, new_value)?;
 
         Ok(old_value)
     }
 
-    /// Execute one unsigned integer atomic read-modify-write.
-    fn execute_atomic_unsigned_rmw<U>(
+    /// Perform one unsigned integer atomic read-modify-write.
+    fn atomic_unsigned_rmw<U>(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
@@ -1739,27 +1623,35 @@ impl DispatchState<'_, '_> {
         U: FnOnce(u64, u64) -> u64,
     {
         let layout = self.atomic_layout(raw_pointee)?;
-        let old_value = self.read_atomic_value(pointer, raw_pointee)?;
+        let old_value = self.load_atomic_value(pointer, raw_pointee)?;
 
-        let ValueRepr::Int {
+        let ValueLayout::Int {
             width,
             signed: false,
         } = layout
         else {
-            return Err(self.make_error(Error::TypeMismatch {
+            return Err(self.runtime_error(Error::TypeMismatch {
                 expected: "unsigned integer".to_string(),
                 actual: format!("{layout:?}"),
             }));
         };
 
+        let width = if width <= Word::BIT_LEN as u16 {
+            width as u8
+        } else {
+            return Err(self.runtime_error(Error::TypeMismatch {
+                expected: "word-sized atomic integer".to_string(),
+                actual: format!("{layout:?}"),
+            }));
+        };
         let new_value = Word::uint(op(old_value.as_uint(), operand.as_uint()), width);
-        self.write_atomic_value(pointer, raw_pointee, new_value)?;
+        self.store_atomic_value(pointer, raw_pointee, new_value)?;
 
         Ok(old_value)
     }
 
-    /// Execute one floating point atomic read-modify-write.
-    fn execute_atomic_float_rmw<D, F>(
+    /// Perform one floating point atomic read-modify-write.
+    fn atomic_float_rmw<D, F>(
         &mut self,
         pointer: Word,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
@@ -1772,10 +1664,10 @@ impl DispatchState<'_, '_> {
         F: FnOnce(f32, f32) -> f32,
     {
         let layout = self.atomic_layout(raw_pointee)?;
-        let old_value = self.read_atomic_value(pointer, raw_pointee)?;
+        let old_value = self.load_atomic_value(pointer, raw_pointee)?;
 
-        let ValueRepr::Float { width } = layout else {
-            return Err(self.make_error(Error::TypeMismatch {
+        let ValueLayout::Float { width } = layout else {
+            return Err(self.runtime_error(Error::TypeMismatch {
                 expected: "float".to_string(),
                 actual: format!("{layout:?}"),
             }));
@@ -1785,7 +1677,7 @@ impl DispatchState<'_, '_> {
             32 => Word::float32(f32_op(old_value.as_float32(), operand.as_float32())),
             _ => Word::float64(f64_op(old_value.as_float64(), operand.as_float64())),
         };
-        self.write_atomic_value(pointer, raw_pointee, new_value)?;
+        self.store_atomic_value(pointer, raw_pointee, new_value)?;
 
         Ok(old_value)
     }
@@ -1798,21 +1690,21 @@ impl DispatchState<'_, '_> {
     // runtime introspection
 
     /// Get the return address (synthetic).
-    fn execute_return_address(&self) -> RuntimeResult<Word> {
+    fn return_address(&self) -> RuntimeResult<Word> {
         if self.engine.frames.len() < 2 {
             return Ok(Word::uint(0, 64));
         }
 
         let caller_frame = &self.engine.frames[self.engine.frames.len() - 2];
-        let func_id = caller_frame.function.id as u64;
-        let block_id = caller_frame.current_block.id as u64;
+        let func_id = caller_frame.function().id as u64;
+        let block_id = caller_frame.current_block().id as u64;
 
         let synthetic_addr = (func_id << 32) | block_id;
         Ok(Word::uint(synthetic_addr, 64))
     }
 
     /// Get the frame address (synthetic).
-    fn execute_frame_address(&self) -> RuntimeResult<Word> {
+    fn frame_address(&self) -> RuntimeResult<Word> {
         let frame_idx = self.engine.frames.len() as u64;
         let synthetic_addr = 0x7FFF_0000_0000_0000u64 | frame_idx;
         Ok(Word::uint(synthetic_addr, 64))

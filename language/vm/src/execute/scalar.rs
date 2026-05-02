@@ -1,6 +1,10 @@
-use super::operator;
-use super::prelude::*;
+use std::cmp::Ordering;
+use std::mem;
 
+use super::operator;
+use crate::Word;
+use crate::diagnostic::Error;
+use destack_mir as mir;
 /// Reduction operators for vector or tensor reductions.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum ReduceOperator {
@@ -48,7 +52,7 @@ impl From<mir::TensorReduceOperator> for ReduceOperator {
     }
 }
 
-/// Scalar value representation for typed arithmetic.
+/// Scalar value layout for typed arithmetic.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum ScalarLayout {
     /// Signed or unsigned integers with a bit width.
@@ -84,6 +88,15 @@ pub(crate) enum ScalarConvertMode {
     Saturate,
 }
 
+/// Result of evaluating scalar arithmetic.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ScalarResult {
+    /// One word-sized result.
+    Word(Word),
+    /// One frame-backed result.
+    Bytes(Vec<u8>),
+}
+
 impl From<mir::VectorConvertMode> for ScalarConvertMode {
     fn from(value: mir::VectorConvertMode) -> Self {
         match value {
@@ -94,6 +107,476 @@ impl From<mir::VectorConvertMode> for ScalarConvertMode {
             mir::VectorConvertMode::RoundCeil => ScalarConvertMode::RoundCeil,
             mir::VectorConvertMode::Saturate => ScalarConvertMode::Saturate,
         }
+    }
+}
+
+/// Evaluate a binary operator over one fixed-width scalar byte value.
+pub(crate) fn binary_bytes(
+    ty: ScalarLayout,
+    op: mir::BinaryOperator,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let ScalarLayout::Int { width, is_signed } = ty else {
+        return Err(Error::TypeMismatch {
+            expected: "integer byte scalar".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    };
+
+    let mut left = normalized_integer_bytes(left, width);
+    let right = normalized_integer_bytes(right, width);
+
+    use mir::BinaryOperator::*;
+    let result = match op {
+        Add => ScalarResult::Bytes(add_bytes(&left, &right, width)),
+        Subtract => ScalarResult::Bytes(subtract_bytes(&left, &right, width)),
+        Multiply => ScalarResult::Bytes(multiply_bytes(&left, &right, width)),
+        SignedDivide if is_signed => {
+            ScalarResult::Bytes(divide_signed_bytes(&left, &right, width)?.0)
+        }
+        SignedRemainder if is_signed => {
+            ScalarResult::Bytes(divide_signed_bytes(&left, &right, width)?.1)
+        }
+        UnsignedDivide => ScalarResult::Bytes(divide_unsigned_bytes(&left, &right, width)?.0),
+        UnsignedRemainder => ScalarResult::Bytes(divide_unsigned_bytes(&left, &right, width)?.1),
+        Equal => ScalarResult::Word(Word::bool(compare_unsigned_bytes(&left, &right).is_eq())),
+        NotEqual => ScalarResult::Word(Word::bool(!compare_unsigned_bytes(&left, &right).is_eq())),
+        SignedLessThan if is_signed => ScalarResult::Word(Word::bool(
+            compare_signed_bytes(&left, &right, width).is_lt(),
+        )),
+        SignedLessEqual if is_signed => ScalarResult::Word(Word::bool(
+            !compare_signed_bytes(&left, &right, width).is_gt(),
+        )),
+        SignedGreaterThan if is_signed => ScalarResult::Word(Word::bool(
+            compare_signed_bytes(&left, &right, width).is_gt(),
+        )),
+        SignedGreaterEqual if is_signed => ScalarResult::Word(Word::bool(
+            !compare_signed_bytes(&left, &right, width).is_lt(),
+        )),
+        UnsignedLessThan => {
+            ScalarResult::Word(Word::bool(compare_unsigned_bytes(&left, &right).is_lt()))
+        }
+        UnsignedLessEqual => {
+            ScalarResult::Word(Word::bool(!compare_unsigned_bytes(&left, &right).is_gt()))
+        }
+        UnsignedGreaterThan => {
+            ScalarResult::Word(Word::bool(compare_unsigned_bytes(&left, &right).is_gt()))
+        }
+        UnsignedGreaterEqual => {
+            ScalarResult::Word(Word::bool(!compare_unsigned_bytes(&left, &right).is_lt()))
+        }
+        And => ScalarResult::Bytes(bitwise_bytes(
+            &left,
+            &right,
+            |left, right| left & right,
+            width,
+        )),
+        Or => ScalarResult::Bytes(bitwise_bytes(
+            &left,
+            &right,
+            |left, right| left | right,
+            width,
+        )),
+        Xor => ScalarResult::Bytes(bitwise_bytes(
+            &left,
+            &right,
+            |left, right| left ^ right,
+            width,
+        )),
+        ShiftLeft => ScalarResult::Bytes(shift_left_bytes(&left, shift_amount(&right), width)),
+        ArithmeticShiftRight if is_signed => {
+            let fill = integer_is_negative(&left, width);
+
+            ScalarResult::Bytes(shift_right_bytes(&left, shift_amount(&right), fill, width))
+        }
+        LogicalShiftRight => {
+            left = shift_right_bytes(&left, shift_amount(&right), false, width);
+
+            ScalarResult::Bytes(left)
+        }
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: format!("wide integer operator for {op:?}"),
+                actual: format!("{left:?}, {right:?}"),
+            });
+        }
+    };
+
+    Ok(result)
+}
+
+/// Evaluate a unary operator over one fixed-width scalar byte value.
+pub(crate) fn unary_bytes(
+    ty: ScalarLayout,
+    op: mir::UnaryOperator,
+    value: &[u8],
+) -> Result<Vec<u8>, Error> {
+    let ScalarLayout::Int { width, is_signed } = ty else {
+        return Err(Error::TypeMismatch {
+            expected: "integer byte scalar".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    };
+
+    let value = normalized_integer_bytes(value, width);
+    let result = match op {
+        mir::UnaryOperator::Negate if is_signed => negate_bytes(&value, width),
+        mir::UnaryOperator::Not => {
+            let mut result = value.into_iter().map(|byte| !byte).collect::<Vec<_>>();
+            mask_unused_integer_bits(&mut result, width);
+
+            result
+        }
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: format!("wide integer operator for {op:?}"),
+                actual: format!("{value:?}"),
+            });
+        }
+    };
+
+    Ok(result)
+}
+
+/// Convert one integer byte value to another integer byte value.
+pub(crate) fn convert_integer_bytes(
+    value: &[u8],
+    source_width: u16,
+    source_signed: bool,
+    dest_width: u16,
+) -> Vec<u8> {
+    let source = normalized_integer_bytes(value, source_width);
+    let byte_len = integer_byte_len(dest_width);
+    let fill = if source_signed && integer_is_negative(&source, source_width) {
+        0xff
+    } else {
+        0
+    };
+    let mut result = vec![fill; byte_len];
+    let copied = result.len().min(source.len());
+
+    result[..copied].copy_from_slice(&source[..copied]);
+    mask_unused_integer_bits(&mut result, dest_width);
+
+    result
+}
+
+/// Decode one fixed-width integer byte value into a VM word.
+pub(crate) fn integer_bytes_to_word(
+    value: &[u8],
+    width: u16,
+    is_signed: bool,
+) -> Result<Word, Error> {
+    let value = normalized_integer_bytes(value, width);
+    let fill = if is_signed && integer_is_negative(&value, width) {
+        0xff
+    } else {
+        0
+    };
+    let mut bytes = [fill; Word::BYTE_LEN];
+    let copied = bytes.len().min(value.len());
+
+    bytes[..copied].copy_from_slice(&value[..copied]);
+
+    Ok(if is_signed {
+        Word::int(i64::from_le_bytes(bytes), width_u8(width)?)
+    } else {
+        Word::uint(u64::from_le_bytes(bytes), width_u8(width)?)
+    })
+}
+
+/// Return one integer width in bytes.
+fn integer_byte_len(width: u16) -> usize {
+    usize::from(width).div_ceil(8)
+}
+
+/// Return a masked little-endian integer byte buffer.
+fn normalized_integer_bytes(value: &[u8], width: u16) -> Vec<u8> {
+    let byte_len = integer_byte_len(width);
+    let mut result = vec![0; byte_len];
+    let copied = result.len().min(value.len());
+
+    result[..copied].copy_from_slice(&value[..copied]);
+    mask_unused_integer_bits(&mut result, width);
+
+    result
+}
+
+/// Clear high bits outside the integer width.
+fn mask_unused_integer_bits(value: &mut [u8], width: u16) {
+    let extra_bits = usize::from(width) % 8;
+    if extra_bits == 0 || value.is_empty() {
+        return;
+    }
+
+    let mask = (1u16 << extra_bits) as u8 - 1;
+    let last = value.len() - 1;
+
+    value[last] &= mask;
+}
+
+/// Return whether the fixed-width integer is negative.
+fn integer_is_negative(value: &[u8], width: u16) -> bool {
+    if width == 0 {
+        return false;
+    }
+
+    let bit = usize::from(width - 1);
+    let byte = bit / 8;
+    let mask = 1u8 << (bit % 8);
+
+    value.get(byte).is_some_and(|byte| byte & mask != 0)
+}
+
+/// Compare two unsigned integer byte buffers.
+fn compare_unsigned_bytes(left: &[u8], right: &[u8]) -> Ordering {
+    for index in (0..left.len().max(right.len())).rev() {
+        let left = left.get(index).copied().unwrap_or(0);
+        let right = right.get(index).copied().unwrap_or(0);
+
+        match left.cmp(&right) {
+            Ordering::Equal => {}
+            ordering => return ordering,
+        }
+    }
+
+    Ordering::Equal
+}
+
+/// Compare two signed integer byte buffers.
+fn compare_signed_bytes(left: &[u8], right: &[u8], width: u16) -> Ordering {
+    let left_negative = integer_is_negative(left, width);
+    let right_negative = integer_is_negative(right, width);
+    if left_negative != right_negative {
+        return if left_negative {
+            Ordering::Less
+        } else {
+            Ordering::Greater
+        };
+    }
+
+    compare_unsigned_bytes(left, right)
+}
+
+/// Add two little-endian integer byte buffers.
+fn add_bytes(left: &[u8], right: &[u8], width: u16) -> Vec<u8> {
+    let mut result = vec![0; left.len()];
+    let mut carry = 0u16;
+
+    for index in 0..result.len() {
+        let sum = left[index] as u16 + right[index] as u16 + carry;
+        result[index] = sum as u8;
+        carry = sum >> 8;
+    }
+
+    mask_unused_integer_bits(&mut result, width);
+
+    result
+}
+
+/// Subtract two little-endian integer byte buffers.
+fn subtract_bytes(left: &[u8], right: &[u8], width: u16) -> Vec<u8> {
+    let mut result = vec![0; left.len()];
+    let mut borrow = 0i16;
+
+    for index in 0..result.len() {
+        let diff = left[index] as i16 - right[index] as i16 - borrow;
+        result[index] = diff as u8;
+        borrow = if diff < 0 { 1 } else { 0 };
+    }
+
+    mask_unused_integer_bits(&mut result, width);
+
+    result
+}
+
+/// Multiply two little-endian integer byte buffers.
+fn multiply_bytes(left: &[u8], right: &[u8], width: u16) -> Vec<u8> {
+    let mut wide = vec![0u32; left.len() + right.len()];
+
+    for left_index in 0..left.len() {
+        for right_index in 0..right.len() {
+            wide[left_index + right_index] += left[left_index] as u32 * right[right_index] as u32;
+        }
+    }
+
+    for index in 0..wide.len() - 1 {
+        let carry = wide[index] >> 8;
+        wide[index] &= 0xff;
+        wide[index + 1] += carry;
+    }
+
+    let mut result = wide
+        .into_iter()
+        .take(left.len())
+        .map(|byte| byte as u8)
+        .collect::<Vec<_>>();
+    mask_unused_integer_bits(&mut result, width);
+
+    result
+}
+
+/// Apply one bitwise operation to two integer byte buffers.
+fn bitwise_bytes(left: &[u8], right: &[u8], op: fn(u8, u8) -> u8, width: u16) -> Vec<u8> {
+    let mut result = left
+        .iter()
+        .zip(right)
+        .map(|(left, right)| op(*left, *right))
+        .collect::<Vec<_>>();
+    mask_unused_integer_bits(&mut result, width);
+
+    result
+}
+
+/// Negate one fixed-width integer byte buffer.
+fn negate_bytes(value: &[u8], width: u16) -> Vec<u8> {
+    let mut result = value.iter().map(|byte| !byte).collect::<Vec<_>>();
+    let one = {
+        let mut one = vec![0; result.len()];
+        if let Some(first) = one.first_mut() {
+            *first = 1;
+        }
+        one
+    };
+
+    result = add_bytes(&result, &one, width);
+
+    result
+}
+
+/// Return the shift amount encoded by one integer byte buffer.
+fn shift_amount(value: &[u8]) -> usize {
+    let mut result = 0usize;
+    let copied = value.len().min(mem::size_of::<usize>());
+
+    for (index, byte) in value.iter().take(copied).enumerate() {
+        result |= (*byte as usize) << (index * 8);
+    }
+
+    result
+}
+
+/// Shift one integer byte buffer left.
+fn shift_left_bytes(value: &[u8], shift: usize, width: u16) -> Vec<u8> {
+    if shift >= usize::from(width) {
+        return vec![0; value.len()];
+    }
+
+    let mut result = vec![0; value.len()];
+    for bit in 0..usize::from(width) - shift {
+        if get_bit(value, bit) {
+            set_bit(&mut result, bit + shift);
+        }
+    }
+    mask_unused_integer_bits(&mut result, width);
+
+    result
+}
+
+/// Shift one integer byte buffer right.
+fn shift_right_bytes(value: &[u8], shift: usize, fill: bool, width: u16) -> Vec<u8> {
+    let mut result = if fill {
+        let mut result = vec![0xff; value.len()];
+        mask_unused_integer_bits(&mut result, width);
+
+        result
+    } else {
+        vec![0; value.len()]
+    };
+    if shift >= usize::from(width) {
+        return result;
+    }
+
+    for bit in shift..usize::from(width) {
+        if get_bit(value, bit) {
+            set_bit(&mut result, bit - shift);
+        } else if fill {
+            clear_bit(&mut result, bit - shift);
+        }
+    }
+    mask_unused_integer_bits(&mut result, width);
+
+    result
+}
+
+/// Divide two unsigned integer byte buffers.
+fn divide_unsigned_bytes(
+    left: &[u8],
+    right: &[u8],
+    width: u16,
+) -> Result<(Vec<u8>, Vec<u8>), Error> {
+    if right.iter().all(|byte| *byte == 0) {
+        return Err(Error::DivisionByZero);
+    }
+
+    let mut quotient = vec![0; left.len()];
+    let mut remainder = vec![0; left.len()];
+
+    for bit in (0..usize::from(width)).rev() {
+        remainder = shift_left_bytes(&remainder, 1, width);
+        if get_bit(left, bit) {
+            set_bit(&mut remainder, 0);
+        }
+
+        if compare_unsigned_bytes(&remainder, right) != Ordering::Less {
+            remainder = subtract_bytes(&remainder, right, width);
+            set_bit(&mut quotient, bit);
+        }
+    }
+
+    Ok((quotient, remainder))
+}
+
+/// Divide two signed integer byte buffers.
+fn divide_signed_bytes(left: &[u8], right: &[u8], width: u16) -> Result<(Vec<u8>, Vec<u8>), Error> {
+    let left_negative = integer_is_negative(left, width);
+    let right_negative = integer_is_negative(right, width);
+    let left_abs = if left_negative {
+        negate_bytes(left, width)
+    } else {
+        left.to_vec()
+    };
+    let right_abs = if right_negative {
+        negate_bytes(right, width)
+    } else {
+        right.to_vec()
+    };
+
+    let (mut quotient, mut remainder) = divide_unsigned_bytes(&left_abs, &right_abs, width)?;
+    if left_negative != right_negative {
+        quotient = negate_bytes(&quotient, width);
+    }
+    if left_negative {
+        remainder = negate_bytes(&remainder, width);
+    }
+
+    Ok((quotient, remainder))
+}
+
+/// Read one bit from a little-endian integer byte buffer.
+fn get_bit(value: &[u8], bit: usize) -> bool {
+    let byte = bit / 8;
+    let mask = 1u8 << (bit % 8);
+
+    value.get(byte).is_some_and(|byte| byte & mask != 0)
+}
+
+/// Set one bit in a little-endian integer byte buffer.
+fn set_bit(value: &mut [u8], bit: usize) {
+    let byte = bit / 8;
+    let mask = 1u8 << (bit % 8);
+    if let Some(byte) = value.get_mut(byte) {
+        *byte |= mask;
+    }
+}
+
+/// Clear one bit in a little-endian integer byte buffer.
+fn clear_bit(value: &mut [u8], bit: usize) {
+    let byte = bit / 8;
+    let mask = 1u8 << (bit % 8);
+    if let Some(byte) = value.get_mut(byte) {
+        *byte &= !mask;
     }
 }
 
@@ -110,7 +593,7 @@ impl From<mir::TensorConvertMode> for ScalarConvertMode {
     }
 }
 
-/// Resolve the scalar value representation from a MIR type.
+/// Return the scalar value layout for a MIR type.
 pub(crate) fn scalar_layout(
     tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
@@ -541,8 +1024,8 @@ pub(crate) fn clamp_or_error_unsigned(
     })
 }
 
-/// Apply a reduction operator to two values.
-pub(crate) fn apply_reduce_operator(
+/// Evaluate one reduction operator over two values.
+pub(crate) fn reduce_operator(
     ty: ScalarLayout,
     op: ReduceOperator,
     a: Word,
@@ -559,8 +1042,8 @@ pub(crate) fn apply_reduce_operator(
     }
 }
 
-/// Apply a typed binary operator to two scalar values.
-pub(crate) fn apply_binary_operator(
+/// Evaluate one typed binary operator over two scalar values.
+pub(crate) fn binary_operator(
     ty: ScalarLayout,
     op: mir::BinaryOperator,
     a: Word,
@@ -569,22 +1052,39 @@ pub(crate) fn apply_binary_operator(
     match ty {
         ScalarLayout::Int {
             is_signed: true, ..
-        } => operator::execute_binary_int(op, a, b),
+        } => operator::evaluate_binary_int(op, a, b),
         ScalarLayout::Int {
             is_signed: false, ..
         } => match op {
             mir::BinaryOperator::Equal => Ok(Word::bool(a.as_u64() == b.as_u64())),
             mir::BinaryOperator::NotEqual => Ok(Word::bool(a.as_u64() != b.as_u64())),
-            _ => operator::execute_binary_uint(op, a, b),
+            _ => operator::evaluate_binary_uint(op, a, b),
         },
-        ScalarLayout::Float { width: 32 } => operator::execute_binary_float32(op, a, b),
-        ScalarLayout::Float { width: 64 } => operator::execute_binary_float64(op, a, b),
+        ScalarLayout::Float { width: 32 } => operator::evaluate_binary_float32(op, a, b),
+        ScalarLayout::Float { width: 64 } => operator::evaluate_binary_float64(op, a, b),
         ScalarLayout::Bool => match op {
             mir::BinaryOperator::Equal => Ok(Word::bool(a.as_bool() == b.as_bool())),
             mir::BinaryOperator::NotEqual => Ok(Word::bool(a.as_bool() != b.as_bool())),
-            _ => operator::execute_binary_bool(op, a, b),
+            _ => operator::evaluate_binary_bool(op, a, b),
         },
         _ => Err(reduce_type_error("binary", a, b)),
+    }
+}
+
+/// Evaluate one typed unary operator over one scalar value.
+pub(crate) fn unary_operator(
+    ty: ScalarLayout,
+    op: mir::UnaryOperator,
+    value: Word,
+) -> Result<Word, Error> {
+    match ty {
+        ScalarLayout::Float { width: 32 } => operator::evaluate_unary_float32(op, value),
+        ScalarLayout::Float { width: 64 } => operator::evaluate_unary_float64(op, value),
+        ScalarLayout::Bool => operator::evaluate_unary_bool(op, value),
+        _ => Err(Error::TypeMismatch {
+            expected: format!("typed unary operator for {op:?}"),
+            actual: format!("{value:?}"),
+        }),
     }
 }
 
