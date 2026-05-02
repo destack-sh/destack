@@ -258,7 +258,7 @@ fn normalized_spans(
 }
 
 /// Build a stable snapshot sort key for a reference span.
-fn reference_sort_key(session: &QueryTestSession, span: Span) -> (String, u32, u32, u64) {
+fn reference_sort_key(session: &QueryTestSession, span: Span) -> (String, u32, u32, u128) {
     let file_name = file_for(session, span.file)
         .map(|file| file.name.clone())
         .unwrap_or_else(|| "<unknown>".to_string());

@@ -4,19 +4,20 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use destack_artifact::{ArtifactKey, MemoryCacheStore};
-use destack_compiler::{Compiler, CompilerOptions};
+use destack_compiler::Compiler;
 use destack_parser::source_colorizer;
 use destack_source::{
-    DiagnosticSeverity, File, FileType, MemoryFileSystem, ModuleId, PrintOptions, Uri,
+    DiagnosticSeverity, File, FileType, MemoryFileSystem, ModuleId, PrintOptions, TargetId, Uri,
 };
-use destack_workspace::{AmbientSnapshot, Repository, Revision, parse_jsonc_file};
+use destack_workspace::{HostEnvironment, Repository, Revision, parse_jsonc_file};
 use serde_json::json;
 
 use crate::core::print::color;
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Suite, current_workspace_revision, fixtures_dir,
-    format_diagnostics, profile_id_for_target_or_default, provide_workspace_artifacts,
-    save_expected_failures, write_workspace_text_file,
+    format_diagnostics, module_artifact_diagnostics, module_target_artifact_diagnostics,
+    profile_id_for_target_or_default, provide_workspace_artifacts, save_expected_failures,
+    write_workspace_text_file,
 };
 use crate::mdtest::{
     MdTestCase, discover_md_files, load_mdtest_expected_failures, parse_mdtest_file,
@@ -156,36 +157,21 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
         let root = specification_root_for(test);
         let cwd = PathBuf::from("/test/spec");
         let fs = Arc::new(MemoryFileSystem::new());
-        let repository = Arc::new(
-            Repository::open_root_from_fs(cwd, fs.clone(), AmbientSnapshot::capture_process())
-                .expect("failed to import repository from specification file system")
-                .with_cache(Arc::new(MemoryCacheStore::new())),
-        );
+        let repository = Arc::new(Repository::new(
+            cwd,
+            Arc::new(MemoryCacheStore::new()),
+            fs.clone(),
+            HostEnvironment::capture_process(),
+        ));
         crate::mdtest::setup_test_environment_with_repository(test, repository, fs, root)
     };
     let prefer_native = test_option_bool(test, "native").unwrap_or(false);
-    let verify_mir = !prefer_native;
 
     // compile with single worker for deterministic results
-    let mut compiler = Compiler::new(
-        repository.clone(),
-        CompilerOptions {
-            load_libraries: false,
-            workers: 1,
-            verify_mir,
-            ..Default::default()
-        },
-    );
+    let compiler = Compiler::new(repository.clone());
 
     // run the spec body, then always remove the isolated repository root
     (|| {
-        // resolve the main module to compile
-        let initial_revision = current_workspace_revision(&repository);
-        if let Err(error) = compiler.resolve_path_to_module(initial_revision, &main_path) {
-            return CaseResult::Failed {
-                message: format!("failed to resolve module: {error:?}"),
-            };
-        }
         let revision;
 
         // apply config options and targets
@@ -199,23 +185,12 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
         };
 
         // select profile and lib loading
-        let (profile, mut load_libraries) =
+        let (profile, _load_libraries) =
             select_profile_for_mdtest(&repository, revision, module_id, test, prefer_native);
         let profile = profile.id();
 
-        // native spec cases need builtin libraries for lowering
-        if prefer_native {
-            load_libraries = true;
-        }
-
-        // load libs only when explicitly requested
-        if !load_libraries && has_explicit_libs(&repository, revision, module_id) {
-            load_libraries = true;
-        }
-
-        // enqueue analysis task
-        compiler.options.load_libraries = load_libraries;
-        let mut artifact_keys = vec![ArtifactKey::DirAnalyzed {
+        // enqueue check task
+        let mut artifact_keys = vec![ArtifactKey::DirChecked {
             module: module_id,
             profile,
         }];
@@ -226,9 +201,15 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
         let mut diagnostic_profile = None;
         if run_optimize {
             // select target and profile for diagnostics
+            let module = repository
+                .module(revision, module_id)
+                .unwrap_or_else(|error| panic!("failed to read module: {error}"))
+                .unwrap_or_else(|| panic!("missing module {module_id:?}"));
             let next_target = repository
-                .diagnostic_target_for_module(revision, module_id)
-                .unwrap_or_else(|error| panic!("failed to resolve diagnostic target: {error}"));
+                .package_default_target(revision, module.package_id)
+                .unwrap_or_else(|error| panic!("failed to resolve diagnostic target: {error}"))
+                .map(|(target_id, _)| target_id)
+                .unwrap_or_else(|| TargetId::new(module.package_id, "default"));
             let next_profile =
                 profile_id_for_target_or_default(&repository, revision, module_id, &next_target);
             diagnostic_target = Some(next_target);
@@ -251,22 +232,22 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
                 diagnostic_target.expect("missing diagnostic target for optimized spec run");
             let diagnostic_profile =
                 diagnostic_profile.expect("missing diagnostic profile for optimized spec run");
-            repository.module_target_artifact_diagnostics(
+            module_target_artifact_diagnostics(
+                &repository,
                 revision,
                 module_id,
                 diagnostic_profile,
                 diagnostic_target,
             )
         } else {
-            repository.module_artifact_diagnostics(revision, module_id, profile)
+            module_artifact_diagnostics(&repository, revision, module_id, profile)
         };
-        let diagnostics_vec = diagnostics.iter();
-        let actual_errors: Vec<String> = diagnostics_vec
+        let actual_errors: Vec<String> = diagnostics
             .iter()
             .filter(|d| d.severity == DiagnosticSeverity::Error)
             .map(|d| d.message.clone())
             .collect();
-        let actual_warnings: Vec<String> = diagnostics_vec
+        let actual_warnings: Vec<String> = diagnostics
             .iter()
             .filter(|d| d.severity == DiagnosticSeverity::Warning)
             .map(|d| d.message.clone())
@@ -325,37 +306,6 @@ fn test_option_bool(test: &MdTestCase, key: &str) -> Option<bool> {
     }
 }
 
-fn has_explicit_libs(repository: &Repository, revision: Revision, module_id: ModuleId) -> bool {
-    // resolve the module package
-    let package_id = {
-        let Ok(module) = repository.module(revision, module_id) else {
-            return false;
-        };
-        let Some(module) = module else {
-            return false;
-        };
-
-        module.package_id
-    };
-    let Ok(package_options) = repository.package_options(revision, package_id) else {
-        return false;
-    };
-    let Some(package_options) = package_options else {
-        return false;
-    };
-
-    // check compiler lib entries
-    if !package_options.compiler.lib.is_empty() {
-        return true;
-    }
-
-    // check target lib entries
-    package_options
-        .targets
-        .values()
-        .any(|target| target.lib.is_some())
-}
-
 fn apply_destack_config_for_spec(
     repository: &Repository,
     main_path: &Path,
@@ -392,7 +342,7 @@ fn apply_destack_config_for_spec(
             .to_string_lossy()
             .to_string();
         let uri = Uri::from_path(&destack_config_path);
-        let file_id = repository.file_id_for_workspace_path(&destack_config_path);
+        let file_id = repository.file_id(&destack_config_path);
         let file = File::from_text(
             file_id,
             name,
@@ -410,8 +360,10 @@ fn apply_destack_config_for_spec(
     let mut needs_write = !has_destack_config;
     let revision = current_workspace_revision(repository);
     let has_targets = if has_destack_config {
+        let destack_config_file_id = repository.file_id(&destack_config_path);
+
         !repository
-            .destack_declaration_for_file_path(revision, &destack_config_path)
+            .destack_declaration_for_file(revision, destack_config_file_id)
             .map_err(|error| format!("failed to load destack.json: {error}"))?
             .map(|declaration| declaration.as_ref().clone())
             .ok_or_else(|| "failed to load destack.json".to_string())?

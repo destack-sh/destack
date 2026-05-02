@@ -1,19 +1,20 @@
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
-use std::{env, fs};
 
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Runner, Suite, current_workspace_revision,
-    fixtures_dir, provide_workspace_artifacts, render_unexpected_repository_diagnostic_collection,
+    default_profile_id_for_module, fixtures_dir, module_artifact_diagnostics, module_id_for_path,
+    module_target_artifact_diagnostics, profile_id_for_target_or_default,
+    provide_workspace_artifacts, render_unexpected_repository_diagnostic_collection,
     test_output_dir,
 };
 use destack_artifact::{ArtifactKey, MemoryCacheStore, OutputContent, OutputFile};
-use destack_compiler::{Compiler, CompilerOptions};
+use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_session::Session;
-use destack_source::{FileSystem, PhysicalFileSystem};
-use destack_workspace::{AmbientSnapshot, Ref, Repository, Target};
+use destack_source::{FileSystem, PhysicalFileSystem, TargetId};
+use destack_workspace::{HostEnvironment, Ref, Repository, Target};
 
 use super::assert::compare_directory;
 use super::discover::{SOURCE_EXTENSIONS, discover_emit_cases, discover_source_files};
@@ -121,142 +122,6 @@ pub fn run_emit_tests(options: &RunOptions) -> std::process::ExitCode {
     Runner::run_suite(EmitSuite, options)
 }
 
-/// Return the emit timing filter from the environment.
-fn emit_trace_filter() -> Option<String> {
-    env::var("DESTACK_EMIT_TRACE")
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-}
-
-/// Return whether emit runs should disable builtin library loading.
-fn emit_trace_disables_libraries() -> bool {
-    env::var("DESTACK_EMIT_NO_LIBS")
-        .ok()
-        .and_then(|value| value.parse::<u8>().ok())
-        .is_some_and(|value| value > 0)
-}
-
-/// Return whether one emit case should print compiler timings.
-fn should_trace_emit_case(test: &Case) -> bool {
-    let Some(filter) = emit_trace_filter() else {
-        return false;
-    };
-
-    if filter == "1" || filter == "all" || filter == "*" {
-        return true;
-    }
-
-    test.name.contains(&filter)
-}
-
-/// Return true when the package config explicitly requests builtin libraries.
-fn emit_has_explicit_libs(
-    repository: &Repository,
-    revision: destack_workspace::Revision,
-    package_id: destack_source::PackageId,
-) -> bool {
-    let Ok(package_options) = repository.package_options(revision, package_id) else {
-        return false;
-    };
-    let Some(package_options) = package_options else {
-        return false;
-    };
-
-    // compiler lib entries
-    if !package_options.compiler.lib.is_empty() {
-        return true;
-    }
-
-    // target lib entries
-    package_options
-        .targets
-        .values()
-        .any(|target| target.lib.is_some())
-}
-
-/// Return whether one emit case should load builtin libraries.
-fn emit_case_load_libraries(
-    repository: &Repository,
-    revision: destack_workspace::Revision,
-    package_id: destack_source::PackageId,
-    module_ids: &[destack_source::ModuleId],
-    targets: &[(String, Target)],
-) -> bool {
-    // debug override
-    if emit_trace_disables_libraries() {
-        return false;
-    }
-
-    // explicit config opts in immediately
-    if emit_has_explicit_libs(repository, revision, package_id) {
-        return true;
-    }
-
-    // derived target profiles may still require ambient libs
-    for module_id in module_ids {
-        for (target_name, _) in targets {
-            let target_id = repository.intern_target_id(package_id, target_name);
-            let Ok(profile) =
-                repository.profile_for_target_or_default(revision, *module_id, &target_id)
-            else {
-                continue;
-            };
-
-            if !profile.key.lib.is_empty() {
-                return true;
-            }
-        }
-    }
-
-    false
-}
-
-/// Format one duration in milliseconds for compact debug output.
-fn format_duration_ms(duration: Duration) -> String {
-    format!("{:.2}ms", duration.as_secs_f64() * 1000.0)
-}
-
-/// Print one compiler timing summary for one emit case.
-fn print_emit_timing_summary(test: &Case, compiler: &Compiler) {
-    let snapshot = compiler.stats.snapshot();
-
-    eprintln!();
-    eprintln!("emit timing: {}", test.name);
-    eprintln!("  elapsed: {}", format_duration_ms(snapshot.elapsed));
-    eprintln!("  modules: {}", snapshot.modules_processed());
-    eprintln!(
-        "  cache: hits={} misses={} writes={}",
-        snapshot.cache_totals().hits_memory,
-        snapshot.cache_totals().misses,
-        snapshot.cache_totals().writes_memory
-    );
-
-    eprintln!("  packages:");
-    for package in snapshot.packages.iter().take(8) {
-        let name = package.name.as_deref().unwrap_or("<unnamed>");
-        eprintln!(
-            "    {}: {} modules, {} lines, {}",
-            name,
-            package.modules,
-            package.lines,
-            format_duration_ms(package.duration)
-        );
-    }
-
-    if !snapshot.timings.is_empty() {
-        eprintln!("  timings:");
-        for timing in snapshot.timings.iter().take(12) {
-            eprintln!(
-                "    {}: {} across {} samples",
-                timing.name,
-                format_duration_ms(timing.duration),
-                timing.sample_count
-            );
-        }
-    }
-}
-
 /// Run a single emit test.
 fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     let destack_config_path = test.path.join("destack.json");
@@ -276,22 +141,16 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
 
     // set up the repository with the physical filesystem
     let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
-    let repository = Arc::new(
-        Repository::open_root_from_fs(test.path.clone(), fs, AmbientSnapshot::capture_process())
-            .expect("failed to import repository from emit runner file system")
-            .with_cache(Arc::new(MemoryCacheStore::new())),
-    );
+    let repository = Arc::new(Repository::new(
+        test.path.clone(),
+        Arc::new(MemoryCacheStore::new()),
+        fs,
+        HostEnvironment::capture_process(),
+    ));
     let actual_root = emit_actual_root(test);
 
     // set up compiler
-    let compiler = Arc::new(Compiler::new(
-        repository.clone(),
-        CompilerOptions {
-            workers: 1,
-            inject_prelude: false,
-            ..Default::default()
-        },
-    ));
+    let compiler = Arc::new(Compiler::new(repository.clone()));
 
     // materialize the workspace state before reading semantic repository data
     let linter = Arc::new(Linter::new(repository.clone()));
@@ -300,21 +159,21 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
         test.path.clone(),
         repository.clone(),
         Ref::for_workspace_root(repository.workspace_root()),
-        None,
         compiler.clone(),
         linter,
-        None,
+        1,
         None,
     )
-    .expect("failed to initialize emit session");
+    .expect("failed to create emit session");
     session
-        .discover_filesystem()
+        .import_from_fs(session.head())
         .expect("failed to reload emit workspace");
     let revision = current_workspace_revision(&repository);
 
     // load the tracked package config through the real repository path
+    let destack_config_file_id = repository.file_id(&destack_config_path);
     let declaration = match repository
-        .destack_declaration_for_file_path(revision, &destack_config_path)
+        .destack_declaration_for_file(revision, destack_config_file_id)
         .expect("failed to load tracked destack.json from revision")
         .map(|declaration| declaration.as_ref().clone())
     {
@@ -343,17 +202,7 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     }
 
     // set up compiler
-    let trace_timings = should_trace_emit_case(test);
-    let mut compiler = Arc::new(Compiler::new(
-        repository.clone(),
-        CompilerOptions {
-            workers: 1,
-            inject_prelude: false,
-            load_libraries: false,
-            timings: trace_timings,
-            ..Default::default()
-        },
-    ));
+    let compiler = Arc::new(Compiler::new(repository.clone()));
     // discover source files
     let source_dir = test.path.join("src");
     let source_files = match discover_source_files(&source_dir, SOURCE_EXTENSIONS) {
@@ -373,15 +222,7 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     // resolve modules
     let mut module_ids = Vec::new();
     for source_path in &source_files {
-        let module_id = match compiler.resolve_path_to_module(revision, &source_path.to_path_buf())
-        {
-            Ok(id) => id,
-            Err(e) => {
-                return CaseResult::Failed {
-                    message: format!("failed to resolve module {}: {e:?}", source_path.display()),
-                };
-            }
-        };
+        let module_id = module_id_for_path(&repository, revision, source_path);
         module_ids.push(module_id);
     }
     let package_id = repository
@@ -389,14 +230,6 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
         .expect("failed to load emit module")
         .expect("missing emit module")
         .package_id;
-
-    // load only the ambient libraries that the resolved profiles actually need
-    let load_libraries =
-        emit_case_load_libraries(&repository, revision, package_id, &module_ids, &targets);
-    Arc::get_mut(&mut compiler)
-        .expect("emit compiler should not be shared before linking")
-        .options
-        .load_libraries = load_libraries;
 
     // clean
     if actual_root.exists()
@@ -410,15 +243,11 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     // link
     let mut artifact_keys = Vec::new();
     for (target_name, _) in &targets {
-        let target_id = repository.intern_target_id(package_id, target_name);
+        let target_id = TargetId::new(package_id, target_name);
         artifact_keys.push(ArtifactKey::package_output(package_id, target_id));
     }
     let revision =
         provide_workspace_artifacts(repository.clone(), compiler.clone(), &artifact_keys);
-
-    if trace_timings {
-        print_emit_timing_summary(test, &compiler);
-    }
 
     // check for errors
     let diagnostics =
@@ -445,12 +274,23 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
 
     // materialize package outputs into the runner-owned actual output tree
     for (target_name, _) in &targets {
-        let target_id = repository.intern_target_id(package_id, target_name);
-        let output = repository
-            .package_output(revision, package_id, target_id)
+        let target_id = TargetId::new(package_id, target_name);
+        let key = ArtifactKey::package_output(package_id, target_id);
+        let version = repository
+            .artifact_version(revision, &key)
+            .expect("failed to read package output version")
             .ok_or_else(|| CaseResult::Failed {
-                message: format!("missing package output for target {target_name}"),
+                message: format!("missing package output version for target {target_name}"),
             });
+        let output = match version {
+            Ok(version) => repository
+                .artifact_store()
+                .package_output(&version)
+                .ok_or_else(|| CaseResult::Failed {
+                    message: format!("missing package output payload for target {target_name}"),
+                }),
+            Err(error) => return error,
+        };
         let output = match output {
             Ok(output) => output,
             Err(error) => return error,
@@ -499,32 +339,32 @@ fn collect_emit_diagnostics(
 
     // module level diagnostics
     for module_id in module_ids {
-        let profile_id = repository
-            .default_profile_id_for_module(revision, *module_id)
-            .unwrap_or_else(|error| panic!("failed to resolve default profile: {error}"));
-        diagnostics
-            .merge_from(&repository.module_artifact_diagnostics(revision, *module_id, profile_id));
+        let profile_id = default_profile_id_for_module(repository, revision, *module_id);
+        let artifact_diagnostics =
+            module_artifact_diagnostics(repository, revision, *module_id, profile_id);
+        diagnostics.merge_from(&artifact_diagnostics);
     }
 
     // target level diagnostics
     for (target_name, _target) in targets {
-        let target_id = repository.intern_target_id(package_id, target_name);
+        let target_id = TargetId::new(package_id, target_name);
 
         for module_id in module_ids {
-            let profile_id = repository
-                .profile_id_for_target_or_default(revision, *module_id, &target_id)
-                .unwrap_or_else(|error| panic!("failed to resolve target profile: {error}"));
-            diagnostics.merge_from(
-                &repository.module_target_artifact_diagnostics(
-                    revision, *module_id, profile_id, target_id,
-                ),
+            let profile_id =
+                profile_id_for_target_or_default(repository, revision, *module_id, &target_id);
+            let artifact_diagnostics = module_target_artifact_diagnostics(
+                repository, revision, *module_id, profile_id, target_id,
             );
+            diagnostics.merge_from(&artifact_diagnostics);
         }
 
-        diagnostics.merge_from(&repository.artifact_diagnostics(
-            revision,
-            &ArtifactKey::package_output(package_id, target_id),
-        ));
+        let artifact_diagnostics = repository
+            .artifact_diagnostics(
+                revision,
+                &ArtifactKey::package_output(package_id, target_id),
+            )
+            .unwrap_or_else(|error| panic!("failed to read package diagnostics: {error}"));
+        diagnostics.merge_from(&artifact_diagnostics);
     }
 
     diagnostics

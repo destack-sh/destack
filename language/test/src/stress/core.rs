@@ -3,15 +3,15 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
-use destack_compiler::{Compiler, CompilerOptions};
+use destack_compiler::Compiler;
 use destack_query::RepositoryQueryIndexExt;
 use destack_source::{Edit, FileId, Span};
 use destack_workspace::{Ref, Repository, Revision};
 use serde::Deserialize;
 
 use crate::core::{
-    SharedMemoryWorkspace, default_profile_id_for_module, provide_workspace_artifacts,
-    write_workspace_text_file,
+    SharedMemoryWorkspace, default_profile_id_for_module, module_id_for_path,
+    provide_workspace_artifacts, write_workspace_text_file,
 };
 
 /// One stress recipe loaded from a checked in fixture.
@@ -314,14 +314,7 @@ fn compile_and_index_stress_project(
     root: &Path,
     project: &StressProject,
 ) -> Result<(Revision, HashMap<String, FileId>, HashMap<FileId, String>), String> {
-    let compiler = Arc::new(Compiler::new(
-        repository.clone(),
-        CompilerOptions {
-            load_libraries: false,
-            workers: 1,
-            ..Default::default()
-        },
-    ));
+    let compiler = Arc::new(Compiler::new(repository.clone()));
 
     // materialize every generated source into the active repository revision first
     for file in &project.files {
@@ -336,9 +329,7 @@ fn compile_and_index_stress_project(
     // resolve every generated source file into one module
     for file in &project.files {
         let file_path = root.join(&file.path);
-        let module_id = compiler
-            .resolve_path_to_module(revision, &file_path)
-            .map_err(|error| format!("failed to resolve {}: {error:?}", file.path))?;
+        let module_id = module_id_for_path(repository, revision, &file_path);
 
         module_ids.push(module_id);
         module_ids_by_path.insert(file.path.clone(), module_id);
@@ -351,11 +342,7 @@ fn compile_and_index_stress_project(
     let mut artifact_keys = Vec::new();
     for module_id in &module_ids {
         let profile = default_profile_id_for_module(repository, revision, *module_id);
-        artifact_keys.push(ArtifactKey::DirAnalyzed {
-            module: *module_id,
-            profile,
-        });
-        artifact_keys.push(ArtifactKey::DirResolved {
+        artifact_keys.push(ArtifactKey::DirChecked {
             module: *module_id,
             profile,
         });

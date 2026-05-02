@@ -103,7 +103,8 @@ fn marker_requires_exact_identifier_bounds(name: &str) -> bool {
 fn collect_word_spans(file_path: &str, text: &str) -> Vec<WordSpan> {
     let path = Path::new(file_path);
     let file_type = FileType::from_path_or_unknown(path);
-    let language_type = LanguageType::from(file_type);
+    let language_type =
+        LanguageType::try_from(file_type).expect("file type has no parser language");
     let uri = Uri::from_string(format!("/fixture/{file_path}"));
     let file = Arc::new(File::from_text(
         FileId(0),

@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
-use destack_compiler::{Compiler, CompilerOptions};
+use destack_compiler::Compiler;
 
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Runner, SharedMemoryWorkspace, Suite,
     check_repository_diagnostic_collection, current_workspace_revision,
-    default_profile_id_for_module, discover_file_cases, fixtures_dir, provide_workspace_artifacts,
+    default_profile_id_for_module, discover_file_cases, fixtures_dir, module_artifact_diagnostics,
+    module_id_for_path, provide_workspace_artifacts, write_workspace_text_file,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -48,37 +49,22 @@ fn run_compiler_case(test: &Case) -> CaseResult {
     // set up repository and program with memory filesystem containing the test file
     let cwd = test.path.parent().unwrap().to_path_buf();
     let workspace = SharedMemoryWorkspace::new(cwd.clone());
-    let memory_fs = workspace.fs();
-    memory_fs
-        .add_file(&test.path, content.as_bytes())
-        .expect("failed to add test file to memory fs");
     let repository = workspace.repository();
+    write_workspace_text_file(&repository, &test.path, &content);
+
     // compile the file
-    let compiler = Arc::new(Compiler::new(
-        repository.clone(),
-        CompilerOptions {
-            workers: 1,
-            ..Default::default()
-        },
-    ));
+    let compiler = Arc::new(Compiler::new(repository.clone()));
     let revision = current_workspace_revision(&repository);
-    let module_id = match compiler.resolve_path_to_module(revision, &test.path) {
-        Ok(id) => id,
-        Err(e) => {
-            return CaseResult::Failed {
-                message: format!("failed to resolve module: {e:?}"),
-            };
-        }
-    };
+    let module_id = module_id_for_path(&repository, revision, &test.path);
     let profile = default_profile_id_for_module(&repository, revision, module_id);
-    let artifact_keys = vec![ArtifactKey::DirAnalyzed {
+    let artifact_keys = vec![ArtifactKey::DirChecked {
         module: module_id,
         profile,
     }];
     let _revision = provide_workspace_artifacts(repository.clone(), compiler, &artifact_keys);
 
     // check for unexpected diagnostics
-    let diagnostics = repository.module_artifact_diagnostics(revision, module_id, profile);
+    let diagnostics = module_artifact_diagnostics(&repository, revision, module_id, profile);
 
     check_repository_diagnostic_collection(test, &repository, revision, &diagnostics)
 }

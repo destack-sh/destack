@@ -49,7 +49,7 @@ pub(super) fn run(test: &Case) -> CaseResult {
     };
 
     // parse
-    let language_type = LanguageType::from(file.ty);
+    let language_type = LanguageType::try_from(file.ty).expect("file type has no parser language");
     let mut parser = Parser::lex_file_with_options(
         file.clone(),
         language_type,

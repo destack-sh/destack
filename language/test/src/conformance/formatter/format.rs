@@ -119,7 +119,8 @@ fn format_once(
     };
 
     // parse source and fail on syntax errors
-    let language_type = LanguageType::from(file_type);
+    let language_type =
+        LanguageType::try_from(file_type).expect("file type has no parser language");
     let mut parser = Parser::lex_file_with_options(
         file.clone(),
         language_type,
@@ -132,13 +133,13 @@ fn format_once(
 
     let has_errors = parser
         .diagnostics
-        .iter()
+        .to_vec()
         .into_iter()
         .any(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error);
     if has_errors {
         if show_diff {
             let mut diagnostics = DiagnosticCollection::new();
-            for diagnostic in parser.diagnostics.iter() {
+            for diagnostic in parser.diagnostics.to_vec() {
                 diagnostics.insert(diagnostic);
             }
             let options = PrintOptions::new().with_colorizer(source_colorizer());

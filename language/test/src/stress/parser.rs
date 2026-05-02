@@ -93,7 +93,7 @@ fn run_parser_stress(test: &Case) -> CaseResult {
 
     // parse only
     let start = std::time::Instant::now();
-    let language_type = LanguageType::from(file.ty);
+    let language_type = LanguageType::try_from(file.ty).expect("file type has no parser language");
     let mut parser = Parser::lex_file(file.clone(), language_type);
     let _ast = parser.parse();
     let elapsed = start.elapsed();

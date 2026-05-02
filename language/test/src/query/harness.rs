@@ -4,15 +4,15 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use destack_artifact::ArtifactKey;
-use destack_compiler::{Compiler, CompilerOptions};
+use destack_compiler::Compiler;
 use destack_query::RepositoryQueryIndexExt;
 use destack_source::{FileId, FileType, MemoryFileSystem, ModuleId};
 use destack_workspace::{ProfileId, Ref, Repository, Revision};
 
 use super::{TestMarkers, parse_markers};
 use crate::core::{
-    SharedMemoryWorkspace, default_profile_id_for_module, provide_workspace_artifacts,
-    write_workspace_text_file,
+    SharedMemoryWorkspace, default_profile_id_for_module, module_id_for_path,
+    provide_workspace_artifacts, write_workspace_text_file,
 };
 use crate::mdtest::{MdTestCase, select_profile_for_mdtest};
 
@@ -280,7 +280,7 @@ impl QueryTestSession {
 
                 module.file_id
             } else {
-                repository.file_id_for_workspace_path(&file_path)
+                repository.file_id(&file_path)
             };
 
             for range in &markers.ranges {
@@ -442,14 +442,7 @@ fn compile_and_index_query_modules(
     index_requirements: QueryIndexRequirements,
     timings: &mut QuerySessionBuildTimings,
 ) -> (Revision, HashMap<PathBuf, ModuleId>) {
-    let mut compiler = Compiler::new(
-        repository.clone(),
-        CompilerOptions {
-            load_libraries: false,
-            workers: 1,
-            ..Default::default()
-        },
-    );
+    let compiler = Compiler::new(repository.clone());
 
     // materialize all test files into the active revision first
     for (path, clean_source, _) in clean_files {
@@ -462,9 +455,7 @@ fn compile_and_index_query_modules(
 
     // resolve the primary module first
     let resolve_start = Instant::now();
-    let main_module_id = compiler
-        .resolve_path_to_module(revision, main_path)
-        .expect("failed to resolve module");
+    let main_module_id = module_id_for_path(repository, revision, main_path);
 
     let mut module_ids = vec![main_module_id];
     let mut modules_by_path = HashMap::new();
@@ -477,7 +468,7 @@ fn compile_and_index_query_modules(
             continue;
         }
 
-        if let Ok(module_id) = compiler.resolve_path_to_module(revision, &file_path) {
+        if let Ok(Some(module_id)) = repository.module_id_for_path(revision, &file_path) {
             modules_by_path.insert(file_path, module_id);
             module_ids.push(module_id);
         }
@@ -492,9 +483,8 @@ fn compile_and_index_query_modules(
     let extra_profile = match profile_mode {
         QueryTestProfileMode::Default => None,
         QueryTestProfileMode::MdTest(test) => {
-            let (profile, load_libraries) =
+            let (profile, _load_libraries) =
                 select_profile_for_mdtest(repository, revision, main_module_id, test, false);
-            compiler.options.load_libraries = load_libraries;
             Some(profile.id())
         }
     };
@@ -509,15 +499,14 @@ fn compile_and_index_query_modules(
         }
     }
 
-    // compile the analyzed dir for every relevant profile
+    // compile the checked DIR for every relevant profile
     //
-    // analyzed depends on declared and interface state, and declared in turn
-    // depends on resolved, so enqueuing analyzed is enough to materialize both
+    // checked depends on declared and exported DIR, so this materializes both
     // artifacts for query_context consumers
     let mut artifact_keys = Vec::new();
     for (module_id, profiles) in &profiles_by_module {
         for profile in profiles {
-            artifact_keys.push(ArtifactKey::DirAnalyzed {
+            artifact_keys.push(ArtifactKey::DirChecked {
                 module: *module_id,
                 profile: *profile,
             });

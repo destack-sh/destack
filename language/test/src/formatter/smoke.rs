@@ -234,7 +234,7 @@ fn format_source(path: &Path, source: &str, formatter: FormatterOptions) -> Resu
     }
 
     // parse parser driven languages for diagnostic-rich failures
-    let language_type = LanguageType::from(file_type);
+    let language_type = LanguageType::try_from(file_type).expect("file type has no parser language");
     let mut parser = Parser::lex_file_with_options(
         file.clone(),
         language_type,
@@ -247,12 +247,12 @@ fn format_source(path: &Path, source: &str, formatter: FormatterOptions) -> Resu
 
     let has_errors = parser
         .diagnostics
-        .iter()
+        .to_vec()
         .into_iter()
         .any(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error);
     if has_errors {
         let mut diagnostics = DiagnosticCollection::new();
-        for diagnostic in parser.diagnostics.iter() {
+        for diagnostic in parser.diagnostics.to_vec() {
             diagnostics.insert(diagnostic);
         }
         let options = PrintOptions::new().with_colorizer(source_colorizer());
