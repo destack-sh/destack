@@ -3,6 +3,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use destack_engine as engine;
 use destack_workspace::{RuntimeOptions, RuntimeSelector};
 
 use crate::diagnostic::RuntimeError;
@@ -24,7 +25,7 @@ fn test_on_before_binding_allows_hook_callback_deny() {
         &options,
         &world_scope,
         &shared,
-        &destack_engine::StaticSpace::empty(),
+        &engine::StaticSpace::empty(),
         super::tests::TestEngine::default(),
     )
     .expect("worker should construct in world");
@@ -71,7 +72,7 @@ fn test_on_before_binding_respects_hook_selector_binding_glob() {
         &options,
         &world_scope,
         &shared,
-        &destack_engine::StaticSpace::empty(),
+        &engine::StaticSpace::empty(),
         super::tests::TestEngine::default(),
     )
     .expect("worker should construct in world");
@@ -108,7 +109,7 @@ fn test_on_before_binding_dispatches_custom_effect_handler() {
         &options,
         &world_scope,
         &shared,
-        &destack_engine::StaticSpace::empty(),
+        &engine::StaticSpace::empty(),
         super::tests::TestEngine::default(),
     )
     .expect("worker should construct in world");

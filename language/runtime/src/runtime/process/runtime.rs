@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{HostEvent, Session};
 use crate::platform::resource::ResourceRebinders;
-use crate::runtime::engine::{Engine, Entry, Output};
+use crate::runtime::engine::{Engine, Entry};
 use crate::runtime::memory::RootSink;
 use crate::runtime::poller::{HostPoller, PollerEvent};
 use crate::runtime::scheduler::Timer;
@@ -383,7 +383,7 @@ impl Runtime {
         world: &WorldScope,
         entry: &Entry,
         args: &[engine::Value],
-    ) -> RuntimeResult<Output> {
+    ) -> RuntimeResult<engine::Value> {
         self.run_entrypoint_for_worker(world, self.primary_worker_id, entry, args)
     }
 
@@ -394,7 +394,7 @@ impl Runtime {
         worker_id: WorkerId,
         entry: &Entry,
         args: &[engine::Value],
-    ) -> RuntimeResult<Output> {
+    ) -> RuntimeResult<engine::Value> {
         let host = &self.host;
         let poller = &mut self.poller;
         let worker = self
@@ -752,7 +752,7 @@ impl Runtime {
         // worker images
         let mut worker_images = BTreeMap::new();
         for worker in self.workers.values_mut() {
-            let mut image = worker.capture_image(mode)?;
+            let mut image = worker.capture_image(mode, &self.shared, &self.runtime_static)?;
 
             // collapse one shared options payload across matching workers
             if let Some(options) = image.options.explicit_options() {
@@ -778,6 +778,22 @@ impl Runtime {
         Ok((runtime_image, worker_images))
     }
 
+    /// Capture one worker image from this runtime.
+    pub(crate) fn capture_worker_image(
+        &mut self,
+        mode: CaptureMode,
+        worker_id: WorkerId,
+    ) -> RuntimeResult<WorkerImage> {
+        let worker = self.workers.get_mut(&worker_id).ok_or_else(|| {
+            RuntimeError::WorkerNotFound {
+                worker_id: worker_id.0,
+            }
+            .boxed()
+        })?;
+
+        worker.capture_image(mode, &self.shared, &self.runtime_static)
+    }
+
     /// Fork one live runtime when all owned workers are quiescent.
     pub(crate) fn try_fork(
         &mut self,
@@ -790,7 +806,13 @@ impl Runtime {
         let mut workers = BTreeMap::new();
         for (worker_id, worker) in &mut self.workers {
             let shared_gc_worker = shared.worker(*worker_id)?;
-            let Some(worker) = worker.try_fork(execution_mode, shared_gc_worker)? else {
+            let Some(worker) = worker.try_fork(
+                execution_mode,
+                &shared,
+                &self.runtime_static,
+                shared_gc_worker,
+            )?
+            else {
                 return Ok(None);
             };
             workers.insert(*worker_id, Box::new(worker));
@@ -906,7 +928,7 @@ mod tests {
     };
     use crate::runtime::tests::{TestEngine, start_worker_continuation};
     use crate::runtime::{RuntimeSharedHeap, TickOutcome, Worker, World};
-    use destack_engine::Value;
+    use destack_engine as engine;
     use destack_heap::{AllocationPlan, Payload};
     use destack_mir::ReferenceMap;
     use destack_workspace::RuntimeOptions;
@@ -944,7 +966,7 @@ mod tests {
             &options,
             &world_scope,
             &shared,
-            &destack_engine::StaticSpace::empty(),
+            &engine::StaticSpace::empty(),
             TestEngine::default(),
         )
         .expect("worker should construct");
@@ -956,7 +978,7 @@ mod tests {
         let continuation = start_worker_continuation(
             &mut worker,
             &shared,
-            &destack_engine::StaticSpace::empty(),
+            &engine::StaticSpace::empty(),
             "test.task",
             7,
         );
@@ -965,7 +987,7 @@ mod tests {
             .watch_host_event(
                 HostEventKind::Lifecycle,
                 continuation,
-                Value::SharedHeapReference(shared_root),
+                engine::Value::SharedHeapReference(shared_root),
                 0,
             )
             .expect("host-event watch should register");
@@ -974,7 +996,7 @@ mod tests {
             Vec::new().into(),
             &options,
             shared,
-            destack_engine::StaticSpace::empty(),
+            engine::StaticSpace::empty(),
             worker,
         )
         .expect("runtime should construct");
@@ -1035,7 +1057,7 @@ mod tests {
             &options,
             &world_scope,
             &shared,
-            &destack_engine::StaticSpace::empty(),
+            &engine::StaticSpace::empty(),
             TestEngine::default(),
         )
         .expect("worker should construct");
@@ -1047,7 +1069,7 @@ mod tests {
         let continuation = start_worker_continuation(
             &mut worker,
             &shared,
-            &destack_engine::StaticSpace::empty(),
+            &engine::StaticSpace::empty(),
             "test.task",
             9,
         );
@@ -1056,7 +1078,7 @@ mod tests {
             .watch_host_event(
                 HostEventKind::Lifecycle,
                 continuation,
-                Value::SharedHeapReference(shared_root),
+                engine::Value::SharedHeapReference(shared_root),
                 0,
             )
             .expect("host-event watch should register");
@@ -1065,7 +1087,7 @@ mod tests {
             Vec::new().into(),
             &options,
             shared,
-            destack_engine::StaticSpace::empty(),
+            engine::StaticSpace::empty(),
             worker,
         )
         .expect("runtime should construct");

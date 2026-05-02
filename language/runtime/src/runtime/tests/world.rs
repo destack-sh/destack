@@ -2,13 +2,12 @@
 
 use std::sync::Arc;
 
-use destack_engine::Value;
-use destack_heap as heap;
 use destack_mir::ReferenceMap;
 use destack_workspace::{
     ExecutionMode, RandomMode, RuntimeAccess, RuntimeIdentitySelector, RuntimeOptions,
     RuntimeSelector, RuntimeWorld, TimeMode,
 };
+use {destack_engine as engine, destack_heap as heap};
 
 use super::tests::{TestEngine, TestRuntime, TestWorld, vm_engine_from_mir};
 use crate::host::{HostEventKind, Session};
@@ -242,7 +241,7 @@ fn test_runtime_collect_roots_preserves_task_resume_heap_reference() {
         worker.event_loop.enqueue_task(Task {
             id: TaskId::new(1),
             runnable: continuation,
-            resume_value: Value::HeapReference(root),
+            resume_value: engine::Value::HeapReference(root),
             status: TaskStatus::Ready,
             priority: 0,
         });
@@ -412,7 +411,7 @@ fn test_runtime_collect_roots_preserves_task_resume_shared_reference() {
         worker.event_loop.enqueue_task(Task {
             id: TaskId::new(2),
             runnable: continuation,
-            resume_value: Value::SharedHeapReference(root),
+            resume_value: engine::Value::SharedHeapReference(root),
             status: TaskStatus::Ready,
             priority: 0,
         });
@@ -501,7 +500,7 @@ fn test_spawned_worker_joins_active_shared_root_scan_pass() {
             .watch_host_event(
                 HostEventKind::Lifecycle,
                 continuation,
-                Value::SharedHeapReference(shared),
+                engine::Value::SharedHeapReference(shared),
                 0,
             )
             .expect("host-event watch should register");
@@ -1835,7 +1834,7 @@ fn test_world_shared_commands_affect_detached_workers() {
         &options,
         &world_scope,
         &shared,
-        &destack_engine::StaticSpace::empty(),
+        &engine::StaticSpace::empty(),
         TestEngine::default(),
     )
     .expect("worker should construct in world");
@@ -1844,7 +1843,7 @@ fn test_world_shared_commands_affect_detached_workers() {
         &options,
         &world_scope,
         &shared,
-        &destack_engine::StaticSpace::empty(),
+        &engine::StaticSpace::empty(),
         TestEngine::default(),
     )
     .expect("worker should construct in world");
@@ -1896,7 +1895,7 @@ fn test_worker_world_control_update_refreshes_policy() {
         &options,
         &world_scope,
         &shared,
-        &destack_engine::StaticSpace::empty(),
+        &engine::StaticSpace::empty(),
         TestEngine::default(),
     )
     .expect("worker should construct in world");
@@ -1946,7 +1945,7 @@ fn test_worker_world_control_update_refreshes_hooks() {
         &options,
         &world_scope,
         &shared,
-        &destack_engine::StaticSpace::empty(),
+        &engine::StaticSpace::empty(),
         TestEngine::default(),
     )
     .expect("worker should construct in world");
@@ -2008,7 +2007,7 @@ fn test_worker_world_control_worker_selector() {
         &options_a,
         &world_scope,
         &shared,
-        &destack_engine::StaticSpace::empty(),
+        &engine::StaticSpace::empty(),
         TestEngine::default(),
     )
     .expect("worker should construct in world");
@@ -2017,7 +2016,7 @@ fn test_worker_world_control_worker_selector() {
         &options_b,
         &world_scope,
         &shared,
-        &destack_engine::StaticSpace::empty(),
+        &engine::StaticSpace::empty(),
         TestEngine::default(),
     )
     .expect("worker should construct in world");
@@ -2066,7 +2065,7 @@ fn test_worker_world_control_worker_selector() {
         .tick(
             &world_scope,
             &shared,
-            &destack_engine::StaticSpace::empty(),
+            &engine::StaticSpace::empty(),
             &host_a,
         )
         .expect("tick should refresh policy state");
@@ -2074,7 +2073,7 @@ fn test_worker_world_control_worker_selector() {
         .tick(
             &world_scope,
             &shared,
-            &destack_engine::StaticSpace::empty(),
+            &engine::StaticSpace::empty(),
             &host_b,
         )
         .expect("tick should refresh policy state");
@@ -2102,7 +2101,7 @@ fn test_world_apply_policy_command_updates_rules() {
         &options,
         &world_scope,
         &shared,
-        &destack_engine::StaticSpace::empty(),
+        &engine::StaticSpace::empty(),
         TestEngine::default(),
     )
     .expect("worker should construct in world");
@@ -2231,7 +2230,7 @@ fn test_world_resource_lifecycle_updates_topology() {
         &options,
         &world_scope,
         &shared,
-        &destack_engine::StaticSpace::empty(),
+        &engine::StaticSpace::empty(),
         TestEngine::default(),
     )
     .expect("worker should construct in world");
@@ -2281,7 +2280,7 @@ fn test_world_remove_worker_cleans_topology() {
         &options,
         &world_scope,
         &shared,
-        &destack_engine::StaticSpace::empty(),
+        &engine::StaticSpace::empty(),
         TestEngine::default(),
     )
     .expect("worker should construct in world");
@@ -2401,7 +2400,7 @@ fn test_worker_capability_profile_configures_binding_policy() {
         &options,
         &world_scope,
         &shared,
-        &destack_engine::StaticSpace::empty(),
+        &engine::StaticSpace::empty(),
         TestEngine::default(),
     )
     .expect("worker should construct");

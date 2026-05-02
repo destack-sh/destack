@@ -1,6 +1,5 @@
-use {destack_native as native, destack_vm as vm};
-
-pub use destack_engine::ContinuationImage;
+use serde::{Deserialize, Serialize};
+use {destack_engine as engine, destack_native as native, destack_vm as vm};
 
 /// Live runnable continuation owned by one backend engine.
 #[derive(Debug)]
@@ -10,4 +9,13 @@ pub enum Continuation {
     Vm(vm::Continuation),
     /// Native continuation that resumes compiled execution.
     Native(native::Continuation),
+}
+
+/// Durable continuation image owned by one backend engine.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ContinuationImage {
+    /// VM continuation image.
+    Vm(vm::snapshot::ContinuationImage),
+    /// Native continuation image.
+    Native(engine::Continuation),
 }

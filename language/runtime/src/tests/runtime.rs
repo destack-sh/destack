@@ -1,10 +1,9 @@
 use destack_core::{ImmutableStringPool, LocalStringPool};
-use destack_engine::StaticSpace;
 use destack_mir::Tree;
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
-use destack_vm as vm;
 use destack_workspace::{ExecutionMode, RandomMode, RuntimeOptions};
+use {destack_engine as engine, destack_vm as vm};
 
 #[cfg(test)]
 use crate::diagnostic::{DiagnosticId, RuntimeError, RuntimeResult, RuntimeStatus};
@@ -121,7 +120,7 @@ impl TestRuntime {
         let shared = RuntimeSharedHeap::new(lineage.allocator(), lineage.collector(), &options)
             .expect("runtime shared heap should build");
         drop(lineage);
-        let runtime_static = StaticSpace::empty();
+        let runtime_static = engine::StaticSpace::empty();
         let mut worker = Worker::new_in_world(
             Vec::new(),
             &options,

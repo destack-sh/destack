@@ -6,7 +6,7 @@ use super::{
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::Session;
 use crate::platform::resource;
-use crate::runtime::engine::{Context, Continuation, Entry, Outcome, Output};
+use crate::runtime::engine::{Context, Continuation, Entry, Outcome};
 use crate::runtime::poller::HostPoller;
 use crate::runtime::scheduler::{
     Microtask, Runnable, Task, TaskId, TaskStatus, Timer, TimerHandle,
@@ -37,7 +37,7 @@ impl Worker {
         entry: &Entry,
         args: &[engine::Value],
         poller: &mut Option<Box<dyn HostPoller>>,
-    ) -> RuntimeResult<Output> {
+    ) -> RuntimeResult<engine::Value> {
         let agent_ptr = self as *const Worker;
         let event_loop = self.event_loop.as_ref() as *const _;
         let host_ptr = host as *const Session;
@@ -54,7 +54,7 @@ impl Worker {
         let _guard = enter_runnable_scope(RunnableScope::empty());
         let context = Context {
             heap: &mut self.heap,
-            shared: shared.shared(),
+            shared_heap: shared.shared(),
             shared_gc: &self.shared_gc_worker,
             worker_static: &mut self.statics,
             runtime_static,
@@ -63,7 +63,7 @@ impl Worker {
 
         // handle the entry outcome
         let output = match outcome {
-            Outcome::Completed { output } => output,
+            Outcome::Completed { value } => value,
             Outcome::Yielded {
                 continuation,
                 value,
@@ -104,7 +104,7 @@ impl Worker {
         target_task: Option<TaskId>,
         timeout_nanos: Option<u64>,
         poller: &mut Option<Box<dyn HostPoller>>,
-    ) -> RuntimeResult<Option<Output>> {
+    ) -> RuntimeResult<Option<engine::Value>> {
         // capture one monotonic start timestamp for timeout accounting
         let start_mono_nanos = world.mono_nanos();
 
@@ -342,7 +342,7 @@ impl Worker {
         runtime_static: &engine::StaticSpace,
         host: &Session,
         target_task: Option<TaskId>,
-    ) -> RuntimeResult<(bool, Option<Output>)> {
+    ) -> RuntimeResult<(bool, Option<engine::Value>)> {
         let agent_ptr = self as *const Worker;
         let event_loop = self.event_loop.as_ref() as *const _;
         let host_ptr = host as *const Session;
@@ -536,7 +536,7 @@ impl Worker {
         runtime_static: &engine::StaticSpace,
         task: Task,
         target_task: Option<TaskId>,
-    ) -> RuntimeResult<Option<Output>> {
+    ) -> RuntimeResult<Option<engine::Value>> {
         self.hooks.on_scheduler_dequeue(world);
         self.execute_task(world, shared, runtime_static, task, target_task)
     }
@@ -549,7 +549,7 @@ impl Worker {
         runtime_static: &engine::StaticSpace,
         mut task: Task,
         target_task: Option<TaskId>,
-    ) -> RuntimeResult<Option<Output>> {
+    ) -> RuntimeResult<Option<engine::Value>> {
         // run the task runnable
         task.status = TaskStatus::Waiting;
         let _guard = enter_runnable_scope(RunnableScope::for_task(task.id));
@@ -558,10 +558,10 @@ impl Worker {
 
         // handle the task outcome
         match outcome {
-            Outcome::Completed { output } => {
+            Outcome::Completed { value } => {
                 task.status = TaskStatus::Completed;
                 if target_task == Some(task.id) {
-                    return Ok(Some(output));
+                    return Ok(Some(value));
                 }
             }
             Outcome::Yielded {
@@ -678,7 +678,7 @@ impl Worker {
     ) -> RuntimeResult<Outcome<Continuation>> {
         let context = Context {
             heap: &mut self.heap,
-            shared: shared.shared(),
+            shared_heap: shared.shared(),
             shared_gc: &self.shared_gc_worker,
             worker_static: &mut self.statics,
             runtime_static,

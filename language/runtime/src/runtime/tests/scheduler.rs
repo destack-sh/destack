@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
 use destack_core::{Capture, CaptureMode};
-use destack_engine::{EngineId, Value};
-use destack_native as native;
 use destack_workspace::{RuntimeOptions, SchedulerOptions, TimeMode};
+use {destack_engine as engine, destack_native as native};
 
 use crate::host::{HostEventKind, HostLifecycleState, Session};
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
-use crate::runtime::engine::{Continuation, ContinuationImage, Engine};
+use crate::runtime::engine::{Continuation, Engine};
 use crate::runtime::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
     PollerToken,
@@ -295,14 +294,14 @@ fn test_event_loop_next_runnable_prioritizes_microtasks() {
     event_loop.enqueue_task(Task {
         id: TaskId::new(501),
         runnable: native_continuation(601),
-        resume_value: Value::Void,
+        resume_value: engine::Value::Void,
         status: TaskStatus::Ready,
         priority: 0,
     });
     event_loop.enqueue_microtask(Microtask {
         id: MicrotaskId::new(502),
         continuation: native_continuation(602),
-        resume_value: Value::Void,
+        resume_value: engine::Value::Void,
         status: TaskStatus::Ready,
     });
 
@@ -326,14 +325,14 @@ fn test_event_loop_next_runnable_prioritizes_higher_task_priority() {
     event_loop.enqueue_task(Task {
         id: TaskId::new(503),
         runnable: native_continuation(603),
-        resume_value: Value::Void,
+        resume_value: engine::Value::Void,
         status: TaskStatus::Ready,
         priority: 1,
     });
     event_loop.enqueue_task(Task {
         id: TaskId::new(504),
         runnable: native_continuation(604),
-        resume_value: Value::Void,
+        resume_value: engine::Value::Void,
         status: TaskStatus::Ready,
         priority: 200,
     });
@@ -356,7 +355,7 @@ fn test_event_loop_suspend_rejects_native_continuations() {
     event_loop.enqueue_task(Task {
         id: TaskId::new(601),
         runnable: native_continuation(701),
-        resume_value: Value::Void,
+        resume_value: engine::Value::Void,
         status: TaskStatus::Ready,
         priority: 0,
     });
@@ -535,7 +534,7 @@ fn test_run_loop_until_task_complete_waits_for_host_timer() {
     let output = runtime
         .run_loop_until_task_complete(0)
         .expect("host mode should wait for the timer and complete the task");
-    assert_eq!(output.value, Value::int32(88));
+    assert_eq!(output, engine::Value::int32(88));
     assert!(
         host_clock_source.wall_nanos() >= fire_at_nanos,
         "host wait should advance test wall time to the timer deadline"
@@ -662,7 +661,7 @@ fn test_world_tick_drives_runtime() {
             worker.event_loop.enqueue_task(Task {
                 id: TaskId::new(1),
                 runnable: continuation,
-                resume_value: Value::Void,
+                resume_value: engine::Value::Void,
                 status: TaskStatus::Ready,
                 priority: 0,
             });
@@ -739,7 +738,7 @@ fn test_virtual_sleep_binding_fails_loudly() {
         &options,
         &world_scope,
         &shared,
-        &destack_engine::StaticSpace::empty(),
+        &engine::StaticSpace::empty(),
         TestEngine::default(),
     )
     .expect("worker should build");
@@ -769,7 +768,12 @@ fn register_timer_watch(
     priority: u8,
 ) {
     worker
-        .watch_timer(ResourceId(handle), continuation, Value::Void, priority)
+        .watch_timer(
+            ResourceId(handle),
+            continuation,
+            engine::Value::Void,
+            priority,
+        )
         .expect("timer watch should register");
 }
 
@@ -796,8 +800,8 @@ fn schedule_timer(
 
 /// Build one native continuation for mismatch tests.
 fn native_continuation(value: u64) -> Continuation {
-    Continuation::Native(native::Continuation::new(ContinuationImage {
-        engine_id: EngineId::new(value),
+    Continuation::Native(native::Continuation::new(engine::Continuation {
+        engine_id: engine::EngineId::new(value),
         frames: Vec::new(),
     }))
 }
