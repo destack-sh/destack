@@ -1588,9 +1588,9 @@ impl CallSite {
 
 #[cfg(test)]
 mod tests {
-    use destack_artifact::MirBase;
+    use destack_artifact::MirLowered;
     use destack_mir::parse::ParseOptions;
-    use destack_source::{FileId, ModuleId, PackageId, TargetId};
+    use destack_source::{FileId, ModuleId, PackageId, ProfileId, TargetId};
 
     use crate::optimize::common::tests::TestProgram;
     use crate::optimize::{
@@ -1605,9 +1605,14 @@ mod tests {
         TargetId::new(package_id, name)
     }
 
+    /// Build one stable test profile id for one package.
+    fn test_profile_id() -> ProfileId {
+        ProfileId::new(0)
+    }
+
     /// Build a module work item from MIR text.
     fn module_work_item(package_id: PackageId, module_index: u32, source: &str) -> ModuleWorkItem {
-        let module_id = ModuleId::new(package_id, module_index);
+        let module_id = ModuleId::new(package_id, u128::from(module_index));
         let target_id = test_target_id(package_id, "test");
         let (tree, strings) =
             mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
@@ -1616,11 +1621,17 @@ mod tests {
         let pool = destack_core::StringPool::new();
         pool.copy_from_immutable(&strings);
 
-        let mut module_mir = MirBase::new(module_id, target_id);
+        let mut module_mir = MirLowered::new();
         module_mir.tree = tree;
         module_mir.strings = pool;
 
-        ModuleWorkItem::new(module_id, target_id, module_mir, PipelineOptions::default())
+        ModuleWorkItem::new(
+            module_id,
+            test_profile_id(),
+            target_id,
+            module_mir,
+            PipelineOptions::default(),
+        )
     }
 
     /// Direct calls create edges in the call graph.

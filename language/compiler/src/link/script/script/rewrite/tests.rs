@@ -26,8 +26,8 @@ impl TestModuleBuilder {
     }
 
     /// Finish into one script module.
-    fn finish(self) -> js::ScriptModule {
-        js::ScriptModule {
+    fn finish(self) -> js::Module {
+        js::Module {
             tree: self.tree,
             roots: Vec::new(),
             strings: self.strings,
@@ -280,12 +280,12 @@ struct TestRewriter {
     /// The target policy used by the rewriter.
     target: destack_workspace::Target,
     /// The module under test.
-    module: js::ScriptModule,
+    module: js::Module,
 }
 
 impl TestRewriter {
     /// Create one test rewriter around one module.
-    fn new(module: js::ScriptModule) -> Self {
+    fn new(module: js::Module) -> Self {
         Self {
             target: TargetOptions::default().to_target("test"),
             module,
@@ -294,11 +294,11 @@ impl TestRewriter {
 
     /// Create one production rewriter over the current module.
     fn rewriter(&mut self) -> Rewriter<'_, '_> {
-        Rewriter::new(None, &self.target, &mut self.module)
+        Rewriter::new(&self.target, &mut self.module)
     }
 
     /// Return the rewritten module.
-    fn module(&self) -> &js::ScriptModule {
+    fn module(&self) -> &js::Module {
         &self.module
     }
 

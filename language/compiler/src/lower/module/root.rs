@@ -1,4 +1,4 @@
-use crate::{LowerError, LowerResult};
+use crate::{CompilerError, CompilerResult, LowerError};
 use destack_dir as dir;
 
 use crate::lower::ModuleLowerer;
@@ -8,7 +8,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_root_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // read the root expression
         let expression = self.dir_tree.get(expression_id);
 
@@ -30,12 +30,14 @@ impl ModuleLowerer<'_> {
             }
             _ => {
                 // reject unsupported root expressions
-                Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                Err(CompilerError::from(LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                    ),
                     message: format!("unsupported root expression `{}`", expression.kind_name()),
-                })?
+                }))?
             }
         }
     }

@@ -140,8 +140,8 @@ block1:
 block2:
     jump block3(value1)
 
-block3(value3: boolean):
-    return value3
+block3(value4: boolean):
+    return value4
 }
 "#,
     );
@@ -179,8 +179,8 @@ block1:
 block2:
     jump block3(value1)
 
-block3(value3: boolean):
-    return value3
+block3(value4: boolean):
+    return value4
 }
 "#,
     );

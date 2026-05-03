@@ -3,10 +3,7 @@ use crate::tests::TestProgram;
 #[test]
 fn test_transform_unwrap_single_expression_blocks_in_if_else() {
     // single expression branch blocks unwrap before later transforms
-    let test = TestProgram::memory_sequential().with_options_mut(|options| {
-        options.elaborate_with_ternary = false;
-        options.elaborate_explicit_return = false;
-    });
+    let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -30,10 +27,7 @@ function choose(flag, a, b): int32 {
 #[test]
 fn test_transform_keep_multi_expression_blocks_in_if_else() {
     // multi expression branch blocks stay blocks
-    let test = TestProgram::memory_sequential().with_options_mut(|options| {
-        options.elaborate_with_ternary = false;
-        options.elaborate_explicit_return = false;
-    });
+    let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
         "test.ds",
         r#"

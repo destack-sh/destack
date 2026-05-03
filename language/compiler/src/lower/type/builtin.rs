@@ -1,74 +1,82 @@
-use destack_artifact::{DirAnalyzed, DirDeclared};
+use destack_artifact::{AmbientEnvironment, DiagnosticAnchor, DirDeclared};
+use destack_core::StringPool;
 use destack_dir::{self as dir};
 use destack_mir as mir;
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Revision};
+use destack_workspace::{ProfileId, ProviderContext};
 use std::sync::Arc;
 
-use crate::{Compiler, LowerError, LowerResult, RequirementError};
+use crate::{Compiler, CompilerError, CompilerResult, LowerError};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
-use crate::lower::static_key_to_field_name;
+use crate::lower::{static_key_from_key, static_key_to_field_name};
 
 /// Helpers for lowering builtin type layouts.
-pub(crate) struct BuiltinTypeLayouts<'a> {
+pub(crate) struct BuiltinTypeLayouts<'a, 'b> {
     /// Access to compiler helpers and shared state.
     compiler: &'a Compiler,
-    /// Pinned revision for cross-module reads.
-    revision: Revision,
+    /// Pinned context for artifact reads.
+    context: &'a dyn ProviderContext,
     /// Profile used for lookup and analysis.
     profile: ProfileId,
     /// MIR module builder to install layouts.
-    builder: &'a mut mir::ModuleBuilder,
+    builder: &'b mut mir::ModuleBuilder,
     /// Type lowerer used to cache builtin layouts.
-    type_lowerer: &'a mut TypeLowerer,
+    type_lowerer: &'b mut TypeLowerer<'a>,
 }
 
-impl<'a> BuiltinTypeLayouts<'a> {
+impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
     /// Create a builtin layout helper.
     pub(crate) fn new(
         compiler: &'a Compiler,
-        revision: Revision,
+        context: &'a dyn ProviderContext,
         profile: ProfileId,
-        builder: &'a mut mir::ModuleBuilder,
-        type_lowerer: &'a mut TypeLowerer,
+        builder: &'b mut mir::ModuleBuilder,
+        type_lowerer: &'b mut TypeLowerer<'a>,
     ) -> Self {
         Self {
             compiler,
-            revision,
+            context,
             profile,
             builder,
             type_lowerer,
         }
     }
 
-    /// Read one committed analyzed DIR snapshot for a module.
-    fn require_analyzed_dir_data(&self, module_id: ModuleId) -> LowerResult<Arc<DirAnalyzed>> {
-        let snapshot =
-            self.compiler
-                .require_artifact_dir_analyzed(self.revision, module_id, self.profile);
+    /// Return a diagnostic anchor for one DIR node.
+    fn diagnostic_anchor(&self, node: dir::AnchoredGlobalNodeId) -> DiagnosticAnchor {
+        self.type_lowerer.diagnostic_anchor(node)
+    }
+
+    /// Read one committed checked DIR snapshot for a module.
+    fn require_checked_dir_data(&self, module_id: ModuleId) -> CompilerResult<dir::TypeTable> {
+        let snapshot = self
+            .compiler
+            .dir_checked(self.context, module_id, self.profile);
 
         match snapshot {
-            Ok(snapshot) => Ok(snapshot),
-            Err(RequirementError::NotReady { requirement }) => {
-                Err(LowerError::Yield { requirement })
-            }
-            Err(RequirementError::Failed { requirement }) => {
-                Err(LowerError::UnsatisfiedRequirement { requirement })
-            }
+            Ok(snapshot) => Ok(snapshot.types.clone()),
+            Err(error) => Err(error.into()),
         }
     }
 
-    /// Read one committed declared DIR snapshot for a module when available.
-    fn artifact_dir_data_if_present(&self, module_id: ModuleId) -> Option<Arc<DirDeclared>> {
-        self.compiler.dir_declared(module_id, self.profile)
+    /// Read one committed declared DIR snapshot for a module.
+    fn require_declared_dir_data(&self, module_id: ModuleId) -> CompilerResult<Arc<DirDeclared>> {
+        let snapshot = self
+            .compiler
+            .dir_declared(self.context, module_id, self.profile);
+
+        match snapshot {
+            Ok(snapshot) => Ok(snapshot),
+            Err(error) => Err(error.into()),
+        }
     }
 
     /// Return the builtin String type for lowering.
     pub(crate) fn string_type_for_builtin(
         &mut self,
         anchor: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<Option<mir::LocalNodeId<mir::Type>>> {
+    ) -> CompilerResult<Option<mir::LocalNodeId<mir::Type>>> {
         // skip when already cached
         if let Some(string_type) = self.type_lowerer.string_type() {
             return Ok(Some(string_type));
@@ -105,52 +113,57 @@ impl<'a> BuiltinTypeLayouts<'a> {
         &self,
         symbol: dir::WellKnownSymbol,
         order: dir::SymbolSpaceOrder,
-    ) -> LowerResult<Option<dir::GlobalSymbolId>> {
-        // resolve the canonical well-known symbol
-        let resolved =
-            self.compiler
-                .get_well_known_concrete_symbol_from(self.profile, symbol, order);
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        let environment = self.ambient_environment()?;
+        let resolved = self.well_known_symbol(symbol, order)?;
 
         // fall back to declared lib symbols when not registered
         let Some(resolved) = resolved else {
-            let name = self
-                .compiler
-                .repository
-                .strings
-                .intern(symbol.export_name());
-            return Ok(self.compiler.get_declared_concrete_library_symbol_from(
-                self.profile,
-                name,
-                order,
-            ));
+            return Ok(environment.declared_concrete_symbol_from(symbol.export_name(), order));
         };
 
         Ok(Some(resolved))
     }
 
+    /// Read the ambient environment used by builtin layout lowering.
+    fn ambient_environment(&self) -> CompilerResult<Arc<AmbientEnvironment>> {
+        self.compiler
+            .ambient_environment(self.context, self.profile)
+            .map_err(CompilerError::from)
+    }
+
+    /// Resolve one well-known symbol from the ambient environment.
+    fn well_known_symbol(
+        &self,
+        symbol: dir::WellKnownSymbol,
+        order: dir::SymbolSpaceOrder,
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        let environment = self.ambient_environment()?;
+
+        Ok(environment
+            .well_known_symbols()
+            .get_group(symbol)
+            .and_then(|group| group.symbol_for_space_order(order)))
+    }
+
     /// Ensure the module has been analyzed for this profile.
-    fn require_analyzed_module(&self, module_id: ModuleId) -> LowerResult<()> {
+    fn require_analyzed_module(&self, module_id: ModuleId) -> CompilerResult<()> {
         // request the analyzed module
         let result = self
             .compiler
-            .require_dir_analyzed(self.revision, module_id, self.profile);
+            .require_dir_checked(self.context, module_id, self.profile);
         let Err(error) = result else {
             return Ok(());
         };
 
         // forward dependency failures as lower errors
-        match error {
-            RequirementError::NotReady { requirement } => Err(LowerError::Yield { requirement }),
-            RequirementError::Failed { requirement } => {
-                Err(LowerError::UnsatisfiedRequirement { requirement })
-            }
-        }
+        Err(error.into())
     }
 
     /// Create a MissingType error for a node.
     fn missing_type_error(&self, node_id: dir::GlobalNodeIdAny) -> LowerError {
         LowerError::MissingType {
-            node: node_id.into_anchored(Some(self.profile)),
+            anchor: self.diagnostic_anchor(node_id.into_anchored(Some(self.profile))),
         }
     }
 
@@ -182,25 +195,29 @@ impl<'a> BuiltinTypeLayouts<'a> {
         tree: &dir::Tree,
         symbols: &dir::SymbolTable,
         types: &dir::TypeTable,
+        strings: &StringPool,
         members: &[dir::LocalNodeId<dir::Member>],
         module_id: ModuleId,
         anchor: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<Vec<FieldInput>> {
+    ) -> CompilerResult<Vec<FieldInput>> {
         // compute layout from declared struct fields only
         let mut field_inputs = Vec::new();
         let pointer_bytes = self.type_lowerer.pointer_bytes();
 
-        let vector_symbol = self.resolve_well_known_symbol(
+        let vector_symbol = self.well_known_symbol(
             dir::WellKnownSymbol::Vector,
             dir::SymbolSpaceOrder::TypeThenValue,
         )?;
         let mut field_lowerer = TypeLowerer::new(
             self.builder,
             pointer_bytes,
-            self.compiler.repository.clone(),
+            self.compiler,
+            self.context,
+            strings,
+            self.profile,
+            tree,
             vector_symbol,
-        )
-        .with_artifact_context(self.revision, self.profile);
+        );
 
         for (source_index, member_id) in members.iter().enumerate() {
             let dir::Member::Field {
@@ -211,13 +228,15 @@ impl<'a> BuiltinTypeLayouts<'a> {
             };
 
             // resolve a static key for the field
-            let Some(key) = self.compiler.static_key_from_key(tree, *key) else {
+            let Some(key) = static_key_from_key(tree, strings, *key) else {
                 continue;
             };
 
             // require an explicit field type for builtin layouts
             let Some(declared_type) = declared_type else {
-                return Err(self.missing_type_error(member_id.into_global_any(module_id)));
+                return Err(self
+                    .missing_type_error(member_id.into_global_any(module_id))
+                    .into());
             };
 
             // resolve the field type
@@ -233,7 +252,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
             let (size, alignment) = field_lowerer
                 .size_and_align_of_type(field_type, self.builder.tree())
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: anchor,
+                    anchor: self.diagnostic_anchor(anchor),
                     message: "builtin layout requires concrete nested types".to_string(),
                 })?;
 
@@ -257,15 +276,15 @@ impl<'a> BuiltinTypeLayouts<'a> {
         symbol: dir::GlobalSymbolId,
         anchor: dir::AnchoredGlobalNodeId,
         policy: LayoutPolicy,
-    ) -> LowerResult<Option<mir::LocalNodeId<mir::Type>>> {
+    ) -> CompilerResult<Option<mir::LocalNodeId<mir::Type>>> {
         // require analysis for the module
         self.require_analyzed_module(symbol.module_id)?;
 
-        // load the analyzed dir artifact
-        let dir = self.require_analyzed_dir_data(symbol.module_id)?;
-        let tree = &dir.tree;
-        let symbols = &dir.symbols;
-        let types = &dir.types;
+        // load the declared structure and checked type store
+        let declared = self.require_declared_dir_data(symbol.module_id)?;
+        let types = self.require_checked_dir_data(symbol.module_id)?;
+        let tree = &declared.tree;
+        let symbols = &declared.symbols;
 
         // resolve struct members for the symbol
         let Some(members) = self.struct_members_for_symbol(symbol, symbols, tree) else {
@@ -273,17 +292,22 @@ impl<'a> BuiltinTypeLayouts<'a> {
         };
 
         // compute field inputs for the struct layout
-        let field_inputs =
-            self.struct_field_inputs(tree, symbols, types, &members, symbol.module_id, anchor)?;
+        let field_inputs = self.struct_field_inputs(
+            tree,
+            symbols,
+            &types,
+            &declared.strings,
+            &members,
+            symbol.module_id,
+            anchor,
+        )?;
 
         // install the computed layout
         if field_inputs.is_empty() {
             return Ok(None);
         }
 
-        let layout = self
-            .type_lowerer
-            .compute_struct_layout(field_inputs, policy);
+        let layout = TypeLowerer::compute_struct_layout(field_inputs, policy);
         let ty_struct = self.type_lowerer.create_struct_type(&layout, self.builder);
         self.type_lowerer.set_layout(ty_struct, layout);
 
@@ -297,7 +321,10 @@ impl<'a> BuiltinTypeLayouts<'a> {
         symbol: dir::GlobalSymbolId,
     ) {
         // resolve the module symbol name
-        let Some(dir) = self.artifact_dir_data_if_present(symbol.module_id) else {
+        let Ok(dir) = self
+            .compiler
+            .dir_declared(self.context, symbol.module_id, self.profile)
+        else {
             return;
         };
         let symbol_entry = dir.symbols.get_symbol(symbol.local_id);

@@ -22,11 +22,9 @@ impl Compiler {
         symbols: &mut SymbolTable,
     ) -> (Option<LocalSymbolId>, Option<LocalMergeGroupId>) {
         // skip merge handling when declaration merging is disabled
-        let supports_destack_runtime_namespace_merge = module.language_type.is_destack()
+        let supports_destack_runtime_namespace_merge = module.is_destack()
             && (symbol_type == SymbolType::Function || kind == SymbolKind::Namespace);
-        if !module.language_type.supports_declaration_merging()
-            && !supports_destack_runtime_namespace_merge
-        {
+        if !module.supports_declaration_merging() && !supports_destack_runtime_namespace_merge {
             return (None, None);
         }
 
@@ -54,7 +52,7 @@ impl Compiler {
         for symbol_id in candidate_ids {
             let symbol = symbols.get_symbol(symbol_id);
             if !can_merge_declarations(
-                module.language_type,
+                module.code_language_type(),
                 SymbolDescriptor::from(symbol),
                 incoming,
             ) {

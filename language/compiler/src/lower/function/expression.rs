@@ -1,6 +1,6 @@
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult, ScalarType};
+use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 
 use super::{FunctionLowerer, RUNTIME_CHECK_MESSAGES};
 
@@ -39,7 +39,7 @@ impl FunctionLowerer<'_> {
         left: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
         right: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // short-circuit logical operators need special control flow
         if matches!(operator, dir::BinaryOperator::And | dir::BinaryOperator::Or) {
             return self.lower_logical_operator(expression_id, operator, left, right);
@@ -70,9 +70,15 @@ impl FunctionLowerer<'_> {
         let (mut left_value, left_type) = self.lower_value_expression(left)?;
         let (mut right_value, right_type) = self.lower_value_expression(right)?;
         let result_type = self.lower_type_for_expression(expression_id)?;
-        let target_scalar = self.scalar_type_for_mir_type(result_type);
         let left_scalar = self.scalar_type_for_mir_type(left_type);
         let right_scalar = self.scalar_type_for_mir_type(right_type);
+        let comparison_returns_bool = self.binary_operator_returns_boolean(operator);
+        let target_type = if comparison_returns_bool {
+            self.common_binary_operand_type(left_type, left_scalar, right_type, right_scalar)
+        } else {
+            result_type
+        };
+        let target_scalar = self.scalar_type_for_mir_type(target_type);
 
         // coerce numeric operands to the result type when needed
         if let Some(target_scalar) = target_scalar
@@ -87,14 +93,14 @@ impl FunctionLowerer<'_> {
                 left_value,
                 left_scalar,
                 target_scalar,
-                result_type,
+                target_type,
             )?;
             right_value = self.cast_numeric_value(
                 expression_id,
                 right_value,
                 right_scalar,
                 target_scalar,
-                result_type,
+                target_type,
             )?;
         }
 
@@ -158,7 +164,10 @@ impl FunctionLowerer<'_> {
         }
 
         // emit binary operation
-        let op = self.lower_binary_operator(expression_id, operator, left)?;
+        let operator_scalar = target_scalar
+            .ok_or_else(|| self.missing_type_error(expression_id))
+            .map_err(CompilerError::from)?;
+        let op = self.lower_binary_operator(expression_id, operator, operator_scalar)?;
         let value = self.state.builder.binary_op(op, left_value, right_value);
 
         // comparisons produce bool, others preserve operand type
@@ -171,39 +180,85 @@ impl FunctionLowerer<'_> {
         Ok((value, ty))
     }
 
+    /// Check whether a binary operator returns a boolean value.
+    fn binary_operator_returns_boolean(&self, operator: dir::BinaryOperator) -> bool {
+        matches!(
+            operator,
+            dir::BinaryOperator::Equal
+                | dir::BinaryOperator::NotEqual
+                | dir::BinaryOperator::EqualStrict
+                | dir::BinaryOperator::NotEqualStrict
+                | dir::BinaryOperator::LessThan
+                | dir::BinaryOperator::LessThanOrEqual
+                | dir::BinaryOperator::GreaterThan
+                | dir::BinaryOperator::GreaterThanOrEqual
+        )
+    }
+
+    /// Choose the machine operand type for one binary operation.
+    fn common_binary_operand_type(
+        &self,
+        left_type: mir::LocalNodeId<mir::Type>,
+        left_scalar: Option<ScalarType>,
+        right_type: mir::LocalNodeId<mir::Type>,
+        right_scalar: Option<ScalarType>,
+    ) -> mir::LocalNodeId<mir::Type> {
+        let Some(left_scalar) = left_scalar else {
+            return left_type;
+        };
+        let Some(right_scalar) = right_scalar else {
+            return left_type;
+        };
+
+        if !self.is_numeric_scalar_type(left_scalar) || !self.is_numeric_scalar_type(right_scalar) {
+            return left_type;
+        }
+
+        if self.numeric_scalar_rank(right_scalar) > self.numeric_scalar_rank(left_scalar) {
+            right_type
+        } else {
+            left_type
+        }
+    }
+
     /// Lower one runtime type guard expression.
     pub(super) fn lower_runtime_type_guard_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
         target_type_id: dir::LocalTypeId,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // require runtime check metadata from Analyze
-        let runtime_check_kind = self
+        let guard_strategy = self
             .context
             .types
-            .get_runtime_check_kind(expression_id.into_global_any(self.context.module_id));
-        let Some(runtime_check_kind) = runtime_check_kind else {
+            .get_guard_strategy(expression_id.into_global_any(self.context.module_id));
+        let Some(guard_strategy) = guard_strategy else {
             return Err(LowerError::Internal {
+                anchor: (self.context.module_id).into(),
                 module: self.context.module_id,
                 message: "missing runtime check metadata for type guard".to_string(),
-            });
+            }
+            .into());
         };
 
         // handle constant guards early
-        if let dir::RuntimeCheckKind::Constant(value) = runtime_check_kind {
+        if let dir::GuardStrategy::Constant(value) = guard_strategy {
             let value = self.state.builder.bconst(value);
             return Ok((value, self.context.type_lowerer.ty_bool));
         }
 
         // reject type descriptor guards until RTTI is lowered (#Incomplete)
-        if runtime_check_kind == dir::RuntimeCheckKind::TypeDescriptor {
+        if guard_strategy == dir::GuardStrategy::TypeDescriptor {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "type descriptor checks are not lowered yet".to_string(),
-            });
+            }
+            .into());
         }
 
         // resolve expression and target types
@@ -224,18 +279,21 @@ impl FunctionLowerer<'_> {
             self.context.types.get_type(left_type_id),
             dir::Type::Union { .. }
         );
-        if runtime_check_kind == dir::RuntimeCheckKind::UnionTag && !is_union_value {
+        if guard_strategy == dir::GuardStrategy::UnionTag && !is_union_value {
             return Err(LowerError::Internal {
+                anchor: (self.context.module_id).into(),
                 module: self.context.module_id,
                 message: "runtime check metadata expected union value".to_string(),
-            });
+            }
+            .into());
         }
         if is_union_value {
             let layout = self
                 .context
                 .type_lowerer
                 .union_layout(left_type_id)
-                .ok_or_else(|| self.missing_type_error(expression_id))?;
+                .ok_or_else(|| self.missing_type_error(expression_id))
+                .map_err(CompilerError::from)?;
 
             // resolve the tag for the target type
             let Some(tag_index) = layout
@@ -255,11 +313,14 @@ impl FunctionLowerer<'_> {
                 } => (*width, *signed),
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "union tag must be an integer type".to_string(),
-                    });
+                    }
+                    .into());
                 }
             };
             let tag_const = self
@@ -292,24 +353,28 @@ impl FunctionLowerer<'_> {
         }
 
         Err(LowerError::UnsupportedConstruct {
-            node: expression_id
-                .into_global_any(self.context.module_id)
-                .into_anchored(Some(self.context.profile)),
+            anchor: self.diagnostic_anchor(
+                expression_id
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
+            ),
             message: "unsupported type check".to_string(),
-        })
+        }
+        .into())
     }
 
     /// Resolve the target type id for one `is` guard.
     pub(crate) fn is_target_type_id(
         &self,
         expression_id: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> LowerResult<dir::LocalTypeId> {
+    ) -> CompilerResult<dir::LocalTypeId> {
         self.type_id_for_type_expression(expression_id)
             .ok_or_else(|| {
                 self.missing_type_error_for_node(
                     expression_id.into_global_any(self.context.module_id),
                 )
             })
+            .map_err(CompilerError::from)
     }
 
     /// Check whether two type ids refer to the same nominal type.
@@ -329,6 +394,15 @@ impl FunctionLowerer<'_> {
                 | ScalarType::UnsignedInt { .. }
                 | ScalarType::Float { .. }
         )
+    }
+
+    /// Return a coarse numeric scalar rank for operation selection.
+    fn numeric_scalar_rank(&self, scalar_type: ScalarType) -> u8 {
+        match scalar_type {
+            ScalarType::Float { .. } => 3,
+            ScalarType::SignedInt { .. } | ScalarType::UnsignedInt { .. } => 2,
+            ScalarType::Bool => 0,
+        }
     }
 
     /// Resolve a scalar type for a MIR type id.
@@ -362,7 +436,7 @@ impl FunctionLowerer<'_> {
         source: ScalarType,
         target: ScalarType,
         target_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         if source == target {
             return Ok(value);
         }
@@ -413,11 +487,14 @@ impl FunctionLowerer<'_> {
             }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "unsupported numeric cast in binary expression".to_string(),
-                });
+                }
+                .into());
             }
         };
 
@@ -431,7 +508,7 @@ impl FunctionLowerer<'_> {
         left: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
         right: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<Option<mir::Value>> {
+    ) -> CompilerResult<Option<mir::Value>> {
         // only handle equality comparisons
         if !matches!(
             operator,
@@ -506,7 +583,7 @@ impl FunctionLowerer<'_> {
         left_value: mir::Value,
         right_value: mir::Value,
         is_signed: bool,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         // select the checked intrinsic for this operator
         let (intrinsic, constraint_operator) = match operator {
             dir::BinaryOperator::Add => (mir::Intrinsic::AddOverflow, mir::BinaryOperator::Add),
@@ -518,11 +595,14 @@ impl FunctionLowerer<'_> {
             }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "unsupported overflow operator".to_string(),
-                });
+                }
+                .into());
             }
         };
 
@@ -570,18 +650,21 @@ impl FunctionLowerer<'_> {
         right_value: mir::Value,
         width: u16,
         is_signed: bool,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // ensure division operators are used here
         if !matches!(
             operator,
             dir::BinaryOperator::Divide | dir::BinaryOperator::Remainder
         ) {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "unsupported division operator".to_string(),
-            });
+            }
+            .into());
         }
 
         // build the div-zero check
@@ -599,11 +682,14 @@ impl FunctionLowerer<'_> {
                 64 => i64::MIN,
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "unsupported integer width for overflow checks".to_string(),
-                    });
+                    }
+                    .into());
                 }
             };
             let constraint = mir::CheckConstraint::Overflow {
@@ -627,7 +713,7 @@ impl FunctionLowerer<'_> {
         left_width: u16,
         _shift_width: u16,
         shift_signed: bool,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // ensure shift operators are used here
         if !matches!(
             operator,
@@ -636,17 +722,22 @@ impl FunctionLowerer<'_> {
                 | dir::BinaryOperator::UnsignedShiftRight
         ) {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "unsupported shift operator".to_string(),
-            });
+            }
+            .into());
         }
 
         let bit_width = u8::try_from(left_width).map_err(|_| LowerError::UnsupportedConstruct {
-            node: expression_id
-                .into_global_any(self.context.module_id)
-                .into_anchored(Some(self.context.profile)),
+            anchor: self.diagnostic_anchor(
+                expression_id
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
+            ),
             message: "shift width exceeds check constraint limits".to_string(),
         })?;
         let constraint = mir::CheckConstraint::ShiftRange {
@@ -685,14 +776,18 @@ impl FunctionLowerer<'_> {
         condition_id: dir::LocalNodeId<dir::Expression>,
         then_id: dir::LocalNodeId<dir::Expression>,
         else_id: Option<dir::LocalNodeId<dir::Expression>>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // require else branch for value expressions
-        let else_id = else_id.ok_or_else(|| LowerError::UnsupportedConstruct {
-            node: expression_id
-                .into_global_any(self.context.module_id)
-                .into_anchored(Some(self.context.profile)),
-            message: "conditional expression requires else branch".to_string(),
-        })?;
+        let else_id = else_id
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
+                message: "conditional expression requires else branch".to_string(),
+            })
+            .map_err(CompilerError::from)?;
 
         // get the result type from the expression
         let result_type = self.lower_type_for_expression(expression_id)?;

@@ -16,7 +16,7 @@ fn analyze_builtin_library_summary(library: &BuiltinLibrary) -> Option<String> {
     let resolved = run_to_completion(
         &test.compiler,
         test.program.current_revision(),
-        |compiler, _context| compiler.require_library_environment(_context.revision(), profile),
+        |compiler, context| compiler.require_ambient_environment(context, profile),
     );
     if let Err(error) = resolved {
         return Some(format!("{}: resolve error {error:?}", library.name));
@@ -24,7 +24,7 @@ fn analyze_builtin_library_summary(library: &BuiltinLibrary) -> Option<String> {
 
     let environment = test
         .repository
-        .library_environment(test.program.current_revision(), profile)
+        .ambient_environment(test.program.current_revision(), profile)
         .unwrap_or_else(|| panic!("expected published library environment"));
 
     // analyze every selected module
@@ -80,7 +80,10 @@ fn test_resolve_language_symbol() {
     let symbol_id = environment
         .item(LanguageSymbol::Add)
         .unwrap_or_else(|| panic!("missing Add language symbol"));
-    let dir = test.dir_base(symbol_id.module_id);
+    let dir = test
+        .repository
+        .dir_declared(revision, symbol_id.module_id, profile)
+        .unwrap_or_else(|| panic!("missing language item DIR"));
     let symbols = &dir.symbols;
     let symbol = symbols.get_symbol(symbol_id.into_local());
     assert_string!(test.program, symbol.name().unwrap(), "Add");
@@ -123,7 +126,7 @@ fn test_resolve_well_known_symbols() {
     let profile = test.default_profile_id_for_root();
     let well_known = test
         .compiler
-        .get_well_known_symbols(profile)
+        .get_well_known_symbols(test.program.current_revision(), profile)
         .unwrap_or_else(|| panic!("missing well known symbols for test profile"));
 
     // verify common baseline symbols
@@ -178,7 +181,7 @@ fn test_resolve_native_well_known_fixed_array_symbol() {
     let profile = test.default_profile_id_for_root();
     let well_known = test
         .compiler
-        .get_well_known_symbols(profile)
+        .get_well_known_symbols(test.program.current_revision(), profile)
         .unwrap_or_else(|| panic!("missing well known symbols for test profile"));
     assert!(
         well_known
@@ -226,20 +229,20 @@ function main(): int32 {
     let target_id = test.target_id(package_id, "native");
     let profile = test
         .program
-        .profile_id_for_target(module_id, &target_id)
+        .target_profile_id(module_id, &target_id)
         .unwrap_or_else(|| panic!("missing native profile"));
 
     run_to_completion(
         &test.compiler,
         test.program.current_revision(),
-        |compiler, _context| compiler.require_library_environment(_context.revision(), profile),
+        |compiler, context| compiler.require_ambient_environment(context, profile),
     )
     .unwrap_or_else(|error| panic!("failed to resolve native library environment: {error:?}"));
     test.compile();
 
     let well_known = test
         .compiler
-        .get_well_known_symbols(profile)
+        .get_well_known_symbols(test.program.current_revision(), profile)
         .unwrap_or_else(|| panic!("missing well known symbols for native target profile"));
     assert!(
         well_known
@@ -267,13 +270,13 @@ function main(): int32 {
     let target_id = test.target_id(package_id, "native");
     let profile = test
         .program
-        .profile_id_for_target(module_id, &target_id)
+        .target_profile_id(module_id, &target_id)
         .unwrap_or_else(|| panic!("missing native profile"));
 
     run_to_completion(
         &test.compiler,
         test.program.current_revision(),
-        |compiler, _context| compiler.require_library_environment(_context.revision(), profile),
+        |compiler, context| compiler.require_ambient_environment(context, profile),
     )
     .unwrap_or_else(|error| panic!("failed to resolve native library environment: {error:?}"));
     test.compile();
@@ -281,11 +284,17 @@ function main(): int32 {
     let string_name = test.program.strings.intern("String");
     let string_sources = test
         .compiler
-        .get_library_symbol_sources(profile, StaticKey::Name(string_name), SymbolSpace::Type)
+        .get_library_symbol_sources(
+            test.program.current_revision(),
+            profile,
+            StaticKey::Name(string_name),
+            SymbolSpace::Type,
+        )
         .unwrap_or_default();
     let string_symbol = test
         .compiler
         .get_well_known_concrete_symbol_from(
+            test.program.current_revision(),
             profile,
             WellKnownSymbol::String,
             destack_dir::SymbolSpaceOrder::TypeThenValue,
@@ -296,15 +305,20 @@ function main(): int32 {
         &test.compiler,
         test.program.current_revision(),
         |compiler, _context| {
-            compiler.require_dir_declared(_context.revision(), string_symbol.module_id, profile)
+            compiler.require_dir_declared(_context, string_symbol.module_id, profile)
         },
     )
     .unwrap_or_else(|error| panic!("failed to declare native String owner module: {error:?}"));
 
     let declared = test
         .compiler
-        .require_artifact_dir_declared(
-            test.program.current_revision(),
+        .dir_declared(
+            crate::tests::test_provider_context(
+                test.compiler.as_ref(),
+                test.program.current_revision(),
+                destack_artifact::ArtifactKey::WorkspaceLinted,
+            )
+            .as_ref(),
             string_symbol.module_id,
             profile,
         )

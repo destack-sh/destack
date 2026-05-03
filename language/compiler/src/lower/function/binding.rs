@@ -1,6 +1,6 @@
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult};
+use crate::{CompilerResult, LowerError};
 
 use crate::lower::{FunctionLowerer, LocalBinding, LocalStorage};
 
@@ -11,7 +11,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
         result_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         // prefer local bindings
         if let Some(binding) = self.state.bindings.locals_by_symbol.get(&symbol).copied() {
             let (value, updated) = self.reference_value_for_binding(binding, result_type)?;
@@ -58,15 +58,18 @@ impl FunctionLowerer<'_> {
         node_id: dir::LocalNodeIdAny,
         symbol: Option<dir::GlobalSymbolId>,
         ty: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // reject duplicate bindings when a symbol is provided
         if let Some(symbol) = symbol
             && self.state.bindings.locals_by_symbol.contains_key(&symbol)
         {
             return Err(LowerError::UnsupportedConstruct {
-                node: node_id.into_anchored(self.context.module_id, Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    node_id.into_anchored(self.context.module_id, Some(self.context.profile)),
+                ),
                 message: "duplicate this binding".to_string(),
-            });
+            }
+            .into());
         }
 
         // create a binding from the implicit parameter value
@@ -95,7 +98,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         binding: LocalBinding,
         result_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<(mir::Value, Option<LocalBinding>)> {
+    ) -> CompilerResult<(mir::Value, Option<LocalBinding>)> {
         match binding.storage {
             // addressable locals are ready to use
             LocalStorage::Local(local) => {

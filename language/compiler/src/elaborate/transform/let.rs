@@ -5,7 +5,7 @@ use dir::{
     SymbolType, Type, TypeLiteral,
 };
 
-use crate::elaborate::common::ElaborateState;
+use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateError, ElaborateResult};
 
 impl Compiler {
@@ -105,9 +105,7 @@ impl Compiler {
                 );
                 let (Some(then_type_id), Some(else_type_id)) = (then_type_id, else_type_id) else {
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: if_id
-                            .into_global_any(state.tree.module_id)
-                            .into_anchored(None),
+                        anchor: state.module_id.into(),
                     });
                 };
 

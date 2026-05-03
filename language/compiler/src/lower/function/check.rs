@@ -1,7 +1,7 @@
 use destack_workspace::CheckFailurePolicy;
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult, ScalarType};
+use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 
 use super::{FunctionLowerer, RUNTIME_CHECK_MESSAGES};
 
@@ -36,7 +36,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         constraint: mir::CheckConstraint,
         message: &'static str,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // create the failure block before sealing the check
         let failure_block = self.check_failure_block(message)?;
 
@@ -58,11 +58,12 @@ impl FunctionLowerer<'_> {
     pub(crate) fn integer_scalar_info(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<Option<(u16, bool)>> {
+    ) -> CompilerResult<Option<(u16, bool)>> {
         // resolve scalar type for the expression
         let scalar_type = self
             .scalar_type_for_expression(expression_id)
-            .ok_or_else(|| self.missing_type_error(expression_id))?;
+            .ok_or_else(|| self.missing_type_error(expression_id))
+            .map_err(CompilerError::from)?;
 
         // return integer width and signedness when applicable
         let info = match scalar_type {
@@ -82,7 +83,7 @@ impl FunctionLowerer<'_> {
         array_type: mir::LocalNodeId<mir::Type>,
         index_value: mir::Value,
         index_expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // skip when bounds checks are disabled
         if !self.bounds_checks_enabled() {
             return Ok(());
@@ -95,38 +96,50 @@ impl FunctionLowerer<'_> {
             let mir::Type::Reference { pointee, .. } = mir_type else {
                 break;
             };
-            array_type = pointee.ty().ok_or_else(|| LowerError::Internal {
-                module: self.context.module_id,
-                message: "bounds check array reference type must be concrete".to_string(),
-            })?;
+            array_type = pointee
+                .ty()
+                .ok_or_else(|| LowerError::Internal {
+                    anchor: (self.context.module_id).into(),
+                    module: self.context.module_id,
+                    message: "bounds check array reference type must be concrete".to_string(),
+                })
+                .map_err(CompilerError::from)?;
         }
 
         // resolve the array length
         let mir::Type::Array { length, .. } = self.state.builder.tree().get(array_type) else {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "bounds checks require a sized array type".to_string(),
-            });
+            }
+            .into());
         };
 
         // resolve the index scalar info
         let Some((width, is_signed)) = self.integer_scalar_info(index_expression_id)? else {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "bounds checks require an integer index".to_string(),
-            });
+            }
+            .into());
         };
 
         // encode the length constant
         let length_value =
             i64::try_from(*length).map_err(|_| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "array length exceeds bounds check limits".to_string(),
             })?;
         let length_const = self
@@ -152,7 +165,7 @@ impl FunctionLowerer<'_> {
         _expression_id: dir::LocalNodeId<dir::Expression>,
         value: mir::Value,
         value_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // skip when null checks are disabled
         if !self.null_checks_enabled() {
             return Ok(());
@@ -180,7 +193,7 @@ impl FunctionLowerer<'_> {
     fn check_failure_block(
         &mut self,
         message: &'static str,
-    ) -> LowerResult<mir::LocalNodeId<mir::Block>> {
+    ) -> CompilerResult<mir::LocalNodeId<mir::Block>> {
         // preserve the current insertion point
         let current_block = self.state.builder.current_block();
 

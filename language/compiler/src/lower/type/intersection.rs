@@ -7,7 +7,7 @@ use crate::{LowerError, LowerResult};
 
 use super::TypeLowerer;
 
-impl TypeLowerer {
+impl TypeLowerer<'_> {
     /// Select the primary type for an intersection layout.
     pub(crate) fn select_intersection_primary_type(
         &self,
@@ -42,11 +42,12 @@ impl TypeLowerer {
                         if let Some(existing) = primary_nominal {
                             if !dir::are_types_equal(existing, element_id, types) {
                                 return Err(LowerError::UnsupportedType {
-                                    node,
+                                    anchor: self.diagnostic_anchor(node),
                                     ty: element_id.into_global(module_id),
                                     message: "intersection has multiple nominal primaries"
                                         .to_string(),
-                                });
+                                }
+                                .into());
                             }
                         } else {
                             primary_nominal = Some(element_id);
@@ -75,15 +76,17 @@ impl TypeLowerer {
         // report missing primary layouts
         let Some(primary) = elements.first().copied() else {
             return Err(LowerError::UnsupportedConstruct {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "intersection missing primary layout type".to_string(),
-            });
+            }
+            .into());
         };
         Err(LowerError::UnsupportedType {
-            node,
+            anchor: self.diagnostic_anchor(node),
             ty: primary.into_global(module_id),
             message: "intersection missing primary layout type".to_string(),
-        })
+        }
+        .into())
     }
 
     /// Collect intersection elements with flattening.

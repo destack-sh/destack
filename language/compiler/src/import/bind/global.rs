@@ -1,74 +1,86 @@
 use destack_dir::{
-    Declaration, LocalNodeId, NodeVisitor, NodeVisitorOptions, SymbolOrigin, SymbolTable, Tree,
-    walk_declaration,
+    Declaration, LocalNodeIdAny, LocalScopeId, LocalSymbolId, NodeType, SymbolOrigin, SymbolTable,
+    Tree,
 };
 use destack_workspace::Module;
 
 use crate::Compiler;
 
-struct GlobalAugmentationVisitor<'a> {
-    symbols: &'a mut SymbolTable,
-    in_global: bool,
-    options: NodeVisitorOptions,
-}
-
-impl<'a> GlobalAugmentationVisitor<'a> {
-    fn new(symbols: &'a mut SymbolTable) -> Self {
-        Self {
-            symbols,
-            in_global: false,
-            options: NodeVisitorOptions::default(),
-        }
-    }
-}
-
-impl NodeVisitor for GlobalAugmentationVisitor<'_> {
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
-    }
-
-    fn visit_declaration(
-        &mut self,
-        tree: &Tree,
-        id: LocalNodeId<Declaration>,
-        declaration: &Declaration,
-    ) {
-        // visit nested declarations inside global blocks
-        if matches!(declaration, Declaration::Global { .. }) {
-            let previous = self.in_global;
-            self.in_global = true;
-
-            walk_declaration(self, tree, id, declaration);
-
-            self.in_global = previous;
-            return;
-        }
-
-        // mark declarations that live inside global augmentations
-        if self.in_global {
-            let symbol_id = declaration.symbol();
-            let symbol = self.symbols.get_symbol_mut(symbol_id);
-            symbol.origin = SymbolOrigin::GlobalAugmentation;
-        }
-
-        walk_declaration(self, tree, id, declaration);
-    }
-}
-
 impl Compiler {
-    /// Mark symbols declared within global augmentation blocks.
+    /// Mark symbols declared within global augmentation scopes.
     pub(super) fn mark_global_augmentation_symbols(
         &self,
         _module: &Module,
         tree: &Tree,
         symbols: &mut SymbolTable,
+        global_augmentation_scope: LocalScopeId,
     ) {
-        // visit each global declaration to mark nested symbols
-        let mut visitor = GlobalAugmentationVisitor::new(symbols);
-        for (declaration_id, declaration) in tree.iter_nodes_of_type::<Declaration>() {
-            if matches!(declaration, Declaration::Global { .. }) {
-                visitor.visit_declaration(tree, declaration_id, declaration);
-            }
+        let symbol_ids = symbols
+            .active_symbol_ids()
+            .filter(|symbol_id| {
+                symbol_is_within_scope(symbols, *symbol_id, global_augmentation_scope)
+                    || symbol_primary_declaration_is_within_global(tree, symbols, *symbol_id)
+            })
+            .collect::<Vec<_>>();
+
+        for symbol_id in symbol_ids {
+            let symbol = symbols.get_symbol_mut(symbol_id);
+            symbol.origin = SymbolOrigin::GlobalAugmentation;
         }
     }
+}
+
+/// Return true when a symbol primary declaration is nested under `declare global`.
+fn symbol_primary_declaration_is_within_global(
+    tree: &Tree,
+    symbols: &SymbolTable,
+    symbol_id: LocalSymbolId,
+) -> bool {
+    let symbol = symbols.get_symbol(symbol_id);
+    let Some(primary_declaration) = symbol.primary_declaration else {
+        return false;
+    };
+
+    node_is_within_global(tree, primary_declaration.local_id)
+}
+
+/// Return true when a node is nested under `declare global`.
+fn node_is_within_global(tree: &Tree, node_id: LocalNodeIdAny) -> bool {
+    let mut current = Some(node_id);
+
+    while let Some(current_node_id) = current {
+        if current_node_id.ty == NodeType::Declaration {
+            let declaration_id = current_node_id.into_typed::<Declaration>();
+            if matches!(tree.get(declaration_id), Declaration::Global(_)) {
+                return true;
+            }
+        }
+
+        current = tree.get_parent(current_node_id.id);
+    }
+
+    false
+}
+
+/// Return true when a symbol is scoped inside a given scope.
+fn symbol_is_within_scope(
+    symbols: &SymbolTable,
+    symbol_id: LocalSymbolId,
+    scope_id: LocalScopeId,
+) -> bool {
+    let symbol = symbols.get_symbol(symbol_id);
+    let mut current = Some(symbol.scope.0);
+
+    while let Some(current_scope_id) = current {
+        if current_scope_id == scope_id {
+            return true;
+        }
+
+        current = symbols
+            .get_scope_by_id(current_scope_id)
+            .parent
+            .map(|(id, _)| id);
+    }
+
+    false
 }

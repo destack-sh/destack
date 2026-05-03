@@ -1,7 +1,7 @@
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult, RequirementError};
+use crate::{CompilerResult, LowerError};
 
 use crate::lower::ModuleLowerer;
 
@@ -54,7 +54,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn declare_call_targets_for_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // collect call expressions from the subtree
         let mut collector = ExternalCallCollector::new();
         let expression = self.dir_tree.get(expression_id);
@@ -77,7 +77,7 @@ impl ModuleLowerer<'_> {
     fn declare_call_target(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // resolve the static call candidate
         let node_id = expression_id.into_global_any(self.module_id);
         let Some(resolution_id) = self.types.get_resolution_for_node(node_id) else {
@@ -108,11 +108,14 @@ impl ModuleLowerer<'_> {
         // require a resolved signature
         let Some(signature) = candidate.resolved_signature.as_ref() else {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
                 message: "missing resolved signature for external call".to_string(),
-            });
+            }
+            .into());
         };
 
         // declare the call target on demand
@@ -127,7 +130,7 @@ impl ModuleLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         target_symbol: dir::GlobalSymbolId,
         signature: &dir::ResolvedSignature,
-    ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
+    ) -> CompilerResult<mir::LocalNodeId<mir::Function>> {
         // return the existing declaration when present
         if let Some(function_id) = self.function_for_symbol(target_symbol) {
             return Ok(function_id);
@@ -137,9 +140,11 @@ impl ModuleLowerer<'_> {
         let binding = self
             .binding_name_for_symbol(expression_id, target_symbol)?
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
                 message: "missing @binding or @extern decorator for call target".to_string(),
             })?;
         let extern_name = binding.name;
@@ -191,7 +196,7 @@ impl ModuleLowerer<'_> {
             let function_id =
                 self.builder
                     .extern_function(&extern_name, &abi_parameters, abi_info.ty);
-            self.register_function_binding_for_symbol(target_symbol, function_id, signature_type)?;
+            self.register_function_binding_for_symbol(target_symbol, function_id, signature)?;
             self.binding_symbols.insert(target_symbol);
             if extern_name == "destack.error.takePlatformError" {
                 self.take_platform_error_function = Some(function_id);
@@ -213,7 +218,7 @@ impl ModuleLowerer<'_> {
             .builder
             .extern_function(&extern_name, &parameter_types, return_type);
         // register function binding
-        self.register_function_binding_for_symbol(target_symbol, function_id, signature_type)?;
+        self.register_function_binding_for_symbol(target_symbol, function_id, signature)?;
         if binding.is_binding {
             self.binding_symbols.insert(target_symbol);
         }
@@ -227,18 +232,24 @@ impl ModuleLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
-    ) -> LowerResult<Option<BindingResolution>> {
+    ) -> CompilerResult<Option<BindingResolution>> {
         // require analysis for the referenced module
         self.require_analyzed_module(symbol.module_id)?;
 
         // read the symbol entry and binding metadata
-        let dir = self.require_analyzed_dir_data(symbol.module_id)?;
+        let dir = self
+            .artifact_dir_data_if_present(symbol.module_id)
+            .ok_or_else(|| LowerError::Internal {
+                anchor: (self.module_id).into(),
+                module: self.module_id,
+                message: format!("missing declared DIR artifact for {:?}", symbol.module_id),
+            })?;
         let symbol_entry = dir.symbols.get_symbol(symbol.local_id);
         if let Some(binding) = symbol_entry.decorators.binding.as_ref()
             && let Some(name) = binding.name
         {
             return Ok(Some(BindingResolution {
-                name: self.compiler.repository.strings.get(name).to_string(),
+                name: self.strings.get(name).to_string(),
                 is_binding: true,
             }));
         }
@@ -246,7 +257,7 @@ impl ModuleLowerer<'_> {
             && let Some(name) = binding.name
         {
             return Ok(Some(BindingResolution {
-                name: self.compiler.repository.strings.get(name).to_string(),
+                name: self.strings.get(name).to_string(),
                 is_binding: false,
             }));
         }
@@ -254,11 +265,13 @@ impl ModuleLowerer<'_> {
         // fall back to the symbol name
         let default_name = symbol_entry
             .name()
-            .map(|name| self.compiler.repository.strings.get(name).to_string())
+            .map(|name| self.strings.get(name).to_string())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
                 message: "extern symbol is missing a name".to_string(),
             })?;
 
@@ -272,21 +285,15 @@ impl ModuleLowerer<'_> {
     }
 
     /// Ensure the module has been analyzed for this profile.
-    pub(crate) fn require_analyzed_module(&self, module_id: ModuleId) -> LowerResult<()> {
+    pub(crate) fn require_analyzed_module(&self, module_id: ModuleId) -> CompilerResult<()> {
         // request analysis for the target module
-        let result =
-            self.compiler
-                .require_dir_analyzed(self.context.revision(), module_id, self.profile);
+        let result = self
+            .compiler
+            .require_dir_checked(self.context, module_id, self.profile);
         let Err(error) = result else {
             return Ok(());
         };
 
-        // map task errors to lowering diagnostics
-        match error {
-            RequirementError::NotReady { requirement } => Err(LowerError::Yield { requirement }),
-            RequirementError::Failed { requirement } => {
-                Err(LowerError::UnsatisfiedRequirement { requirement })
-            }
-        }
+        Err(error.into())
     }
 }

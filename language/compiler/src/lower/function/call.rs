@@ -1,6 +1,6 @@
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult};
+use crate::{CompilerError, CompilerResult, LowerError};
 
 use crate::lower::{DispatchTarget, FunctionLowerer, is_void_type, resolve_result_union};
 
@@ -44,7 +44,7 @@ impl FunctionLowerer<'_> {
         left: &dir::LocalNodeId<dir::Expression>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let (value, result_type) = self.lower_call(
             expression_id,
             left,
@@ -52,12 +52,16 @@ impl FunctionLowerer<'_> {
             generic_arguments,
             CallKind::Expression,
         )?;
-        let value = value.ok_or_else(|| LowerError::UnsupportedConstruct {
-            node: expression_id
-                .into_global_any(self.context.module_id)
-                .into_anchored(Some(self.context.profile)),
-            message: "call returned no value".to_string(),
-        })?;
+        let value = value
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
+                message: "call returned no value".to_string(),
+            })
+            .map_err(CompilerError::from)?;
 
         Ok((value, result_type))
     }
@@ -69,7 +73,7 @@ impl FunctionLowerer<'_> {
         left: &dir::LocalNodeId<dir::Expression>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         self.lower_call(
             expression_id,
             left,
@@ -89,27 +93,33 @@ impl FunctionLowerer<'_> {
         arguments: &[dir::LocalNodeId<dir::Argument>],
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         kind: CallKind,
-    ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         // resolve call resolution (lower requires static resolution)
-        let resolution =
-            self.get_resolution(expression_id)
-                .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id
+        let resolution = self
+            .get_resolution(expression_id)
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
-                    message: "call expression missing dir::Resolution (Analyze issue)".to_string(),
-                })?;
+                ),
+                message: "call expression missing dir::Resolution (Analyze issue)".to_string(),
+            })
+            .map_err(CompilerError::from)?;
         let dir::Resolution::Static {
             receiver: resolution_receiver,
             candidate,
         } = resolution
         else {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "call resolution must be static before Lower".to_string(),
-            });
+            }
+            .into());
         };
         let resolution_receiver = *resolution_receiver;
         let target_symbol = candidate.target_symbol;
@@ -124,24 +134,32 @@ impl FunctionLowerer<'_> {
             return Ok(result);
         }
 
+        if target_symbol.ty() == dir::SymbolType::Newtype {
+            let (value, result_type) =
+                self.lower_newtype_constructor_call(expression_id, target_symbol, arguments)?;
+            return Ok((Some(value), result_type));
+        }
+
         // TODO #Incomplete: lower/monomorphize generic functions
         if !generic_arguments.is_empty() {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "generic arguments are only supported for intrinsic calls".to_string(),
-            })?;
+            }
+            .into());
         }
 
-        // lower closure calls when the resolution target is not a function symbol
+        // lower calls through callable values
         if target_symbol.ty() != dir::SymbolType::Function
             && self.function_for_symbol(target_symbol).is_none()
-            && let Some(type_id) = self.type_for_expression(*left)
-            && matches!(
-                self.context.types.get_type(type_id),
-                dir::Type::Function { .. }
-            )
+            && let Some(type_id) = self
+                .type_for_expression(*left)
+                .or_else(|| self.context.types.get_value_type_id(target_symbol))
+            && self.is_function_type(type_id)
         {
             let (closure_value, closure_type) = self.lower_value_expression(*left)?;
             return self.lower_closure_call(
@@ -202,9 +220,11 @@ impl FunctionLowerer<'_> {
             // look up function by target symbol
             let function_id = self.function_for_symbol(target_symbol).ok_or_else(|| {
                 LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "missing function for resolved target symbol".to_string(),
                 }
             })?;
@@ -226,6 +246,11 @@ impl FunctionLowerer<'_> {
             ),
             None => (receiver_value, receiver_value),
         };
+        let parameter_type_ids = self.parameter_type_ids_for_symbol(target_symbol);
+        let signature = self.signature_type_for_function(expression_id, function_id)?;
+        let parameter_mir_types =
+            self.parameter_mir_types_for_signature(expression_id, signature)?;
+        let parameter_offset = call_receiver.is_some() as usize;
 
         // build arguments: receiver (if method call) + declared arguments
         let mut argument_values =
@@ -233,34 +258,54 @@ impl FunctionLowerer<'_> {
         if let Some(receiver) = call_receiver {
             argument_values.push(receiver);
         }
-        for argument_id in arguments {
+        for (index, argument_id) in arguments.iter().enumerate() {
             let argument = self.context.dir_tree.get(*argument_id);
             if !matches!(argument, dir::Argument::Positional { .. }) {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "unsupported non-positional argument".to_string(),
-                })?;
+                }
+                .into());
             }
-            let (value, _) = self.lower_value_expression(argument.value())?;
+            let (value, _) = if let Some(target_type_id) = parameter_type_ids.get(index).copied() {
+                let target_mir_type = parameter_mir_types
+                    .get(index + parameter_offset)
+                    .copied()
+                    .ok_or_else(|| self.missing_type_error(expression_id))
+                    .map_err(CompilerError::from)?;
+                self.lower_value_for_target(
+                    expression_id,
+                    argument.value(),
+                    Some(target_type_id),
+                    target_mir_type,
+                )?
+            } else {
+                let (value, value_type) = self.lower_value_expression(argument.value())?;
+                (value, value_type)
+            };
             argument_values.push(value);
         }
 
         // emit call when we have a static resolution
         let result_type = self.lower_type_for_expression(expression_id)?;
         let returns_void = result_type == self.context.type_lowerer.ty_void;
-        let signature = self.signature_type_for_function(expression_id, function_id)?;
         let is_binding_call = self.context.binding_abi_lowering
             && self.context.binding_symbols.contains(&target_symbol);
         if is_binding_call {
             if dispatch_receiver.is_some() {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "binding calls cannot be method calls".to_string(),
-                });
+                }
+                .into());
             }
             let (value, lowered_type) = self.lower_binding_call_expression(
                 expression_id,
@@ -363,16 +408,181 @@ impl FunctionLowerer<'_> {
         // reject void calls for expression results (void is not a value)
         if returns_void && matches!(kind, CallKind::Expression) {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "call returned no value".to_string(),
-            });
+            }
+            .into());
         }
 
         Ok((value, result_type))
     }
 
+    /// Lower a nominal type constructor call.
+    fn lower_newtype_constructor_call(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        target_symbol: dir::GlobalSymbolId,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        let node = expression_id
+            .into_global_any(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
+        let instance_type = self
+            .context
+            .types
+            .get_instance_type_id(target_symbol)
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(node),
+                message: "newtype missing instance type".to_string(),
+            })
+            .map_err(CompilerError::from)?;
+        let newtype_type = self.lower_type_id_for_node(
+            instance_type,
+            expression_id.into_global_any(self.context.module_id),
+        )?;
+
+        let mir::Type::Newtype { inner, .. } = self.state.builder.tree().get(newtype_type) else {
+            return Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(node),
+                message: "newtype constructor requires a nominal MIR type".to_string(),
+            }
+            .into());
+        };
+        let inner_type = inner
+            .ty()
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(node),
+                message: "newtype constructor inner type is not concrete".to_string(),
+            })
+            .map_err(CompilerError::from)?;
+
+        let payload = if matches!(
+            self.state.builder.tree().get(inner_type),
+            mir::Type::Tuple { .. }
+        ) && arguments.len() != 1
+        {
+            self.lower_newtype_tuple_constructor(expression_id, arguments, inner_type)?
+        } else {
+            self.lower_newtype_scalar_constructor(expression_id, arguments, inner_type)?
+        };
+        let value = self.state.builder.bitcast(payload, newtype_type);
+
+        Ok((value, newtype_type))
+    }
+
+    /// Lower a scalar newtype constructor payload.
+    fn lower_newtype_scalar_constructor(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+        inner_type: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<mir::Value> {
+        let node = expression_id
+            .into_global_any(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
+        if arguments.len() != 1 {
+            return Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(node),
+                message: "scalar newtype constructor requires one argument".to_string(),
+            }
+            .into());
+        }
+
+        let value_id = self.positional_argument_expression(expression_id, arguments[0])?;
+        let (value, value_type) = self.lower_value_expression(value_id)?;
+        if value_type != inner_type {
+            return Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(node),
+                message: "newtype constructor payload type mismatch".to_string(),
+            }
+            .into());
+        }
+
+        Ok(value)
+    }
+
+    /// Lower a tuple newtype constructor payload.
+    fn lower_newtype_tuple_constructor(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+        inner_type: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<mir::Value> {
+        let node = expression_id
+            .into_global_any(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
+        let mir::Type::Tuple { elements, .. } = self.state.builder.tree().get(inner_type) else {
+            return Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(node),
+                message: "tuple newtype constructor requires tuple payload".to_string(),
+            }
+            .into());
+        };
+        let elements = elements
+            .iter()
+            .copied()
+            .map(|element| {
+                element
+                    .ty()
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        anchor: self.diagnostic_anchor(node),
+                        message: "tuple newtype constructor element type is not concrete"
+                            .to_string(),
+                    })
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(CompilerError::from)?;
+        if arguments.len() != elements.len() {
+            return Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(node),
+                message: "tuple newtype constructor arity mismatch".to_string(),
+            }
+            .into());
+        }
+
+        let mut values = Vec::with_capacity(arguments.len());
+        for (argument_id, expected_type) in arguments.iter().copied().zip(elements) {
+            let value_id = self.positional_argument_expression(expression_id, argument_id)?;
+            let (value, value_type) = self.lower_value_expression(value_id)?;
+            if value_type != expected_type {
+                return Err(LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(node),
+                    message: "tuple newtype constructor payload type mismatch".to_string(),
+                }
+                .into());
+            }
+            values.push(value);
+        }
+
+        Ok(self.state.builder.tuple(inner_type, values))
+    }
+
+    /// Return the expression carried by one positional argument.
+    fn positional_argument_expression(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        argument_id: dir::LocalNodeId<dir::Argument>,
+    ) -> CompilerResult<dir::LocalNodeId<dir::Expression>> {
+        let dir::Argument::Positional { value, .. } = self.context.dir_tree.get(argument_id) else {
+            return Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
+                message: "newtype constructor requires positional arguments".to_string(),
+            }
+            .into());
+        };
+
+        Ok(*value)
+    }
+
+    /// Lower a binding call expression.
     fn lower_binding_call_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
@@ -380,22 +590,26 @@ impl FunctionLowerer<'_> {
         signature: mir::LocalNodeId<mir::Type>,
         arguments: Vec<mir::Value>,
         result_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let result_type_id = self.type_for_expression_or_error(expression_id)?;
         let result_info =
             resolve_result_union(self.context.types, self.context.strings, result_type_id)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "binding return type must be Result<T, PlatformError>".to_string(),
-                })?;
+                })
+                .map_err(CompilerError::from)?;
 
         let union_layout = self
             .context
             .type_lowerer
             .union_layout(result_info.union_type)
-            .ok_or_else(|| self.missing_type_error(expression_id))?;
+            .ok_or_else(|| self.missing_type_error(expression_id))
+            .map_err(CompilerError::from)?;
 
         let ok_is_void = is_void_type(self.context.types, result_info.ok_value_type);
         let ok_value_mir_type = if ok_is_void {
@@ -408,13 +622,15 @@ impl FunctionLowerer<'_> {
         let err_value_mir_type =
             self.cached_type_for_id(expression_id, result_info.err_value_type)?;
 
-        let status_layout =
-            self.context
-                .runtime_status_layout
-                .ok_or_else(|| LowerError::Internal {
-                    module: self.context.module_id,
-                    message: "binding ABI call is missing RuntimeStatus layout".to_string(),
-                })?;
+        let status_layout = self
+            .context
+            .runtime_status_layout
+            .ok_or_else(|| LowerError::Internal {
+                anchor: (self.context.module_id).into(),
+                module: self.context.module_id,
+                message: "binding ABI call is missing RuntimeStatus layout".to_string(),
+            })
+            .map_err(CompilerError::from)?;
 
         let mut call_args = Vec::with_capacity(arguments.len() + (!ok_is_void as usize));
         let ok_out_ptr = if ok_is_void {
@@ -441,11 +657,14 @@ impl FunctionLowerer<'_> {
             .builder
             .call(function_id, signature, call_args)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "binding call returned no status value".to_string(),
-            })?;
+            })
+            .map_err(CompilerError::from)?;
 
         let code_value = self
             .state
@@ -470,10 +689,13 @@ impl FunctionLowerer<'_> {
         let ok_value = if ok_is_void {
             None
         } else {
-            let out_ptr = ok_out_ptr.ok_or_else(|| LowerError::Internal {
-                module: self.context.module_id,
-                message: "binding ok value missing out pointer".to_string(),
-            })?;
+            let out_ptr = ok_out_ptr
+                .ok_or_else(|| LowerError::Internal {
+                    anchor: (self.context.module_id).into(),
+                    module: self.context.module_id,
+                    message: "binding ok value missing out pointer".to_string(),
+                })
+                .map_err(CompilerError::from)?;
             Some(self.state.builder.load(out_ptr, ok_value_mir_type))
         };
         let ok_struct_value = self.build_result_struct_value(
@@ -502,13 +724,15 @@ impl FunctionLowerer<'_> {
             .state
             .builder
             .field_get(status_value, status_layout.error_id_field_index);
-        let take_function =
-            self.context
-                .take_platform_error_function
-                .ok_or_else(|| LowerError::Internal {
-                    module: self.context.module_id,
-                    message: "binding ABI call is missing takePlatformError".to_string(),
-                })?;
+        let take_function = self
+            .context
+            .take_platform_error_function
+            .ok_or_else(|| LowerError::Internal {
+                anchor: (self.context.module_id).into(),
+                module: self.context.module_id,
+                message: "binding ABI call is missing takePlatformError".to_string(),
+            })
+            .map_err(CompilerError::from)?;
         let take_signature = self.signature_type_for_function(expression_id, take_function)?;
         let error_out_ptr_type = self.state.builder.type_reference(
             mir::ReferenceKind::Raw,
@@ -530,11 +754,14 @@ impl FunctionLowerer<'_> {
                 vec![error_out_ptr, error_id_value],
             )
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "takePlatformError returned no status value".to_string(),
-            })?;
+            })
+            .map_err(CompilerError::from)?;
         let error_value = self.state.builder.load(error_out_ptr, err_value_mir_type);
         let err_struct_value = self.build_result_struct_value(
             expression_id,
@@ -566,11 +793,50 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         type_id: dir::LocalTypeId,
-    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         self.context
             .type_lowerer
             .cached_type(type_id)
             .ok_or_else(|| self.missing_type_error(expression_id))
+            .map_err(CompilerError::from)
+    }
+
+    /// Return declared parameter type ids for a function-like symbol.
+    fn parameter_type_ids_for_symbol(&self, symbol: dir::GlobalSymbolId) -> Vec<dir::LocalTypeId> {
+        let Some(type_id) = self.context.types.get_value_type_id(symbol) else {
+            return Vec::new();
+        };
+        let type_id = self.context.types.unwrap_value_type_id(type_id);
+        let dir::Type::Function { parameters, .. } = self.context.types.get_type(type_id) else {
+            return Vec::new();
+        };
+
+        parameters.clone()
+    }
+
+    /// Return MIR parameter type ids from a function signature type.
+    fn parameter_mir_types_for_signature(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        signature: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<Vec<mir::LocalNodeId<mir::Type>>> {
+        let signature_type = self.state.builder.tree().get(signature);
+        let Some((parameters, _)) = mir::function_signature_parts(signature_type) else {
+            return Err(self
+                .error(expression_id, "missing function signature")
+                .into());
+        };
+
+        let mut types = Vec::with_capacity(parameters.len());
+        for parameter in parameters {
+            let parameter_type = parameter
+                .ty()
+                .ok_or_else(|| self.missing_type_error(expression_id))
+                .map_err(CompilerError::from)?;
+            types.push(parameter_type);
+        }
+
+        Ok(types)
     }
 
     fn build_result_struct_value(
@@ -580,7 +846,7 @@ impl FunctionLowerer<'_> {
         kind_literal: &str,
         value_field: &str,
         value: Option<mir::Value>,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         let anchor = expression_id
             .into_global_any(self.context.module_id)
             .into_anchored(Some(self.context.profile));
@@ -603,10 +869,12 @@ impl FunctionLowerer<'_> {
                 continue;
             }
             if field.name == value_name {
-                let value = value.ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: anchor,
-                    message: "result value field is missing a payload".to_string(),
-                })?;
+                let value = value
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        anchor: self.diagnostic_anchor(anchor),
+                        message: "result value field is missing a payload".to_string(),
+                    })
+                    .map_err(CompilerError::from)?;
                 fields.push(value);
                 saw_value = true;
                 continue;
@@ -618,18 +886,29 @@ impl FunctionLowerer<'_> {
 
         if !saw_kind {
             return Err(LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "result variant missing kind field".to_string(),
-            });
+            }
+            .into());
         }
         if !saw_value {
             return Err(LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "result variant missing value field".to_string(),
-            });
+            }
+            .into());
         }
 
         Ok(self.state.builder.struct_(struct_mir_type, fields))
+    }
+
+    /// Return whether a DIR type id is a callable value type.
+    fn is_function_type(&self, type_id: dir::LocalTypeId) -> bool {
+        let type_id = self.context.types.unwrap_value_type_id(type_id);
+        matches!(
+            self.context.types.get_type(type_id),
+            dir::Type::Function { .. }
+        )
     }
 
     /// Lower a call through a closure value.
@@ -640,7 +919,7 @@ impl FunctionLowerer<'_> {
         closure_type: mir::LocalNodeId<mir::Type>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
         kind: CallKind,
-    ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         let anchor = expression_id
             .into_global_any(self.context.module_id)
             .into_anchored(Some(self.context.profile));
@@ -648,6 +927,7 @@ impl FunctionLowerer<'_> {
         self.context
             .type_lowerer
             .layout_for_type_or_error(closure_type, anchor)?;
+        let call_signature = self.callable_signature_type(closure_type, anchor)?;
 
         // build arguments for the indirect call
         let mut argument_values = Vec::with_capacity(arguments.len());
@@ -655,11 +935,14 @@ impl FunctionLowerer<'_> {
             let argument = self.context.dir_tree.get(*argument_id);
             if !matches!(argument, dir::Argument::Positional { .. }) {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "unsupported non-positional argument".to_string(),
-                })?;
+                }
+                .into());
             }
             let (value, _) = self.lower_value_expression(argument.value())?;
             argument_values.push(value);
@@ -671,27 +954,53 @@ impl FunctionLowerer<'_> {
         let value = if returns_void {
             self.state
                 .builder
-                .call_indirect_void(closure_value, closure_type, argument_values);
+                .call_indirect_void(closure_value, call_signature, argument_values);
             None
         } else {
             Some(
                 self.state
                     .builder
-                    .call_indirect(closure_value, closure_type, argument_values),
+                    .call_indirect(closure_value, call_signature, argument_values),
             )
         };
 
         // reject void calls for expression results (void is not a value)
         if returns_void && matches!(kind, CallKind::Expression) {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "call returned no value".to_string(),
-            });
+            }
+            .into());
         }
 
         Ok((value, result_type))
+    }
+
+    /// Resolve the function signature type inside one callable MIR type.
+    fn callable_signature_type(
+        &self,
+        closure_type: mir::LocalNodeId<mir::Type>,
+        anchor: dir::AnchoredGlobalNodeId,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        let mir::Type::Callable { signature } = self.state.builder.tree().get(closure_type) else {
+            return Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(anchor),
+                message: "closure call requires callable type".to_string(),
+            }
+            .into());
+        };
+
+        signature.ty().ok_or_else(|| {
+            LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(anchor),
+                message: "closure call requires concrete signature".to_string(),
+            }
+            .into()
+        })
     }
 
     /// Resolve a MIR signature type for a lowered function.
@@ -699,13 +1008,14 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         function_id: mir::LocalNodeId<mir::Function>,
-    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         let signature = self
             .context
             .function_signature_types
             .get(&function_id)
             .copied()
-            .ok_or_else(|| self.missing_type_error(expression_id))?;
+            .ok_or_else(|| self.missing_type_error(expression_id))
+            .map_err(CompilerError::from)?;
         Ok(signature)
     }
 
@@ -715,7 +1025,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         receiver_type_id: dir::LocalTypeId,
         receiver_value: mir::Value,
-    ) -> LowerResult<InterfaceCallReceivers> {
+    ) -> CompilerResult<InterfaceCallReceivers> {
         // skip non-interface receivers
         if self.interface_symbol_for_type(receiver_type_id).is_none() {
             return Ok(InterfaceCallReceivers {
@@ -729,7 +1039,8 @@ impl FunctionLowerer<'_> {
             .context
             .type_lowerer
             .interface_ref_layout(receiver_type_id)
-            .ok_or_else(|| self.missing_type_error(expression_id))?;
+            .ok_or_else(|| self.missing_type_error(expression_id))
+            .map_err(CompilerError::from)?;
 
         // extract the object pointer for argument passing
         let object_value = self

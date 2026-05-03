@@ -1,16 +1,14 @@
 use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
 use {destack_dir as dir, destack_mir as mir};
 
-use destack_core::{StringId, StringPool};
+use destack_core::{StringId, StringPool, stable_hash_text};
 use destack_workspace::{Module, Package};
-use rustc_hash::FxHasher;
 
-use crate::lower::{ModuleLowerer, TypeCacheEntry};
+use crate::lower::{ModuleLowerer, static_key_from_key};
 use crate::{LowerError, LowerResult};
 
 /// Suffix for object metadata names.
-const OBJECT_METADATA_SUFFIX: &str = "#object";
+const OBJECT_METADATA_SUFFIX: &str = ".object";
 /// Suffix for tuple metadata names.
 const TUPLE_METADATA_SUFFIX: &str = "#tuple";
 /// Suffix for union metadata names.
@@ -18,7 +16,7 @@ const UNION_METADATA_SUFFIX: &str = "#union";
 /// Suffix for intersection metadata names.
 const INTERSECTION_METADATA_SUFFIX: &str = "#intersection";
 /// Suffix for function metadata names.
-const FUNCTION_METADATA_SUFFIX: &str = "#function";
+const FUNCTION_METADATA_SUFFIX: &str = ".function";
 /// Suffix for array metadata names.
 const ARRAY_METADATA_SUFFIX: &str = "#array";
 /// Suffix for pointer metadata names.
@@ -113,6 +111,7 @@ impl ModuleLowerer<'_> {
         {
             let names = self.metadata_names_for_symbol(*symbol, anchor)?;
             let reference_name = names.reference.ok_or_else(|| LowerError::Internal {
+                anchor: (self.module_id).into(),
                 module: self.module_id,
                 message: "missing reference metadata name for nominal type".to_string(),
             })?;
@@ -138,6 +137,7 @@ impl ModuleLowerer<'_> {
         {
             let names = self.metadata_names_for_symbol(symbol, anchor)?;
             let instance_name = names.instance.ok_or_else(|| LowerError::Internal {
+                anchor: (self.module_id).into(),
                 module: self.module_id,
                 message: "missing instance metadata name for nominal type".to_string(),
             })?;
@@ -157,9 +157,11 @@ impl ModuleLowerer<'_> {
         };
         let Some(name) = name else {
             return Err(LowerError::Internal {
+                anchor: (self.module_id).into(),
                 module: self.module_id,
                 message: format!("missing metadata name for type {type_id:?} ({dir_type:?})"),
-            });
+            }
+            .into());
         };
 
         // intern the name
@@ -279,7 +281,7 @@ impl ModuleLowerer<'_> {
                 self.symbol_path_from_symbols(symbol, &dir.symbols)
             })
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "missing qualified name for nominal type".to_string(),
             })?;
         let name_id = self.builder.intern(&name);
@@ -354,52 +356,6 @@ impl ModuleLowerer<'_> {
         Ok(names)
     }
 
-    /// Validate that every MIR type has a metadata name assigned.
-    pub(crate) fn validate_metadata_names_assigned(&self) -> LowerResult<()> {
-        // read the mir type metadata
-        let layout = &self.builder.tree().metadata.layout;
-        let types = &self.builder.tree().metadata.types;
-
-        // require names for existing metadata entries
-        for type_id in layout.layout_by_type.keys() {
-            if types.display_name(*type_id).is_some() {
-                continue;
-            }
-
-            let type_node = self.builder.tree().get(*type_id);
-            return Err(LowerError::Internal {
-                module: self.module_id,
-                message: format!("missing metadata name for mir type {type_id:?} ({type_node:?})"),
-            });
-        }
-
-        // require names for cached dir types
-        for entry in self.type_lowerer.type_cache.values() {
-            let mir_type = match entry {
-                TypeCacheEntry::Ready(mir_type) => *mir_type,
-                TypeCacheEntry::InProgress => {
-                    return Err(LowerError::Internal {
-                        module: self.module_id,
-                        message: "type lowering cache left in progress".to_string(),
-                    });
-                }
-            };
-
-            let has_name = types.display_name(mir_type).is_some();
-            if has_name {
-                continue;
-            }
-
-            let type_node = self.builder.tree().get(mir_type);
-            return Err(LowerError::Internal {
-                module: self.module_id,
-                message: format!("missing metadata name for mir type {mir_type:?} ({type_node:?})"),
-            });
-        }
-
-        Ok(())
-    }
-
     /// Assign a metadata name for a function signature type.
     pub(crate) fn assign_signature_metadata_name(
         &mut self,
@@ -411,7 +367,7 @@ impl ModuleLowerer<'_> {
         let base = self
             .qualified_symbol_name_for_global(symbol)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "missing qualified name for signature type".to_string(),
             })?;
 
@@ -642,7 +598,7 @@ impl ModuleLowerer<'_> {
     /// Resolve a metadata name for scalar literal types.
     fn scalar_literal_metadata_name(&self, literal: &dir::ScalarLiteral) -> String {
         // load string pool for literal formatting
-        let strings = &self.compiler.repository.strings;
+        let strings = &self.strings;
 
         match literal {
             dir::ScalarLiteral::Null => {
@@ -688,7 +644,7 @@ impl ModuleLowerer<'_> {
 
     /// Build a synthetic global name for a string literal.
     pub(crate) fn string_literal_global_name(&self, literal_id: StringId) -> String {
-        let literal = self.compiler.repository.strings.get(literal_id);
+        let literal = self.strings.get(literal_id);
         string_literal_global_name_for_content(literal.as_ref())
     }
 
@@ -944,7 +900,7 @@ impl ModuleLowerer<'_> {
     /// Resolve a parameter name from a parameter node.
     fn parameter_name_from_node(&self, parameter: &dir::Parameter) -> Option<String> {
         // load string pool for name lookup
-        let strings = &self.compiler.repository.strings;
+        let strings = &self.strings;
 
         // match parameter kinds to resolve names
         match parameter {
@@ -987,7 +943,7 @@ impl ModuleLowerer<'_> {
     /// Resolve a binding name from a simple pattern.
     fn pattern_binding_name(&self, pattern_id: dir::LocalNodeId<dir::Pattern>) -> Option<String> {
         // load string pool and pattern node
-        let strings = &self.compiler.repository.strings;
+        let strings = &self.strings;
         let pattern = self.dir_tree.get(pattern_id);
 
         // extract binding names when available
@@ -1066,7 +1022,7 @@ impl ModuleLowerer<'_> {
         let key = key?;
 
         // resolve the key into a static key
-        let key = self.compiler.static_key_from_key(self.dir_tree, key)?;
+        let key = static_key_from_key(self.dir_tree, self.strings, key)?;
 
         // return the static key name
         Some(self.static_key_name(key))
@@ -1074,7 +1030,7 @@ impl ModuleLowerer<'_> {
 
     /// Resolve a name string from a static key.
     fn static_key_name(&self, key: dir::StaticKey) -> String {
-        static_key_string(&key, &self.compiler.repository.strings)
+        static_key_string(&key, &self.strings)
     }
 
     /// Resolve a module-local static member name from an owner symbol and key.
@@ -1112,7 +1068,9 @@ impl ModuleLowerer<'_> {
         symbol_id: dir::GlobalSymbolId,
     ) -> Option<String> {
         // load module metadata for the symbol
-        let module = self.context.module(symbol_id.module_id);
+        let module = self
+            .compiler
+            .module(self.context.revision(), symbol_id.module_id);
         let dir = self.artifact_dir_data_if_present(symbol_id.module_id)?;
         self.qualified_symbol_name_for_module(symbol_id, module.as_ref(), &dir.symbols)
     }
@@ -1125,7 +1083,9 @@ impl ModuleLowerer<'_> {
         symbols: &dir::SymbolTable,
     ) -> Option<String> {
         // load the owning package
-        let package = self.context.package(module.package_id);
+        let package = self
+            .compiler
+            .package(self.context.revision(), module.package_id);
 
         // build the module prefix
         let package_name = package.name.as_ref()?;
@@ -1283,12 +1243,10 @@ fn string_literal_slug(value: &str) -> String {
 
 /// Build a synthetic global name for a string literal value.
 pub(crate) fn string_literal_global_name_for_content(value: &str) -> String {
-    let mut hasher = FxHasher::default();
-    value.hash(&mut hasher);
-    let hash = hasher.finish() as u32;
+    let hash = stable_hash_text(value);
     let slug = string_literal_slug(value);
     let suffix = string_literal_name_suffix(&slug);
-    format!("{STRING_LITERAL_GLOBAL_PREFIX}{suffix}H{hash:08x}")
+    format!("{STRING_LITERAL_GLOBAL_PREFIX}{suffix}H{hash:016x}")
 }
 
 /// Convert a slug into an upper camel case name suffix.

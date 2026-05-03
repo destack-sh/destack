@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use destack_workspace::Target;
 
 use super::super::{OutputGraph, OutputId, OutputLayout};
-use crate::{Compiler, LinkResult, ScriptLinker};
+use crate::{Compiler, LinkError, LinkResult, ScriptLinker};
 
 /// One visitor that records dynamic import call expressions.
 #[derive(Debug, Default)]
@@ -45,7 +45,7 @@ impl Compiler {
     /// Collect all dynamic import call expressions in one script module.
     pub(crate) fn collect_script_dynamic_import_calls(
         &self,
-        module: &js::ScriptModule,
+        module: &js::Module,
     ) -> Vec<js::LocalNodeId<js::Expression>> {
         let mut collector = DynamicImportCallCollector::default();
 
@@ -67,7 +67,7 @@ impl ScriptLinker<'_> {
         output_layout: &OutputLayout,
         target: &Target,
         module_id: ModuleId,
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         import_call_id: js::LocalNodeId<js::Expression>,
     ) -> LinkResult<()> {
         let (target_expression_id, target_module) = {
@@ -91,7 +91,7 @@ impl ScriptLinker<'_> {
 
         // same-output dynamic imports need one local namespace promise bridge
         if output_graph.shares_output(module_id, target_module) {
-            return Err(crate::LinkError::InvalidTarget {
+            return Err(LinkError::InvalidTarget {
                 anchor: module_id.into(),
                 package: self.package_id,
                 target: self.target_id.clone(),

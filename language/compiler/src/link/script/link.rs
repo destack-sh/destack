@@ -1,4 +1,4 @@
-use crate::{LinkError, LinkResult};
+use crate::{Compiler, CompilerError, CompilerResult, LinkError, LinkResult};
 
 use destack_artifact::{EmitFormat, OutputFile, PackageOutput, TargetOutputName};
 use destack_source::{FileType, ModuleId};
@@ -8,23 +8,35 @@ use super::ScriptLinker;
 
 impl<'a> ScriptLinker<'a> {
     /// Link one discovered script target.
-    pub(crate) fn link_target(&self, root_modules: &[ModuleId]) -> LinkResult<PackageOutput> {
+    pub(crate) fn link_target(&self, root_modules: &[ModuleId]) -> CompilerResult<PackageOutput> {
         self.validate_target()?;
 
         let plan = self.plan(root_modules)?;
         let mut output_files = Vec::new();
 
         // script outputs
-        output_files.extend(self.render_script_graph(&plan)?);
+        output_files.extend(
+            self.render_script_graph(&plan)
+                .map_err(CompilerError::from)?,
+        );
 
         // stylesheet outputs
-        output_files.extend(self.render_css_stylesheet_outputs(&plan)?);
+        output_files.extend(
+            self.render_css_stylesheet_outputs(&plan)
+                .map_err(CompilerError::from)?,
+        );
 
         // document outputs
-        output_files.extend(self.render_html_target_outputs(&plan)?);
+        output_files.extend(
+            self.render_html_target_outputs(&plan)
+                .map_err(CompilerError::from)?,
+        );
 
         // asset outputs
-        output_files.extend(self.emit_asset_files(plan.asset_reference_map())?);
+        output_files.extend(
+            self.emit_asset_files(plan.asset_reference_map())
+                .map_err(CompilerError::from)?,
+        );
 
         // packaged output
         let mut output = self.package_output(output_files);
@@ -58,7 +70,8 @@ impl<'a> ScriptLinker<'a> {
                     "bundleOutput.format '{}' is not implemented yet",
                     Self::bundle_format_name(format)
                 ),
-            });
+            }
+            .into());
         }
 
         Ok(())
@@ -89,7 +102,7 @@ impl<'a> ScriptLinker<'a> {
 
         PackageOutput::new(
             self.target.emit,
-            crate::Compiler::package_assembly(self.target.assembly),
+            Compiler::package_assembly(self.target.assembly),
             outputs,
         )
     }

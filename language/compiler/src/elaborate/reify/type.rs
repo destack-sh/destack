@@ -6,7 +6,7 @@ use dir::{
     Member, NodeType, PrimitiveType, Resolution, ScalarLiteral, Type, TypeLiteral, TypeTable,
 };
 
-use crate::elaborate::common::ElaborateState;
+use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
@@ -21,7 +21,7 @@ impl Compiler {
         // resolve the call resolution
         let Some(resolution_id) = state
             .types
-            .get_resolution_for_node(expression_id.into_global_any(state.ctx.module_id))
+            .get_resolution_for_node(expression_id.into_global_any(state.module_id))
         else {
             return Ok(None);
         };
@@ -93,7 +93,7 @@ impl Compiler {
                 if let Declaration::Function(declaration) = declaration
                     && declaration.signature.return_type.is_some()
                 {
-                    let symbol = declaration.symbol.into_global(state.ctx.module_id);
+                    let symbol = declaration.symbol.into_global(state.module_id);
                     return self.return_type_for_symbol(state, symbol);
                 }
             }
@@ -109,7 +109,7 @@ impl Compiler {
                 } = member
                     && signature.return_type.is_some()
                 {
-                    let symbol = symbol.into_global(state.ctx.module_id);
+                    let symbol = symbol.into_global(state.module_id);
                     return self.return_type_for_symbol(state, symbol);
                 }
             }

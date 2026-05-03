@@ -5,7 +5,7 @@ use super::linker::Rewriter;
 impl Rewriter<'_, '_> {
     /// Return whether two expression values are the same reference shape for minify purposes.
     pub(super) fn same_expression_value(
-        module: &js::ScriptModule,
+        module: &js::Module,
         left: js::LocalNodeId<js::Expression>,
         right: js::LocalNodeId<js::Expression>,
     ) -> bool {
@@ -50,7 +50,7 @@ impl Rewriter<'_, '_> {
 
     /// Insert one null literal near one source expression.
     pub(super) fn insert_null_literal(
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> js::LocalNodeId<js::Expression> {
         module.tree.insert_from(
@@ -63,7 +63,7 @@ impl Rewriter<'_, '_> {
 
     /// Return whether one expression is a bare null value.
     pub(super) fn is_null_expression(
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> bool {
         matches!(
@@ -76,7 +76,7 @@ impl Rewriter<'_, '_> {
 
     /// Return whether one expression is a bare undefined value.
     pub(super) fn is_undefined_expression(
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> bool {
         matches!(
@@ -87,7 +87,7 @@ impl Rewriter<'_, '_> {
 
     /// Return whether one expression is one bare `typeof` operation.
     pub(super) fn is_typeof_expression(
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> bool {
         matches!(
@@ -101,7 +101,7 @@ impl Rewriter<'_, '_> {
 
     /// Return whether one expression is one string literal.
     pub(super) fn is_string_literal_expression(
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> bool {
         matches!(
@@ -114,7 +114,7 @@ impl Rewriter<'_, '_> {
 
     /// Return whether one expression is the string literal `"undefined"`.
     pub(super) fn is_undefined_string_expression(
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> bool {
         let js::Expression::ScalarLiteral {
@@ -129,7 +129,7 @@ impl Rewriter<'_, '_> {
 
     /// Return whether one expression is a primitive literal for comparison ordering.
     pub(super) fn is_primitive_literal_expression(
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> bool {
         Self::scalar_literal_expression(module, expression_id).is_some()
@@ -138,7 +138,7 @@ impl Rewriter<'_, '_> {
     /// Return the truthiness of one side effect free literal expression.
     pub(super) fn literal_truthiness(
         &self,
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> Option<bool> {
         Self::literal_truthiness_static(module, expression_id)
@@ -146,7 +146,7 @@ impl Rewriter<'_, '_> {
 
     /// Return the truthiness of one side effect free literal expression.
     pub(super) fn literal_truthiness_static(
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> Option<bool> {
         match Self::scalar_literal_expression(module, expression_id)? {
@@ -161,7 +161,7 @@ impl Rewriter<'_, '_> {
 
     /// Return one scalar literal expression recursively through parentheses.
     pub(super) fn scalar_literal_expression(
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> Option<js::ScalarLiteral> {
         match module.tree.get(expression_id) {
@@ -206,7 +206,7 @@ impl Rewriter<'_, '_> {
     /// Return one output-side scalar literal expression, including builtin scalar globals.
     pub(super) fn output_scalar_literal_expression(
         &self,
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> Option<js::ScalarLiteral> {
         match module.tree.get(expression_id) {
@@ -250,7 +250,7 @@ impl Rewriter<'_, '_> {
 
     /// Return one literal comparison value, including folded `typeof` strings.
     pub(super) fn scalar_comparison_literal_expression(
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> Option<js::ScalarLiteral> {
         if let Some(value) = Self::scalar_literal_expression(module, expression_id) {
@@ -272,7 +272,7 @@ impl Rewriter<'_, '_> {
 
     /// Return one bare global primitive literal when one is known.
     pub(super) fn global_scalar_literal_expression(
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
         path: &js::Path,
     ) -> Option<js::ScalarLiteral> {
@@ -291,7 +291,7 @@ impl Rewriter<'_, '_> {
     /// Return one builtin scalar global when output may treat it as a literal.
     pub(super) fn output_global_scalar_literal_expression(
         &self,
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
         path: &js::Path,
     ) -> Option<js::ScalarLiteral> {
@@ -303,15 +303,9 @@ impl Rewriter<'_, '_> {
             return None;
         }
 
-        let js::ScriptSymbolId::Source(symbol_id) = module.tree.symbol(expression_id)? else {
+        let js::ScriptSymbolId::Source(_) = module.tree.symbol(expression_id)? else {
             return None;
         };
-
-        let context = self.context?;
-
-        if !context.module(symbol_id.module_id).is_builtin() {
-            return None;
-        }
 
         match module.strings.get(path.segments[0]).as_ref() {
             "undefined" => Some(js::ScalarLiteral::Undefined),
@@ -323,7 +317,7 @@ impl Rewriter<'_, '_> {
 
     /// Return one boolean literal value recursively through parentheses.
     pub(super) fn boolean_literal_value(
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> Option<bool> {
         let js::ScalarLiteral::Boolean(value) =
@@ -337,7 +331,7 @@ impl Rewriter<'_, '_> {
 
     /// Return whether one expression may be removed from a comma prefix.
     pub(super) fn is_removable_sequence_prefix(
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> bool {
         match module.tree.get(expression_id) {
@@ -351,7 +345,7 @@ impl Rewriter<'_, '_> {
 
     /// Evaluate one primitive literal comparison.
     pub(super) fn evaluate_literal_comparison(
-        module: &js::ScriptModule,
+        module: &js::Module,
         left: &js::ScalarLiteral,
         operator: js::BinaryOperator,
         right: &js::ScalarLiteral,
@@ -385,7 +379,7 @@ impl Rewriter<'_, '_> {
 
     /// Return whether two primitive literals are strictly equal.
     pub(super) fn strict_literal_equality(
-        module: &js::ScriptModule,
+        module: &js::Module,
         left: &js::ScalarLiteral,
         right: &js::ScalarLiteral,
     ) -> bool {
@@ -404,7 +398,7 @@ impl Rewriter<'_, '_> {
 
     /// Return whether two primitive literals are loosely equal when that is simple to prove.
     pub(super) fn loose_literal_equality(
-        module: &js::ScriptModule,
+        module: &js::Module,
         left: &js::ScalarLiteral,
         right: &js::ScalarLiteral,
     ) -> Option<bool> {
@@ -426,7 +420,7 @@ impl Rewriter<'_, '_> {
     /// 2: >
     /// 3: >=
     pub(super) fn literal_relational_comparison(
-        module: &js::ScriptModule,
+        module: &js::Module,
         left: &js::ScalarLiteral,
         right: &js::ScalarLiteral,
         relation: u8,
@@ -476,7 +470,7 @@ impl Rewriter<'_, '_> {
 
     /// Return one static string kind for a folded `typeof` operand.
     pub(super) fn typeof_literal_kind(
-        module: &js::ScriptModule,
+        module: &js::Module,
         right: js::LocalNodeId<js::Expression>,
     ) -> Option<&'static str> {
         let kind = match Self::scalar_literal_expression(module, right)? {

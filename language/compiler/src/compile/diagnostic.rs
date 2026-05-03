@@ -1,228 +1,162 @@
+pub use destack_artifact::{DiagnosticAnchor, DiagnosticDefinition, DiagnosticFormat};
+
+use crate::emit::{EmitError, EmitWarning};
 use crate::{
-    CompileError, CompileWarning, Compiler, DiagnosticAnchor, ResolveError, ResolveWarning,
+    AnalyzeError, AnalyzeWarning, ElaborateError, ElaborateWarning, ExecuteError, ExecuteWarning,
+    GenerateError, GenerateWarning, ImportError, ImportWarning, LinkError, LinkWarning, LowerError,
+    LowerWarning, OptimizeError, OptimizeWarning, ResolveError, ResolveWarning,
 };
-use destack_artifact::ArtifactStore;
-use destack_source::{Diagnostic, DiagnosticSeverity, LabeledSpan, ModuleId, Span};
-use destack_workspace::{Repository, Revision};
 
-/// Diagnostic encountered during compilation.
-#[derive(Debug, Clone)]
-pub enum CompileDiagnostic {
-    /// Error.
-    Error(CompileError),
-    /// Warning.
-    Warning(CompileWarning),
-}
+/// Registry of all compiler diagnostic codes.
+///
+/// Provides compile-time access to all valid error and warning codes,
+/// organized by phase. Use this for validation at CLI and test boundaries.
+#[derive(Debug)]
+pub struct DiagnosticRegistry;
 
-impl From<CompileError> for CompileDiagnostic {
-    fn from(error: CompileError) -> Self {
-        Self::Error(error)
+impl DiagnosticRegistry {
+    /// All error definitions from all phases.
+    pub const ALL_ERRORS: &'static [&'static [DiagnosticDefinition]] = &[
+        ImportError::ALL,
+        ResolveError::ALL,
+        AnalyzeError::ALL,
+        ElaborateError::ALL,
+        ExecuteError::ALL,
+        LowerError::ALL,
+        OptimizeError::ALL,
+        GenerateError::ALL,
+        LinkError::ALL,
+        EmitError::ALL,
+    ];
+
+    /// All warning definitions from all phases.
+    pub const ALL_WARNINGS: &'static [&'static [DiagnosticDefinition]] = &[
+        ImportWarning::ALL,
+        ResolveWarning::ALL,
+        AnalyzeWarning::ALL,
+        ElaborateWarning::ALL,
+        ExecuteWarning::ALL,
+        LowerWarning::ALL,
+        OptimizeWarning::ALL,
+        GenerateWarning::ALL,
+        LinkWarning::ALL,
+        EmitWarning::ALL,
+    ];
+
+    /// Check if an error code is valid.
+    pub fn is_valid_error_code(code: &str) -> bool {
+        ImportError::is_valid_code(code)
+            || ResolveError::is_valid_code(code)
+            || AnalyzeError::is_valid_code(code)
+            || ElaborateError::is_valid_code(code)
+            || ExecuteError::is_valid_code(code)
+            || LowerError::is_valid_code(code)
+            || OptimizeError::is_valid_code(code)
+            || GenerateError::is_valid_code(code)
+            || LinkError::is_valid_code(code)
+            || EmitError::is_valid_code(code)
     }
-}
 
-impl From<CompileWarning> for CompileDiagnostic {
-    fn from(warning: CompileWarning) -> Self {
-        Self::Warning(warning)
+    /// Check if a warning code is valid.
+    pub fn is_valid_warning_code(code: &str) -> bool {
+        ImportWarning::is_valid_code(code)
+            || ResolveWarning::is_valid_code(code)
+            || AnalyzeWarning::is_valid_code(code)
+            || ElaborateWarning::is_valid_code(code)
+            || ExecuteWarning::is_valid_code(code)
+            || LowerWarning::is_valid_code(code)
+            || OptimizeWarning::is_valid_code(code)
+            || GenerateWarning::is_valid_code(code)
+            || LinkWarning::is_valid_code(code)
+            || EmitWarning::is_valid_code(code)
     }
-}
 
-impl CompileDiagnostic {
-    /// Get the severity of the diagnostic.
-    pub fn severity(&self) -> DiagnosticSeverity {
-        match self {
-            Self::Error(_) => DiagnosticSeverity::Error,
-            Self::Warning(_) => DiagnosticSeverity::Warning,
+    /// Check if a diagnostic code (error or warning) is valid.
+    #[inline]
+    pub fn is_valid_code(code: &str) -> bool {
+        Self::is_valid_error_code(code) || Self::is_valid_warning_code(code)
+    }
+
+    /// Look up a diagnostic definition by code.
+    pub fn definition(code: &str) -> Option<&'static DiagnosticDefinition> {
+        ImportError::definition(code)
+            .or_else(|| ResolveError::definition(code))
+            .or_else(|| AnalyzeError::definition(code))
+            .or_else(|| ElaborateError::definition(code))
+            .or_else(|| ExecuteError::definition(code))
+            .or_else(|| LowerError::definition(code))
+            .or_else(|| OptimizeError::definition(code))
+            .or_else(|| GenerateError::definition(code))
+            .or_else(|| LinkError::definition(code))
+            .or_else(|| EmitError::definition(code))
+            .or_else(|| ImportWarning::definition(code))
+            .or_else(|| ResolveWarning::definition(code))
+            .or_else(|| AnalyzeWarning::definition(code))
+            .or_else(|| ElaborateWarning::definition(code))
+            .or_else(|| ExecuteWarning::definition(code))
+            .or_else(|| LowerWarning::definition(code))
+            .or_else(|| OptimizeWarning::definition(code))
+            .or_else(|| GenerateWarning::definition(code))
+            .or_else(|| LinkWarning::definition(code))
+            .or_else(|| EmitWarning::definition(code))
+    }
+
+    /// Look up a diagnostic definition by variant name.
+    pub fn named_definition(name: &str) -> Option<&'static DiagnosticDefinition> {
+        let matches_name = |definition: &&DiagnosticDefinition| definition.name == name;
+
+        Self::ALL_ERRORS
+            .iter()
+            .flat_map(|defs| defs.iter())
+            .find(matches_name)
+            .or_else(|| {
+                Self::ALL_WARNINGS
+                    .iter()
+                    .flat_map(|defs| defs.iter())
+                    .find(matches_name)
+            })
+    }
+
+    /// Get all error codes for a given phase letter.
+    pub fn phase_error_codes(letter: char) -> &'static [&'static str] {
+        match letter {
+            'I' => ImportError::ALL_CODES,
+            'R' => ResolveError::ALL_CODES,
+            'A' => AnalyzeError::ALL_CODES,
+            'E' => ElaborateError::ALL_CODES,
+            'X' => ExecuteError::ALL_CODES,
+            'M' => LowerError::ALL_CODES,
+            'O' => OptimizeError::ALL_CODES,
+            'G' => GenerateError::ALL_CODES,
+            'K' => LinkError::ALL_CODES,
+            'W' => EmitError::ALL_CODES,
+            _ => &[],
         }
     }
 
-    /// Get the message of the diagnostic.
-    pub fn message(
-        &self,
-        revision: Revision,
-        repository: &Repository,
-        artifacts: &ArtifactStore,
-    ) -> String {
-        match self {
-            Self::Error(error) => error.message(revision, repository, artifacts),
-            Self::Warning(warning) => warning.message(revision, repository, artifacts),
+    /// Get all warning codes for a given phase letter.
+    pub fn phase_warning_codes(letter: char) -> &'static [&'static str] {
+        match letter {
+            'I' => ImportWarning::ALL_CODES,
+            'R' => ResolveWarning::ALL_CODES,
+            'A' => AnalyzeWarning::ALL_CODES,
+            'E' => ElaborateWarning::ALL_CODES,
+            'X' => ExecuteWarning::ALL_CODES,
+            'M' => LowerWarning::ALL_CODES,
+            'O' => OptimizeWarning::ALL_CODES,
+            'G' => GenerateWarning::ALL_CODES,
+            'K' => LinkWarning::ALL_CODES,
+            'W' => EmitWarning::ALL_CODES,
+            _ => &[],
         }
     }
 
-    /// Get the anchor of the diagnostic.
-    pub fn anchor(&self) -> DiagnosticAnchor {
-        match self {
-            Self::Error(error) => error.anchor(),
-            Self::Warning(warning) => warning.anchor(),
-        }
-    }
-
-    /// Get the full code of the diagnostic.
-    pub fn full_code(&self) -> String {
-        match self {
-            Self::Error(error) => error.full_code(),
-            Self::Warning(warning) => warning.full_code(),
-        }
-    }
-
-    /// Turn the diagnostic into a full Destack diagnostic.
-    pub fn to_diagnostic(
-        &self,
-        revision: Revision,
-        repository: &Repository,
-        artifacts: &ArtifactStore,
-    ) -> Diagnostic {
-        let anchor = self.anchor();
-        let severity = self.severity();
-        let message = self.message(revision, repository, artifacts);
-        let code = self.full_code();
-
-        // get file and span from anchor, falling back to the repository root file
-        let (file_id, span) = anchor
-            .to_file_span(revision, repository, artifacts)
-            .unwrap_or_else(|| {
-                let fallback = repository.root_file_id();
-                (fallback, Span::empty(fallback))
-            });
-
-        let primary_span = LabeledSpan {
-            span,
-            label: message.clone(),
-        };
-
-        Diagnostic {
-            code,
-            original_code: None,
-            severity,
-            original_severity: None,
-            message,
-            file_id,
-            primary_span,
-            primary_highlight_spans: None,
-            secondary_spans: None,
-            suggestions: None,
-        }
-    }
-}
-
-/// Module-level diagnostic emission inputs for one anchored diagnostic.
-#[derive(Debug, Clone, Copy)]
-struct ModuleDiagnosticPolicy {
-    /// Whether the anchored module is a declaration module.
-    is_declaration: bool,
-    /// Whether declaration diagnostics should be skipped.
-    skip_lib_check: bool,
-}
-
-impl Compiler {
-    /// Check whether an error should be emitted.
-    pub(super) fn should_emit_error(&self, revision: Revision, error: &CompileError) -> bool {
-        match error {
-            CompileError::Resolve(error) => self.should_emit_resolve_error(revision, error),
-            _ => true,
-        }
-    }
-
-    /// Check whether a warning should be emitted.
-    pub(super) fn should_emit_warning(&self, revision: Revision, warning: &CompileWarning) -> bool {
-        match warning {
-            CompileWarning::Resolve(warning) => self.should_emit_resolve_warning(revision, warning),
-            _ => true,
-        }
-    }
-
-    /// Resolve profile-level skip-lib-check state for one anchored diagnostic.
-    fn profile_skip_lib_check_for_anchor(
-        &self,
-        revision: Revision,
-        anchor: &DiagnosticAnchor,
-    ) -> bool {
-        // skip when the diagnostic is not anchored to a profile scoped dir node
-        let DiagnosticAnchor::DirNode(anchored) = anchor else {
-            return false;
-        };
-
-        // skip when the dir node has no profile provenance
-        let Some(profile_id) = anchored.profile_id else {
-            return false;
-        };
-
-        // resolve skip-lib-check from the diagnostic revision
-        let profile = self.profile_for_revision(revision, profile_id);
-        profile.key.skip_lib_check
-    }
-
-    /// Resolve skip-lib-check state for one anchored module.
-    fn skip_lib_check_for_anchor(
-        &self,
-        revision: Revision,
-        anchor: &DiagnosticAnchor,
-        module_id: ModuleId,
-    ) -> bool {
-        // allow profile-level suppression first
-        if self.profile_skip_lib_check_for_anchor(revision, anchor) {
-            return true;
-        }
-
-        // fall back to module-local compatibility options
-        let context = self.context(revision).ok();
-        let Some(context) = context else {
-            return false;
-        };
-        let module_options = context.module_check_options_for_module(module_id);
-        module_options.skip_lib_check
-    }
-
-    /// Build module-level diagnostic emission policy for one anchor.
-    fn module_diagnostic_policy_for_anchor(
-        &self,
-        revision: Revision,
-        anchor: &DiagnosticAnchor,
-    ) -> Option<ModuleDiagnosticPolicy> {
-        // allow non-module anchors to bypass module-gated suppression
-        let module_id = anchor.module_id()?;
-
-        // load module and compatibility options
-        let context = self.context(revision).ok()?;
-        let module = context.module(module_id);
-        let module = module.as_ref();
-        let skip_lib_check = self.skip_lib_check_for_anchor(revision, anchor, module_id);
-
-        Some(ModuleDiagnosticPolicy {
-            is_declaration: module.language_type.is_declaration(),
-            skip_lib_check,
-        })
-    }
-
-    /// Check whether a resolve diagnostic should be emitted.
-    fn should_emit_resolve_for_anchor(
-        &self,
-        revision: Revision,
-        anchor: &DiagnosticAnchor,
-    ) -> bool {
-        // allow diagnostics without a module anchor
-        let Some(policy) = self.module_diagnostic_policy_for_anchor(revision, anchor) else {
-            return true;
-        };
-
-        // skip lib checks for declaration modules
-        if policy.is_declaration && policy.skip_lib_check {
-            return false;
-        }
-
-        true
-    }
-
-    /// Check whether a resolve error should be emitted.
-    fn should_emit_resolve_error(&self, revision: Revision, error: &ResolveError) -> bool {
-        let anchor = error.anchor();
-
-        self.should_emit_resolve_for_anchor(revision, &anchor)
-    }
-
-    /// Check whether a resolve warning should be emitted.
-    fn should_emit_resolve_warning(&self, revision: Revision, warning: &ResolveWarning) -> bool {
-        let anchor = warning.anchor();
-
-        self.should_emit_resolve_for_anchor(revision, &anchor)
+    /// Validate a list of codes and return any invalid ones.
+    pub fn validate_codes(codes: &[String]) -> Vec<&str> {
+        codes
+            .iter()
+            .filter(|c| !Self::is_valid_code(c))
+            .map(|c| c.as_str())
+            .collect()
     }
 }

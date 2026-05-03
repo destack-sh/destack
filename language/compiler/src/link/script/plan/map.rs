@@ -1,7 +1,8 @@
+use destack_workspace::ProviderContext;
 use std::path::{Component, Path, PathBuf};
 
+use crate::Compiler;
 use crate::link::{SourceMapBuilder, SourceMapMarker};
-use crate::{Compiler, CompilerContext};
 use destack_codegen_js as js;
 use destack_source::ModuleId;
 
@@ -13,7 +14,7 @@ impl Compiler {
         emitted_source_map_path: &Path,
         parts: &[(ModuleId, js::PrintedScriptModule)],
         is_minimal: bool,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> SourceMapBuilder {
         let mut sources = Vec::new();
         let mut markers = Vec::new();
@@ -21,8 +22,8 @@ impl Compiler {
 
         // compose each printed module with one stable source index
         for (part_index, (module_id, printed)) in parts.iter().enumerate() {
-            let module = context.module(*module_id);
-            let source_file = context.file(module.file_id);
+            let module = self.module(context.revision(), *module_id);
+            let source_file = self.file(context, module.file_id);
             let source_path = self.script_source_map_path(
                 package_dir,
                 emitted_source_map_path,
@@ -66,9 +67,9 @@ impl Compiler {
         package_dir: &Path,
         emitted_source_map_path: &Path,
         module_id: ModuleId,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> String {
-        let module = context.module(module_id);
+        let module = self.module(context.revision(), module_id);
 
         let Some(source_path) = module.path.as_ref() else {
             return self.package_relative_uri_path(package_dir, &module.uri);

@@ -1,44 +1,52 @@
 use std::collections::VecDeque;
 
-use crate::{Compiler, CompilerContext, LinkError, LinkResult};
-
-use destack_artifact::{
-    DynamicScriptDependencyTarget, ModuleOutput, ScriptArtifact, ScriptDependencyKind,
-    ScriptDependencyTarget,
-};
+use destack_artifact::{ModuleOutput, ScriptOutput};
+use destack_codegen_js::DependencyKind;
 use destack_source::{ModuleId, PackageId, Span, TargetId};
-use destack_workspace::Target;
+use destack_workspace::{ProviderContext, Target};
 use indexmap::{IndexMap, IndexSet};
 
+use crate::{Compiler, CompilerError, LinkError, LinkResult};
+
+use super::super::{
+    ScriptDependencyTarget, dynamic_script_dependencies, static_script_dependencies,
+};
 use super::ModuleSet;
 
 impl Compiler {
-    /// Return one linked script artifact when the module participates in runtime linking.
-    fn linked_script_artifact(
+    /// Return one linked script output when the module participates in runtime linking.
+    fn linked_script_output(
         &self,
         module_id: ModuleId,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &CompilerContext<'_>,
-    ) -> LinkResult<Option<ScriptArtifact>> {
-        let Some(artifact) =
-            self.repository
-                .module_output(context.revision(), module_id, *target_id)
-        else {
-            return Ok(None);
-        };
-        let ModuleOutput::Script(script) = artifact.as_ref() else {
-            return Err(LinkError::Internal {
+        context: &dyn ProviderContext,
+    ) -> LinkResult<Option<ScriptOutput>> {
+        let artifact = self
+            .module_output(context, module_id, target_id)
+            .map_err(CompilerError::from)
+            .map_err(|error| LinkError::Internal {
+                anchor: (package_id).into(),
                 package: package_id,
                 message: format!(
-                    "expected script artifact for module {:?} target '{}'",
+                    "missing module output for module {:?} target '{}': {error:?}",
                     module_id,
-                    self.target_name_for_revision(context.revision(), target_id)
+                    self.target_name(context.revision(), target_id)
+                ),
+            })?;
+        let ModuleOutput::Script(script) = artifact.as_ref() else {
+            return Err(LinkError::Internal {
+                anchor: (package_id).into(),
+                package: package_id,
+                message: format!(
+                    "expected script output for module {:?} target '{}'",
+                    module_id,
+                    self.target_name(context.revision(), target_id)
                 ),
             });
         };
 
-        Ok(Some(*script.clone()))
+        Ok(Some(script.clone()))
     }
 
     /// Return whether target policy explicitly externalizes one dependency specifier.
@@ -62,6 +70,14 @@ impl Compiler {
             .always_bundle
             .iter()
             .any(|candidate| candidate == specifier)
+    }
+
+    /// Return whether one dependency specifier names a package import.
+    fn is_package_like_dependency_specifier(specifier: &str) -> bool {
+        !specifier.starts_with('.')
+            && !specifier.starts_with('/')
+            && !specifier.contains(':')
+            && !specifier.is_empty()
     }
 
     /// Return whether one dependency should remain bundled for this target.
@@ -134,23 +150,22 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> LinkResult<Vec<ModuleId>> {
-        let Some(script) =
-            self.linked_script_artifact(module_id, target_id, package_id, context)?
+        let Some(script) = self.linked_script_output(module_id, target_id, package_id, context)?
         else {
             return Ok(Vec::new());
         };
         let mut dependency_modules = Vec::new();
 
         // bundled static imports
-        for dependency in &script.linkage.static_dependencies {
-            if dependency.kind == ScriptDependencyKind::Type {
+        for dependency in static_script_dependencies(&script.module) {
+            if dependency.kind == DependencyKind::Type {
                 continue;
             }
 
             if !self.should_bundle_script_dependency(
-                Span::empty(context.module(module_id).file_id),
+                Span::empty(self.module(context.revision(), module_id).file_id),
                 package_id,
                 target_id,
                 target,
@@ -176,24 +191,22 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> LinkResult<Vec<ModuleId>> {
-        let Some(script) =
-            self.linked_script_artifact(module_id, target_id, package_id, context)?
+        let Some(script) = self.linked_script_output(module_id, target_id, package_id, context)?
         else {
             return Ok(Vec::new());
         };
         let mut dependency_modules = Vec::new();
 
         // bundled dynamic imports
-        for dependency in &script.linkage.dynamic_dependencies {
-            let DynamicScriptDependencyTarget::Resolved(dependency_target) = &dependency.target
-            else {
+        for dependency in dynamic_script_dependencies(&script.module) {
+            let Some(dependency_target) = &dependency.target else {
                 continue;
             };
 
             if !self.should_bundle_script_dependency(
-                Span::empty(context.module(module_id).file_id),
+                Span::empty(self.module(context.revision(), module_id).file_id),
                 package_id,
                 target_id,
                 target,
@@ -219,23 +232,22 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> LinkResult<Vec<String>> {
-        let Some(script) =
-            self.linked_script_artifact(module_id, target_id, package_id, context)?
+        let Some(script) = self.linked_script_output(module_id, target_id, package_id, context)?
         else {
             return Ok(Vec::new());
         };
         let mut import_specifiers = Vec::new();
 
         // retained external static imports
-        for dependency in &script.linkage.static_dependencies {
-            if dependency.kind == ScriptDependencyKind::Type {
+        for dependency in static_script_dependencies(&script.module) {
+            if dependency.kind == DependencyKind::Type {
                 continue;
             }
 
             if self.should_bundle_script_dependency(
-                Span::empty(context.module(module_id).file_id),
+                Span::empty(self.module(context.revision(), module_id).file_id),
                 package_id,
                 target_id,
                 target,
@@ -257,24 +269,22 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> LinkResult<Vec<String>> {
-        let Some(script) =
-            self.linked_script_artifact(module_id, target_id, package_id, context)?
+        let Some(script) = self.linked_script_output(module_id, target_id, package_id, context)?
         else {
             return Ok(Vec::new());
         };
         let mut import_specifiers = Vec::new();
 
         // retained external dynamic imports
-        for dependency in &script.linkage.dynamic_dependencies {
-            let DynamicScriptDependencyTarget::Resolved(dependency_target) = &dependency.target
-            else {
+        for dependency in dynamic_script_dependencies(&script.module) {
+            let Some(dependency_target) = &dependency.target else {
                 continue;
             };
 
             if self.should_bundle_script_dependency(
-                Span::empty(context.module(module_id).file_id),
+                Span::empty(self.module(context.revision(), module_id).file_id),
                 package_id,
                 target_id,
                 target,
@@ -296,7 +306,7 @@ impl Compiler {
         target_id: &TargetId,
         package_id: PackageId,
         module_set: &ModuleSet,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> LinkResult<IndexMap<ModuleId, IndexSet<ModuleId>>> {
         let mut entry_sets: IndexMap<ModuleId, IndexSet<ModuleId>> = IndexMap::new();
 
@@ -335,7 +345,7 @@ impl Compiler {
         target_id: &TargetId,
         package_id: PackageId,
         module_set: &ModuleSet,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> LinkResult<IndexSet<ModuleId>> {
         let mut dynamic_target_modules = IndexSet::new();
 
@@ -373,7 +383,7 @@ impl Compiler {
         target_id: &TargetId,
         package_id: PackageId,
         dynamic_target_modules: &IndexSet<ModuleId>,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> LinkResult<IndexMap<ModuleId, IndexSet<ModuleId>>> {
         let mut entry_sets: IndexMap<ModuleId, IndexSet<ModuleId>> = IndexMap::new();
 

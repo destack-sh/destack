@@ -1,111 +1,102 @@
-use crate::{Compiler, CompilerContext, GenerateError, GenerateResult, GenerateWarning};
-
-use destack_artifact::{ArtifactKey, ModuleOutput};
+use crate::{Compiler, CompilerError, CompilerResult, GenerateError, GenerateWarning};
+use destack_artifact::ModuleOutput;
 use destack_codegen_native::{CodegenCraneliftError, CodegenCraneliftWarning};
-use destack_dir::{AnchoredGlobalNodeId, LocalNodeIdAny};
-use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Target};
+use destack_mir as mir;
+use destack_source::{ModuleId, TargetId};
+use destack_workspace::{ProfileId, ProviderContext, Target};
+
+use super::GenerateState;
 
 impl Compiler {
-    /// Generate one binary module artifact through the native backend.
+    /// Generate one binary module output through the native backend.
     pub(super) fn generate_binary_module_output(
         &self,
         module_id: ModuleId,
         target: &Target,
         profile: ProfileId,
-        context: &CompilerContext<'_>,
-    ) -> GenerateResult<()> {
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ModuleOutput> {
         // construct target identity from the module package
-        let module = context.module(module_id);
+        let module = self.module(context.revision(), module_id);
         let package_id = module.package_id;
-        let target_id = self.repository.intern_target_id(package_id, &target.name);
+        let target_id = TargetId::new(package_id, &target.name);
 
         // require the optimized MIR state
-        self.require_mir_optimized(module_id, profile, &target_id, context)?;
-        let mir_optimized = self.mir_optimized(module_id, profile, &target_id);
-        let mir_base = self.mir_base(module_id, profile, &target_id);
+        self.require_mir_optimized(context, module_id, profile, &target_id)
+            .map_err(CompilerError::from)?;
+        let mir_optimized = self
+            .mir_optimized(context, module_id, profile, &target_id)
+            .map_err(CompilerError::from)?;
+        let mir_lowered = self
+            .mir_lowered(context, module_id, profile, &target_id)
+            .map_err(CompilerError::from)?;
+        let state = GenerateState::new(module_id, &mir_optimized.tree);
 
-        // generate one binary artifact through the current backend
-        let (artifact, warnings, errors) = destack_codegen_native::BinaryArtifactGenerator::new(
+        // generate one binary output through the current backend
+        let (artifact, warnings, errors) = destack_codegen_native::BinaryOutputGenerator::new(
             module.clone(),
-            mir_optimized,
-            mir_base,
+            Some(mir_optimized.clone()),
+            Some(mir_lowered),
             target,
         )
         .generate()
-        .map_err(|error| {
-            self.map_binary_generate_error(module_id, &target.name, profile, error, context)
-        })?;
-        context.publish_artifact(
-            ArtifactKey::module_output(module_id, target_id),
-            ModuleOutput::Binary(Box::new(artifact)),
-            |store, version, payload| store.publish_module_output(version, payload),
-        );
-
+        .map_err(|error| Self::map_binary_generate_error(&state, error))?;
         // map backend diagnostics into compiler diagnostics
         for warning in warnings {
-            let warning = self.map_binary_generate_warning(
-                module_id,
-                &target.name,
-                profile,
-                warning,
-                context,
-            );
-            self.warning(warning);
+            let warning = Self::map_binary_generate_warning(&state, warning);
+            self.emit_diagnostic(context, warning)?;
         }
         for error in errors {
-            let error =
-                self.map_binary_generate_error(module_id, &target.name, profile, error, context);
-            self.error(error);
+            let error = Self::map_binary_generate_error(&state, error);
+            self.emit_diagnostic(context, error)?;
         }
 
-        Ok(())
+        Ok(ModuleOutput::Binary(artifact))
     }
 
     /// Map one binary backend error to a compiler error.
     fn map_binary_generate_error(
-        &self,
-        module_id: ModuleId,
-        target_name: &str,
-        profile: ProfileId,
+        state: &GenerateState<'_, mir::Tree>,
         error: CodegenCraneliftError,
-        context: &CompilerContext<'_>,
     ) -> GenerateError {
         match error {
             CodegenCraneliftError::UnsupportedTarget { triple, .. } => {
                 GenerateError::UnsupportedTarget {
-                    module: module_id,
+                    anchor: (state.module_id).into(),
+                    module: state.module_id,
                     target: triple,
                 }
             }
             CodegenCraneliftError::FunctionNotFound { name, .. } => {
                 GenerateError::UnresolvedFunction {
-                    module: module_id,
+                    anchor: (state.module_id).into(),
+                    module: state.module_id,
                     name,
                 }
             }
             CodegenCraneliftError::Internal { message } => GenerateError::Internal {
-                module: module_id,
+                anchor: (state.module_id).into(),
+                module: state.module_id,
                 message,
             },
             CodegenCraneliftError::UnsupportedType { node, .. } => GenerateError::UnsupportedType {
-                module: module_id,
-                node: self.get_dir_node_id(module_id, target_name, profile, node, context),
+                anchor: state.anchor(node),
+                module: state.module_id,
             },
             CodegenCraneliftError::MissingType { node, .. } => GenerateError::MissingType {
-                module: module_id,
-                node: self.get_dir_node_id(module_id, target_name, profile, node, context),
+                anchor: state.anchor(node),
+                module: state.module_id,
             },
             CodegenCraneliftError::UnsupportedInstruction { node, .. } => {
                 GenerateError::UnsupportedConstruct {
-                    module: module_id,
-                    node: self.get_dir_node_id(module_id, target_name, profile, node, context),
+                    anchor: state.anchor(node),
+                    module: state.module_id,
                     message: "unsupported instruction".to_string(),
                 }
             }
             CodegenCraneliftError::OutOfBounds { node, index, len } => GenerateError::OutOfBounds {
-                module: module_id,
-                node: self.get_dir_node_id(module_id, target_name, profile, node, context),
+                anchor: state.anchor(node),
+                module: state.module_id,
                 index,
                 len,
             },
@@ -114,51 +105,16 @@ impl Compiler {
 
     /// Map one binary backend warning to a compiler warning.
     fn map_binary_generate_warning(
-        &self,
-        module_id: ModuleId,
-        target_name: &str,
-        profile: ProfileId,
+        state: &GenerateState<'_, mir::Tree>,
         warning: CodegenCraneliftWarning,
-        context: &CompilerContext<'_>,
     ) -> GenerateWarning {
         match warning {
             CodegenCraneliftWarning::UnexpectedNode { node, .. } => {
                 GenerateWarning::UnexpectedConstruct {
-                    module: module_id,
-                    node: self.get_dir_node_id(module_id, target_name, profile, node, context),
+                    anchor: state.anchor(node),
+                    module: state.module_id,
                 }
             }
         }
-    }
-
-    /// Look up the source DIR node from MIR source tracking.
-    fn get_dir_node_id(
-        &self,
-        module_id: ModuleId,
-        target_name: &str,
-        profile: ProfileId,
-        mir_node: destack_mir::LocalNodeIdAny,
-        context: &CompilerContext<'_>,
-    ) -> Option<AnchoredGlobalNodeId> {
-        let module = context.module(module_id);
-        let module = module.as_ref();
-        let target_id = self
-            .repository
-            .intern_target_id(module.package_id, target_name);
-        let dir_node_id = if let Some(mir) = self.mir_optimized(module_id, profile, &target_id) {
-            mir.tree.get_source(mir_node.id)?
-        } else if let Some(mir) = self.mir_base(module_id, profile, &target_id) {
-            mir.tree.get_source(mir_node.id)?
-        } else {
-            panic!("code generation requires MIR artifact");
-        };
-        let dir = self.dir_patched(module_id, profile)?;
-        let dir_node_type = dir.tree.get_node_type(dir_node_id);
-
-        let node = LocalNodeIdAny {
-            id: dir_node_id,
-            ty: dir_node_type,
-        };
-        Some(node.into_anchored(module_id, Some(profile)))
     }
 }

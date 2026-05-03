@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 use dir::{
-    Block, Expression, LocalNodeId, LocalNodeIdAny, LocalTypeId, PrimitiveType, RuntimeCheckKind,
+    Block, Expression, GuardStrategy, LocalNodeId, LocalNodeIdAny, LocalTypeId, PrimitiveType,
     ScalarLiteral, SymbolType, Type, TypeLiteral, TypeTable,
 };
 
@@ -88,13 +88,13 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         symbol: dir::GlobalSymbolId,
-        node_id: LocalNodeIdAny,
+        _node_id: LocalNodeIdAny,
         types: &TypeTable,
     ) -> ElaborateResult<LocalTypeId> {
         types
             .get_value_type_id(symbol)
             .ok_or_else(|| ElaborateError::UnsupportedConstruct {
-                node: node_id.into_global(module_id).into_anchored(None),
+                anchor: module_id.into(),
             })
     }
 
@@ -108,7 +108,7 @@ impl Compiler {
         types
             .get_declared_or_inferred_type_id(expression_id.into_global_any(module_id))
             .ok_or_else(|| ElaborateError::UnsupportedConstruct {
-                node: expression_id.into_global_any(module_id).into_anchored(None),
+                anchor: module_id.into(),
             })
     }
 
@@ -200,18 +200,18 @@ impl Compiler {
     }
 
     /// Determine the runtime check kind for a type guard relation.
-    pub(crate) fn runtime_check_kind_for_relation(
+    pub(crate) fn guard_strategy_for_relation(
         &self,
         types: &TypeTable,
         value_type_id: LocalTypeId,
         target_type_id: LocalTypeId,
-    ) -> Option<RuntimeCheckKind> {
+    ) -> Option<GuardStrategy> {
         let value_type_id = types.unwrap_value_type_id(value_type_id);
         let target_type_id = types.unwrap_value_type_id(target_type_id);
 
         // identical ids need no runtime check
         if value_type_id == target_type_id {
-            return Some(RuntimeCheckKind::Constant(true));
+            return Some(GuardStrategy::Constant(true));
         }
 
         // only runtime visible targets are currently checkable
@@ -219,7 +219,7 @@ impl Compiler {
             return None;
         }
 
-        runtime_check_kind_for_value(types, value_type_id)
+        guard_strategy_for_value(types, value_type_id)
     }
 }
 
@@ -239,23 +239,20 @@ fn is_runtime_checkable_target(types: &TypeTable, type_id: LocalTypeId) -> bool 
 }
 
 /// Return the runtime identity carried by one value type.
-fn runtime_check_kind_for_value(
-    types: &TypeTable,
-    type_id: LocalTypeId,
-) -> Option<RuntimeCheckKind> {
+fn guard_strategy_for_value(types: &TypeTable, type_id: LocalTypeId) -> Option<GuardStrategy> {
     match types.get_type(type_id) {
-        Type::Union { .. } => Some(RuntimeCheckKind::UnionTag),
+        Type::Union { .. } => Some(GuardStrategy::UnionTag),
         Type::Reference { symbol, .. } => match symbol.local_id.ty {
             SymbolType::Class | SymbolType::Struct | SymbolType::Enum | SymbolType::Newtype => {
-                Some(RuntimeCheckKind::TypeDescriptor)
+                Some(GuardStrategy::TypeDescriptor)
             }
             _ => None,
         },
         Type::TypeLiteral {
             value: TypeLiteral::Unknown,
-        } => Some(RuntimeCheckKind::TypeDescriptor),
+        } => Some(GuardStrategy::TypeDescriptor),
         Type::Value { value } => {
-            runtime_check_kind_for_value(types, types.unwrap_value_type_id(*value))
+            guard_strategy_for_value(types, types.unwrap_value_type_id(*value))
         }
         _ => None,
     }

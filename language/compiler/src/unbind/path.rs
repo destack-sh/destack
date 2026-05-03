@@ -10,14 +10,10 @@ impl Compiler {
     pub(super) fn unbind_path(
         &self,
         path: &dir::Path,
-        ast_strings: &mut StringPool,
+        _ast_strings: &mut StringPool,
         _context: &mut UnbindContext,
     ) -> ast::Path {
-        let segments = path
-            .segments
-            .iter()
-            .map(|segment| ast_strings.intern_from(&self.repository.strings, *segment))
-            .collect();
+        let segments = path.segments.iter().map(|segment| *segment).collect();
         ast::Path { segments }
     }
 }

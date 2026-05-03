@@ -10,4 +10,4 @@ mod symbol;
 
 pub(crate) use global::lower_mutability;
 pub(crate) use lower::*;
-pub(crate) use name::{static_key_to_field_name, string_literal_global_name_for_content};
+pub(crate) use name::static_key_to_field_name;

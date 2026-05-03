@@ -1,21 +1,22 @@
 use std::collections::BTreeSet;
 
-use destack_artifact::{ArtifactKey, Data, Html, ModuleEdgeRelation, ModuleGraph};
+use destack_artifact::{Data, Html};
 use destack_html as html;
-use destack_source::{FileType, ModuleId};
-use destack_workspace::Module;
+use destack_source::{FileType, ModuleEdge, ModuleEdgeRelation, ModuleId, StringId};
+use destack_workspace::{Module, ProviderError};
 use indexmap::IndexSet;
 
-use crate::{LinkError, LinkResult, RequirementCollector};
+use crate::{CompilerResult, LinkError, LinkResult};
 
 use super::super::ScriptLinker;
+use crate::CompilerError;
 
 impl<'a> ScriptLinker<'a> {
     /// Collect the rooted modules from the target roots.
     pub(in crate::link::script) fn collect_root_modules(
         &self,
         root_modules: &[ModuleId],
-    ) -> LinkResult<(Vec<ModuleId>, Vec<ModuleId>, Vec<ModuleId>, Vec<ModuleId>)> {
+    ) -> CompilerResult<(Vec<ModuleId>, Vec<ModuleId>, Vec<ModuleId>, Vec<ModuleId>)> {
         // html entries root additional modules through document references
         if self.target.emit == destack_artifact::EmitFormat::Html {
             return self.collect_html_root_modules(root_modules);
@@ -28,7 +29,7 @@ impl<'a> ScriptLinker<'a> {
     fn collect_html_root_modules(
         &self,
         root_modules: &[ModuleId],
-    ) -> LinkResult<(Vec<ModuleId>, Vec<ModuleId>, Vec<ModuleId>, Vec<ModuleId>)> {
+    ) -> CompilerResult<(Vec<ModuleId>, Vec<ModuleId>, Vec<ModuleId>, Vec<ModuleId>)> {
         let mut document_module_ids = Vec::with_capacity(root_modules.len());
         let mut script_module_ids = BTreeSet::new();
         let mut stylesheet_module_ids = BTreeSet::new();
@@ -50,7 +51,8 @@ impl<'a> ScriptLinker<'a> {
                     subject: "html entry module".to_string(),
                     expected: ".html".to_string(),
                     found: module.uri.to_string(),
-                });
+                }
+                .into());
             }
 
             document_module_ids.push(module.id);
@@ -59,7 +61,8 @@ impl<'a> ScriptLinker<'a> {
                 &mut script_module_ids,
                 &mut stylesheet_module_ids,
                 &mut asset_module_ids,
-            )?;
+            )
+            .map_err(CompilerError::from)?;
         }
 
         // outFile html targets can only emit one document
@@ -69,7 +72,8 @@ impl<'a> ScriptLinker<'a> {
                 package: self.package_id,
                 target: self.target_id.clone(),
                 message: "html targets with outFile can only emit one document entry".to_string(),
-            });
+            }
+            .into());
         }
 
         Ok((
@@ -81,43 +85,33 @@ impl<'a> ScriptLinker<'a> {
     }
 
     /// Require the artifacts needed to collect html rooted modules.
-    fn require_html_root_artifacts(&self, root_modules: &[ModuleId]) -> LinkResult<()> {
-        let mut collector = RequirementCollector::new();
+    fn require_html_root_artifacts(&self, root_modules: &[ModuleId]) -> CompilerResult<()> {
+        let mut blocked = Vec::new();
 
         // html root discovery reads parsed payloads directly
         for module_id in root_modules {
-            let result = self.require_ast(*module_id);
-            collector.try_collect(result);
+            match self.require_ast(*module_id) {
+                Ok(_) => {}
+                Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
+                Err(error) => return Err(CompilerError::from(error)),
+            }
         }
 
         // html edge resolution needs each entry published into its resolved graph
         for module_id in root_modules {
             let profile_id = self.profile_id_for_module(*module_id)?;
-            let result =
-                self.compiler
-                    .require_dir_resolved(self.revision(), *module_id, profile_id);
-            let error = collector.try_collect(result);
-
-            if let Some(error) = error {
-                return Err(error.into());
-            }
-        }
-
-        // html root discovery needs each entry graph published for its own profile
-        for module_id in root_modules {
-            let profile_id = self.profile_id_for_module(*module_id)?;
-            let result = self
+            match self
                 .compiler
-                .require_artifact(self.revision(), ArtifactKey::module_graph(profile_id));
-            let error = collector.try_collect(result);
-
-            if let Some(error) = error {
-                return Err(error.into());
+                .require_dir_exported(self.context, *module_id, profile_id)
+            {
+                Ok(_) => {}
+                Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
+                Err(error) => return Err(CompilerError::from(error)),
             }
         }
 
-        if let Some(requirement) = collector.try_into_requirement() {
-            return Err(LinkError::Yield { requirement });
+        if !blocked.is_empty() {
+            return Err(CompilerError::Blocked { keys: blocked });
         }
 
         Ok(())
@@ -132,13 +126,13 @@ impl<'a> ScriptLinker<'a> {
         asset_module_ids: &mut BTreeSet<ModuleId>,
     ) -> LinkResult<()> {
         let html = self.html_payload(module.id)?;
-        let module_graph = self.module_graph_for_module(module.id)?;
+        let module_edges = self.module_edges_for_module(module.id)?;
         let root_node = html.tree.get(html.document);
 
         self.collect_html_nodes(
             module,
             &html,
-            module_graph.as_ref(),
+            module_edges.as_slice(),
             &root_node.children,
             script_module_ids,
             stylesheet_module_ids,
@@ -153,7 +147,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         html: &Html,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         node_ids: &[html::LocalNodeId<html::Content>],
         script_module_ids: &mut BTreeSet<ModuleId>,
         stylesheet_module_ids: &mut BTreeSet<ModuleId>,
@@ -167,7 +161,7 @@ impl<'a> ScriptLinker<'a> {
             self.collect_html_attributes(
                 module,
                 html,
-                module_graph,
+                module_edges,
                 &element.name,
                 &element.attributes,
                 script_module_ids,
@@ -178,7 +172,7 @@ impl<'a> ScriptLinker<'a> {
             self.collect_html_nodes(
                 module,
                 html,
-                module_graph,
+                module_edges,
                 &element.children,
                 script_module_ids,
                 stylesheet_module_ids,
@@ -192,7 +186,7 @@ impl<'a> ScriptLinker<'a> {
                 self.collect_html_nodes(
                     module,
                     html,
-                    module_graph,
+                    module_edges,
                     &fragment.children,
                     script_module_ids,
                     stylesheet_module_ids,
@@ -209,7 +203,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         html: &Html,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         element_name: &html::Name,
         attribute_ids: &[html::LocalNodeId<html::Attribute>],
         script_module_ids: &mut BTreeSet<ModuleId>,
@@ -232,7 +226,7 @@ impl<'a> ScriptLinker<'a> {
                 {
                     let Some(module_id) = self.resolve_html_module_script(
                         module,
-                        module_graph,
+                        module_edges,
                         attribute_id.id,
                         &value.value,
                     )?
@@ -251,7 +245,7 @@ impl<'a> ScriptLinker<'a> {
                 {
                     let Some(module_id) = self.resolve_html_stylesheet(
                         module,
-                        module_graph,
+                        module_edges,
                         attribute_id.id,
                         &value.value,
                     )?
@@ -266,7 +260,8 @@ impl<'a> ScriptLinker<'a> {
                             target: self.target_id.clone(),
                             reference: "html stylesheet reference".to_string(),
                             value: value.value.clone(),
-                        });
+                        }
+                        .into());
                     }
 
                     stylesheet_module_ids.insert(module_id);
@@ -278,7 +273,7 @@ impl<'a> ScriptLinker<'a> {
                 {
                     let Some((module_id, _)) = self.resolve_html_asset(
                         module,
-                        module_graph,
+                        module_edges,
                         attribute_id.id,
                         &value.value,
                         &resource.suffix,
@@ -299,7 +294,7 @@ impl<'a> ScriptLinker<'a> {
 
                         let Some((module_id, _)) = self.resolve_html_asset(
                             module,
-                            module_graph,
+                            module_edges,
                             attribute_id.id,
                             &item.value,
                             &item.suffix,
@@ -333,7 +328,8 @@ impl<'a> ScriptLinker<'a> {
                 subject: "html entry module".to_string(),
                 expected: "html module".to_string(),
                 found: module.uri.to_string(),
-            }),
+            }
+            .into()),
         }
     }
 
@@ -341,13 +337,13 @@ impl<'a> ScriptLinker<'a> {
     pub(in crate::link::script) fn resolve_html_module_script(
         &self,
         module: &Module,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         attribute_id: u32,
         specifier: &str,
     ) -> LinkResult<Option<ModuleId>> {
-        let specifier_id = self.string_pool().intern(specifier);
-        let Some(module_edge) = module_graph.dependency_edge_for_site_specifier(
-            module.id,
+        let specifier_id = StringId::for_text(specifier);
+        let Some(module_edge) = self.module_edge_for_site_specifier(
+            module_edges,
             ModuleEdgeRelation::DocumentScript,
             attribute_id,
             specifier_id,
@@ -365,7 +361,8 @@ impl<'a> ScriptLinker<'a> {
                 subject: "html module script reference".to_string(),
                 expected: "code module".to_string(),
                 found: resolved_module.uri.to_string(),
-            });
+            }
+            .into());
         }
 
         Ok(Some(module_id))
@@ -374,15 +371,15 @@ impl<'a> ScriptLinker<'a> {
     /// Resolve one local asset reference against one HTML attribute site.
     pub(in crate::link::script) fn resolve_html_asset(
         &self,
-        module: &Module,
-        module_graph: &ModuleGraph,
+        _module: &Module,
+        module_edges: &[ModuleEdge],
         attribute_id: u32,
         specifier: &str,
         suffix: &str,
     ) -> LinkResult<Option<(ModuleId, String)>> {
-        let specifier_id = self.string_pool().intern(specifier);
-        let Some(module_edge) = module_graph.dependency_edge_for_site_specifier(
-            module.id,
+        let specifier_id = StringId::for_text(specifier);
+        let Some(module_edge) = self.module_edge_for_site_specifier(
+            module_edges,
             ModuleEdgeRelation::Resource,
             attribute_id,
             specifier_id,
@@ -398,13 +395,13 @@ impl<'a> ScriptLinker<'a> {
     pub(in crate::link::script) fn resolve_html_stylesheet(
         &self,
         module: &Module,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         attribute_id: u32,
         specifier: &str,
     ) -> LinkResult<Option<ModuleId>> {
-        let specifier_id = self.string_pool().intern(specifier);
-        let Some(module_edge) = module_graph.dependency_edge_for_site_specifier(
-            module.id,
+        let specifier_id = StringId::for_text(specifier);
+        let Some(module_edge) = self.module_edge_for_site_specifier(
+            module_edges,
             ModuleEdgeRelation::DocumentStylesheet,
             attribute_id,
             specifier_id,
@@ -424,7 +421,8 @@ impl<'a> ScriptLinker<'a> {
                 subject: "html stylesheet reference".to_string(),
                 expected: "css module".to_string(),
                 found: stylesheet.uri.to_string(),
-            });
+            }
+            .into());
         }
 
         Ok(Some(module_id))
@@ -437,7 +435,7 @@ impl<'a> ScriptLinker<'a> {
     ) -> LinkResult<(Html, Vec<ModuleId>, Vec<ModuleId>)> {
         // source state
         let html = self.html_payload(module.id)?;
-        let module_graph = self.module_graph_for_module(module.id)?;
+        let module_edges = self.module_edges_for_module(module.id)?;
         let mut script_module_ids = Vec::new();
         let mut stylesheet_module_ids = Vec::new();
         let document_node = html.tree.get(html.document);
@@ -446,7 +444,7 @@ impl<'a> ScriptLinker<'a> {
         self.build_html_nodes(
             module,
             &html,
-            module_graph.as_ref(),
+            module_edges.as_slice(),
             &document_node.children,
             &mut script_module_ids,
             &mut stylesheet_module_ids,
@@ -468,7 +466,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         document: &Html,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         nodes: &[html::LocalNodeId<html::Content>],
         script_module_ids: &mut Vec<ModuleId>,
         stylesheet_module_ids: &mut Vec<ModuleId>,
@@ -481,7 +479,7 @@ impl<'a> ScriptLinker<'a> {
                 self.build_html_attributes(
                     module,
                     document,
-                    module_graph,
+                    module_edges,
                     &element.name,
                     &element.attributes,
                     script_module_ids,
@@ -491,7 +489,7 @@ impl<'a> ScriptLinker<'a> {
                 self.build_html_nodes(
                     module,
                     document,
-                    module_graph,
+                    module_edges,
                     &element.children,
                     script_module_ids,
                     stylesheet_module_ids,
@@ -501,7 +499,7 @@ impl<'a> ScriptLinker<'a> {
                     self.build_html_fragment(
                         module,
                         document,
-                        module_graph,
+                        module_edges,
                         fragment_id,
                         script_module_ids,
                         stylesheet_module_ids,
@@ -518,7 +516,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         document: &Html,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         fragment_id: html::LocalNodeId<html::Fragment>,
         script_module_ids: &mut Vec<ModuleId>,
         stylesheet_module_ids: &mut Vec<ModuleId>,
@@ -528,7 +526,7 @@ impl<'a> ScriptLinker<'a> {
         self.build_html_nodes(
             module,
             document,
-            module_graph,
+            module_edges,
             &fragment.children,
             script_module_ids,
             stylesheet_module_ids,
@@ -540,7 +538,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         document: &Html,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         element_name: &html::Name,
         attributes: &[html::LocalNodeId<html::Attribute>],
         script_module_ids: &mut Vec<ModuleId>,
@@ -550,7 +548,7 @@ impl<'a> ScriptLinker<'a> {
             self.build_html_attribute_value(
                 module,
                 document,
-                module_graph,
+                module_edges,
                 element_name,
                 *attribute_id,
                 script_module_ids,
@@ -566,7 +564,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         document: &Html,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         element_name: &html::Name,
         attribute_id: html::LocalNodeId<html::Attribute>,
         script_module_ids: &mut Vec<ModuleId>,
@@ -588,7 +586,7 @@ impl<'a> ScriptLinker<'a> {
             {
                 if let Some(module_id) = self.resolve_html_module_script(
                     module,
-                    module_graph,
+                    module_edges,
                     attribute_id.id,
                     &value.value,
                 )? {
@@ -603,7 +601,7 @@ impl<'a> ScriptLinker<'a> {
             {
                 if let Some(module_id) = self.resolve_html_stylesheet(
                     module,
-                    module_graph,
+                    module_edges,
                     attribute_id.id,
                     &value.value,
                 )? {
@@ -614,7 +612,8 @@ impl<'a> ScriptLinker<'a> {
                             target: self.target_id.clone(),
                             reference: "html stylesheet reference".to_string(),
                             value: value.value.clone(),
-                        });
+                        }
+                        .into());
                     }
 
                     stylesheet_module_ids.push(module_id);
@@ -626,7 +625,7 @@ impl<'a> ScriptLinker<'a> {
             {
                 let _ = self.resolve_html_asset(
                     module,
-                    module_graph,
+                    module_edges,
                     attribute_id.id,
                     &value.value,
                     &resource.suffix,
@@ -636,7 +635,7 @@ impl<'a> ScriptLinker<'a> {
             html::AttributeResource::SourceSet(source_set) => {
                 self.build_html_source_set(
                     module,
-                    module_graph,
+                    module_edges,
                     attribute_id.id,
                     &source_set.items,
                 )?;
@@ -666,7 +665,7 @@ impl<'a> ScriptLinker<'a> {
     fn build_html_source_set(
         &self,
         module: &Module,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         attribute_id: u32,
         items: &[html::SourceSetItem],
     ) -> LinkResult<()> {
@@ -679,7 +678,7 @@ impl<'a> ScriptLinker<'a> {
             if self
                 .resolve_html_asset(
                     module,
-                    module_graph,
+                    module_edges,
                     attribute_id,
                     &item.value,
                     &item.suffix,
@@ -692,9 +691,10 @@ impl<'a> ScriptLinker<'a> {
                     target: self.target_id.clone(),
                     reference: "html srcset".to_string(),
                     module: module.uri.to_string(),
-                    site: attribute_id,
+                    reference_site: attribute_id,
                     specifier: item.value.clone(),
-                });
+                }
+                .into());
             }
         }
 

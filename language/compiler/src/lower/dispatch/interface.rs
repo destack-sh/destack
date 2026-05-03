@@ -21,12 +21,7 @@ impl ModuleLowerer<'_> {
 
         let method_name =
             self.member_dispatch_name_or_error(key, signature.mode, member_id.into_any())?;
-        let method_name = self
-            .compiler
-            .repository
-            .strings
-            .get(method_name)
-            .to_string();
+        let method_name = self.strings.get(method_name).to_string();
         let name_str = if let Some(owner_name) = self.symbol_path_name(interface_symbol) {
             format!("{owner_name}.{method_name}")
         } else {
@@ -57,14 +52,14 @@ impl ModuleLowerer<'_> {
         let signature = self
             .builder
             .type_function_signature(parameter_types.clone(), return_type);
-        let signature_type = self.builder.type_function_pointer(signature);
+        self.builder.type_function_pointer(signature);
 
         // declare the interface method stub
         let function_id = self
             .builder
             .extern_function(&name_str, &parameter_types, return_type);
         // register function bindings
-        self.register_function_binding_for_symbol(method_symbol, function_id, signature_type)?;
+        self.register_function_binding_for_symbol(method_symbol, function_id, signature)?;
 
         // ensure the interface instance type is registered
         Ok(function_id)

@@ -231,7 +231,7 @@ impl Rewriter<'_, '_> {
     /// Fold one literal short circuit when the left operand already decides the result.
     fn fold_literal_logical(
         &self,
-        module: &js::ScriptModule,
+        module: &js::Module,
         left: js::LocalNodeId<js::Expression>,
         operator: js::BinaryOperator,
         right: js::LocalNodeId<js::Expression>,
@@ -361,7 +361,7 @@ impl Rewriter<'_, '_> {
     /// Fold one literal ternary when the condition already chooses the branch.
     fn fold_literal_ternary(
         &self,
-        module: &js::ScriptModule,
+        module: &js::Module,
         condition: js::LocalNodeId<js::Expression>,
         then_expression: js::LocalNodeId<js::Expression>,
         else_expression: js::LocalNodeId<js::Expression>,
@@ -401,7 +401,7 @@ impl Rewriter<'_, '_> {
     /// Fold one literal logical expression and preserve the surviving branch symbol.
     fn fold_literal_logical_with_symbol(
         &self,
-        module: &js::ScriptModule,
+        module: &js::Module,
         left: js::LocalNodeId<js::Expression>,
         operator: js::BinaryOperator,
         right: js::LocalNodeId<js::Expression>,
@@ -433,7 +433,7 @@ impl Rewriter<'_, '_> {
     /// Fold one literal ternary and preserve the chosen branch symbol.
     fn fold_literal_ternary_with_symbol(
         &self,
-        module: &js::ScriptModule,
+        module: &js::Module,
         condition: js::LocalNodeId<js::Expression>,
         then_expression: js::LocalNodeId<js::Expression>,
         else_expression: js::LocalNodeId<js::Expression>,
@@ -708,7 +708,7 @@ impl Rewriter<'_, '_> {
     /// Rewrite one binary expression when both sides are scalar numbers.
     fn fold_numeric_binary_expression(
         &self,
-        module: &js::ScriptModule,
+        module: &js::Module,
         left: js::LocalNodeId<js::Expression>,
         operator: js::BinaryOperator,
         right: js::LocalNodeId<js::Expression>,
@@ -985,7 +985,7 @@ impl Rewriter<'_, '_> {
 
     /// Rewrite one guarded receiver chain into optional chaining.
     fn rewrite_optional_chain_expression(
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         receiver: js::LocalNodeId<js::Expression>,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> Option<js::Expression> {
@@ -996,7 +996,7 @@ impl Rewriter<'_, '_> {
 
     /// Rewrite one receiver occurrence inside one expression tree into an optional receiver.
     fn rewrite_optional_chain_receiver(
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         receiver: js::LocalNodeId<js::Expression>,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> Option<js::LocalNodeId<js::Expression>> {
@@ -1071,7 +1071,7 @@ impl Rewriter<'_, '_> {
 
     /// Return the postfix position for one wrapped optional receiver.
     fn optional_receiver_position(
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> js::PostfixPosition {
         if matches!(
@@ -1086,7 +1086,7 @@ impl Rewriter<'_, '_> {
 
     /// Return whether one expression is always nullish and has no observable side effects.
     fn is_always_nullish_without_side_effects(
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> bool {
         matches!(
@@ -1097,7 +1097,7 @@ impl Rewriter<'_, '_> {
 
     /// Return whether one expression can never evaluate to null or undefined.
     fn is_never_nullish(
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> bool {
         if matches!(

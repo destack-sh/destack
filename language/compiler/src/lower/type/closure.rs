@@ -3,7 +3,7 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::lower_mutability;
 use crate::lower::r#type::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout};
-use crate::{LowerError, LowerResult, ModuleLowerer};
+use crate::{LowerError, LowerResult, ModuleLowerer, TypeLowerer};
 
 // suffix for function environment metadata names
 const FUNCTION_ENVIRONMENT_METADATA_SUFFIX: &str = "#env";
@@ -65,25 +65,26 @@ impl ModuleLowerer<'_> {
         // collect captured bindings and their field inputs
         let mut captures = Vec::new();
         let mut field_inputs = Vec::new();
-        for capture in &capture_set.captures {
-            let (field_type, field_input) = self.capture_field_for_binding(*capture)?;
+        for (source_index, capture) in capture_set.captures.iter().enumerate() {
+            let (field_type, field_input) =
+                self.capture_field_for_binding(*capture, source_index as u32)?;
             captures.push((*capture, field_type));
             field_inputs.push(field_input);
         }
 
         // compute the actual layout order
-        let layout = self
-            .type_lowerer
-            .compute_struct_layout(field_inputs, LayoutPolicy::Optimized);
+        let layout = TypeLowerer::compute_struct_layout(field_inputs, LayoutPolicy::Optimized);
 
         // record fields using their concrete layout indices
         let mut fields = Vec::with_capacity(captures.len());
-        for (capture, field_type) in captures {
-            let Some(index) = layout.field_index_by_source(capture.symbol.local_id.id) else {
+        for (source_index, (capture, field_type)) in captures.into_iter().enumerate() {
+            let Some(index) = layout.field_index_by_source(source_index as u32) else {
                 return Err(LowerError::Internal {
+                    anchor: (self.module_id).into(),
                     module: self.module_id,
                     message: "missing function environment field in computed layout".to_string(),
-                });
+                }
+                .into());
             };
 
             fields.push(FunctionEnvironmentField {
@@ -139,6 +140,7 @@ impl ModuleLowerer<'_> {
     fn capture_field_for_binding(
         &mut self,
         capture: dir::CapturedBinding,
+        source_index: u32,
     ) -> LowerResult<(mir::LocalNodeId<mir::Type>, FieldInput)> {
         // resolve the capture type
         let anchor = self.anchor_for_symbol(capture.symbol);
@@ -169,7 +171,7 @@ impl ModuleLowerer<'_> {
             .type_lowerer
             .size_and_align_of_type(field_ty, self.builder.tree())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "closure layout requires concrete nested types".to_string(),
             })?;
 
@@ -181,7 +183,7 @@ impl ModuleLowerer<'_> {
             ty: field_type,
             size,
             alignment,
-            source_index: Some(capture.symbol.local_id.id),
+            source_index: Some(source_index),
             kind: FieldLayoutKind::Synthetic,
         };
 
@@ -193,7 +195,7 @@ impl ModuleLowerer<'_> {
         let symbol_data = self.symbols.get_symbol(symbol.local_id);
         symbol_data
             .name()
-            .unwrap_or_else(|| self.compiler.repository.strings.intern("capture"))
+            .unwrap_or_else(|| self.strings.intern("capture"))
     }
 
     /// Resolve a canonical empty function environment type.
@@ -217,6 +219,7 @@ impl ModuleLowerer<'_> {
             .types
             .ensure_display_name(env_type, metadata_name);
 
+        self.insert_layout_entry(env_type, mir::LayoutKind::CallableEnvironment, &layout);
         self.type_lowerer.set_layout(env_type, layout);
         let env_pointer_type = self.builder.type_reference(
             mir::ReferenceKind::Managed,
@@ -257,8 +260,8 @@ impl ModuleLowerer<'_> {
             return primary.into_anchored(Some(self.profile));
         }
 
-        let anchor = self.anchor_node;
-        anchor
+        let module_node = self.module_node;
+        module_node
             .into_global(self.module_id)
             .into_anchored(Some(self.profile))
     }

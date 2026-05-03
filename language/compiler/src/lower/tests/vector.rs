@@ -88,10 +88,10 @@ function passStereoFrame(value: (Vector<int16, 8>, Vector<int16, 8>)): (Vector<i
         module_id,
         "native",
         r#"
-type Tuple0 = (vector<int16, 8>, vector<int16, 8>);
+type passStereoFrame.value#tuple = (vector<int16, 8>, vector<int16, 8>);
 
-function passStereoFrame(value0: Tuple0): Tuple0 {
-entry0(value0: Tuple0):
+function passStereoFrame(value0: passStereoFrame.value#tuple): passStereoFrame.value#tuple {
+entry0(value0: passStereoFrame.value#tuple):
     return value0
 }
 "#,

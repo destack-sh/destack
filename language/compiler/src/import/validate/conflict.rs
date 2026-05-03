@@ -1,50 +1,50 @@
 use crate::common::dir::{SymbolDescriptor, can_merge_declarations};
-use crate::{Compiler, CompilerContext, ImportError};
+use crate::import::ImportState;
+use crate::{Compiler, CompilerResult, ImportError};
+use destack_core::StringId;
 use destack_dir::{
     BindingCategory, Declaration, DependencyItem, DependencyKind, EnumKind, Expression,
     GlobalNodeIdAny, LocalScopeId, LocalSymbolId, MatchCase, MatchKind, Member, NodeType, Pattern,
     Property, StaticKey, Symbol, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
     Tree,
 };
-use destack_workspace::{DiagnosticPolicy, Module};
+use destack_workspace::Module;
 use std::collections::{HashMap, HashSet};
-#[allow(clippy::too_many_arguments)]
+
 impl Compiler {
     /// Check for conflicting bindings in module scopes.
-    pub(super) fn validate_binding_conflicts(
-        &self,
-        context: &CompilerContext<'_>,
-        module: &Module,
-        tree: &Tree,
-        symbols: &SymbolTable,
-        global_augmentation_scope: LocalScopeId,
-    ) {
+    pub(super) fn validate_binding_conflicts(&self, state: &ImportState<'_>) -> CompilerResult<()> {
         // resolve local redeclaration policy by language mode
-        let no_redeclare_locals = self.no_redeclared_locals_enabled(context, module);
+        let no_redeclare_locals = self.no_redeclared_locals_enabled(state);
         let mut reported_conflicts = HashSet::new();
+
         // load symbol tables
         {
-            for scope in symbols.scopes() {
+            for scope in state.symbols.scopes() {
                 // group symbols by name and category to avoid O(n^2) scans
                 let mut buckets: HashMap<StaticKey, HashMap<SymbolCategory, LocalSymbolId>> =
                     HashMap::new();
-                for (key, symbol_id) in symbols.active_named_symbols(scope) {
+                for (key, symbol_id) in state.symbols.active_named_symbols(scope) {
                     let normalized_key = self.normalize_conflict_key(key);
-                    let symbol = symbols.get_symbol(symbol_id);
+                    let symbol = state.symbols.get_symbol(symbol_id);
                     let Some(primary_declaration) = symbol.primary_declaration else {
                         continue;
                     };
+
                     // detect enum kind mismatches within a single symbol
-                    if let Some((node, other_node)) = self.enum_kind_mismatch_nodes(tree, symbol) {
+                    if let Some((node, other_node)) =
+                        self.enum_kind_mismatch_nodes(state.tree, symbol)
+                    {
                         let error = ImportError::ConflictingBinding {
-                            node: node.into_anchored(None),
-                            other_node: other_node.into_anchored(None),
-                            scope: symbol.scope.0.into_global(module.id),
-                            name: Some(key),
+                            anchor: state.anchor(node),
+                            other: state.anchor(other_node),
+                            scope: symbol.scope.0.into_global(state.module.id),
+                            name: state.static_key(key),
                             is_local: false,
                         };
-                        self.error(error);
+                        state.emit(error)?;
                     }
+
                     // compare against previously seen symbols with the same name
                     let entry = buckets.entry(normalized_key).or_default();
                     let category = SymbolCategory::from(symbol);
@@ -52,30 +52,33 @@ impl Compiler {
                         if *other_symbol_id == symbol_id {
                             continue;
                         }
-                        let other_symbol = symbols.get_symbol(*other_symbol_id);
+                        let other_symbol = state.symbols.get_symbol(*other_symbol_id);
+
                         // keep global augmentations isolated from module-local duplicates
                         if symbol.origin.is_global_augmentation()
                             != other_symbol.origin.is_global_augmentation()
                         {
                             continue;
                         }
+
                         // check if symbols conflict based on space and merging rules
                         let import_kind_conflict =
-                            self.is_type_value_import_conflict(tree, symbol, other_symbol);
+                            self.is_type_value_import_conflict(state.tree, symbol, other_symbol);
                         if !symbol.space.conflicts_with(other_symbol.space) && !import_kind_conflict
                         {
                             continue;
                         }
                         let enum_kind_mismatch =
-                            self.is_const_enum_mismatch(tree, symbol, other_symbol);
+                            self.is_const_enum_mismatch(state.tree, symbol, other_symbol);
                         let can_merge = self.can_symbols_merge_declarations(
-                            module.language_type,
+                            state.module.code_language_type(),
                             symbol,
                             other_symbol,
                         ) && !enum_kind_mismatch;
                         if can_merge {
                             continue;
                         }
+
                         // local conflicts are allowed unless configured otherwise
                         let is_local_pair = symbol.kind == SymbolKind::Local
                             && other_symbol.kind == SymbolKind::Local;
@@ -87,13 +90,16 @@ impl Compiler {
                             self.is_strict_local_conflict(symbol, other_symbol);
                         let is_policy_controlled_conflict =
                             is_local_pair && !is_parameter_pair && !is_strict_local_conflict;
+
                         // JS/TS allow duplicate runtime var declarations
-                        if self.allow_runtime_var_redeclaration(module, symbol, other_symbol) {
+                        if self.allow_runtime_var_redeclaration(state.module, symbol, other_symbol)
+                        {
                             continue;
                         }
                         if is_policy_controlled_conflict && !no_redeclare_locals {
                             continue;
                         }
+
                         // error on conflicting bindings
                         let Some(other_primary_declaration) = other_symbol.primary_declaration
                         else {
@@ -101,21 +107,21 @@ impl Compiler {
                         };
                         let error = if symbol.export.is_some() && other_symbol.export.is_some() {
                             ImportError::ConflictingExport {
-                                node: primary_declaration.into_anchored(None),
-                                other_node: other_primary_declaration.into_anchored(None),
-                                module: module.id,
-                                name: Some(key),
+                                anchor: state.anchor(primary_declaration),
+                                other: state.anchor(other_primary_declaration),
+                                module: state.module.id,
+                                name: state.static_key(key),
                             }
                         } else {
                             ImportError::ConflictingBinding {
-                                node: primary_declaration.into_anchored(None),
-                                other_node: other_primary_declaration.into_anchored(None),
-                                scope: symbol.scope.0.into_global(module.id),
-                                name: Some(key),
+                                anchor: state.anchor(primary_declaration),
+                                other: state.anchor(other_primary_declaration),
+                                scope: symbol.scope.0.into_global(state.module.id),
+                                name: state.static_key(key),
                                 is_local: is_local_pair,
                             }
                         };
-                        self.error(error);
+                        state.emit(error)?;
                         reported_conflicts.insert(Self::conflict_pair(
                             primary_declaration,
                             other_primary_declaration,
@@ -125,32 +131,29 @@ impl Compiler {
                     entry.entry(category).or_insert(symbol_id);
                 }
             }
+
             // check for local redeclarations
             if no_redeclare_locals {
-                let mut context = ConflictContext::new(
-                    self,
-                    module,
-                    tree,
-                    symbols,
-                    global_augmentation_scope,
-                    reported_conflicts,
-                );
-                context.validate_switch_case_binding_conflicts();
-                context.validate_ancestor_binding_conflicts();
+                let mut context = ConflictContext::new(state, reported_conflicts);
+                context.validate_switch_case_binding_conflicts()?;
+                context.validate_ancestor_binding_conflicts()?;
             }
         }
+
+        Ok(())
     }
+
     /// Return true when local redeclarations should report conflicts.
-    fn no_redeclared_locals_enabled(&self, context: &CompilerContext<'_>, module: &Module) -> bool {
+    fn no_redeclared_locals_enabled(&self, state: &ImportState<'_>) -> bool {
         // JS/TS modes always enforce ecmascript redeclaration rules
-        if !module.language_type.is_destack() {
+        if !state.module.is_destack() {
             return true;
         }
+
         // destack modes read the configurable local redeclaration policy
-        let policy = context
-            .compiler_options_for_module(module)
-            .map(|options| options.no_redeclared_locals)
-            .unwrap_or(DiagnosticPolicy::Allow);
+        let policy = self
+            .import_options(state.context, state.module)
+            .no_redeclared_locals;
         !policy.is_allow()
     }
     /// Check if the symbols are a strict local conflict.
@@ -166,7 +169,7 @@ impl Compiler {
         right: &Symbol,
     ) -> bool {
         // only JS/TS allow duplicate runtime var declarations
-        if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
+        if !(module.is_ecmascript()) {
             return false;
         }
         self.symbol_is_runtime_var_redeclaration_candidate(left)
@@ -282,12 +285,10 @@ impl Compiler {
     /// Validate duplicate declarations across switch case scopes.
     fn validate_switch_case_binding_conflicts(
         &self,
-        module: &Module,
-        tree: &Tree,
-        symbols: &SymbolTable,
+        state: &ImportState<'_>,
         reported_conflicts: &mut HashSet<(u32, u32)>,
-    ) {
-        for (_expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
+    ) -> CompilerResult<()> {
+        for (_expression_id, expression) in state.tree.iter_nodes_of_type::<Expression>() {
             let Expression::Match {
                 kind: MatchKind::Switch,
                 cases,
@@ -300,13 +301,13 @@ impl Compiler {
             let mut lexical_by_name: HashMap<StaticKey, GlobalNodeIdAny> = HashMap::new();
             let mut var_by_name: HashMap<StaticKey, GlobalNodeIdAny> = HashMap::new();
             for case_id in cases {
-                let case_scope = match tree.get(*case_id) {
+                let case_scope = match state.tree.get(*case_id) {
                     MatchCase::Expression { scope, .. } | MatchCase::Block { scope, .. } => *scope,
                 };
-                let scope = symbols.get_scope_by_id(case_scope);
-                for (key, symbol_id) in symbols.active_named_symbols(scope) {
+                let scope = state.symbols.get_scope_by_id(case_scope);
+                for (key, symbol_id) in state.symbols.active_named_symbols(scope) {
                     let normalized_key = self.normalize_conflict_key(key);
-                    let symbol = symbols.get_symbol(symbol_id);
+                    let symbol = state.symbols.get_symbol(symbol_id);
                     let binding_category = self.symbol_binding_category(symbol);
                     let Some(primary_declaration) = symbol.primary_declaration else {
                         continue;
@@ -316,40 +317,43 @@ impl Compiler {
                         && let Some(other_declaration) = lexical_by_name.get(&normalized_key)
                     {
                         self.report_conflicting_binding(
-                            module,
+                            state,
                             case_scope,
                             key,
                             primary_declaration,
                             *other_declaration,
                             reported_conflicts,
-                        );
+                        )?;
                     }
+
                     // lexical declarations conflict with var declarations across cases
                     if binding_category == BindingCategory::BlockScoped
                         && let Some(other_declaration) = var_by_name.get(&normalized_key)
                     {
                         self.report_conflicting_binding(
-                            module,
+                            state,
                             case_scope,
                             key,
                             primary_declaration,
                             *other_declaration,
                             reported_conflicts,
-                        );
+                        )?;
                     }
+
                     // var declarations conflict with lexical declarations across cases
                     if binding_category == BindingCategory::FunctionScoped
                         && let Some(other_declaration) = lexical_by_name.get(&normalized_key)
                     {
                         self.report_conflicting_binding(
-                            module,
+                            state,
                             case_scope,
                             key,
                             primary_declaration,
                             *other_declaration,
                             reported_conflicts,
-                        );
+                        )?;
                     }
+
                     // keep the first declaration for each key
                     if binding_category == BindingCategory::BlockScoped {
                         lexical_by_name
@@ -364,6 +368,8 @@ impl Compiler {
                 }
             }
         }
+
+        Ok(())
     }
     /// Validate conflicts between declarations in ancestor scope chains.
     /// Return true when a scope is the global augmentation scope or nested under it.
@@ -527,14 +533,14 @@ impl Compiler {
         let StaticKey::Name(name_id) = key else {
             return key;
         };
-        let raw_name = self.repository.strings.get(name_id).to_string();
+        let raw_name = name_id.to_string();
         if !raw_name.contains('\\') {
             return key;
         }
         let Some(decoded_name) = self.decode_identifier_unicode_escapes(&raw_name) else {
             return key;
         };
-        let decoded_name_id = self.repository.strings.intern(&decoded_name);
+        let decoded_name_id = StringId::for_text(&decoded_name);
         StaticKey::Name(decoded_name_id)
     }
     /// Decode unicode escapes in an identifier name.
@@ -590,24 +596,27 @@ impl Compiler {
     /// Report a conflicting binding pair if it has not been reported.
     fn report_conflicting_binding(
         &self,
-        module: &Module,
+        state: &ImportState<'_>,
         scope_id: LocalScopeId,
         key: StaticKey,
         declaration: GlobalNodeIdAny,
         other_declaration: GlobalNodeIdAny,
         reported_conflicts: &mut HashSet<(u32, u32)>,
-    ) {
+    ) -> CompilerResult<()> {
         let pair = Self::conflict_pair(declaration, other_declaration);
         if !reported_conflicts.insert(pair) {
-            return;
+            return Ok(());
         }
-        self.error(ImportError::ConflictingBinding {
-            node: declaration.into_anchored(None),
-            other_node: other_declaration.into_anchored(None),
-            scope: scope_id.into_global(module.id),
-            name: Some(key),
+
+        state.emit(ImportError::ConflictingBinding {
+            anchor: state.anchor(declaration),
+            other: state.anchor(other_declaration),
+            scope: scope_id.into_global(state.module.id),
+            name: state.static_key(key),
             is_local: true,
-        });
+        })?;
+
+        Ok(())
     }
     /// Return a stable pair key for conflict deduplication.
     fn conflict_pair(left: GlobalNodeIdAny, right: GlobalNodeIdAny) -> (u32, u32) {
@@ -622,16 +631,8 @@ impl Compiler {
 }
 /// Stateful caches and reporting for binding conflict validation.
 struct ConflictContext<'a> {
-    /// The compiler driving validation.
-    compiler: &'a Compiler,
-    /// The module being validated.
-    module: &'a Module,
-    /// The module syntax tree.
-    tree: &'a Tree,
-    /// The module symbol table.
-    symbols: &'a SymbolTable,
-    /// The root scope for `declare global` isolation.
-    global_augmentation_scope: LocalScopeId,
+    /// The import validation state.
+    state: &'a ImportState<'a>,
     /// The conflicts already reported for this module.
     reported_conflicts: HashSet<(u32, u32)>,
     /// The normalized active symbols by scope.
@@ -643,20 +644,9 @@ struct ConflictContext<'a> {
 }
 impl<'a> ConflictContext<'a> {
     /// Create a new binding conflict validation context.
-    fn new(
-        compiler: &'a Compiler,
-        module: &'a Module,
-        tree: &'a Tree,
-        symbols: &'a SymbolTable,
-        global_augmentation_scope: LocalScopeId,
-        reported_conflicts: HashSet<(u32, u32)>,
-    ) -> Self {
+    fn new(state: &'a ImportState<'a>, reported_conflicts: HashSet<(u32, u32)>) -> Self {
         Self {
-            compiler,
-            module,
-            tree,
-            symbols,
-            global_augmentation_scope,
+            state,
             reported_conflicts,
             normalized_scope_symbols: HashMap::new(),
             scope_global_augmentations: HashMap::new(),
@@ -664,33 +654,39 @@ impl<'a> ConflictContext<'a> {
         }
     }
     /// Validate duplicate declarations across switch case scopes.
-    fn validate_switch_case_binding_conflicts(&mut self) {
-        self.compiler.validate_switch_case_binding_conflicts(
-            self.module,
-            self.tree,
-            self.symbols,
-            &mut self.reported_conflicts,
-        );
+    fn validate_switch_case_binding_conflicts(&mut self) -> CompilerResult<()> {
+        self.state
+            .compiler
+            .validate_switch_case_binding_conflicts(self.state, &mut self.reported_conflicts)
     }
+
     /// Validate conflicts between declarations in ancestor scope chains.
-    fn validate_ancestor_binding_conflicts(&mut self) {
-        for scope in self.symbols.scopes() {
-            for (key, symbol_id) in self.symbols.active_named_symbols(scope) {
-                let normalized_key = self.compiler.normalize_conflict_key(key);
-                let symbol = self.symbols.get_symbol(symbol_id);
+    fn validate_ancestor_binding_conflicts(&mut self) -> CompilerResult<()> {
+        for scope in self.state.symbols.scopes() {
+            for (key, symbol_id) in self.state.symbols.active_named_symbols(scope) {
+                let normalized_key = self.state.compiler.normalize_conflict_key(key);
+                let symbol = self.state.symbols.get_symbol(symbol_id);
                 let scope_id = symbol.scope.0;
-                let binding_category = self.compiler.symbol_binding_category(symbol);
+                let binding_category = self.state.compiler.symbol_binding_category(symbol);
+
                 // skip symbols that do not participate in redeclaration checks
-                if !self.compiler.is_conflict_binding_category(binding_category) {
+                if !self
+                    .state
+                    .compiler
+                    .is_conflict_binding_category(binding_category)
+                {
                     continue;
                 }
+
                 // only real declarations can participate in a reported conflict
                 let Some(primary_declaration) = symbol.primary_declaration else {
                     continue;
                 };
+
                 // keep global augmentations isolated from module-local ancestor checks
                 let scope_is_global_augmentation =
                     self.scope_is_within_global_augmentation(scope_id);
+
                 // walk ancestors up to the nearest function boundary
                 let mut current_parent = scope.parent;
                 while let Some((ancestor_scope_id, _ancestor_mark)) = current_parent {
@@ -706,13 +702,13 @@ impl<'a> ConflictContext<'a> {
                         .cloned();
                     if let Some(ancestor_symbol_ids) = ancestor_symbol_ids {
                         for ancestor_symbol_id in ancestor_symbol_ids {
-                            let ancestor_symbol = self.symbols.get_symbol(ancestor_symbol_id);
+                            let ancestor_symbol = self.state.symbols.get_symbol(ancestor_symbol_id);
                             let ancestor_binding_category =
-                                self.compiler.symbol_binding_category(ancestor_symbol);
+                                self.state.compiler.symbol_binding_category(ancestor_symbol);
                             let should_conflict =
-                                self.compiler.ancestor_binding_categories_conflict(
-                                    self.tree,
-                                    self.symbols,
+                                self.state.compiler.ancestor_binding_categories_conflict(
+                                    self.state.tree,
+                                    self.state.symbols,
                                     symbol,
                                     ancestor_symbol,
                                     binding_category,
@@ -724,6 +720,7 @@ impl<'a> ConflictContext<'a> {
                             if !should_conflict {
                                 continue;
                             }
+
                             // only real declarations can be reported
                             let Some(ancestor_declaration) = ancestor_symbol.primary_declaration
                             else {
@@ -734,18 +731,22 @@ impl<'a> ConflictContext<'a> {
                                 key,
                                 primary_declaration,
                                 ancestor_declaration,
-                            );
+                            )?;
                         }
                     }
+
                     // stop once redeclaration checks no longer cross the function boundary
                     if self.scope_is_function_boundary(ancestor_scope_id) {
                         break;
                     }
-                    current_parent = self.symbols.get_scope_by_id(ancestor_scope_id).parent;
+                    current_parent = self.state.symbols.get_scope_by_id(ancestor_scope_id).parent;
                 }
             }
         }
+
+        Ok(())
     }
+
     /// Return the normalized active named symbols for a scope.
     fn normalized_active_named_symbols_for_scope(
         &mut self,
@@ -754,11 +755,12 @@ impl<'a> ConflictContext<'a> {
         self.normalized_scope_symbols
             .entry(scope_id)
             .or_insert_with(|| {
-                let scope = self.symbols.get_scope_by_id(scope_id);
+                let scope = self.state.symbols.get_scope_by_id(scope_id);
                 let mut normalized_symbols = HashMap::new();
+
                 // group active symbols by normalized name
-                for (key, symbol_id) in self.symbols.active_named_symbols(scope) {
-                    let normalized_key = self.compiler.normalize_conflict_key(key);
+                for (key, symbol_id) in self.state.symbols.active_named_symbols(scope) {
+                    let normalized_key = self.state.compiler.normalize_conflict_key(key);
                     normalized_symbols
                         .entry(normalized_key)
                         .or_insert_with(Vec::new)
@@ -767,33 +769,41 @@ impl<'a> ConflictContext<'a> {
                 normalized_symbols
             })
     }
+
     /// Return true when a scope belongs to the global augmentation chain.
     fn scope_is_within_global_augmentation(&mut self, scope_id: LocalScopeId) -> bool {
         if let Some(is_within_global_augmentation) = self.scope_global_augmentations.get(&scope_id)
         {
             return *is_within_global_augmentation;
         }
-        let is_within_global_augmentation = self.compiler.scope_is_within_global_augmentation(
-            self.symbols,
-            scope_id,
-            self.global_augmentation_scope,
-        );
+
+        let is_within_global_augmentation =
+            self.state.compiler.scope_is_within_global_augmentation(
+                self.state.symbols,
+                scope_id,
+                self.state.global_augmentation_scope,
+            );
         self.scope_global_augmentations
             .insert(scope_id, is_within_global_augmentation);
         is_within_global_augmentation
     }
+
     /// Return true when a scope belongs to a function or method.
     fn scope_is_function_boundary(&mut self, scope_id: LocalScopeId) -> bool {
         if let Some(is_function_boundary) = self.scope_function_boundaries.get(&scope_id) {
             return *is_function_boundary;
         }
-        let is_function_boundary =
-            self.compiler
-                .scope_is_function_boundary(self.tree, self.symbols, scope_id);
+
+        let is_function_boundary = self.state.compiler.scope_is_function_boundary(
+            self.state.tree,
+            self.state.symbols,
+            scope_id,
+        );
         self.scope_function_boundaries
             .insert(scope_id, is_function_boundary);
         is_function_boundary
     }
+
     /// Report a conflicting binding pair if it has not been reported.
     fn report_conflicting_binding(
         &mut self,
@@ -801,15 +811,15 @@ impl<'a> ConflictContext<'a> {
         key: StaticKey,
         declaration: GlobalNodeIdAny,
         other_declaration: GlobalNodeIdAny,
-    ) {
-        self.compiler.report_conflicting_binding(
-            self.module,
+    ) -> CompilerResult<()> {
+        self.state.compiler.report_conflicting_binding(
+            self.state,
             scope_id,
             key,
             declaration,
             other_declaration,
             &mut self.reported_conflicts,
-        );
+        )
     }
 }
 /// Grouping key for conflict validation.

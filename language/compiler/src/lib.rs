@@ -5,7 +5,6 @@
 #![allow(clippy::result_large_err)]
 
 mod analyze;
-mod cache;
 mod common;
 mod compile;
 mod elaborate;

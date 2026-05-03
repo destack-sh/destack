@@ -8,7 +8,7 @@ fn test_lower_string_literal() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-function greet(): Managed<String> {
+function greet(): string {
     return "Hello, VM";
 }
 "#,
@@ -26,8 +26,9 @@ global ${string_name}: ref<String, managed, readonly>, readonly = "Hello, VM"
 
 function greet(): ref<String, managed, readonly> {
 entry0:
-    value0: ref<String, managed, readonly> = global.address ${string_name}
-    return value0
+    value0: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${string_name}
+    value1: ref<String, managed, readonly> = load value0
+    return value1
 }"#;
     let expected = expected.replace("${string_alias}", string_alias);
     let expected = expected.replace("${string_name}", &string_name);

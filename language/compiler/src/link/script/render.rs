@@ -1,9 +1,9 @@
 use crate::{Compiler, LinkError, LinkResult};
 
 use destack_artifact::{
-    EmitFormat, ModuleOutput, OutputFile, PackageOutput, ScriptArtifact, TargetOutputName,
+    EmitFormat, ModuleOutput, OutputFile, PackageOutput, ScriptOutput, TargetOutputName,
 };
-use destack_codegen_js::{PrintedScriptModule, ScriptModule};
+use destack_codegen_js::{PrintedScriptModule, Module};
 use destack_source::{FileType, ModuleId};
 use destack_workspace::config::{BundleMode, Target};
 use indexmap::IndexMap;
@@ -15,16 +15,16 @@ use super::{
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> ScriptLinker<'a> {
-    /// Load one generated script artifact for linking.
-    pub(crate) fn script_artifact(&self, module_id: ModuleId) -> LinkResult<ScriptArtifact> {
+    /// Load one generated script output for linking.
+    pub(crate) fn script_output(&self, module_id: ModuleId) -> LinkResult<ScriptOutput> {
         let artifact = self
             .compiler
-            .repository
-            .module_output(self.revision(), module_id, *self.target_id)
-            .ok_or_else(|| LinkError::Internal {
+            .module_output(self.context, module_id, self.target_id)
+            .map_err(|error| LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!(
-                    "missing module artifact for module {:?} target '{}'",
+                    "missing module output for module {:?} target '{}': {error:?}",
                     module_id,
                     self.target_name()
                 ),
@@ -32,9 +32,10 @@ impl<'a> ScriptLinker<'a> {
 
         let ModuleOutput::Script(script) = artifact.as_ref() else {
             return Err(LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!(
-                    "expected script artifact for module {:?} target '{}'",
+                    "expected script output for module {:?} target '{}'",
                     module_id,
                     self.target_name()
                 ),
@@ -50,6 +51,7 @@ impl<'a> ScriptLinker<'a> {
             EmitFormat::Js | EmitFormat::Html => Ok(FileType::JavaScript),
             EmitFormat::Ts => Ok(FileType::TypeScript),
             other => Err(LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!("unsupported linked script output: {other:?}"),
             }),
@@ -74,12 +76,12 @@ impl<'a> ScriptLinker<'a> {
         &self,
         output_id: ScriptOutputId,
         module_id: ModuleId,
-        script: &ScriptArtifact,
+        script: &ScriptOutput,
         module_set: &ScriptModuleSet,
         output_graph: &ScriptOutputGraph,
         output_layout: &ScriptOutputLayout,
         target: &Target,
-    ) -> LinkResult<ScriptModule> {
+    ) -> LinkResult<Module> {
         match output_graph.bundle_mode() {
             BundleMode::SingleFile => self.rewrite_script_module_for_assembly(
                 module_id,
@@ -118,7 +120,7 @@ impl<'a> ScriptLinker<'a> {
 
         // render each output member in stable member order
         for module_id in output.modules() {
-            let script = self.script_artifact(*module_id)?;
+            let script = self.script_output(*module_id)?;
             let linked_module = self.rewrite_script_module(
                 output_id,
                 *module_id,
@@ -139,7 +141,8 @@ impl<'a> ScriptLinker<'a> {
                     self.context,
                 )
                 .map_err(|message| LinkError::Internal {
-                    package: self.package_id,
+                    anchor: (self.package_id).into(),
+                package: self.package_id,
                     message,
                 })?;
 
@@ -205,7 +208,8 @@ impl<'a> ScriptLinker<'a> {
         let _ = output_layout;
 
         Err(LinkError::Internal {
-            package: self.package_id,
+            anchor: (self.package_id).into(),
+                package: self.package_id,
             message: "FUGU #Incomplete: ScriptLinker.render_runtime_document".to_string(),
         })
     }

@@ -35,16 +35,23 @@ struct Circle implements Drawable {
         module_id,
         "native",
         r#"
+type Drawable.function = () => int32;
+
 type Circle {
     color: int32;
     radius: int32;
 }
 
-extern function Drawable.draw({ draw: () => int32, color: int32 }): int32
+type Drawable.object {
+    draw: Drawable.function;
+    color: int32;
+}
 
-function Circle.draw(value0: Circle): int32 {
-entry0(value0: Circle):
-    value1: int32 = field.get value0, 0
+extern function Drawable.draw(Drawable.object): int32
+
+function Circle.draw(this0: Circle): int32 {
+entry0(this0: Circle):
+    value1: int32 = field.get this0, 0
     return value1
 }
 "#,
@@ -86,6 +93,10 @@ struct Circle implements Drawable {
 
     draw(): int32 { return this.color; }
 }
+
+function keep(value: Drawable): Drawable {
+    return value;
+}
 "#,
     );
 
@@ -97,16 +108,32 @@ struct Circle implements Drawable {
         module_id,
         "native",
         r#"
+type Drawable.function = () => int32;
+
 type Circle {
     color: int32;
     radius: int32;
 }
 
-extern function Drawable.draw({ draw: () => int32, color: int32 }): int32
+type Drawable.object {
+    draw: Drawable.function;
+    color: int32;
+}
+type Drawable {
+    object: ref<void, managed, readonly>;
+    itab: usize;
+}
 
-function Circle.draw(value0: Circle): int32 {
-entry0(value0: Circle):
-    value1: int32 = field.get value0, 0
+extern function Drawable.draw(Drawable.object): int32
+
+function keep(value0: Drawable): Drawable {
+entry0(value0: Drawable):
+    return value0
+}
+
+function Circle.draw(this0: Circle): int32 {
+entry0(this0: Circle):
+    value1: int32 = field.get this0, 0
     return value1
 }
 "#,
@@ -116,9 +143,9 @@ entry0(value0: Circle):
         let interface_type = test.type_by_metadata_name(tree, strings, "test/test:Drawable");
 
         let object_type =
-            test.expect_struct_field_type_by_name(tree, strings, interface_type, "@object");
+            test.expect_struct_field_type_by_name(tree, strings, interface_type, "object");
         let itab_type =
-            test.expect_struct_field_type_by_name(tree, strings, interface_type, "@itab");
+            test.expect_struct_field_type_by_name(tree, strings, interface_type, "itab");
 
         let object_type = tree.get(object_type);
         let mir::Type::Reference { kind, pointee, .. } = object_type else {
@@ -297,25 +324,36 @@ struct Widget implements Shape, Paint {
         module_id,
         "native",
         r#"
-type Closure0 = () => int32;
+type Shape.function = () => int32;
+
+type Shape.object {
+    area: Shape.function;
+    width: int32;
+}
+
+type Paint.object {
+    paint: Shape.function;
+    color: int32;
+}
+
 type Widget {
     width: int32;
     color: int32;
 }
 
-extern function Shape.area({ area: Closure0, width: int32 }): int32
+extern function Shape.area(Shape.object): int32
 
-extern function Paint.paint({ paint: Closure0, color: int32 }): int32
+extern function Paint.paint(Paint.object): int32
 
-function Widget.area(value0: Widget): int32 {
-entry0(value0: Widget):
-    value1: int32 = field.get value0, 0
+function Widget.area(this0: Widget): int32 {
+entry0(this0: Widget):
+    value1: int32 = field.get this0, 0
     return value1
 }
 
-function Widget.paint(value0: Widget): int32 {
-entry0(value0: Widget):
-    value1: int32 = field.get value0, 1
+function Widget.paint(this0: Widget): int32 {
+entry0(this0: Widget):
+    value1: int32 = field.get this0, 1
     return value1
 }
 "#,
@@ -326,13 +364,13 @@ entry0(value0: Widget):
             tree,
             strings,
             "test/test:Widget",
-            "test/test:Shape#object",
+            "test/test:Shape.object",
         );
         let paint_table = test.interface_dispatch_table(
             tree,
             strings,
             "test/test:Widget",
-            "test/test:Paint#object",
+            "test/test:Paint.object",
         );
 
         assert!(matches!(
@@ -421,23 +459,32 @@ function useDrawable(d: Drawable): int32 {
         module_id,
         "native",
         r#"
-type Drawable#method:draw#function = () => int32;
-type Drawable { object: ref<void, managed, readonly>, itab: usize }
-type Circle { color: int32, radius: int32 }
-type Drawable#object { draw: Drawable#method:draw#function, color: int32 }
+type Drawable.function = () => int32;
+type Circle {
+    color: int32;
+    radius: int32;
+}
+type Drawable.object {
+    draw: Drawable.function;
+    color: int32;
+}
+type Drawable {
+    object: ref<void, managed, readonly>;
+    itab: usize;
+}
 
-extern function Drawable.draw(Drawable#object): int32
+extern function Drawable.draw(Drawable.object): int32
 
 function useDrawable(value0: Drawable): int32 {
 entry0(value0: Drawable):
     value1: ref<void, managed, readonly> = field.get value0, 0
-    value2: int32 = call.interface value0, Drawable#object, 2(value1): (Drawable#object) -> int32
+    value2: int32 = call.interface value0, Drawable.object, 2(value1): (Drawable.object) -> int32
     return value2
 }
 
-function Circle.draw(value0: Circle): int32 {
-entry0(value0: Circle):
-    value1: int32 = field.get value0, 0
+function Circle.draw(this0: Circle): int32 {
+entry0(this0: Circle):
+    value1: int32 = field.get this0, 0
     return value1
 }
         "#,
@@ -446,7 +493,7 @@ entry0(value0: Circle):
     test.with_mir_tree(module_id, "native", |tree, strings| {
         // locate the interface call metadata
         let info = test.interface_call_info_by_name(tree, strings, "useDrawable");
-        let interface_type = test.type_by_metadata_name(tree, strings, "test/test:Drawable#object");
+        let interface_type = test.type_by_metadata_name(tree, strings, "test/test:Drawable.object");
 
         // assert the dispatch payload
         assert_eq!(info.slot, mir::DispatchSlot::new(2));
@@ -486,15 +533,22 @@ function castRenderable(value: int32): Renderable {
         module_id,
         "native",
         r#"
+type Renderable.function = () => int32;
+
+type Renderable.object {
+    draw: Renderable.function;
+}
+
 type Renderable {
     object: ref<void, managed, readonly>;
     itab: usize;
 }
+
 type Sprite {
     value: int32;
 }
 
-extern function Renderable.draw({ draw: () => int32 }): int32
+extern function Renderable.draw(Renderable.object): int32
 
 function castRenderable(value0: int32): Renderable {
 entry0(value0: int32):
@@ -508,9 +562,9 @@ entry0(value0: int32):
     return value6
 }
 
-function Sprite.draw(value0: Sprite): int32 {
-entry0(value0: Sprite):
-    value1: int32 = field.get value0, 0
+function Sprite.draw(this0: Sprite): int32 {
+entry0(this0: Sprite):
+    value1: int32 = field.get this0, 0
     return value1
 }
 "#,

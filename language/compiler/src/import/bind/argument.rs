@@ -60,7 +60,7 @@ impl Compiler {
                 declared_type,
                 default,
             } => {
-                let name = self.repository.strings.intern_from(&ast.strings, *name);
+                let name = *name;
                 let visibility = visibility.map(|visibility| self.bind_visibility(visibility));
                 let declared_type = declared_type.map(|declared_type| {
                     self.bind_type_expression(
@@ -220,7 +220,7 @@ impl Compiler {
                 is_readonly,
                 declared_type,
             } => {
-                let name = self.repository.strings.intern_from(&ast.strings, *name);
+                let name = *name;
                 let visibility = visibility.map(|visibility| self.bind_visibility(visibility));
                 let declared_type = declared_type.map(|declared_type| {
                     self.bind_type_expression(
@@ -392,7 +392,7 @@ impl Compiler {
                 tree.insert(argument_id, Argument::Named { name, value })
             }
             ast::Argument::Labeled { label, value } => {
-                let label = self.repository.strings.intern_from(&ast.strings, *label);
+                let label = *label;
                 let value = self.bind_expression(
                     module,
                     ast,
@@ -427,8 +427,7 @@ impl Compiler {
                 tree.insert(argument_id, Argument::Positional { value })
             }
             ast::Argument::Spread { label, value } => {
-                let label =
-                    label.map(|label| self.repository.strings.intern_from(&ast.strings, label));
+                let label = label.map(|label| label);
                 let value = self.bind_expression(
                     module,
                     ast,

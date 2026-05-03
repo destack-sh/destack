@@ -87,9 +87,14 @@ function sumPoint(a: int32, b: int32): int32 {
         module_id,
         "native",
         r#"
+type Point {
+    x: int32;
+    y: int32;
+}
+
 function sumPoint(value0: int32, value1: int32): int32 {
 entry0(value0: int32, value1: int32):
-    value2: { x: int32, y: int32 } = struct { x: int32, y: int32 } (value0, value1)
+    value2: Point = struct Point (value0, value1)
     value3: int32 = field.get value2, 0
     value4: int32 = field.get value2, 1
     value5: int32 = int.add value3, value4
@@ -338,9 +343,9 @@ entry0(value0: int32):
     return value2
 }
 
-function Box.get(value0: Box): int32 {
-entry0(value0: Box):
-    value1: int32 = field.get value0, 0
+function Box.get(this0: Box): int32 {
+entry0(this0: Box):
+    value1: int32 = field.get this0, 0
     return value1
 }
 "#,

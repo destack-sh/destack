@@ -1,6 +1,6 @@
-use destack_artifact::{Html, ModuleGraph};
+use destack_artifact::Html;
 use destack_html as html;
-use destack_source::{FileId, ModuleId, Span};
+use destack_source::{FileId, ModuleEdge, ModuleId, Span};
 use destack_workspace::Module;
 
 use crate::{LinkError, LinkResult};
@@ -13,7 +13,7 @@ use crate::link::{OutputLocation, TargetLocation};
 pub(super) fn print_html_document(
     linker: &ScriptLinker<'_>,
     module: &Module,
-    module_graph: &ModuleGraph,
+    module_edges: &[ModuleEdge],
     document: &Html,
     document_location: &OutputLocation,
     plan: &Plan,
@@ -25,7 +25,7 @@ pub(super) fn print_html_document(
     rewrite_html_document(
         linker,
         module,
-        module_graph,
+        module_edges,
         &mut document,
         document_location,
         plan,
@@ -47,7 +47,7 @@ pub(super) fn print_html_document(
 pub(super) fn render_html_attribute_value(
     linker: &ScriptLinker<'_>,
     module: &Module,
-    module_graph: &ModuleGraph,
+    module_edges: &[ModuleEdge],
     document_location: &OutputLocation,
     plan: &Plan,
     attribute_id: html::LocalNodeId<html::Attribute>,
@@ -67,7 +67,7 @@ pub(super) fn render_html_attribute_value(
                 html::HtmlResourceKind::ModuleScript => {
                     let Some(module_id) = linker.resolve_html_module_script(
                         module,
-                        module_graph,
+                        module_edges,
                         attribute_id.id,
                         &value.value,
                     )?
@@ -79,6 +79,7 @@ pub(super) fn render_html_attribute_value(
                         .output_graph()
                         .output_id_for_module(module_id)
                         .ok_or_else(|| LinkError::Internal {
+                            anchor: (linker.package_id).into(),
                             package: linker.package_id,
                             message: format!(
                                 "missing linked output for html module script {:?}",
@@ -89,6 +90,7 @@ pub(super) fn render_html_attribute_value(
                         .output_layout()
                         .output_location(output_id)
                         .ok_or_else(|| LinkError::Internal {
+                            anchor: (linker.package_id).into(),
                             package: linker.package_id,
                             message: format!(
                                 "missing output layout for html module script {:?}",
@@ -102,7 +104,7 @@ pub(super) fn render_html_attribute_value(
                 html::HtmlResourceKind::Stylesheet => {
                     let Some(module_id) = linker.resolve_html_stylesheet(
                         module,
-                        module_graph,
+                        module_edges,
                         attribute_id.id,
                         &value.value,
                     )?
@@ -113,6 +115,7 @@ pub(super) fn render_html_attribute_value(
                     let output_location =
                         plan.stylesheet_output_location(module_id).ok_or_else(|| {
                             LinkError::Internal {
+                                anchor: (linker.package_id).into(),
                                 package: linker.package_id,
                                 message: format!(
                                     "missing planned output for html stylesheet {:?}",
@@ -127,7 +130,7 @@ pub(super) fn render_html_attribute_value(
                 html::HtmlResourceKind::Asset => {
                     let Some((module_id, suffix)) = linker.resolve_html_asset(
                         module,
-                        module_graph,
+                        module_edges,
                         attribute_id.id,
                         &value.value,
                         &resource.suffix,
@@ -144,7 +147,7 @@ pub(super) fn render_html_attribute_value(
         html::AttributeResource::SourceSet(source_set) => render_html_source_set(
             linker,
             module,
-            module_graph,
+            module_edges,
             document_location,
             plan,
             attribute_id.id,
@@ -157,7 +160,7 @@ pub(super) fn render_html_attribute_value(
 fn render_html_source_set(
     linker: &ScriptLinker<'_>,
     module: &Module,
-    module_graph: &ModuleGraph,
+    module_edges: &[ModuleEdge],
     document_location: &OutputLocation,
     plan: &Plan,
     attribute_id: u32,
@@ -172,7 +175,7 @@ fn render_html_source_set(
         } else {
             let Some((module_id, suffix)) = linker.resolve_html_asset(
                 module,
-                module_graph,
+                module_edges,
                 attribute_id,
                 &item.value,
                 &item.suffix,
@@ -184,7 +187,7 @@ fn render_html_source_set(
                     target: linker.target_id.clone(),
                     reference: "html srcset".to_string(),
                     module: module.uri.to_string(),
-                    site: attribute_id,
+                    reference_site: attribute_id,
                     specifier: item.value.clone(),
                 });
             };
@@ -202,7 +205,7 @@ fn render_html_source_set(
 fn rewrite_html_document(
     linker: &ScriptLinker<'_>,
     module: &Module,
-    module_graph: &ModuleGraph,
+    module_edges: &[ModuleEdge],
     document: &mut Html,
     document_location: &OutputLocation,
     plan: &Plan,
@@ -212,7 +215,7 @@ fn rewrite_html_document(
     rewrite_html_nodes(
         linker,
         module,
-        module_graph,
+        module_edges,
         document,
         document_location,
         plan,
@@ -224,7 +227,7 @@ fn rewrite_html_document(
 fn rewrite_html_nodes(
     linker: &ScriptLinker<'_>,
     module: &Module,
-    module_graph: &ModuleGraph,
+    module_edges: &[ModuleEdge],
     document: &mut Html,
     document_location: &OutputLocation,
     plan: &Plan,
@@ -237,7 +240,7 @@ fn rewrite_html_nodes(
             rewrite_html_attributes(
                 linker,
                 module,
-                module_graph,
+                module_edges,
                 document,
                 document_location,
                 plan,
@@ -246,7 +249,7 @@ fn rewrite_html_nodes(
             rewrite_html_nodes(
                 linker,
                 module,
-                module_graph,
+                module_edges,
                 document,
                 document_location,
                 plan,
@@ -259,7 +262,7 @@ fn rewrite_html_nodes(
                 rewrite_html_nodes(
                     linker,
                     module,
-                    module_graph,
+                    module_edges,
                     document,
                     document_location,
                     plan,
@@ -276,7 +279,7 @@ fn rewrite_html_nodes(
 fn rewrite_html_attributes(
     linker: &ScriptLinker<'_>,
     module: &Module,
-    module_graph: &ModuleGraph,
+    module_edges: &[ModuleEdge],
     document: &mut Html,
     document_location: &OutputLocation,
     plan: &Plan,
@@ -290,7 +293,7 @@ fn rewrite_html_attributes(
         let rendered = render_html_attribute_value(
             linker,
             module,
-            module_graph,
+            module_edges,
             document_location,
             plan,
             *attribute_id,
@@ -507,6 +510,7 @@ fn render_html_asset_reference(
         plan.asset_reference_map()
             .get(&module_id)
             .ok_or_else(|| LinkError::Internal {
+                anchor: (linker.package_id).into(),
                 package: linker.package_id,
                 message: format!(
                     "missing planned output for html asset '{}'",

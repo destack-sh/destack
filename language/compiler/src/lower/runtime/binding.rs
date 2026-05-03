@@ -1,9 +1,10 @@
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult};
+use crate::{CompilerResult, LowerError, LowerResult};
 
 use crate::lower::{
-    FieldInput, FieldLayoutKind, LayoutPolicy, ModuleLowerer, is_void_type, resolve_result_union,
+    FieldInput, FieldLayoutKind, LayoutPolicy, ModuleLowerer, TypeLowerer, is_void_type,
+    resolve_result_union,
 };
 
 /// Cached layout metadata for runtime status values.
@@ -35,27 +36,30 @@ impl ModuleLowerer<'_> {
         signature: &dir::ResolvedSignature,
         expression_id: dir::LocalNodeId<dir::Expression>,
         _target_symbol: dir::GlobalSymbolId,
-    ) -> LowerResult<BindingResultInfo> {
+    ) -> CompilerResult<BindingResultInfo> {
         let Some(return_type_id) = signature.return_type else {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
                 message: "binding return type must be Result<T, PlatformError>".to_string(),
-            });
+            }
+            .into());
         };
 
-        let result = resolve_result_union(
-            self.types,
-            &self.compiler.repository.strings,
-            return_type_id,
-        )
-        .ok_or_else(|| LowerError::UnsupportedConstruct {
-            node: expression_id
-                .into_global_any(self.module_id)
-                .into_anchored(Some(self.profile)),
-            message: "binding return type must be Result<T, PlatformError>".to_string(),
-        })?;
+        let result =
+            resolve_result_union(self.types, &self.strings, return_type_id).ok_or_else(|| {
+                LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                    ),
+                    message: "binding return type must be Result<T, PlatformError>".to_string(),
+                }
+            })?;
 
         let ok_is_void = is_void_type(self.types, result.ok_value_type);
         let ok_mir_type = if ok_is_void {
@@ -72,11 +76,14 @@ impl ModuleLowerer<'_> {
         let platform_error_symbol = self.platform_error_symbol(expression_id)?;
         if !self.is_platform_error_type(result.err_value_type, platform_error_symbol) {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
                 message: "binding error type must be PlatformError".to_string(),
-            });
+            }
+            .into());
         }
 
         Ok(BindingResultInfo {
@@ -91,7 +98,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         err_value_type: dir::LocalTypeId,
-    ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
+    ) -> CompilerResult<mir::LocalNodeId<mir::Function>> {
         if let Some(function_id) = self.take_platform_error_function {
             return Ok(function_id);
         }
@@ -109,7 +116,7 @@ impl ModuleLowerer<'_> {
         let binding = self
             .binding_name_for_symbol(expression_id, symbol)?
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "missing @binding decorator for takePlatformError".to_string(),
             })?;
 
@@ -134,7 +141,7 @@ impl ModuleLowerer<'_> {
         let function_id =
             self.builder
                 .extern_function(&binding.name, &parameters, status_layout.ty);
-        self.register_function_binding_for_symbol(symbol, function_id, signature_type)?;
+        self.register_function_binding_for_symbol(symbol, function_id, signature)?;
         self.binding_symbols.insert(symbol);
 
         self.take_platform_error_function = Some(function_id);
@@ -162,18 +169,18 @@ impl ModuleLowerer<'_> {
             .type_lowerer
             .size_and_align_of_type(self.builder.tree().get(code_type), self.builder.tree())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "binding layout requires concrete nested types".to_string(),
             })?;
         let (error_size, error_align) = self
             .type_lowerer
             .size_and_align_of_type(self.builder.tree().get(error_type), self.builder.tree())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "binding layout requires concrete nested types".to_string(),
             })?;
 
-        let layout = self.type_lowerer.compute_struct_layout(
+        let layout = TypeLowerer::compute_struct_layout(
             vec![
                 FieldInput {
                     name: code_name,
@@ -203,15 +210,19 @@ impl ModuleLowerer<'_> {
 
         let Some(code_field_index) = layout.field_index(code_name) else {
             return Err(LowerError::Internal {
+                anchor: (self.module_id).into(),
                 module: self.module_id,
                 message: "RuntimeStatus layout missing code field".to_string(),
-            });
+            }
+            .into());
         };
         let Some(error_id_field_index) = layout.field_index(error_name) else {
             return Err(LowerError::Internal {
+                anchor: (self.module_id).into(),
                 module: self.module_id,
                 message: "RuntimeStatus layout missing error id field".to_string(),
-            });
+            }
+            .into());
         };
 
         let layout = RuntimeStatusLayout {
@@ -227,19 +238,15 @@ impl ModuleLowerer<'_> {
     fn take_platform_error_symbol(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<dir::GlobalSymbolId> {
-        let name = self.compiler.repository.strings.intern("takePlatformError");
+    ) -> CompilerResult<dir::GlobalSymbolId> {
         let symbol = self
-            .compiler
-            .get_declared_library_symbol_from(
-                self.profile,
-                name,
-                dir::SymbolSpaceOrder::ValueThenType,
-            )
+            .declared_ambient_symbol("takePlatformError", dir::SymbolSpaceOrder::ValueThenType)?
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
                 message: "takePlatformError binding is not available".to_string(),
             })?;
         Ok(symbol)
@@ -248,19 +255,15 @@ impl ModuleLowerer<'_> {
     fn platform_error_symbol(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<dir::GlobalSymbolId> {
-        let name = self.compiler.repository.strings.intern("PlatformError");
+    ) -> CompilerResult<dir::GlobalSymbolId> {
         let symbol = self
-            .compiler
-            .get_declared_library_symbol_from(
-                self.profile,
-                name,
-                dir::SymbolSpaceOrder::ValueThenType,
-            )
+            .declared_ambient_symbol("PlatformError", dir::SymbolSpaceOrder::ValueThenType)?
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
                 message: "PlatformError type is not available".to_string(),
             })?;
         Ok(symbol)

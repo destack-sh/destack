@@ -1,8 +1,7 @@
-use std::hash::{Hash, Hasher};
 use std::path::Path;
 
 use destack_artifact::OutputContent;
-use rustc_hash::FxHasher;
+use destack_core::stable_hash_bytes;
 
 /// Return the sanitized directory token for one asset module path.
 pub(super) fn directory_token(
@@ -44,21 +43,13 @@ pub(super) fn name_token(source_path: &Path) -> Option<String> {
 
 /// Return one stable content hash for one asset payload.
 pub(super) fn content_hash(content: &OutputContent) -> Result<String, String> {
-    let mut hasher = FxHasher::default();
+    let hash = match content {
+        OutputContent::Text { code, .. } => stable_hash_bytes(code.as_bytes()),
+        OutputContent::Json { content, .. } => stable_hash_bytes(content.as_bytes()),
+        OutputContent::Binary { bytes, .. } => stable_hash_bytes(bytes),
+    };
 
-    match content {
-        OutputContent::Text { code, .. } => {
-            code.as_bytes().hash(&mut hasher);
-        }
-        OutputContent::Json { content, .. } => {
-            content.as_bytes().hash(&mut hasher);
-        }
-        OutputContent::Binary { bytes, .. } => {
-            bytes.hash(&mut hasher);
-        }
-    }
-
-    Ok(format!("{:08x}", hasher.finish() as u32))
+    Ok(format!("{:08x}", hash as u32))
 }
 
 /// Percent encode one text payload for one data URL.

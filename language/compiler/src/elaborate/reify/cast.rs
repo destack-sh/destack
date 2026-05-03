@@ -10,7 +10,7 @@ use super::r#type::{
     is_integer_type, is_nullable_union, is_object_type, is_pointer_type, is_string_type,
     is_union_type, is_unknown_type, numeric_cast_operator,
 };
-use crate::elaborate::common::ElaborateState;
+use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
 impl Compiler {
@@ -53,7 +53,7 @@ impl Compiler {
         };
         let Some(target_type_id) = state
             .types
-            .get_declared_or_inferred_type_id(expression_id.into_global_any(state.ctx.module_id))
+            .get_declared_or_inferred_type_id(expression_id.into_global_any(state.module_id))
         else {
             return Ok(());
         };
@@ -85,7 +85,7 @@ impl Compiler {
         // require the inferred must result type
         let Some(target_type_id) = state
             .types
-            .get_declared_or_inferred_type_id(expression_id.into_global_any(state.ctx.module_id))
+            .get_declared_or_inferred_type_id(expression_id.into_global_any(state.module_id))
         else {
             return Ok(());
         };
@@ -97,8 +97,8 @@ impl Compiler {
         // replace the must wrapper with the reified expression
         state.tree.replace_from(expression_id, reified_value_id);
         state.types.copy_node_analysis(
-            reified_value_id.into_global_any(state.ctx.module_id),
-            expression_id.into_global_any(state.ctx.module_id),
+            reified_value_id.into_global_any(state.module_id),
+            expression_id.into_global_any(state.module_id),
         );
 
         Ok(())
@@ -132,7 +132,7 @@ impl Compiler {
             // require a declared target type on the binding
             let Some(target_type_id) = state
                 .types
-                .get_declared_type_id(declarator_id.into_global_any(state.ctx.module_id))
+                .get_declared_type_id(declarator_id.into_global_any(state.module_id))
             else {
                 continue;
             };
@@ -374,7 +374,7 @@ impl Compiler {
         // prefer node-local declared or inferred types
         if let Some(type_id) = state
             .types
-            .get_declared_or_inferred_type_id(value_id.into_global_any(state.ctx.module_id))
+            .get_declared_or_inferred_type_id(value_id.into_global_any(state.module_id))
         {
             return Some(state.types.unwrap_value_type_id(type_id));
         }
@@ -461,12 +461,12 @@ impl Compiler {
             },
         );
         state.types.set_inferred_type(
-            expression_id.into_global_any(state.ctx.module_id),
+            expression_id.into_global_any(state.module_id),
             target_type_id,
         );
 
-        // parenthesize inserted casts when the option requests it
-        if !self.options.elaborate_parenthesize_casts {
+        // parenthesize inserted casts when configured for this module
+        if !state.options.parenthesize_casts {
             return Ok(expression_id);
         }
 
@@ -484,7 +484,7 @@ impl Compiler {
             },
         );
         state.types.set_inferred_type(
-            parenthesized_id.into_global_any(state.ctx.module_id),
+            parenthesized_id.into_global_any(state.module_id),
             target_type_id,
         );
 

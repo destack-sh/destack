@@ -5,7 +5,7 @@ use dir::{
     PatternField, ScalarLiteral, StringId, TypeExpression,
 };
 
-use crate::elaborate::common::ElaborateState;
+use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateError, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
@@ -95,9 +95,7 @@ impl Compiler {
 
         let Expression::Match { cases, .. } = state.tree.get(match_id) else {
             return Err(ElaborateError::UnsupportedConstruct {
-                node: match_id
-                    .into_global_any(state.tree.module_id)
-                    .into_anchored(None),
+                anchor: state.module_id.into(),
             });
         };
 
@@ -110,16 +108,14 @@ impl Compiler {
 
             let Some(body_type_id) = state.types.get_declared_or_inferred_type_id(body_id) else {
                 return Err(ElaborateError::UnsupportedConstruct {
-                    node: body_id.into_anchored(None),
+                    anchor: state.module_id.into(),
                 });
             };
 
             if let Some(expected) = case_type_id {
                 if expected != body_type_id {
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: match_id
-                            .into_global_any(state.tree.module_id)
-                            .into_anchored(None),
+                        anchor: state.module_id.into(),
                     });
                 }
             } else {
@@ -129,9 +125,7 @@ impl Compiler {
 
         let Some(case_type_id) = case_type_id else {
             return Err(ElaborateError::UnsupportedConstruct {
-                node: match_id
-                    .into_global_any(state.tree.module_id)
-                    .into_anchored(None),
+                anchor: state.module_id.into(),
             });
         };
 
@@ -178,9 +172,7 @@ impl Compiler {
                     .types
                     .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
                     .ok_or_else(|| ElaborateError::UnsupportedConstruct {
-                        node: body
-                            .into_global_any(state.tree.module_id)
-                            .into_anchored(None),
+                        anchor: state.module_id.into(),
                     })?;
                 self.set_expression_type(
                     state.types,
@@ -577,9 +569,7 @@ impl Compiler {
                 | PatternField::Spread { .. }
                 | PatternField::Elision => {
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: field_id
-                            .into_global_any(state.tree.module_id)
-                            .into_anchored(None),
+                        anchor: state.module_id.into(),
                     });
                 }
             };
@@ -598,9 +588,7 @@ impl Compiler {
                     // reject nested binding patterns
                     if pattern.is_some() {
                         return Err(ElaborateError::UnsupportedConstruct {
-                            node: pattern_id
-                                .into_global_any(state.tree.module_id)
-                                .into_anchored(None),
+                            anchor: state.module_id.into(),
                         });
                     }
                 }
@@ -617,9 +605,7 @@ impl Compiler {
                 _ => {
                     // reject unsupported field patterns
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: pattern_id
-                            .into_global_any(state.tree.module_id)
-                            .into_anchored(None),
+                        anchor: state.module_id.into(),
                     });
                 }
             }
@@ -685,18 +671,14 @@ impl Compiler {
                 PatternField::Named { name, pattern, .. } => (Some(name), pattern),
                 PatternField::Positional { .. } => {
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: field_id
-                            .into_global_any(state.tree.module_id)
-                            .into_anchored(None),
+                        anchor: state.module_id.into(),
                     });
                 }
                 PatternField::Computed { .. }
                 | PatternField::Spread { .. }
                 | PatternField::Elision => {
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: field_id
-                            .into_global_any(state.tree.module_id)
-                            .into_anchored(None),
+                        anchor: state.module_id.into(),
                     });
                 }
             };
@@ -720,9 +702,7 @@ impl Compiler {
                     // reject nested binding patterns
                     if pattern.is_some() {
                         return Err(ElaborateError::UnsupportedConstruct {
-                            node: pattern_id
-                                .into_global_any(state.tree.module_id)
-                                .into_anchored(None),
+                            anchor: state.module_id.into(),
                         });
                     }
                 }
@@ -740,9 +720,7 @@ impl Compiler {
                 _ => {
                     // reject unsupported field patterns
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: pattern_id
-                            .into_global_any(state.tree.module_id)
-                            .into_anchored(None),
+                        anchor: state.module_id.into(),
                     });
                 }
             }
@@ -1108,9 +1086,7 @@ impl Compiler {
                 PatternField::Elision => None,
                 PatternField::Computed { .. } | PatternField::Spread { .. } => {
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: field_id
-                            .into_global_any(state.tree.module_id)
-                            .into_anchored(None),
+                        anchor: state.module_id.into(),
                     });
                 }
             };
@@ -1169,9 +1145,7 @@ impl Compiler {
                 | PatternField::Spread { .. }
                 | PatternField::Elision => {
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: field_id
-                            .into_global_any(state.tree.module_id)
-                            .into_anchored(None),
+                        anchor: state.module_id.into(),
                     });
                 }
             };
@@ -1251,9 +1225,7 @@ impl Compiler {
             .get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))
         else {
             return Err(ElaborateError::UnsupportedConstruct {
-                node: value
-                    .into_global_any(state.tree.module_id)
-                    .into_anchored(None),
+                anchor: state.module_id.into(),
             });
         };
 
@@ -1263,23 +1235,21 @@ impl Compiler {
             .get_declared_or_inferred_type_id(ty.into_global_any(state.tree.module_id))
         else {
             return Err(ElaborateError::UnsupportedConstruct {
-                node: ty.into_global_any(state.tree.module_id).into_anchored(None),
+                anchor: state.module_id.into(),
             });
         };
 
         // derive and record the runtime check kind
-        let runtime_check_kind =
-            self.runtime_check_kind_for_relation(state.types, value_type_id, target_type_id);
-        let Some(runtime_check_kind) = runtime_check_kind else {
+        let guard_strategy =
+            self.guard_strategy_for_relation(state.types, value_type_id, target_type_id);
+        let Some(guard_strategy) = guard_strategy else {
             return Err(ElaborateError::UnsupportedConstruct {
-                node: expr_id
-                    .into_global_any(state.tree.module_id)
-                    .into_anchored(None),
+                anchor: state.module_id.into(),
             });
         };
-        state.types.set_runtime_check_kind(
+        state.types.set_guard_strategy(
             expr_id.into_global_any(state.tree.module_id),
-            runtime_check_kind,
+            guard_strategy,
         );
         Ok(expr_id)
     }
@@ -1378,9 +1348,7 @@ impl Compiler {
         let element_type_id = self
             .index_access_type_id(state, value, index)
             .ok_or_else(|| ElaborateError::UnsupportedConstruct {
-                node: expr_id
-                    .into_global_any(state.tree.module_id)
-                    .into_anchored(None),
+                anchor: state.module_id.into(),
             })?;
 
         // assign the element type
@@ -1419,9 +1387,7 @@ impl Compiler {
         let field_type_id = self
             .member_access_type_id(state, value, name)
             .ok_or_else(|| ElaborateError::UnsupportedConstruct {
-                node: expr_id
-                    .into_global_any(state.tree.module_id)
-                    .into_anchored(None),
+                anchor: state.module_id.into(),
             })?;
 
         // assign the field type
@@ -1491,9 +1457,7 @@ impl Compiler {
                     } = state.tree.get(pattern_id)
                     {
                         return Err(ElaborateError::UnsupportedConstruct {
-                            node: pattern_id
-                                .into_global_any(state.tree.module_id)
-                                .into_anchored(None),
+                            anchor: state.module_id.into(),
                         });
                     }
                 }
@@ -1513,9 +1477,7 @@ impl Compiler {
                 | PatternField::Computed { .. }
                 | PatternField::Elision => {
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: field_id
-                            .into_global_any(state.tree.module_id)
-                            .into_anchored(None),
+                        anchor: state.module_id.into(),
                     });
                 }
             }
@@ -1590,9 +1552,7 @@ impl Compiler {
                 | PatternField::Computed { .. }
                 | PatternField::Elision => {
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: field_id
-                            .into_global_any(state.tree.module_id)
-                            .into_anchored(None),
+                        anchor: state.module_id.into(),
                     });
                 }
             }
@@ -1680,9 +1640,7 @@ impl Compiler {
             .types
             .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
             .ok_or_else(|| ElaborateError::UnsupportedConstruct {
-                node: body
-                    .into_global_any(state.tree.module_id)
-                    .into_anchored(None),
+                anchor: state.module_id.into(),
             })?;
         state
             .types
@@ -1714,9 +1672,7 @@ impl Compiler {
                 .types
                 .get_declared_or_inferred_type_id(block.into_global_any(state.tree.module_id))
                 .ok_or_else(|| ElaborateError::UnsupportedConstruct {
-                    node: block
-                        .into_global_any(state.tree.module_id)
-                        .into_anchored(None),
+                    anchor: state.module_id.into(),
                 })?;
             self.set_expression_type(state.types, state.tree.module_id, body, block_type_id);
 
@@ -1757,9 +1713,7 @@ impl Compiler {
             .types
             .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
             .ok_or_else(|| ElaborateError::UnsupportedConstruct {
-                node: body
-                    .into_global_any(state.tree.module_id)
-                    .into_anchored(None),
+                anchor: state.module_id.into(),
             })?;
         state
             .types
@@ -1799,7 +1753,9 @@ impl Compiler {
             .types
             .get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))?;
         let value_type_id = state.types.unwrap_value_type_id(value_type_id);
-        state.types.get_index_access_type(value_type_id, index)
+        state
+            .types
+            .get_index_access_type(state.types, value_type_id, index)
     }
 
     /// Resolve the inferred type for a synthesized member access.
@@ -1813,6 +1769,8 @@ impl Compiler {
             .types
             .get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))?;
         let value_type_id = state.types.unwrap_value_type_id(value_type_id);
-        state.types.get_member_access_type(value_type_id, name)
+        state
+            .types
+            .get_member_access_type(state.types, value_type_id, name)
     }
 }

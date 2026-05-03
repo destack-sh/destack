@@ -1,4 +1,4 @@
-use crate::{LowerError, LowerResult};
+use crate::{CompilerError, CompilerResult, LowerError};
 use destack_dir as dir;
 
 use crate::lower::{GlobalBinding, ModuleLowerer, lower_mutability};
@@ -9,7 +9,7 @@ impl ModuleLowerer<'_> {
         &self,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
-    ) -> LowerResult<dir::GlobalSymbolId> {
+    ) -> CompilerResult<dir::GlobalSymbolId> {
         // require a nominal declaration for constructor lowering
         let is_nominal = matches!(
             declaration,
@@ -17,11 +17,14 @@ impl ModuleLowerer<'_> {
         );
         if !is_nominal {
             return Err(LowerError::UnsupportedConstruct {
-                node: declaration_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                anchor: self.diagnostic_anchor(
+                    declaration_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
                 message: "constructor must belong to a nominal declaration".to_string(),
-            });
+            }
+            .into());
         }
 
         // resolve the declaration symbol
@@ -35,7 +38,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         match declaration {
             dir::Declaration::Function(declaration) => {
                 self.lower_function(declaration_id, declaration)?;
@@ -61,9 +64,6 @@ impl ModuleLowerer<'_> {
                     } else {
                         None
                     };
-
-                // lower static fields
-                self.lower_static_member_fields(type_symbol, members)?;
 
                 // lower methods
                 for member_id in members {
@@ -94,13 +94,11 @@ impl ModuleLowerer<'_> {
                 let reference_type_id = self
                     .nominal_reference_type_id_for_symbol(type_symbol)
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: anchor,
+                        anchor: self.diagnostic_anchor(anchor),
                         message: "class missing nominal reference type".to_string(),
-                    })?;
+                    })
+                    .map_err(CompilerError::from)?;
                 let class_mir_type = Some(self.lower_type(reference_type_id, anchor)?);
-
-                // lower static fields
-                self.lower_static_member_fields(type_symbol, members)?;
 
                 // lower methods
                 for member_id in members {
@@ -135,9 +133,6 @@ impl ModuleLowerer<'_> {
                         None
                     };
 
-                // lower static fields
-                self.lower_static_member_fields(type_symbol, members)?;
-
                 // lower enum methods
                 for member_id in members {
                     let member = self.dir_tree.get(*member_id);
@@ -159,12 +154,39 @@ impl ModuleLowerer<'_> {
             dir::Declaration::Interface(_) => Ok(()),
             dir::Declaration::Type(_) => Ok(()),
             _ => Err(LowerError::UnsupportedConstruct {
-                node: declaration_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                anchor: self.diagnostic_anchor(
+                    declaration_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
                 message: "unsupported declaration".to_string(),
-            }),
+            }
+            .into()),
         }
+    }
+
+    /// Declare static member fields for every nominal module declaration.
+    pub(crate) fn declare_static_member_fields(&mut self) -> CompilerResult<()> {
+        // scan nominal declarations
+        for (_, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>() {
+            match declaration {
+                dir::Declaration::Struct(declaration) => {
+                    let owner_symbol = declaration.symbol.into_global(self.module_id);
+                    self.lower_static_member_fields(owner_symbol, &declaration.members)?;
+                }
+                dir::Declaration::Class(declaration) => {
+                    let owner_symbol = declaration.symbol.into_global(self.module_id);
+                    self.lower_static_member_fields(owner_symbol, &declaration.members)?;
+                }
+                dir::Declaration::Enum(declaration) => {
+                    let owner_symbol = declaration.symbol.into_global(self.module_id);
+                    self.lower_static_member_fields(owner_symbol, &declaration.members)?;
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
     }
 
     /// Lower static member fields into globals.
@@ -172,7 +194,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         owner_symbol: dir::GlobalSymbolId,
         members: &[dir::LocalNodeId<dir::Member>],
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // scan members for static fields
         for member_id in members {
             // skip static non-field members
@@ -194,11 +216,14 @@ impl ModuleLowerer<'_> {
             // require an initializer for static fields
             let Some(value_id) = default else {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: member_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                    anchor: self.diagnostic_anchor(
+                        member_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                    ),
                     message: "static field requires initializer".to_string(),
-                });
+                }
+                .into());
             };
 
             // resolve the field type from the initializer expression
@@ -217,11 +242,14 @@ impl ModuleLowerer<'_> {
             let initializer = self
                 .lower_const_initializer(*value_id, mir_type)?
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: value_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                    anchor: self.diagnostic_anchor(
+                        value_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                    ),
                     message: "static field requires constant initializer".to_string(),
-                })?;
+                })
+                .map_err(CompilerError::from)?;
 
             // decide mutability from modifiers
             let mutability = mutability.unwrap_or(dir::Mutability::Immutable);
@@ -231,11 +259,14 @@ impl ModuleLowerer<'_> {
             let name = self
                 .static_member_name(owner_symbol, Some(*key))
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: member_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                    anchor: self.diagnostic_anchor(
+                        member_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                    ),
                     message: "static field is missing a stable name".to_string(),
-                })?;
+                })
+                .map_err(CompilerError::from)?;
 
             // create the MIR global and register the binding
             let global_id = self

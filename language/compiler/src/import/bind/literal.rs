@@ -1,4 +1,3 @@
-use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
@@ -8,13 +7,16 @@ use destack_dir::{
 };
 use destack_workspace::Module;
 
+use crate::Compiler;
+use crate::import::{DEFAULT_FLOAT_WIDTH, DEFAULT_INT_WIDTH};
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Bind a scalar literal to a DIR scalar literal.
     pub(super) fn bind_scalar_literal(
         &self,
         _module: &Module,
-        ast: &Ast,
+        _ast: &Ast,
         scalar_literal: &ast::ScalarLiteral,
     ) -> ScalarLiteral {
         match scalar_literal {
@@ -25,13 +27,12 @@ impl Compiler {
             ast::ScalarLiteral::Float(float) => ScalarLiteral::Float(*float),
             ast::ScalarLiteral::Character(character) => ScalarLiteral::Character(*character),
             ast::ScalarLiteral::String(string) => {
-                let string = self.repository.strings.intern_from(&ast.strings, *string);
+                let string = *string;
                 ScalarLiteral::String(string)
             }
             ast::ScalarLiteral::RegexString { content, flags } => {
-                let content = self.repository.strings.intern_from(&ast.strings, *content);
-                let flags =
-                    flags.map(|flag| self.repository.strings.intern_from(&ast.strings, flag));
+                let content = *content;
+                let flags = flags.map(|flag| flag);
                 ScalarLiteral::RegexString { content, flags }
             }
         }
@@ -54,14 +55,11 @@ impl Compiler {
     ) -> TemplateLiteral {
         match template_literal {
             ast::TemplateLiteral::String { string } => {
-                let string = self.repository.strings.intern_from(&ast.strings, *string);
+                let string = *string;
                 TemplateLiteral::String { string }
             }
             ast::TemplateLiteral::InterpolatedString { strings, arguments } => {
-                let strings = strings
-                    .iter()
-                    .map(|string| self.repository.strings.intern_from(&ast.strings, *string))
-                    .collect();
+                let strings = strings.iter().map(|string| *string).collect();
                 let arguments = arguments
                     .iter()
                     .map(|argument| {
@@ -146,7 +144,7 @@ impl Compiler {
                 width: None,
                 is_signed,
             } => IntType::Arbitrary {
-                width: self.options.default_int_width,
+                width: DEFAULT_INT_WIDTH,
                 is_signed: *is_signed,
             },
             ast::IntType::Arbitrary {
@@ -165,7 +163,7 @@ impl Compiler {
             ast::FloatType { width: Some(32) } => FloatType::Float32,
             ast::FloatType { width: Some(64) } => FloatType::Float64,
             ast::FloatType { width: None } => FloatType::Arbitrary {
-                width: self.options.default_float_width,
+                width: DEFAULT_FLOAT_WIDTH,
             },
             ast::FloatType { width: Some(width) } => FloatType::Arbitrary { width: *width },
         };

@@ -47,7 +47,7 @@ impl Compiler {
                 default,
                 ..
             } => {
-                let name = ast_strings.intern_from(&self.repository.strings, *name);
+                let name = *name;
                 let visibility =
                     visibility.map(|visibility| self.unbind_visibility(visibility, context));
                 let declared_type = declared_type.map(|declared_type| {
@@ -138,7 +138,7 @@ impl Compiler {
                 declared_type,
                 ..
             } => {
-                let name = ast_strings.intern_from(&self.repository.strings, *name);
+                let name = *name;
                 let visibility =
                     visibility.map(|visibility| self.unbind_visibility(visibility, context));
                 let declared_type = declared_type.map(|declared_type| {
@@ -231,7 +231,7 @@ impl Compiler {
                 ast::Argument::Named { name, value }
             }
             dir::Argument::Labeled { label, value } => {
-                let label = ast_strings.intern_from(&self.repository.strings, *label);
+                let label = *label;
                 let value = self.unbind_expression(
                     module,
                     *value,
@@ -258,8 +258,7 @@ impl Compiler {
                 ast::Argument::Positional { value }
             }
             dir::Argument::Spread { label, value } => {
-                let label =
-                    label.map(|label| ast_strings.intern_from(&self.repository.strings, label));
+                let label = label.map(|label| label);
                 let value = self.unbind_expression(
                     module,
                     *value,

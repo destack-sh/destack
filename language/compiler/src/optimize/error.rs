@@ -1,37 +1,18 @@
-use destack_compiler_macros::DefineError;
-use destack_mir as mir;
+use crate::DiagnosticAnchor;
+use destack_artifact_macros::Diagnostic;
 use destack_source::{PackageId, TargetId};
-use destack_workspace::Repository;
-
-use crate::{
-    CompileError, DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet,
-};
 
 /// Errors during the optimize phase.
-#[derive(Debug, Clone, PartialEq, DefineError)]
-#[phase(Optimize)]
+#[derive(Debug, Clone, PartialEq, Diagnostic)]
+#[diagnostic(severity = Error, phase = Optimize)]
 pub enum OptimizeError {
-    // -------------------------------------------------------------------------
-    // 0xx: Yield / requirement
-    // -------------------------------------------------------------------------
-    /// Wait for artifact requirement.
-    #[error(code = "EO000", r#yield)]
-    Yield { requirement: RequirementSet },
-
-    /// Yield requirement has failed.
-    #[error(code = "EO001", yield_failed)]
-    UnsatisfiedRequirement { requirement: RequirementSet },
-
-    /// Task was skipped due to stale versions.
-    #[error(code = "EO002", message = "task skipped")]
-    Skipped,
-
     // -------------------------------------------------------------------------
     // 1xx: Target / setup
     // -------------------------------------------------------------------------
     /// Invalid target configuration for optimization.
-    #[error(code = "EO110", message = "invalid target {target}: {message}")]
+    #[diagnostic(code = "EO110", message = "invalid target {target}: {message}")]
     InvalidTarget {
+        anchor: DiagnosticAnchor,
         package: PackageId,
         target: TargetId,
         message: String,
@@ -41,114 +22,97 @@ pub enum OptimizeError {
     // 1xx: Move / ownership errors
     // -------------------------------------------------------------------------
     /// Value used after ownership was transferred.
-    #[error(code = "EO100", message = "use of moved value")]
+    #[diagnostic(code = "EO100", message = "use of moved value")]
     UseAfterMove {
-        node: mir::AnchoredGlobalNodeId,
-        moved_at: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
+        moved_at: DiagnosticAnchor,
     },
 
     /// Value moved multiple times.
-    #[error(code = "EO101", message = "value moved twice")]
+    #[diagnostic(code = "EO101", message = "value moved twice")]
     DoubleMove {
-        node: mir::AnchoredGlobalNodeId,
-        first_move: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
+        first_move: DiagnosticAnchor,
     },
 
     /// Cannot move a value that is currently borrowed.
-    #[error(code = "EO102", message = "cannot move while borrowed")]
+    #[diagnostic(code = "EO102", message = "cannot move while borrowed")]
     MoveOfBorrowedValue {
-        node: mir::AnchoredGlobalNodeId,
-        borrowed_at: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
+        borrowed_at: DiagnosticAnchor,
     },
 
     /// Using a partially-moved aggregate (field was moved, then whole struct used).
-    #[error(code = "EO103", message = "use of partially moved value")]
+    #[diagnostic(code = "EO103", message = "use of partially moved value")]
     PartialMove {
-        node: mir::AnchoredGlobalNodeId,
-        moved_at: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
+        moved_at: DiagnosticAnchor,
     },
 
     /// Value may have been moved (moved on some control flow paths but not others).
-    #[error(code = "EO104", message = "value may have been moved")]
+    #[diagnostic(code = "EO104", message = "value may have been moved")]
     MaybeUseAfterMove {
-        node: mir::AnchoredGlobalNodeId,
-        moved_at: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
+        moved_at: DiagnosticAnchor,
     },
 
     // -------------------------------------------------------------------------
     // 2xx: Borrow errors
     // -------------------------------------------------------------------------
     /// Mutable borrow conflicts with existing borrow.
-    #[error(
-        code = "EO200",
-        message = "cannot borrow as mutable: already borrowed",
-        directive
-    )]
+    #[diagnostic(code = "EO200", message = "cannot borrow as mutable: already borrowed")]
     ConflictingBorrow {
-        node: mir::AnchoredGlobalNodeId,
-        existing_borrow: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
+        existing_borrow: DiagnosticAnchor,
         existing_is_mutable: bool,
     },
 
     /// Reference used after the borrowed value was mutated through another path.
-    #[error(code = "EO201", message = "borrow invalidated by mutation", directive)]
+    #[diagnostic(code = "EO201", message = "borrow invalidated by mutation")]
     InvalidatedReference {
-        node: mir::AnchoredGlobalNodeId,
-        invalidated_by: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
+        invalidated_by: DiagnosticAnchor,
     },
 
     /// Borrow outlives the value it borrows from.
-    #[error(code = "EO202", message = "borrow escapes scope", directive)]
+    #[diagnostic(code = "EO202", message = "borrow escapes scope")]
     BorrowEscapesScope {
-        node: mir::AnchoredGlobalNodeId,
-        escapes_at: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
+        escapes_at: DiagnosticAnchor,
     },
 
     /// Attempting to borrow a value that was already moved.
-    #[error(code = "EO203", message = "cannot borrow: value was moved", directive)]
+    #[diagnostic(code = "EO203", message = "cannot borrow: value was moved")]
     BorrowOfMovedValue {
-        node: mir::AnchoredGlobalNodeId,
-        moved_at: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
+        moved_at: DiagnosticAnchor,
     },
 
     /// Assigning to a local variable while it is borrowed.
-    #[error(
-        code = "EO204",
-        message = "cannot assign to local: value is borrowed",
-        directive
-    )]
+    #[diagnostic(code = "EO204", message = "cannot assign to local: value is borrowed")]
     LocalSetWhileBorrowed {
-        node: mir::AnchoredGlobalNodeId,
-        borrowed_at: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
+        borrowed_at: DiagnosticAnchor,
     },
 
     // -------------------------------------------------------------------------
     // 3xx: Lifetime errors
     // -------------------------------------------------------------------------
     /// Returning a reference to a local variable.
-    #[error(
-        code = "EO300",
-        message = "cannot return reference to local",
-        directive
-    )]
-    ReturnReferenceToLocal { node: mir::AnchoredGlobalNodeId },
+    #[diagnostic(code = "EO300", message = "cannot return reference to local")]
+    ReturnReferenceToLocal { anchor: DiagnosticAnchor },
 
     /// Reference to local stored in longer-lived location.
-    #[error(
-        code = "EO301",
-        message = "reference to local escapes function",
-        directive
-    )]
-    LocalReferenceEscapes { node: mir::AnchoredGlobalNodeId },
+    #[diagnostic(code = "EO301", message = "reference to local escapes function")]
+    LocalReferenceEscapes { anchor: DiagnosticAnchor },
 
     /// Returned borrow does not match lifetime annotation.
-    #[error(
+    #[diagnostic(
         code = "EO302",
-        message = "return borrows from {origin} not covered by lifetime annotation",
-        directive
+        message = "return borrows from {origin} not covered by lifetime annotation"
     )]
     LifetimeAnnotationMismatch {
-        node: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         origin: String,
     },
 
@@ -156,19 +120,19 @@ pub enum OptimizeError {
     // 4xx: Drop errors
     // -------------------------------------------------------------------------
     /// Dropping a value while it is borrowed.
-    #[error(code = "EO400", message = "cannot drop: value is borrowed", directive)]
+    #[diagnostic(code = "EO400", message = "cannot drop: value is borrowed")]
     DropWhileBorrowed {
-        node: mir::AnchoredGlobalNodeId,
-        borrowed_at: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
+        borrowed_at: DiagnosticAnchor,
     },
 
     // -------------------------------------------------------------------------
     // 5xx: Metadata contract errors
     // -------------------------------------------------------------------------
     /// Required metadata is missing for the configured pipeline.
-    #[error(code = "EO500", message = "missing required metadata: {message}")]
+    #[diagnostic(code = "EO500", message = "missing required metadata: {message}")]
     MissingRequiredMetadata {
-        node: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         message: String,
     },
 
@@ -176,13 +140,13 @@ pub enum OptimizeError {
     // 9xx: Unsupported / internal
     // -------------------------------------------------------------------------
     /// Unsupported MIR construct encountered during optimization.
-    #[error(code = "EO900", message = "unsupported MIR construct")]
-    UnsupportedConstruct { node: mir::AnchoredGlobalNodeId },
+    #[diagnostic(code = "EO900", message = "unsupported MIR construct")]
+    UnsupportedConstruct { anchor: DiagnosticAnchor },
 
     /// Internal optimization error.
-    #[error(code = "EO901", message = "internal optimization error: {message}")]
+    #[diagnostic(code = "EO901", message = "internal optimization error: {message}")]
     InternalError {
-        node: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         message: String,
     },
 }

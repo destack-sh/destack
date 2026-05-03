@@ -1,7 +1,7 @@
-use destack_artifact::ScriptArtifact;
+use destack_artifact::ScriptOutput;
 use destack_codegen_js::{
     DependencyItem, DependencyKind, Expression, LocalNodeId, LocalNodeIdAny, NodeType,
-    ScriptModule, Statement,
+    Module, Statement,
 };
 use destack_source::{ModuleId, PackageId, TargetId};
 use destack_workspace::Target;
@@ -46,7 +46,7 @@ impl<'a> ScriptLinker<'a> {
     fn rewrite_bundled_import_statement(
         &self,
         module_id: ModuleId,
-        module: &mut ScriptModule,
+        module: &mut Module,
         statement_id: LocalNodeId<Statement>,
         kind: DependencyKind,
         specifier: &str,
@@ -90,6 +90,7 @@ impl<'a> ScriptLinker<'a> {
                     target_module,
                     target_id,
                     package_id,
+                    self.context,
                 )?;
 
                 return Ok(ScriptStatementAction::Replace(replacement));
@@ -125,6 +126,7 @@ impl<'a> ScriptLinker<'a> {
             target,
             target_id,
             package_id,
+            self.context,
         )?;
 
         Ok(ScriptStatementAction::Replace(replacement))
@@ -134,7 +136,7 @@ impl<'a> ScriptLinker<'a> {
     fn classify_bundled_export_statement(
         &self,
         module_id: ModuleId,
-        module: &ScriptModule,
+        module: &Module,
         kind: DependencyKind,
         specifier: Option<String>,
         target_module: Option<ModuleId>,
@@ -196,7 +198,7 @@ impl<'a> ScriptLinker<'a> {
     fn classify_bundled_script_statement(
         &self,
         module_id: ModuleId,
-        module: &mut ScriptModule,
+        module: &mut Module,
         statement_id: LocalNodeId<Statement>,
         is_entry_module: bool,
         target_config: &Target,
@@ -255,7 +257,7 @@ impl<'a> ScriptLinker<'a> {
     /// Apply one bundled rewrite action to one statement root.
     fn apply_bundled_script_statement_action(
         &self,
-        module: &mut ScriptModule,
+        module: &mut Module,
         root: LocalNodeIdAny,
         statement_id: LocalNodeId<Statement>,
         action: ScriptStatementAction,
@@ -310,12 +312,12 @@ impl<'a> ScriptLinker<'a> {
     pub(crate) fn rewrite_script_module_for_assembly(
         &self,
         module_id: ModuleId,
-        script: &ScriptArtifact,
+        script: &ScriptOutput,
         module_set: &ScriptModuleSet,
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-    ) -> LinkResult<ScriptModule> {
+    ) -> LinkResult<Module> {
         let mut module = script.module.clone();
         let is_entry_module = module_set.entry_modules.contains(&module_id);
         let mut rewritten_roots = Vec::with_capacity(module.roots.len());

@@ -3,16 +3,18 @@ use std::path::Path;
 use crate::link::OutputLayout;
 use crate::{LinkError, LinkResult};
 
-use destack_artifact::{ScriptArtifact, ScriptDependencyTarget};
+use destack_artifact::ScriptOutput;
 use destack_codegen_js::{
     DependencyItem, DependencyKind, DependencyMode, Expression, LocalNodeId, LocalNodeIdAny,
-    Tree, NodeType, NodeVisitor, NodeVisitorOptions, ScalarLiteral, ScriptModule, Statement,
+    Tree, NodeType, NodeVisitor, NodeVisitorOptions, ScalarLiteral, Module, Statement,
     walk_expression, walk_root,
 };
 use destack_source::{ModuleId, PackageId, TargetId};
 use destack_workspace::Target;
 
-use super::{ScriptLinker, ScriptOutputGraph, ScriptOutputId, ScriptOutputLayout};
+use super::{
+    ScriptDependencyTarget, ScriptLinker, ScriptOutputGraph, ScriptOutputId, ScriptOutputLayout,
+};
 
 /// One rewrite action for one top-level script statement in linked output.
 #[derive(Debug, Clone)]
@@ -68,7 +70,7 @@ impl<'a> ScriptLinker<'a> {
     /// Return whether one internal import can be stripped during script linking.
     pub(super) fn can_strip_internal_script_import(
         &self,
-        module: &ScriptModule,
+        module: &Module,
         items: &[LocalNodeId<DependencyItem>],
     ) -> bool {
         items.iter().all(|item_id| {
@@ -81,7 +83,7 @@ impl<'a> ScriptLinker<'a> {
     /// Return whether one internal re-export can be rewritten as a local export.
     pub(super) fn can_rewrite_internal_script_reexport(
         &self,
-        module: &ScriptModule,
+        module: &Module,
         items: &[LocalNodeId<DependencyItem>],
     ) -> bool {
         items.iter().all(|item_id| {
@@ -158,7 +160,7 @@ impl<'a> ScriptLinker<'a> {
     fn rewrite_same_output_import_statement(
         &self,
         module_id: ModuleId,
-        module: &mut ScriptModule,
+        module: &mut Module,
         statement_id: LocalNodeId<Statement>,
         target_module: ModuleId,
         is_type_dependency: bool,
@@ -198,6 +200,7 @@ impl<'a> ScriptLinker<'a> {
                 target_module,
                 target_id,
                 package_id,
+                self.context,
             )?;
 
             return Ok(OutputStatementRewriteAction::Replace(replacement));
@@ -227,6 +230,7 @@ impl<'a> ScriptLinker<'a> {
             self.target,
             target_id,
             package_id,
+            self.context,
         )?;
 
         Ok(OutputStatementRewriteAction::Replace(replacement))
@@ -236,7 +240,7 @@ impl<'a> ScriptLinker<'a> {
     fn classify_same_output_export_statement(
         &self,
         module_id: ModuleId,
-        module: &mut ScriptModule,
+        module: &mut Module,
         is_type_dependency: bool,
         items: &[LocalNodeId<DependencyItem>],
         target_id: &TargetId,
@@ -267,7 +271,7 @@ impl<'a> ScriptLinker<'a> {
     fn classify_output_script_statement(
         &self,
         module_id: ModuleId,
-        module: &ScriptModule,
+        module: &Module,
         statement_id: LocalNodeId<Statement>,
         output_id: ScriptOutputId,
         output_graph: &ScriptOutputGraph,
@@ -374,7 +378,7 @@ impl<'a> ScriptLinker<'a> {
     /// Apply one output-linked rewrite action to one statement root.
     fn apply_output_script_statement_rewrite(
         &self,
-        module: &mut ScriptModule,
+        module: &mut Module,
         root: LocalNodeIdAny,
         statement_id: LocalNodeId<Statement>,
         action: OutputStatementRewriteAction,
@@ -415,7 +419,7 @@ impl<'a> ScriptLinker<'a> {
     /// Collect all dynamic import call expressions in one script module.
     fn collect_script_dynamic_import_calls(
         &self,
-        module: &ScriptModule,
+        module: &Module,
     ) -> Vec<LocalNodeId<Expression>> {
         let mut collector = DynamicImportCallCollector::default();
 
@@ -431,7 +435,7 @@ impl<'a> ScriptLinker<'a> {
     fn rewrite_output_dynamic_import_call(
         &self,
         module_id: ModuleId,
-        module: &mut ScriptModule,
+        module: &mut Module,
         import_call_id: LocalNodeId<Expression>,
         output_id: ScriptOutputId,
         output_graph: &ScriptOutputGraph,
@@ -523,13 +527,13 @@ impl<'a> ScriptLinker<'a> {
         &self,
         output_id: ScriptOutputId,
         module_id: ModuleId,
-        script: &ScriptArtifact,
+        script: &ScriptOutput,
         output_graph: &ScriptOutputGraph,
         output_layout: &ScriptOutputLayout,
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-    ) -> LinkResult<ScriptModule> {
+    ) -> LinkResult<Module> {
         let mut module = script.module.clone();
         let roots = module.roots.clone();
         let mut rewritten_roots = Vec::with_capacity(module.roots.len());

@@ -1,8 +1,8 @@
 use destack_core::StringRef;
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::LowerResult;
 use crate::lower::FunctionLowerer;
+use crate::{CompilerError, CompilerResult};
 
 /// The ordered atomic metadata arguments appended to intrinsic calls.
 const ATOMIC_METADATA_SLOTS: [AtomicMetadataSlot; 7] = [
@@ -128,7 +128,7 @@ impl FunctionLowerer<'_> {
         target_symbol: dir::GlobalSymbolId,
         resolution_receiver: Option<dir::LocalTypeId>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
-    ) -> LowerResult<Option<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)>> {
+    ) -> CompilerResult<Option<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)>> {
         // resolve the intrinsic binding name
         let name_id = match self.resolve_intrinsic_binding_name_id(target_symbol)? {
             Some(name_id) => name_id,
@@ -138,7 +138,9 @@ impl FunctionLowerer<'_> {
 
         // intrinsic bindings are free functions
         if resolution_receiver.is_some() {
-            return Err(self.error(expression_id, "intrinsic calls cannot use a receiver"));
+            return Err(self
+                .error(expression_id, "intrinsic calls cannot use a receiver")
+                .into());
         }
 
         // resolve the result type
@@ -157,7 +159,7 @@ impl FunctionLowerer<'_> {
         name: &str,
         result_type: mir::LocalNodeId<mir::Type>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
-    ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         // numeric cast intrinsics
         if name == "fcvt_to_sint.sat" {
             return self
@@ -224,15 +226,17 @@ impl FunctionLowerer<'_> {
         result_type: mir::LocalNodeId<mir::Type>,
         operator: mir::CastOperator,
         intrinsic_name: &str,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let arguments = self.lower_positional_arguments(expression_id, arguments)?;
         let argument = match arguments.as_slice() {
             [argument] => *argument,
             _ => {
-                return Err(self.error(
-                    expression_id,
-                    format!("{intrinsic_name} expects a single argument"),
-                ));
+                return Err(self
+                    .error(
+                        expression_id,
+                        format!("{intrinsic_name} expects a single argument"),
+                    )
+                    .into());
             }
         };
         let value = self.state.builder.cast(operator, argument, result_type);
@@ -246,15 +250,17 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
         result_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let (argument, argument_type) =
             self.lower_single_positional_argument(expression_id, arguments, "splat")?;
         let element_type = self.vector_element_type(expression_id, result_type, "splat")?;
         if argument_type != element_type {
-            return Err(self.error(
-                expression_id,
-                "splat argument type must match vector element type",
-            ));
+            return Err(self
+                .error(
+                    expression_id,
+                    "splat argument type must match vector element type",
+                )
+                .into());
         }
 
         let value = self.state.builder.vector_splat(result_type, argument);
@@ -268,11 +274,13 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
         result_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let argument_ids = match arguments {
             [mask_id, then_id, else_id] => (*mask_id, *then_id, *else_id),
             _ => {
-                return Err(self.error(expression_id, "select expects a mask and two values"));
+                return Err(self
+                    .error(expression_id, "select expects a mask and two values")
+                    .into());
             }
         };
 
@@ -294,29 +302,37 @@ impl FunctionLowerer<'_> {
 
         // check for matching vector types
         if then_element != else_element || then_lanes != else_lanes {
-            return Err(self.error(
-                expression_id,
-                "select values must have matching vector types",
-            ));
+            return Err(self
+                .error(
+                    expression_id,
+                    "select values must have matching vector types",
+                )
+                .into());
         }
         if then_element != result_element || then_lanes != result_lanes {
-            return Err(self.error(
-                expression_id,
-                "select result type must match vector operand types",
-            ));
+            return Err(self
+                .error(
+                    expression_id,
+                    "select result type must match vector operand types",
+                )
+                .into());
         }
         if mask_lanes != then_lanes {
-            return Err(self.error(
-                expression_id,
-                "select mask lane count must match value lane count",
-            ));
+            return Err(self
+                .error(
+                    expression_id,
+                    "select mask lane count must match value lane count",
+                )
+                .into());
         }
 
         if !matches!(
             self.state.builder.tree().get(mask_element),
             mir::Type::Boolean
         ) {
-            return Err(self.error(expression_id, "select mask element type must be boolean"));
+            return Err(self
+                .error(expression_id, "select mask element type must be boolean")
+                .into());
         }
 
         let value = self
@@ -334,7 +350,7 @@ impl FunctionLowerer<'_> {
         name: &str,
         result_type: mir::LocalNodeId<mir::Type>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
-    ) -> LowerResult<Option<(mir::Value, mir::LocalNodeId<mir::Type>)>> {
+    ) -> CompilerResult<Option<(mir::Value, mir::LocalNodeId<mir::Type>)>> {
         let operator = match mir::VectorReduceOperator::try_from(name) {
             Ok(operator) => operator,
             Err(_) => return Ok(None),
@@ -344,10 +360,12 @@ impl FunctionLowerer<'_> {
             self.lower_single_positional_argument(expression_id, arguments, name)?;
         let element_type = self.vector_element_type(expression_id, argument_type, name)?;
         if result_type != element_type {
-            return Err(self.error(
-                expression_id,
-                "reduce intrinsic result type must match vector element type",
-            ));
+            return Err(self
+                .error(
+                    expression_id,
+                    "reduce intrinsic result type must match vector element type",
+                )
+                .into());
         }
 
         let value = self.state.builder.vector_reduce(operator, argument);
@@ -362,19 +380,24 @@ impl FunctionLowerer<'_> {
         name: &str,
         result_type: mir::LocalNodeId<mir::Type>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        let intrinsic: mir::Intrinsic = name.parse().map_err(|_| {
-            self.error(
-                expression_id,
-                format!("unsupported intrinsic binding '{name}'"),
-            )
-        })?;
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        let intrinsic: mir::Intrinsic = name
+            .parse()
+            .map_err(|_| {
+                self.error(
+                    expression_id,
+                    format!("unsupported intrinsic binding '{name}'"),
+                )
+            })
+            .map_err(CompilerError::from)?;
 
         if intrinsic.is_comptime_only() {
-            return Err(self.error(
-                expression_id,
-                "comptime-only intrinsics cannot be lowered here",
-            ));
+            return Err(self
+                .error(
+                    expression_id,
+                    "comptime-only intrinsics cannot be lowered here",
+                )
+                .into());
         }
 
         let arguments = self.lower_positional_arguments(expression_id, arguments)?;
@@ -392,14 +415,16 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
         intrinsic_name: &str,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let argument_id = match arguments {
             [argument_id] => *argument_id,
             _ => {
-                return Err(self.error(
-                    expression_id,
-                    format!("{intrinsic_name} expects a single argument"),
-                ));
+                return Err(self
+                    .error(
+                        expression_id,
+                        format!("{intrinsic_name} expects a single argument"),
+                    )
+                    .into());
             }
         };
 
@@ -415,18 +440,23 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         vector_type: mir::LocalNodeId<mir::Type>,
         intrinsic_name: &str,
-    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         match self.state.builder.tree().get(vector_type) {
-            mir::Type::Vector { element, .. } => element.ty().ok_or_else(|| {
-                self.error(
+            mir::Type::Vector { element, .. } => element
+                .ty()
+                .ok_or_else(|| {
+                    self.error(
+                        expression_id,
+                        format!("{intrinsic_name} element type is not concrete"),
+                    )
+                })
+                .map_err(CompilerError::from),
+            _ => Err(self
+                .error(
                     expression_id,
-                    format!("{intrinsic_name} element type is not concrete"),
+                    format!("{intrinsic_name} expects a vector type"),
                 )
-            }),
-            _ => Err(self.error(
-                expression_id,
-                format!("{intrinsic_name} expects a vector type"),
-            )),
+                .into()),
         }
     }
 
@@ -436,7 +466,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         vector_type: mir::LocalNodeId<mir::Type>,
         intrinsic_name: &str,
-    ) -> LowerResult<(mir::LocalNodeId<mir::Type>, u32)> {
+    ) -> CompilerResult<(mir::LocalNodeId<mir::Type>, u32)> {
         match self.state.builder.tree().get(vector_type) {
             mir::Type::Vector { element, lanes, .. } => {
                 let element = element.ty().ok_or_else(|| {
@@ -447,10 +477,12 @@ impl FunctionLowerer<'_> {
                 })?;
                 Ok((element, *lanes))
             }
-            _ => Err(self.error(
-                expression_id,
-                format!("{intrinsic_name} expects a vector type"),
-            )),
+            _ => Err(self
+                .error(
+                    expression_id,
+                    format!("{intrinsic_name} expects a vector type"),
+                )
+                .into()),
         }
     }
 
@@ -459,12 +491,14 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
-    ) -> LowerResult<Vec<mir::Value>> {
+    ) -> CompilerResult<Vec<mir::Value>> {
         let mut argument_values = Vec::with_capacity(arguments.len());
         for argument_id in arguments {
             let argument = self.context.dir_tree.get(*argument_id);
             if !matches!(argument, dir::Argument::Positional { .. }) {
-                return Err(self.error(expression_id, "unsupported non-positional argument"));
+                return Err(self
+                    .error(expression_id, "unsupported non-positional argument")
+                    .into());
             }
             let (value, _) = self.lower_value_expression(argument.value())?;
             argument_values.push(value);
@@ -480,15 +514,17 @@ impl FunctionLowerer<'_> {
         kind: AtomicIntrinsicKind,
         arguments: &[dir::LocalNodeId<dir::Argument>],
         result_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         let base_args = kind.value_argument_count();
         let metadata_args = ATOMIC_METADATA_SLOTS.len();
 
         if arguments.len() != base_args + metadata_args {
-            return Err(self.error(
-                expression_id,
-                "atomic intrinsic arguments must include explicit synchronization metadata",
-            ));
+            return Err(self
+                .error(
+                    expression_id,
+                    "atomic intrinsic arguments must include explicit synchronization metadata",
+                )
+                .into());
         }
 
         let (value_args, metadata_args) = arguments.split_at(base_args);
@@ -498,7 +534,9 @@ impl FunctionLowerer<'_> {
         let value = match kind {
             AtomicIntrinsicKind::Load => {
                 let [pointer] = arguments.as_slice() else {
-                    return Err(self.error(expression_id, "atomic.load expects one pointer"));
+                    return Err(self
+                        .error(expression_id, "atomic.load expects one pointer")
+                        .into());
                 };
 
                 Some(
@@ -509,7 +547,9 @@ impl FunctionLowerer<'_> {
             }
             AtomicIntrinsicKind::Store => {
                 let [pointer, value] = arguments.as_slice() else {
-                    return Err(self.error(expression_id, "atomic.store expects pointer and value"));
+                    return Err(self
+                        .error(expression_id, "atomic.store expects pointer and value")
+                        .into());
                 };
 
                 self.state
@@ -519,10 +559,12 @@ impl FunctionLowerer<'_> {
             }
             AtomicIntrinsicKind::CompareExchange { is_weak } => {
                 let [pointer, expected, new_value] = arguments.as_slice() else {
-                    return Err(self.error(
-                        expression_id,
-                        "atomic.cas expects pointer, expected, and new value",
-                    ));
+                    return Err(self
+                        .error(
+                            expression_id,
+                            "atomic.cas expects pointer, expected, and new value",
+                        )
+                        .into());
                 };
 
                 Some(self.state.builder.atomic_compare_exchange(
@@ -536,7 +578,9 @@ impl FunctionLowerer<'_> {
             }
             AtomicIntrinsicKind::Rmw { operator } => {
                 let [pointer, value] = arguments.as_slice() else {
-                    return Err(self.error(expression_id, "atomic.rmw expects pointer and value"));
+                    return Err(self
+                        .error(expression_id, "atomic.rmw expects pointer and value")
+                        .into());
                 };
 
                 Some(self.state.builder.atomic_rmw(
@@ -561,10 +605,12 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         argument_id: dir::LocalNodeId<dir::Argument>,
-    ) -> LowerResult<dir::LocalNodeId<dir::Expression>> {
+    ) -> CompilerResult<dir::LocalNodeId<dir::Expression>> {
         let argument = self.context.dir_tree.get(argument_id);
         if !matches!(argument, dir::Argument::Positional { .. }) {
-            return Err(self.error(expression_id, "unsupported non-positional argument"));
+            return Err(self
+                .error(expression_id, "unsupported non-positional argument")
+                .into());
         }
 
         Ok(argument.value())
@@ -575,12 +621,14 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         metadata_args: &[dir::LocalNodeId<dir::Argument>],
-    ) -> LowerResult<AtomicMetadata> {
+    ) -> CompilerResult<AtomicMetadata> {
         if metadata_args.len() != ATOMIC_METADATA_SLOTS.len() {
-            return Err(self.error(
-                expression_id,
-                "atomic intrinsic metadata argument count mismatch",
-            ));
+            return Err(self
+                .error(
+                    expression_id,
+                    "atomic intrinsic metadata argument count mismatch",
+                )
+                .into());
         }
 
         let mut ordering = None;
@@ -619,11 +667,14 @@ impl FunctionLowerer<'_> {
         }
 
         let ordering = ordering
-            .ok_or_else(|| self.error(expression_id, "atomic intrinsic missing memory ordering"))?;
-        let scope =
-            scope.ok_or_else(|| self.error(expression_id, "atomic intrinsic missing scope"))?;
+            .ok_or_else(|| self.error(expression_id, "atomic intrinsic missing memory ordering"))
+            .map_err(CompilerError::from)?;
+        let scope = scope
+            .ok_or_else(|| self.error(expression_id, "atomic intrinsic missing scope"))
+            .map_err(CompilerError::from)?;
         let memory_scope = memory_scope
-            .ok_or_else(|| self.error(expression_id, "atomic intrinsic missing memory scope"))?;
+            .ok_or_else(|| self.error(expression_id, "atomic intrinsic missing memory scope"))
+            .map_err(CompilerError::from)?;
         let spaces = spaces.ok_or_else(|| {
             self.error(expression_id, "atomic intrinsic missing memory space set")
         })?;
@@ -651,13 +702,14 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         argument_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<mir::MemoryOrdering> {
+    ) -> CompilerResult<mir::MemoryOrdering> {
         let name = self.enum_member_name(expression_id, argument_id)?;
         mir::MemoryOrdering::try_from(name.as_ref()).map_err(|_| {
             self.error(
                 expression_id,
                 "unsupported memory ordering for atomic intrinsic",
             )
+            .into()
         })
     }
 
@@ -666,13 +718,14 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         argument_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<mir::SyncScope> {
+    ) -> CompilerResult<mir::SyncScope> {
         let name = self.enum_member_name(expression_id, argument_id)?;
         mir::SyncScope::try_from(name.as_ref()).map_err(|_| {
             self.error(
                 expression_id,
                 "unsupported synchronization scope for atomic intrinsic",
             )
+            .into()
         })
     }
 
@@ -681,13 +734,14 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         argument_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<mir::MemoryScope> {
+    ) -> CompilerResult<mir::MemoryScope> {
         let name = self.enum_member_name(expression_id, argument_id)?;
         mir::MemoryScope::try_from(name.as_ref()).map_err(|_| {
             self.error(
                 expression_id,
                 "unsupported memory scope for atomic intrinsic",
             )
+            .into()
         })
     }
 
@@ -696,13 +750,14 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         argument_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<mir::MemorySpaceSet> {
+    ) -> CompilerResult<mir::MemorySpaceSet> {
         let name = self.enum_member_name(expression_id, argument_id)?;
         mir::MemorySpaceSet::try_from(name.as_ref()).map_err(|_| {
             self.error(
                 expression_id,
                 "unsupported memory space set for atomic intrinsic",
             )
+            .into()
         })
     }
 
@@ -711,7 +766,7 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         argument_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<bool> {
+    ) -> CompilerResult<bool> {
         let mut current = argument_id;
         while let dir::Expression::Parenthesized { expression } = self.context.dir_tree.get(current)
         {
@@ -722,10 +777,12 @@ impl FunctionLowerer<'_> {
             dir::Expression::ScalarLiteral {
                 value: dir::ScalarLiteral::Boolean(value),
             } => Ok(*value),
-            _ => Err(self.error(
-                expression_id,
-                "atomic intrinsic metadata must be boolean literals",
-            )),
+            _ => Err(self
+                .error(
+                    expression_id,
+                    "atomic intrinsic metadata must be boolean literals",
+                )
+                .into()),
         }
     }
 
@@ -734,7 +791,7 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         argument_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<StringRef<'_>> {
+    ) -> CompilerResult<StringRef<'_>> {
         let mut current = argument_id;
         while let dir::Expression::Parenthesized { expression } = self.context.dir_tree.get(current)
         {
@@ -742,15 +799,18 @@ impl FunctionLowerer<'_> {
         }
 
         let Some(symbol) = self.resolved_member_symbol(current) else {
-            return Err(self.error(
-                expression_id,
-                "atomic intrinsic metadata must be enum members",
-            ));
+            return Err(self
+                .error(
+                    expression_id,
+                    "atomic intrinsic metadata must be enum members",
+                )
+                .into());
         };
         let symbol = self.context.symbols.get_symbol(symbol.local_id);
         let name_id = symbol
             .name()
-            .ok_or_else(|| self.error(expression_id, "enum member missing name"))?;
+            .ok_or_else(|| self.error(expression_id, "enum member missing name"))
+            .map_err(CompilerError::from)?;
         Ok(self.context.strings.get(name_id))
     }
 }

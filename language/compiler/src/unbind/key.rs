@@ -9,9 +9,9 @@ use crate::Compiler;
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Unbind a DIR name to an AST name.
-    pub(super) fn unbind_name(&self, ast_strings: &mut StringPool, name: dir::Name) -> ast::Name {
+    pub(super) fn unbind_name(&self, _ast_strings: &mut StringPool, name: dir::Name) -> ast::Name {
         // intern the name into the ast string pool
-        let name_id = ast_strings.intern_from(&self.repository.strings, name.string());
+        let name_id = name.string();
 
         // preserve the name flavor
         match name {
@@ -39,7 +39,7 @@ impl Compiler {
                 ast::Key::Name(name)
             }
             dir::Key::Private(name) => {
-                let name = ast_strings.intern_from(&self.repository.strings, *name);
+                let name = *name;
                 ast::Key::Private(name)
             }
             dir::Key::Expression(expression) => {

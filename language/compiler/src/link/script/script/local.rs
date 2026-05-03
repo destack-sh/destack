@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
 use destack_ast::is_identifier;
-use destack_core::StringId;
+use destack_core::{StringId, StringPool};
 use destack_source::{ModuleId, PackageId, TargetId};
-use destack_workspace::Target;
+use destack_workspace::{ProviderContext, Target};
 use {destack_codegen_js as js, destack_dir as dir};
 
 use crate::{Compiler, LinkError, LinkResult};
@@ -13,12 +13,13 @@ impl Compiler {
     /// Rewrite one same-output resource import into local bindings.
     pub(crate) fn resource_import_replacement(
         &self,
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         statement_id: js::LocalNodeId<js::Statement>,
         module_id: ModuleId,
         target_module: ModuleId,
         target_id: &TargetId,
         package_id: PackageId,
+        _context: &dyn ProviderContext,
     ) -> LinkResult<Vec<js::LocalNodeId<js::Statement>>> {
         let items = {
             let statement = module.tree.get(statement_id);
@@ -51,10 +52,12 @@ impl Compiler {
             let is_namespace = item.mode == js::DependencyMode::Namespace;
             let binding_name = match item.mode {
                 js::DependencyMode::Default => item.alias.ok_or_else(|| LinkError::Internal {
+                    anchor: (package_id).into(),
                     package: package_id,
                     message: "resource default import is missing an alias".to_string(),
                 })?,
                 js::DependencyMode::Namespace => item.alias.ok_or_else(|| LinkError::Internal {
+                    anchor: (package_id).into(),
                     package: package_id,
                     message: "resource namespace import is missing an alias".to_string(),
                 })?,
@@ -150,7 +153,7 @@ impl Compiler {
     /// Rewrite one same-output code import into local bindings or direct symbol retargets.
     pub(crate) fn same_output_import_replacement(
         &self,
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         statement_id: js::LocalNodeId<js::Statement>,
         module_id: ModuleId,
         target_module: ModuleId,
@@ -158,6 +161,7 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
+        context: &dyn ProviderContext,
     ) -> LinkResult<Vec<js::LocalNodeId<js::Statement>>> {
         let mut declarators = Vec::new();
 
@@ -206,6 +210,7 @@ impl Compiler {
                     target,
                     target_id,
                     package_id,
+                    context,
                 )?;
                 let pattern = module.tree.insert_from(
                     js::Pattern::Binding {
@@ -233,20 +238,18 @@ impl Compiler {
             }
 
             let (target_symbol, target_binding_name) = self.same_output_import_target_binding(
-                module, item_id, module_id, profile_id, package_id,
+                module, item_id, module_id, profile_id, package_id, context,
             )?;
             let local_binding_content = module.strings.get(local_binding_name).to_string();
-            let target_binding_content =
-                self.repository.strings.get(target_binding_name).to_string();
 
             // direct symbol rewrites avoid emitting invalid `const x = x`
-            if local_binding_content == target_binding_content {
+            if local_binding_content == target_binding_name {
                 if let Some(local_symbol) = module.tree.symbol(item_id) {
                     self.retarget_same_output_import_symbol_references(
                         module,
                         local_symbol,
                         js::ScriptSymbolId::Source(target_symbol),
-                        target_binding_name,
+                        &target_binding_name,
                     );
                 }
 
@@ -257,7 +260,7 @@ impl Compiler {
             let value = self.insert_same_output_symbol_path(
                 module,
                 statement_id,
-                target_binding_name,
+                &target_binding_name,
                 target_symbol,
             );
             let pattern = module.tree.insert_from(
@@ -302,21 +305,23 @@ impl Compiler {
     /// Return the printable target binding for one same-output import item.
     fn same_output_import_target_binding(
         &self,
-        module: &js::ScriptModule,
+        module: &js::Module,
         item_id: js::LocalNodeId<js::DependencyItem>,
         module_id: ModuleId,
         profile_id: destack_source::ProfileId,
         package_id: PackageId,
-    ) -> LinkResult<(dir::GlobalSymbolId, StringId)> {
-        let source_directory =
-            self.dir_resolved(module_id, profile_id)
-                .ok_or_else(|| LinkError::Internal {
-                    package: package_id,
-                    message: format!(
-                        "missing resolved dir for same-output import rewrite module {:?}",
-                        module_id
-                    ),
-                })?;
+        context: &dyn ProviderContext,
+    ) -> LinkResult<(dir::GlobalSymbolId, String)> {
+        let source_directory = self.dir_declared(context, module_id, profile_id).map_err(
+            |error| LinkError::Internal {
+                anchor: (package_id).into(),
+                package: package_id,
+                message: format!(
+                    "missing declared dir for same-output import rewrite module {:?}: {error:?}",
+                    module_id,
+                ),
+            },
+        )?;
         let (_, source_id) = module.tree.get_source(item_id.id);
         let source_item_id = dir::LocalNodeId::<dir::DependencyItem>::new(source_id);
         let source_item = source_directory.tree.get(source_item_id);
@@ -324,6 +329,7 @@ impl Compiler {
         let target_symbol = source_item
             .target_symbol()
             .ok_or_else(|| LinkError::Internal {
+                anchor: (package_id).into(),
                 package: package_id,
                 message: format!(
                     "missing target symbol for same-output import rewrite item {:?} in module {:?}",
@@ -331,7 +337,7 @@ impl Compiler {
                 ),
             })?;
 
-        self.resolve_same_output_printable_symbol(target_symbol, profile_id, package_id)
+        self.resolve_same_output_printable_symbol(target_symbol, profile_id, package_id, context)
     }
 
     /// Resolve one same-output symbol to a printable binding symbol and name.
@@ -340,13 +346,15 @@ impl Compiler {
         symbol_id: dir::GlobalSymbolId,
         profile_id: destack_source::ProfileId,
         package_id: PackageId,
-    ) -> LinkResult<(dir::GlobalSymbolId, StringId)> {
+        context: &dyn ProviderContext,
+    ) -> LinkResult<(dir::GlobalSymbolId, String)> {
         let mut current_symbol = symbol_id;
         let mut visited_symbols = HashSet::new();
 
         loop {
             if !visited_symbols.insert(current_symbol) {
                 return Err(LinkError::Internal {
+                    anchor: (package_id).into(),
                     package: package_id,
                     message: format!(
                         "same-output import target symbol {:?} has a cycle in its symbol chain",
@@ -356,12 +364,13 @@ impl Compiler {
             }
 
             let source_directory = self
-                .dir_resolved(current_symbol.module_id, profile_id)
-                .ok_or_else(|| LinkError::Internal {
+                .dir_declared(context, current_symbol.module_id, profile_id)
+                .map_err(|error| LinkError::Internal {
+                    anchor: (package_id).into(),
                     package: package_id,
                     message: format!(
-                        "missing resolved dir for same-output import target symbol {:?}",
-                        current_symbol
+                        "missing declared dir for same-output import target symbol {:?}: {error:?}",
+                        current_symbol,
                     ),
                 })?;
             let symbol = source_directory.symbols.get_symbol(current_symbol.local_id);
@@ -373,11 +382,15 @@ impl Compiler {
                 .and_then(|binding| binding.name)
                 .or_else(|| symbol.name())
             {
-                return Ok((current_symbol, name));
+                return Ok((
+                    current_symbol,
+                    source_directory.strings.get(name).to_string(),
+                ));
             }
 
             let Some(next_symbol) = symbol.target_symbol.or(symbol.canonical_symbol) else {
                 return Err(LinkError::Internal {
+                    anchor: (package_id).into(),
                     package: package_id,
                     message: format!(
                         "same-output import target symbol {:?} has no printable binding name",
@@ -393,13 +406,12 @@ impl Compiler {
     /// Insert one path expression that resolves to one source-backed symbol.
     fn insert_same_output_symbol_path(
         &self,
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         statement_id: js::LocalNodeId<js::Statement>,
-        name: StringId,
+        name: &str,
         symbol_id: dir::GlobalSymbolId,
     ) -> js::LocalNodeId<js::Expression> {
-        let content = self.repository.strings.get(name);
-        let content = module.strings.intern(&content);
+        let content = module.strings.intern(name);
         let value = module.tree.insert_from(
             js::Expression::Path {
                 path: js::Path {
@@ -419,13 +431,12 @@ impl Compiler {
     /// Retarget path references from one local import symbol to one same-output target symbol.
     fn retarget_same_output_import_symbol_references(
         &self,
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         from_symbol: js::ScriptSymbolId,
         to_symbol: js::ScriptSymbolId,
-        target_name: StringId,
+        target_name: &str,
     ) {
-        let target_name = self.repository.strings.get(target_name);
-        let target_name = module.strings.intern(&target_name);
+        let target_name = module.strings.intern(target_name);
 
         for expression_id in module.tree.get_nodes::<js::Expression>() {
             if module.tree.symbol(expression_id) != Some(from_symbol) {
@@ -448,7 +459,7 @@ impl Compiler {
     /// Retarget path references from one local import symbol to one resource wrapper binding.
     fn retarget_resource_import_symbol_references(
         &self,
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         from_symbol: js::ScriptSymbolId,
         binding_name: StringId,
         target_module: ModuleId,
@@ -533,29 +544,41 @@ impl Compiler {
     /// Build one namespace bridge object for one same-output import.
     fn build_same_output_namespace_bridge_expression(
         &self,
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         statement_id: js::LocalNodeId<js::Statement>,
         module_id: ModuleId,
         target_module: ModuleId,
         profile_id: destack_source::ProfileId,
-        target: &Target,
+        _target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
+        context: &dyn ProviderContext,
     ) -> LinkResult<js::LocalNodeId<js::Expression>> {
         let target_directory = self
-            .dir_resolved(target_module, profile_id)
-            .ok_or_else(|| LinkError::Internal {
+            .require_dir_exported(context, target_module, profile_id)
+            .map_err(|error| LinkError::Internal {
+                anchor: (package_id).into(),
                 package: package_id,
                 message: format!(
-                    "missing resolved dir for same-output namespace import target {:?}",
-                    target_module
+                    "missing resolved dir for same-output namespace import target {:?}: {error:?}",
+                    target_module,
+                ),
+            })?;
+        let target_declared = self
+            .dir_declared(context, target_module, profile_id)
+            .map_err(|error| LinkError::Internal {
+                anchor: (package_id).into(),
+                package: package_id,
+                message: format!(
+                    "missing declared dir for same-output namespace import target {:?}: {error:?}",
+                    target_module,
                 ),
             })?;
         let mut seen_keys = HashSet::new();
         let mut properties = Vec::new();
 
         // runtime value exports
-        for ((space, key), export) in target_directory.exported_symbols.iter() {
+        for ((space, key), export) in target_directory.export_by_symbol_key.iter() {
             if !matches!(space, dir::SymbolSpace::Value | dir::SymbolSpace::TypeValue) {
                 continue;
             }
@@ -566,15 +589,25 @@ impl Compiler {
             let Some(target_symbol) = export.target.resolved() else {
                 continue;
             };
-            let (target_symbol, target_name) =
-                self.resolve_same_output_printable_symbol(target_symbol, profile_id, package_id)?;
+            let (target_symbol, target_name) = self.resolve_same_output_printable_symbol(
+                target_symbol,
+                profile_id,
+                package_id,
+                context,
+            )?;
             let key = self.same_output_namespace_key(
-                module_id, module, *key, target, target_id, package_id,
+                module_id,
+                module,
+                &target_declared.strings,
+                *key,
+                target_id,
+                package_id,
+                context,
             )?;
             let value = self.insert_same_output_symbol_path(
                 module,
                 statement_id,
-                target_name,
+                &target_name,
                 target_symbol,
             );
             let return_statement = module
@@ -619,15 +652,16 @@ impl Compiler {
     fn same_output_namespace_key(
         &self,
         module_id: ModuleId,
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
+        target_strings: &StringPool,
         key: dir::StaticKey,
-        _target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
+        context: &dyn ProviderContext,
     ) -> LinkResult<js::Key> {
         let name = match key {
             dir::StaticKey::Name(name) => {
-                let content = self.repository.strings.get(name);
+                let content = target_strings.get(name);
                 let name = module.strings.intern(&content);
 
                 if is_identifier(&content) {
@@ -637,7 +671,7 @@ impl Compiler {
                 }
             }
             dir::StaticKey::Number(name) => {
-                let name = self.repository.strings.get(name);
+                let name = target_strings.get(name);
                 let name = module.strings.intern(&name);
                 js::Name::String(name)
             }
@@ -648,7 +682,7 @@ impl Compiler {
                     target: target_id.clone(),
                     message: format!(
                         "bundled same-output namespace imports do not support symbol-keyed exports in '{}'",
-                        self.target_name_for_revision(self.current_context().revision(), target_id)
+                        self.target_name(context.revision(), target_id)
                     ),
                 });
             }

@@ -13,16 +13,18 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerError {
         LowerError::MissingType {
-            node: expression_id
-                .into_global_any(self.context.module_id)
-                .into_anchored(Some(self.context.profile)),
+            anchor: self.diagnostic_anchor(
+                expression_id
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
+            ),
         }
     }
 
     /// Create a MissingType error for the given node.
     pub(crate) fn missing_type_error_for_node(&self, node_id: dir::GlobalNodeIdAny) -> LowerError {
         LowerError::MissingType {
-            node: node_id.into_anchored(Some(self.context.profile)),
+            anchor: self.diagnostic_anchor(node_id.into_anchored(Some(self.context.profile))),
         }
     }
 
@@ -37,8 +39,32 @@ impl FunctionLowerer<'_> {
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // resolve the dir type id for the expression
         let type_id = self.type_for_expression_or_error(expression_id)?;
+        let node = expression_id.into_global_any(self.context.module_id);
 
-        // unwrap value wrappers for primitive type lookup
+        self.lower_type_id_for_node(type_id, node)
+    }
+
+    /// Resolve the MIR type for a type expression.
+    pub(crate) fn lower_type_for_type_expression(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        // resolve the dir type id for the explicit type syntax
+        let node = expression_id.into_global_any(self.context.module_id);
+        let type_id = self
+            .type_id_for_type_expression(expression_id)
+            .ok_or_else(|| self.missing_type_error_for_node(node))?;
+
+        self.lower_type_id_for_node(type_id, node)
+    }
+
+    /// Resolve the MIR type for a DIR type id.
+    pub(crate) fn lower_type_id_for_node(
+        &mut self,
+        type_id: dir::LocalTypeId,
+        node: dir::GlobalNodeIdAny,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        // unwrap value wrappers for MIR type lookup
         let type_id = self.unwrap_value_type_id(type_id);
 
         // return cached types when available
@@ -47,7 +73,8 @@ impl FunctionLowerer<'_> {
         }
 
         // resolve scalar types directly when possible
-        if let Some(scalar_type) = self.scalar_type_for_expression(expression_id) {
+        let dir_type = self.context.types.get_type(type_id);
+        if let Some(scalar_type) = self.context.type_lowerer.scalar_type_for_dir_type(dir_type) {
             return match scalar_type {
                 ScalarType::Bool => Some(self.context.type_lowerer.ty_bool),
                 ScalarType::SignedInt { width: 32 } => Some(self.context.type_lowerer.ty_i32),
@@ -62,11 +89,10 @@ impl FunctionLowerer<'_> {
                 ScalarType::Float { width: 64 } => Some(self.context.type_lowerer.ty_f64),
                 _ => None,
             }
-            .ok_or_else(|| self.missing_type_error(expression_id));
+            .ok_or_else(|| self.missing_type_error_for_node(node));
         }
 
         // resolve primitive string directly
-        let dir_type = self.context.types.get_type(type_id);
         if matches!(
             dir_type,
             dir::Type::TypeLiteral {
@@ -77,10 +103,10 @@ impl FunctionLowerer<'_> {
                 .context
                 .type_lowerer
                 .string_type()
-                .ok_or_else(|| self.missing_type_error(expression_id));
+                .ok_or_else(|| self.missing_type_error_for_node(node));
         }
 
-        Err(self.missing_type_error(expression_id))
+        Err(self.missing_type_error_for_node(node))
     }
 
     /// Resolve the scalar type for a typed expression.
@@ -174,6 +200,11 @@ impl FunctionLowerer<'_> {
         )?;
         match self.context.types.get_type(type_id) {
             dir::Type::Value { value } => Some(*value),
+            dir::Type::Reference { symbol, .. } => self
+                .context
+                .types
+                .get_instance_type_id(*symbol)
+                .or(Some(type_id)),
             _ => Some(type_id),
         }
     }
@@ -283,9 +314,11 @@ impl FunctionLowerer<'_> {
             .locals_by_symbol
             .get(&target_symbol)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "missing local reference target symbol".to_string(),
             })?;
 
@@ -303,9 +336,11 @@ impl FunctionLowerer<'_> {
             .globals_by_symbol
             .get(&target_symbol)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "unresolved symbol reference".to_string(),
             })?;
 

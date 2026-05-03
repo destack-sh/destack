@@ -4,7 +4,7 @@ use {destack_dir as dir, destack_mir as mir};
 use super::lower::TypeLowerer;
 use crate::{LowerError, LowerResult};
 
-impl TypeLowerer {
+impl TypeLowerer<'_> {
     /// Check if a symbol should be treated as the Vector intrinsic.
     pub(super) fn is_vector_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
         self.vector_symbol
@@ -23,7 +23,7 @@ impl TypeLowerer {
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // require static arguments for Vector<T, N>
         let generic_arguments = generic_arguments.ok_or_else(|| LowerError::UnsupportedType {
-            node,
+            anchor: self.diagnostic_anchor(node),
             ty: type_id.into_global(module_id),
             message: "Vector<T, N> requires static arguments".to_string(),
         })?;
@@ -54,9 +54,10 @@ impl TypeLowerer {
     ) -> LowerResult<(dir::StaticExpression, dir::StaticExpression)> {
         let [element_argument, lane_argument] = generic_arguments else {
             return Err(LowerError::InvalidStaticArgument {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "Vector<T, N> expects exactly two static arguments".to_string(),
-            });
+            }
+            .into());
         };
 
         let dir::StaticArgument::Evaluated {
@@ -65,9 +66,10 @@ impl TypeLowerer {
         } = element_argument
         else {
             return Err(LowerError::InvalidStaticArgument {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "Vector<T, N> requires positional evaluated static arguments".to_string(),
-            });
+            }
+            .into());
         };
 
         let dir::StaticArgument::Evaluated {
@@ -76,9 +78,10 @@ impl TypeLowerer {
         } = lane_argument
         else {
             return Err(LowerError::InvalidStaticArgument {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "Vector<T, N> requires positional evaluated static arguments".to_string(),
-            });
+            }
+            .into());
         };
 
         Ok((element_expression.clone(), lane_expression.clone()))
@@ -98,33 +101,36 @@ impl TypeLowerer {
                 dir::ScalarLiteral::Integer(value) | dir::ScalarLiteral::Bigint(value) => *value,
                 _ => {
                     return Err(LowerError::UnsupportedType {
-                        node,
+                        anchor: self.diagnostic_anchor(node),
                         ty: type_id.into_global(module_id),
                         message: "Vector<T, N> lane count must be an integer".to_string(),
-                    });
+                    }
+                    .into());
                 }
             },
             _ => {
                 return Err(LowerError::UnsupportedType {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     ty: type_id.into_global(module_id),
                     message: "Vector<T, N> lane count must be a scalar literal".to_string(),
-                });
+                }
+                .into());
             }
         };
 
         // validate lane count
         let lanes = u32::try_from(lane_count).map_err(|_| LowerError::UnsupportedType {
-            node,
+            anchor: self.diagnostic_anchor(node),
             ty: type_id.into_global(module_id),
             message: "Vector<T, N> lane count must fit in a u32".to_string(),
         })?;
         if lanes == 0 {
             return Err(LowerError::UnsupportedType {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
                 message: "Vector<T, N> lane count must be greater than zero".to_string(),
-            });
+            }
+            .into());
         }
 
         Ok(lanes)
@@ -143,10 +149,11 @@ impl TypeLowerer {
             dir::StaticExpression::Type { ty } => *ty,
             _ => {
                 return Err(LowerError::UnsupportedType {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     ty: type_id.into_global(module_id),
                     message: "Vector<T, N> element type must be a type argument".to_string(),
-                });
+                }
+                .into());
             }
         };
 

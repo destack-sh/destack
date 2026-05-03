@@ -28,27 +28,25 @@ function applyIdentity(input: int32): int32 {
         module_id,
         "native",
         r#"
-type makeIdentity.return#function = (int32) => int32;
+type makeIdentity.return.function = (int32) => int32;
 
-function makeIdentity(): makeIdentity.return#function {
+function makeIdentity(): makeIdentity.return.function {
 entry0:
-    value0: ref<EmptyFunctionEnvironment, managed> = null
-    value1: (int32) => int32 = callable.bind makeIdentity.lambda#7, value0
+    value0: ref?<{  }, managed> = null
+    value1: (int32) => int32 = callable.bind makeIdentity.lambda#6, value0
     return value1
 }
 
-type EmptyFunctionEnvironment {}
-
-@environment(ref<EmptyFunctionEnvironment, managed>)
-function makeIdentity.lambda#7(value0: int32): int32 {
+@environment(ref?<{  }, managed>)
+function makeIdentity.lambda#6(value0: int32): int32 {
 entry0(value0: int32):
     return value0
 }
 
 function applyIdentity(value0: int32): int32 {
 entry0(value0: int32):
-    value1: makeIdentity.return#function =
-        call makeIdentity(): () -> makeIdentity.return#function
+    value1: makeIdentity.return.function =
+        call makeIdentity(): () -> makeIdentity.return.function
     value2: int32 = call.indirect value1(value0): (int32) -> int32
     return value2
 }
@@ -91,35 +89,34 @@ function applyAdder(input: int32): int32 {
         module_id,
         "native",
         r#"
-type makeAdder.return#function = (int32) => int32;
-type makeAdder.lambda#9#env {
+type makeAdder.return.function = (int32) => int32;
+type env.7 {
     base: int32;
 }
 
-function makeAdder(): makeAdder.return#function {
+function makeAdder(): makeAdder.return.function {
 entry0:
     value0: int32 = 5int32
-    value1: ref<makeAdder.lambda#9#env, managed> = new makeAdder.lambda#9#env
+    value1: ref<env.7, managed> = new env.7
     value2: ref<int32, managed> = field.address value1, 0
     store value2, value0
-    value3: (int32) => int32 = callable.bind makeAdder.lambda#9, value1
+    value3: (int32) => int32 = callable.bind makeAdder.lambda#7, value1
     return value3
 }
 
-@environment(ref<makeAdder.lambda#9#env, managed>)
-function makeAdder.lambda#9(value0: int32): int32 {
+@environment(ref<env.7, managed>)
+function makeAdder.lambda#7(value0: int32): int32 {
 entry0(value0: int32):
-    value1: ref<makeAdder.lambda#9#env, managed> = callable.environment
+    value1: ref<env.7, managed> = callable.environment
     value2: ref<int32, managed> = field.address value1, 0
     value3: int32 = load value2
-    value4: int32 = cast.truncate value3 -> int32
-    value5: int32 = int.add value4, value0
-    return value5
+    value4: int32 = int.add value3, value0
+    return value4
 }
 
 function applyAdder(value0: int32): int32 {
 entry0(value0: int32):
-    value1: makeAdder.return#function = call makeAdder(): () -> makeAdder.return#function
+    value1: makeAdder.return.function = call makeAdder(): () -> makeAdder.return.function
     value2: int32 = call.indirect value1(value0): (int32) -> int32
     return value2
 }
@@ -165,28 +162,28 @@ function runCounter(): int32 {
         module_id,
         "native",
         r#"
-type makeCounter.return#function = () => int32;
-type makeCounter.lambda#8#env {
+type makeCounter.return.function = () => int32;
+type env.6 {
     count: ref<int32, managed>;
 }
 
-function makeCounter(): makeCounter.return#function {
+function makeCounter(): makeCounter.return.function {
 entry0:
     value0: int32 = 0int32
     value1: ref<int32, managed> = new int32
     store value1, value0
-    value2: ref<makeCounter.lambda#8#env, managed> = new makeCounter.lambda#8#env
+    value2: ref<env.6, managed> = new env.6
     value3: ref<ref<int32, managed>, managed> = field.address value2, 0
     value4: ref<int32, managed> = cast.bit value1 -> ref<int32, managed>
     store value3, value4
-    value5: () => int32 = callable.bind makeCounter.lambda#8, value2
+    value5: () => int32 = callable.bind makeCounter.lambda#6, value2
     return value5
 }
 
-@environment(ref<makeCounter.lambda#8#env, managed>)
-function makeCounter.lambda#8(): int32 {
+@environment(ref<env.6, managed>)
+function makeCounter.lambda#6(): int32 {
 entry0:
-    value0: ref<makeCounter.lambda#8#env, managed> = callable.environment
+    value0: ref<env.6, managed> = callable.environment
     value1: ref<ref<int32, managed>, managed> = field.address value0, 0
     value2: ref<int32, managed> = load value1
     value3: int32 = load value2
@@ -203,7 +200,7 @@ entry0:
 
 function runCounter(): int32 {
 entry0:
-    value0: makeCounter.return#function = call makeCounter(): () -> makeCounter.return#function
+    value0: makeCounter.return.function = call makeCounter(): () -> makeCounter.return.function
     value1: int32 = call.indirect value0(): () -> int32
     return value1
 }

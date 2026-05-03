@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::TestProgram;
-use crate::lower::string_literal_global_name_for_content;
+use crate::lower::module::string_literal_global_name_for_content;
 
 /// Interface call information extracted from MIR.
 #[derive(Debug, Clone, Copy)]

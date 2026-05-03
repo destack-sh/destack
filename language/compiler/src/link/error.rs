@@ -1,41 +1,24 @@
-use crate::{
-    CompileError, DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet,
-};
-use destack_compiler_macros::DefineError;
+use crate::DiagnosticAnchor;
+use destack_artifact_macros::Diagnostic;
 use destack_source::{PackageId, TargetId};
-use destack_workspace::Repository;
 
 /// Errors during the link phase.
-#[derive(Debug, Clone, PartialEq, DefineError)]
-#[phase(Link)]
+#[derive(Debug, Clone, PartialEq, Diagnostic)]
+#[diagnostic(severity = Error, phase = Link)]
 pub enum LinkError {
-    // -------------------------------------------------------------------------
-    // 0xx: Yield / requirement
-    // -------------------------------------------------------------------------
-    /// Wait for artifact requirement.
-    #[error(code = "EK000", r#yield)]
-    Yield { requirement: RequirementSet },
-
-    /// Yield requirement has failed.
-    #[error(code = "EK001", yield_failed)]
-    UnsatisfiedRequirement { requirement: RequirementSet },
-
-    /// Task was skipped due to stale versions.
-    #[error(code = "EK002", message = "task skipped")]
-    Skipped,
-
     // -------------------------------------------------------------------------
     // 1xx: Target issues
     // -------------------------------------------------------------------------
     /// Missing target.
-    #[error(code = "EK100", message = "missing target: {target}")]
+    #[diagnostic(code = "EK100", message = "missing target: {target}")]
     MissingTarget {
+        anchor: DiagnosticAnchor,
         package: PackageId,
         target: TargetId,
     },
 
     /// Invalid target configuration.
-    #[error(code = "EK101", message = "invalid target: {target}: {message}")]
+    #[diagnostic(code = "EK101", message = "invalid target: {target}: {message}")]
     InvalidTarget {
         anchor: DiagnosticAnchor,
         package: PackageId,
@@ -44,7 +27,7 @@ pub enum LinkError {
     },
 
     /// Invalid module kind for one linked subject.
-    #[error(
+    #[diagnostic(
         code = "EK102",
         message = "invalid module kind: {target}: {subject} expected {expected}, found '{found}'"
     )]
@@ -58,7 +41,7 @@ pub enum LinkError {
     },
 
     /// Unsupported suffix on one linked reference.
-    #[error(
+    #[diagnostic(
         code = "EK103",
         message = "unsupported reference suffix: {target}: {reference} does not support query or fragment suffix yet: '{value}'"
     )]
@@ -71,9 +54,9 @@ pub enum LinkError {
     },
 
     /// Missing graph edge for one linked reference.
-    #[error(
+    #[diagnostic(
         code = "EK104",
-        message = "missing reference edge: {target}: {reference} missing graph edge for module '{module}' site {site} and specifier '{specifier}'"
+        message = "missing reference edge: {target}: {reference} missing graph edge for module '{module}' site {reference_site} and specifier '{specifier}'"
     )]
     MissingReferenceEdge {
         anchor: DiagnosticAnchor,
@@ -81,12 +64,12 @@ pub enum LinkError {
         target: TargetId,
         reference: String,
         module: String,
-        site: u32,
+        reference_site: u32,
         specifier: String,
     },
 
     /// Invalid output path state for one linked subject.
-    #[error(
+    #[diagnostic(
         code = "EK105",
         message = "invalid output path: {target}: {subject} has no usable emitted path segment from '{value}'"
     )]
@@ -102,6 +85,10 @@ pub enum LinkError {
     // 9xx: Internal
     // -------------------------------------------------------------------------
     /// Internal error during linking.
-    #[error(code = "EK900", message = "internal error: {message}")]
-    Internal { package: PackageId, message: String },
+    #[diagnostic(code = "EK900", message = "internal error: {message}")]
+    Internal {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        message: String,
+    },
 }

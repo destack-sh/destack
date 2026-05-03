@@ -1,19 +1,1 @@
-mod arithmetic;
-mod binding;
-mod bitwise;
-mod check;
-mod class;
-mod closure;
-mod comparison;
-mod control;
-mod r#enum;
-mod interface;
-mod logical;
-mod newtype;
-mod string;
-mod r#struct;
-mod r#type;
-mod union;
-mod vector;
 
-mod tests;

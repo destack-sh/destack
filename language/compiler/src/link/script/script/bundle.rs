@@ -1,10 +1,10 @@
-use destack_artifact::ScriptArtifact;
+use destack_artifact::ScriptOutput;
 use destack_codegen_js as js;
 use destack_source::{ModuleId, PackageId, Span, TargetId};
-use destack_workspace::Target;
+use destack_workspace::{ProviderContext, Target};
 
 use super::super::ModuleSet;
-use crate::{Compiler, CompilerContext, LinkError, LinkResult};
+use crate::{Compiler, LinkError, LinkResult};
 
 impl Compiler {
     /// Return whether one module is a bundled entry.
@@ -21,10 +21,10 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> LinkResult<bool> {
         let dependency_target = self.script_dependency_target(specifier, target_module);
-        let module = context.module(module_id);
+        let module = self.module(context.revision(), module_id);
 
         self.should_bundle_script_dependency(
             Span::empty(module.file_id),
@@ -38,7 +38,7 @@ impl Compiler {
     /// Rewrite one bundled import statement and return the kept root when one remains.
     fn rewrite_import_statement(
         &self,
-        script: &mut js::ScriptModule,
+        script: &mut js::Module,
         module_id: ModuleId,
         statement_id: js::LocalNodeId<js::Statement>,
         kind: js::DependencyKind,
@@ -50,7 +50,7 @@ impl Compiler {
         target_id: &TargetId,
         package_id: PackageId,
         profile_id: destack_source::ProfileId,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> LinkResult<Option<js::LocalNodeIdAny>> {
         let is_internal = self.is_internal_script_dependency(
             module_id,
@@ -74,7 +74,7 @@ impl Compiler {
 
         // bundled resource imports become local value bindings
         if let Some(target_module) = target_module {
-            let target_module_ref = context.module(target_module);
+            let target_module_ref = self.module(context.revision(), target_module);
 
             if !target_module_ref.is_code() {
                 if items.is_empty() {
@@ -88,6 +88,7 @@ impl Compiler {
                     target_module,
                     target_id,
                     package_id,
+                    context,
                 )?;
 
                 return Ok(replacement.first().copied().map(js::LocalNodeId::into_any));
@@ -102,7 +103,7 @@ impl Compiler {
                 target: target_id.clone(),
                 message: format!(
                     "bundled internal import attributes are not supported yet in '{}'",
-                    self.target_name_for_revision(context.revision(), target_id)
+                    self.target_name(context.revision(), target_id)
                 ),
             });
         }
@@ -119,6 +120,7 @@ impl Compiler {
             target,
             target_id,
             package_id,
+            context,
         )?;
 
         Ok(replacement.first().copied().map(js::LocalNodeId::into_any))
@@ -127,7 +129,7 @@ impl Compiler {
     /// Rewrite one bundled export statement and return the kept root when one remains.
     fn rewrite_export_statement(
         &self,
-        script: &mut js::ScriptModule,
+        script: &mut js::Module,
         module_id: ModuleId,
         statement_id: js::LocalNodeId<js::Statement>,
         kind: js::DependencyKind,
@@ -138,7 +140,7 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> LinkResult<Option<js::LocalNodeIdAny>> {
         let Some(specifier) = specifier else {
             return Ok(if self.is_bundled_entry_module(module_set, module_id) {
@@ -180,7 +182,7 @@ impl Compiler {
                 target: target_id.clone(),
                 message: format!(
                     "bundled internal re-export rewriting is only implemented for plain named exports in '{}'",
-                    self.target_name_for_revision(context.revision(), target_id)
+                    self.target_name(context.revision(), target_id)
                 ),
             });
         }
@@ -197,7 +199,7 @@ impl Compiler {
     /// Rewrite one bundled top-level statement and return the kept root when one remains.
     fn rewrite_statement(
         &self,
-        script: &mut js::ScriptModule,
+        script: &mut js::Module,
         module_id: ModuleId,
         statement_id: js::LocalNodeId<js::Statement>,
         module_set: &ModuleSet,
@@ -205,7 +207,7 @@ impl Compiler {
         target_id: &TargetId,
         package_id: PackageId,
         profile_id: destack_source::ProfileId,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> LinkResult<Option<js::LocalNodeIdAny>> {
         let statement = script.tree.get(statement_id).clone();
 
@@ -277,14 +279,14 @@ impl Compiler {
     fn rewrite_module(
         &self,
         module_id: ModuleId,
-        script: &ScriptArtifact,
+        script: &ScriptOutput,
         module_set: &ModuleSet,
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
         profile_id: destack_source::ProfileId,
-        context: &CompilerContext<'_>,
-    ) -> LinkResult<js::ScriptModule> {
+        context: &dyn ProviderContext,
+    ) -> LinkResult<js::Module> {
         let mut module = script.module.clone();
         let mut rewritten_roots = Vec::with_capacity(module.roots.len());
         let roots = module.roots.clone();
@@ -377,14 +379,15 @@ impl Compiler {
     pub(crate) fn rewrite_script_module(
         &self,
         module_id: ModuleId,
-        script: &ScriptArtifact,
+        script: &ScriptOutput,
         module_set: &ModuleSet,
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &CompilerContext<'_>,
-    ) -> LinkResult<js::ScriptModule> {
-        let profile_id = context.profile_id_for_target_or_default(module_id, target_id);
+        context: &dyn ProviderContext,
+    ) -> LinkResult<js::Module> {
+        let profile_id =
+            self.target_profile_id_or_default(context.revision(), module_id, target_id);
 
         self.rewrite_module(
             module_id, script, module_set, target, target_id, package_id, profile_id, context,

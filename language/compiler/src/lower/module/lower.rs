@@ -2,14 +2,17 @@ use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use {destack_dir as dir, destack_mir as mir};
 
-use destack_artifact::{DirAnalyzed, DirDeclared, WellKnownIntrinsics};
+use destack_artifact::{
+    AmbientEnvironment, DiagnosticAnchor, DirDeclared, LanguageEnvironment, WellKnownIntrinsics,
+};
 use destack_ast::StringId;
+use destack_builtin::LanguageSymbol;
 use destack_core::StringPool;
 use destack_source::{ModuleId, TargetId};
-use destack_workspace::{CheckFailurePolicy, Module, ProfileId, Target};
+use destack_workspace::{CheckFailurePolicy, Module, ProfileId, ProviderContext, Target};
 use indexmap::IndexSet;
 
-use crate::{Compiler, CompilerContext, LowerError, LowerResult, RequirementError};
+use crate::{Compiler, CompilerError, CompilerResult, LowerError, LowerResult};
 
 use crate::lower::{
     BuiltinTypeLayouts, DispatchTableGlobal, FunctionEnvironmentLayout, GlobalBinding, InstanceKey,
@@ -17,14 +20,25 @@ use crate::lower::{
     TypeCacheEntry, TypeLowerer,
 };
 
+/// Resolve one well-known symbol from an ambient environment.
+fn well_known_symbol_from_environment(
+    environment: &AmbientEnvironment,
+    symbol: dir::WellKnownSymbol,
+    order: dir::SymbolSpaceOrder,
+) -> Option<dir::GlobalSymbolId> {
+    environment
+        .well_known_symbols()
+        .get_group(symbol)
+        .and_then(|group| group.symbol_for_space_order(order))
+}
+
 /// Context for lowering a DIR module to MIR.
-#[derive(Debug)]
 #[allow(dead_code)]
 pub(crate) struct ModuleLowerer<'a> {
     /// Provide access to the compiler for shared resources.
     pub(crate) compiler: &'a Compiler,
     /// Provide access to the pinned revision for cross-module reads.
-    pub(crate) context: &'a CompilerContext<'a>,
+    pub(crate) context: &'a dyn ProviderContext,
     /// Identify the module being lowered.
     pub(crate) module_id: ModuleId,
     /// Identify the profile used for DIR access.
@@ -35,8 +49,10 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) dir_tree: &'a dir::Tree,
     /// Provide access to the root expressions for the module.
     pub(crate) dir_roots: &'a [dir::LocalNodeId<dir::Expression>],
-    /// Stable fallback node for diagnostics and synthetic types.
-    pub(crate) anchor_node: dir::LocalNodeIdAny,
+    /// Provide access to declared DIR strings.
+    pub(crate) strings: &'a StringPool,
+    /// Stable module-level node for generated module state.
+    pub(crate) module_node: dir::LocalNodeIdAny,
     /// Provide access to symbol metadata for type resolution.
     pub(crate) symbols: &'a dir::SymbolTable,
     /// Provide access to inferred and declared types.
@@ -67,7 +83,7 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Cached empty function environment pointer type.
     pub(crate) empty_function_environment_pointer_type: Option<mir::LocalNodeId<mir::Type>>,
     /// Lower and cache DIR types into MIR types.
-    pub(crate) type_lowerer: TypeLowerer,
+    pub(crate) type_lowerer: TypeLowerer<'a>,
     /// Synthetic name for call signatures in dispatch tables.
     pub(crate) dispatch_call_name: StringId,
     /// Synthetic name for construct signatures in dispatch tables.
@@ -134,61 +150,62 @@ impl<'a> ModuleLowerer<'a> {
     /// Create a new module lowering context.
     pub(crate) fn new(
         compiler: &'a Compiler,
-        context: &'a CompilerContext<'a>,
+        context: &'a dyn ProviderContext,
         module: &'a Module,
         profile: ProfileId,
         dir_tree: &'a dir::Tree,
         dir_roots: &'a [dir::LocalNodeId<dir::Expression>],
-        anchor_node: dir::LocalNodeIdAny,
+        strings: &'a StringPool,
+        module_node: dir::LocalNodeIdAny,
         symbols: &'a dir::SymbolTable,
         types: &'a dir::TypeTable,
         captures: &'a dir::CaptureTable,
         target: &'a TargetId,
         pointer_bytes: u8,
-    ) -> LowerResult<Self> {
+    ) -> CompilerResult<Self> {
+        let options = compiler.lower_options(context, module);
+
         // initialize the module builder
-        let mut builder = mir::ModuleBuilder::new_with_verify(compiler.options.verify_mir);
+        let mut builder = mir::ModuleBuilder::new_with_verify(options.verify_mir);
         builder.set_pointer_bytes(pointer_bytes);
 
-        // seed the mir string pool with program strings
-        let strings = compiler
-            .repository
-            .strings
-            .as_ref()
-            .clone()
-            .into_immutable();
-        builder.strings().copy_from_immutable(&strings);
+        // seed mir strings with the declared DIR pool
+        let immutable_strings = strings.clone().into_immutable();
+        builder.strings().copy_from_immutable(&immutable_strings);
 
         // resolve vector builtin symbols for SIMD lowering
-        let vector_symbol = compiler.get_well_known_concrete_symbol_from(
+        let vector_symbol = Self::well_known_symbol_for(
+            compiler,
+            context,
             profile,
             dir::WellKnownSymbol::Vector,
             dir::SymbolSpaceOrder::TypeThenValue,
-        );
+        )?;
 
         // create the type lowerer
         let type_lowerer = TypeLowerer::new(
             &mut builder,
             pointer_bytes,
-            compiler.repository.clone(),
+            compiler,
+            context,
+            strings,
+            profile,
+            dir_tree,
             vector_symbol,
-        )
-        .with_artifact_context(context.revision(), profile);
+        );
         let dispatch_call_name = builder.intern("@call");
         let dispatch_construct_name = builder.intern("@new");
-        let vtable_field_name = builder.intern("@vtable");
+        let vtable_field_name = builder.intern("vtable");
 
         // resolve the target configuration
-        let target_config = Self::target_config_for_module(context, module, target)?;
+        let target_config = Self::target_config_for_module(compiler, context, module, target)?;
 
         // resolve runtime check policies
-        let debug = compiler.profile(profile).key.debug;
+        let debug = compiler.profile(context.revision(), profile).key.debug;
         let runtime_checks = RuntimeCheckConfig::from_target(&target_config, debug);
         let binding_abi_lowering = target_config.emit.is_native();
 
-        let well_known_intrinsics = compiler
-            .intrinsic_environment(profile)
-            .map(|environment| environment.intrinsics.clone());
+        let well_known_intrinsics = Self::well_known_intrinsics(compiler, context, profile)?;
 
         Ok(Self {
             compiler,
@@ -198,7 +215,8 @@ impl<'a> ModuleLowerer<'a> {
             module,
             dir_tree,
             dir_roots,
-            anchor_node,
+            strings,
+            module_node,
             symbols,
             types,
             captures,
@@ -241,50 +259,240 @@ impl<'a> ModuleLowerer<'a> {
         })
     }
 
+    /// Build the intrinsic binding registry for the active profile.
+    fn well_known_intrinsics(
+        compiler: &Compiler,
+        context: &dyn ProviderContext,
+        profile: ProfileId,
+    ) -> CompilerResult<Option<WellKnownIntrinsics>> {
+        let environment = compiler
+            .ambient_environment(context, profile)
+            .map_err(CompilerError::from)?;
+
+        let mut intrinsics = WellKnownIntrinsics::new();
+        for module_id in &environment.modules {
+            let declared = compiler
+                .dir_declared(context, *module_id, profile)
+                .map_err(CompilerError::from)?;
+            Self::collect_intrinsic_bindings(
+                *module_id,
+                declared.as_ref(),
+                &declared.strings,
+                &mut intrinsics,
+            );
+        }
+
+        Ok(Some(intrinsics))
+    }
+
+    /// Read the ambient environment used by this lowerer.
+    pub(crate) fn ambient_environment(&self) -> CompilerResult<Arc<AmbientEnvironment>> {
+        self.compiler
+            .ambient_environment(self.context, self.profile)
+            .map_err(CompilerError::from)
+    }
+
+    /// Read the language environment used by this lowerer.
+    pub(crate) fn language_environment(&self) -> CompilerResult<Arc<LanguageEnvironment>> {
+        self.compiler
+            .language_environment(self.context, self.profile)
+            .map_err(CompilerError::from)
+    }
+
+    /// Resolve one declared ambient symbol in this lowerer.
+    pub(crate) fn declared_ambient_symbol(
+        &self,
+        name: &str,
+        order: dir::SymbolSpaceOrder,
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        let environment = self.ambient_environment()?;
+
+        Ok(environment.declared_symbol_from(name, order))
+    }
+
+    /// Resolve one compiler language symbol in this lowerer.
+    pub(crate) fn language_symbol(
+        &self,
+        symbol: LanguageSymbol,
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        let environment = self.language_environment()?;
+
+        Ok(environment.item(symbol))
+    }
+
+    /// Resolve one well-known symbol before the lowerer has been constructed.
+    fn well_known_symbol_for(
+        compiler: &Compiler,
+        context: &dyn ProviderContext,
+        profile: ProfileId,
+        symbol: dir::WellKnownSymbol,
+        order: dir::SymbolSpaceOrder,
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        let environment = compiler
+            .ambient_environment(context, profile)
+            .map_err(CompilerError::from)?;
+
+        Ok(well_known_symbol_from_environment(
+            &environment,
+            symbol,
+            order,
+        ))
+    }
+
+    /// Collect intrinsic bindings from one declared DIR module.
+    fn collect_intrinsic_bindings(
+        module_id: ModuleId,
+        declared: &DirDeclared,
+        strings: &StringPool,
+        intrinsics: &mut WellKnownIntrinsics,
+    ) {
+        for symbol_id in declared.symbols.active_symbol_ids() {
+            let symbol = declared.symbols.get_symbol(symbol_id);
+            let Some(declaration) = symbol.primary_declaration else {
+                continue;
+            };
+            if declaration.module_id != module_id {
+                continue;
+            }
+
+            let Some(name) =
+                Self::intrinsic_name_for_declaration(declared, strings, declaration.local_id)
+            else {
+                continue;
+            };
+
+            let symbol = symbol_id.into_global(module_id);
+            intrinsics.names_by_symbol.insert(symbol, name.clone());
+            intrinsics.symbols_by_name.insert(name, symbol);
+        }
+    }
+
+    /// Resolve the intrinsic binding name attached to one declaration.
+    fn intrinsic_name_for_declaration(
+        declared: &DirDeclared,
+        strings: &StringPool,
+        declaration: dir::LocalNodeIdAny,
+    ) -> Option<String> {
+        for decorator_id in declared.tree.get_decorators(declaration.id) {
+            let decorator = declared.tree.get(decorator_id);
+            let Some(name) = Self::intrinsic_name_for_expression(
+                declared,
+                strings,
+                decorator.expression,
+                declaration.id,
+            ) else {
+                continue;
+            };
+
+            return Some(name);
+        }
+
+        None
+    }
+
+    /// Resolve an intrinsic decorator expression to its binding name.
+    fn intrinsic_name_for_expression(
+        declared: &DirDeclared,
+        strings: &StringPool,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        declaration_id: u32,
+    ) -> Option<String> {
+        let expression = declared.tree.get(expression_id);
+
+        match expression {
+            dir::Expression::Call {
+                left, arguments, ..
+            } if Self::is_intrinsic_decorator_name(declared, *left) => {
+                Self::intrinsic_name_for_arguments(declared, strings, arguments)
+            }
+            _ if Self::is_intrinsic_decorator_name(declared, expression_id) => {
+                Self::default_intrinsic_name(declared, strings, declaration_id)
+            }
+            _ => None,
+        }
+    }
+
+    /// Check whether an expression names the intrinsic decorator.
+    fn is_intrinsic_decorator_name(
+        declared: &DirDeclared,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let expression = declared.tree.get(expression_id);
+        let name = match expression {
+            dir::Expression::UnresolvedPath { path, .. }
+            | dir::Expression::LocalReference { path, .. }
+            | dir::Expression::ModuleReference { path, .. }
+            | dir::Expression::GlobalReference { path, .. } => path.last_segment(),
+            _ => None,
+        };
+
+        name == Some(StringId::for_text("intrinsic"))
+    }
+
+    /// Resolve the explicit intrinsic binding name from decorator arguments.
+    fn intrinsic_name_for_arguments(
+        declared: &DirDeclared,
+        strings: &StringPool,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) -> Option<String> {
+        let [argument_id] = arguments else {
+            return None;
+        };
+        let argument = declared.tree.get(*argument_id);
+        let expression = declared.tree.get(argument.value());
+
+        match expression {
+            dir::Expression::ScalarLiteral {
+                value: dir::ScalarLiteral::String(name),
+            } => Some(strings.get(*name).to_string()),
+            _ => None,
+        }
+    }
+
+    /// Resolve the default intrinsic binding name from the decorated declaration.
+    fn default_intrinsic_name(
+        declared: &DirDeclared,
+        strings: &StringPool,
+        declaration_id: u32,
+    ) -> Option<String> {
+        let symbol = declared
+            .symbols
+            .active_symbol_ids()
+            .map(|symbol_id| declared.symbols.get_symbol(symbol_id))
+            .find(|symbol| {
+                symbol
+                    .primary_declaration
+                    .is_some_and(|declaration| declaration.local_id.id == declaration_id)
+            })?;
+
+        let dir::StaticKey::Name(name) = symbol.key? else {
+            return None;
+        };
+
+        Some(strings.get(name).to_string())
+    }
+
     /// Read one committed declared DIR snapshot for a module when available.
     pub(crate) fn artifact_dir_data_if_present(
         &self,
         module_id: ModuleId,
     ) -> Option<Arc<DirDeclared>> {
-        self.compiler.dir_declared(module_id, self.profile)
-    }
-
-    /// Read one committed analyzed DIR snapshot for a module.
-    pub(crate) fn require_analyzed_dir_data(
-        &self,
-        module_id: ModuleId,
-    ) -> LowerResult<Arc<DirAnalyzed>> {
-        let snapshot = self.compiler.require_artifact_dir_analyzed(
-            self.context.revision(),
-            module_id,
-            self.profile,
-        );
-        match snapshot {
-            Ok(snapshot) => Ok(snapshot),
-            Err(RequirementError::NotReady { requirement }) => {
-                Err(LowerError::Yield { requirement })
-            }
-            Err(RequirementError::Failed { requirement }) => {
-                Err(LowerError::UnsatisfiedRequirement { requirement })
-            }
-        }
+        self.compiler
+            .dir_declared(self.context, module_id, self.profile)
+            .ok()
     }
 
     /// Resolve the target configuration for a module.
     fn target_config_for_module(
-        context: &CompilerContext<'_>,
+        compiler: &Compiler,
+        context: &dyn ProviderContext,
         module: &Module,
         target: &TargetId,
     ) -> LowerResult<Target> {
-        context
-            .compiler()
-            .repository
-            .effective_target(context.revision(), *target)
-            .map_err(|error| LowerError::Internal {
-                module: module.id,
-                message: format!("failed to load target {target:?}: {error}"),
-            })?
+        compiler
+            .effective_target(context, *target)
             .ok_or_else(|| LowerError::Internal {
+                anchor: (module.id).into(),
                 module: module.id,
                 message: format!(
                     "missing target config for module {:?} with target {target:?}",
@@ -303,23 +511,73 @@ impl<'a> ModuleLowerer<'a> {
         let decorators = &symbol.decorators;
 
         // prefer stack only when explicitly requested
-        if decorators.is_stack_only {
+        if decorators.is_stack_only
+            || self.symbol_has_language_decorator(symbol, LanguageSymbol::StackOnly)
+        {
             return mir::AllocationMode::StackOnly;
         }
 
         // apply no managed only when requested explicitly
-        if decorators.is_no_managed {
+        if decorators.is_no_managed
+            || self.symbol_has_language_decorator(symbol, LanguageSymbol::NoManaged)
+        {
             return mir::AllocationMode::NoManaged;
         }
 
         mir::AllocationMode::Any
     }
 
+    /// Return whether one symbol has a compiler-known decorator.
+    fn symbol_has_language_decorator(
+        &self,
+        symbol: &dir::Symbol,
+        language_symbol: LanguageSymbol,
+    ) -> bool {
+        let Some(declaration) = symbol.primary_declaration else {
+            return false;
+        };
+        let Ok(Some(target_symbol)) = self.language_symbol(language_symbol) else {
+            return false;
+        };
+
+        // inspect attached decorator expressions
+        for decorator_id in self.dir_tree.get_decorators(declaration.local_id.id) {
+            let decorator = self.dir_tree.get(decorator_id);
+            let expression = self.dir_tree.get(decorator.expression);
+            if expression.target_symbol() == Some(target_symbol) {
+                return true;
+            }
+            if expression_is_unqualified_name(expression, language_symbol.export_name()) {
+                return true;
+            }
+        }
+
+        false
+    }
+
     /// Create a MissingType error for a node.
     pub(crate) fn missing_type_error(&self, node_id: dir::GlobalNodeIdAny) -> LowerError {
+        let node = node_id.into_anchored(Some(self.profile));
+
         LowerError::MissingType {
-            node: node_id.into_anchored(Some(self.profile)),
+            anchor: self.diagnostic_anchor(node),
         }
+    }
+
+    /// Return the diagnostic anchor for one DIR node.
+    pub(crate) fn diagnostic_anchor(&self, node: dir::AnchoredGlobalNodeId) -> DiagnosticAnchor {
+        assert_eq!(
+            self.module_id,
+            node.module_id(),
+            "lower diagnostic node belongs to a different module"
+        );
+
+        let span = self
+            .dir_tree
+            .get_span_by_id(node.local_id().id)
+            .expect("lower diagnostic node is missing a source span");
+
+        DiagnosticAnchor::Span(span)
     }
 
     /// Resolve a declared or inferred type id for a node or return MissingType.
@@ -340,7 +598,9 @@ impl<'a> ModuleLowerer<'a> {
     ) -> LowerResult<dir::LocalTypeId> {
         self.types
             .get_type_id_for_symbol(self.symbols, symbol)
-            .ok_or(LowerError::MissingType { node: anchor })
+            .ok_or_else(|| LowerError::MissingType {
+                anchor: self.diagnostic_anchor(anchor),
+            })
     }
 
     /// Insert a global binding for a symbol.
@@ -478,11 +738,14 @@ impl<'a> ModuleLowerer<'a> {
         let slot_key = (class_symbol, key);
         if self.virtual_method_slots_by_key.contains_key(&slot_key) {
             return Err(LowerError::UnsupportedConstruct {
-                node: member_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                anchor: self.diagnostic_anchor(
+                    member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
                 message: format!("duplicate virtual method slot for {class_symbol:?} {key:?}"),
-            });
+            }
+            .into());
         }
 
         self.virtual_method_slots_by_key.insert(slot_key, slot);
@@ -535,9 +798,11 @@ impl<'a> ModuleLowerer<'a> {
         // reject duplicate entries
         if map.contains_key(&key) {
             return Err(LowerError::Internal {
+                anchor: (module_id).into(),
                 module: module_id,
                 message: format!("duplicate {label} for {key:?}"),
-            });
+            }
+            .into());
         }
 
         // insert the new entry
@@ -546,7 +811,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Lower this entire DIR module to MIR (in-place).
-    pub(crate) fn lower_module(&mut self) -> LowerResult<()> {
+    pub(crate) fn lower_module(&mut self) -> CompilerResult<()> {
         // declare module level artifacts and initial lowering state
         self.declare()?;
 
@@ -560,12 +825,19 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Declare module-level artifacts before body lowering.
-    fn declare(&mut self) -> LowerResult<()> {
+    fn declare(&mut self) -> CompilerResult<()> {
         // declare runtime string globals
         self.declare_string_literal_globals()?;
 
         // declare dispatch ids and slots
         self.declare_dispatch()?;
+
+        // declare nominal types before body lowering
+        self.lower_declared_types()?;
+        self.declare_nominal_aliases()?;
+
+        // declare module storage before functions can reference it
+        self.declare_static_member_fields()?;
 
         // declare function shells before body lowering
         self.declare_functions()?;
@@ -574,7 +846,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Lower root and queued function bodies.
-    fn lower(&mut self) -> LowerResult<()> {
+    fn lower(&mut self) -> CompilerResult<()> {
         // lower root expressions first
         for expression_id in self.dir_roots.iter().copied() {
             self.lower_root_expression(expression_id)?;
@@ -588,10 +860,6 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Finish deferred module artifacts after body lowering.
     fn finish_lowering(&mut self) -> LowerResult<()> {
-        // realize nominal types so layouts are cached
-        self.lower_declared_types()?;
-        self.declare_nominal_aliases()?;
-
         // emit final dispatch tables and type metadata
         self.emit_dispatch()?;
         self.emit_type_metadata()?;
@@ -600,13 +868,21 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Predeclare globals for string literals used in this module.
-    fn declare_string_literal_globals(&mut self) -> LowerResult<()> {
+    fn declare_string_literal_globals(&mut self) -> CompilerResult<()> {
         // collect literal values and a representative anchor
         let mut literals = BTreeSet::new();
         let mut anchor = None;
 
         // collect string literals from expressions
         for (expression_id, expression) in self.dir_tree.iter_nodes_of_type::<dir::Expression>() {
+            if anchor.is_none() {
+                anchor = Some(
+                    expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                );
+            }
+
             let dir::Expression::ScalarLiteral {
                 value: dir::ScalarLiteral::String(string_id),
             } = expression
@@ -615,65 +891,34 @@ impl<'a> ModuleLowerer<'a> {
             };
 
             literals.insert(*string_id);
-            if anchor.is_none() {
-                anchor = Some(
-                    expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
-                );
-            }
         }
 
         // add runtime check messages when panic uses literals
         if matches!(self.runtime_checks.failure, CheckFailurePolicy::Panic) {
             if self.runtime_checks.bounds {
-                let literal_id = self
-                    .compiler
-                    .repository
-                    .strings
-                    .intern(RUNTIME_CHECK_MESSAGES.bounds_check);
+                let literal_id = StringId::for_text(RUNTIME_CHECK_MESSAGES.bounds_check);
                 literals.insert(literal_id);
             }
 
             if self.runtime_checks.null {
-                let literal_id = self
-                    .compiler
-                    .repository
-                    .strings
-                    .intern(RUNTIME_CHECK_MESSAGES.null_check);
+                let literal_id = StringId::for_text(RUNTIME_CHECK_MESSAGES.null_check);
                 literals.insert(literal_id);
             }
 
             if self.runtime_checks.division {
-                let zero_id = self
-                    .compiler
-                    .repository
-                    .strings
-                    .intern(RUNTIME_CHECK_MESSAGES.division_by_zero);
+                let zero_id = StringId::for_text(RUNTIME_CHECK_MESSAGES.division_by_zero);
                 literals.insert(zero_id);
-                let overflow_id = self
-                    .compiler
-                    .repository
-                    .strings
-                    .intern(RUNTIME_CHECK_MESSAGES.division_overflow);
+                let overflow_id = StringId::for_text(RUNTIME_CHECK_MESSAGES.division_overflow);
                 literals.insert(overflow_id);
             }
 
             if self.runtime_checks.overflow {
-                let literal_id = self
-                    .compiler
-                    .repository
-                    .strings
-                    .intern(RUNTIME_CHECK_MESSAGES.integer_overflow);
+                let literal_id = StringId::for_text(RUNTIME_CHECK_MESSAGES.integer_overflow);
                 literals.insert(literal_id);
             }
 
             if self.runtime_checks.shift {
-                let literal_id = self
-                    .compiler
-                    .repository
-                    .strings
-                    .intern(RUNTIME_CHECK_MESSAGES.shift_out_of_range);
+                let literal_id = StringId::for_text(RUNTIME_CHECK_MESSAGES.shift_out_of_range);
                 literals.insert(literal_id);
             }
         }
@@ -686,16 +931,18 @@ impl<'a> ModuleLowerer<'a> {
         // require the well known string layout
         let Some(anchor) = anchor else {
             return Err(LowerError::Internal {
+                anchor: (self.module_id).into(),
                 module: self.module_id,
                 message: "missing string literal anchor".to_string(),
-            });
+            }
+            .into());
         };
         let string_type = if let Some(string_type) = self.type_lowerer.string_type() {
             string_type
         } else {
             let mut builtin_layouts = BuiltinTypeLayouts::new(
                 self.compiler,
-                self.context.revision(),
+                self.context,
                 self.profile,
                 &mut self.builder,
                 &mut self.type_lowerer,
@@ -703,20 +950,21 @@ impl<'a> ModuleLowerer<'a> {
             builtin_layouts
                 .string_type_for_builtin(anchor)?
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: anchor,
+                    anchor: self.diagnostic_anchor(anchor),
                     message: "missing well known String layout (load library/native)".to_string(),
-                })?
+                })
+                .map_err(CompilerError::from)?
         };
 
         // create globals in deterministic order
         let mut ordered: Vec<_> = literals.into_iter().collect();
         ordered.sort_by(|left, right| {
-            let left_value = self.compiler.repository.strings.get(*left);
-            let right_value = self.compiler.repository.strings.get(*right);
+            let left_value = self.strings.get(*left);
+            let right_value = self.strings.get(*right);
             left_value.as_ref().cmp(right_value.as_ref())
         });
         for literal_id in ordered {
-            let literal = self.compiler.repository.strings.get(literal_id);
+            let literal = self.strings.get(literal_id);
             let name = self.string_literal_global_name(literal_id);
             let global = self.builder.global_constant(
                 &name,
@@ -773,8 +1021,10 @@ impl<'a> ModuleLowerer<'a> {
                 self.lower_type(instance_type_id, anchor)?;
             }
 
-            if symbol.ty() == dir::SymbolType::Interface
-                && let Some(reference_type_id) = self.nominal_reference_type_id_for_symbol(symbol)
+            if matches!(
+                symbol.ty(),
+                dir::SymbolType::Class | dir::SymbolType::Interface
+            ) && let Some(reference_type_id) = self.nominal_reference_type_id_for_symbol(symbol)
             {
                 self.lower_type(reference_type_id, anchor)?;
             }
@@ -792,9 +1042,11 @@ impl<'a> ModuleLowerer<'a> {
                 TypeCacheEntry::Ready(mir_type) => *mir_type,
                 TypeCacheEntry::InProgress => {
                     return Err(LowerError::Internal {
+                        anchor: (self.module_id).into(),
                         module: self.module_id,
                         message: "type lowering cache left in progress".to_string(),
-                    });
+                    }
+                    .into());
                 }
             };
             cached_types.push((*type_id, mir_type));
@@ -808,7 +1060,7 @@ impl<'a> ModuleLowerer<'a> {
             .map(|(ty, _)| ty)
             .collect();
         let synthetic_anchor = self
-            .anchor_node
+            .module_node
             .into_global(self.module_id)
             .into_anchored(Some(self.profile));
 
@@ -827,13 +1079,23 @@ impl<'a> ModuleLowerer<'a> {
             self.layout_metadata_for_mir_type(mir_type, synthetic_anchor)?;
         }
 
-        self.validate_metadata_names_assigned()?;
-
         Ok(())
     }
 
     /// Finish the module lowering process and return the resulting MIR tree and string pool.
-    pub(crate) fn finish(self) -> (mir::Tree, StringPool) {
+    pub(crate) fn finish(mut self) -> (mir::Tree, StringPool) {
+        // copy final DIR source spans into MIR
+        for node_id in 0..self.builder.tree().node_count() as u32 {
+            let Some(source_id) = self.builder.tree().get_source(node_id) else {
+                continue;
+            };
+            let span = self
+                .dir_tree
+                .get_span_by_id(source_id)
+                .expect("lowered DIR source is missing a source span");
+            self.builder.tree_mut().set_span_by_id(node_id, span);
+        }
+
         self.builder.finish_mutable()
     }
 
@@ -867,9 +1129,10 @@ impl<'a> ModuleLowerer<'a> {
             let Some(name) = self.qualified_symbol_name(global_id) else {
                 let anchor = self.type_anchor(instance_type_id);
                 return Err(LowerError::UnsupportedConstruct {
-                    node: anchor,
+                    anchor: self.diagnostic_anchor(anchor),
                     message: "nominal alias missing symbol name".to_string(),
-                });
+                }
+                .into());
             };
 
             // insert the alias if it is not already present
@@ -887,4 +1150,18 @@ impl<'a> ModuleLowerer<'a> {
 
         Ok(())
     }
+}
+
+/// Return whether one expression is an unqualified reference to a name.
+fn expression_is_unqualified_name(expression: &dir::Expression, name: &str) -> bool {
+    let name = StringId::for_text(name);
+    let path = match expression {
+        dir::Expression::UnresolvedPath { path, .. }
+        | dir::Expression::LocalReference { path, .. }
+        | dir::Expression::ModuleReference { path, .. }
+        | dir::Expression::GlobalReference { path, .. } => path,
+        _ => return false,
+    };
+
+    path.segments.len() == 1 && path.first_segment() == Some(name)
 }

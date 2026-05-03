@@ -1,14 +1,14 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 use {destack_dir as dir, destack_mir as mir};
 
+use destack_artifact::DiagnosticAnchor;
 use destack_ast::{StringId, StringPool};
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Repository, Revision};
+use destack_workspace::{ProfileId, ProviderContext};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout, TypeLayoutPolicy};
 use crate::lower::{lower_mutability, static_key_to_field_name};
-use crate::{InterfaceRefLayout, LowerError, LowerResult, UnionLayout};
+use crate::{Compiler, InterfaceRefLayout, LowerError, LowerResult, UnionLayout};
 
 // synthetic field names for function value layouts
 const FUNCTION_PTR_FIELD: &str = "@function_ptr";
@@ -24,10 +24,17 @@ pub(crate) enum TypeCacheEntry {
 }
 
 /// Lowers DIR types into MIR types with a shared cache.
-#[derive(Debug)]
-pub(crate) struct TypeLowerer {
-    /// Access to repository metadata for qualified names.
-    pub(super) repository: Arc<Repository>,
+pub(crate) struct TypeLowerer<'a> {
+    /// Compiler facade for artifact backed reads.
+    pub(super) compiler: &'a Compiler,
+    /// Provider context for artifact dependencies.
+    pub(super) context: &'a dyn ProviderContext,
+    /// Declared DIR strings for this module.
+    pub(super) strings: &'a StringPool,
+    /// Profile used for cross-module artifact reads.
+    pub(super) profile: ProfileId,
+    /// DIR tree being lowered.
+    pub(super) dir_tree: &'a dir::Tree,
     /// Cached Vector type symbol for SIMD lowering.
     pub(crate) vector_symbol: Option<dir::GlobalSymbolId>,
     /// Cached MIR types by DIR type id.
@@ -56,8 +63,6 @@ pub(crate) struct TypeLowerer {
     pub(crate) ty_f64: mir::LocalNodeId<mir::Type>,
     /// Cached MIR string reference type.
     pub(crate) ty_string: Option<mir::LocalNodeId<mir::Type>>,
-    /// Cached MIR function environment pointer type.
-    pub(crate) function_environment_pointer_type: mir::LocalNodeId<mir::Type>,
     /// Cached union layout metadata by DIR type id.
     pub(crate) union_cache: HashMap<dir::LocalTypeId, UnionLayout>,
     /// Cached interface reference layouts by DIR type id.
@@ -71,34 +76,30 @@ pub(crate) struct TypeLowerer {
     pub(crate) remote_nominal_layouts_in_progress: HashSet<dir::GlobalSymbolId>,
     /// Policy values for layout decisions.
     pub(crate) layout_policy: TypeLayoutPolicy,
-    /// Artifact revision used to read remote symbol names.
-    pub(crate) artifact_revision: Option<Revision>,
-    /// Profile used to read remote symbol names.
-    pub(crate) profile: Option<ProfileId>,
 }
 
 #[allow(clippy::too_many_arguments)]
-impl TypeLowerer {
+impl<'a> TypeLowerer<'a> {
     /// Create a new type lowerer with cached common types.
     pub(crate) fn new(
         builder: &mut mir::ModuleBuilder,
         pointer_bytes: u8,
-        repository: Arc<Repository>,
+        compiler: &'a Compiler,
+        context: &'a dyn ProviderContext,
+        strings: &'a StringPool,
+        profile: ProfileId,
+        dir_tree: &'a dir::Tree,
         vector_symbol: Option<dir::GlobalSymbolId>,
     ) -> Self {
         let pointer_width_bits = u16::from(pointer_bytes) * 8;
         let layout_policy = TypeLayoutPolicy::for_target(pointer_bytes);
         let ty_void = builder.type_void();
-        let function_environment_pointer_type = builder.type_reference(
-            mir::ReferenceKind::Managed,
-            ty_void,
-            mir::Mutability::Mutable,
-            mir::AddressSpace::Local,
-            true,
-        );
-
         Self {
-            repository,
+            compiler,
+            context,
+            strings,
+            profile,
+            dir_tree,
             vector_symbol,
             type_cache: HashMap::new(),
             layout_cache: HashMap::new(),
@@ -113,23 +114,29 @@ impl TypeLowerer {
             ty_f32: builder.type_f32(),
             ty_f64: builder.type_f64(),
             ty_string: None,
-            function_environment_pointer_type,
             union_cache: HashMap::new(),
             interface_ref_cache: HashMap::new(),
             function_signature_types: HashMap::new(),
             remote_nominal_layouts_by_symbol: HashMap::new(),
             remote_nominal_layouts_in_progress: HashSet::new(),
             layout_policy,
-            artifact_revision: None,
-            profile: None,
         }
     }
 
-    /// Attach artifact context for cross-module symbol reads.
-    pub(crate) fn with_artifact_context(mut self, revision: Revision, profile: ProfileId) -> Self {
-        self.artifact_revision = Some(revision);
-        self.profile = Some(profile);
-        self
+    /// Return the diagnostic anchor for one DIR node.
+    pub(crate) fn diagnostic_anchor(&self, node: dir::AnchoredGlobalNodeId) -> DiagnosticAnchor {
+        assert_eq!(
+            self.dir_tree.module_id,
+            node.module_id(),
+            "type diagnostic node belongs to a different module"
+        );
+
+        let span = self
+            .dir_tree
+            .get_span_by_id(node.local_id().id)
+            .expect("type diagnostic node is missing a source span");
+
+        DiagnosticAnchor::Span(span)
     }
 
     /// Return a cached mir type when available.
@@ -157,7 +164,7 @@ impl TypeLowerer {
         self.layout_cache
             .get(&ty)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "missing struct layout".to_string(),
             })
     }
@@ -165,11 +172,6 @@ impl TypeLowerer {
     /// Return the pointer width in bits for this lowering session.
     pub(crate) fn pointer_width_bits(&self) -> u16 {
         self.pointer_width_bits
-    }
-
-    /// Return the canonical function environment pointer type.
-    pub(crate) fn function_environment_pointer_type(&self) -> mir::LocalNodeId<mir::Type> {
-        self.function_environment_pointer_type
     }
 
     /// Resolve a field name to its index for a given aggregate type.
@@ -287,10 +289,11 @@ impl TypeLowerer {
         } = types.get_type(type_id)
         else {
             return Err(LowerError::UnsupportedType {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
                 message: "function signature expects a function type".to_string(),
-            });
+            }
+            .into());
         };
 
         // lower the declared parameters
@@ -326,10 +329,11 @@ impl TypeLowerer {
             return match entry {
                 TypeCacheEntry::Ready(mir_type) => Ok(*mir_type),
                 TypeCacheEntry::InProgress => Err(LowerError::UnsupportedType {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     ty: type_id.into_global(module_id),
                     message: "cycle detected while lowering type".to_string(),
-                }),
+                }
+                .into()),
             };
         }
 
@@ -392,11 +396,12 @@ impl TypeLowerer {
             } => {
                 if !index_signatures.is_empty() {
                     return Err(LowerError::UnsupportedType {
-                        node,
+                        anchor: self.diagnostic_anchor(node),
                         ty: type_id.into_global(module_id),
                         message: "index signatures are not supported for native lowering"
                             .to_string(),
-                    });
+                    }
+                    .into());
                 }
 
                 self.lower_object_type(types, fields, module_id, node, builder)?
@@ -406,7 +411,7 @@ impl TypeLowerer {
             }
             dir::Type::Array { element, .. } => {
                 let element = (*element).ok_or_else(|| LowerError::UnsupportedType {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     ty: type_id.into_global(module_id),
                     message: "array without element type".to_string(),
                 })?;
@@ -414,10 +419,11 @@ impl TypeLowerer {
 
                 if mir_element == self.ty_void {
                     return Err(LowerError::UnsupportedType {
-                        node,
+                        anchor: self.diagnostic_anchor(node),
                         ty: element.into_global(module_id),
                         message: "void is not allowed in arrays".to_string(),
-                    });
+                    }
+                    .into());
                 }
 
                 builder.type_slice(mir_element)
@@ -438,7 +444,7 @@ impl TypeLowerer {
             }
             _ => self.try_lower_type(dir_type, builder).ok_or_else(|| {
                 LowerError::UnsupportedType {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     ty: type_id.into_global(module_id),
                     message: format!("unsupported type {dir_type:?}"),
                 }
@@ -460,7 +466,7 @@ impl TypeLowerer {
         // load the enum backing type
         let backing_type = types.get_enum_backing_type(enum_symbol).ok_or_else(|| {
             LowerError::UnsupportedConstruct {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "enum missing backing type".to_string(),
             }
         })?;
@@ -473,7 +479,7 @@ impl TypeLowerer {
             dir::EnumBackingType::String => {
                 self.ty_string
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node,
+                        anchor: self.diagnostic_anchor(node),
                         message: "missing well known String layout (load library/native)"
                             .to_string(),
                     })
@@ -562,10 +568,11 @@ impl TypeLowerer {
 
             let Some(alias_target_id) = types.get_alias_target_type_id(symbol) else {
                 return Err(LowerError::UnsupportedType {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     ty: type_id.into_global(module_id),
                     message: "newtype missing target type".to_string(),
-                });
+                }
+                .into());
             };
             let inner_type = self.lower_type(types, alias_target_id, module_id, node, builder)?;
             let copy = builder.tree().get(inner_type).copy();
@@ -579,7 +586,7 @@ impl TypeLowerer {
             types
                 .get_instance_type_id(symbol)
                 .ok_or_else(|| LowerError::UnsupportedType {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     ty: type_id.into_global(module_id),
                     message: "type reference has no instance type".to_string(),
                 })?;
@@ -590,17 +597,19 @@ impl TypeLowerer {
                 dir::SymbolType::TypeAlias | dir::SymbolType::Newtype
             ) {
                 return Err(LowerError::UnsupportedType {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     ty: type_id.into_global(module_id),
                     message: "non-alias type is self-referential".to_string(),
-                });
+                }
+                .into());
             }
             let Some(alias_target_id) = types.get_alias_target_type_id(symbol) else {
                 return Err(LowerError::UnsupportedType {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     ty: type_id.into_global(module_id),
                     message: "type alias has no target type".to_string(),
-                });
+                }
+                .into());
             };
             self.lower_type(types, alias_target_id, module_id, node, builder)?
         } else {
@@ -630,27 +639,36 @@ impl TypeLowerer {
         }
         if !self.remote_nominal_layouts_in_progress.insert(symbol) {
             return Err(LowerError::UnsupportedConstruct {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "cycle detected while lowering remote nominal layout".to_string(),
-            });
+            }
+            .into());
         }
 
-        let Some(revision) = self.artifact_revision else {
-            self.remote_nominal_layouts_in_progress.remove(&symbol);
-            return Ok(None);
+        let declared =
+            match self
+                .compiler
+                .dir_declared(self.context, symbol.module_id, self.profile)
+            {
+                Ok(declared) => declared,
+                Err(_) => {
+                    self.remote_nominal_layouts_in_progress.remove(&symbol);
+                    return Ok(None);
+                }
+            };
+        let checked = match self
+            .compiler
+            .dir_checked(self.context, symbol.module_id, self.profile)
+        {
+            Ok(checked) => checked,
+            Err(_) => {
+                self.remote_nominal_layouts_in_progress.remove(&symbol);
+                return Ok(None);
+            }
         };
-        let Some(profile) = self.profile else {
-            self.remote_nominal_layouts_in_progress.remove(&symbol);
-            return Ok(None);
-        };
-        let Some(dir) = self
-            .repository
-            .dir_analyzed(revision, symbol.module_id, profile)
+        let Some(members) =
+            self.struct_members_for_symbol(symbol, &declared.symbols, &declared.tree)
         else {
-            self.remote_nominal_layouts_in_progress.remove(&symbol);
-            return Ok(None);
-        };
-        let Some(members) = self.struct_members_for_symbol(symbol, &dir.symbols, &dir.tree) else {
             self.remote_nominal_layouts_in_progress.remove(&symbol);
             return Ok(None);
         };
@@ -658,40 +676,50 @@ impl TypeLowerer {
         let mut field_lowerer = TypeLowerer::new(
             builder,
             self.pointer_bytes(),
-            Arc::clone(&self.repository),
+            self.compiler,
+            self.context,
+            &declared.strings,
+            self.profile,
+            &declared.tree,
             self.vector_symbol,
-        )
-        .with_artifact_context(revision, profile);
+        );
         let mut fields = Vec::new();
 
         for (source_index, member_id) in members.iter().enumerate() {
             let dir::Member::Field {
                 key, declared_type, ..
-            } = dir.tree.get(*member_id)
+            } = declared.tree.get(*member_id)
             else {
                 continue;
             };
-            let Some(key) = Self::static_key_from_member_key(*key) else {
+            let Some(key) = Self::static_key_from_member_key(key.clone()) else {
                 continue;
             };
             let Some(declared_type) = declared_type else {
                 continue;
             };
-            let type_id = dir
+            let type_id = checked
                 .types
                 .get_declared_or_inferred_type_id(declared_type.into_global_any(symbol.module_id))
                 .ok_or_else(|| LowerError::MissingType {
-                    node: declared_type
-                        .into_global_any(symbol.module_id)
-                        .into_anchored(Some(profile)),
+                    anchor: self.diagnostic_anchor(
+                        declared_type
+                            .into_global_any(symbol.module_id)
+                            .into_anchored(Some(self.profile)),
+                    ),
                 })?;
-            let field_type =
-                field_lowerer.lower_type(&dir.types, type_id, symbol.module_id, node, builder)?;
+            let field_type = field_lowerer.lower_type(
+                &checked.types,
+                type_id,
+                symbol.module_id,
+                node,
+                builder,
+            )?;
             let mir_type = builder.tree().get(field_type);
             let (size, alignment) = field_lowerer
                 .size_and_align_of_type(mir_type, builder.tree())
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "remote nominal layout requires concrete nested types".to_string(),
                 })?;
 
@@ -705,7 +733,7 @@ impl TypeLowerer {
             });
         }
 
-        let layout = self.compute_struct_layout(fields, LayoutPolicy::Source);
+        let layout = Self::compute_struct_layout(fields, LayoutPolicy::Source);
         let mir_type = self.create_struct_type(&layout, builder);
         self.set_layout(mir_type, layout);
         self.remote_nominal_layouts_by_symbol
@@ -765,7 +793,7 @@ impl TypeLowerer {
         let Some(name) = self.symbol_name(symbol) else {
             return Ok(None);
         };
-        let name = self.repository.strings.get(name).to_string();
+        let name = self.strings.get(name).to_string();
 
         let kind = match name.as_str() {
             "Managed" | "AsManaged" => Some(mir::ReferenceKind::Managed),
@@ -827,17 +855,19 @@ impl TypeLowerer {
     ) -> LowerResult<dir::LocalTypeId> {
         let Some(arguments) = static_arguments else {
             return Err(LowerError::UnsupportedType {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
                 message: "ownership form missing base type".to_string(),
-            });
+            }
+            .into());
         };
         let Some(argument) = arguments.first() else {
             return Err(LowerError::UnsupportedType {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
                 message: "ownership form missing base type".to_string(),
-            });
+            }
+            .into());
         };
         let dir::StaticArgument::Evaluated {
             value: dir::StaticExpression::Type { ty },
@@ -845,10 +875,11 @@ impl TypeLowerer {
         } = argument
         else {
             return Err(LowerError::UnsupportedType {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
                 message: "ownership form base must be a type".to_string(),
-            });
+            }
+            .into());
         };
 
         Ok(*ty)
@@ -860,7 +891,7 @@ impl TypeLowerer {
         static_arguments: Option<&[dir::StaticArgument]>,
     ) -> Option<mir::ReferenceKind> {
         let ownership = self.static_string_argument(static_arguments?, 1)?;
-        let ownership = self.repository.strings.get(ownership);
+        let ownership = self.strings.get(ownership);
 
         match ownership.as_ref() {
             "managed" => Some(mir::ReferenceKind::Managed),
@@ -881,7 +912,7 @@ impl TypeLowerer {
         else {
             return mir::AddressSpace::Local;
         };
-        let space = self.repository.strings.get(space);
+        let space = self.strings.get(space);
 
         mir::AddressSpace::from_name(space.as_ref())
     }
@@ -935,10 +966,11 @@ impl TypeLowerer {
         };
         let Some(pointee) = pointee.ty() else {
             return Err(LowerError::UnsupportedType {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
                 message: "reference address-space rewrite requires a concrete pointee".to_string(),
-            });
+            }
+            .into());
         };
 
         Ok(builder.type_reference(kind, pointee, mutability, address_space, is_nullable))
@@ -946,11 +978,10 @@ impl TypeLowerer {
 
     /// Return the source name for one symbol when artifacts are available.
     fn symbol_name(&self, symbol: dir::GlobalSymbolId) -> Option<StringId> {
-        let revision = self.artifact_revision?;
-        let profile = self.profile?;
         let dir = self
-            .repository
-            .dir_declared(revision, symbol.module_id, profile)?;
+            .compiler
+            .dir_declared(self.context, symbol.module_id, self.profile)
+            .ok()?;
         dir.symbols.get_symbol(symbol.local_id).name()
     }
 
@@ -966,32 +997,33 @@ impl TypeLowerer {
         let signature =
             self.lower_function_signature_type(types, type_id, module_id, node, builder)?;
 
-        let env_pointer_type = self.function_environment_pointer_type();
-        let signature_type = builder.tree().get(signature);
+        let function_pointer_type = builder.type_function_pointer(signature);
+        let env_pointer_type = builder.tree_mut().ensure_callable_environment_type();
+        let function_pointer = builder.tree().get(function_pointer_type);
         let env_type = builder.tree().get(env_pointer_type);
-        let (signature_size, signature_align) = self
-            .size_and_align_of_type(signature_type, builder.tree())
+        let (function_pointer_size, function_pointer_align) = self
+            .size_and_align_of_type(function_pointer, builder.tree())
             .ok_or_else(|| LowerError::UnsupportedType {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
                 message: "function layout requires concrete nested types".to_string(),
             })?;
         let (env_size, env_align) = self
             .size_and_align_of_type(env_type, builder.tree())
             .ok_or_else(|| LowerError::UnsupportedType {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
                 message: "function layout requires concrete nested types".to_string(),
             })?;
 
         let fn_name = builder.intern(FUNCTION_PTR_FIELD);
         let env_name = builder.intern(ENV_FIELD);
-        let mut fields = vec![
+        let fields = vec![
             FieldInput {
                 name: fn_name,
-                ty: signature,
-                size: signature_size,
-                alignment: signature_align,
+                ty: function_pointer_type,
+                size: function_pointer_size,
+                alignment: function_pointer_align,
                 source_index: Some(0),
                 kind: FieldLayoutKind::Synthetic,
             },
@@ -1006,10 +1038,7 @@ impl TypeLowerer {
         ];
 
         let mir_type = builder.type_callable(signature);
-        let callable_environment_type = builder.tree().callable_environment_type();
-        fields[1].ty = callable_environment_type;
-
-        let layout = self.compute_struct_layout(fields, LayoutPolicy::Optimized);
+        let layout = Self::compute_struct_layout(fields, LayoutPolicy::Optimized);
         self.set_layout(mir_type, layout);
         Ok(mir_type)
     }

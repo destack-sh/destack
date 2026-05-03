@@ -1,5 +1,5 @@
 use destack_artifact::Ast;
-use destack_ast as ast;
+use destack_ast::{self as ast, StringId};
 use destack_dir::{
     Ambientness, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Member, ModuleBinding,
     Mutability, NodeType, Property, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace,
@@ -159,7 +159,7 @@ impl Compiler {
                 );
 
                 // bind the implicit this local for method bodies
-                let this_name = self.repository.strings.intern("this");
+                let this_name = StringId::for_text("this");
                 let method_scope = (method_scope_id, symbols.get_scope_mark(method_scope_id));
                 self.bind_named_local(
                     module,
@@ -295,7 +295,7 @@ impl Compiler {
                 is_override,
                 is_static,
             } => {
-                let name = self.repository.strings.intern_from(&ast.strings, *name);
+                let name = *name;
 
                 let generic_parameters = generic_parameters
                     .iter()
@@ -406,7 +406,7 @@ impl Compiler {
                 ambient,
                 is_static,
             } => {
-                let name = self.repository.strings.intern_from(&ast.strings, *name);
+                let name = *name;
                 let declared_type = declared_type.map(|declared_type| {
                     self.bind_type_expression(
                         module,
@@ -610,7 +610,7 @@ impl Compiler {
                 });
 
                 // bind the implicit this local for method bodies
-                let this_name = self.repository.strings.intern("this");
+                let this_name = StringId::for_text("this");
                 let method_scope = (method_scope_id, symbols.get_scope_mark(method_scope_id));
                 self.bind_named_local(
                     module,

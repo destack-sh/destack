@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use destack_core::StringId;
 use destack_mir as mir;
 
-use crate::{LowerError, LowerResult};
+use crate::{CompilerError, CompilerResult, LowerError};
 
 use crate::lower::r#type::StructLayout;
 use crate::lower::{FunctionLowerer, LocalBinding};
@@ -27,7 +27,7 @@ impl FunctionLowerer<'_> {
         layout: StructLayout,
         node: dir::AnchoredGlobalNodeId,
         class_symbol: Option<dir::GlobalSymbolId>,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // build the initial instance value for this
         let instance_mir_type = self.state.builder.tree().get(instance_type).clone();
         let this_value = match instance_mir_type {
@@ -36,9 +36,10 @@ impl FunctionLowerer<'_> {
                     let pointee = pointee
                         .ty()
                         .ok_or_else(|| LowerError::UnsupportedConstruct {
-                            node,
+                            anchor: self.diagnostic_anchor(node),
                             message: "constructor pointee type is not concrete".to_string(),
-                        })?;
+                        })
+                        .map_err(CompilerError::from)?;
 
                     let pointer = self.state.builder.new_(pointee, instance_type);
                     let default_value =
@@ -49,9 +50,10 @@ impl FunctionLowerer<'_> {
                 // reject unsupported reference kinds
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node,
+                        anchor: self.diagnostic_anchor(node),
                         message: "unsupported constructor reference kind".to_string(),
-                    });
+                    }
+                    .into());
                 }
             },
             // initialize value typed instances
@@ -113,7 +115,7 @@ impl FunctionLowerer<'_> {
         node: dir::AnchoredGlobalNodeId,
         field_index: u32,
         field_name: StringId,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // skip when not in a constructor body
         let Some(state) = self.state.constructor_state.as_ref() else {
             return Ok(());
@@ -127,16 +129,17 @@ impl FunctionLowerer<'_> {
         // report reads before initialization
         let field_name = self.context.strings.get(field_name).to_string();
         Err(LowerError::UnsupportedConstruct {
-            node,
+            anchor: self.diagnostic_anchor(node),
             message: format!("constructor field '{field_name}' read before initialization"),
-        })
+        }
+        .into())
     }
 
     /// Require all constructor fields to be initialized before returning.
     pub(crate) fn require_constructor_complete(
         &self,
         node: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // skip when not in a constructor body
         let Some(state) = self.state.constructor_state.as_ref() else {
             return Ok(());
@@ -167,26 +170,31 @@ impl FunctionLowerer<'_> {
             "constructor fields not initialized".to_string()
         };
 
-        Err(LowerError::UnsupportedConstruct { node, message })
+        Err(LowerError::UnsupportedConstruct {
+            anchor: self.diagnostic_anchor(node),
+            message,
+        }
+        .into())
     }
 
     /// Return the constructed value from a constructor body.
     pub(crate) fn return_constructor_value(
         &mut self,
         node: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // verify all fields are initialized
         self.require_constructor_complete(node)?;
 
         // return the current this value
-        let binding =
-            self.state
-                .bindings
-                .this_binding
-                .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node,
-                    message: "constructor missing this binding".to_string(),
-                })?;
+        let binding = self
+            .state
+            .bindings
+            .this_binding
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(node),
+                message: "constructor missing this binding".to_string(),
+            })
+            .map_err(CompilerError::from)?;
         let value = self.binding_value(binding);
         self.state.builder.return_(Some(value));
         Ok(())

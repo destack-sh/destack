@@ -167,7 +167,7 @@ impl Compiler {
                 is_static,
                 ..
             } => {
-                let name = ast_strings.intern_from(&self.repository.strings, *name);
+                let name = *name;
                 let generic_parameters = generic_parameters
                     .iter()
                     .map(|parameter| {
@@ -246,7 +246,7 @@ impl Compiler {
                 is_static,
                 ..
             } => {
-                let name = ast_strings.intern_from(&self.repository.strings, *name);
+                let name = *name;
                 let declared_type = declared_type.map(|declared_type| {
                     self.unbind_type_expression(
                         module,

@@ -38,6 +38,8 @@ impl ModuleLowerer<'_> {
 
         // lower the instance type
         let mir_type = self.lower_type(instance_type_id, anchor)?;
+        self.metadata_name_for_type(instance_type_id, mir_type, anchor)?;
+
         Ok(Some(mir_type))
     }
 

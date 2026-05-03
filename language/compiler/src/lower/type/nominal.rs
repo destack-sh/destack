@@ -5,7 +5,8 @@ use destack_dir::{self as dir};
 use destack_mir as mir;
 
 use crate::lower::{
-    FieldInput, FieldLayoutKind, LayoutPolicy, TypeCacheEntry, static_key_to_field_name,
+    FieldInput, FieldLayoutKind, LayoutPolicy, TypeCacheEntry, TypeLowerer, static_key_from_key,
+    static_key_to_field_name,
 };
 use crate::{LowerError, LowerResult};
 
@@ -31,13 +32,15 @@ impl ModuleLowerer<'_> {
                 .map(|id| id.into_global_any(self.module_id))
                 .map(|id| id.into_anchored(Some(self.profile)))
                 .ok_or_else(|| LowerError::Internal {
+                    anchor: (self.module_id).into(),
                     module: self.module_id,
                     message: "nominal layout cycle missing declaration".to_string(),
                 })?;
             return Err(LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "cycle detected while lowering nominal layout".to_string(),
-            });
+            }
+            .into());
         }
         self.nominal_layouts_in_progress.insert(symbol);
 
@@ -50,13 +53,15 @@ impl ModuleLowerer<'_> {
                 .map(|id| id.into_global_any(self.module_id))
                 .map(|id| id.into_anchored(Some(self.profile)))
                 .ok_or_else(|| LowerError::Internal {
+                    anchor: (self.module_id).into(),
                     module: self.module_id,
                     message: "nominal type missing declaration for instance type".to_string(),
                 })?;
             return Err(LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "nominal type missing instance type".to_string(),
-            });
+            }
+            .into());
         };
 
         // resolve a stable declaration for diagnostics
@@ -88,14 +93,14 @@ impl ModuleLowerer<'_> {
                 self.types
                     .get_instance_type_id(base_symbol)
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: instance_declaration,
+                        anchor: self.diagnostic_anchor(instance_declaration),
                         message: "class base instance type missing".to_string(),
                     })?;
             let base_mir_type = self
                 .type_lowerer
                 .cached_type(base_instance_type_id)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: instance_declaration,
+                    anchor: self.diagnostic_anchor(instance_declaration),
                     message: "class base layout missing".to_string(),
                 })?;
             let base_layout = self
@@ -132,7 +137,7 @@ impl ModuleLowerer<'_> {
             .map(|symbols| symbols.contains(&symbol))
             .unwrap_or(false);
         let layout = if let Some(base_layout) = base_layout {
-            self.type_lowerer.compute_struct_layout_with_base(
+            TypeLowerer::compute_struct_layout_with_base(
                 base_layout,
                 field_inputs,
                 LayoutPolicy::default(),
@@ -150,7 +155,7 @@ impl ModuleLowerer<'_> {
                 .type_lowerer
                 .size_and_align_of_type(self.builder.tree().get(vtable_type), self.builder.tree())
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: instance_declaration,
+                    anchor: self.diagnostic_anchor(instance_declaration),
                     message: "nominal layout requires concrete nested types".to_string(),
                 })?;
 
@@ -163,14 +168,13 @@ impl ModuleLowerer<'_> {
                 kind: FieldLayoutKind::VtableHeader,
             };
 
-            self.type_lowerer.compute_struct_layout_with_prefix(
+            TypeLowerer::compute_struct_layout_with_prefix(
                 vtable_field,
                 field_inputs,
                 LayoutPolicy::default(),
             )
         } else {
-            self.type_lowerer
-                .compute_struct_layout(field_inputs, LayoutPolicy::default())
+            TypeLowerer::compute_struct_layout(field_inputs, LayoutPolicy::default())
         };
 
         let mir_type = self
@@ -231,13 +235,16 @@ impl ModuleLowerer<'_> {
                 }
 
                 // resolve a static key for layout naming
-                let Some(key) = self.compiler.static_key_from_key(self.dir_tree, *key) else {
+                let Some(key) = static_key_from_key(self.dir_tree, self.strings, *key) else {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: member_id
-                            .into_global_any(self.module_id)
-                            .into_anchored(Some(self.profile)),
+                        anchor: self.diagnostic_anchor(
+                            member_id
+                                .into_global_any(self.module_id)
+                                .into_anchored(Some(self.profile)),
+                        ),
                         message: "unsupported dynamic field key in nominal layout".to_string(),
-                    });
+                    }
+                    .into());
                 };
 
                 // require a declared field type
@@ -262,7 +269,7 @@ impl ModuleLowerer<'_> {
                     .type_lowerer
                     .size_and_align_of_type(field_type, self.builder.tree())
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: anchor,
+                        anchor: self.diagnostic_anchor(anchor),
                         message: "nominal layout requires concrete nested types".to_string(),
                     })?;
 
@@ -270,11 +277,14 @@ impl ModuleLowerer<'_> {
                 let field_name = static_key_to_field_name(&key, &mut self.builder);
                 if !seen_fields.insert(field_name) {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: member_id
-                            .into_global_any(self.module_id)
-                            .into_anchored(Some(self.profile)),
+                        anchor: self.diagnostic_anchor(
+                            member_id
+                                .into_global_any(self.module_id)
+                                .into_anchored(Some(self.profile)),
+                        ),
                         message: "duplicate field in nominal layout".to_string(),
-                    });
+                    }
+                    .into());
                 }
 
                 // record the layout input

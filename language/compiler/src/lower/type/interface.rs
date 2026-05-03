@@ -17,7 +17,7 @@ pub(crate) struct InterfaceRefLayout {
     pub(crate) itab_type: mir::LocalNodeId<mir::Type>,
 }
 
-impl TypeLowerer {
+impl TypeLowerer<'_> {
     /// Return cached interface reference layout metadata.
     pub(crate) fn interface_ref_layout(
         &self,
@@ -43,24 +43,26 @@ impl TypeLowerer {
         // load the dir type for validation
         let dir::Type::Reference { symbol, .. } = types.get_type(type_id) else {
             return Err(LowerError::UnsupportedType {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
                 message: "expected interface reference type".to_string(),
-            });
+            }
+            .into());
         };
 
         // require an interface symbol
         if symbol.ty() != dir::SymbolType::Interface {
             return Err(LowerError::UnsupportedType {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
                 message: "expected interface reference type".to_string(),
-            });
+            }
+            .into());
         }
 
         // define object and itab field names and types
-        let object_name = builder.intern("@object");
-        let itab_name = builder.intern("@itab");
+        let object_name = builder.intern("object");
+        let itab_name = builder.intern("itab");
         let object_type = builder.type_managed_reference(self.ty_void);
         let itab_type = builder.type_reference(
             mir::ReferenceKind::Raw,
@@ -74,14 +76,14 @@ impl TypeLowerer {
         let (object_size, object_alignment) = self
             .size_and_align_of_type(builder.tree().get(object_type), builder.tree())
             .ok_or_else(|| LowerError::UnsupportedType {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
                 message: "interface layout requires concrete nested types".to_string(),
             })?;
         let (itab_size, itab_alignment) = self
             .size_and_align_of_type(builder.tree().get(itab_type), builder.tree())
             .ok_or_else(|| LowerError::UnsupportedType {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
                 message: "interface layout requires concrete nested types".to_string(),
             })?;
@@ -107,7 +109,7 @@ impl TypeLowerer {
         ];
 
         // compute layout and create the mir struct type
-        let layout = self.compute_struct_layout(fields, LayoutPolicy::Source);
+        let layout = Self::compute_struct_layout(fields, LayoutPolicy::Source);
         let mir_type = self.create_struct_type(&layout, builder);
         self.layout_cache.insert(mir_type, layout.clone());
 
@@ -116,14 +118,14 @@ impl TypeLowerer {
             layout
                 .field_index(object_name)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "missing interface object field".to_string(),
                 })?;
         let itab_field_index =
             layout
                 .field_index(itab_name)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "missing interface itab field".to_string(),
                 })?;
 

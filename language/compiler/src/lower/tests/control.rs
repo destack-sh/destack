@@ -39,14 +39,16 @@ block2:
     jump block3
 
 block3:
-    value4: float64 = 1float64
-    value5: float64 = float.sub value0, value4
-    value6: float64 = call fibonacci(value5): (float64) -> float64
-    value7: float64 = 2float64
+    value6: int32 = 1int32
+    value7: float64 = cast.intToFloat.s value6 -> float64
     value8: float64 = float.sub value0, value7
     value9: float64 = call fibonacci(value8): (float64) -> float64
-    value10: float64 = float.add value6, value9
-    return value10
+    value10: int32 = 2int32
+    value11: float64 = cast.intToFloat.s value10 -> float64
+    value12: float64 = float.sub value0, value11
+    value13: float64 = call fibonacci(value12): (float64) -> float64
+    value14: float64 = float.add value9, value13
+    return value14
 }
 "#,
     );

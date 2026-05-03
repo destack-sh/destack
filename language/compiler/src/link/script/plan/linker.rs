@@ -1,13 +1,15 @@
 use std::collections::{HashSet, VecDeque};
 
-use destack_artifact::{DynamicScriptDependencyTarget, ModuleOutput};
+use destack_artifact::ModuleOutput;
 use destack_source::ModuleId;
+use destack_workspace::ProviderError;
 use indexmap::IndexSet;
 
-use crate::{LinkError, LinkResult, RequirementCollector};
+use crate::{CompilerResult, LinkError, LinkResult};
 
-use super::super::ScriptLinker;
+use super::super::{ScriptLinker, dynamic_script_dependencies, static_script_dependencies};
 use super::{ModuleSet, OutputGraph, Plan};
+use crate::CompilerError;
 
 /// Order the included modules after their bundled dependencies.
 fn order_script_modules(
@@ -121,7 +123,7 @@ impl<'a> ScriptLinker<'a> {
             };
 
             // retained static externals
-            for dependency in &script.linkage.static_dependencies {
+            for dependency in static_script_dependencies(&script.module) {
                 if !self.compiler.should_bundle_script_dependency(
                     self.module_anchor_span(*module_id),
                     self.package_id,
@@ -136,56 +138,53 @@ impl<'a> ScriptLinker<'a> {
             }
 
             // retained and bundled dynamic edges
-            for dependency in &script.linkage.dynamic_dependencies {
-                match &dependency.target {
-                    DynamicScriptDependencyTarget::Resolved(dependency_target) => {
-                        let should_bundle = self.compiler.should_bundle_script_dependency(
-                            self.module_anchor_span(*module_id),
-                            self.package_id,
-                            self.target_id,
-                            self.target,
-                            dependency_target,
-                        )?;
+            for dependency in dynamic_script_dependencies(&script.module) {
+                let Some(dependency_target) = &dependency.target else {
+                    module_set.has_opaque_dynamic_imports = true;
+                    continue;
+                };
 
-                        // chunked outputs can retain internal dynamic edges as output links
-                        if should_bundle {
-                            if self.target.assembly == destack_workspace::BundleMode::Chunked {
-                                continue;
-                            }
+                let should_bundle = self.compiler.should_bundle_script_dependency(
+                    self.module_anchor_span(*module_id),
+                    self.package_id,
+                    self.target_id,
+                    self.target,
+                    dependency_target,
+                )?;
 
-                            return Err(LinkError::InvalidTarget {
-                                anchor: (*module_id).into(),
-                                package: self.package_id,
-                                target: self.target_id.clone(),
-                                message: format!(
-                                    "bundled dynamic import '{}' is not implemented yet",
-                                    dependency_target.specifier()
-                                ),
-                            });
-                        }
-
-                        module_set
-                            .dynamic_targets
-                            .insert(dependency_target.specifier().to_string());
+                // chunked outputs can retain internal dynamic edges as output links
+                if should_bundle {
+                    if self.target.assembly == destack_workspace::BundleMode::Chunked {
+                        continue;
                     }
 
-                    // opaque dynamic imports are tracked for later validation
-                    DynamicScriptDependencyTarget::Opaque => {
-                        module_set.has_opaque_dynamic_imports = true;
+                    return Err(LinkError::InvalidTarget {
+                        anchor: (*module_id).into(),
+                        package: self.package_id,
+                        target: self.target_id.clone(),
+                        message: format!(
+                            "bundled dynamic import '{}' is not implemented yet",
+                            dependency_target.specifier()
+                        ),
                     }
+                    .into());
                 }
+
+                module_set
+                    .dynamic_targets
+                    .insert(dependency_target.specifier().to_string());
             }
         }
 
         Ok(())
     }
 
-    /// Require all generated script artifacts needed to link one target.
+    /// Require all generated script outputs needed to link one target.
     pub(crate) fn require_module_artifacts(
         &self,
         root_modules: &[ModuleId],
-    ) -> LinkResult<Vec<ModuleId>> {
-        let mut collector = RequirementCollector::new();
+    ) -> CompilerResult<Vec<ModuleId>> {
+        let mut blocked = Vec::new();
         let mut required_modules = Vec::new();
         let mut queued_modules = HashSet::new();
         let mut pending_modules = root_modules.iter().copied().collect::<VecDeque<_>>();
@@ -202,53 +201,64 @@ impl<'a> ScriptLinker<'a> {
 
             // resource modules are linked directly from patched module state
             if !module.is_code() {
-                let result = self.compiler.require_dir_patched(
-                    self.context.revision(),
-                    module_id,
-                    profile_id,
-                );
-                collector.try_collect(result);
+                match self
+                    .compiler
+                    .require_dir_checked(self.context, module_id, profile_id)
+                {
+                    Ok(_) => {}
+                    Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
+                    Err(error) => return Err(CompilerError::from(error)),
+                }
                 required_modules.push(module_id);
                 continue;
             }
 
-            let result = self.compiler.require_module_output(
-                self.context.revision(),
+            match self.compiler.require_module_output(
+                self.context,
                 module_id,
                 profile_id,
                 self.target_id,
-            );
-            collector.try_collect(result);
+            ) {
+                Ok(_) => {}
+                Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
+                Err(error) => return Err(CompilerError::from(error)),
+            }
 
             // linked output rewriting and identifier minification still consult
             // the patched dir for source backed code modules
-            let result =
-                self.compiler
-                    .require_dir_patched(self.context.revision(), module_id, profile_id);
-            collector.try_collect(result);
+            match self
+                .compiler
+                .require_dir_checked(self.context, module_id, profile_id)
+            {
+                Ok(_) => {}
+                Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
+                Err(error) => return Err(CompilerError::from(error)),
+            }
 
             required_modules.push(module_id);
 
-            // only traverse bundled dependencies after the generated artifact exists
+            // only traverse bundled dependencies after the generated output exists
             if self
                 .compiler
-                .repository
-                .module_output(self.revision(), module_id, *self.target_id)
-                .is_none()
+                .module_output(self.context, module_id, self.target_id)
+                .is_err()
             {
                 continue;
             }
 
-            for dependency_id in self.bundled_script_dependency_modules(module_id)? {
+            for dependency_id in self
+                .bundled_script_dependency_modules(module_id)
+                .map_err(CompilerError::from)?
+            {
                 if !queued_modules.contains(&dependency_id) {
                     pending_modules.push_back(dependency_id);
                 }
             }
         }
 
-        // yield while required generated artifacts are still pending
-        if let Some(requirement) = collector.try_into_requirement() {
-            return Err(LinkError::Yield { requirement });
+        // block while required generated outputs are still pending
+        if !blocked.is_empty() {
+            return Err(CompilerError::Blocked { keys: blocked });
         }
 
         Ok(required_modules)
@@ -285,7 +295,7 @@ impl<'a> ScriptLinker<'a> {
     }
 
     /// Build the output plan for this target.
-    pub(in super::super) fn plan(&self, root_modules: &[ModuleId]) -> LinkResult<Plan> {
+    pub(in super::super) fn plan(&self, root_modules: &[ModuleId]) -> CompilerResult<Plan> {
         let (document_module_ids, script_root_modules, stylesheet_root_modules, asset_root_modules) =
             self.collect_root_modules(root_modules)?;
 
@@ -297,12 +307,14 @@ impl<'a> ScriptLinker<'a> {
         let module_set = if script_module_id_set.is_empty() {
             super::ModuleSet::default()
         } else {
-            self.build_script_module_set(&script_root_modules, &script_module_id_set)?
+            self.build_script_module_set(&script_root_modules, &script_module_id_set)
+                .map_err(CompilerError::from)?
         };
         let output_graph = if module_set.modules().is_empty() {
             OutputGraph::default_empty(self.target.assembly)
         } else {
-            self.build_script_output_graph(&module_set)?
+            self.build_script_output_graph(&module_set)
+                .map_err(CompilerError::from)?
         };
         let stylesheet_module_id_set =
             self.collect_stylesheet_modules(&stylesheet_root_modules, &script_module_id_set);
@@ -310,15 +322,20 @@ impl<'a> ScriptLinker<'a> {
             Default::default()
         } else {
             self.require_stylesheet_artifacts(&stylesheet_module_id_set)?;
-            self.plan_css_stylesheet_outputs(&stylesheet_module_id_set)?
+            self.plan_css_stylesheet_outputs(&stylesheet_module_id_set)
+                .map_err(CompilerError::from)?
         };
         let asset_module_id_set = self.collect_asset_modules(
             &asset_root_modules,
             &stylesheet_module_id_set,
             &script_module_id_set,
         )?;
-        let output_layout = self.build_output_layout(&output_graph)?;
-        let asset_reference_map = self.plan_asset_references(asset_module_id_set.into_iter())?;
+        let output_layout = self
+            .build_output_layout(&output_graph)
+            .map_err(CompilerError::from)?;
+        let asset_reference_map = self
+            .plan_asset_references(asset_module_id_set.into_iter())
+            .map_err(CompilerError::from)?;
 
         Ok(Plan::new(
             document_module_ids,

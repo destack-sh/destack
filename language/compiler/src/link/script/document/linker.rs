@@ -73,6 +73,7 @@ impl<'a> ScriptLinker<'a> {
         let module = self.module(module_id);
         let module_path =
             module_source_path(module.as_ref()).map_err(|message| LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message,
             })?;
@@ -99,7 +100,7 @@ impl<'a> ScriptLinker<'a> {
             document_location,
             plan,
         )?;
-        let module_graph = self.module_graph_for_module(module.id)?;
+        let module_edges = self.module_edges_for_module(module.id)?;
 
         // preserve authored formatting when the target is not minifying
         if !self.target.should_minify_bundle_html_output() {
@@ -108,7 +109,7 @@ impl<'a> ScriptLinker<'a> {
             if let Some(rendered) = patch_document_source(
                 self,
                 module,
-                module_graph.as_ref(),
+                module_edges.as_slice(),
                 document,
                 document_location,
                 plan,
@@ -123,7 +124,7 @@ impl<'a> ScriptLinker<'a> {
         print_html_document(
             self,
             module,
-            module_graph.as_ref(),
+            module_edges.as_slice(),
             document,
             document_location,
             plan,
@@ -170,6 +171,7 @@ impl<'a> ScriptLinker<'a> {
                 let stylesheet_location =
                     plan.stylesheet_output_location(*module_id).ok_or_else(|| {
                         LinkError::Internal {
+                            anchor: (self.package_id).into(),
                             package: self.package_id,
                             message: format!(
                                 "missing planned output for associated html stylesheet {:?}",

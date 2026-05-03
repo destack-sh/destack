@@ -7,8 +7,8 @@ use dir::{
     SymbolTable, Tree, Type, TypeExpression, TypeTable,
 };
 
-use crate::elaborate::common::ElaborateState;
-use crate::{Compiler, ElaborateResult};
+use crate::elaborate::ElaborateState;
+use crate::{Compiler, ElaborateError, ElaborateResult};
 
 /// The constructor kind inferred for a nominal type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -107,9 +107,9 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> ElaborateResult<Option<ConstructorKind>> {
         // use current module data when the symbol is local
-        if symbol.module_id == state.ctx.module.id {
+        if symbol.module_id == state.module.id {
             let view = NominalLookupView {
-                module_id: state.ctx.module.id,
+                module_id: state.module.id,
                 tree: state.tree,
                 symbols: state.symbols,
                 types: state.types,
@@ -118,19 +118,22 @@ impl Compiler {
         }
 
         // load the remote module data for imported symbols
-        let dir = self
-            .require_artifact_dir_analyzed(
-                state.ctx.compiler_context.revision(),
-                symbol.module_id,
-                state.ctx.profile,
-            )
-            .map_err(|error| self.elaborate_error_from_requirement(error))?;
+        let declared = self
+            .dir_declared(state.provider, symbol.module_id, state.profile)
+            .map_err(|_| ElaborateError::UnsupportedConstruct {
+                anchor: symbol.module_id.into(),
+            })?;
+        let checked = self
+            .dir_checked(state.provider, symbol.module_id, state.profile)
+            .map_err(|_| ElaborateError::UnsupportedConstruct {
+                anchor: symbol.module_id.into(),
+            })?;
 
         let view = NominalLookupView {
             module_id: symbol.module_id,
-            tree: &dir.tree,
-            symbols: &dir.symbols,
-            types: &dir.types,
+            tree: &declared.tree,
+            symbols: &declared.symbols,
+            types: &checked.types,
         };
         Ok(self.nominal_constructor_kind_for_symbol_in_dir(symbol, view))
     }

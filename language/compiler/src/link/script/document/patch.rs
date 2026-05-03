@@ -1,6 +1,6 @@
-use destack_artifact::{Html, ModuleGraph};
+use destack_artifact::Html;
 use destack_html as html;
-use destack_source::{FileId, Span};
+use destack_source::{FileId, ModuleEdge, Span};
 use destack_workspace::Module;
 
 use crate::{LinkError, LinkResult};
@@ -14,7 +14,7 @@ use crate::link::OutputLocation;
 pub(super) fn patch_document_source(
     linker: &ScriptLinker<'_>,
     module: &Module,
-    module_graph: &ModuleGraph,
+    module_edges: &[ModuleEdge],
     document: &Html,
     document_location: &OutputLocation,
     plan: &Plan,
@@ -29,7 +29,7 @@ pub(super) fn patch_document_source(
     collect_node_replacements(
         linker,
         module,
-        module_graph,
+        module_edges,
         document,
         document_location,
         plan,
@@ -61,6 +61,7 @@ pub(super) fn patch_document_source(
     for (span, value) in replacements {
         if span.file != file_id {
             return Err(LinkError::Internal {
+                anchor: (linker.package_id).into(),
                 package: linker.package_id,
                 message: "html replacement span belongs to the wrong file".to_string(),
             });
@@ -71,6 +72,7 @@ pub(super) fn patch_document_source(
 
         if start < cursor || end > source.len() {
             return Err(LinkError::Internal {
+                anchor: (linker.package_id).into(),
                 package: linker.package_id,
                 message: "html replacement span is invalid".to_string(),
             });
@@ -134,6 +136,7 @@ fn find_head_insertion_start(
 
             if span.file != file_id {
                 return Err(LinkError::Internal {
+                    anchor: (linker.package_id).into(),
                     package: linker.package_id,
                     message: "html head span belongs to the wrong file".to_string(),
                 });
@@ -147,6 +150,7 @@ fn find_head_insertion_start(
             let end = span.end as usize;
             let Some(relative_start) = source[start..end].rfind("</") else {
                 return Err(LinkError::Internal {
+                    anchor: (linker.package_id).into(),
                     package: linker.package_id,
                     message: "html head element is missing a closing tag slice".to_string(),
                 });
@@ -220,7 +224,7 @@ fn render_head_stylesheet_insertion(
 fn collect_node_replacements(
     linker: &ScriptLinker<'_>,
     module: &Module,
-    module_graph: &ModuleGraph,
+    module_edges: &[ModuleEdge],
     document: &Html,
     document_location: &OutputLocation,
     plan: &Plan,
@@ -235,7 +239,7 @@ fn collect_node_replacements(
         collect_attribute_replacements(
             linker,
             module,
-            module_graph,
+            module_edges,
             document,
             document_location,
             plan,
@@ -245,7 +249,7 @@ fn collect_node_replacements(
         collect_node_replacements(
             linker,
             module,
-            module_graph,
+            module_edges,
             document,
             document_location,
             plan,
@@ -259,7 +263,7 @@ fn collect_node_replacements(
             collect_node_replacements(
                 linker,
                 module,
-                module_graph,
+                module_edges,
                 document,
                 document_location,
                 plan,
@@ -276,7 +280,7 @@ fn collect_node_replacements(
 fn collect_attribute_replacements(
     linker: &ScriptLinker<'_>,
     module: &Module,
-    module_graph: &ModuleGraph,
+    module_edges: &[ModuleEdge],
     document: &Html,
     document_location: &OutputLocation,
     plan: &Plan,
@@ -294,7 +298,7 @@ fn collect_attribute_replacements(
         let rendered = render_html_attribute_value(
             linker,
             module,
-            module_graph,
+            module_edges,
             document_location,
             plan,
             *attribute_id,
@@ -307,6 +311,7 @@ fn collect_attribute_replacements(
 
         let Some(span) = document.tree.value_span(*attribute_id) else {
             return Err(LinkError::Internal {
+                anchor: (linker.package_id).into(),
                 package: linker.package_id,
                 message: format!(
                     "html linked attribute is missing a source span in module '{}'",

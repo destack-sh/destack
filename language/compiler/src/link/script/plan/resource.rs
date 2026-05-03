@@ -1,10 +1,8 @@
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use destack_artifact::{
-    Data, EmitFormat, Loader, ScriptArtifact, ScriptDeclaration, ScriptLanguage, ScriptLinkage,
-};
+use destack_artifact::{Data, EmitFormat, ScriptDeclaration, ScriptLanguage, ScriptOutput};
 use destack_core::StringPool;
-use destack_source::{FileContent, ModuleId};
+use destack_source::{FileContent, Loader, ModuleId};
 use destack_workspace::Module;
 use serde_json::Value as JsonValue;
 use {destack_codegen_js as js, destack_dir as dir};
@@ -140,6 +138,7 @@ fn insert_json_expression(
         )),
         JsonValue::Number(value) => {
             let number = value.as_f64().ok_or_else(|| LinkError::Internal {
+                anchor: (module_id.package_id).into(),
                 package: module_id.package_id,
                 message: format!("failed to lower JSON number '{value}'"),
             })?;
@@ -279,6 +278,7 @@ impl<'a> ScriptLinker<'a> {
             output_layout
                 .output_location(output_id)
                 .ok_or_else(|| LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message: format!("missing output placement for output id {}", output_id.0),
                 })?;
@@ -287,24 +287,25 @@ impl<'a> ScriptLinker<'a> {
         Ok(target_layout.runtime_reference(current_output, &output_location))
     }
 
-    /// Build one resource script artifact for one non-code module.
-    pub(in crate::link::script) fn build_resource_script_artifact(
+    /// Build one resource script output for one non-code module.
+    pub(in crate::link::script) fn build_resource_script_output(
         &self,
         output_id: OutputId,
         module_id: ModuleId,
         output_graph: &OutputGraph,
         plan: &Plan,
-    ) -> LinkResult<ScriptArtifact> {
+    ) -> LinkResult<ScriptOutput> {
         let source_module = self.module(module_id);
         let source_module = source_module.as_ref();
         let profile_id = self.profile_id_for_module(module_id)?;
         let dir = self
             .compiler
-            .dir_patched(module_id, profile_id)
-            .ok_or_else(|| LinkError::Internal {
+            .dir_declared(self.context, module_id, profile_id)
+            .map_err(|error| LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!(
-                    "missing patched dir for resource module {:?} target '{}'",
+                    "missing declared dir for resource module {:?} target '{}': {error:?}",
                     module_id,
                     self.target_name()
                 ),
@@ -316,7 +317,7 @@ impl<'a> ScriptLinker<'a> {
             output_id,
             source_module,
             plan,
-            dir.anchor_node,
+            dir.module_node,
             &mut tree,
             &mut strings,
         )?;
@@ -328,7 +329,7 @@ impl<'a> ScriptLinker<'a> {
             false
         };
         let script_module = if is_plain_stylesheet {
-            js::ScriptModule {
+            js::Module {
                 tree,
                 roots: Vec::new(),
                 strings,
@@ -338,7 +339,7 @@ impl<'a> ScriptLinker<'a> {
                 &mut tree,
                 &mut strings,
                 module_id,
-                dir.anchor_node,
+                dir.module_node,
                 js::MODULE_DEFAULT_NAME,
                 value,
             );
@@ -350,13 +351,13 @@ impl<'a> ScriptLinker<'a> {
                     &mut tree,
                     &mut strings,
                     module_id,
-                    dir.anchor_node,
+                    dir.module_node,
                     js::MODULE_DEFAULT_NAME,
                 );
                 roots.push(export_statement.into_any());
             }
 
-            js::ScriptModule {
+            js::Module {
                 tree,
                 roots,
                 strings,
@@ -367,6 +368,7 @@ impl<'a> ScriptLinker<'a> {
             EmitFormat::Ts => ScriptLanguage::TypeScript,
             other => {
                 return Err(LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message: format!("unsupported linked script language: {other:?}"),
                 });
@@ -378,10 +380,9 @@ impl<'a> ScriptLinker<'a> {
             None
         };
 
-        Ok(ScriptArtifact {
+        Ok(ScriptOutput {
             language,
             module: script_module,
-            linkage: ScriptLinkage::default(),
             declaration,
             source_map: None,
             has_top_level_side_effects: is_plain_stylesheet,
@@ -414,6 +415,7 @@ impl<'a> ScriptLinker<'a> {
             let value = self.data(module.id)?;
             let Data::Json(value) = value.as_ref() else {
                 return Err(LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message: format!("expected json payload for data module '{}'", module.uri),
                 });
@@ -428,6 +430,7 @@ impl<'a> ScriptLinker<'a> {
             let file = self.file(module.file_id);
             let FileContent::Binary { content } = file.content.payload() else {
                 return Err(LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message: format!(
                         "base64 loader expected binary file content for '{}'",
@@ -446,6 +449,7 @@ impl<'a> ScriptLinker<'a> {
             let file = self.file(module.file_id);
             let FileContent::Text { content } = file.content.payload() else {
                 return Err(LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message: format!(
                         "text loader expected text file content for '{}'",
@@ -463,6 +467,7 @@ impl<'a> ScriptLinker<'a> {
             let file = self.file(module.file_id);
             let FileContent::Binary { content } = file.content.payload() else {
                 return Err(LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message: format!(
                         "binary loader expected binary file content for '{}'",
@@ -493,6 +498,7 @@ impl<'a> ScriptLinker<'a> {
         }
 
         Err(LinkError::Internal {
+            anchor: (self.package_id).into(),
             package: self.package_id,
             message: format!(
                 "unsupported resource loader '{}' for module '{}'",

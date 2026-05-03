@@ -1,83 +1,98 @@
-use crate::{Compiler, CompilerContext, GenerateError, GenerateResult};
+use crate::{Compiler, CompilerResult, GenerateError};
+use destack_artifact::ModuleOutput;
+use destack_workspace::ProviderContext;
 
+use crate::CompilerError;
 use destack_source::{ModuleId, TargetId};
 use destack_workspace::ProfileId;
 
 impl Compiler {
-    /// Generate one module artifact for one target.
+    /// Generate one module output for one target.
     pub(super) fn generate_target_module_output(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
         target_id: &TargetId,
-        context: &CompilerContext<'_>,
-    ) -> GenerateResult<()> {
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ModuleOutput> {
         // look up target from the module package
-        let target = self
-            .repository
-            .effective_target(context.revision(), *target_id)
-            .map_err(|error| GenerateError::Internal {
-                module: module_id,
-                message: format!("failed to load target '{target_id:?}': {error}"),
-            })?;
+        let target =
+            self.effective_target(context, *target_id)
+                .ok_or_else(|| GenerateError::Internal {
+                    anchor: (module_id).into(),
+                    module: module_id,
+                    message: format!(
+                        "target '{}' not found",
+                        self.target_name(context.revision(), target_id)
+                    ),
+                })?;
 
-        let target = target.ok_or_else(|| GenerateError::Internal {
-            module: module_id,
-            message: format!(
-                "target '{}' not found",
-                self.target_name_for_revision(context.revision(), target_id)
-            ),
-        })?;
-
-        let resolved_profile = context
-            .profile_id_for_target(module_id, target_id)
+        let resolved_profile = self
+            .target_profile_id(context.revision(), module_id, target_id)
             .ok_or_else(|| GenerateError::Internal {
+                anchor: (module_id).into(),
                 module: module_id,
                 message: format!(
                     "profile not found for target '{}'",
-                    self.target_name_for_revision(context.revision(), target_id)
+                    self.target_name(context.revision(), target_id)
                 ),
             })?;
         if resolved_profile != profile {
-            return Ok(());
+            return Err(GenerateError::Internal {
+                anchor: (module_id).into(),
+                module: module_id,
+                message: format!(
+                    "target '{}' resolved to profile '{resolved_profile:?}', not '{profile:?}'",
+                    self.target_name(context.revision(), target_id)
+                ),
+            }
+            .into());
         }
 
-        self.require_dir_patched(context.revision(), module_id, profile)?;
+        self.require_dir_checked(context, module_id, profile)
+            .map_err(CompilerError::from)?;
 
-        // generate one script artifact through the script pipeline
+        // dispatch through the selected code generation family
         if target.uses_js_generate_pipeline() {
-            return self.generate_script_module_output(module_id, &target, profile, context);
+            return self
+                .generate_script_module_output(module_id, &target, profile, context)
+                .map_err(CompilerError::from);
         }
 
+        // native code generation
         #[cfg(feature = "native-codegen")]
         {
-            // otherwise generate one binary artifact through the native pipeline
             if target.uses_native_generate_pipeline() {
-                return self.generate_binary_module_output(module_id, &target, profile, context);
+                return self
+                    .generate_binary_module_output(module_id, &target, profile, context)
+                    .map_err(CompilerError::from);
             }
         }
 
+        // disabled native code generation
         #[cfg(not(feature = "native-codegen"))]
         {
-            // otherwise report disabled native generation
             if target.uses_native_generate_pipeline() {
                 return Err(GenerateError::Internal {
+                    anchor: (module_id).into(),
                     module: module_id,
                     message: format!(
                         "native codegen is disabled: cannot generate output '{:?}' for target '{}'",
                         target.emit, target.name
                     ),
-                });
+                }
+                .into());
             }
         }
 
-        // otherwise reject the unsupported output kind
         Err(GenerateError::Internal {
+            anchor: (module_id).into(),
             module: module_id,
             message: format!(
                 "unsupported output '{:?}' for target '{}'",
                 target.emit, target.name
             ),
-        })
+        }
+        .into())
     }
 }

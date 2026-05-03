@@ -246,27 +246,27 @@ impl ModuleLowerer<'_> {
             let tag_index = layout
                 .field_index(union_layout.tag_field_name)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: anchor,
+                    anchor: self.diagnostic_anchor(anchor),
                     message: "missing union tag field".to_string(),
                 })?;
             let tag_field =
                 layout
                     .field(tag_index)
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: anchor,
+                        anchor: self.diagnostic_anchor(anchor),
                         message: "missing union tag field".to_string(),
                     })?;
             let payload_index = layout
                 .field_index(union_layout.payload_field_name)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: anchor,
+                    anchor: self.diagnostic_anchor(anchor),
                     message: "missing union payload field".to_string(),
                 })?;
             let payload_field =
                 layout
                     .field(payload_index)
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: anchor,
+                        anchor: self.diagnostic_anchor(anchor),
                         message: "missing union payload field".to_string(),
                     })?;
 
@@ -283,13 +283,13 @@ impl ModuleLowerer<'_> {
             let object_field = layout
                 .field(interface_layout.object_field_index)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: anchor,
+                    anchor: self.diagnostic_anchor(anchor),
                     message: "missing interface object field".to_string(),
                 })?;
             let itab_field = layout
                 .field(interface_layout.itab_field_index)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: anchor,
+                    anchor: self.diagnostic_anchor(anchor),
                     message: "missing interface table field".to_string(),
                 })?;
 
@@ -339,14 +339,14 @@ impl ModuleLowerer<'_> {
     ) -> LowerError {
         if let Some(type_id) = type_id {
             return LowerError::UnsupportedType {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 ty: type_id.into_global(self.module_id),
                 message: message.to_string(),
             };
         }
 
         LowerError::UnsupportedConstruct {
-            node: anchor,
+            anchor: self.diagnostic_anchor(anchor),
             message: message.to_string(),
         }
     }

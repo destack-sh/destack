@@ -4,7 +4,7 @@ use dir::{
     Expression, IfCondition, IfKind, LocalNodeId, Mutability, NodeType,
 };
 
-use crate::elaborate::common::ElaborateState;
+use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateError, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
@@ -474,7 +474,7 @@ impl Compiler {
                 else_expression: Some(else_transformed),
             },
         );
-        self.set_void_expression_type(state.types, state.ctx.module_id, new_if);
+        self.set_void_expression_type(state.types, state.module_id, new_if);
         new_expressions.push(new_if);
 
         Ok(())
@@ -542,7 +542,7 @@ impl Compiler {
                 declarators: vec![new_declarator],
             },
         );
-        self.set_void_expression_type(state.types, state.ctx.module_id, new_let);
+        self.set_void_expression_type(state.types, state.module_id, new_let);
         new_expressions.push(new_let);
 
         Ok(true)
@@ -603,7 +603,7 @@ impl Compiler {
                 declarators: vec![uninit_declarator],
             },
         );
-        self.set_void_expression_type(state.types, state.ctx.module_id, uninit_let);
+        self.set_void_expression_type(state.types, state.module_id, uninit_let);
         new_expressions.push(uninit_let);
 
         // replace the tail expression with an assignment
@@ -630,7 +630,7 @@ impl Compiler {
             .insert_as_owner(block_expr_id, Expression::Block(inner_block_id));
         self.set_void_block_expression_type(
             state.types,
-            state.ctx.module_id,
+            state.module_id,
             inner_block_id,
             block_expr,
         );
@@ -677,7 +677,7 @@ impl Compiler {
             },
         );
         state.tree.mark_inactive(original_value_id.into_any());
-        self.set_void_expression_type(state.types, state.ctx.module_id, original_return_id);
+        self.set_void_expression_type(state.types, state.module_id, original_return_id);
         new_expressions.push(original_return_id);
 
         Ok(())
@@ -732,7 +732,7 @@ impl Compiler {
                 else_expression: else_transformed,
             },
         );
-        self.set_void_expression_type(state.types, state.ctx.module_id, if_id);
+        self.set_void_expression_type(state.types, state.module_id, if_id);
 
         Ok(if_id)
     }
@@ -751,7 +751,7 @@ impl Compiler {
         match pattern {
             // simple binding creates a local reference
             Pattern::Binding { name, symbol, .. } => {
-                let global_symbol = symbol.into_global(state.ctx.module_id);
+                let global_symbol = symbol.into_global(state.module_id);
                 self.insert_local_reference_expression_for_symbol(
                     state,
                     pattern_id.into_any(),
@@ -763,9 +763,7 @@ impl Compiler {
 
             // complex patterns not yet supported
             _ => Err(ElaborateError::UnsupportedConstruct {
-                node: pattern_id
-                    .into_global_any(state.ctx.module_id)
-                    .into_anchored(None),
+                anchor: state.module_id.into(),
             }),
         }
     }
@@ -799,12 +797,7 @@ impl Compiler {
                     ..block
                 };
                 state.tree.replace(block_id, updated_block);
-                self.set_void_block_expression_type(
-                    state.types,
-                    state.ctx.module_id,
-                    block_id,
-                    branch,
-                );
+                self.set_void_block_expression_type(state.types, state.module_id, block_id, branch);
 
                 // return the original branch (now modified)
                 Ok(branch)
@@ -844,12 +837,7 @@ impl Compiler {
                     ..block
                 };
                 state.tree.replace(block_id, updated_block);
-                self.set_void_block_expression_type(
-                    state.types,
-                    state.ctx.module_id,
-                    block_id,
-                    branch,
-                );
+                self.set_void_block_expression_type(state.types, state.module_id, block_id, branch);
 
                 // return the original branch (now modified)
                 Ok(branch)
@@ -907,7 +895,7 @@ impl Compiler {
         let block_expr_id = state
             .tree
             .insert_as_owner(block_expr_id, Expression::Block(block));
-        self.set_void_block_expression_type(state.types, state.ctx.module_id, block, block_expr_id);
+        self.set_void_block_expression_type(state.types, state.module_id, block, block_expr_id);
 
         block_expr_id
     }

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use destack_core::StringPool;
 use destack_source::ModuleId;
 use {destack_codegen_js as js, destack_dir as dir};
 
@@ -26,6 +27,8 @@ pub(super) enum OutputScopeId {
 pub(super) struct MinifySourceContext {
     /// The source tree.
     pub(super) tree: Arc<dir::Tree>,
+    /// The source strings.
+    pub(super) strings: Arc<StringPool>,
     /// The source symbol table.
     pub(super) symbols: Arc<dir::SymbolTable>,
     /// The namespace scope for this module.
@@ -81,6 +84,7 @@ impl ScriptLinker<'_> {
         let source_context = self
             .minify_source_context(module_id, source_contexts)?
             .ok_or_else(|| LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!("missing source context for minify module {module_id:?}"),
             })?;
@@ -106,32 +110,26 @@ impl ScriptLinker<'_> {
             return Ok(Some(source_context.clone()));
         }
 
-        // fall back to the patched source context on demand
+        // fall back to the declared source context on demand
         self.ensure_module_profile(module_id)?;
 
         let profile_id = self.profile_id_for_module(module_id)?;
-        if let Some(dir) = self.compiler.dir_patched(module_id, profile_id) {
-            return Ok(Some(MinifySourceContext {
-                tree: dir.tree.clone(),
-                symbols: dir.symbols.clone(),
-                namespace_scope: dir.namespace_scope,
-            }));
-        }
-
         let dir = self
             .compiler
-            .dir_resolved(module_id, profile_id)
-            .ok_or_else(|| LinkError::Internal {
+            .dir_declared(self.context, module_id, profile_id)
+            .map_err(|error| LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!(
-                    "missing resolved or patched source context for minify module {:?} profile {:?}",
+                    "missing declared source context for minify module {:?} profile {:?}: {error:?}",
                     module_id, profile_id
                 ),
             })?;
 
         Ok(Some(MinifySourceContext {
-            tree: dir.tree.clone(),
-            symbols: dir.symbols.clone(),
+            tree: Arc::new(dir.tree.clone()),
+            strings: Arc::new(dir.strings.clone()),
+            symbols: Arc::new(dir.symbols.clone()),
             namespace_scope: dir.namespace_scope,
         }))
     }
@@ -139,7 +137,7 @@ impl ScriptLinker<'_> {
     /// Load source contexts for every source-backed module referenced by one linked JS tree.
     fn insert_referenced_minify_source_contexts(
         &self,
-        module: &js::ScriptModule,
+        module: &js::Module,
         source_contexts: &mut HashMap<ModuleId, MinifySourceContext>,
     ) -> LinkResult<()> {
         let mut visitor = ReferencedNodeCollector::default();
@@ -164,7 +162,7 @@ impl ScriptLinker<'_> {
     /// Return the symbol that owns one lowered declaration name.
     pub(super) fn declaration_name_symbol(
         &self,
-        module: &js::ScriptModule,
+        module: &js::Module,
         declaration_id: js::LocalNodeId<js::Declaration>,
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
     ) -> LinkResult<Option<js::ScriptSymbolId>> {
@@ -184,6 +182,7 @@ impl ScriptLinker<'_> {
         let source_context = self
             .minify_source_context(module_id, source_contexts)?
             .ok_or_else(|| LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!("missing source context for declaration module {module_id:?}"),
             })?;
@@ -212,7 +211,7 @@ impl ScriptLinker<'_> {
                     return Ok(None);
                 };
 
-                Ok(Some(self.compiler.repository.strings.get(name).to_string()))
+                Ok(Some(source_context.strings.get(name).to_string()))
             }
             js::ScriptSymbolId::ModuleDefault(_) => Ok(Some(js::MODULE_DEFAULT_NAME.to_string())),
         }
@@ -229,6 +228,7 @@ impl ScriptLinker<'_> {
                 let source_context = self
                     .minify_source_context(symbol_id.module_id, source_contexts)?
                     .ok_or_else(|| LinkError::Internal {
+                        anchor: (self.package_id).into(),
                         package: self.package_id,
                         message: format!(
                             "missing source context for symbol module {:?} profile lookup",
@@ -267,6 +267,7 @@ impl ScriptLinker<'_> {
                 let source_context = self
                     .minify_source_context(module_id, source_contexts)?
                     .ok_or_else(|| LinkError::Internal {
+                        anchor: (self.package_id).into(),
                         package: self.package_id,
                         message: format!(
                             "missing source context for scope module {:?} profile {:?}",

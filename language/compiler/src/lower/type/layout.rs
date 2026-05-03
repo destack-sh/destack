@@ -136,12 +136,11 @@ impl StructLayout {
     }
 }
 
-impl TypeLowerer {
+impl TypeLowerer<'_> {
     /// Compute struct layout from a list of field inputs:
     /// - Optimized: sort by alignment (desc), size (desc), source order as tiebreaker
     /// - Source/C: preserve declaration order
     pub(crate) fn compute_struct_layout(
-        &self,
         mut fields: Vec<FieldInput>,
         policy: LayoutPolicy,
     ) -> StructLayout {
@@ -179,7 +178,7 @@ impl TypeLowerer {
 
         for field in fields {
             // align current offset to field's alignment requirement
-            let aligned_offset = self.align_up(current_offset, field.alignment);
+            let aligned_offset = Self::align_up(current_offset, field.alignment);
             layout_fields.push(FieldLayout {
                 name: field.name,
                 ty: field.ty,
@@ -193,7 +192,7 @@ impl TypeLowerer {
         }
 
         // add trailing padding to align struct size
-        let total_size = self.align_up(current_offset, struct_alignment);
+        let total_size = Self::align_up(current_offset, struct_alignment);
 
         StructLayout {
             fields: layout_fields,
@@ -204,13 +203,12 @@ impl TypeLowerer {
 
     /// Compute struct layout with a fixed prefix field at offset zero.
     pub(crate) fn compute_struct_layout_with_prefix(
-        &self,
         prefix: FieldInput,
         fields: Vec<FieldInput>,
         policy: LayoutPolicy,
     ) -> StructLayout {
         if fields.is_empty() {
-            let size = self.align_up(prefix.size, prefix.alignment);
+            let size = Self::align_up(prefix.size, prefix.alignment);
             return StructLayout {
                 fields: vec![FieldLayout {
                     name: prefix.name,
@@ -226,8 +224,8 @@ impl TypeLowerer {
             };
         }
 
-        let rest_layout = self.compute_struct_layout(fields, policy);
-        let base_offset = self.align_up(prefix.size, rest_layout.alignment);
+        let rest_layout = Self::compute_struct_layout(fields, policy);
+        let base_offset = Self::align_up(prefix.size, rest_layout.alignment);
         let alignment = prefix.alignment.max(rest_layout.alignment);
 
         let mut merged_fields = Vec::with_capacity(rest_layout.fields.len() + 1);
@@ -253,7 +251,7 @@ impl TypeLowerer {
             });
         }
 
-        let size = self.align_up(base_offset + rest_layout.size, alignment);
+        let size = Self::align_up(base_offset + rest_layout.size, alignment);
 
         StructLayout {
             fields: merged_fields,
@@ -264,7 +262,6 @@ impl TypeLowerer {
 
     /// Compute struct layout with an existing layout prefix.
     pub(crate) fn compute_struct_layout_with_base(
-        &self,
         base: StructLayout,
         fields: Vec<FieldInput>,
         policy: LayoutPolicy,
@@ -275,10 +272,10 @@ impl TypeLowerer {
         }
 
         // compute the layout for the new fields
-        let rest_layout = self.compute_struct_layout(fields, policy);
+        let rest_layout = Self::compute_struct_layout(fields, policy);
 
         // align the derived fields after the base layout
-        let base_offset = self.align_up(base.size, rest_layout.alignment);
+        let base_offset = Self::align_up(base.size, rest_layout.alignment);
         let alignment = base.alignment.max(rest_layout.alignment);
 
         // merge the base and derived layouts
@@ -297,7 +294,7 @@ impl TypeLowerer {
         }
 
         // compute the combined size with trailing padding
-        let size = self.align_up(base_offset + rest_layout.size, alignment);
+        let size = Self::align_up(base_offset + rest_layout.size, alignment);
 
         // return the merged layout
         StructLayout {
@@ -310,7 +307,7 @@ impl TypeLowerer {
     /// Align a value up to the given alignment.
     /// Alignment must be a power of 2.
     #[inline]
-    fn align_up(&self, value: u32, alignment: u32) -> u32 {
+    fn align_up(value: u32, alignment: u32) -> u32 {
         debug_assert!(alignment.is_power_of_two(), "alignment must be power of 2");
         (value + alignment - 1) & !(alignment - 1)
     }
@@ -365,10 +362,10 @@ impl TypeLowerer {
                 for field_ty in fields {
                     let (field_size, field_align) = self.size_and_align_of_type(field_ty, tree)?;
                     max_align = max_align.max(field_align);
-                    current_offset = self.align_up(current_offset, field_align) + field_size;
+                    current_offset = Self::align_up(current_offset, field_align) + field_size;
                 }
 
-                let total_size = self.align_up(current_offset, max_align);
+                let total_size = Self::align_up(current_offset, max_align);
                 Some((total_size, max_align))
             }
             mir::Type::TensorView { .. } => {
@@ -392,10 +389,10 @@ impl TypeLowerer {
                     let elem_ty = tree.get(elem_id.ty()?);
                     let (elem_size, elem_align) = self.size_and_align_of_type(elem_ty, tree)?;
                     max_align = max_align.max(elem_align);
-                    current_offset = self.align_up(current_offset, elem_align) + elem_size;
+                    current_offset = Self::align_up(current_offset, elem_align) + elem_size;
                 }
 
-                let total_size = self.align_up(current_offset, max_align);
+                let total_size = Self::align_up(current_offset, max_align);
                 Some((total_size, max_align))
             }
             mir::Type::Struct { fields, copy: _ } => {
@@ -407,10 +404,10 @@ impl TypeLowerer {
                     let field_ty = tree.get(field.ty.ty()?);
                     let (field_size, field_align) = self.size_and_align_of_type(field_ty, tree)?;
                     max_align = max_align.max(field_align);
-                    current_offset = self.align_up(current_offset, field_align) + field_size;
+                    current_offset = Self::align_up(current_offset, field_align) + field_size;
                 }
 
-                let total_size = self.align_up(current_offset, max_align);
+                let total_size = Self::align_up(current_offset, max_align);
                 Some((total_size, max_align))
             }
             mir::Type::Callable { signature } => {
@@ -418,20 +415,19 @@ impl TypeLowerer {
                 let mut current_offset: u32 = 0;
                 let environment = tree.callable_environment_type();
 
-                let signature_ty = tree.get(signature.ty()?);
-                let (signature_size, signature_align) =
-                    self.size_and_align_of_type(signature_ty, tree)?;
-                max_align = max_align.max(signature_align);
-                current_offset = self.align_up(current_offset, signature_align) + signature_size;
+                let _ = signature.ty()?;
+                let pointer_size = pointer_bytes as u32;
+                max_align = max_align.max(pointer_size);
+                current_offset = Self::align_up(current_offset, pointer_size) + pointer_size;
 
                 let environment_ty = tree.get(environment);
                 let (environment_size, environment_align) =
                     self.size_and_align_of_type(environment_ty, tree)?;
                 max_align = max_align.max(environment_align);
                 current_offset =
-                    self.align_up(current_offset, environment_align) + environment_size;
+                    Self::align_up(current_offset, environment_align) + environment_size;
 
-                let total_size = self.align_up(current_offset, max_align);
+                let total_size = Self::align_up(current_offset, max_align);
                 Some((total_size, max_align))
             }
             mir::Type::Newtype { inner, .. } => {
@@ -514,37 +510,28 @@ impl TypeLowerer {
 mod tests {
     use super::*;
     use destack_core::StringPool;
-    use destack_workspace::{AmbientSnapshot, Repository};
-    use std::sync::Arc;
 
-    /// Create a type lowerer for layout tests.
-    fn test_lowerer() -> TypeLowerer {
-        let mut builder = mir::ModuleBuilder::unchecked();
-        let repository = Arc::new(Repository::open_root(
-            std::env::current_dir().unwrap_or_default(),
-            AmbientSnapshot::default(),
-        ));
-        TypeLowerer::new(&mut builder, 8, repository, None)
+    /// Return a placeholder type id for layout tests.
+    fn test_type_id() -> mir::LocalNodeId<mir::Type> {
+        mir::LocalNodeId::new(0)
     }
 
     /// Align value up to alignment boundary.
     #[test]
     fn test_align_up() {
-        let lowerer = test_lowerer();
-        assert_eq!(lowerer.align_up(0, 4), 0);
-        assert_eq!(lowerer.align_up(1, 4), 4);
-        assert_eq!(lowerer.align_up(4, 4), 4);
-        assert_eq!(lowerer.align_up(5, 4), 8);
-        assert_eq!(lowerer.align_up(7, 8), 8);
-        assert_eq!(lowerer.align_up(8, 8), 8);
-        assert_eq!(lowerer.align_up(9, 8), 16);
+        assert_eq!(TypeLowerer::align_up(0, 4), 0);
+        assert_eq!(TypeLowerer::align_up(1, 4), 4);
+        assert_eq!(TypeLowerer::align_up(4, 4), 4);
+        assert_eq!(TypeLowerer::align_up(5, 4), 8);
+        assert_eq!(TypeLowerer::align_up(7, 8), 8);
+        assert_eq!(TypeLowerer::align_up(8, 8), 8);
+        assert_eq!(TypeLowerer::align_up(9, 8), 16);
     }
 
     /// Empty struct has zero size and alignment 1.
     #[test]
     fn test_empty_struct() {
-        let lowerer = test_lowerer();
-        let layout = lowerer.compute_struct_layout(vec![], LayoutPolicy::Optimized);
+        let layout = TypeLowerer::compute_struct_layout(vec![], LayoutPolicy::Optimized);
         assert_eq!(layout.size, 0);
         assert_eq!(layout.alignment, 1);
         assert!(layout.fields.is_empty());
@@ -558,8 +545,7 @@ mod tests {
         let b = strings.intern("b");
         let c = strings.intern("c");
 
-        let lowerer = test_lowerer();
-        let dummy_ty = lowerer.ty_i32;
+        let dummy_ty = test_type_id();
 
         // fields: a (1 byte, align 1), b (4 bytes, align 4), c (2 bytes, align 2)
         let fields = vec![
@@ -589,7 +575,7 @@ mod tests {
             },
         ];
 
-        let layout = lowerer.compute_struct_layout(fields, LayoutPolicy::Optimized);
+        let layout = TypeLowerer::compute_struct_layout(fields, LayoutPolicy::Optimized);
 
         // should be sorted: b (align 4), c (align 2), a (align 1)
         assert_eq!(layout.fields.len(), 3);
@@ -614,8 +600,7 @@ mod tests {
         let a = strings.intern("a");
         let b = strings.intern("b");
 
-        let lowerer = test_lowerer();
-        let dummy_ty = lowerer.ty_i32;
+        let dummy_ty = test_type_id();
 
         // fields in source order: a (1 byte), b (4 bytes)
         let fields = vec![
@@ -637,7 +622,7 @@ mod tests {
             },
         ];
 
-        let layout = lowerer.compute_struct_layout(fields, LayoutPolicy::Source);
+        let layout = TypeLowerer::compute_struct_layout(fields, LayoutPolicy::Source);
 
         // should preserve order: a, b
         assert_eq!(layout.fields[0].name, a);

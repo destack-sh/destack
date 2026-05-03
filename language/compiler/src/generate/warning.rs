@@ -1,30 +1,28 @@
-use crate::{CompileWarning, DiagnosticAnchor, DiagnosticDefinition};
-use destack_compiler_macros::DefineWarning;
-use destack_dir::AnchoredGlobalNodeId;
+use crate::DiagnosticAnchor;
+use destack_artifact_macros::Diagnostic;
 use destack_source::ModuleId;
-use destack_workspace::Repository;
 
 /// Warnings during the generate phase.
-#[derive(Debug, Clone, PartialEq, DefineWarning)]
-#[phase(Generate)]
+#[derive(Debug, Clone, PartialEq, Diagnostic)]
+#[diagnostic(severity = Warning, phase = Generate)]
 pub enum GenerateWarning {
     // -------------------------------------------------------------------------
     // 1xx: Type warnings
     // -------------------------------------------------------------------------
     /// Imprecise type (loss of precision in codegen).
-    #[warning(code = "WG100", message = "imprecise type")]
+    #[diagnostic(code = "WG100", message = "imprecise type")]
     ImpreciseType {
+        anchor: DiagnosticAnchor,
         module: ModuleId,
-        node: Option<AnchoredGlobalNodeId>,
     },
 
     // -------------------------------------------------------------------------
     // 2xx: Construct warnings
     // -------------------------------------------------------------------------
     /// Unexpected construct (recoverable).
-    #[warning(code = "WG200", message = "unexpected construct")]
+    #[diagnostic(code = "WG200", message = "unexpected construct")]
     UnexpectedConstruct {
+        anchor: DiagnosticAnchor,
         module: ModuleId,
-        node: Option<AnchoredGlobalNodeId>,
     },
 }

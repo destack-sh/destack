@@ -24,7 +24,7 @@ pub(crate) enum ScalarType {
     },
 }
 
-impl TypeLowerer {
+impl TypeLowerer<'_> {
     /// Try to lower a DIR type to a MIR type.
     pub(crate) fn try_lower_type(
         &mut self,

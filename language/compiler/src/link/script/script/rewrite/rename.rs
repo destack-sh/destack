@@ -230,7 +230,7 @@ impl ScriptLinker<'_> {
         for (_, module) in modules.iter_mut() {
             self.apply_minified_identifier_names(module, &source_contexts, &rename_by_symbol)?;
 
-            let mut rewriter = Rewriter::new(Some(self.context), self.target, module);
+            let mut rewriter = Rewriter::new(self.target, module);
             rewriter.use_object_shorthand_fields();
         }
 
@@ -405,7 +405,7 @@ impl ScriptLinker<'_> {
     /// Collect binding and reference identities from one linked module.
     fn collect_module_identifier_symbols(
         &self,
-        module: &js::ScriptModule,
+        module: &js::Module,
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
         bindings: &mut HashMap<js::ScriptSymbolId, BindingEntry>,
         references: &mut HashMap<js::ScriptSymbolId, u32>,
@@ -606,7 +606,7 @@ impl ScriptLinker<'_> {
     }
 
     /// Return the local binding name for one import item.
-    fn import_binding_name(module: &js::ScriptModule, item: &js::DependencyItem) -> Option<String> {
+    fn import_binding_name(module: &js::Module, item: &js::DependencyItem) -> Option<String> {
         match item.mode {
             js::DependencyMode::Default | js::DependencyMode::Namespace => item
                 .alias
@@ -627,7 +627,7 @@ impl ScriptLinker<'_> {
     }
 
     /// Return the local binding name for one export item.
-    fn export_binding_name(module: &js::ScriptModule, item: &js::DependencyItem) -> Option<String> {
+    fn export_binding_name(module: &js::Module, item: &js::DependencyItem) -> Option<String> {
         match item.name {
             Some(js::Name::Identifier(name)) => Some(module.strings.get(name).to_string()),
             Some(js::Name::String(_)) | None => None,
@@ -636,7 +636,7 @@ impl ScriptLinker<'_> {
 
     /// Return the bound name for one shorthand object pattern field.
     fn shorthand_pattern_field_binding_name(
-        module: &js::ScriptModule,
+        module: &js::Module,
         pattern_field_id: js::LocalNodeId<js::PatternField>,
     ) -> Option<String> {
         let pattern_field = module.tree.get(pattern_field_id);
@@ -655,7 +655,7 @@ impl ScriptLinker<'_> {
 
     /// Expand one shorthand object pattern field into an explicit binding pattern.
     fn expand_shorthand_pattern_field_binding(
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         pattern_field_id: js::LocalNodeId<js::PatternField>,
         binding_name: &str,
     ) {
@@ -695,7 +695,7 @@ impl ScriptLinker<'_> {
     /// Collect one exported pattern tree as preserved bindings.
     fn collect_exported_pattern_bindings(
         &self,
-        module: &js::ScriptModule,
+        module: &js::Module,
         pattern_id: js::LocalNodeId<js::Pattern>,
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
         bindings: &mut HashMap<js::ScriptSymbolId, BindingEntry>,
@@ -871,6 +871,7 @@ impl ScriptLinker<'_> {
                 .get(&symbol_id)
                 .cloned()
                 .ok_or_else(|| LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message: format!("missing minify binding entry for symbol {:?}", symbol_id),
                 })?;
@@ -938,7 +939,7 @@ impl ScriptLinker<'_> {
     /// Apply one assigned rename table to one linked module.
     fn apply_minified_identifier_names(
         &self,
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
         rename_by_symbol: &HashMap<js::ScriptSymbolId, String>,
     ) -> LinkResult<()> {
@@ -1086,7 +1087,7 @@ impl ScriptLinker<'_> {
     /// Strip unused names from function and class declaration expressions.
     fn strip_unused_declaration_expression_names(
         &self,
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
         references: &HashMap<js::ScriptSymbolId, u32>,
     ) -> LinkResult<()> {

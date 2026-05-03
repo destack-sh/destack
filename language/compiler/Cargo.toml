@@ -14,11 +14,11 @@ doctest = false
 [dependencies]
 # language
 destack_artifact = { workspace = true }
+destack_artifact_macros = { workspace = true }
 destack_ast = { workspace = true }
 destack_builtin = { path = "../builtin", default-features = false }
 destack_codegen_js = { workspace = true }
 destack_codegen_native = { workspace = true, optional = true }
-destack_compiler_macros = { workspace = true }
 destack_core = { workspace = true }
 destack_css = { workspace = true }
 destack_dir = { workspace = true }
@@ -28,7 +28,6 @@ destack_html = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_query = { workspace = true }
-destack_resolver = { workspace = true }
 destack_source = { workspace = true }
 destack_vm = { workspace = true }
 destack_workspace = { path = "../workspace", default-features = false }

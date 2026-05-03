@@ -1,6 +1,6 @@
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult};
+use crate::{CompilerError, CompilerResult, LowerError};
 
 use crate::lower::{FunctionLowerer, InterfaceEntry, MethodKey};
 
@@ -34,7 +34,7 @@ impl FunctionLowerer<'_> {
         receiver_type_id: dir::LocalTypeId,
         target_symbol: dir::GlobalSymbolId,
         function_id: mir::LocalNodeId<mir::Function>,
-    ) -> LowerResult<Option<DispatchTarget>> {
+    ) -> CompilerResult<Option<DispatchTarget>> {
         // resolve interface and class symbols for the receiver
         let interface_symbol = self.interface_symbol_for_type(receiver_type_id);
         let class_symbol = self.class_symbol_for_type(receiver_type_id);
@@ -97,7 +97,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         interface_symbol: dir::GlobalSymbolId,
         method_key: MethodKey,
-    ) -> LowerResult<u32> {
+    ) -> CompilerResult<u32> {
         // load interface slots for dispatch
         let slots = self
             .context
@@ -105,11 +105,14 @@ impl FunctionLowerer<'_> {
             .get(&interface_symbol)
             .map(|slots| slots.as_slice())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "interface dispatch layout missing".to_string(),
-            })?;
+            })
+            .map_err(CompilerError::from)?;
 
         // locate the matching method slot
         let slot_index = slots.iter().position(|slot| {
@@ -126,11 +129,14 @@ impl FunctionLowerer<'_> {
         // require a matching slot
         let Some(slot_index) = slot_index else {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "interface method slot missing".to_string(),
-            });
+            }
+            .into());
         };
 
         Ok(slot_index as u32 + 1)
@@ -141,7 +147,7 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         interface_symbol: dir::GlobalSymbolId,
-    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // resolve the declaring interface type id
         let interface_type_id =
             self.instance_type_id_for_symbol_or_error(expression_id.into_any(), interface_symbol)?;
@@ -151,7 +157,8 @@ impl FunctionLowerer<'_> {
             .context
             .type_lowerer
             .cached_type(interface_type_id)
-            .ok_or_else(|| self.missing_type_error(expression_id))?;
+            .ok_or_else(|| self.missing_type_error(expression_id))
+            .map_err(CompilerError::from)?;
 
         Ok(declaring_type)
     }
@@ -161,26 +168,32 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
-    ) -> LowerResult<MethodKey> {
+    ) -> CompilerResult<MethodKey> {
         // require a local symbol for now
         if symbol.module_id != self.context.module_id {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "interface dispatch across modules is not supported".to_string(),
-            });
+            }
+            .into());
         }
 
         // resolve the primary declaration node
         let symbol_entry = self.context.symbols.get_symbol(symbol.local_id);
         let Some(primary) = symbol_entry.primary_declaration else {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "member symbol missing declaration".to_string(),
-            });
+            }
+            .into());
         };
 
         // resolve the member or property node
@@ -189,14 +202,17 @@ impl FunctionLowerer<'_> {
                 let member = self.context.dir_tree.get(member_id);
                 let dir::Member::Method { key, signature, .. } = member else {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "member symbol is not a method".to_string(),
-                    });
+                    }
+                    .into());
                 };
                 (
-                    key,
+                    key.as_ref(),
                     signature,
                     member_id.into_global_any(self.context.module_id),
                 )
@@ -204,24 +220,48 @@ impl FunctionLowerer<'_> {
                 let property = self.context.dir_tree.get(property_id);
                 let dir::Property::Method { key, signature, .. } = property else {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "property symbol is not a method".to_string(),
-                    });
+                    }
+                    .into());
                 };
                 (
-                    key,
+                    key.as_ref(),
                     signature,
                     property_id.into_global_any(self.context.module_id),
                 )
+            } else if let Ok(member_id) = primary.local_id.try_into_typed::<dir::TypeMember>() {
+                let member = self.context.dir_tree.get(member_id);
+                let dir::TypeMember::Method { key, signature, .. } = member else {
+                    return Err(LowerError::UnsupportedConstruct {
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
+                        message: "type member symbol is not a method".to_string(),
+                    }
+                    .into());
+                };
+                (
+                    Some(key),
+                    signature,
+                    member_id.into_global_any(self.context.module_id),
+                )
             } else {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "member symbol is not a method".to_string(),
-                });
+                }
+                .into());
             };
 
         // resolve the method name
@@ -233,11 +273,14 @@ impl FunctionLowerer<'_> {
             }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "method must have a static name".to_string(),
-                });
+                }
+                .into());
             }
         };
 
@@ -268,16 +311,19 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         receiver_type_id: dir::LocalTypeId,
-    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // resolve the declaring class symbol
         let class_symbol = self
             .class_symbol_for_type(receiver_type_id)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "virtual dispatch requires a class receiver".to_string(),
-            })?;
+            })
+            .map_err(CompilerError::from)?;
 
         // resolve the instance type id
         let instance_type_id =
@@ -288,7 +334,8 @@ impl FunctionLowerer<'_> {
             .context
             .type_lowerer
             .cached_type(instance_type_id)
-            .ok_or_else(|| self.missing_type_error(expression_id))?;
+            .ok_or_else(|| self.missing_type_error(expression_id))
+            .map_err(CompilerError::from)?;
 
         Ok(mir_type)
     }

@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use dir::{Expression, LocalNodeId, NodeType, ScalarLiteral};
 
-use super::ElaborateState;
 use crate::Compiler;
+use crate::elaborate::ElaborateState;
 
 impl Compiler {
     /// Insert a boolean scalar literal expression.

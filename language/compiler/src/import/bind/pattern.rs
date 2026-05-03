@@ -247,7 +247,7 @@ impl Compiler {
                 pattern,
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
-                let name = self.repository.strings.intern_from(&ast.strings, *name);
+                let name = *name;
                 let pattern = pattern.map(|pattern| {
                     self.bind_pattern(
                         module,
@@ -613,10 +613,7 @@ impl Compiler {
                 pattern,
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
-                let name = self
-                    .repository
-                    .strings
-                    .intern_from(&ast.strings, name.string());
+                let name = name.string();
                 let pattern = pattern.map(|pattern| {
                     self.bind_pattern(
                         module,
