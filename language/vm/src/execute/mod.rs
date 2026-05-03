@@ -1,5 +1,8 @@
 mod access;
+mod allocation;
 mod arithmetic;
+mod atomic;
+mod barrier;
 mod call;
 mod callable;
 mod cast;
@@ -23,7 +26,10 @@ mod tensor;
 mod transfer;
 mod vector;
 
+pub(crate) use allocation::*;
 pub(crate) use arithmetic::*;
+pub(crate) use atomic::*;
+pub(crate) use barrier::*;
 pub(crate) use call::*;
 pub(crate) use cast::*;
 pub(crate) use control::*;
