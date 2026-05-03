@@ -153,10 +153,10 @@ impl<'a> BlockLowerer<'a> {
         }
 
         let pointer_class = pointer_class_for_value(self.value_layout_map(), array);
-        let aggregate_type = self.aggregate_type_for_value(array).ok().flatten();
-        let is_slice = aggregate_type
-            .and_then(|aggregate_type| {
-                slice_element_access(self.tree, self.layouts(), aggregate_type, pointer_class)
+        let projection_type = self.projection_type_for_value(array).ok().flatten();
+        let is_slice = projection_type
+            .and_then(|projection_type| {
+                slice_element_access(self.tree, self.layouts(), projection_type, pointer_class)
             })
             .is_some();
         if is_slice {

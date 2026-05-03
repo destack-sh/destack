@@ -62,10 +62,10 @@ impl<'a> BlockLowerer<'a> {
             } => self.lower_frame_constructor(pool, *destination, *elements),
             mir::Instruction::FieldSet {
                 destination,
-                aggregate,
+                aggregate: base,
                 index,
                 value,
-            } => self.lower_field_update(pool, *destination, *aggregate, *index, *value),
+            } => self.lower_field_update(pool, *destination, *base, *index, *value),
             mir::Instruction::FieldGet { .. } => self.lower_field_read(pool, inst),
             mir::Instruction::ElementGet { .. } => self.lower_element_read(pool, inst),
             mir::Instruction::ElementSet {

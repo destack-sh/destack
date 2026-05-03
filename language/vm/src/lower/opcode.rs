@@ -202,9 +202,9 @@ pub(super) fn select_field_addr_opcode(
     value_layouts: &ValueLayoutMap,
     base: mir::Value,
 ) -> Result<Opcode, Error> {
-    let pointer_class = aggregate_pointer_class(value_layouts.get(base), false)?;
+    let pointer_class = projection_pointer_class(value_layouts.get(base), false)?;
 
-    select_address_opcode(pointer_class, AggregateAccess::Field)
+    select_address_opcode(pointer_class, Projection::Field)
 }
 
 /// Pick an element address handler based on inferred value layout.
@@ -212,9 +212,9 @@ pub(super) fn select_element_addr_opcode(
     value_layouts: &ValueLayoutMap,
     array: mir::Value,
 ) -> Result<Opcode, Error> {
-    let pointer_class = aggregate_pointer_class(value_layouts.get(array), true)?;
+    let pointer_class = projection_pointer_class(value_layouts.get(array), true)?;
 
-    select_address_opcode(pointer_class, AggregateAccess::Element)
+    select_address_opcode(pointer_class, Projection::Element)
 }
 
 /// Pick a field load handler based on inferred value layout.
@@ -225,9 +225,9 @@ pub(super) fn select_field_load_opcode(
 ) -> Result<Opcode, Error> {
     require_word_access(field.is_word(), "word field load", field.value_type)?;
 
-    let pointer_class = aggregate_pointer_class(value_layouts.get(base), false)?;
+    let pointer_class = projection_pointer_class(value_layouts.get(base), false)?;
 
-    select_aggregate_load_opcode(pointer_class, AggregateAccess::Field)
+    select_projection_load_opcode(pointer_class, Projection::Field)
 }
 
 /// Pick a field store handler based on inferred value layout.
@@ -238,9 +238,9 @@ pub(super) fn select_field_store_opcode(
 ) -> Result<Opcode, Error> {
     require_word_access(field.is_word(), "word field store", field.value_type)?;
 
-    let pointer_class = aggregate_pointer_class(value_layouts.get(base), false)?;
+    let pointer_class = projection_pointer_class(value_layouts.get(base), false)?;
 
-    select_aggregate_store_opcode(pointer_class, AggregateAccess::Field)
+    select_projection_store_opcode(pointer_class, Projection::Field)
 }
 
 /// Pick an element load handler based on inferred value layout.
@@ -251,9 +251,9 @@ pub(super) fn select_element_load_opcode(
 ) -> Result<Opcode, Error> {
     require_word_access(element.is_word(), "word element load", element.value_type)?;
 
-    let pointer_class = aggregate_pointer_class(value_layouts.get(array), true)?;
+    let pointer_class = projection_pointer_class(value_layouts.get(array), true)?;
 
-    select_aggregate_load_opcode(pointer_class, AggregateAccess::Element)
+    select_projection_load_opcode(pointer_class, Projection::Element)
 }
 
 /// Pick an element store handler based on inferred value layout.
@@ -264,22 +264,22 @@ pub(super) fn select_element_store_opcode(
 ) -> Result<Opcode, Error> {
     require_word_access(element.is_word(), "word element store", element.value_type)?;
 
-    let pointer_class = aggregate_pointer_class(value_layouts.get(array), true)?;
+    let pointer_class = projection_pointer_class(value_layouts.get(array), true)?;
 
-    select_aggregate_store_opcode(pointer_class, AggregateAccess::Element)
+    select_projection_store_opcode(pointer_class, Projection::Element)
 }
 
-/// Field or element access family.
+/// Field or element projection.
 #[derive(Clone, Copy)]
-enum AggregateAccess {
+enum Projection {
     /// Struct or tuple field.
     Field,
     /// Fixed array element.
     Element,
 }
 
-/// Return the pointer class addressed by one aggregate access.
-fn aggregate_pointer_class(
+/// Return the pointer class addressed by one projection.
+fn projection_pointer_class(
     layout: Option<ValueLayout>,
     is_array_allowed: bool,
 ) -> Result<PointerClass, Error> {
@@ -291,95 +291,92 @@ fn aggregate_pointer_class(
     }
 }
 
-/// Pick one address opcode for an aggregate access.
-fn select_address_opcode(
-    pointer_class: PointerClass,
-    access: AggregateAccess,
-) -> Result<Opcode, Error> {
+/// Pick one address opcode for a projection.
+fn select_address_opcode(pointer_class: PointerClass, access: Projection) -> Result<Opcode, Error> {
     match (pointer_class, access) {
         (PointerClass::Frame, _) => Ok(Opcode::AddressFrame),
-        (PointerClass::Heap | PointerClass::HeapAddress, AggregateAccess::Field) => {
+        (PointerClass::Heap | PointerClass::HeapAddress, Projection::Field) => {
             Ok(Opcode::AddressHeapField)
         }
-        (PointerClass::Heap | PointerClass::HeapAddress, AggregateAccess::Element) => {
+        (PointerClass::Heap | PointerClass::HeapAddress, Projection::Element) => {
             Ok(Opcode::AddressHeapElement)
         }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, AggregateAccess::Field) => {
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, Projection::Field) => {
             Ok(Opcode::AddressSharedHeapField)
         }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, AggregateAccess::Element) => {
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, Projection::Element) => {
             Ok(Opcode::AddressSharedHeapElement)
         }
-        (PointerClass::Raw, AggregateAccess::Field) => Ok(Opcode::AddressRawField),
-        (PointerClass::Raw, AggregateAccess::Element) => Ok(Opcode::AddressRawElement),
-        (PointerClass::SharedRaw, AggregateAccess::Field) => Ok(Opcode::AddressSharedRawField),
-        (PointerClass::SharedRaw, AggregateAccess::Element) => Ok(Opcode::AddressSharedRawElement),
-        (PointerClass::Stack, AggregateAccess::Field) => Ok(Opcode::AddressStackField),
-        (PointerClass::Stack, AggregateAccess::Element) => Ok(Opcode::AddressStackElement),
-        (PointerClass::Static, AggregateAccess::Field) => Ok(Opcode::AddressStaticField),
-        (PointerClass::Static, AggregateAccess::Element) => Ok(Opcode::AddressStaticElement),
+        (PointerClass::Raw, Projection::Field) => Ok(Opcode::AddressRawField),
+        (PointerClass::Raw, Projection::Element) => Ok(Opcode::AddressRawElement),
+        (PointerClass::SharedRaw, Projection::Field) => Ok(Opcode::AddressSharedRawField),
+        (PointerClass::SharedRaw, Projection::Element) => Ok(Opcode::AddressSharedRawElement),
+        (PointerClass::Stack, Projection::Field) => Ok(Opcode::AddressStackField),
+        (PointerClass::Stack, Projection::Element) => Ok(Opcode::AddressStackElement),
+        (PointerClass::Static, Projection::Field) => Ok(Opcode::AddressStaticField),
+        (PointerClass::Static, Projection::Element) => Ok(Opcode::AddressStaticElement),
         (PointerClass::Unknown, _) => Err(Error::InvalidInstruction),
     }
 }
 
-/// Pick one load opcode for an aggregate access.
-fn select_aggregate_load_opcode(
+/// Pick one load opcode for a projection.
+fn select_projection_load_opcode(
     pointer_class: PointerClass,
-    access: AggregateAccess,
+    access: Projection,
 ) -> Result<Opcode, Error> {
     match (pointer_class, access) {
         (PointerClass::Frame, _) => Ok(Opcode::LoadFrame),
-        (PointerClass::Heap | PointerClass::HeapAddress, AggregateAccess::Field) => {
+        (PointerClass::Heap | PointerClass::HeapAddress, Projection::Field) => {
             Ok(Opcode::LoadHeapField)
         }
-        (PointerClass::Heap | PointerClass::HeapAddress, AggregateAccess::Element) => {
+        (PointerClass::Heap | PointerClass::HeapAddress, Projection::Element) => {
             Ok(Opcode::LoadHeapElement)
         }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, AggregateAccess::Field) => {
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, Projection::Field) => {
             Ok(Opcode::LoadSharedHeapField)
         }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, AggregateAccess::Element) => {
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, Projection::Element) => {
             Ok(Opcode::LoadSharedHeapElement)
         }
-        (PointerClass::Raw, AggregateAccess::Field) => Ok(Opcode::LoadRawField),
-        (PointerClass::Raw, AggregateAccess::Element) => Ok(Opcode::LoadRawElement),
-        (PointerClass::SharedRaw, AggregateAccess::Field) => Ok(Opcode::LoadSharedRawField),
-        (PointerClass::SharedRaw, AggregateAccess::Element) => Ok(Opcode::LoadSharedRawElement),
-        (PointerClass::Stack, AggregateAccess::Field) => Ok(Opcode::LoadStackField),
-        (PointerClass::Stack, AggregateAccess::Element) => Ok(Opcode::LoadStackElement),
-        (PointerClass::Static, AggregateAccess::Field) => Ok(Opcode::LoadStaticField),
-        (PointerClass::Static, AggregateAccess::Element) => Ok(Opcode::LoadStaticElement),
+        (PointerClass::Raw, Projection::Field) => Ok(Opcode::LoadRawField),
+        (PointerClass::Raw, Projection::Element) => Ok(Opcode::LoadRawElement),
+        (PointerClass::SharedRaw, Projection::Field) => Ok(Opcode::LoadSharedRawField),
+        (PointerClass::SharedRaw, Projection::Element) => Ok(Opcode::LoadSharedRawElement),
+        (PointerClass::Stack, Projection::Field) => Ok(Opcode::LoadStackField),
+        (PointerClass::Stack, Projection::Element) => Ok(Opcode::LoadStackElement),
+        (PointerClass::Static, Projection::Field) => Ok(Opcode::LoadStaticField),
+        (PointerClass::Static, Projection::Element) => Ok(Opcode::LoadStaticElement),
         (PointerClass::Unknown, _) => Err(Error::InvalidInstruction),
     }
 }
 
-/// Pick one store opcode for an aggregate access.
-fn select_aggregate_store_opcode(
+/// Pick one store opcode for a projection.
+fn select_projection_store_opcode(
     pointer_class: PointerClass,
-    access: AggregateAccess,
+    access: Projection,
 ) -> Result<Opcode, Error> {
     match (pointer_class, access) {
         (PointerClass::Frame, _) => Ok(Opcode::StoreFrame),
-        (PointerClass::Heap | PointerClass::HeapAddress, AggregateAccess::Field) => {
+        (PointerClass::Heap | PointerClass::HeapAddress, Projection::Field) => {
             Ok(Opcode::StoreHeapField)
         }
-        (PointerClass::Heap | PointerClass::HeapAddress, AggregateAccess::Element) => {
+        (PointerClass::Heap | PointerClass::HeapAddress, Projection::Element) => {
             Ok(Opcode::StoreHeapElement)
         }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, AggregateAccess::Field) => {
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, Projection::Field) => {
             Ok(Opcode::StoreSharedHeapField)
         }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, AggregateAccess::Element) => {
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, Projection::Element) => {
             Ok(Opcode::StoreSharedHeapElement)
         }
-        (PointerClass::Raw, AggregateAccess::Field) => Ok(Opcode::StoreRawField),
-        (PointerClass::Raw, AggregateAccess::Element) => Ok(Opcode::StoreRawElement),
-        (PointerClass::SharedRaw, AggregateAccess::Field) => Ok(Opcode::StoreSharedRawField),
-        (PointerClass::SharedRaw, AggregateAccess::Element) => Ok(Opcode::StoreSharedRawElement),
-        (PointerClass::Stack, AggregateAccess::Field) => Ok(Opcode::StoreStackField),
-        (PointerClass::Stack, AggregateAccess::Element) => Ok(Opcode::StoreStackElement),
-        (PointerClass::Static, AggregateAccess::Field) => Ok(Opcode::StoreStaticField),
-        (PointerClass::Static, AggregateAccess::Element) => Ok(Opcode::StoreStaticElement),
+        (PointerClass::Raw, Projection::Field) => Ok(Opcode::StoreRawField),
+        (PointerClass::Raw, Projection::Element) => Ok(Opcode::StoreRawElement),
+        (PointerClass::SharedRaw, Projection::Field) => Ok(Opcode::StoreSharedRawField),
+        (PointerClass::SharedRaw, Projection::Element) => Ok(Opcode::StoreSharedRawElement),
+        (PointerClass::Stack, Projection::Field) => Ok(Opcode::StoreStackField),
+        (PointerClass::Stack, Projection::Element) => Ok(Opcode::StoreStackElement),
+        (PointerClass::Static, Projection::Field) => Ok(Opcode::StoreStaticField),
+        (PointerClass::Static, Projection::Element) => Ok(Opcode::StoreStaticElement),
         (PointerClass::Unknown, _) => Err(Error::InvalidInstruction),
     }
 }
