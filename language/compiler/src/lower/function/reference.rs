@@ -1,6 +1,6 @@
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult};
+use crate::{CompilerError, CompilerResult, LowerError};
 
 use crate::lower::{FunctionLowerer, LocalStorage, lower_mutability};
 
@@ -26,14 +26,16 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         reference_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<mir::AddressSpace> {
+    ) -> CompilerResult<mir::AddressSpace> {
         let mir::Type::Reference { address_space, .. } =
             self.state.builder.tree().get(reference_type)
         else {
             return Err(LowerError::Internal {
+                anchor: (self.context.module_id).into(),
                 module: self.context.module_id,
                 message: format!("non-reference type in borrow lowering: {expression_id:?}"),
-            });
+            }
+            .into());
         };
 
         Ok(address_space.clone())
@@ -44,7 +46,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         expression: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<mir::AddressSpace> {
+    ) -> CompilerResult<mir::AddressSpace> {
         match self.context.dir_tree.get(expression) {
             // nested borrows preserve the inner storage space
             dir::Expression::Parenthesized { expression } => {
@@ -67,10 +69,21 @@ impl FunctionLowerer<'_> {
                     LocalStorage::IndirectBinding { reference_type, .. } => {
                         self.reference_address_space(expression_id, reference_type)
                     }
-                    LocalStorage::Variable(_) => Err(LowerError::Internal {
-                        module: self.context.module_id,
-                        message: "local borrow requires addressable storage".to_string(),
-                    }),
+                    LocalStorage::Variable(_) => {
+                        if matches!(
+                            self.state.builder.tree().get(binding.ty),
+                            mir::Type::Reference { .. }
+                        ) {
+                            return self.reference_address_space(expression_id, binding.ty);
+                        }
+
+                        Err(LowerError::Internal {
+                            anchor: (self.context.module_id).into(),
+                            module: self.context.module_id,
+                            message: "local borrow requires addressable storage".to_string(),
+                        }
+                        .into())
+                    }
                 }
             }
 
@@ -82,10 +95,21 @@ impl FunctionLowerer<'_> {
                         LocalStorage::IndirectBinding { reference_type, .. } => {
                             self.reference_address_space(expression_id, reference_type)
                         }
-                        LocalStorage::Variable(_) => Err(LowerError::Internal {
-                            module: self.context.module_id,
-                            message: "this borrow requires addressable storage".to_string(),
-                        }),
+                        LocalStorage::Variable(_) => {
+                            if matches!(
+                                self.state.builder.tree().get(binding.ty),
+                                mir::Type::Reference { .. }
+                            ) {
+                                return self.reference_address_space(expression_id, binding.ty);
+                            }
+
+                            Err(LowerError::Internal {
+                                anchor: (self.context.module_id).into(),
+                                module: self.context.module_id,
+                                message: "this borrow requires addressable storage".to_string(),
+                            }
+                            .into())
+                        }
                     };
                 }
 
@@ -100,11 +124,14 @@ impl FunctionLowerer<'_> {
                 }
 
                 Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "this reference outside of method context".to_string(),
-                })
+                }
+                .into())
             }
 
             // module and global references either hit a lowered local binding or a true global
@@ -122,10 +149,21 @@ impl FunctionLowerer<'_> {
                         LocalStorage::IndirectBinding { reference_type, .. } => {
                             self.reference_address_space(expression_id, reference_type)
                         }
-                        LocalStorage::Variable(_) => Err(LowerError::Internal {
-                            module: self.context.module_id,
-                            message: "local borrow requires addressable storage".to_string(),
-                        }),
+                        LocalStorage::Variable(_) => {
+                            if matches!(
+                                self.state.builder.tree().get(binding.ty),
+                                mir::Type::Reference { .. }
+                            ) {
+                                return self.reference_address_space(expression_id, binding.ty);
+                            }
+
+                            Err(LowerError::Internal {
+                                anchor: (self.context.module_id).into(),
+                                module: self.context.module_id,
+                                message: "local borrow requires addressable storage".to_string(),
+                            }
+                            .into())
+                        }
                     };
                 }
 
@@ -163,7 +201,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         mutability: Option<dir::Mutability>,
         right: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve the reference result type
         let pointee_type = self.lower_type_for_expression(right)?;
         let mir_mutability = mutability
@@ -204,10 +242,22 @@ impl FunctionLowerer<'_> {
                         };
                         Ok((value, result_type))
                     }
-                    LocalStorage::Variable(_) => Err(LowerError::Internal {
-                        module: self.context.module_id,
-                        message: "local borrow requires addressable storage".to_string(),
-                    }),
+                    LocalStorage::Variable(_) => {
+                        if matches!(
+                            self.state.builder.tree().get(binding.ty),
+                            mir::Type::Reference { .. }
+                        ) {
+                            let value = self.binding_value(binding);
+                            return Ok((value, result_type));
+                        }
+
+                        Err(LowerError::Internal {
+                            anchor: (self.context.module_id).into(),
+                            module: self.context.module_id,
+                            message: "local borrow requires addressable storage".to_string(),
+                        }
+                        .into())
+                    }
                 }
             }
             dir::Expression::This => {
@@ -233,10 +283,22 @@ impl FunctionLowerer<'_> {
                             };
                             Ok((value, result_type))
                         }
-                        LocalStorage::Variable(_) => Err(LowerError::Internal {
-                            module: self.context.module_id,
-                            message: "this borrow requires addressable storage".to_string(),
-                        }),
+                        LocalStorage::Variable(_) => {
+                            if matches!(
+                                self.state.builder.tree().get(binding.ty),
+                                mir::Type::Reference { .. }
+                            ) {
+                                let value = self.binding_value(binding);
+                                return Ok((value, result_type));
+                            }
+
+                            Err(LowerError::Internal {
+                                anchor: (self.context.module_id).into(),
+                                module: self.context.module_id,
+                                message: "this borrow requires addressable storage".to_string(),
+                            }
+                            .into())
+                        }
                     };
                 }
 
@@ -247,11 +309,14 @@ impl FunctionLowerer<'_> {
                 }
 
                 Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "this reference outside of method context".to_string(),
-                })
+                }
+                .into())
             }
             dir::Expression::ModuleReference { target_symbol, .. }
             | dir::Expression::GlobalReference { target_symbol, .. } => {
@@ -284,10 +349,20 @@ impl FunctionLowerer<'_> {
                             return Ok((value, result_type));
                         }
                         LocalStorage::Variable(_) => {
+                            if matches!(
+                                self.state.builder.tree().get(binding.ty),
+                                mir::Type::Reference { .. }
+                            ) {
+                                let value = self.binding_value(binding);
+                                return Ok((value, result_type));
+                            }
+
                             return Err(LowerError::Internal {
+                                anchor: (self.context.module_id).into(),
                                 module: self.context.module_id,
                                 message: "local borrow requires addressable storage".to_string(),
-                            });
+                            }
+                            .into());
                         }
                     }
                 }
@@ -311,20 +386,26 @@ impl FunctionLowerer<'_> {
                     .field_index_for_type(
                         aggregate_type,
                         name.ok_or_else(|| LowerError::UnsupportedConstruct {
-                            node: expression_id
-                                .into_global_any(self.context.module_id)
-                                .into_anchored(Some(self.context.profile)),
+                            anchor: self.diagnostic_anchor(
+                                expression_id
+                                    .into_global_any(self.context.module_id)
+                                    .into_anchored(Some(self.context.profile)),
+                            ),
                             message: "missing member name".to_string(),
-                        })?,
+                        })
+                        .map_err(CompilerError::from)?,
                         self.context.strings,
                         self.state.builder.tree(),
                     )
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "field not found in aggregate type".to_string(),
-                    })?;
+                    })
+                    .map_err(CompilerError::from)?;
 
                 // emit field.address
                 let value =
@@ -334,12 +415,16 @@ impl FunctionLowerer<'_> {
                 Ok((value, result_type))
             }
             dir::Expression::Index { left, right } => {
-                let index_expr = right.ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
-                    message: "missing index expression".to_string(),
-                })?;
+                let index_expr = right
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
+                        message: "missing index expression".to_string(),
+                    })
+                    .map_err(CompilerError::from)?;
 
                 // lower array and index expressions
                 let (array_value, _) = self.lower_value_expression(*left)?;
@@ -393,7 +478,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         _mutability: Option<dir::Mutability>,
         right: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower the owned value expression
         let (value, pointee_type) = self.lower_value_expression(right)?;
 

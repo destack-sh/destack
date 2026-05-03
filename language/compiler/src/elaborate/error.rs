@@ -1,49 +1,33 @@
-use crate::{
-    CompileError, DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet,
-};
-use destack_compiler_macros::DefineError;
-use destack_dir as dir;
+use crate::DiagnosticAnchor;
+use destack_artifact_macros::Diagnostic;
 use destack_source::ModuleId;
-use destack_workspace::Repository;
-use dir::AnchoredGlobalNodeId;
 
 /// Errors during the elaborate phase.
-#[derive(Debug, Clone, PartialEq, DefineError)]
-#[phase(Elaborate)]
+#[derive(Debug, Clone, PartialEq, Diagnostic)]
+#[diagnostic(severity = Error, phase = Elaborate)]
 pub enum ElaborateError {
-    // -------------------------------------------------------------------------
-    // 0xx: Yield / requirement
-    // -------------------------------------------------------------------------
-    /// Wait for artifact requirement.
-    #[error(code = "EE000", r#yield)]
-    Yield { requirement: RequirementSet },
-
-    /// Yield requirement has failed.
-    #[error(code = "EE001", yield_failed)]
-    UnsatisfiedRequirement { requirement: RequirementSet },
-
-    /// Task was skipped due to stale versions.
-    #[error(code = "EE002", message = "task skipped")]
-    Skipped,
-
     // -------------------------------------------------------------------------
     // 1xx: Configuration
     // -------------------------------------------------------------------------
     /// Implicit collection conversions are disabled by configuration.
-    #[error(
+    #[diagnostic(
         code = "EE100",
         message = "implicit collection conversions are disabled"
     )]
-    ImplicitCollectionConversion { node: AnchoredGlobalNodeId },
+    ImplicitCollectionConversion { anchor: DiagnosticAnchor },
 
     // -------------------------------------------------------------------------
     // 9xx: Unsupported / internal
     // -------------------------------------------------------------------------
     /// Internal elaborate failure.
-    #[error(code = "EE901", message = "internal error: {message}")]
-    Internal { module: ModuleId, message: String },
+    #[diagnostic(code = "EE901", message = "internal error: {message}")]
+    Internal {
+        anchor: DiagnosticAnchor,
+        module: ModuleId,
+        message: String,
+    },
 
     /// Unsupported node.
-    #[error(code = "EE900", message = "unsupported construct")]
-    UnsupportedConstruct { node: AnchoredGlobalNodeId },
+    #[diagnostic(code = "EE900", message = "unsupported construct")]
+    UnsupportedConstruct { anchor: DiagnosticAnchor },
 }

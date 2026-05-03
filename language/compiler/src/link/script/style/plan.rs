@@ -5,16 +5,17 @@ use css::{
     ComponentValue, ComponentValueList, DeclarationBlock, Function, ImportResource, ImportRule,
     LocalNodeId, Rule, SupportsCondition, Token, Tree, UrlResource,
 };
-use destack_artifact::{ArtifactKey, Css, Data, ModuleEdgeRelation, ModuleGraph};
+use destack_artifact::{Css, Data};
 use destack_css as css;
-use destack_source::{FileType, ModuleId};
-use destack_workspace::Module;
+use destack_source::{FileType, ModuleEdge, ModuleEdgeRelation, ModuleId, StringId};
+use destack_workspace::{Module, ProviderError};
 use indexmap::{IndexMap, IndexSet};
 
 use crate::link::OutputLocation;
-use crate::{LinkError, LinkResult, RequirementCollector};
+use crate::{CompilerResult, LinkError, LinkResult};
 
 use super::super::ScriptLinker;
+use crate::CompilerError;
 
 impl<'a> ScriptLinker<'a> {
     /// Collect the rooted stylesheet module ids for one target entry.
@@ -46,8 +47,8 @@ impl<'a> ScriptLinker<'a> {
     pub(in crate::link::script) fn require_stylesheet_artifacts(
         &self,
         root_module_ids: &[ModuleId],
-    ) -> LinkResult<()> {
-        let mut collector = RequirementCollector::new();
+    ) -> CompilerResult<()> {
+        let mut blocked = Vec::new();
         let mut queued_module_ids = root_module_ids.to_vec();
         let mut visited_module_ids = BTreeSet::new();
 
@@ -70,38 +71,31 @@ impl<'a> ScriptLinker<'a> {
                     subject: "stylesheet module".to_string(),
                     expected: "css module".to_string(),
                     found: module.uri.to_string(),
-                });
+                }
+                .into());
             }
 
-            let result = self
+            match self
                 .compiler
-                .require_dir_resolved(self.revision(), module_id, profile_id);
-            let error = collector.try_collect(result);
-
-            if let Some(error) = error {
-                return Err(error.into());
+                .require_dir_exported(self.context, module_id, profile_id)
+            {
+                Ok(_) => {}
+                Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
+                Err(error) => return Err(CompilerError::from(error)),
             }
 
-            let result = self
-                .compiler
-                .require_artifact(self.revision(), ArtifactKey::module_graph(profile_id));
-            let error = collector.try_collect(result);
+            let module_edges = self.module_edges_for_module(module_id)?;
 
-            if let Some(error) = error {
-                return Err(error.into());
-            }
-
-            let module_graph = self.module_graph_for_module(module_id)?;
-
-            for edge in module_graph
-                .dependency_edges_with_relation(module_id, ModuleEdgeRelation::StyleImport)
+            for edge in module_edges
+                .iter()
+                .filter(|edge| edge.relation == ModuleEdgeRelation::StyleImport)
             {
                 queued_module_ids.push(edge.target);
             }
         }
 
-        if let Some(requirement) = collector.try_into_requirement() {
-            return Err(LinkError::Yield { requirement });
+        if !blocked.is_empty() {
+            return Err(CompilerError::Blocked { keys: blocked });
         }
 
         Ok(())
@@ -111,7 +105,7 @@ impl<'a> ScriptLinker<'a> {
     pub(in crate::link::script) fn collect_stylesheet_assets(
         &self,
         stylesheet_module_ids: &[ModuleId],
-    ) -> LinkResult<IndexSet<ModuleId>> {
+    ) -> CompilerResult<IndexSet<ModuleId>> {
         let mut asset_module_ids = IndexSet::new();
         let mut queued_module_ids = stylesheet_module_ids.to_vec();
         let mut visited_module_ids = BTreeSet::new();
@@ -127,16 +121,20 @@ impl<'a> ScriptLinker<'a> {
                 continue;
             }
 
-            let module_graph = self.module_graph_for_module(module_id)?;
+            let module_edges = self
+                .module_edges_for_module(module_id)
+                .map_err(CompilerError::from)?;
 
-            for edge in module_graph
-                .dependency_edges_with_relation(module_id, ModuleEdgeRelation::StyleImport)
+            for edge in module_edges
+                .iter()
+                .filter(|edge| edge.relation == ModuleEdgeRelation::StyleImport)
             {
                 queued_module_ids.push(edge.target);
             }
 
-            for edge in
-                module_graph.dependency_edges_with_relation(module_id, ModuleEdgeRelation::StyleUrl)
+            for edge in module_edges
+                .iter()
+                .filter(|edge| edge.relation == ModuleEdgeRelation::StyleUrl)
             {
                 asset_module_ids.insert(edge.target);
             }
@@ -177,7 +175,8 @@ impl<'a> ScriptLinker<'a> {
                 subject: "stylesheet module".to_string(),
                 expected: "css module".to_string(),
                 found: module.uri.to_string(),
-            }),
+            }
+            .into()),
         }
     }
 
@@ -225,7 +224,7 @@ impl<'a> ScriptLinker<'a> {
     pub(super) fn plan_stylesheet_rewrites(
         &self,
         module: &Module,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         css: &mut Css,
         import_targets: &mut BTreeMap<u32, Option<ModuleId>>,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
@@ -236,7 +235,7 @@ impl<'a> ScriptLinker<'a> {
         for rule_id in rule_ids {
             self.plan_css_rule_rewrites(
                 module,
-                module_graph,
+                module_edges,
                 &mut css.tree,
                 rule_id,
                 import_targets,
@@ -252,7 +251,7 @@ impl<'a> ScriptLinker<'a> {
     fn plan_css_rule_rewrites(
         &self,
         module: &Module,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         tree: &mut Tree,
         rule_id: LocalNodeId<Rule>,
         import_targets: &mut BTreeMap<u32, Option<ModuleId>>,
@@ -269,7 +268,7 @@ impl<'a> ScriptLinker<'a> {
             Rule::Import(rule) => {
                 let import_target = self.resolve_css_import_target(
                     module,
-                    module_graph,
+                    module_edges,
                     rule.resource.as_ref(),
                     &rule.url,
                 )?;
@@ -317,7 +316,7 @@ impl<'a> ScriptLinker<'a> {
                 if let Some(mut initial_value) = rule.initial_value {
                     self.plan_css_component_value_rewrites(
                         module,
-                        module_graph,
+                        module_edges,
                         tree,
                         initial_value.components_mut(),
                         rewrites,
@@ -326,12 +325,14 @@ impl<'a> ScriptLinker<'a> {
 
                     let Rule::Property(rule) = tree.get_mut(rule_id) else {
                         return Err(LinkError::Internal {
+                            anchor: (self.package_id).into(),
                             package: self.package_id,
                             message: format!(
                                 "property rule changed shape during stylesheet planning: {:?}",
                                 rule_id
                             ),
-                        });
+                        }
+                        .into());
                     };
                     rule.initial_value = Some(initial_value);
                 }
@@ -339,7 +340,7 @@ impl<'a> ScriptLinker<'a> {
             Rule::Unknown(mut rule) => {
                 self.plan_css_component_value_rewrites(
                     module,
-                    module_graph,
+                    module_edges,
                     tree,
                     &mut rule.prelude,
                     rewrites,
@@ -349,7 +350,7 @@ impl<'a> ScriptLinker<'a> {
                 if let Some(block) = &mut rule.block {
                     self.plan_css_component_value_rewrites(
                         module,
-                        module_graph,
+                        module_edges,
                         tree,
                         block,
                         rewrites,
@@ -359,12 +360,14 @@ impl<'a> ScriptLinker<'a> {
 
                 let Rule::Unknown(current_rule) = tree.get_mut(rule_id) else {
                     return Err(LinkError::Internal {
+                        anchor: (self.package_id).into(),
                         package: self.package_id,
                         message: format!(
                             "unknown rule changed shape during stylesheet planning: {:?}",
                             rule_id
                         ),
-                    });
+                    }
+                    .into());
                 };
                 current_rule.prelude = rule.prelude;
                 current_rule.block = rule.block;
@@ -372,7 +375,7 @@ impl<'a> ScriptLinker<'a> {
             Rule::Custom(mut rule) => {
                 self.plan_css_component_value_rewrites(
                     module,
-                    module_graph,
+                    module_edges,
                     tree,
                     &mut rule.components,
                     rewrites,
@@ -381,12 +384,14 @@ impl<'a> ScriptLinker<'a> {
 
                 let Rule::Custom(current_rule) = tree.get_mut(rule_id) else {
                     return Err(LinkError::Internal {
+                        anchor: (self.package_id).into(),
                         package: self.package_id,
                         message: format!(
                             "custom rule changed shape during stylesheet planning: {:?}",
                             rule_id
                         ),
-                    });
+                    }
+                    .into());
                 };
                 current_rule.components = rule.components;
             }
@@ -422,7 +427,7 @@ impl<'a> ScriptLinker<'a> {
         if let Some(supports_condition) = supports_condition {
             self.plan_css_supports_condition_rewrites(
                 module,
-                module_graph,
+                module_edges,
                 tree,
                 supports_condition,
                 rewrites,
@@ -434,7 +439,7 @@ impl<'a> ScriptLinker<'a> {
         if let Some(declaration_block) = declaration_block {
             self.plan_css_declaration_block_rewrites(
                 module,
-                module_graph,
+                module_edges,
                 tree,
                 declaration_block,
                 rewrites,
@@ -446,7 +451,7 @@ impl<'a> ScriptLinker<'a> {
         for page_margin_rule in page_margin_rules {
             self.plan_css_page_margin_rule_rewrites(
                 module,
-                module_graph,
+                module_edges,
                 tree,
                 page_margin_rule,
                 rewrites,
@@ -458,7 +463,7 @@ impl<'a> ScriptLinker<'a> {
         for nested_rule in nested_rules {
             self.plan_css_rule_rewrites(
                 module,
-                module_graph,
+                module_edges,
                 tree,
                 nested_rule,
                 import_targets,
@@ -474,7 +479,7 @@ impl<'a> ScriptLinker<'a> {
     fn plan_css_page_margin_rule_rewrites(
         &self,
         module: &Module,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         tree: &mut Tree,
         rule_id: LocalNodeId<css::PageMarginRule>,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
@@ -488,7 +493,7 @@ impl<'a> ScriptLinker<'a> {
         if let Some(declaration_block) = declaration_block {
             self.plan_css_declaration_block_rewrites(
                 module,
-                module_graph,
+                module_edges,
                 tree,
                 declaration_block,
                 rewrites,
@@ -503,7 +508,7 @@ impl<'a> ScriptLinker<'a> {
     fn plan_css_declaration_block_rewrites(
         &self,
         module: &Module,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         tree: &mut Tree,
         declaration_block_id: LocalNodeId<DeclarationBlock>,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
@@ -515,7 +520,7 @@ impl<'a> ScriptLinker<'a> {
             let mut components = tree.get(declaration_id).value.components().clone();
             self.plan_css_component_value_rewrites(
                 module,
-                module_graph,
+                module_edges,
                 tree,
                 &mut components,
                 rewrites,
@@ -533,7 +538,7 @@ impl<'a> ScriptLinker<'a> {
     fn plan_css_component_value_rewrites(
         &self,
         module: &Module,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         tree: &Tree,
         components: &mut ComponentValueList,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
@@ -547,7 +552,7 @@ impl<'a> ScriptLinker<'a> {
                 }) => {
                     if let Some(rewrite) = self.plan_css_url_rewrite(
                         module,
-                        module_graph,
+                        module_edges,
                         url_resource.as_ref(),
                         url,
                         next_rewrite_index,
@@ -561,7 +566,7 @@ impl<'a> ScriptLinker<'a> {
                 ComponentValue::Function(function) if function.name_eq(&tree.strings, "url") => {
                     self.plan_css_url_function_rewrite(
                         module,
-                        module_graph,
+                        module_edges,
                         tree,
                         function,
                         rewrites,
@@ -571,7 +576,7 @@ impl<'a> ScriptLinker<'a> {
                 ComponentValue::Function(function) => {
                     self.plan_css_component_value_rewrites(
                         module,
-                        module_graph,
+                        module_edges,
                         tree,
                         &mut function.arguments,
                         rewrites,
@@ -581,7 +586,7 @@ impl<'a> ScriptLinker<'a> {
                 ComponentValue::Block(block) => {
                     self.plan_css_component_value_rewrites(
                         module,
-                        module_graph,
+                        module_edges,
                         tree,
                         &mut block.value,
                         rewrites,
@@ -599,7 +604,7 @@ impl<'a> ScriptLinker<'a> {
     fn plan_css_supports_condition_rewrites(
         &self,
         module: &Module,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         tree: &mut Tree,
         condition_id: LocalNodeId<SupportsCondition>,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
@@ -610,7 +615,7 @@ impl<'a> ScriptLinker<'a> {
         match condition {
             SupportsCondition::Not(condition) => self.plan_css_supports_condition_rewrites(
                 module,
-                module_graph,
+                module_edges,
                 tree,
                 condition,
                 rewrites,
@@ -620,7 +625,7 @@ impl<'a> ScriptLinker<'a> {
                 for condition in conditions {
                     self.plan_css_supports_condition_rewrites(
                         module,
-                        module_graph,
+                        module_edges,
                         tree,
                         condition,
                         rewrites,
@@ -631,18 +636,20 @@ impl<'a> ScriptLinker<'a> {
             SupportsCondition::Declaration { .. } => {
                 let SupportsCondition::Declaration { value, .. } = tree.get(condition_id) else {
                     return Err(LinkError::Internal {
+                        anchor: (self.package_id).into(),
                         package: self.package_id,
                         message: format!(
                             "supports declaration changed shape during stylesheet planning: {:?}",
                             condition_id
                         ),
-                    });
+                    }
+                    .into());
                 };
                 let mut components = value.components().clone();
 
                 self.plan_css_component_value_rewrites(
                     module,
-                    module_graph,
+                    module_edges,
                     tree,
                     &mut components,
                     rewrites,
@@ -652,12 +659,14 @@ impl<'a> ScriptLinker<'a> {
                 let condition = tree.get_mut(condition_id);
                 let SupportsCondition::Declaration { value, .. } = condition else {
                     return Err(LinkError::Internal {
+                        anchor: (self.package_id).into(),
                         package: self.package_id,
                         message: format!(
                             "supports declaration changed shape during stylesheet rewrite: {:?}",
                             condition_id
                         ),
-                    });
+                    }
+                    .into());
                 };
                 value.components = components;
             }
@@ -671,7 +680,7 @@ impl<'a> ScriptLinker<'a> {
     fn plan_css_url_function_rewrite(
         &self,
         module: &Module,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         tree: &Tree,
         function: &mut Function,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
@@ -693,13 +702,14 @@ impl<'a> ScriptLinker<'a> {
                     let rewrite = self
                         .plan_css_asset_rewrite(
                             module,
-                            module_graph,
+                            module_edges,
                             resource,
                             &url,
                             next_rewrite_index,
                         )?
                         .ok_or_else(|| LinkError::Internal {
-                            package: self.package_id,
+                            anchor: (self.package_id).into(),
+                package: self.package_id,
                             message: format!(
                                 "missing css url graph edge for module '{}' site {} and specifier '{}'",
                                 module.uri, resource.id, url
@@ -726,7 +736,7 @@ impl<'a> ScriptLinker<'a> {
                             "css local url() rewrites require a direct string or unquoted url token: '{}'",
                             url
                         ),
-                    });
+                    }.into());
                 }
             }
         }
@@ -746,7 +756,7 @@ impl<'a> ScriptLinker<'a> {
     fn plan_css_url_rewrite(
         &self,
         module: &Module,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         resource: Option<&UrlResource>,
         url: &str,
         next_rewrite_index: &mut usize,
@@ -759,20 +769,20 @@ impl<'a> ScriptLinker<'a> {
             return Ok(None);
         };
 
-        self.plan_css_asset_rewrite(module, module_graph, resource, url, next_rewrite_index)
+        self.plan_css_asset_rewrite(module, module_edges, resource, url, next_rewrite_index)
     }
 
     /// Build one stylesheet rewrite for one local asset URL site.
     fn plan_css_asset_rewrite(
         &self,
         module: &Module,
-        module_graph: &ModuleGraph,
+        module_edges: &[ModuleEdge],
         resource: &UrlResource,
         specifier: &str,
         next_rewrite_index: &mut usize,
     ) -> LinkResult<Option<(String, ModuleId, String)>> {
         let Some(target_module_id) =
-            self.resolve_css_url_target(module, module_graph, resource, specifier)?
+            self.resolve_css_url_target(module, module_edges, resource, specifier)?
         else {
             return Ok(None);
         };
@@ -799,6 +809,7 @@ impl<'a> ScriptLinker<'a> {
         module: &Module,
     ) -> LinkResult<OutputLocation> {
         let _source_path = module.path.as_ref().ok_or_else(|| LinkError::Internal {
+            anchor: (self.package_id).into(),
             package: self.package_id,
             message: format!("css stylesheet '{}' has no filesystem path", module.uri),
         })?;
@@ -809,8 +820,8 @@ impl<'a> ScriptLinker<'a> {
     /// Return one stylesheet import target for one CSS import resource.
     fn resolve_css_import_target(
         &self,
-        module: &Module,
-        module_graph: &ModuleGraph,
+        _module: &Module,
+        module_edges: &[ModuleEdge],
         resource: Option<&ImportResource>,
         specifier: &str,
     ) -> LinkResult<Option<ModuleId>> {
@@ -822,12 +833,12 @@ impl<'a> ScriptLinker<'a> {
             return Ok(None);
         }
 
-        let specifier_id = self.string_pool().intern(specifier);
+        let specifier_id = StringId::for_text(specifier);
 
-        Ok(module_graph
-            .dependency_edge_for_site_specifier(
-                module.id,
-                destack_artifact::ModuleEdgeRelation::StyleImport,
+        Ok(self
+            .module_edge_for_site_specifier(
+                module_edges,
+                destack_source::ModuleEdgeRelation::StyleImport,
                 resource.id,
                 specifier_id,
             )
@@ -837,17 +848,17 @@ impl<'a> ScriptLinker<'a> {
     /// Return one asset URL target for one CSS url resource.
     fn resolve_css_url_target(
         &self,
-        module: &Module,
-        module_graph: &ModuleGraph,
+        _module: &Module,
+        module_edges: &[ModuleEdge],
         resource: &UrlResource,
         specifier: &str,
     ) -> LinkResult<Option<ModuleId>> {
-        let specifier_id = self.string_pool().intern(specifier);
+        let specifier_id = StringId::for_text(specifier);
 
-        Ok(module_graph
-            .dependency_edge_for_site_specifier(
-                module.id,
-                destack_artifact::ModuleEdgeRelation::StyleUrl,
+        Ok(self
+            .module_edge_for_site_specifier(
+                module_edges,
+                destack_source::ModuleEdgeRelation::StyleUrl,
                 resource.id,
                 specifier_id,
             )

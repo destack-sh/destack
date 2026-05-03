@@ -154,7 +154,7 @@ impl Compiler {
                 let mode = self.unbind_dependency_mode(context, *mode);
                 let kind = Some(self.unbind_dependency_kind(context, *kind));
                 let name = name.map(|name| self.unbind_name(ast_strings, name));
-                let alias = alias.map(|a| ast_strings.intern_from(&self.repository.strings, a));
+                let alias = alias.map(|a| a);
                 ast::DependencyItem::Item {
                     kind,
                     mode,
@@ -180,7 +180,7 @@ impl Compiler {
                 let mode = self.unbind_dependency_mode(context, *mode);
                 let kind = Some(self.unbind_dependency_kind(context, *kind));
                 let name = name.map(|name| self.unbind_name(ast_strings, name));
-                let alias = alias.map(|a| ast_strings.intern_from(&self.repository.strings, a));
+                let alias = alias.map(|a| a);
                 ast::DependencyItem::Item {
                     kind,
                     mode,
@@ -199,7 +199,7 @@ impl Compiler {
                 let mode = self.unbind_dependency_mode(context, *mode);
                 let kind = Some(self.unbind_dependency_kind(context, *kind));
                 let name = name.map(|name| self.unbind_name(ast_strings, name));
-                let alias = alias.map(|a| ast_strings.intern_from(&self.repository.strings, a));
+                let alias = alias.map(|a| a);
                 ast::DependencyItem::Item {
                     kind,
                     mode,

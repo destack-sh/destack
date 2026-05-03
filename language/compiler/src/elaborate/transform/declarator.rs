@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::{Asynchrony, Block, Expression, LocalNodeId, Mutability, NodeType};
 
-use crate::elaborate::common::ElaborateState;
+use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]

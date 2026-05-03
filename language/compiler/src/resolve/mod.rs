@@ -1,14 +1,13 @@
-mod binding;
-mod dependency;
 mod error;
-mod language;
-pub(crate) mod module;
-mod process;
-#[cfg(test)]
-mod tests;
+mod operator;
+mod provide;
+mod state;
 mod warning;
 
-pub use binding::OperatorLanguageSymbolExt;
-pub(crate) use destack_workspace::TargetDiscoveryError;
 pub use error::*;
+pub use operator::*;
+pub(in crate::resolve) use state::*;
 pub use warning::*;
+
+#[cfg(test)]
+mod tests;

@@ -1,11 +1,11 @@
 use destack_builtin::LanguageSymbol;
 use destack_dir as dir;
 use dir::{
-    Argument, BinaryOperator, Expression, LocalNodeId, LocalTypeId, NodeType, Path, Resolution,
-    ResolutionCandidate, StaticKey, UnaryOperator,
+    Argument, BinaryOperator, Expression, LocalNodeId, LocalTypeId, NodeType, Resolution,
+    ResolutionCandidate, UnaryOperator,
 };
 
-use crate::elaborate::common::ElaborateState;
+use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateError, ElaborateResult, OperatorLanguageSymbolExt};
 
 #[allow(clippy::too_many_arguments)]
@@ -22,7 +22,7 @@ impl Compiler {
         // load the operator resolution for this node
         let Some(resolution_id) = state
             .types
-            .get_resolution_for_node(expression_id.into_global_any(state.ctx.module_id))
+            .get_resolution_for_node(expression_id.into_global_any(state.module_id))
         else {
             return Ok(());
         };
@@ -84,7 +84,7 @@ impl Compiler {
             );
             let receiver = state
                 .types
-                .get_declared_or_inferred_type_id(call_id.into_global_any(state.ctx.module_id))
+                .get_declared_or_inferred_type_id(call_id.into_global_any(state.module_id))
                 .or(receiver);
 
             state.tree.replace(
@@ -117,9 +117,7 @@ impl Compiler {
                 .as_ref()
                 .and_then(|signature| signature.return_type)
                 .ok_or(ElaborateError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(state.ctx.module_id)
-                        .into_anchored(Some(state.ctx.profile)),
+                    anchor: state.module_id.into(),
                 })?;
 
             let ordering_reference_id = self.build_ordering_reference(
@@ -221,7 +219,7 @@ impl Compiler {
         {
             state
                 .types
-                .set_inferred_type(call_id.into_global_any(state.ctx.module_id), return_type);
+                .set_inferred_type(call_id.into_global_any(state.module_id), return_type);
         }
 
         // attach static resolution for lower call emission
@@ -231,7 +229,7 @@ impl Compiler {
         });
         state
             .types
-            .set_resolution_for_node(call_id.into_global_any(state.ctx.module_id), resolution_id);
+            .set_resolution_for_node(call_id.into_global_any(state.module_id), resolution_id);
 
         call_id
     }
@@ -265,10 +263,9 @@ impl Compiler {
 
         // annotate member type when available
         if let Some(member_type_id) = state.types.get_value_type_id(target_symbol) {
-            state.types.set_inferred_type(
-                member_id.into_global_any(state.ctx.module_id),
-                member_type_id,
-            );
+            state
+                .types
+                .set_inferred_type(member_id.into_global_any(state.module_id), member_type_id);
         }
 
         // create call arguments
@@ -299,61 +296,14 @@ impl Compiler {
         &self,
         state: &mut ElaborateState<'_>,
         origin_id: LocalNodeId<Expression>,
-        ordering_type_id: LocalTypeId,
-        member_name: &str,
+        _ordering_type_id: LocalTypeId,
+        _member_name: &str,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
-        // resolve `Ordering.<member>` symbol
-        let ordering_symbol = self.language_symbol(state.ctx.profile, LanguageSymbol::Ordering);
-        let member_key = StaticKey::Name(self.repository.strings.intern(member_name));
-        let node = origin_id
-            .into_global_any(state.ctx.module_id)
-            .into_anchored(Some(state.ctx.profile));
-        let ordering_member_symbol = self
-            .resolve_static_member_symbol(
-                state.ctx.compiler_context.revision(),
-                state.ctx.module,
-                state.ctx.profile,
-                origin_id,
-                ordering_symbol,
-                member_key,
-                state.tree,
-                state.symbols,
-            )
-            .map_err(|error| self.elaborate_error_from_resolve(error, node))?;
+        let _ = origin_id;
 
-        // build the reference expression
-        let ordering_name = self
-            .repository
-            .strings
-            .intern(LanguageSymbol::Ordering.export_name());
-        let member_name = self.repository.strings.intern(member_name);
-        let reference_id = state.tree.reserve_from(
-            NodeType::Expression,
-            origin_id.into_any(),
-            state.tree.get_scope(origin_id),
-            None,
-            Some(dir::ProvenanceReason::Reified),
-        );
-        let reference_id = state.tree.insert_as_owner(
-            reference_id,
-            Expression::ModuleReference {
-                path: Path::from(&[ordering_name, member_name][..]),
-                generic_arguments: vec![],
-                target_symbol: ordering_member_symbol,
-            },
-        );
-
-        // annotate the reference with the ordering type
-        let reference_type_id = state
-            .types
-            .get_value_type_id(ordering_member_symbol)
-            .unwrap_or(ordering_type_id);
-        state.types.set_inferred_type(
-            reference_id.into_global_any(state.ctx.module_id),
-            reference_type_id,
-        );
-
-        Ok(reference_id)
+        Err(ElaborateError::UnsupportedConstruct {
+            anchor: state.module_id.into(),
+        })
     }
 
     /// Replace the node resolution with a builtin resolution.
@@ -367,7 +317,7 @@ impl Compiler {
             .types
             .insert_resolution(Resolution::Builtin { receiver });
         state.types.set_resolution_for_node(
-            expression_id.into_global_any(state.ctx.module_id),
+            expression_id.into_global_any(state.module_id),
             resolution_id,
         );
     }
@@ -383,7 +333,7 @@ impl Compiler {
         member_name.push(first_char.to_ascii_lowercase());
         member_name.push_str(chars.as_str());
 
-        self.repository.strings.intern(&member_name)
+        dir::StringId::for_text(&member_name)
     }
 }
 

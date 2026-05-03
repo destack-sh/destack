@@ -6,7 +6,7 @@ use indexmap::{IndexMap, IndexSet};
 
 use super::super::ScriptLinker;
 use crate::link::{OutputFileNameValues, OutputLocation, TargetLocation};
-use crate::{LinkError, LinkResult};
+use crate::{CompilerResult, LinkError, LinkResult};
 
 use super::model::{Asset, AssetReference};
 use super::name::{content_hash, directory_token, name_token, percent_encode_for_data_url};
@@ -178,7 +178,7 @@ impl<'a> ScriptLinker<'a> {
         asset_root_modules: &[ModuleId],
         stylesheet_module_ids: &[ModuleId],
         script_module_ids: &[ModuleId],
-    ) -> LinkResult<Vec<ModuleId>> {
+    ) -> CompilerResult<Vec<ModuleId>> {
         let mut asset_module_ids = asset_root_modules.iter().copied().collect::<IndexSet<_>>();
 
         asset_module_ids.extend(self.collect_stylesheet_assets(stylesheet_module_ids)?);
@@ -240,6 +240,7 @@ impl<'a> ScriptLinker<'a> {
         let file = self.asset_file(module_id);
 
         Asset::from_module(module.as_ref(), file.as_ref()).map_err(|message| LinkError::Internal {
+            anchor: (self.package_id).into(),
             package: self.package_id,
             message,
         })
@@ -264,6 +265,7 @@ impl<'a> ScriptLinker<'a> {
     ) -> LinkResult<OutputLocation> {
         let module = self.asset_module(module_id);
         let source_path = module.path.as_ref().ok_or_else(|| LinkError::Internal {
+            anchor: (self.package_id).into(),
             package: self.package_id,
             message: format!("asset module '{}' has no filesystem path", module.uri),
         })?;

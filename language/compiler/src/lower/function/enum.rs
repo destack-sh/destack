@@ -1,6 +1,6 @@
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult};
+use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 
 use crate::lower::FunctionLowerer;
 use crate::lower::r#type::{EnumFieldValueDescriptor, enum_field_value_for_symbol};
@@ -25,19 +25,20 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         member_symbol: dir::GlobalSymbolId,
-    ) -> LowerResult<Option<(mir::Value, mir::LocalNodeId<mir::Type>)>> {
+    ) -> CompilerResult<Option<(mir::Value, mir::LocalNodeId<mir::Type>)>> {
         // anchor diagnostics to the current expression
         let node = expression_id
             .into_global_any(self.context.module_id)
             .into_anchored(Some(self.context.profile));
+        let anchor = self.diagnostic_anchor(node);
 
         // resolve the enum field value when this symbol is a field
         let Some(EnumFieldValueDescriptor { backing, value }) = enum_field_value_for_symbol(
             self.context.compiler,
-            self.context.revision,
+            self.context.provider,
             self.context.profile,
             member_symbol,
-            node,
+            anchor,
         )?
         else {
             return Ok(None);
@@ -57,9 +58,10 @@ impl FunctionLowerer<'_> {
             }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "enum field value does not match backing type".to_string(),
-                });
+                }
+                .into());
             }
         };
 
@@ -82,26 +84,28 @@ impl FunctionLowerer<'_> {
         value: i64,
         backing: dir::EnumBackingType,
         node: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         // ensure the enum backing type is integer
         let scalar = self
             .context
             .type_lowerer
             .scalar_type_for_enum_backing(backing)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "enum backing type is not an integer".to_string(),
-            })?;
+            })
+            .map_err(CompilerError::from)?;
 
         // resolve the width and signedness
         let (width, signed) = match scalar {
-            crate::ScalarType::SignedInt { width } => (width, true),
-            crate::ScalarType::UnsignedInt { width } => (width, false),
+            ScalarType::SignedInt { width } => (width, true),
+            ScalarType::UnsignedInt { width } => (width, false),
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "enum backing type is not an integer".to_string(),
-                });
+                }
+                .into());
             }
         };
         Ok(self.state.builder.iconst(i128::from(value), width, signed))

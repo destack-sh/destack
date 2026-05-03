@@ -1,85 +1,84 @@
-use crate::{Compiler, CompilerContext, GenerateError, GenerateResult, GenerateWarning};
+use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, ModuleOutput};
+use crate::{Compiler, CompilerError, CompilerResult, GenerateError, GenerateWarning};
+use destack_artifact::ModuleOutput;
 use destack_codegen_js::{CodegenJsError, CodegenJsWarning};
+use destack_dir as dir;
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Target};
+use destack_workspace::{ProfileId, ProviderContext, Target};
+
+use super::GenerateState;
 
 impl Compiler {
-    /// Generate one script module artifact.
+    /// Generate one script module output.
     pub(super) fn generate_script_module_output(
         &self,
         module_id: ModuleId,
         target: &Target,
         profile: ProfileId,
-        context: &CompilerContext<'_>,
-    ) -> GenerateResult<()> {
-        // require the patched module state
-        self.require_dir_patched(context.revision(), module_id, profile)?;
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ModuleOutput> {
+        // require the script module state
+        self.require_dir_declared(context, module_id, profile)
+            .map_err(CompilerError::from)?;
+        self.require_dir_checked(context, module_id, profile)
+            .map_err(CompilerError::from)?;
 
         // snapshot module for this generate pass
-        let module = context.module(module_id);
-        let ast = self.ast(module_id).ok_or_else(|| GenerateError::Internal {
-            module: module_id,
-            message: "missing compiler AST artifact".to_string(),
-        })?;
-        let dir = self
-            .dir_patched(module_id, profile)
-            .ok_or_else(|| GenerateError::Internal {
-                module: module_id,
-                message: "missing compiler patched DIR artifact".to_string(),
-            })?;
-        // generate one script artifact through the current backend
-        let (artifact, warnings, errors) = destack_codegen_js::ScriptArtifactGenerator::new(
+        let module = self.module(context.revision(), module_id);
+        let ast = self.ast(context, module_id).map_err(CompilerError::from)?;
+        let declared = self
+            .dir_declared(context, module_id, profile)
+            .map_err(CompilerError::from)?;
+        let checked = self
+            .dir_checked(context, module_id, profile)
+            .map_err(CompilerError::from)?;
+        let state = GenerateState::new(module_id, &declared.tree);
+
+        // generate one script output through the current backend
+        let (artifact, warnings, errors) = destack_codegen_js::ScriptOutputGenerator::new(
             module.clone(),
             ast,
-            dir,
-            self.repository.string_pool().clone(),
+            declared.clone(),
+            checked,
+            Arc::new(declared.strings.clone()),
             target,
         )
         .generate()
-        .map_err(|error| Self::map_script_generate_error(module_id, profile, error))?;
-        let target_id = self
-            .repository
-            .intern_target_id(module.package_id, &target.name);
-        context.publish_artifact(
-            ArtifactKey::module_output(module_id, target_id),
-            ModuleOutput::Script(Box::new(artifact)),
-            |store, version, payload| store.publish_module_output(version, payload),
-        );
-
+        .map_err(|error| Self::map_script_generate_error(&state, error))?;
         // map backend diagnostics into compiler diagnostics
         for warning in warnings {
-            let warning = Self::map_script_generate_warning(module_id, profile, warning);
-            self.warning(warning);
+            let warning = Self::map_script_generate_warning(&state, warning);
+            self.emit_diagnostic(context, warning)?;
         }
         for error in errors {
-            let error = Self::map_script_generate_error(module_id, profile, error);
-            self.error(error);
+            let error = Self::map_script_generate_error(&state, error);
+            self.emit_diagnostic(context, error)?;
         }
 
-        Ok(())
+        Ok(ModuleOutput::Script(artifact))
     }
 
     /// Map one script backend error to a compiler error.
     fn map_script_generate_error(
-        module_id: ModuleId,
-        profile: ProfileId,
+        state: &GenerateState<'_, dir::Tree>,
         error: CodegenJsError,
     ) -> GenerateError {
         match error {
             CodegenJsError::UnsupportedTarget { format, .. } => GenerateError::UnsupportedTarget {
-                module: module_id,
+                anchor: (state.module_id).into(),
+                module: state.module_id,
                 target: format,
             },
             CodegenJsError::Internal { message } => GenerateError::Internal {
-                module: module_id,
+                anchor: (state.module_id).into(),
+                module: state.module_id,
                 message,
             },
             CodegenJsError::UnsupportedConstruct { node, message } => {
                 GenerateError::UnsupportedConstruct {
-                    module: module_id,
-                    node: Some(node.into_anchored(Some(profile))),
+                    anchor: state.anchor(node),
+                    module: state.module_id,
                     message: message
                         .unwrap_or_else(|| format!("unsupported {}", node.local_id.ty.name())),
                 }
@@ -89,8 +88,8 @@ impl Compiler {
                 wanted,
                 message,
             } => GenerateError::UnexpectedConstruct {
-                module: module_id,
-                node: Some(node.into_anchored(Some(profile))),
+                anchor: state.anchor(node),
+                module: state.module_id,
                 message: message.unwrap_or_else(|| {
                     format!(
                         "unexpected {} (wanted {})",
@@ -100,34 +99,33 @@ impl Compiler {
                 }),
             },
             CodegenJsError::UnresolvedNode { node, .. } => GenerateError::UnresolvedConstruct {
-                module: module_id,
-                node: Some(node.into_anchored(Some(profile))),
+                anchor: state.anchor(node),
+                module: state.module_id,
             },
             CodegenJsError::MissingType { node, .. } => GenerateError::MissingType {
-                module: module_id,
-                node: Some(node.into_anchored(Some(profile))),
+                anchor: state.anchor(node),
+                module: state.module_id,
             },
         }
     }
 
     /// Map one script backend warning to a compiler warning.
     fn map_script_generate_warning(
-        module_id: ModuleId,
-        profile: ProfileId,
+        state: &GenerateState<'_, dir::Tree>,
         warning: CodegenJsWarning,
     ) -> GenerateWarning {
         match warning {
             CodegenJsWarning::ImpreciseType { node } => GenerateWarning::ImpreciseType {
-                module: module_id,
-                node: Some(node.into_anchored(Some(profile))),
+                anchor: state.anchor(node),
+                module: state.module_id,
             },
             CodegenJsWarning::UnexpectedNode { node, .. } => GenerateWarning::UnexpectedConstruct {
-                module: module_id,
-                node: Some(node.into_anchored(Some(profile))),
+                anchor: state.anchor(node),
+                module: state.module_id,
             },
             CodegenJsWarning::ExpectedStatement { node } => GenerateWarning::UnexpectedConstruct {
-                module: module_id,
-                node: Some(node.into_anchored(Some(profile))),
+                anchor: state.anchor(node),
+                module: state.module_id,
             },
         }
     }

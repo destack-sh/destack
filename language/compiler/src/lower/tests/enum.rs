@@ -104,14 +104,15 @@ ${string_alias}
 global ${string_name}: ref<String, managed, readonly>, readonly = "sour"
 global ${sweet_name}: ref<String, managed, readonly>, readonly = "sweet"
 
+type Flavor = newtype<ref<String, managed, readonly>>;
+
 function flavorValue(): Flavor {
 entry0:
-    value0: ref<String, managed, readonly> = global.address ${string_name}
-    value1: Flavor = cast.bit value0 -> Flavor
-    return value1
-}
-
-type Flavor = newtype<ref<String, managed, readonly>>;"#;
+    value0: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${string_name}
+    value1: ref<String, managed, readonly> = load value0
+    value2: Flavor = cast.bit value1 -> Flavor
+    return value2
+}"#;
     let expected = expected.replace("${string_alias}", string_alias);
     let expected = expected.replace("${sweet_name}", &sweet_name);
     let expected = expected.replace("${string_name}", &string_name);
@@ -213,9 +214,9 @@ entry0:
     return value2
 }
 
-function Status.isActive(value0: Status): boolean {
-entry0(value0: Status):
-    value1: int32 = cast.bit value0 -> int32
+function Status.isActive(this0: Status): boolean {
+entry0(this0: Status):
+    value1: int32 = cast.bit this0 -> int32
     value2: int32 = 1int32
     value3: Status = cast.bit value2 -> Status
     value4: int32 = cast.bit value3 -> int32
@@ -262,9 +263,10 @@ global Status.Default: Status, readonly = 1int32
 
 function defaultValue(): int32 {
 entry0:
-    value0: Status = global.address Status.Default
-    value1: int32 = cast.bit value0 -> int32
-    return value1
+    value0: ref<Status, raw, readonly> = global.address Status.Default
+    value1: Status = load value0
+    value2: int32 = cast.bit value1 -> int32
+    return value2
 }
 "#,
     );

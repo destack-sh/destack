@@ -5,6 +5,7 @@ use destack_workspace::Module;
 
 use super::UnbindContext;
 use crate::Compiler;
+use crate::import::DEFAULT_FLOAT_WIDTH;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -12,7 +13,7 @@ impl Compiler {
     pub(super) fn unbind_scalar_literal(
         &self,
         literal: &dir::ScalarLiteral,
-        ast_strings: &mut StringPool,
+        _ast_strings: &mut StringPool,
         _context: &mut UnbindContext,
     ) -> ast::ScalarLiteral {
         match literal {
@@ -23,13 +24,12 @@ impl Compiler {
             dir::ScalarLiteral::Float(float) => ast::ScalarLiteral::Float(*float),
             dir::ScalarLiteral::Character(character) => ast::ScalarLiteral::Character(*character),
             dir::ScalarLiteral::String(string) => {
-                let string = ast_strings.intern_from(&self.repository.strings, *string);
+                let string = *string;
                 ast::ScalarLiteral::String(string)
             }
             dir::ScalarLiteral::RegexString { content, flags } => {
-                let content = ast_strings.intern_from(&self.repository.strings, *content);
-                let flags =
-                    flags.map(|flag| ast_strings.intern_from(&self.repository.strings, flag));
+                let content = *content;
+                let flags = flags.map(|flag| flag);
                 ast::ScalarLiteral::RegexString { content, flags }
             }
         }
@@ -176,7 +176,7 @@ impl Compiler {
             dir::FloatType::Float32 => ast::FloatType { width: Some(32) },
             dir::FloatType::Float64 => ast::FloatType { width: Some(64) },
             dir::FloatType::Arbitrary { width } => {
-                if *width == self.options.default_float_width {
+                if *width == DEFAULT_FLOAT_WIDTH {
                     ast::FloatType { width: None }
                 } else {
                     ast::FloatType {
@@ -201,14 +201,11 @@ impl Compiler {
     ) -> ast::TemplateLiteral {
         match literal {
             dir::TemplateLiteral::String { string } => {
-                let string = ast_strings.intern_from(&self.repository.strings, *string);
+                let string = *string;
                 ast::TemplateLiteral::String { string }
             }
             dir::TemplateLiteral::InterpolatedString { strings, arguments } => {
-                let strings = strings
-                    .iter()
-                    .map(|string| ast_strings.intern_from(&self.repository.strings, *string))
-                    .collect();
+                let strings = strings.iter().map(|string| *string).collect();
                 let arguments = arguments
                     .iter()
                     .map(|argument| {

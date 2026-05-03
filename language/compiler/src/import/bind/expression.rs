@@ -480,10 +480,7 @@ impl Compiler {
                 Expression::Declaration(declaration_id)
             }
             ast::Expression::Labelled { label, body } => {
-                let label = self
-                    .repository
-                    .strings
-                    .intern_from(&ast.strings, *label);
+                let label = *label;
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolKind::Local,
                     SymbolType::Void,
@@ -524,7 +521,7 @@ impl Compiler {
             } => {
                 let (target, dependency_target) = match target {
                     ast::ImportTarget::String(target) => {
-                        let target = self.repository.strings.intern_from(&ast.strings, *target);
+                        let target = *target;
                         (ImportTarget::String(target), Some(target))
                     }
                     ast::ImportTarget::Expression { target } => {
@@ -619,11 +616,7 @@ impl Compiler {
                 items,
                 attributes,
             } => {
-                let target = target.map(|target| {
-                    self.repository
-                        .strings
-                        .intern_from(&ast.strings, target)
-                });
+                let target = *target;
                 // re-export from import
                 if let Some(target) = target {
                     // items
@@ -703,10 +696,7 @@ impl Compiler {
                 }
             }
             ast::Expression::ExportNamespace { name } => {
-                let name = self
-                    .repository
-                    .strings
-                    .intern_from(&ast.strings, *name);
+                let name = *name;
                 Expression::ExportNamespace { name }
             }
             ast::Expression::Let {
@@ -1222,7 +1212,7 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                let name = name.map(|name| self.repository.strings.intern_from(&ast.strings, name));
+                let name = name.map(|name| name);
 
                 Expression::Member { left, name }
             }
@@ -1241,7 +1231,7 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                let name = name.map(|name| self.repository.strings.intern_from(&ast.strings, name));
+                let name = name.map(|name| name);
 
                 Expression::PrivateMember { left, name }
             }
@@ -1265,7 +1255,7 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                let generic_argument_space_order = if module.language_type.is_destack() {
+                let generic_argument_space_order = if module.is_destack() {
                     SymbolSpaceOrder::ValueThenType
                 } else {
                     SymbolSpaceOrder::TypeThenValue
@@ -1449,7 +1439,7 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                let generic_argument_space_order = if module.language_type.is_destack() {
+                let generic_argument_space_order = if module.is_destack() {
                     SymbolSpaceOrder::ValueThenType
                 } else {
                     SymbolSpaceOrder::TypeThenValue
@@ -1515,7 +1505,7 @@ impl Compiler {
 
             ast::Expression::Identifier { name } => {
                 let path = Path {
-                    segments: smallvec![self.repository.strings.intern_from(&ast.strings, *name)],
+                    segments: smallvec![*name],
                 };
                 Expression::UnresolvedPath {
                     path,
@@ -1555,7 +1545,7 @@ impl Compiler {
                 }
             }
             ast::Expression::PrivateIdentifier { name } => {
-                let name = self.repository.strings.intern_from(&ast.strings, *name);
+                let name = *name;
                 Expression::PrivateIdentifier { name }
             }
             ast::Expression::ScalarLiteral(value) => {
@@ -1597,7 +1587,7 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                let generic_argument_space_order = if module.language_type.is_destack() {
+                let generic_argument_space_order = if module.is_destack() {
                     SymbolSpaceOrder::ValueThenType
                 } else {
                     SymbolSpaceOrder::TypeThenValue
@@ -1771,7 +1761,7 @@ impl Compiler {
                         space_order,
                     )
                 });
-                let generic_argument_space_order = if module.language_type.is_destack() {
+                let generic_argument_space_order = if module.is_destack() {
                     SymbolSpaceOrder::ValueThenType
                 } else {
                     SymbolSpaceOrder::TypeThenValue
@@ -2464,7 +2454,7 @@ impl Compiler {
 
             ast::Expression::Break { label, value } => {
                 let label =
-                    label.map(|label| self.repository.strings.intern_from(&ast.strings, label));
+                    label.map(|label| label);
                 let value = value.map(|value| {
                     self.bind_expression(
                         module,
@@ -2496,7 +2486,7 @@ impl Compiler {
             }
             ast::Expression::Continue { label } => {
                 let label =
-                    label.map(|label| self.repository.strings.intern_from(&ast.strings, label));
+                    label.map(|label| label);
                 if let Some(label) = label {
                     Expression::UnresolvedContinue { target: label }
                 } else {
@@ -2700,12 +2690,11 @@ impl Compiler {
         });
 
         // JS/TS initializers can reference the bound declarator name
-        let value_scope =
-            if module.language_type.is_javascript() || module.language_type.is_typescript() {
-                (scope.0, symbols.get_scope_mark(scope.0))
-            } else {
-                scope
-            };
+        let value_scope = if module.is_ecmascript() {
+            (scope.0, symbols.get_scope_mark(scope.0))
+        } else {
+            scope
+        };
         let value = value.map(|v| {
             self.bind_expression(
                 module,
@@ -2845,7 +2834,7 @@ let Foo: Foo = Foo;
         test.check_clean();
 
         // load bound tree
-        let dir = test.dir_base(module_id);
+        let dir = test.dir_declared(module_id);
         let tree = &dir.tree;
 
         // select the root expression
@@ -2907,7 +2896,7 @@ let Foo: Foo = Foo;
         test.compile();
         test.check_clean();
 
-        let dir = test.dir_base(main_id);
+        let dir = test.dir_declared(main_id);
         let symbols = &dir.symbols;
         let name = test.program.strings.intern("Foo");
         let key = StaticKey::Name(name);

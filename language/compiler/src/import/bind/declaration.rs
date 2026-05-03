@@ -38,7 +38,7 @@ impl Compiler {
         module: &Module,
         ambient: ast::Ambientness,
     ) -> SymbolBinding {
-        if module.language_type.is_declaration() || ambient == ast::Ambientness::Ambient {
+        if module.is_declaration() || ambient == ast::Ambientness::Ambient {
             SymbolBinding::Ambient
         } else {
             SymbolBinding::Runtime
@@ -59,7 +59,7 @@ impl Compiler {
             | SymbolType::Newtype
             | SymbolType::Extension => SymbolSpace::TypeValue,
             SymbolType::Function => {
-                if module.language_type.is_destack() {
+                if module.is_destack() {
                     SymbolSpace::TypeValue
                 } else {
                     SymbolSpace::Value
@@ -679,7 +679,7 @@ impl Compiler {
                 // alias target
                 let target = match &declaration.target {
                     ast::ImportAliasTarget::Require { target } => {
-                        let target = self.repository.strings.intern_from(&ast.strings, *target);
+                        let target = *target;
                         ImportAliasTarget::Require { target }
                     }
                     ast::ImportAliasTarget::Path { path } => {
@@ -1426,8 +1426,7 @@ impl Compiler {
             ast::Declaration::Function(declaration) => {
                 // declaration header
                 let binding_ambient = if declaration.body.is_none()
-                    && (module.language_type.supports_declaration_merging()
-                        || module.language_type.is_destack())
+                    && (module.supports_declaration_merging() || module.is_destack())
                 {
                     ast::Ambientness::Ambient
                 } else {
@@ -1462,6 +1461,7 @@ impl Compiler {
                     symbols,
                     types,
                 );
+                let body_scope = (scope_id, symbols.get_scope_mark(scope_id));
                 let body = declaration.body.map(|body| {
                     self.bind_expression(
                         module,
@@ -1469,7 +1469,7 @@ impl Compiler {
                         namespace_scope,
                         global_augmentation_scope,
                         module_bindings,
-                        declaration_scope,
+                        body_scope,
                         body,
                         Some(declaration_id),
                         tree,
@@ -1556,6 +1556,16 @@ impl Compiler {
 
         // field payload
         let name = self.bind_name(ast, ast_field.name);
+        let key = StaticKey::Name(name.string());
+        let (symbol_id, _) = symbols.insert_symbol(
+            SymbolKind::Item,
+            SymbolType::Void,
+            SymbolSpace::Value,
+            self.bind_declaration_binding(module, ast::Ambientness::Concrete),
+            Some(key),
+            scope,
+            None,
+        );
         let value = ast_field.value.map(|value| {
             self.bind_expression(
                 module,
@@ -1575,6 +1585,9 @@ impl Compiler {
 
         let enum_field = EnumField { name, value };
 
-        tree.insert(field_id, enum_field)
+        let field_id = tree.insert(field_id, enum_field);
+        symbols.get_symbol_mut(symbol_id).declare_primary(field_id);
+
+        field_id
     }
 }

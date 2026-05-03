@@ -1,18 +1,18 @@
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
+use crate::Compiler;
 use crate::link::{OutputLayout, SourceMapBuilder, SourceMapMarker};
-use crate::{Compiler, CompilerContext};
 use base64::Engine as _;
 use destack_artifact::{
-    DirPatched, EmitFormat, OutputContent, OutputFile, ScriptArtifact, SourceMapArtifact,
+    DirDeclared, EmitFormat, OutputContent, OutputFile, ScriptOutput, SourceMapArtifact,
 };
 use destack_codegen_js::{
-    JsFormatOptions, PrintedScriptModule, ScriptModule,
+    JsFormatOptions, Module as ScriptModule, PrintedScriptModule,
     print_script_module as print_codegen_script_module,
 };
 use destack_source::{FileType, ModuleId, TargetId, Uri};
-use destack_workspace::{Module, SourceMapMode, Target};
+use destack_workspace::{Module, ProviderContext, SourceMapMode, Target};
 
 /// One final script text output policy derived from one target.
 #[derive(Debug, Clone, Copy)]
@@ -178,15 +178,15 @@ impl Compiler {
         target: &Target,
         file_type: FileType,
         module: &ScriptModule,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> Result<PrintedScriptModule, String> {
         // source artifacts
-        let ast = self
-            .ast(module_id)
-            .ok_or_else(|| format!("missing committed AST artifact for module {module_id:?}"))?;
-        let dir = self.script_dir(module_id, target_id, context)?;
-        let source_module = context.module(module_id);
-        let source_file = context.file(source_module.file_id);
+        let ast = self.ast(context, module_id).map_err(|error| {
+            format!("missing committed AST artifact for module {module_id:?}: {error:?}")
+        })?;
+        let declared = self.script_dir_declared(module_id, target_id, context)?;
+        let source_module = self.module(context.revision(), module_id);
+        let source_file = self.file(context, source_module.file_id);
         let options = if target.should_minify_bundle_output() {
             JsFormatOptions::minimal()
         } else {
@@ -194,34 +194,42 @@ impl Compiler {
         }
         .with_file_type(file_type);
 
-        print_codegen_script_module(options, &ast, dir.as_ref(), source_file.as_ref(), module)
-            .map_err(|error| format!("failed to print script module: {error:?}"))
+        print_codegen_script_module(
+            options,
+            &ast,
+            declared.as_ref(),
+            source_file.as_ref(),
+            module,
+        )
+        .map_err(|error| format!("failed to print script module: {error:?}"))
     }
 
-    /// Return the patched DIR artifact for one script module target.
-    fn script_dir(
+    /// Return the declared DIR artifact for one script module target.
+    fn script_dir_declared(
         &self,
         module_id: ModuleId,
         target_id: &TargetId,
-        context: &CompilerContext<'_>,
-    ) -> Result<Arc<DirPatched>, String> {
+        context: &dyn ProviderContext,
+    ) -> Result<Arc<DirDeclared>, String> {
         // target profile
-        let profile_id = context
-            .profile_id_for_target(module_id, target_id)
+        let profile_id = self
+            .target_profile_id(context.revision(), module_id, target_id)
             .ok_or_else(|| {
                 format!(
                     "profile not found for target '{}'",
-                    self.target_name_for_revision(context.revision(), target_id)
+                    self.target_name(context.revision(), target_id)
                 )
             })?;
 
-        // patched dir
-        let dir = self.dir_patched(module_id, profile_id).ok_or_else(|| {
-            format!(
-                "missing patched DIR artifact for module {module_id:?} target '{}'",
-                self.target_name_for_revision(context.revision(), target_id)
-            )
-        })?;
+        // declared dir
+        let dir = self
+            .dir_declared(context, module_id, profile_id)
+            .map_err(|error| {
+                format!(
+                    "missing declared DIR artifact for module {module_id:?} target '{}': {error:?}",
+                    self.target_name(context.revision(), target_id)
+                )
+            })?;
 
         Ok(dir)
     }
@@ -232,10 +240,10 @@ impl Compiler {
         package_dir: &Path,
         module: &Module,
         printed: &PrintedScriptModule,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> SourceMapBuilder {
         let source_path = self.package_relative_uri_path(package_dir, &module.uri);
-        let source_file = context.file(module.file_id);
+        let source_file = self.file(context, module.file_id);
         let markers = printed
             .markers
             .iter()
@@ -256,7 +264,7 @@ impl Compiler {
         output_path: &Path,
         printed: PrintedScriptModule,
         source_map_path: Option<&Path>,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> Result<Vec<OutputFile>, String> {
         // source map
         let source_map = self.script_module_source_map(package_dir, module, &printed, context);
@@ -275,14 +283,14 @@ impl Compiler {
     fn link_printed_script_files(
         &self,
         module: &Module,
-        artifact: &ScriptArtifact,
+        artifact: &ScriptOutput,
         target_id: &TargetId,
         target: &Target,
         package_dir: &Path,
         file_type: FileType,
         output_path: &Path,
         source_map_path: Option<&Path>,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> Result<Vec<OutputFile>, String> {
         // print once
         let printed = self.print_script_module(
@@ -339,16 +347,16 @@ impl Compiler {
         })
     }
 
-    /// Link one script artifact into output files.
-    pub(crate) fn link_script_artifact_files(
+    /// Link one script output into output files.
+    pub(crate) fn link_script_output_files(
         &self,
         module: &Module,
-        artifact: &ScriptArtifact,
+        artifact: &ScriptOutput,
         target_id: &TargetId,
         target: &Target,
         package_dir: &Path,
         root_dir: Option<&Path>,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> Result<Vec<OutputFile>, String> {
         let mut entries = Vec::new();
         let file_types = linked_script_file_types(target)?;

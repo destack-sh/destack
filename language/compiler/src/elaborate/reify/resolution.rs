@@ -4,7 +4,7 @@ use dir::{
     ResolutionCandidate,
 };
 
-use crate::elaborate::common::ElaborateState;
+use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
@@ -104,8 +104,8 @@ impl Compiler {
         );
         let cloned_id = state.tree.insert_as_owner(cloned_id, cloned_expression);
         state.types.copy_node_analysis(
-            expression_id.into_global_any(state.ctx.module_id),
-            cloned_id.into_global_any(state.ctx.module_id),
+            expression_id.into_global_any(state.module_id),
+            cloned_id.into_global_any(state.module_id),
         );
 
         cloned_id
@@ -141,8 +141,8 @@ impl Compiler {
 
         let cloned_id = state.tree.insert_as_owner(cloned_id, cloned_argument);
         state.types.copy_node_analysis(
-            argument_id.into_global_any(state.ctx.module_id),
-            cloned_id.into_global_any(state.ctx.module_id),
+            argument_id.into_global_any(state.module_id),
+            cloned_id.into_global_any(state.module_id),
         );
 
         cloned_id
@@ -161,7 +161,7 @@ impl Compiler {
         // get the resolution for this expression
         let Some(resolution_id) = state
             .types
-            .get_resolution_for_node(expression_id.into_global_any(state.ctx.module_id))
+            .get_resolution_for_node(expression_id.into_global_any(state.module_id))
         else {
             return Ok(());
         };
@@ -251,12 +251,13 @@ impl Compiler {
             );
 
             // set the type for the if expression (same as original expression)
-            if let Some(expr_type_id) = state.types.get_declared_or_inferred_type_id(
-                expression_id.into_global_any(state.ctx.module_id),
-            ) {
+            if let Some(expr_type_id) = state
+                .types
+                .get_declared_or_inferred_type_id(expression_id.into_global_any(state.module_id))
+            {
                 state
                     .types
-                    .set_inferred_type(if_id.into_global(state.ctx.module_id), expr_type_id);
+                    .set_inferred_type(if_id.into_global(state.module_id), expr_type_id);
             }
         }
 
@@ -335,10 +336,9 @@ impl Compiler {
             candidate: candidate.clone(),
         };
         let resolution_id = state.types.insert_resolution(static_resolution);
-        state.types.set_resolution_for_node(
-            cloned_id.into_global_any(state.ctx.module_id),
-            resolution_id,
-        );
+        state
+            .types
+            .set_resolution_for_node(cloned_id.into_global_any(state.module_id), resolution_id);
 
         // reify overloaded operators inside each static branch clone
         self.reify_operator_expression(state, cloned_id)?;

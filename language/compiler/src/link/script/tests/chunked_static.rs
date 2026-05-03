@@ -335,10 +335,14 @@ export const main2 = [vendorA, vendorB];
         .get(&target_id)
         .cloned()
         .unwrap_or_else(|| panic!("missing target 'js'"));
-    let context = test.context();
+    let context = crate::tests::test_provider_context(
+        test.compiler.as_ref(),
+        test.current_revision(),
+        ArtifactKey::WorkspaceLinted,
+    );
     let linker = ScriptLinker::new(
         test.compiler.as_ref(),
-        &context,
+        context.as_ref(),
         &package_dir,
         None,
         &target,

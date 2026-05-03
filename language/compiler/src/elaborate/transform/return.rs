@@ -4,7 +4,7 @@ use dir::{
     TypeLiteral,
 };
 
-use crate::elaborate::common::ElaborateState;
+use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
 impl Compiler {
@@ -157,7 +157,7 @@ impl Compiler {
             _ => {
                 let Some(type_id) = state
                     .types
-                    .get_declared_or_inferred_type_id(expr_id.into_global_any(state.ctx.module_id))
+                    .get_declared_or_inferred_type_id(expr_id.into_global_any(state.module_id))
                 else {
                     self.replace_expression_with_explicit_return(state, expr_id, scope);
                     return Ok(());

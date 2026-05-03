@@ -1,25 +1,28 @@
-use crate::{Compiler, LinkError, LinkResult, RequirementCollector};
-
 use destack_artifact::{
     BuildManifest, BuildManifestFile, ModuleOutput, OutputFile, PackageOutput, TargetOutputName,
 };
 use destack_source::{FileType, ModuleId};
+use destack_workspace::ProviderError;
 use indexmap::IndexMap;
 
 use crate::link::TargetLocation;
+use crate::{Compiler, CompilerError, CompilerResult, LinkError, LinkResult};
 
 use super::BinaryLinker;
-use super::output::link_binary_artifact_files;
+use super::output::link_binary_output_files;
 
 impl<'a> BinaryLinker<'a> {
     /// Link one discovered binary target.
-    pub(crate) fn link_target(&self, discovered_modules: &[ModuleId]) -> LinkResult<PackageOutput> {
+    pub(crate) fn link_target(
+        &self,
+        discovered_modules: &[ModuleId],
+    ) -> CompilerResult<PackageOutput> {
         let module_ids = self.require_module_outputs(discovered_modules)?;
 
-        self.link(&module_ids)
+        self.link(&module_ids).map_err(CompilerError::from)
     }
 
-    /// Link one binary target from generated module artifacts.
+    /// Link one binary target from generated module outputs.
     pub(crate) fn link(&self, module_ids: &[ModuleId]) -> LinkResult<PackageOutput> {
         // rendered files
         let files = self.render_files(module_ids)?;
@@ -40,37 +43,44 @@ impl<'a> BinaryLinker<'a> {
         Ok(output)
     }
 
-    /// Require all generated binary artifacts needed for this target.
-    fn require_module_outputs(&self, discovered_modules: &[ModuleId]) -> LinkResult<Vec<ModuleId>> {
-        let mut collector = RequirementCollector::new();
+    /// Require all generated binary outputs needed for this target.
+    fn require_module_outputs(
+        &self,
+        discovered_modules: &[ModuleId],
+    ) -> CompilerResult<Vec<ModuleId>> {
+        let mut blocked = Vec::new();
         let mut required_modules = Vec::new();
 
-        // require one generated artifact per discovered module
+        // require one generated output per discovered module
         for module_id in discovered_modules.iter().copied() {
             let profile_id = self
-                .context
-                .profile_id_for_target(module_id, self.target_id)
+                .compiler
+                .target_profile_id(self.context.revision(), module_id, self.target_id)
                 .ok_or_else(|| LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message: format!(
                         "profile not found for target '{}'",
                         self.compiler
-                            .target_name_for_revision(self.context.revision(), self.target_id)
+                            .target_name(self.context.revision(), self.target_id)
                     ),
                 })?;
-            let result = self.compiler.require_module_output(
-                self.context.revision(),
+            match self.compiler.require_module_output(
+                self.context,
                 module_id,
                 profile_id,
                 self.target_id,
-            );
-            collector.try_collect(result);
+            ) {
+                Ok(_) => {}
+                Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
+                Err(error) => return Err(CompilerError::from(error)),
+            }
             required_modules.push(module_id);
         }
 
-        // yield while generated artifacts are still pending
-        if let Some(requirement) = collector.try_into_requirement() {
-            return Err(LinkError::Yield { requirement });
+        // yield while generated outputs are still pending
+        if !blocked.is_empty() {
+            return Err(CompilerError::Blocked { keys: blocked });
         }
 
         required_modules.sort_unstable();
@@ -79,39 +89,42 @@ impl<'a> BinaryLinker<'a> {
         Ok(required_modules)
     }
 
-    /// Render final output files from generated binary artifacts.
+    /// Render final output files from generated binary outputs.
     fn render_files(&self, module_ids: &[ModuleId]) -> LinkResult<Vec<OutputFile>> {
         let mut files = Vec::new();
 
-        // render each generated binary artifact into final target files
+        // render each generated binary output into final target files
         for module_id in module_ids {
             let artifact = self
                 .compiler
-                .module_output(*module_id, self.target_id)
-                .ok_or_else(|| LinkError::Internal {
+                .module_output(self.context, *module_id, self.target_id)
+                .map_err(|error| LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message: format!(
-                        "missing module artifact for module {:?} target '{}'",
+                        "missing module output for module {:?} target '{}': {error:?}",
                         module_id,
                         self.compiler
-                            .target_name_for_revision(self.context.revision(), self.target_id)
+                            .target_name(self.context.revision(), self.target_id)
                     ),
                 })?;
 
             let ModuleOutput::Binary(binary) = artifact.as_ref() else {
                 return Err(LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message: format!(
-                        "expected binary artifact for module {:?} target '{}'",
+                        "expected binary output for module {:?} target '{}'",
                         module_id,
                         self.compiler
-                            .target_name_for_revision(self.context.revision(), self.target_id)
+                            .target_name(self.context.revision(), self.target_id)
                     ),
-                });
+                }
+                .into());
             };
 
-            let module = self.context.module(*module_id);
-            let binary_files = link_binary_artifact_files(
+            let module = self.compiler.module(self.context.revision(), *module_id);
+            let binary_files = link_binary_output_files(
                 module.as_ref(),
                 binary,
                 self.target,
@@ -119,9 +132,10 @@ impl<'a> BinaryLinker<'a> {
                 self.root_dir,
             )
             .map_err(|error| LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!(
-                    "failed to render binary artifact for module {:?}: unsupported file type {:?}",
+                    "failed to render binary output for module {:?}: unsupported file type {:?}",
                     module_id, error.file_type
                 ),
             })?;

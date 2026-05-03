@@ -1,10 +1,12 @@
 #[cfg(feature = "native-codegen")]
 mod binary;
 mod error;
-mod process;
+mod provide;
 mod script;
+mod state;
 mod target;
 mod warning;
 
 pub use error::*;
+pub(in crate::generate) use state::*;
 pub use warning::*;

@@ -1,42 +1,40 @@
-use crate::{CompileWarning, DiagnosticAnchor, DiagnosticDefinition};
-use destack_compiler_macros::DefineWarning;
-use destack_dir::AnchoredGlobalNodeId;
-use destack_workspace::Repository;
+use crate::DiagnosticAnchor;
+use destack_artifact_macros::Diagnostic;
 
 /// Warnings during the resolve phase.
-#[derive(Debug, Clone, PartialEq, DefineWarning)]
-#[phase(Resolve)]
+#[derive(Debug, Clone, PartialEq, Diagnostic)]
+#[diagnostic(severity = Warning, phase = Resolve)]
 pub enum ResolveWarning {
     // -------------------------------------------------------------------------
     // 1xx: Import issues
     // -------------------------------------------------------------------------
     /// Unknown import.
-    #[warning(code = "WR100", message = "unknown import")]
-    UnknownImport { node: AnchoredGlobalNodeId },
+    #[diagnostic(code = "WR100", message = "unknown import")]
+    UnknownImport { anchor: DiagnosticAnchor },
 
     /// Unused imports or unused re-exports.
-    #[warning(code = "WR101", message = "unused import")]
-    UnusedImport { node: AnchoredGlobalNodeId },
+    #[diagnostic(code = "WR101", message = "unused import")]
+    UnusedImport { anchor: DiagnosticAnchor },
 
     /// Import that resolves but is only used for side effects.
-    #[warning(code = "WR102", message = "side effect only import")]
-    SideEffectOnlyImport { node: AnchoredGlobalNodeId },
+    #[diagnostic(code = "WR102", message = "side effect only import")]
+    SideEffectOnlyImport { anchor: DiagnosticAnchor },
 
     /// Unresolved module (for lenient resolve mode only).
-    #[warning(code = "WR103", message = "unresolved module '{target}'")]
+    #[diagnostic(code = "WR103", message = "unresolved module '{target}'")]
     UnresolvedModule {
-        node: AnchoredGlobalNodeId,
-        target: destack_dir::StringId,
+        anchor: DiagnosticAnchor,
+        target: String,
     },
 
     /// Unprefixed builtin module import resolved through compatibility canonicalization.
-    #[warning(
+    #[diagnostic(
         code = "WR104",
         message = "unprefixed builtin module '{target}' resolved as '{suggested}'"
     )]
     UnprefixedBuiltinModule {
-        node: AnchoredGlobalNodeId,
-        target: destack_dir::StringId,
-        suggested: destack_dir::StringId,
+        anchor: DiagnosticAnchor,
+        target: String,
+        suggested: String,
     },
 }

@@ -30,8 +30,7 @@ impl Compiler {
                 is_optional,
                 is_readonly,
             } => {
-                let label =
-                    label.map(|label| ast_strings.intern_from(&self.repository.strings, label));
+                let label = label.map(|label| label);
                 let value = self.unbind_type_expression(
                     module,
                     *value,
@@ -51,8 +50,7 @@ impl Compiler {
                 }
             }
             dir::TupleElement::Spread { label, value } => {
-                let label =
-                    label.map(|label| ast_strings.intern_from(&self.repository.strings, label));
+                let label = label.map(|label| label);
                 let value = self.unbind_type_expression(
                     module,
                     *value,
@@ -343,7 +341,7 @@ impl Compiler {
                 value_type,
                 ..
             } => {
-                let name = ast_strings.intern_from(&self.repository.strings, *name);
+                let name = *name;
                 let key_type = self.unbind_type_expression(
                     module,
                     *key_type,
@@ -395,7 +393,7 @@ impl Compiler {
                 value,
                 ..
             } => {
-                let name = ast_strings.intern_from(&self.repository.strings, *name);
+                let name = *name;
                 let generic_parameters = generic_parameters
                     .iter()
                     .map(|parameter| {
@@ -465,7 +463,7 @@ impl Compiler {
                 value,
                 ..
             } => {
-                let name = ast_strings.intern_from(&self.repository.strings, *name);
+                let name = *name;
                 let declared_type = declared_type.map(|declared_type| {
                     self.unbind_type_expression(
                         module,
@@ -839,7 +837,7 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                let name = ast_strings.intern_from(&self.repository.strings, *name);
+                let name = *name;
                 let generic_arguments = generic_arguments
                     .iter()
                     .map(|argument| {
@@ -1177,7 +1175,7 @@ impl Compiler {
                 optional,
                 value,
             } => {
-                let name = ast_strings.intern_from(&self.repository.strings, parameter.name);
+                let name = parameter.name;
                 let source_type = self.unbind_type_expression(
                     module,
                     parameter.source_type,
@@ -1250,10 +1248,7 @@ impl Compiler {
                 ast::TypeExpression::Index { left, index }
             }
             dir::TypeExpression::TemplateLiteral { strings, spans } => {
-                let strings = strings
-                    .iter()
-                    .map(|string| ast_strings.intern_from(&self.repository.strings, *string))
-                    .collect();
+                let strings = strings.iter().map(|string| *string).collect();
                 let spans = spans
                     .iter()
                     .map(|span| {
@@ -1273,7 +1268,7 @@ impl Compiler {
                 ast::TypeExpression::TemplateLiteral { strings, spans }
             }
             dir::TypeExpression::Infer { name, constraint } => {
-                let name = ast_strings.intern_from(&self.repository.strings, *name);
+                let name = *name;
                 let constraint = constraint.map(|constraint| {
                     self.unbind_type_expression(
                         module,

@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 
 use destack_ast::Keyword;
 use destack_core::StringId;
@@ -7,11 +8,10 @@ use destack_dir::{
     ImportSource, LocalNodeId, LocalNodeIdAny, NodeType, Pattern, PatternField, StaticKey,
     SymbolTable, Tree,
 };
-use destack_workspace::Module;
-use std::str::FromStr;
 
 use crate::common::dir::{SymbolDescriptor, can_merge_declarations};
-use crate::{Compiler, ImportError};
+use crate::import::ImportState;
+use crate::{Compiler, CompilerResult, ImportError};
 
 /// The export category used for duplicate export checks.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -35,23 +35,21 @@ impl Compiler {
     /// Validate import and export declarations appear at the module root.
     pub(super) fn validate_dependency_top_level(
         &self,
-        module: &Module,
-        tree: &Tree,
-        roots: &[LocalNodeId<Expression>],
-    ) {
+        state: &ImportState<'_>,
+    ) -> CompilerResult<()> {
         // declaration files allow nested ambient import and export forms
-        if module.language_type.is_declaration() {
-            return;
+        if state.module.is_declaration() {
+            return Ok(());
         }
 
         // collect top level expressions
         let mut top_level_expression_ids = HashSet::new();
-        for root_id in roots {
+        for root_id in state.roots {
             top_level_expression_ids.insert(root_id.id);
         }
 
         // report nested static dependencies as import errors
-        for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
+        for (expression_id, expression) in state.tree.iter_nodes_of_type::<Expression>() {
             let is_top_level = top_level_expression_ids.contains(&expression_id.id);
             if is_top_level {
                 continue;
@@ -62,8 +60,9 @@ impl Compiler {
                 expression
             {
                 if self.import_dependency_requires_top_level(*source) {
-                    let node = expression_id.into_global_any(module.id).into_anchored(None);
-                    self.error(ImportError::ImportNotTopLevel { node });
+                    let node = expression_id.into_global_any(state.module.id);
+                    let anchor = state.anchor(node);
+                    state.emit(ImportError::ImportNotTopLevel { anchor })?;
                 }
                 continue;
             }
@@ -77,14 +76,17 @@ impl Compiler {
                     | Expression::ExportNamespace { .. }
             ) {
                 // namespace bodies are their own declaration roots
-                if self.expression_is_within_namespace_declaration(tree, expression_id) {
+                if self.expression_is_within_namespace_declaration(state.tree, expression_id) {
                     continue;
                 }
 
-                let node = expression_id.into_global_any(module.id).into_anchored(None);
-                self.error(ImportError::ExportNotTopLevel { node });
+                let node = expression_id.into_global_any(state.module.id);
+                let anchor = state.anchor(node);
+                state.emit(ImportError::ExportNotTopLevel { anchor })?;
             }
         }
+
+        Ok(())
     }
 
     /// Return true when an expression is nested under a namespace declaration.
@@ -109,18 +111,16 @@ impl Compiler {
     /// Validate local export item names use binding-compatible identifiers.
     pub(super) fn validate_export_local_item_names(
         &self,
-        module: &Module,
-        tree: &Tree,
-        roots: &[LocalNodeId<Expression>],
-    ) {
+        state: &ImportState<'_>,
+    ) -> CompilerResult<()> {
         // only direct module exports participate in local export name validation
-        for root_id in roots {
-            let Expression::Export { items, .. } = tree.get(*root_id) else {
+        for root_id in state.roots {
+            let Expression::Export { items, .. } = state.tree.get(*root_id) else {
                 continue;
             };
 
             for item_id in items {
-                let item = tree.get(*item_id);
+                let item = state.tree.get(*item_id);
                 let (mode, kind, name) = match item {
                     DependencyItem::UnresolvedLocal {
                         mode, kind, name, ..
@@ -143,10 +143,16 @@ impl Compiler {
                     continue;
                 }
 
-                let node = item_id.into_global_any(module.id).into_anchored(None);
-                self.error(ImportError::ReservedIdentifier { node, name: *name });
+                let node = item_id.into_global_any(state.module.id);
+                let anchor = state.anchor(node);
+                state.emit(ImportError::ReservedIdentifier {
+                    anchor,
+                    name: state.string(*name),
+                })?;
             }
         }
+
+        Ok(())
     }
 
     /// Return true when a dependency source must be top level.
@@ -165,38 +171,32 @@ impl Compiler {
     }
 
     /// Validate duplicate value exports in a module.
-    pub(super) fn validate_export_conflicts(
-        &self,
-        module: &Module,
-        tree: &Tree,
-        symbols: &SymbolTable,
-        roots: &[LocalNodeId<Expression>],
-    ) {
-        let default_name = self.repository.strings.intern("default");
+    pub(super) fn validate_export_conflicts(&self, state: &ImportState<'_>) -> CompilerResult<()> {
+        let default_name = StringId::for_text("default");
         let mut exported_names = HashMap::new();
 
         // scan top-level roots in source order
-        for root_id in roots {
-            let expression = tree.get(*root_id);
+        for root_id in state.roots {
+            let expression = state.tree.get(*root_id);
 
             // collect exported names by expression kind
             match expression {
                 Expression::Declaration(declaration_id) => {
                     let declaration_id = *declaration_id;
-                    let declaration = tree.get(declaration_id);
+                    let declaration = state.tree.get(declaration_id);
                     let export_name =
                         self.value_export_name_for_declaration(declaration, default_name);
                     if let Some(export_name) = export_name {
                         let conflict_kind =
-                            self.export_conflict_kind_for_declaration(declaration, symbols);
+                            self.export_conflict_kind_for_declaration(declaration, state.symbols);
                         self.report_conflicting_export_name_maybe(
-                            module,
+                            state,
                             export_name,
                             declaration_id.into_any(),
                             conflict_kind,
                             &mut exported_names,
                             default_name,
-                        );
+                        )?;
                     }
                 }
                 Expression::Let {
@@ -210,24 +210,24 @@ impl Compiler {
                     }
 
                     for declarator_id in declarators {
-                        let declarator = tree.get(*declarator_id);
+                        let declarator = state.tree.get(*declarator_id);
                         let mut bindings = Vec::new();
                         self.collect_binding_exports_from_pattern(
-                            tree,
-                            symbols,
+                            state.tree,
+                            state.symbols,
                             declarator.pattern,
                             &mut bindings,
                         );
 
                         for binding in bindings {
                             self.report_conflicting_export_name_maybe(
-                                module,
+                                state,
                                 binding.name,
                                 declarator_id.into_any(),
                                 binding.conflict_kind,
                                 &mut exported_names,
                                 default_name,
-                            );
+                            )?;
                         }
                     }
                 }
@@ -242,24 +242,24 @@ impl Compiler {
                     }
 
                     for declarator_id in declarators {
-                        let declarator = tree.get(*declarator_id);
+                        let declarator = state.tree.get(*declarator_id);
                         let mut bindings = Vec::new();
                         self.collect_binding_exports_from_pattern(
-                            tree,
-                            symbols,
+                            state.tree,
+                            state.symbols,
                             declarator.pattern,
                             &mut bindings,
                         );
 
                         for binding in bindings {
                             self.report_conflicting_export_name_maybe(
-                                module,
+                                state,
                                 binding.name,
                                 declarator_id.into_any(),
                                 binding.conflict_kind,
                                 &mut exported_names,
                                 default_name,
-                            );
+                            )?;
                         }
                     }
                 }
@@ -268,30 +268,32 @@ impl Compiler {
                 | Expression::UnresolvedReExport { items, .. } => {
                     for item_id in items {
                         let export_name = self.value_export_name_for_dependency_item(
-                            tree,
+                            state.tree,
                             *item_id,
                             default_name,
                         );
                         if let Some(export_name) = export_name {
                             self.report_conflicting_export_name_maybe(
-                                module,
+                                state,
                                 export_name,
                                 item_id.into_any(),
                                 ExportConflictKind::Other,
                                 &mut exported_names,
                                 default_name,
-                            );
+                            )?;
                         }
                     }
                 }
                 _ => {}
             }
         }
+
+        Ok(())
     }
 
     /// Return true when an export local name is disallowed as a binding identifier.
     fn export_local_name_is_disallowed_identifier(&self, name: StringId) -> bool {
-        let name = self.repository.strings.get(name);
+        let name = name.to_string();
         let Ok(keyword) = Keyword::from_str(name.as_ref()) else {
             return false;
         };
@@ -456,48 +458,51 @@ impl Compiler {
     /// Report duplicate exported names.
     fn report_conflicting_export_name_maybe(
         &self,
-        module: &Module,
+        state: &ImportState<'_>,
         export_name: StringId,
         local_node: LocalNodeIdAny,
         conflict_kind: ExportConflictKind,
         exported_names: &mut HashMap<StringId, (LocalNodeIdAny, ExportConflictKind)>,
         default_name: StringId,
-    ) {
+    ) -> CompilerResult<()> {
         // keep the first site as the primary declaration
         let Some((first_node, first_kind)) = exported_names.get(&export_name).copied() else {
             exported_names.insert(export_name, (local_node, conflict_kind));
-            return;
+            return Ok(());
         };
 
         // convert local ids to anchored diagnostics
-        let node = local_node.into_global(module.id).into_anchored(None);
-        let other_node = first_node.into_global(module.id).into_anchored(None);
+        let node = local_node.into_global(state.module.id);
+        let other_node = first_node.into_global(state.module.id);
 
         // allow mergeable declaration exports to share one exported name
         if let (ExportConflictKind::Declaration(first), ExportConflictKind::Declaration(next)) =
             (first_kind, conflict_kind)
-            && can_merge_declarations(module.language_type, first, next)
+            && can_merge_declarations(state.module.code_language_type(), first, next)
         {
-            return;
+            return Ok(());
         }
 
         // report default export conflicts separately
         if export_name == default_name {
-            self.error(ImportError::ConflictingDefaultExport {
-                node,
-                other_node,
-                name: Some(export_name),
-                module: module.id,
-            });
-            return;
+            state.emit(ImportError::ConflictingDefaultExport {
+                anchor: state.anchor(node),
+                other: state.anchor(other_node),
+                name: state.string(export_name),
+                module: state.module.id,
+            })?;
+
+            return Ok(());
         }
 
-        self.error(ImportError::ConflictingExport {
-            node,
-            other_node,
-            module: module.id,
-            name: Some(StaticKey::Name(export_name)),
-        });
+        state.emit(ImportError::ConflictingExport {
+            anchor: state.anchor(node),
+            other: state.anchor(other_node),
+            module: state.module.id,
+            name: state.static_key(StaticKey::Name(export_name)),
+        })?;
+
+        Ok(())
     }
 
     /// Resolve the conflict category for a declaration export.

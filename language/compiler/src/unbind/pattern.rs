@@ -96,7 +96,7 @@ impl Compiler {
                 ..
             } => {
                 let mutability = mutability.map(|m| self.unbind_mutability(context, m));
-                let name = ast_strings.intern_from(&self.repository.strings, *name);
+                let name = *name;
                 let pattern = pattern.map(|p| {
                     self.unbind_pattern(
                         module,
@@ -298,8 +298,7 @@ impl Compiler {
                 ..
             } => {
                 let mutability = mutability.map(|m| self.unbind_mutability(context, m));
-                let name =
-                    ast::Name::Identifier(ast_strings.intern_from(&self.repository.strings, *name));
+                let name = ast::Name::Identifier(*name);
                 let pattern = pattern.map(|p| {
                     self.unbind_pattern(
                         module,

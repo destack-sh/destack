@@ -16,6 +16,16 @@ pub enum MoveLocation {
     Terminator(mir::LocalNodeId<mir::Block>),
 }
 
+impl MoveLocation {
+    /// Return the MIR node where the move happened.
+    pub fn node(&self) -> mir::LocalNodeIdAny {
+        match self {
+            Self::Instruction(id) => id.into_any(),
+            Self::Terminator(id) => id.into_any(),
+        }
+    }
+}
+
 /// Ownership state for a single value.
 ///
 /// Forms a lattice:

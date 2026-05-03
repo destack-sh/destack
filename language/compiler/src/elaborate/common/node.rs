@@ -4,7 +4,7 @@ use dir::{
     Mutability, NodeType, Path, Pattern,
 };
 
-use super::ElaborateState;
+use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
@@ -15,7 +15,7 @@ impl Compiler {
         state: &ElaborateState<'_>,
         node_id: LocalNodeIdAny,
     ) -> bool {
-        self.is_node_active(state.tree, state.symbols, node_id)
+        !state.tree.is_inactive(node_id.id)
     }
 
     /// Recompute one block expression type in local state.
@@ -24,7 +24,7 @@ impl Compiler {
         state: &mut ElaborateState<'_>,
         block_id: LocalNodeId<Block>,
     ) -> ElaborateResult<()> {
-        self.reinfer_block_type(block_id, state.tree, state.types, state.ctx.module_id)
+        self.reinfer_block_type(block_id, state.tree, state.types, state.module_id)
     }
 
     /// Return one expression for effect-position insertion.
@@ -61,8 +61,8 @@ impl Compiler {
 
         // copy inferred type and resolution metadata
         state.types.copy_node_analysis(
-            origin_id.into_global_any(state.ctx.module_id),
-            cloned_id.into_global_any(state.ctx.module_id),
+            origin_id.into_global_any(state.module_id),
+            cloned_id.into_global_any(state.module_id),
         );
 
         cloned_id
@@ -87,7 +87,7 @@ impl Compiler {
                 value: Some(value_id),
             },
         );
-        self.set_never_expression_type(state.types, state.ctx.module_id, expression_id);
+        self.set_never_expression_type(state.types, state.module_id, expression_id);
     }
 
     /// Insert one assignment pattern that targets one expression.
@@ -143,7 +143,7 @@ impl Compiler {
                 right: value_id,
             },
         );
-        self.set_void_expression_type(state.types, state.ctx.module_id, expression_id);
+        self.set_void_expression_type(state.types, state.module_id, expression_id);
     }
 
     /// Insert a local reference expression for one value symbol.
@@ -156,12 +156,8 @@ impl Compiler {
         target_symbol: dir::GlobalSymbolId,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // resolve the symbol value type
-        let value_type_id = self.value_type_id_or_error(
-            state.ctx.module_id,
-            target_symbol,
-            origin_id,
-            state.types,
-        )?;
+        let value_type_id =
+            self.value_type_id_or_error(state.module_id, target_symbol, origin_id, state.types)?;
 
         // insert the local reference expression
         let reference_id = state.tree.reserve_from(
@@ -181,12 +177,7 @@ impl Compiler {
         );
 
         // annotate the reference type
-        self.set_expression_type(
-            state.types,
-            state.ctx.module_id,
-            reference_id,
-            value_type_id,
-        );
+        self.set_expression_type(state.types, state.module_id, reference_id, value_type_id);
 
         Ok(reference_id)
     }
@@ -255,7 +246,7 @@ impl Compiler {
                 declarators: vec![declarator_id],
             },
         );
-        self.set_void_expression_type(state.types, state.ctx.module_id, let_id);
+        self.set_void_expression_type(state.types, state.module_id, let_id);
 
         let_id
     }

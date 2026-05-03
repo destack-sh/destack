@@ -1,17 +1,17 @@
 use std::collections::{HashMap, HashSet};
 use {destack_dir as dir, destack_mir as mir};
 
+use destack_artifact::DiagnosticAnchor;
 use destack_core::{StringId, StringPool};
 use destack_query::format::format_unique_symbol_qualified_name;
 use destack_source::ModuleId;
-use destack_workspace::Ref;
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
 use crate::lower::static_key_to_field_name;
 use crate::{LowerError, LowerResult};
 
-const UNION_TAG_FIELD_NAME: &str = "@tag";
-const UNION_PAYLOAD_FIELD_NAME: &str = "@payload";
+const UNION_TAG_FIELD_NAME: &str = "tag";
+const UNION_PAYLOAD_FIELD_NAME: &str = "payload";
 
 /// Layout metadata for a lowered union type.
 #[derive(Debug, Clone)]
@@ -111,7 +111,7 @@ pub(crate) enum DiscriminantKey {
     UniqueSymbol,
 }
 
-impl TypeLowerer {
+impl TypeLowerer<'_> {
     /// Return cached union layout metadata.
     pub(crate) fn union_layout(&self, type_id: dir::LocalTypeId) -> Option<&UnionLayout> {
         self.union_cache.get(&type_id)
@@ -137,10 +137,11 @@ impl TypeLowerer {
         // reject empty unions
         if collected.is_empty() {
             return Err(LowerError::UnsupportedType {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
                 message: "union has no elements".to_string(),
-            });
+            }
+            .into());
         }
 
         // use nullable references for unions of a single reference type and null
@@ -175,7 +176,7 @@ impl TypeLowerer {
             let (size, alignment) = self
                 .size_and_align_of_type(element, builder.tree())
                 .ok_or_else(|| LowerError::UnsupportedType {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     ty: element_id.into_global(module_id),
                     message: "union layout requires concrete nested types".to_string(),
                 })?;
@@ -186,7 +187,7 @@ impl TypeLowerer {
         // define tag and payload field types
         let tag_name = builder.intern(UNION_TAG_FIELD_NAME);
         let payload_name = builder.intern(UNION_PAYLOAD_FIELD_NAME);
-        let tag_width = Self::tag_width_for_discriminant_count(ordered_elements.len(), node)?;
+        let tag_width = self.tag_width_for_discriminant_count(ordered_elements.len(), node)?;
         let tag_type = self.union_tag_type(tag_width, builder);
         let payload_kind = self.union_payload_kind(copy, max_payload_size, max_payload_alignment);
         let payload_type = match payload_kind {
@@ -198,13 +199,13 @@ impl TypeLowerer {
         let (tag_size, tag_alignment) = self
             .size_and_align_of_type(builder.tree().get(tag_type), builder.tree())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "union layout requires concrete nested types".to_string(),
             })?;
         let (payload_size, payload_alignment) = self
             .size_and_align_of_type(builder.tree().get(payload_type), builder.tree())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "union layout requires concrete nested types".to_string(),
             })?;
 
@@ -229,7 +230,7 @@ impl TypeLowerer {
         ];
 
         // compute layout and create the mir struct type
-        let layout = self.compute_struct_layout(fields, LayoutPolicy::Source);
+        let layout = Self::compute_struct_layout(fields, LayoutPolicy::Source);
         let mir_type = self.create_struct_type_with_copyability(&layout, copy, builder);
 
         // cache layout for later field lookups
@@ -240,14 +241,14 @@ impl TypeLowerer {
             layout
                 .field_index(tag_name)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "missing union tag field".to_string(),
                 })?;
         let payload_field_index =
             layout
                 .field_index(payload_name)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "missing union payload field".to_string(),
                 })?;
 
@@ -425,7 +426,7 @@ impl TypeLowerer {
             .iter()
             .position(|field| field.key == discriminant.primary_key)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "missing primary union discriminant field".to_string(),
             })? as u32;
         let mut fields = Vec::with_capacity(discriminant.fields.len());
@@ -470,9 +471,10 @@ impl TypeLowerer {
             mir::Type::Struct { fields, .. } => fields,
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: anchor,
+                    anchor: self.diagnostic_anchor(anchor),
                     message: "union discriminant requires aggregate element types".to_string(),
-                });
+                }
+                .into());
             }
         };
 
@@ -484,9 +486,10 @@ impl TypeLowerer {
         }
 
         Err(LowerError::UnsupportedConstruct {
-            node: anchor,
+            anchor: self.diagnostic_anchor(anchor),
             message: "missing lowered union discriminant field".to_string(),
-        })
+        }
+        .into())
     }
 
     /// Convert discriminant literals into MIR metadata values.
@@ -582,14 +585,15 @@ impl TypeLowerer {
                 let literal = map
                     .get(key)
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node,
+                        anchor: self.diagnostic_anchor(node),
                         message: "missing discriminant literal value".to_string(),
                     })?;
                 if !seen_values.insert(literal.key) {
                     return Err(LowerError::UnsupportedConstruct {
-                        node,
+                        anchor: self.diagnostic_anchor(node),
                         message: "duplicate discriminant value in union".to_string(),
-                    });
+                    }
+                    .into());
                 }
                 values.push(literal.clone());
             }
@@ -605,7 +609,7 @@ impl TypeLowerer {
         let primary_key = fields
             .first()
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "missing union discriminant field".to_string(),
             })?
             .key;
@@ -613,7 +617,7 @@ impl TypeLowerer {
             .iter()
             .find(|field| field.key == primary_key)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "missing primary discriminant field".to_string(),
             })?
             .values
@@ -640,9 +644,10 @@ impl TypeLowerer {
             for (tag, literal) in field.values.iter().enumerate() {
                 if tag_by_value.insert(literal.key, tag as u32).is_some() {
                     return Err(LowerError::UnsupportedConstruct {
-                        node,
+                        anchor: self.diagnostic_anchor(node),
                         message: "duplicate discriminant value in union".to_string(),
-                    });
+                    }
+                    .into());
                 }
             }
             field.tag_by_value = tag_by_value;
@@ -795,8 +800,10 @@ impl TypeLowerer {
                         dir::ScalarLiteral::Null => DiscriminantValue::Null,
                         dir::ScalarLiteral::Boolean(value) => DiscriminantValue::Boolean(*value),
                         dir::ScalarLiteral::Integer(value) => {
-                            let (bits, number) =
-                                DiscriminantKey::canonical_number_bits(*value as f64, node)?;
+                            let (bits, number) = DiscriminantKey::canonical_number_bits(
+                                *value as f64,
+                                self.diagnostic_anchor(node),
+                            )?;
                             return Ok(Some(DiscriminantLiteral {
                                 value: DiscriminantValue::Number { value: number },
                                 type_id,
@@ -804,8 +811,10 @@ impl TypeLowerer {
                             }));
                         }
                         dir::ScalarLiteral::Float(value) => {
-                            let (bits, number) =
-                                DiscriminantKey::canonical_number_bits(*value, node)?;
+                            let (bits, number) = DiscriminantKey::canonical_number_bits(
+                                *value,
+                                self.diagnostic_anchor(node),
+                            )?;
                             return Ok(Some(DiscriminantLiteral {
                                 value: DiscriminantValue::Number { value: number },
                                 type_id,
@@ -825,7 +834,7 @@ impl TypeLowerer {
                     _ => return Ok(None),
                 };
 
-                let key = DiscriminantKey::from_value(&literal, node)?;
+                let key = DiscriminantKey::from_value(&literal, self.diagnostic_anchor(node))?;
                 Ok(Some(DiscriminantLiteral {
                     value: literal,
                     type_id,
@@ -841,6 +850,7 @@ impl TypeLowerer {
 
     /// Compute the minimal unsigned tag width for a tag count.
     fn tag_width_for_discriminant_count(
+        &self,
         count: usize,
         node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<u16> {
@@ -858,9 +868,10 @@ impl TypeLowerer {
         }
 
         Err(LowerError::UnsupportedConstruct {
-            node,
+            anchor: self.diagnostic_anchor(node),
             message: "union tag count exceeds supported width".to_string(),
-        })
+        }
+        .into())
     }
 
     /// Compare static keys for deterministic discriminant field selection.
@@ -935,14 +946,15 @@ impl TypeLowerer {
         strings: &StringPool,
     ) -> std::cmp::Ordering {
         // build qualified names for unique symbols
-        let reference = Ref::for_workspace_root(self.repository.workspace_root());
-        let Some(revision) = self.repository.current(&reference).ok() else {
-            return left.cmp(&right);
-        };
+        let revision = self.context.revision();
         let left_name =
-            format_unique_symbol_qualified_name(left, &self.repository, revision, strings);
-        let right_name =
-            format_unique_symbol_qualified_name(right, &self.repository, revision, strings);
+            format_unique_symbol_qualified_name(left, &self.compiler.repository, revision, strings);
+        let right_name = format_unique_symbol_qualified_name(
+            right,
+            &self.compiler.repository,
+            revision,
+            strings,
+        );
 
         // prefer qualified ordering with a stable fallback
         match (left_name, right_name) {
@@ -986,13 +998,13 @@ impl DiscriminantKey {
     }
 
     /// Build a canonical key for a discriminant value.
-    fn from_value(value: &DiscriminantValue, node: dir::AnchoredGlobalNodeId) -> LowerResult<Self> {
+    fn from_value(value: &DiscriminantValue, anchor: DiagnosticAnchor) -> LowerResult<Self> {
         match value {
             DiscriminantValue::Null => Ok(DiscriminantKey::Null),
             DiscriminantValue::Undefined => Ok(DiscriminantKey::Undefined),
             DiscriminantValue::Boolean(value) => Ok(DiscriminantKey::Boolean(*value)),
             DiscriminantValue::Number { value } => {
-                let (bits, _) = Self::canonical_number_bits(*value, node)?;
+                let (bits, _) = Self::canonical_number_bits(*value, anchor)?;
                 Ok(DiscriminantKey::Number(bits))
             }
             DiscriminantValue::Bigint(value) => Ok(DiscriminantKey::Bigint(*value)),
@@ -1004,17 +1016,17 @@ impl DiscriminantKey {
     /// Build a canonical key from a scalar literal expression.
     pub(crate) fn from_scalar_literal(
         literal: &dir::ScalarLiteral,
-        node: dir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
     ) -> LowerResult<Option<Self>> {
         let key = match literal {
             dir::ScalarLiteral::Null => DiscriminantKey::Null,
             dir::ScalarLiteral::Boolean(value) => DiscriminantKey::Boolean(*value),
             dir::ScalarLiteral::Integer(value) => {
-                let (bits, _) = Self::canonical_number_bits(*value as f64, node)?;
+                let (bits, _) = Self::canonical_number_bits(*value as f64, anchor.clone())?;
                 DiscriminantKey::Number(bits)
             }
             dir::ScalarLiteral::Float(value) => {
-                let (bits, _) = Self::canonical_number_bits(*value, node)?;
+                let (bits, _) = Self::canonical_number_bits(*value, anchor)?;
                 DiscriminantKey::Number(bits)
             }
             dir::ScalarLiteral::Bigint(value) => DiscriminantKey::Bigint(*value),
@@ -1042,15 +1054,13 @@ impl DiscriminantKey {
     }
 
     /// Normalize a number for discriminant ordering and lookup.
-    fn canonical_number_bits(
-        value: f64,
-        node: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<(u64, f64)> {
+    fn canonical_number_bits(value: f64, anchor: DiagnosticAnchor) -> LowerResult<(u64, f64)> {
         if value.is_nan() {
             return Err(LowerError::UnsupportedConstruct {
-                node,
+                anchor,
                 message: "NaN is not a valid discriminant literal".to_string(),
-            });
+            }
+            .into());
         }
 
         let value = if value == 0.0 { 0.0 } else { value };

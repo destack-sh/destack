@@ -10,9 +10,7 @@ impl ModuleLowerer<'_> {
         let symbol = self.symbols.get_symbol(symbol_id);
 
         // resolve the symbol name
-        symbol
-            .name()
-            .map(|name| self.compiler.repository.strings.get(name).to_string())
+        symbol.name().map(|name| self.strings.get(name).to_string())
     }
 
     /// Get the name of a symbol, returning an error if it has no name.
@@ -25,7 +23,7 @@ impl ModuleLowerer<'_> {
         let name =
             self.get_symbol_name(symbol_id)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: node.into_anchored(Some(self.profile)),
+                    anchor: self.diagnostic_anchor(node.into_anchored(Some(self.profile))),
                     message: "symbol must have a name".to_string(),
                 })?;
 

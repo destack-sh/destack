@@ -1,24 +1,21 @@
-use crate::{CompileWarning, DiagnosticAnchor, DiagnosticDefinition};
-use destack_compiler_macros::DefineWarning;
-use destack_dir as dir;
-use destack_workspace::Repository;
-use dir::AnchoredGlobalNodeId;
+use crate::DiagnosticAnchor;
+use destack_artifact_macros::Diagnostic;
 
 /// Warnings during the elaborate phase.
-#[derive(Debug, Clone, PartialEq, DefineWarning)]
-#[phase(Elaborate)]
+#[derive(Debug, Clone, PartialEq, Diagnostic)]
+#[diagnostic(severity = Warning, phase = Elaborate)]
 pub enum ElaborateWarning {
     // -------------------------------------------------------------------------
     // 1xx: Configuration
     // -------------------------------------------------------------------------
     /// Implicit collection conversions are enabled with warnings.
-    #[warning(code = "WE100", message = "implicit collection conversion")]
-    ImplicitCollectionConversion { node: AnchoredGlobalNodeId },
+    #[diagnostic(code = "WE100", message = "implicit collection conversion")]
+    ImplicitCollectionConversion { anchor: DiagnosticAnchor },
 
     // -------------------------------------------------------------------------
     // 9xx: Unsupported / internal
     // -------------------------------------------------------------------------
     /// Unsupported node.
-    #[warning(code = "WE900", message = "unsupported construct")]
-    UnsupportedConstruct { node: AnchoredGlobalNodeId },
+    #[diagnostic(code = "WE900", message = "unsupported construct")]
+    UnsupportedConstruct { anchor: DiagnosticAnchor },
 }

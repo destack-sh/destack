@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::{Expression, IfCondition, IfKind, LocalNodeId};
 
-use crate::elaborate::common::ElaborateState;
+use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
 impl Compiler {

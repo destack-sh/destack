@@ -21,7 +21,7 @@ fn compute_aggregate_copyability(
     copy
 }
 
-impl TypeLowerer {
+impl TypeLowerer<'_> {
     /// Resolve an integer literal length from one DIR type id.
     fn array_sized_length_from_type(
         &self,
@@ -71,7 +71,7 @@ impl TypeLowerer {
             let (size, alignment) = self
                 .size_and_align_of_type(field_type, builder.tree())
                 .ok_or_else(|| LowerError::UnsupportedType {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     ty: field.ty.into_global(module_id),
                     message: "aggregate layout requires concrete nested types".to_string(),
                 })?;
@@ -87,7 +87,7 @@ impl TypeLowerer {
         }
 
         // compute the layout and create the MIR struct type
-        let layout = self.compute_struct_layout(field_inputs, LayoutPolicy::default());
+        let layout = Self::compute_struct_layout(field_inputs, LayoutPolicy::default());
         let mir_type = self.create_struct_type(&layout, builder);
         self.layout_cache.insert(mir_type, layout);
 
@@ -110,10 +110,11 @@ impl TypeLowerer {
             // reject void elements in tuples
             if mir_type == self.ty_void {
                 return Err(LowerError::UnsupportedType {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     ty: element.ty.into_global(module_id),
                     message: "void is not allowed in tuples".to_string(),
-                });
+                }
+                .into());
             }
             mir_elements.push(mir_type);
         }
@@ -139,10 +140,11 @@ impl TypeLowerer {
         // reject void elements in arrays
         if mir_element == self.ty_void {
             return Err(LowerError::UnsupportedType {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 ty: element.into_global(module_id),
                 message: "void is not allowed in arrays".to_string(),
-            });
+            }
+            .into());
         }
 
         // get the integer literal length from the count type
@@ -150,7 +152,7 @@ impl TypeLowerer {
         let length = self
             .array_sized_length_from_type(types, count_type_id)
             .ok_or_else(|| LowerError::UnsupportedType {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 ty: element.into_global(module_id),
                 message: "array size must be a constant integer".to_string(),
             })?;

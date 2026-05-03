@@ -1,4 +1,4 @@
-use destack_artifact::ScriptArtifact;
+use destack_artifact::ScriptOutput;
 use destack_codegen_js as js;
 use destack_source::ModuleId;
 use destack_workspace::Target;
@@ -12,11 +12,11 @@ impl ScriptLinker<'_> {
         &self,
         output_id: OutputId,
         module_id: ModuleId,
-        script: &ScriptArtifact,
+        script: &ScriptOutput,
         output_graph: &OutputGraph,
         output_layout: &OutputLayout,
         target: &Target,
-    ) -> LinkResult<js::ScriptModule> {
+    ) -> LinkResult<js::Module> {
         let mut module = script.module.clone();
         let roots = module.roots.clone();
         let mut rewritten_roots = Vec::with_capacity(module.roots.len());
@@ -70,7 +70,7 @@ impl ScriptLinker<'_> {
         output_layout: &OutputLayout,
         target: &Target,
         module_id: ModuleId,
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         statement_id: js::LocalNodeId<js::Statement>,
     ) -> LinkResult<Vec<js::LocalNodeIdAny>> {
         let (specifier, target_module, is_type_dependency, item_set, has_arguments, is_import) = {
@@ -192,7 +192,7 @@ impl ScriptLinker<'_> {
         &self,
         target: &Target,
         module_id: ModuleId,
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         statement_id: js::LocalNodeId<js::Statement>,
         is_type_dependency: bool,
         item_set: &[js::LocalNodeId<js::DependencyItem>],
@@ -230,6 +230,7 @@ impl ScriptLinker<'_> {
                 target_module,
                 self.target_id,
                 self.package_id,
+                self.context,
             )?;
 
             return Ok(replacement
@@ -259,6 +260,7 @@ impl ScriptLinker<'_> {
             target,
             self.target_id,
             self.package_id,
+            self.context,
         )?;
 
         Ok(replacement
@@ -271,7 +273,7 @@ impl ScriptLinker<'_> {
     fn rewrite_same_output_export_root(
         &self,
         module_id: ModuleId,
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         statement_id: js::LocalNodeId<js::Statement>,
         is_type_dependency: bool,
         item_set: &[js::LocalNodeId<js::DependencyItem>],

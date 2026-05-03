@@ -1,7 +1,8 @@
 use std::path::Path;
+use destack_workspace::ProviderContext;
 
 use crate::link::{SourceMapBuilder, SourceMapMarker};
-use crate::{Compiler, CompilerContext};
+use crate::{Compiler};
 use destack_codegen_js::PrintedScriptModule;
 use destack_source::ModuleId;
 
@@ -11,7 +12,7 @@ impl Compiler {
         &self,
         package_dir: &Path,
         parts: &[(ModuleId, PrintedScriptModule)],
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) -> SourceMapBuilder {
         let mut sources = Vec::new();
         let mut markers = Vec::new();
@@ -19,8 +20,8 @@ impl Compiler {
 
         // compose each printed module with one stable source index
         for (part_index, (module_id, printed)) in parts.iter().enumerate() {
-            let module = context.module(*module_id);
-            let source_file = context.file(module.file_id);
+            let module = self.module(context.revision(), *module_id);
+            let source_file = self.file(context, module.file_id);
             let source_path = self.package_relative_module_path(package_dir, *module_id, context);
             let normalized_length = printed.code.trim_end().len() as u32;
 

@@ -1,16 +1,14 @@
-use crate::{CompileWarning, DiagnosticAnchor, DiagnosticDefinition};
-use destack_compiler_macros::DefineWarning;
-use destack_dir::AnchoredGlobalNodeId;
-use destack_workspace::Repository;
+use crate::DiagnosticAnchor;
+use destack_artifact_macros::Diagnostic;
 
 /// Warnings during the analyze phase.
-#[derive(Debug, Clone, PartialEq, DefineWarning)]
-#[phase(Analyze)]
+#[derive(Debug, Clone, PartialEq, Diagnostic)]
+#[diagnostic(severity = Warning, phase = Analyze)]
 pub enum AnalyzeWarning {
     // -------------------------------------------------------------------------
     // 9xx: Unsupported / internal
     // -------------------------------------------------------------------------
     /// Unsupported node.
-    #[warning(code = "WA900", message = "unsupported construct")]
-    UnsupportedConstruct { node: AnchoredGlobalNodeId },
+    #[diagnostic(code = "WA900", message = "unsupported construct")]
+    UnsupportedConstruct { anchor: DiagnosticAnchor },
 }

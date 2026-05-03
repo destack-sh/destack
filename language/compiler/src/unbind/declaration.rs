@@ -268,7 +268,7 @@ impl Compiler {
                 // alias target
                 let target = match &declaration.target {
                     dir::ImportAliasTarget::Require { target } => {
-                        let target = ast_strings.intern_from(&self.repository.strings, *target);
+                        let target = *target;
                         ast::ImportAliasTarget::Require { target }
                     }
                     dir::ImportAliasTarget::Path { path } => {

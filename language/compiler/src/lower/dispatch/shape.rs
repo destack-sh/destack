@@ -5,7 +5,7 @@ use destack_core::StringId;
 
 use crate::{LowerError, LowerResult};
 
-use crate::lower::{ModuleLowerer, static_key_to_field_name};
+use crate::lower::{ModuleLowerer, static_key_from_key, static_key_to_field_name};
 
 /// A slot in an interface dispatch layout.
 #[derive(Debug, Clone)]
@@ -48,13 +48,15 @@ impl ModuleLowerer<'_> {
                 .map(|id| id.into_global_any(self.module_id))
                 .map(|id| id.into_anchored(Some(self.profile)))
                 .ok_or_else(|| LowerError::Internal {
+                    anchor: (self.module_id).into(),
                     module: self.module_id,
                     message: "interface slot lowering cycle missing declaration".to_string(),
                 })?;
             return Err(LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "cycle detected while lowering interface slots".to_string(),
-            });
+            }
+            .into());
         }
 
         self.interface_slots_in_progress.insert(interface);
@@ -120,9 +122,10 @@ impl ModuleLowerer<'_> {
         let interface_type = self.lower_instance_type(interface, anchor)?;
         let Some(interface_type) = interface_type else {
             return Err(LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "interface missing instance type".to_string(),
-            });
+            }
+            .into());
         };
 
         // collect local interface members
@@ -175,8 +178,10 @@ impl ModuleLowerer<'_> {
                 // resolve the field type
                 let Some(declared_type) = declared_type else {
                     return Err(LowerError::MissingType {
-                        node: member_id.into_global_any(self.module_id).into(),
-                    });
+                        anchor: self
+                            .diagnostic_anchor(member_id.into_global_any(self.module_id).into()),
+                    }
+                    .into());
                 };
                 let field_type = self.declared_or_inferred_type_id_for_node_or_error(
                     declared_type.into_global_any(self.module_id),
@@ -186,11 +191,14 @@ impl ModuleLowerer<'_> {
                 if let Some(existing) = seen_fields.get(&field_name) {
                     if !self.types_are_equivalent(*existing, field_type) {
                         return Err(LowerError::UnsupportedConstruct {
-                            node: member_id
-                                .into_global_any(self.module_id)
-                                .into_anchored(Some(self.profile)),
+                            anchor: self.diagnostic_anchor(
+                                member_id
+                                    .into_global_any(self.module_id)
+                                    .into_anchored(Some(self.profile)),
+                            ),
                             message: "interface field type mismatch".to_string(),
-                        });
+                        }
+                        .into());
                     }
                     return Ok(());
                 }
@@ -253,11 +261,14 @@ impl ModuleLowerer<'_> {
             dir::TypeMember::CallSignature { .. } | dir::TypeMember::ConstructSignature { .. } => {}
             dir::TypeMember::IndexSignature { .. } => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: member_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                    anchor: self.diagnostic_anchor(
+                        member_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                    ),
                     message: "index signatures are not supported for native lowering".to_string(),
-                });
+                }
+                .into());
             }
             _ => {}
         }
@@ -271,13 +282,16 @@ impl ModuleLowerer<'_> {
         member_id: dir::LocalNodeId<dir::TypeMember>,
         key: dir::Key,
     ) -> LowerResult<StringId> {
-        let Some(key) = self.compiler.static_key_from_key(self.dir_tree, key) else {
+        let Some(key) = static_key_from_key(self.dir_tree, self.strings, key) else {
             return Err(LowerError::UnsupportedConstruct {
-                node: member_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                anchor: self.diagnostic_anchor(
+                    member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
                 message: "unsupported dynamic field key in interface layout".to_string(),
-            });
+            }
+            .into());
         };
 
         Ok(static_key_to_field_name(&key, &mut self.builder))

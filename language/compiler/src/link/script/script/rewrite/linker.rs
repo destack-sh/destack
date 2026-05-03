@@ -2,30 +2,20 @@ use destack_codegen_js as js;
 use destack_workspace::Target;
 
 use super::super::linker::OutputModule;
-use crate::{CompilerContext, LinkResult, ScriptLinker};
+use crate::{LinkResult, ScriptLinker};
 
 /// One stateful rewriter for one linked script module.
 pub(in super::super) struct Rewriter<'module, 'a> {
-    /// The pinned revision context, when one exists.
-    pub(super) context: Option<&'a CompilerContext<'a>>,
     /// The output target policy.
     pub(super) target: &'a Target,
     /// The linked module being minified.
-    pub(super) module: &'module mut js::ScriptModule,
+    pub(super) module: &'module mut js::Module,
 }
 
 impl<'module, 'a> Rewriter<'module, 'a> {
     /// Create one rewriter for one linked script module.
-    pub(in super::super) fn new(
-        context: Option<&'a CompilerContext<'a>>,
-        target: &'a Target,
-        module: &'module mut js::ScriptModule,
-    ) -> Self {
-        Self {
-            context,
-            target,
-            module,
-        }
+    pub(in super::super) fn new(target: &'a Target, module: &'module mut js::Module) -> Self {
+        Self { target, module }
     }
 
     /// Minify syntax forms within the owned linked module.
@@ -372,7 +362,7 @@ impl ScriptLinker<'_> {
         modules: &mut [OutputModule],
     ) -> LinkResult<()> {
         for (_, module) in modules {
-            let mut rewriter = Rewriter::new(Some(self.context), self.target, module);
+            let mut rewriter = Rewriter::new(self.target, module);
             rewriter.minify_syntax();
         }
 

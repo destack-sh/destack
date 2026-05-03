@@ -27,7 +27,7 @@ export const value = dependencyValue;
 "#),
     );
 
-    // build one script artifact with resolved linkage
+    // build one script output with resolved dependencies
     test.configure_target(main, "js", |target| {
         // generated artifacts should be enough here
         target.discovery = TargetDiscovery::Entry;
@@ -43,16 +43,16 @@ export const value = dependencyValue;
     // keep the resolved module id and the original specifier text
     let artifact = test.module_output(main, "js");
     let ModuleOutput::Script(script) = artifact else {
-        panic!("expected script artifact");
+        panic!("expected script output");
     };
 
     assert_eq!(
-        script.linkage.static_dependencies.len(),
+        script.dependencies.static_dependencies.len(),
         1,
         "expected one static dependency"
     );
 
-    let dependency = &script.linkage.static_dependencies[0];
+    let dependency = &script.dependencies.static_dependencies[0];
     match &dependency.target {
         ScriptDependencyTarget::Module { module, specifier } => {
             assert_eq!(*module, dep, "expected dependency to resolve to dep.ds");
@@ -88,7 +88,7 @@ export const appValue = commonValue;
 "#),
     );
 
-    // build one script artifact with resolved linkage
+    // build one script output with resolved dependencies
     test.configure_target(entry_module, "js", |target| {
         // generated artifacts should preserve resolved js import metadata
         target.discovery = TargetDiscovery::Entry;
@@ -104,16 +104,16 @@ export const appValue = commonValue;
     // keep the resolved module id and the original specifier text
     let artifact = test.module_output(entry_module, "js");
     let ModuleOutput::Script(script) = artifact else {
-        panic!("expected script artifact");
+        panic!("expected script output");
     };
 
     assert_eq!(
-        script.linkage.static_dependencies.len(),
+        script.dependencies.static_dependencies.len(),
         1,
         "expected one static dependency"
     );
 
-    let dependency = &script.linkage.static_dependencies[0];
+    let dependency = &script.dependencies.static_dependencies[0];
     match &dependency.target {
         ScriptDependencyTarget::Module { module, specifier } => {
             assert_eq!(

@@ -33,10 +33,7 @@ impl Compiler {
             scope,
             parent_id,
         );
-        let left = self
-            .repository
-            .strings
-            .intern_from(&ast.strings, ast_where_clause.left);
+        let left = ast_where_clause.left;
         let right: LocalNodeId<TypeExpression> = self.bind_type_expression(
             module,
             ast,

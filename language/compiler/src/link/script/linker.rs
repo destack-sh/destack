@@ -1,21 +1,22 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::{Compiler, CompilerContext, LinkError, LinkResult};
-use destack_artifact::{Data, ModuleGraph, ModuleOutput};
-use destack_core::StringPool;
-use destack_source::FileId;
+use destack_artifact::{Data, DirExported, ModuleOutput};
+use destack_dir::ModuleTarget;
+use destack_source::{
+    File, FileId, FileType, ModuleEdge, ModuleEdgeRelation, ModuleId, PackageId, ProfileId, Span,
+    StringId, TargetId,
+};
+use destack_workspace::{Module, ProviderContext, ProviderError, Revision, Target};
 
-use crate::RequirementError;
-use destack_source::{File, FileType, ModuleId, PackageId, ProfileId, Span, TargetId};
-use destack_workspace::{Module, Revision, Target};
+use crate::{Compiler, LinkError, LinkResult};
 
 /// One script target linker.
 pub(crate) struct ScriptLinker<'a> {
     /// The compiler driving the current link.
     pub(super) compiler: &'a Compiler,
     /// The pinned revision used by this link.
-    pub(super) context: &'a CompilerContext<'a>,
+    pub(super) context: &'a dyn ProviderContext,
     /// The package directory that anchors output resolution.
     pub(super) package_dir: &'a Path,
     /// The configured root directory when one exists.
@@ -32,7 +33,7 @@ impl<'a> ScriptLinker<'a> {
     /// Create one script linker for one target.
     pub(crate) fn new(
         compiler: &'a Compiler,
-        context: &'a CompilerContext<'a>,
+        context: &'a dyn ProviderContext,
         package_dir: &'a Path,
         root_dir: Option<&'a Path>,
         target: &'a Target,
@@ -53,7 +54,7 @@ impl<'a> ScriptLinker<'a> {
     /// Return the display name for the active target.
     pub(crate) fn target_name(&self) -> String {
         self.compiler
-            .target_name_for_revision(self.context.revision(), self.target_id)
+            .target_name(self.context.revision(), self.target_id)
     }
 
     /// Return the pinned revision for this link.
@@ -63,40 +64,35 @@ impl<'a> ScriptLinker<'a> {
 
     /// Return the anchor span for one linked module.
     pub(crate) fn module_anchor_span(&self, module_id: ModuleId) -> Span {
-        let module = self.context.module(module_id);
+        let module = self.compiler.module(self.revision(), module_id);
 
         Span::empty(module.file_id)
     }
 
     /// Return one revision-scoped module snapshot.
     pub(crate) fn module(&self, module_id: ModuleId) -> Arc<Module> {
-        self.context.module(module_id)
+        self.compiler.module(self.revision(), module_id)
     }
 
     /// Return one revision-scoped file snapshot.
     pub(crate) fn file(&self, file_id: FileId) -> Arc<File> {
-        self.context.file(file_id)
-    }
-
-    /// Return the shared repository string pool.
-    pub(crate) fn string_pool(&self) -> &StringPool {
-        self.compiler.repository.string_pool().as_ref()
+        self.compiler.file(self.context, file_id)
     }
 
     /// Require the parsed AST for one linked module.
-    pub(crate) fn require_ast(&self, module_id: ModuleId) -> Result<(), RequirementError> {
-        self.compiler.require_ast(self.revision(), module_id)
+    pub(crate) fn require_ast(&self, module_id: ModuleId) -> Result<(), ProviderError> {
+        self.compiler.require_ast(self.context, module_id)
     }
 
     /// Return one generated module output for this target.
     pub(crate) fn module_output(&self, module_id: ModuleId) -> LinkResult<Arc<ModuleOutput>> {
         self.compiler
-            .repository
-            .module_output(self.revision(), module_id, *self.target_id)
-            .ok_or_else(|| LinkError::Internal {
+            .module_output(self.context, module_id, self.target_id)
+            .map_err(|error| LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!(
-                    "missing module output for module {:?} target '{}'",
+                    "missing module output for module {:?} target '{}': {error:?}",
                     module_id,
                     self.target_name()
                 ),
@@ -105,9 +101,10 @@ impl<'a> ScriptLinker<'a> {
 
     /// Return the resolved profile for one linked module.
     pub(crate) fn profile_id_for_module(&self, module_id: ModuleId) -> LinkResult<ProfileId> {
-        self.context
-            .profile_id_for_target(module_id, self.target_id)
+        self.compiler
+            .target_profile_id(self.revision(), module_id, self.target_id)
             .ok_or_else(|| LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!("profile not found for target '{}'", self.target_name()),
             })
@@ -120,37 +117,52 @@ impl<'a> ScriptLinker<'a> {
         Ok(())
     }
 
-    /// Return the resolved module graph for one linked module profile.
-    pub(crate) fn module_graph_for_module(
+    /// Return the resolved dependency edges for one linked module.
+    pub(crate) fn module_edges_for_module(
         &self,
         module_id: ModuleId,
-    ) -> LinkResult<Arc<ModuleGraph>> {
+    ) -> LinkResult<Vec<ModuleEdge>> {
         let profile_id = self.profile_id_for_module(module_id)?;
+        let dir = self
+            .compiler
+            .require_dir_exported(self.context, module_id, profile_id)
+            .map_err(|error| LinkError::Internal {
+                anchor: (self.package_id).into(),
+                package: self.package_id,
+                message: format!("module exports are not ready: {error:?}"),
+            })?;
 
+        Ok(module_dependency_edges(dir.as_ref()))
+    }
+
+    /// Return the parsed data payload for one linked module.
+    pub(crate) fn data(&self, module_id: ModuleId) -> LinkResult<Arc<Data>> {
         self.compiler
-            .module_graph(profile_id)
-            .ok_or_else(|| LinkError::Internal {
+            .data(self.context, module_id)
+            .map_err(|error| LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!(
-                    "missing module graph for module {:?} target '{}'",
+                    "missing data artifact for module {:?} target '{}': {error:?}",
                     module_id,
                     self.target_name()
                 ),
             })
     }
 
-    /// Return the parsed data payload for one linked module.
-    pub(crate) fn data(&self, module_id: ModuleId) -> LinkResult<Arc<Data>> {
-        self.compiler
-            .data(module_id)
-            .ok_or_else(|| LinkError::Internal {
-                package: self.package_id,
-                message: format!(
-                    "missing data artifact for module {:?} target '{}'",
-                    module_id,
-                    self.target_name()
-                ),
-            })
+    /// Return one dependency edge with a matching relation, source site, and specifier.
+    pub(crate) fn module_edge_for_site_specifier(
+        &self,
+        edges: &[ModuleEdge],
+        relation: ModuleEdgeRelation,
+        reference_site: u32,
+        specifier: StringId,
+    ) -> Option<ModuleEdge> {
+        edges.iter().copied().find(|edge| {
+            edge.relation == relation
+                && edge.site == Some(reference_site)
+                && edge.specifier == Some(specifier)
+        })
     }
 
     /// Return whether one module is one plain stylesheet module.
@@ -160,4 +172,61 @@ impl<'a> ScriptLinker<'a> {
 
         file.ty == FileType::Css && !module.loader.is_file()
     }
+}
+
+/// Collect resolved module dependency edges from one exported DIR artifact.
+fn module_dependency_edges(dir: &DirExported) -> Vec<ModuleEdge> {
+    let mut edges = Vec::new();
+
+    // import resolutions
+    for (key, resolution) in dir.import_resolutions.iter() {
+        push_module_edge(
+            &mut edges,
+            resolution.value,
+            key.relation,
+            Some(key.specifier),
+            key.loader,
+        );
+        push_module_edge(
+            &mut edges,
+            resolution.ty,
+            key.relation,
+            Some(key.specifier),
+            key.loader,
+        );
+    }
+
+    // namespace exports
+    for export in dir.namespace_exports.iter() {
+        push_module_edge(
+            &mut edges,
+            Some(export.module_id),
+            ModuleEdgeRelation::NamespaceExport,
+            None,
+            None,
+        );
+    }
+
+    edges.sort_unstable();
+    edges.dedup();
+
+    edges
+}
+
+/// Push one concrete module edge when the target is a module.
+fn push_module_edge(
+    edges: &mut Vec<ModuleEdge>,
+    target: Option<ModuleTarget>,
+    relation: ModuleEdgeRelation,
+    specifier: Option<StringId>,
+    loader: Option<destack_source::Loader>,
+) {
+    let Some(ModuleTarget::Module(module_id)) = target else {
+        return;
+    };
+
+    let edge = ModuleEdge::new(module_id, relation)
+        .with_specifier(specifier)
+        .with_loader(loader);
+    edges.push(edge);
 }

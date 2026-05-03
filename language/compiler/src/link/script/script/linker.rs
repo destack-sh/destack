@@ -1,25 +1,27 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use crate::{LinkError, LinkResult};
-use destack_artifact::{EmitFormat, ModuleOutput, ScriptArtifact, ScriptDependencyTarget};
+use crate::{Compiler, LinkError, LinkResult};
+use destack_artifact::{EmitFormat, ModuleOutput, ScriptOutput};
 use destack_codegen_js as js;
 use destack_source::{FileType, ModuleId, PackageId};
 use destack_workspace::{BundleFormat, BundleMode, Target};
 
 use super::super::plan::Plan;
-use super::super::{ModuleSet, OutputGraph, OutputId, OutputLayout, ScriptLinker};
+use super::super::{
+    ModuleSet, OutputGraph, OutputId, OutputLayout, ScriptDependencyTarget, ScriptLinker,
+};
 use crate::link::TargetLocation;
 
 /// One source module and rewritten script module pair inside one output.
-pub(super) type OutputModule = (ModuleId, js::ScriptModule);
+pub(super) type OutputModule = (ModuleId, js::Module);
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> ScriptLinker<'a> {
     /// Return the local binding and source identity for one import item.
     fn import_binding(
         &self,
-        module: &js::ScriptModule,
+        module: &js::Module,
         specifier: &str,
         item: &js::DependencyItem,
     ) -> Option<(String, (String, u8, Option<String>, Option<u8>))> {
@@ -181,22 +183,23 @@ impl<'a> ScriptLinker<'a> {
         Ok(())
     }
 
-    /// Load one generated script artifact for linking.
-    pub(crate) fn script_artifact(&self, module_id: ModuleId) -> LinkResult<ScriptArtifact> {
+    /// Load one generated script output for linking.
+    pub(crate) fn script_output(&self, module_id: ModuleId) -> LinkResult<ScriptOutput> {
         let artifact = self.module_output(module_id)?;
 
         let ModuleOutput::Script(script) = artifact.as_ref() else {
             return Err(LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!(
-                    "expected script artifact for module {:?} target '{}'",
+                    "expected script output for module {:?} target '{}'",
                     module_id,
                     self.target_name()
                 ),
             });
         };
 
-        Ok(*script.clone())
+        Ok(script.clone())
     }
 
     /// Return the emitted file type for one linked script target.
@@ -205,6 +208,7 @@ impl<'a> ScriptLinker<'a> {
             EmitFormat::Js | EmitFormat::Html => Ok(FileType::JavaScript),
             EmitFormat::Ts => Ok(FileType::TypeScript),
             other => Err(LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!("unsupported linked script output: {other:?}"),
             }),
@@ -248,6 +252,7 @@ impl<'a> ScriptLinker<'a> {
             output_layout
                 .output_location(from_output_id)
                 .ok_or_else(|| LinkError::Internal {
+                    anchor: (package_id).into(),
                     package: package_id,
                     message: format!(
                         "missing output placement for import source output id {}",
@@ -258,6 +263,7 @@ impl<'a> ScriptLinker<'a> {
             output_layout
                 .output_location(to_output_id)
                 .ok_or_else(|| LinkError::Internal {
+                    anchor: (package_id).into(),
                     package: package_id,
                     message: format!(
                         "missing output placement for import target output id {}",
@@ -273,12 +279,12 @@ impl<'a> ScriptLinker<'a> {
         &self,
         output_id: OutputId,
         module_id: ModuleId,
-        script: &ScriptArtifact,
+        script: &ScriptOutput,
         module_set: &ModuleSet,
         output_graph: &OutputGraph,
         output_layout: &OutputLayout,
         target: &Target,
-    ) -> LinkResult<js::ScriptModule> {
+    ) -> LinkResult<js::Module> {
         match output_graph.bundle_mode() {
             BundleMode::SingleFile => self.compiler.rewrite_script_module(
                 module_id,
@@ -310,6 +316,7 @@ impl<'a> ScriptLinker<'a> {
         let output_location =
             plan.stylesheet_output_location(module_id)
                 .ok_or_else(|| LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message: format!(
                         "missing planned stylesheet output for module {:?}",
@@ -320,20 +327,21 @@ impl<'a> ScriptLinker<'a> {
             .output_layout()
             .output_location(output_id)
             .ok_or_else(|| LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!("missing output placement for output id {}", output_id.0),
             })?;
-        let target_layout = crate::link::TargetLocation::new(self.package_dir, self.target);
+        let target_layout = TargetLocation::new(self.package_dir, self.target);
 
         Ok(target_layout.runtime_reference(current_output, output_location))
     }
 }
 
-impl crate::Compiler {
+impl Compiler {
     /// Return whether one internal re-export can be rewritten as a local export.
     pub(crate) fn can_rewrite_internal_script_reexport(
         &self,
-        module: &js::ScriptModule,
+        module: &js::Module,
         items: &[js::LocalNodeId<js::DependencyItem>],
     ) -> bool {
         items.iter().all(|item_id| {

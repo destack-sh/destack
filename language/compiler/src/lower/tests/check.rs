@@ -36,10 +36,10 @@ entry0(value0: int32, value1: int32):
     value2: (int32, boolean) = intrinsic.add.overflow(value0, value1)
     value3: int32 = field.get value2, 0
     value4: boolean = field.get value2, 1
-    value5: boolean = int.not value4
     check int.add.overflow.s value0, value1 -> block2, block1
 block1:
-    value6: ref<String, managed, readonly> = global.address ${integer_overflow}
+    value5: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${integer_overflow}
+    value6: ref<String, managed, readonly> = load value5
     trap.panic value6
 block2:
     return value3
@@ -79,7 +79,6 @@ entry0(value0: int32, value1: int32):
     value2: (int32, boolean) = intrinsic.add.overflow(value0, value1)
     value3: int32 = field.get value2, 0
     value4: boolean = field.get value2, 1
-    value5: boolean = int.not value4
     check int.add.overflow.s value0, value1 -> block2, block1
 
 block1:
@@ -122,10 +121,10 @@ entry0(value0: uint32, value1: uint32):
     value2: (uint32, boolean) = intrinsic.add.overflow(value0, value1)
     value3: uint32 = field.get value2, 0
     value4: boolean = field.get value2, 1
-    value5: boolean = int.not value4
     check int.add.overflow.u value0, value1 -> block2, block1
 block1:
-    value6: ref<String, managed, readonly> = global.address ${integer_overflow}
+    value5: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${integer_overflow}
+    value6: ref<String, managed, readonly> = load value5
     trap.panic value6
 block2:
     return value3
@@ -198,26 +197,20 @@ global ${division_by_zero}: ref<String, managed, readonly>, readonly = "division
 global ${division_overflow}: ref<String, managed, readonly>, readonly = "division overflow"
 function quotient(value0: int32, value1: int32): int32 {
 entry0(value0: int32, value1: int32):
-    value2: int32 = 0int32
-    value3: boolean = int.ne value1, value2
     check zeroDivisor value1 -> block2, block1
 block1:
-    value4: ref<String, managed, readonly> = global.address ${division_by_zero}
-    trap.panic value4
+    value2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${division_by_zero}
+    value3: ref<String, managed, readonly> = load value2
+    trap.panic value3
 block2:
-    value5: int32 = -2147483648int32
-    value6: int32 = -1int32
-    value7: boolean = int.eq value0, value5
-    value8: boolean = int.eq value1, value6
-    value9: boolean = int.and value7, value8
-    value10: boolean = int.not value9
     check int.div.overflow.s value0, value1 -> block4, block3
 block3:
-    value11: ref<String, managed, readonly> = global.address ${division_overflow}
-    trap.panic value11
+    value4: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${division_overflow}
+    value5: ref<String, managed, readonly> = load value4
+    trap.panic value5
 block4:
-    value12: int32 = int.div.s value0, value1
-    return value12
+    value6: int32 = int.div.s value0, value1
+    return value6
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
@@ -253,28 +246,20 @@ function quotient(a: int32, b: int32): int32 {
         r#"
 function quotient(value0: int32, value1: int32): int32 {
 entry0(value0: int32, value1: int32):
-    value2: int32 = 0int32
-    value3: boolean = int.ne value1, value2
     check zeroDivisor value1 -> block2, block1
 
 block1:
     trap.abort
 
 block2:
-    value4: int32 = -2147483648int32
-    value5: int32 = -1int32
-    value6: boolean = int.eq value0, value4
-    value7: boolean = int.eq value1, value5
-    value8: boolean = int.and value6, value7
-    value9: boolean = int.not value8
     check int.div.overflow.s value0, value1 -> block4, block3
 
 block3:
     trap.abort
 
 block4:
-    value10: int32 = int.div.s value0, value1
-    return value10
+    value2: int32 = int.div.s value0, value1
+    return value2
 }
 "#,
     );
@@ -309,15 +294,14 @@ global ${division_by_zero}: ref<String, managed, readonly>, readonly = "division
 global ${division_overflow}: ref<String, managed, readonly>, readonly = "division overflow"
 function quotient(value0: uint32, value1: uint32): uint32 {
 entry0(value0: uint32, value1: uint32):
-    value2: uint32 = 0uint32
-    value3: boolean = int.ne value1, value2
     check zeroDivisor value1 -> block2, block1
 block1:
-    value4: ref<String, managed, readonly> = global.address ${division_by_zero}
-    trap.panic value4
+    value2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${division_by_zero}
+    value3: ref<String, managed, readonly> = load value2
+    trap.panic value3
 block2:
-    value5: uint32 = int.div.u value0, value1
-    return value5
+    value4: uint32 = int.div.u value0, value1
+    return value4
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
@@ -354,18 +338,14 @@ ${string_alias}
 global ${shift_out_of_range}: ref<String, managed, readonly>, readonly = "shift out of range"
 function shift(value0: int32, value1: int32): int32 {
 entry0(value0: int32, value1: int32):
-    value2: int32 = 32int32
-    value3: int32 = 0int32
-    value4: boolean = int.ge.s value1, value3
-    value5: boolean = int.lt.s value1, value2
-    value6: boolean = int.and value4, value5
     check shiftRange.s value1, 32 -> block2, block1
 block1:
-    value7: ref<String, managed, readonly> = global.address ${shift_out_of_range}
-    trap.panic value7
+    value2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${shift_out_of_range}
+    value3: ref<String, managed, readonly> = load value2
+    trap.panic value3
 block2:
-    value8: int32 = int.shl value0, value1
-    return value8
+    value4: int32 = int.shl value0, value1
+    return value4
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
@@ -399,19 +379,14 @@ function shift(value: int32, amount: int32): int32 {
         r#"
 function shift(value0: int32, value1: int32): int32 {
 entry0(value0: int32, value1: int32):
-    value2: int32 = 32int32
-    value3: int32 = 0int32
-    value4: boolean = int.ge.s value1, value3
-    value5: boolean = int.lt.s value1, value2
-    value6: boolean = int.and value4, value5
     check shiftRange.s value1, 32 -> block2, block1
 
 block1:
     trap.abort
 
 block2:
-    value7: int32 = int.shl value0, value1
-    return value7
+    value2: int32 = int.shl value0, value1
+    return value2
 }
 "#,
     );
@@ -444,15 +419,14 @@ ${string_alias}
 global ${shift_out_of_range}: ref<String, managed, readonly>, readonly = "shift out of range"
 function shift(value0: uint32, value1: uint32): uint32 {
 entry0(value0: uint32, value1: uint32):
-    value2: uint32 = 32uint32
-    value3: boolean = int.lt.u value1, value2
     check shiftRange.u value1, 32 -> block2, block1
 block1:
-    value4: ref<String, managed, readonly> = global.address ${shift_out_of_range}
-    trap.panic value4
+    value2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${shift_out_of_range}
+    value3: ref<String, managed, readonly> = load value2
+    trap.panic value3
 block2:
-    value5: uint32 = int.shl value0, value1
-    return value5
+    value4: uint32 = int.shl value0, value1
+    return value4
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
@@ -488,17 +462,14 @@ global ${bounds_check_failed}: ref<String, managed, readonly>, readonly = "bound
 function element(value0: int32[4], value1: int32): int32 {
 entry0(value0: int32[4], value1: int32):
     value2: int32 = 4int32
-    value3: int32 = 0int32
-    value4: boolean = int.ge.s value1, value3
-    value5: boolean = int.lt.s value1, value2
-    value6: boolean = int.and value4, value5
     check bounds.s value1, value2, value0 -> block2, block1
 block1:
-    value7: ref<String, managed, readonly> = global.address ${bounds_check_failed}
-    trap.panic value7
+    value3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
+    value4: ref<String, managed, readonly> = load value3
+    trap.panic value4
 block2:
-    value8: int32 = element.get value0, value1
-    return value8
+    value5: int32 = element.get value0, value1
+    return value5
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
@@ -533,18 +504,14 @@ function element(values: int32[4], index: int32): int32 {
 function element(value0: int32[4], value1: int32): int32 {
 entry0(value0: int32[4], value1: int32):
     value2: int32 = 4int32
-    value3: int32 = 0int32
-    value4: boolean = int.ge.s value1, value3
-    value5: boolean = int.lt.s value1, value2
-    value6: boolean = int.and value4, value5
     check bounds.s value1, value2, value0 -> block2, block1
 
 block1:
     trap.abort
 
 block2:
-    value7: int32 = element.get value0, value1
-    return value7
+    value3: int32 = element.get value0, value1
+    return value3
 }
 "#,
     );
@@ -578,10 +545,10 @@ global ${bounds_check_failed}: ref<String, managed, readonly>, readonly = "bound
 function element(value0: int32[4], value1: uint32): int32 {
 entry0(value0: int32[4], value1: uint32):
     value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
     check bounds.u value1, value2, value0 -> block2, block1
 block1:
-    value4: ref<String, managed, readonly> = global.address ${bounds_check_failed}
+    value3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
+    value4: ref<String, managed, readonly> = load value3
     trap.panic value4
 block2:
     value5: int32 = element.get value0, value1

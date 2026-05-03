@@ -2,7 +2,7 @@ use destack_ast::{self as ast};
 use destack_core::StringPool;
 use destack_dir::{self as dir};
 use destack_source::{FileId, Span};
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::Module;
 
 use super::UnbindContext;
 use crate::Compiler;
@@ -23,98 +23,14 @@ impl Compiler {
     #[inline]
     pub(super) fn unbind_span(&self, _module: &Module, _node_id: dir::LocalNodeIdAny) -> Span {
         // #Incomplete: resolve back to original AST span via source_node_id mapping?
-        Span::empty(FileId::new(0))
+        Span::empty(FileId::EPHEMERAL)
     }
 
-    /// Unbind a module's DIR tree to an AST tree.
-    pub fn unbind_module(&self, module: &Module, profile: ProfileId) -> UnboundModule {
-        if let Some(dir) = self.dir_patched(module.id, profile) {
-            return self.unbind_module_from_parts(
-                module,
-                &dir.tree,
-                &dir.symbols,
-                &dir.types,
-                &dir.roots,
-            );
-        }
-
-        if let Some(dir) = self.dir_elaborated(module.id, profile) {
-            return self.unbind_module_from_parts(
-                module,
-                &dir.tree,
-                &dir.symbols,
-                &dir.types,
-                &dir.roots,
-            );
-        }
-
-        if let Some(dir) = self.dir_analyzed(module.id, profile) {
-            return self.unbind_module_from_parts(
-                module,
-                &dir.tree,
-                &dir.symbols,
-                &dir.types,
-                &dir.roots,
-            );
-        }
-
-        if let Some(dir) = self.dir_interface(module.id, profile) {
-            return self.unbind_module_from_parts(
-                module,
-                &dir.tree,
-                &dir.symbols,
-                &dir.types,
-                &dir.roots,
-            );
-        }
-
-        if let Some(dir) = self.dir_declared(module.id, profile) {
-            return self.unbind_module_from_parts(
-                module,
-                &dir.tree,
-                &dir.symbols,
-                &dir.types,
-                &dir.roots,
-            );
-        }
-
-        if let Some(dir) = self.dir_resolved(module.id, profile) {
-            return self.unbind_module_from_parts(
-                module,
-                &dir.tree,
-                &dir.symbols,
-                &dir.types,
-                &dir.roots,
-            );
-        }
-
-        if let Some(dir) = self.dir_prepared(module.id, profile) {
-            return self.unbind_module_from_parts(
-                module,
-                &dir.tree,
-                &dir.symbols,
-                &dir.types,
-                &dir.roots,
-            );
-        }
-
-        if let Some(dir) = self.dir_base(module.id) {
-            return self.unbind_module_from_parts(
-                module,
-                &dir.tree,
-                &dir.symbols,
-                &dir.types,
-                &dir.roots,
-            );
-        }
-
-        panic!("missing committed dir artifact for module {:?}", module.id);
-    }
-
-    /// Unbind module parts into an AST tree.
-    pub(crate) fn unbind_module_from_parts(
+    /// Unbind one DIR module into an AST tree.
+    pub fn unbind_module_tree(
         &self,
         module: &Module,
+        strings: &StringPool,
         tree: &dir::Tree,
         symbols: &dir::SymbolTable,
         types: &dir::TypeTable,
@@ -126,6 +42,7 @@ impl Compiler {
         // rebuild the AST tree
         let mut ast_tree = ast::Tree::new();
         let mut ast_strings = StringPool::new();
+        ast_strings.ensure_all_from(strings);
         let roots: Vec<ast::LocalNodeId<ast::Expression>> = roots
             .iter()
             .map(|expression_id| {

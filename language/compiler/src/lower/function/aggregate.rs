@@ -1,6 +1,8 @@
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{FieldLayout, FieldLayoutKind, LowerError, LowerResult, StructLayout};
+use crate::{
+    CompilerError, CompilerResult, FieldLayout, FieldLayoutKind, LowerError, StructLayout,
+};
 
 use crate::lower::FunctionLowerer;
 
@@ -22,7 +24,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         elements: &[dir::LocalNodeId<dir::Argument>],
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the tuple type
         let tuple_type = self.lower_type_for_expression(expression_id)?;
 
@@ -37,11 +39,14 @@ impl FunctionLowerer<'_> {
                 }
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "unsupported tuple element kind".to_string(),
-                    })?;
+                    }
+                    .into());
                 }
             }
         }
@@ -68,7 +73,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         elements: &[dir::LocalNodeId<dir::Argument>],
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the array type
         let array_type = self.lower_type_for_expression(expression_id)?;
 
@@ -83,11 +88,14 @@ impl FunctionLowerer<'_> {
                 }
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "unsupported array element kind".to_string(),
-                    })?;
+                    }
+                    .into());
                 }
             }
         }
@@ -115,11 +123,11 @@ impl FunctionLowerer<'_> {
     pub(crate) fn lower_tagged_object_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        _ty_expr: dir::LocalNodeId<dir::TypeExpression>,
+        ty_expr: dir::LocalNodeId<dir::TypeExpression>,
         properties: &[dir::LocalNodeId<dir::Property>],
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // get the struct type from type inference
-        let struct_type = self.lower_type_for_expression(expression_id)?;
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // get the struct type from explicit syntax
+        let struct_type = self.lower_type_for_type_expression(ty_expr)?;
 
         // get the cached layout for this struct type
         let node = expression_id
@@ -149,11 +157,14 @@ impl FunctionLowerer<'_> {
                     // check for duplicate field
                     if field_values[field_index].is_some() {
                         return Err(LowerError::UnsupportedConstruct {
-                            node: expression_id
-                                .into_global_any(self.context.module_id)
-                                .into_anchored(Some(self.context.profile)),
+                            anchor: self.diagnostic_anchor(
+                                expression_id
+                                    .into_global_any(self.context.module_id)
+                                    .into_anchored(Some(self.context.profile)),
+                            ),
                             message: "duplicate struct field".to_string(),
-                        });
+                        }
+                        .into());
                     }
 
                     field_values[field_index] = Some(value);
@@ -161,35 +172,44 @@ impl FunctionLowerer<'_> {
                 // reject spread properties
                 dir::Property::Spread { .. } => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "spread properties not yet supported".to_string(),
-                    });
+                    }
+                    .into());
                 }
                 // reject method properties
                 dir::Property::Method { .. } => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "method properties in object literals not supported".to_string(),
-                    });
+                    }
+                    .into());
                 }
                 dir::Property::Error { .. } => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "error properties in object literals not supported".to_string(),
-                    });
+                    }
+                    .into());
                 }
             }
         }
 
         // resolve class symbols for vtable header defaults
         let class_symbol = self
-            .type_for_expression(expression_id)
+            .type_id_for_type_expression(ty_expr)
             .and_then(|type_id| self.class_symbol_for_type(type_id));
 
         // fill synthetic fields with default values
@@ -209,13 +229,16 @@ impl FunctionLowerer<'_> {
             .enumerate()
             .map(|(i, v)| {
                 v.ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: format!("struct field {i} not initialized"),
                 })
+                .map_err(CompilerError::from)
             })
-            .collect::<LowerResult<Vec<_>>>()?;
+            .collect::<CompilerResult<Vec<_>>>()?;
 
         // construct the struct
         let value = self.state.builder.struct_(struct_type, values);
@@ -239,28 +262,30 @@ impl FunctionLowerer<'_> {
     pub(crate) fn lower_tagged_scalar_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        _ty_expr: dir::LocalNodeId<dir::TypeExpression>,
+        ty_expr: dir::LocalNodeId<dir::TypeExpression>,
         value_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // get the newtype result type from type inference
-        let newtype_type = self.lower_type_for_expression(expression_id)?;
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // get the newtype result type from explicit syntax
+        let newtype_type = self.lower_type_for_type_expression(ty_expr)?;
         let node = expression_id
             .into_global_any(self.context.module_id)
             .into_anchored(Some(self.context.profile));
 
         // require a nominal newtype wrapper
         let inner_type = match self.state.builder.tree().get(newtype_type) {
-            mir::Type::Newtype { inner, .. } => {
-                inner.ty().ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node,
+            mir::Type::Newtype { inner, .. } => inner
+                .ty()
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(node),
                     message: "tagged scalar inner type is not concrete".to_string(),
-                })?
-            }
+                })
+                .map_err(CompilerError::from)?,
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "tagged scalar expression requires a newtype".to_string(),
-                });
+                }
+                .into());
             }
         };
 
@@ -270,11 +295,14 @@ impl FunctionLowerer<'_> {
             mir::Type::Tuple { .. }
         ) {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "tuple newtypes require a tagged tuple expression".to_string(),
-            });
+            }
+            .into());
         }
 
         // lower the payload value
@@ -283,11 +311,14 @@ impl FunctionLowerer<'_> {
         // require the payload type to match the newtype inner type
         if value_type != inner_type {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "newtype payload type does not match inner type".to_string(),
-            });
+            }
+            .into());
         }
 
         // wrap the payload value
@@ -314,28 +345,30 @@ impl FunctionLowerer<'_> {
     pub(crate) fn lower_tagged_tuple_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        _ty_expr: dir::LocalNodeId<dir::TypeExpression>,
+        ty_expr: dir::LocalNodeId<dir::TypeExpression>,
         elements: &[dir::LocalNodeId<dir::Argument>],
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // get the newtype result type from type inference
-        let newtype_type = self.lower_type_for_expression(expression_id)?;
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // get the newtype result type from explicit syntax
+        let newtype_type = self.lower_type_for_type_expression(ty_expr)?;
         let node = expression_id
             .into_global_any(self.context.module_id)
             .into_anchored(Some(self.context.profile));
 
         // require a nominal newtype wrapper
         let inner_type = match self.state.builder.tree().get(newtype_type) {
-            mir::Type::Newtype { inner, .. } => {
-                inner.ty().ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node,
+            mir::Type::Newtype { inner, .. } => inner
+                .ty()
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(node),
                     message: "tagged tuple inner type is not concrete".to_string(),
-                })?
-            }
+                })
+                .map_err(CompilerError::from)?,
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "tagged tuple expression requires a newtype".to_string(),
-                });
+                }
+                .into());
             }
         };
 
@@ -344,11 +377,14 @@ impl FunctionLowerer<'_> {
             mir::Type::Tuple { elements, .. } => elements.clone(),
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "tagged tuple expression requires a tuple newtype".to_string(),
-                });
+                }
+                .into());
             }
         };
 
@@ -363,11 +399,14 @@ impl FunctionLowerer<'_> {
                 }
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "unsupported tuple newtype element kind".to_string(),
-                    })?;
+                    }
+                    .into());
                 }
             }
         }
@@ -375,11 +414,14 @@ impl FunctionLowerer<'_> {
         // require matching tuple arity
         if element_values.len() != tuple_elements.len() {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "tuple newtype arity does not match inner type".to_string(),
-            });
+            }
+            .into());
         }
 
         // construct the tuple payload
@@ -412,41 +454,51 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         arguments: &[dir::LocalNodeId<dir::Argument>],
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // reject generic arguments for now
         if !generic_arguments.is_empty() {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "generic arguments are not supported".to_string(),
-            });
+            }
+            .into());
         }
 
         // call explicit constructors when present
-        if let Some(constructor_id) = self.explicit_constructor_member_for_expression(expression_id)
+        if let Some(constructor_id) =
+            self.explicit_constructor_member_for_expression(expression_id)?
         {
             // load the constructor member
             let constructor = self.context.dir_tree.get(constructor_id);
             // require a constructor method member
             let dir::Member::Method { symbol, .. } = constructor else {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: constructor_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        constructor_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "unsupported constructor member".to_string(),
-                });
+                }
+                .into());
             };
 
             let constructor_symbol = symbol.into_global(self.context.module_id);
             let function_id = self
                 .function_for_symbol(constructor_symbol)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: constructor_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        constructor_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "missing constructor function".to_string(),
-                })?;
+                })
+                .map_err(CompilerError::from)?;
 
             // resolve the call signature
             let signature = self.signature_type_for_function(expression_id, function_id)?;
@@ -458,11 +510,14 @@ impl FunctionLowerer<'_> {
                 // reject non positional constructor arguments
                 if !matches!(argument, dir::Argument::Positional { .. }) {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "unsupported non positional constructor argument".to_string(),
-                    });
+                    }
+                    .into());
                 }
                 let (value, _) = self.lower_value_expression(argument.value())?;
                 argument_values.push(value);
@@ -474,11 +529,14 @@ impl FunctionLowerer<'_> {
                 .builder
                 .call(function_id, signature, argument_values)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "constructor returned no value".to_string(),
-                })?;
+                })
+                .map_err(CompilerError::from)?;
 
             // return the constructor value as-is
             let constructor_return_type = self
@@ -489,26 +547,41 @@ impl FunctionLowerer<'_> {
                 .return_type
                 .ty()
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "constructor return type is not concrete".to_string(),
-                })?;
+                })
+                .map_err(CompilerError::from)?;
             return Ok((value, constructor_return_type));
         }
 
-        // get the instance type from type inference
-        let result_type = self.lower_type_for_expression(expression_id)?;
+        // get the result type from the constructor target when syntax is nominal
+        let constructor_target = self.constructor_target_symbol_for_expression(expression_id)?;
+        let result_type = if let Some(symbol) = constructor_target
+            && symbol.ty() == dir::SymbolType::Class
+            && let Some(reference_type_id) = self.nominal_reference_type_id_for_symbol(symbol)
+        {
+            let node = expression_id.into_global_any(self.context.module_id);
+            self.lower_type_id_for_node(reference_type_id, node)?
+        } else {
+            self.lower_type_for_expression(expression_id)?
+        };
         let (instance_type, reference_kind) = match self.state.builder.tree().get(result_type) {
             mir::Type::Reference { kind, pointee, .. } => (
                 pointee
                     .ty()
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "constructor instance pointee is not concrete".to_string(),
-                    })?,
+                    })
+                    .map_err(CompilerError::from)?,
                 Some(*kind),
             ),
             _ => (result_type, None),
@@ -532,11 +605,14 @@ impl FunctionLowerer<'_> {
         // reject mismatched argument counts
         if arguments.len() != field_count {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "constructor argument count does not match field count".to_string(),
-            });
+            }
+            .into());
         }
 
         // initialize field values array in layout order
@@ -546,11 +622,14 @@ impl FunctionLowerer<'_> {
             // reject non positional constructor arguments
             let dir::Argument::Positional { value, .. } = argument else {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "unsupported non positional constructor argument".to_string(),
-                });
+                }
+                .into());
             };
 
             // lower the argument value
@@ -561,29 +640,38 @@ impl FunctionLowerer<'_> {
                 .field_index_by_source(source_index as u32)
                 .map(|index| index as usize)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "constructor field index out of bounds".to_string(),
-                })?;
+                })
+                .map_err(CompilerError::from)?;
 
             // check for duplicate field assignment
             if field_values[layout_index].is_some() {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "duplicate constructor field".to_string(),
-                });
+                }
+                .into());
             }
 
             field_values[layout_index] = Some(value);
         }
 
         // resolve class symbols for vtable header defaults
-        let class_symbol = self
-            .type_for_expression(expression_id)
-            .and_then(|type_id| self.class_symbol_for_type(type_id));
+        let class_symbol = constructor_target
+            .filter(|symbol| symbol.ty() == dir::SymbolType::Class)
+            .or_else(|| {
+                self.type_for_expression(expression_id)
+                    .and_then(|type_id| self.class_symbol_for_type(type_id))
+            });
 
         // fill synthetic fields with default values
         let node = expression_id
@@ -604,14 +692,18 @@ impl FunctionLowerer<'_> {
             .into_iter()
             .enumerate()
             .map(|(index, value)| {
-                value.ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
-                    message: format!("constructor field {index} not initialized"),
-                })
+                value
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
+                        message: format!("constructor field {index} not initialized"),
+                    })
+                    .map_err(CompilerError::from)
             })
-            .collect::<LowerResult<Vec<_>>>()?;
+            .collect::<CompilerResult<Vec<_>>>()?;
 
         // construct the struct
         let instance_value = self.state.builder.struct_(instance_type, values);
@@ -625,11 +717,14 @@ impl FunctionLowerer<'_> {
             // reject unsupported reference kinds
             Some(_) => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "unsupported reference kind for constructor".to_string(),
-                });
+                }
+                .into());
             }
             // return by value when no reference wrapper is present
             None => instance_value,
@@ -644,7 +739,7 @@ impl FunctionLowerer<'_> {
         layout: &StructLayout,
         class_symbol: Option<dir::GlobalSymbolId>,
         node: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         // initialize values in layout order
         let mut values = Vec::with_capacity(layout.fields.len());
         let mut vtable_value = None;
@@ -663,7 +758,7 @@ impl FunctionLowerer<'_> {
         class_symbol: Option<dir::GlobalSymbolId>,
         node: dir::AnchoredGlobalNodeId,
         vtable_value: &mut Option<mir::Value>,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         // use the vtable pointer for header fields
         // NOTE #Architecture: it feels a bit wonky to have vtable_header_value in default_field_value?
         if field.kind == FieldLayoutKind::VtableHeader {
@@ -682,11 +777,13 @@ impl FunctionLowerer<'_> {
         class_symbol: Option<dir::GlobalSymbolId>,
         node: dir::AnchoredGlobalNodeId,
         vtable_value: &mut Option<mir::Value>,
-    ) -> LowerResult<mir::Value> {
-        let class_symbol = class_symbol.ok_or_else(|| LowerError::UnsupportedConstruct {
-            node,
-            message: "vtable field missing class symbol".to_string(),
-        })?;
+    ) -> CompilerResult<mir::Value> {
+        let class_symbol = class_symbol
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(node),
+                message: "vtable field missing class symbol".to_string(),
+            })
+            .map_err(CompilerError::from)?;
 
         // reuse the cached vtable pointer when available
         if let Some(value) = vtable_value {
@@ -705,29 +802,38 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         key: &dir::Key,
         layout: &StructLayout,
-    ) -> LowerResult<usize> {
+    ) -> CompilerResult<usize> {
         match key {
             dir::Key::Name(name) => layout
                 .field_index(name.string())
                 .map(|i| i as usize)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
+                    message: "struct field not found".to_string(),
+                })
+                .map_err(CompilerError::from),
+            dir::Key::Private(_) => Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
-                    message: "struct field not found".to_string(),
-                }),
-            dir::Key::Private(_) => Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                ),
                 message: "private field key not supported in struct layout".to_string(),
-            }),
+            }
+            .into()),
             dir::Key::Expression(_) => Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "computed property keys not supported".to_string(),
-            }),
+            }
+            .into()),
         }
     }
 
@@ -735,47 +841,78 @@ impl FunctionLowerer<'_> {
     fn explicit_constructor_member_for_expression(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<dir::LocalNodeId<dir::Member>> {
+    ) -> CompilerResult<Option<dir::LocalNodeId<dir::Member>>> {
         // prefer the constructor symbol from the new expression target
-        if let Some(target_symbol) = self.constructor_target_symbol_for_expression(expression_id)
+        if let Some(target_symbol) = self.constructor_target_symbol_for_expression(expression_id)?
             && target_symbol.module_id == self.context.module_id
             && let Some(constructor) = self.explicit_constructor_member_for_symbol(target_symbol)
         {
-            return Some(constructor);
+            return Ok(Some(constructor));
         }
 
         // resolve the nominal symbol for constructor lookup
-        let type_id = self.type_for_expression(expression_id)?;
+        let Some(type_id) = self.type_for_expression(expression_id) else {
+            return Ok(None);
+        };
         let type_id = self.unwrap_value_type_id(type_id);
+
         // require a nominal reference type
         let symbol = match self.context.types.get_type(type_id) {
             dir::Type::Reference { symbol, .. } => *symbol,
-            _ => return None,
+            _ => return Ok(None),
         };
 
         // skip remote symbols
         if symbol.module_id != self.context.module_id {
-            return None;
+            return Ok(None);
         }
 
-        self.explicit_constructor_member_for_symbol(symbol)
+        Ok(self.explicit_constructor_member_for_symbol(symbol))
     }
 
     /// Resolve the target symbol for a new expression when it is a simple reference.
-    fn constructor_target_symbol_for_expression(
+    pub(crate) fn constructor_target_symbol_for_expression(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<dir::GlobalSymbolId> {
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
         let dir::Expression::New { left, .. } = self.context.dir_tree.get(expression_id) else {
-            return None;
+            return Ok(None);
         };
 
-        match self.context.dir_tree.get(*left) {
+        let symbol = match self.context.dir_tree.get(*left) {
             dir::Expression::LocalReference { target_symbol, .. }
             | dir::Expression::ModuleReference { target_symbol, .. }
             | dir::Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
+            dir::Expression::UnresolvedPath { path, .. } => {
+                Some(self.resolve_local_path_symbol(*left, path)?)
+            }
             _ => None,
+        };
+
+        Ok(symbol)
+    }
+
+    /// Find a nominal reference type id for a symbol in checked type state.
+    fn nominal_reference_type_id_for_symbol(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::LocalTypeId> {
+        // scan type ids in deterministic insertion order
+        let type_count = self.context.types.type_count();
+        for index in 0..type_count {
+            let type_id = dir::LocalTypeId::new(index);
+            let dir_type = self.context.types.get_type(type_id);
+            if let dir::Type::Reference {
+                symbol: target_symbol,
+                ..
+            } = dir_type
+                && *target_symbol == symbol
+            {
+                return Some(type_id);
+            }
         }
+
+        None
     }
 
     /// Find explicit constructor members for a nominal symbol.

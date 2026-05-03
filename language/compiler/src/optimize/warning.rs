@@ -1,101 +1,98 @@
-use destack_compiler_macros::DefineWarning;
-use destack_mir as mir;
-use destack_workspace::Repository;
-
-use crate::{CompileWarning, DiagnosticAnchor, DiagnosticDefinition};
+use crate::DiagnosticAnchor;
+use destack_artifact_macros::Diagnostic;
 
 /// Warnings during the optimize phase.
-#[derive(Debug, Clone, PartialEq, DefineWarning)]
-#[phase(Optimize)]
+#[derive(Debug, Clone, PartialEq, Diagnostic)]
+#[diagnostic(severity = Warning, phase = Optimize)]
 pub enum OptimizeWarning {
     // -------------------------------------------------------------------------
     // 1xx: Aliasing warnings
     // -------------------------------------------------------------------------
     /// Potential aliasing violation (hint mode warning).
-    #[warning(code = "WO100", message = "potential aliasing")]
+    #[diagnostic(code = "WO100", message = "potential aliasing")]
     PotentialAliasingViolation {
-        node: mir::AnchoredGlobalNodeId,
-        existing_borrow: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
+        existing_borrow: DiagnosticAnchor,
     },
 
     /// Reference may be invalidated by mutation (hint mode warning).
-    #[warning(code = "WO101", message = "reference may be invalidated")]
+    #[diagnostic(code = "WO101", message = "reference may be invalidated")]
     PotentialInvalidatedReference {
-        node: mir::AnchoredGlobalNodeId,
-        mutation_at: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
+        mutation_at: DiagnosticAnchor,
     },
 
     /// Borrow may escape its scope (hint mode warning).
-    #[warning(code = "WO102", message = "borrow may escape scope")]
-    PotentialBorrowEscape { node: mir::AnchoredGlobalNodeId },
+    #[diagnostic(code = "WO102", message = "borrow may escape scope")]
+    PotentialBorrowEscape { anchor: DiagnosticAnchor },
 
     /// Lifetime annotation does not cover the returned borrow.
-    #[warning(
+    #[diagnostic(
         code = "WO103",
         message = "lifetime annotation does not cover returned borrow"
     )]
-    PotentialLifetimeAnnotationMismatch { node: mir::AnchoredGlobalNodeId },
+    PotentialLifetimeAnnotationMismatch { anchor: DiagnosticAnchor },
 
     /// Lifetime annotation was ignored for a non borrowed return.
-    #[warning(
+    #[diagnostic(
         code = "WO104",
         message = "lifetime annotation ignored for non borrowed return"
     )]
-    LifetimeAnnotationIgnored { node: mir::AnchoredGlobalNodeId },
+    LifetimeAnnotationIgnored { anchor: DiagnosticAnchor },
 
     // -------------------------------------------------------------------------
     // 2xx: Unused value warnings
     // -------------------------------------------------------------------------
     /// Owned value created but never used.
-    #[warning(code = "WO200", message = "owned value is never used")]
-    UnusedOwnedValue { node: mir::AnchoredGlobalNodeId },
+    #[diagnostic(code = "WO200", message = "owned value is never used")]
+    UnusedOwnedValue { anchor: DiagnosticAnchor },
 
     /// Owned value dropped immediately after creation without being used.
-    #[warning(code = "WO201", message = "value created and immediately dropped")]
-    ImmediatelyDropped { node: mir::AnchoredGlobalNodeId },
+    #[diagnostic(code = "WO201", message = "value created and immediately dropped")]
+    ImmediatelyDropped { anchor: DiagnosticAnchor },
 
     // -------------------------------------------------------------------------
     // 3xx: Optimization missed warnings
     // -------------------------------------------------------------------------
     /// Virtual call could not be devirtualized.
-    #[warning(code = "WO300", message = "cannot devirtualize: {reason}")]
+    #[diagnostic(code = "WO300", message = "cannot devirtualize: {reason}")]
     CannotDevirtualize {
-        node: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         reason: String,
     },
 
     /// Bounds check could not be eliminated.
-    #[warning(code = "WO301", message = "cannot eliminate bounds check: {reason}")]
+    #[diagnostic(code = "WO301", message = "cannot eliminate bounds check: {reason}")]
     CannotEliminateBoundsCheck {
-        node: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         reason: String,
     },
 
     /// Null check could not be eliminated.
-    #[warning(code = "WO302", message = "cannot eliminate null check: {reason}")]
+    #[diagnostic(code = "WO302", message = "cannot eliminate null check: {reason}")]
     CannotEliminateNullCheck {
-        node: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         reason: String,
     },
 
     /// Function could not be inlined.
-    #[warning(code = "WO303", message = "cannot inline: {reason}")]
+    #[diagnostic(code = "WO303", message = "cannot inline: {reason}")]
     CannotInline {
-        node: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         reason: String,
     },
 
     /// Allocation could not be promoted to stack.
-    #[warning(code = "WO304", message = "cannot stack-promote: {reason}")]
+    #[diagnostic(code = "WO304", message = "cannot stack-promote: {reason}")]
     CannotStackPromote {
-        node: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         reason: String,
     },
 
     /// Loop optimization failed or was skipped.
-    #[warning(code = "WO305", message = "loop not optimized: {reason}")]
+    #[diagnostic(code = "WO305", message = "loop not optimized: {reason}")]
     LoopNotOptimized {
-        node: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         reason: String,
     },
 
@@ -103,16 +100,16 @@ pub enum OptimizeWarning {
     // 9xx: Hint / skipped warnings
     // -------------------------------------------------------------------------
     /// Optimization hint annotation was ignored.
-    #[warning(code = "WO900", message = "optimization hint ignored: {reason}")]
+    #[diagnostic(code = "WO900", message = "optimization hint ignored: {reason}")]
     IgnoredHint {
-        node: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         reason: String,
     },
 
     /// Optimization was skipped for this node.
-    #[warning(code = "WO901", message = "optimization skipped: {reason}")]
+    #[diagnostic(code = "WO901", message = "optimization skipped: {reason}")]
     SkippedOptimization {
-        node: mir::AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         reason: String,
     },
 }

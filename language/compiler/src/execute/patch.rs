@@ -79,20 +79,5 @@ impl Compiler {
         };
         tree.replace(expression_id, replacement);
 
-        // attach a comment with the original comptime source
-        if self.options.retain_comptime_as_comment {
-            self.attach_comptime_comment(module_id, tree, expression_id);
-        }
-    }
-
-    /// Attach a postfix comment with the original comptime source.
-    fn attach_comptime_comment(
-        &self,
-        module_id: ModuleId,
-        tree: &mut dir::Tree,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-    ) {
-        // comments are no longer representable as DIR annotations
-        let _ = (module_id, tree, expression_id);
     }
 }

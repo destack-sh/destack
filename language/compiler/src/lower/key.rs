@@ -1,16 +1,16 @@
+use destack_core::{StringId, StringPool};
 use destack_dir::{Key, StaticKey, Tree};
 
-use crate::Compiler;
 use crate::common::dir as common_dir;
 
-impl Compiler {
-    /// Resolve a static key from one DIR key when it is locally obvious.
-    pub(crate) fn static_key_from_key(&self, tree: &Tree, key: Key) -> Option<StaticKey> {
-        common_dir::static_key_from_key(tree, key, |name| {
-            let name = self.repository.strings.get(name);
-            self.repository
-                .strings
-                .intern(&format!("#{}", name.as_ref()))
-        })
-    }
+/// Resolve a static key from one DIR key when it is locally obvious.
+pub(crate) fn static_key_from_key(
+    tree: &Tree,
+    strings: &StringPool,
+    key: Key,
+) -> Option<StaticKey> {
+    common_dir::static_key_from_key(tree, key, |name| {
+        let name = strings.get(name);
+        StringId::for_text(&format!("#{}", name.as_ref()))
+    })
 }

@@ -18,9 +18,9 @@ use super::super::plan::OutputKind;
 
 pub(super) use crate::tests::TestProgram;
 
-const LINKED_ENTRY_PATH: &str = "dist/js.js";
-const LINKED_MAP_PATH: &str = "dist/js.js.map";
-const LINKED_MANIFEST_PATH: &str = "dist/js.manifest.json";
+const LINKEI_ENTRY_PATH: &str = "dist/js.js";
+const LINKEI_MAP_PATH: &str = "dist/js.js.map";
+const LINKEI_MANIFEST_PATH: &str = "dist/js.manifest.json";
 
 /// One expected manifest chunk file.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,7 +32,7 @@ pub(super) struct ExpectedManifestChunk {
 /// Build one linked entry file.
 pub(super) fn linked_entry(text: &str) -> LinkedTextFile {
     LinkedTextFile {
-        path: LINKED_ENTRY_PATH.to_string(),
+        path: LINKEI_ENTRY_PATH.to_string(),
         file_type: FileType::JavaScript,
         text: text.to_string(),
     }
@@ -61,7 +61,7 @@ pub(super) fn linked_manifest(value: BuildManifest) -> LinkedJsonFile<BuildManif
     let text = format!("{text}\n");
 
     LinkedJsonFile {
-        path: LINKED_MANIFEST_PATH.to_string(),
+        path: LINKEI_MANIFEST_PATH.to_string(),
         file_type: FileType::Json,
         text,
         value,
@@ -140,7 +140,7 @@ pub(super) fn map_output(
 
 /// Build one linked source map file for the default single-file target path.
 pub(super) fn linked_map(value: SourceMapArtifact) -> LinkedJsonFile<SourceMapArtifact> {
-    map_output(LINKED_MAP_PATH, value)
+    map_output(LINKEI_MAP_PATH, value)
 }
 
 /// Build one source map payload.
@@ -609,10 +609,14 @@ impl TestProgram {
             .get(&target_id)
             .cloned()
             .unwrap_or_else(|| panic!("missing target '{name}'"));
-        let context = self.context();
+        let context = crate::tests::test_provider_context(
+            self.compiler.as_ref(),
+            self.current_revision(),
+            ArtifactKey::WorkspaceLinted,
+        );
         let linker = ScriptLinker::new(
             self.compiler.as_ref(),
-            &context,
+            context.as_ref(),
             &package_dir,
             None,
             &target,

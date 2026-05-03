@@ -1,12 +1,12 @@
-use crate::{Compiler, CompilerContext};
+use crate::Compiler;
 use destack_artifact::Ast;
-use destack_ast::{self as ast};
+use destack_ast::{self as ast, StringId};
 use destack_dir::{
     Decorator, DecoratorPosition, Documentation, LocalNodeId, LocalNodeIdAny, LocalScopeId,
     LocalScopeMark, ModuleBinding, NodeType, SymbolSpaceOrder, SymbolTable, Tree, TypeTable,
 };
 use destack_source::File;
-use destack_workspace::Module;
+use destack_workspace::{Module, ProviderContext};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -16,9 +16,9 @@ impl Compiler {
         module: &Module,
         ast: &Ast,
         tree: &mut Tree,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) {
-        let file = context.file(module.file_id);
+        let file = self.file(context, module.file_id);
         let node_ids: Vec<_> = tree.iter_node_ids().collect();
 
         // scan every source-backed dir node once
@@ -29,14 +29,24 @@ impl Compiler {
 
             let source_id = tree.get_source(node_id.id);
             let source_span = ast.tree.get_span_by_id(source_id);
-            let Some(documentation) =
-                source_node_documentation(ast, file.as_ref(), source_span.start)
-            else {
+            let documentation = source_node_documentation(ast, file.as_ref(), source_span.start)
+                .or_else(|| {
+                    tree.get_decorators(node_id.id)
+                        .first()
+                        .copied()
+                        .and_then(|decorator_id| {
+                            let source_id = tree.get_source(decorator_id.id);
+                            let source_span = ast.tree.get_span_by_id(source_id);
+
+                            source_node_documentation(ast, file.as_ref(), source_span.start)
+                        })
+                });
+            let Some(documentation) = documentation else {
                 continue;
             };
 
             let documentation = Documentation {
-                text: self.repository.strings.intern(&documentation),
+                text: StringId::for_text(&documentation),
             };
             tree.set_documentation(node_id.id, documentation);
         }
@@ -54,7 +64,7 @@ impl Compiler {
         tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
     ) {
         // bind and attach each decorator against its source-backed owner
         for (ast_node_id, ast_decorators) in ast.tree.get_all_decorators() {
@@ -194,7 +204,7 @@ function f() {}
         test.compile();
         test.check_clean();
 
-        let dir = test.dir_base(module_id);
+        let dir = test.dir_declared(module_id);
         let tree = &dir.tree;
         let symbols = &dir.symbols;
         let declaration_symbol = test

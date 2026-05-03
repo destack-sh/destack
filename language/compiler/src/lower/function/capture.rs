@@ -1,6 +1,6 @@
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult};
+use crate::{CompilerError, CompilerResult, LowerError};
 
 use crate::lower::{
     FunctionEnvironmentField, FunctionEnvironmentLayout, FunctionLowerer, lower_mutability,
@@ -27,16 +27,19 @@ impl FunctionLowerer<'_> {
     pub(crate) fn function_environment_value(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         self.state
             .bindings
             .environment
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "missing function environment".to_string(),
             })
+            .map_err(CompilerError::from)
     }
 
     /// Build a function environment value for a target function symbol.
@@ -44,7 +47,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         target_symbol: dir::GlobalSymbolId,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // allocate and populate the environment when captures exist
         if let Some(env_layout) = self
             .context
@@ -102,7 +105,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         field: &FunctionEnvironmentField,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let env_value = self.function_environment_value(expression_id)?;
         let field_addr_type = self.state.builder.type_reference(
             mir::ReferenceKind::Managed,
@@ -123,7 +126,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         field: &FunctionEnvironmentField,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let (field_addr, _) = self.capture_field_addr(expression_id, field)?;
 
         // by value or move: load the field directly
@@ -138,17 +141,21 @@ impl FunctionLowerer<'_> {
         // by reference: load the stored pointer, then load the pointee
         let reference_value = self.state.builder.load(field_addr, field.ty);
         let pointee = match self.state.builder.tree().get(field.ty) {
-            mir::Type::Reference { pointee, .. } => {
-                pointee.ty().ok_or_else(|| LowerError::Internal {
+            mir::Type::Reference { pointee, .. } => pointee
+                .ty()
+                .ok_or_else(|| LowerError::Internal {
+                    anchor: (self.context.module_id).into(),
                     module: self.context.module_id,
                     message: "capture reference field pointee must be concrete".to_string(),
-                })?
-            }
+                })
+                .map_err(CompilerError::from)?,
             _ => {
                 return Err(LowerError::Internal {
+                    anchor: (self.context.module_id).into(),
                     module: self.context.module_id,
                     message: "capture reference field missing reference type".to_string(),
-                });
+                }
+                .into());
             }
         };
         let value = self.state.builder.load(reference_value, pointee);
@@ -161,7 +168,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         field: &FunctionEnvironmentField,
         value: mir::Value,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         let (field_addr, _) = self.capture_field_addr(expression_id, field)?;
 
         // by value or move: store directly into the env field
@@ -185,7 +192,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         field: &FunctionEnvironmentField,
         mutability: Option<dir::Mutability>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // by reference: forward the stored pointer
         if field.kind == dir::CaptureKind::ByReference {
             let (field_addr, _) = self.capture_field_addr(expression_id, field)?;
@@ -221,12 +228,14 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         function_id: mir::LocalNodeId<mir::Function>,
         env_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // update the function metadata in the shared tree
         let function = self.state.builder.tree_mut().get_mut(function_id);
         match function.environment {
             Some(existing) if existing.ty() != Some(env_type) => {
-                return Err(self.error(expression_id, "mismatched function environment type"));
+                return Err(self
+                    .error(expression_id, "mismatched function environment type")
+                    .into());
             }
             Some(_) => {}
             None => {

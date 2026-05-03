@@ -94,13 +94,15 @@ impl ModuleLowerer<'_> {
                 .map(|id| id.into_global_any(self.module_id))
                 .map(|id| id.into_anchored(Some(self.profile)))
                 .ok_or_else(|| LowerError::Internal {
+                    anchor: (self.module_id).into(),
                     module: self.module_id,
                     message: "vtable cycle missing declaration".to_string(),
                 })?;
             return Err(LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "cycle detected while lowering vtable".to_string(),
-            });
+            }
+            .into());
         }
         self.vtable_in_progress.insert(symbol);
 
@@ -108,9 +110,11 @@ impl ModuleLowerer<'_> {
         let declaration_id = self.declaration_ids_for_symbol(symbol).first().copied();
         let Some(declaration_id) = declaration_id else {
             return Err(LowerError::Internal {
+                anchor: (self.module_id).into(),
                 module: self.module_id,
                 message: format!("missing class declaration for vtable symbol {symbol:?}"),
-            });
+            }
+            .into());
         };
         let anchor = declaration_id
             .into_global_any(self.module_id)
@@ -122,7 +126,7 @@ impl ModuleLowerer<'_> {
         // resolve the class instance mir type
         let instance_type_id = self.types.get_instance_type_id(symbol).ok_or_else(|| {
             LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "class missing instance type".to_string(),
             }
         })?;
@@ -144,6 +148,7 @@ impl ModuleLowerer<'_> {
                 .get(&symbol)
                 .copied()
                 .ok_or_else(|| LowerError::Internal {
+                    anchor: (self.module_id).into(),
                     module: self.module_id,
                     message: format!("missing vtable global for class {symbol:?}"),
                 })?;
@@ -316,12 +321,15 @@ impl ModuleLowerer<'_> {
                         // reject overrides without a base slot
                         if method.is_override {
                             return Err(LowerError::UnsupportedConstruct {
-                                node: method
-                                    .member_id
-                                    .into_global_any(self.module_id)
-                                    .into_anchored(Some(self.profile)),
+                                anchor: self.diagnostic_anchor(
+                                    method
+                                        .member_id
+                                        .into_global_any(self.module_id)
+                                        .into_anchored(Some(self.profile)),
+                                ),
                                 message: "override method has no base slot".to_string(),
-                            });
+                            }
+                            .into());
                         }
 
                         virtual_slots.push(method);
@@ -364,9 +372,11 @@ impl ModuleLowerer<'_> {
         // lookup the lowered function by symbol
         let function_id = self.function_for_symbol(method_symbol).ok_or_else(|| {
             LowerError::UnsupportedConstruct {
-                node: member_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                anchor: self.diagnostic_anchor(
+                    member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
                 message: "missing method function".to_string(),
             }
         })?;

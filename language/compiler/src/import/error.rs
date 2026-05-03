@@ -1,53 +1,34 @@
-use crate::{
-    CompileError, DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet,
-};
-use destack_ast::StringId;
-use destack_compiler_macros::DefineError;
-use destack_dir::{AnchoredGlobalNodeId, GlobalScopeId, StaticKey};
+use crate::DiagnosticAnchor;
+use destack_artifact_macros::Diagnostic;
+use destack_dir::GlobalScopeId;
 use destack_parser::ParseError;
-use destack_source::{FileType, ModuleId, Span};
-use destack_workspace::Repository;
+use destack_source::{FileType, ModuleId};
 
-/// Errors during the import phase.
-#[derive(Debug, Clone, PartialEq, DefineError)]
-#[phase(Import)]
+/// Errors during source import.
+#[derive(Debug, Clone, PartialEq, Diagnostic)]
+#[diagnostic(severity = Error, phase = Import)]
 pub enum ImportError {
-    // -------------------------------------------------------------------------
-    // 0xx: Yield / requirement
-    // -------------------------------------------------------------------------
-    /// Yield to an artifact requirement.
-    #[error(code = "EI000", r#yield)]
-    Yield { requirement: RequirementSet },
-
-    /// Unsatisfied requirement (requirement failed).
-    #[error(code = "EI001", yield_failed)]
-    UnsatisfiedRequirement { requirement: RequirementSet },
-
-    /// Task was skipped due to stale versions.
-    #[error(code = "EI002", message = "task skipped")]
-    Skipped,
-
     // -------------------------------------------------------------------------
     // 1xx: Module / file resolution
     // -------------------------------------------------------------------------
     /// Module could not be resolved (filesystem or specifier resolution).
-    #[error(code = "EI100", message = "module '{target}' not found")]
+    #[diagnostic(code = "EI100", message = "module '{target}' not found")]
     ModuleNotFound {
-        target: StringId,
-        error: Option<destack_resolver::ResolveError>,
+        anchor: DiagnosticAnchor,
+        target: String,
     },
 
     /// Failed to parse a module.
-    #[error(code = "EI101", message = "parse error")]
+    #[diagnostic(code = "EI101", message = "parse error")]
     ParseError {
-        node: AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         diagnostics: Vec<ParseError>,
     },
 
     /// Failed to parse a data module.
-    #[error(code = "EI102", message = "failed to parse {file_type}: {message}")]
+    #[diagnostic(code = "EI102", message = "failed to parse {file_type}: {message}")]
     DataParseError {
-        span: Span,
+        anchor: DiagnosticAnchor,
         file_type: FileType,
         message: String,
     },
@@ -56,30 +37,30 @@ pub enum ImportError {
     // 2xx: Binding / export conflicts
     // -------------------------------------------------------------------------
     /// Conflicting symbol binding (unambiguous).
-    #[error(code = "EI200", message = "duplicate identifier '{name}'")]
+    #[diagnostic(code = "EI200", message = "duplicate identifier {name}")]
     ConflictingBinding {
-        node: AnchoredGlobalNodeId,
-        other_node: AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
+        other: DiagnosticAnchor,
         scope: GlobalScopeId,
-        name: Option<StaticKey>,
+        name: String,
         is_local: bool,
     },
 
     /// Conflicting export name in the same module.
-    #[error(code = "EI201", message = "duplicate export '{name}'")]
+    #[diagnostic(code = "EI201", message = "duplicate export {name}")]
     ConflictingExport {
-        node: AnchoredGlobalNodeId,
-        other_node: AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
+        other: DiagnosticAnchor,
         module: ModuleId,
-        name: Option<StaticKey>,
+        name: String,
     },
 
     /// Conflicting default export.
-    #[error(code = "EI202", message = "duplicate default export '{name}'")]
+    #[diagnostic(code = "EI202", message = "duplicate default export '{name}'")]
     ConflictingDefaultExport {
-        node: AnchoredGlobalNodeId,
-        other_node: AnchoredGlobalNodeId,
-        name: Option<StringId>,
+        anchor: DiagnosticAnchor,
+        other: DiagnosticAnchor,
+        name: String,
         module: ModuleId,
     },
 
@@ -87,39 +68,45 @@ pub enum ImportError {
     // 3xx: Syntax / construct issues
     // -------------------------------------------------------------------------
     /// Unsupported construct in module (forbidden by spec).
-    #[error(code = "EI300", message = "unsupported construct: {message}")]
-    UnsupportedConstruct { span: Span, message: String },
+    #[diagnostic(code = "EI300", message = "unsupported construct: {message}")]
+    UnsupportedConstruct {
+        anchor: DiagnosticAnchor,
+        message: String,
+    },
 
     /// Unsupported node.
-    #[error(code = "EI301", message = "unsupported construct")]
-    UnsupportedNode { node: AnchoredGlobalNodeId },
+    #[diagnostic(code = "EI301", message = "unsupported construct")]
+    UnsupportedNode { anchor: DiagnosticAnchor },
 
     /// Reserved identifier used in a forbidden context.
-    #[error(code = "EI302", message = "reserved identifier '{name}'")]
+    #[diagnostic(code = "EI302", message = "reserved identifier '{name}'")]
     ReservedIdentifier {
-        node: AnchoredGlobalNodeId,
-        name: StringId,
+        anchor: DiagnosticAnchor,
+        name: String,
     },
 
     /// Directive prologue is invalid or cannot be interpreted.
-    #[error(code = "EI303", message = "invalid directive prologue")]
+    #[diagnostic(code = "EI303", message = "invalid directive prologue")]
     InvalidPrologue {
-        node: AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         content: String,
     },
 
     /// Import declarations must be direct module roots.
-    #[error(code = "EI304", message = "import declarations must be top-level")]
-    ImportNotTopLevel { node: AnchoredGlobalNodeId },
+    #[diagnostic(code = "EI304", message = "import declarations must be top-level")]
+    ImportNotTopLevel { anchor: DiagnosticAnchor },
 
     /// Export declarations must be direct module roots.
-    #[error(code = "EI305", message = "export declarations must be top-level")]
-    ExportNotTopLevel { node: AnchoredGlobalNodeId },
+    #[diagnostic(code = "EI305", message = "export declarations must be top-level")]
+    ExportNotTopLevel { anchor: DiagnosticAnchor },
 
     // -------------------------------------------------------------------------
     // 9xx: Internal
     // -------------------------------------------------------------------------
     /// Internal import failure.
-    #[error(code = "EI900", message = "{message}")]
-    Internal { message: String },
+    #[diagnostic(code = "EI900", message = "{message}")]
+    Internal {
+        anchor: DiagnosticAnchor,
+        message: String,
+    },
 }

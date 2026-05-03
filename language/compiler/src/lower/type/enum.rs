@@ -1,8 +1,9 @@
 use destack_dir as dir;
 
-use destack_workspace::{ProfileId, Revision};
+use destack_artifact::DiagnosticAnchor;
+use destack_workspace::{ProfileId, ProviderContext};
 
-use crate::{Compiler, LowerError, LowerResult, RequirementError};
+use crate::{Compiler, CompilerResult, LowerError};
 
 /// Enum field value with its backing type.
 #[derive(Debug, Clone, Copy)]
@@ -16,25 +17,24 @@ pub(crate) struct EnumFieldValueDescriptor {
 /// Resolve the backing type and value for an enum field symbol.
 pub(crate) fn enum_field_value_for_symbol(
     compiler: &Compiler,
-    revision: Revision,
+    context: &dyn ProviderContext,
     profile: ProfileId,
     member_symbol: dir::GlobalSymbolId,
-    node: dir::AnchoredGlobalNodeId,
-) -> LowerResult<Option<EnumFieldValueDescriptor>> {
-    // load the analyzed dir artifact for this symbol
-    let snapshot =
-        compiler.require_artifact_dir_analyzed(revision, member_symbol.module_id, profile);
-    let snapshot = match snapshot {
+    anchor: DiagnosticAnchor,
+) -> CompilerResult<Option<EnumFieldValueDescriptor>> {
+    // load the declared and checked dir artifacts for this symbol
+    let declared = compiler.dir_declared(context, member_symbol.module_id, profile);
+    let declared = match declared {
         Ok(snapshot) => snapshot,
-        Err(RequirementError::NotReady { requirement }) => {
-            return Err(LowerError::Yield { requirement });
-        }
-        Err(RequirementError::Failed { requirement }) => {
-            return Err(LowerError::UnsatisfiedRequirement { requirement });
-        }
+        Err(error) => return Err(error.into()),
     };
-    let symbols = &snapshot.symbols;
-    let types = &snapshot.types;
+    let checked = compiler.dir_checked(context, member_symbol.module_id, profile);
+    let checked = match checked {
+        Ok(snapshot) => snapshot,
+        Err(error) => return Err(error.into()),
+    };
+    let symbols = &declared.symbols;
+    let types = &checked.types;
 
     // require the member symbol to be an enum field
     let member_entry = symbols.get_symbol(member_symbol.local_id);
@@ -59,7 +59,7 @@ pub(crate) fn enum_field_value_for_symbol(
     // read the enum backing type
     let backing = types.get_enum_backing_type(enum_symbol).ok_or_else(|| {
         LowerError::UnsupportedConstruct {
-            node,
+            anchor: anchor.clone(),
             message: "enum missing backing type".to_string(),
         }
     })?;
@@ -67,7 +67,7 @@ pub(crate) fn enum_field_value_for_symbol(
     // resolve the stored enum field value
     let value = types.get_enum_field_value(member_symbol).ok_or_else(|| {
         LowerError::UnsupportedConstruct {
-            node,
+            anchor,
             message: "enum field missing value".to_string(),
         }
     })?;

@@ -1,11 +1,12 @@
+use destack_workspace::ProviderContext;
 use std::collections::HashSet;
 
 use destack_dir as dir;
 use destack_workspace::{Module, ProfileId};
 use dir::{Expression, IfCondition, IfKind, LocalNodeId, MatchKind};
 
-use crate::elaborate::common::{ElaborateContext, ElaborateState};
-use crate::{Compiler, CompilerContext, ElaborateResult};
+use crate::elaborate::ElaborateState;
+use crate::{Compiler, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -18,18 +19,20 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
         tree: &mut dir::Tree,
         symbols: &mut dir::SymbolTable,
         types: &mut dir::TypeTable,
     ) -> ElaborateResult<()> {
         // skip non-code modules
-        if !context.is_code_module(module.id) {
+        if !self.is_code_module(context.revision(), module.id) {
             return Ok(());
         }
 
-        let ctx = ElaborateContext::new(context, module.id, module, profile);
-        let mut state = ElaborateState::new(ctx, tree, symbols, types);
+        let options = self.elaborate_options(context, module);
+        let mut state = ElaborateState::new(
+            context, module.id, module, profile, options, tree, symbols, types,
+        );
 
         // collect member expressions used as call or new callees
         let mut member_callees: HashSet<u32> = HashSet::new();

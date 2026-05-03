@@ -1,12 +1,265 @@
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult, ScalarType};
+use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 
 use crate::lower::FunctionLowerer;
 use crate::lower::r#type::UnionPayloadKind;
 
 #[allow(clippy::too_many_arguments)]
 impl FunctionLowerer<'_> {
+    /// Lower a value expression into a declared target type.
+    pub(crate) fn lower_value_for_target(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        value_id: dir::LocalNodeId<dir::Expression>,
+        target_type_id: Option<dir::LocalTypeId>,
+        target_mir_type: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        let Some(target_type_id) = target_type_id else {
+            return self.lower_value_expression(value_id);
+        };
+        let target_type_id = self.context.types.unwrap_value_type_id(target_type_id);
+
+        if self
+            .context
+            .type_lowerer
+            .union_layout(target_type_id)
+            .is_some()
+        {
+            return self.lower_union_upcast_to_type(
+                expression_id,
+                value_id,
+                target_type_id,
+                target_mir_type,
+            );
+        }
+
+        let (value, value_type) = self.lower_value_expression(value_id)?;
+        self.lower_assignment_conversion(
+            expression_id,
+            value_id,
+            value,
+            value_type,
+            Some(target_type_id),
+            target_mir_type,
+        )
+    }
+
+    /// Lower an assignment conversion to a declared target type.
+    pub(crate) fn lower_assignment_conversion(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        value_id: dir::LocalNodeId<dir::Expression>,
+        value: mir::Value,
+        source_mir_type: mir::LocalNodeId<mir::Type>,
+        target_type_id: Option<dir::LocalTypeId>,
+        target_mir_type: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        if source_mir_type == target_mir_type {
+            return Ok((value, target_mir_type));
+        }
+
+        let Some(target_type_id) = target_type_id else {
+            return Ok((value, source_mir_type));
+        };
+        let target_type_id = self.context.types.unwrap_value_type_id(target_type_id);
+        let target_type = self.context.types.get_type(target_type_id);
+
+        let source_type_id = self.type_for_expression_or_error(value_id)?;
+        let source_type_id = self.context.types.unwrap_value_type_id(source_type_id);
+        if let dir::Type::Reference { symbol, .. } = target_type
+            && symbol.ty() == dir::SymbolType::Interface
+        {
+            if matches!(
+                self.context.types.get_type(source_type_id),
+                dir::Type::Reference {
+                    symbol: source_symbol,
+                    ..
+                } if source_symbol == symbol
+            ) {
+                return Ok((value, source_mir_type));
+            }
+
+            return self.lower_interface_upcast(
+                expression_id,
+                value_id,
+                value,
+                source_mir_type,
+                source_type_id,
+                *symbol,
+                target_type_id,
+                target_mir_type,
+            );
+        }
+
+        if matches!(
+            self.state.builder.tree().get(source_mir_type),
+            mir::Type::Reference { .. }
+        ) {
+            if self.reference_types_assign_without_cast(source_mir_type, target_mir_type) {
+                return Ok((value, source_mir_type));
+            }
+
+            let value = self.state.builder.bitcast(value, target_mir_type);
+            return Ok((value, target_mir_type));
+        }
+
+        Ok((value, source_mir_type))
+    }
+
+    /// Return whether two reference types differ only by storage provenance.
+    fn reference_types_assign_without_cast(
+        &self,
+        source_mir_type: mir::LocalNodeId<mir::Type>,
+        target_mir_type: mir::LocalNodeId<mir::Type>,
+    ) -> bool {
+        let source_type = self.state.builder.tree().get(source_mir_type);
+        let target_type = self.state.builder.tree().get(target_mir_type);
+
+        matches!(
+            (source_type, target_type),
+            (
+                mir::Type::Reference {
+                    kind: source_kind,
+                    mutability: source_mutability,
+                    pointee: source_pointee,
+                    is_nullable: source_nullable,
+                    ..
+                },
+                mir::Type::Reference {
+                    kind: target_kind,
+                    mutability: target_mutability,
+                    pointee: target_pointee,
+                    is_nullable: target_nullable,
+                    ..
+                },
+            ) if source_kind == target_kind
+                && source_mutability == target_mutability
+                && source_pointee == target_pointee
+                && source_nullable == target_nullable
+        )
+    }
+
+    /// Classify an explicit cast from checked expression types.
+    pub(crate) fn classify_explicit_cast_operator(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        value_id: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<dir::CastOperator> {
+        let source_type_id = self.type_for_expression_or_error(value_id)?;
+        let target_type_id = self.type_for_expression_or_error(expression_id)?;
+        let source_type_id = self.context.types.unwrap_value_type_id(source_type_id);
+        let target_type_id = self.context.types.unwrap_value_type_id(target_type_id);
+
+        if dir::are_types_equal(source_type_id, target_type_id, self.context.types) {
+            return Ok(dir::CastOperator::Identity);
+        }
+
+        let source_is_union = matches!(
+            self.context.types.get_type(source_type_id),
+            dir::Type::Union { .. }
+        );
+        let target_is_union = matches!(
+            self.context.types.get_type(target_type_id),
+            dir::Type::Union { .. }
+        );
+
+        if target_is_union {
+            return Ok(dir::CastOperator::UnionUpcast);
+        }
+
+        if source_is_union {
+            return Ok(dir::CastOperator::UnionDowncast);
+        }
+
+        let source_scalar_type = self
+            .scalar_type_for_expression(value_id)
+            .ok_or_else(|| self.error(expression_id, "unsupported cast source type"))
+            .map_err(CompilerError::from)?;
+        let target_scalar_type = self
+            .scalar_type_for_expression(expression_id)
+            .ok_or_else(|| self.error(expression_id, "unsupported cast target type"))
+            .map_err(CompilerError::from)?;
+
+        match (source_scalar_type, target_scalar_type) {
+            (
+                ScalarType::SignedInt {
+                    width: source_width,
+                },
+                ScalarType::SignedInt {
+                    width: target_width,
+                },
+            )
+            | (
+                ScalarType::UnsignedInt {
+                    width: source_width,
+                },
+                ScalarType::UnsignedInt {
+                    width: target_width,
+                },
+            ) => {
+                if target_width > source_width {
+                    Ok(dir::CastOperator::IntWiden)
+                } else if target_width < source_width {
+                    Ok(dir::CastOperator::IntNarrow)
+                } else {
+                    Ok(dir::CastOperator::Identity)
+                }
+            }
+            (
+                ScalarType::SignedInt {
+                    width: source_width,
+                },
+                ScalarType::UnsignedInt {
+                    width: target_width,
+                },
+            )
+            | (
+                ScalarType::UnsignedInt {
+                    width: source_width,
+                },
+                ScalarType::SignedInt {
+                    width: target_width,
+                },
+            ) => {
+                if source_width == target_width {
+                    Ok(dir::CastOperator::IntSignChange)
+                } else if target_width > source_width {
+                    Ok(dir::CastOperator::IntWiden)
+                } else {
+                    Ok(dir::CastOperator::IntNarrow)
+                }
+            }
+            (
+                ScalarType::Float {
+                    width: source_width,
+                },
+                ScalarType::Float {
+                    width: target_width,
+                },
+            ) => {
+                if target_width > source_width {
+                    Ok(dir::CastOperator::FloatWiden)
+                } else if target_width < source_width {
+                    Ok(dir::CastOperator::FloatNarrow)
+                } else {
+                    Ok(dir::CastOperator::Identity)
+                }
+            }
+            (
+                ScalarType::SignedInt { .. } | ScalarType::UnsignedInt { .. },
+                ScalarType::Float { .. },
+            ) => Ok(dir::CastOperator::IntToFloat),
+            (
+                ScalarType::Float { .. },
+                ScalarType::SignedInt { .. } | ScalarType::UnsignedInt { .. },
+            ) => Ok(dir::CastOperator::FloatToInt),
+            _ => Err(self
+                .error(expression_id, "unsupported cast operator")
+                .into()),
+        }
+    }
+
     /// Return whether one type may carry one local or shared heap address.
     fn is_heap_address_source_type(&self, ty: mir::LocalNodeId<mir::Type>) -> bool {
         matches!(
@@ -52,7 +305,7 @@ impl FunctionLowerer<'_> {
         operator: dir::CastOperator,
         source_type: mir::LocalNodeId<mir::Type>,
         target_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // local and shared heap references need one explicit stable address path
         if !self.is_heap_address_source_type(source_type) {
             return Ok(());
@@ -61,12 +314,15 @@ impl FunctionLowerer<'_> {
         // reject direct heap to integer casts
         if matches!(operator, dir::CastOperator::PointerToInt) {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "pointer to int cast from heap storage requires explicit pinning"
                     .to_string(),
-            });
+            }
+            .into());
         }
 
         // reject direct heap to raw pointer casts
@@ -74,11 +330,14 @@ impl FunctionLowerer<'_> {
             && self.is_raw_pointer_type(target_type)
         {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "raw pointer cast from heap storage requires explicit pinning".to_string(),
-            });
+            }
+            .into());
         }
 
         Ok(())
@@ -100,7 +359,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::CastOperator,
         value_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<Option<mir::CastOperator>> {
+    ) -> CompilerResult<Option<mir::CastOperator>> {
         // return early for identity casts
         if operator == dir::CastOperator::Identity {
             return Ok(None);
@@ -117,11 +376,14 @@ impl FunctionLowerer<'_> {
                 Some(ScalarType::UnsignedInt { .. }) => mir::CastOperator::ZeroExtend,
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "unsupported int widen cast".to_string(),
-                    })?;
+                    }
+                    .into());
                 }
             },
             dir::CastOperator::IntNarrow => mir::CastOperator::Truncate,
@@ -133,11 +395,14 @@ impl FunctionLowerer<'_> {
                 Some(ScalarType::UnsignedInt { .. }) => mir::CastOperator::UnsignedIntToFloat,
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "unsupported int to float cast".to_string(),
-                    })?;
+                    }
+                    .into());
                 }
             },
             dir::CastOperator::FloatToInt => match target_scalar_type {
@@ -145,31 +410,40 @@ impl FunctionLowerer<'_> {
                 Some(ScalarType::UnsignedInt { .. }) => mir::CastOperator::FloatToUnsignedInt,
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "unsupported float to int cast".to_string(),
-                    })?;
+                    }
+                    .into());
                 }
             },
             dir::CastOperator::PointerToInt => mir::CastOperator::PointerToInt,
             dir::CastOperator::IntToPointer => mir::CastOperator::IntToPointer,
             dir::CastOperator::PointerCast => mir::CastOperator::Bitcast,
             dir::CastOperator::EnumToInt | dir::CastOperator::IntToEnum => {
-                let source_scalar_type =
-                    source_scalar_type.ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                let source_scalar_type = source_scalar_type
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "unsupported enum cast source type".to_string(),
-                    })?;
-                let target_scalar_type =
-                    target_scalar_type.ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                    })
+                    .map_err(CompilerError::from)?;
+                let target_scalar_type = target_scalar_type
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "unsupported enum cast target type".to_string(),
-                    })?;
+                    })
+                    .map_err(CompilerError::from)?;
                 return self.int_cast_operator_for_scalar(
                     expression_id,
                     source_scalar_type,
@@ -179,9 +453,11 @@ impl FunctionLowerer<'_> {
             dir::CastOperator::EnumToString | dir::CastOperator::StringToEnum => {
                 let string_type = self.context.type_lowerer.string_type().ok_or_else(|| {
                     LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "missing well known String layout (load library/native)"
                             .to_string(),
                     }
@@ -190,22 +466,28 @@ impl FunctionLowerer<'_> {
                 let target_type = self.lower_type_for_expression(expression_id)?;
                 if source_type != string_type || target_type != string_type {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "enum string cast requires string types".to_string(),
-                    });
+                    }
+                    .into());
                 }
 
                 return Ok(None);
             }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: format!("unsupported cast operator '{operator:?}'"),
-                })?;
+                }
+                .into());
             }
         };
 
@@ -234,7 +516,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         value_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower the source value and target type
         let (value, source_mir_type) = self.lower_value_expression(value_id)?;
         let target_mir_type = self.lower_type_for_expression(expression_id)?;
@@ -291,7 +573,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         value_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower the source value and target type
         let (value, source_mir_type) = self.lower_value_expression(value_id)?;
         let target_mir_type = self.lower_type_for_expression(expression_id)?;
@@ -309,7 +591,8 @@ impl FunctionLowerer<'_> {
                 .context
                 .type_lowerer
                 .interface_ref_layout(source_type_id)
-                .ok_or_else(|| self.missing_type_error(expression_id))?;
+                .ok_or_else(|| self.missing_type_error(expression_id))
+                .map_err(CompilerError::from)?;
 
             // extract the object pointer from the interface value
             let object_ptr = self
@@ -378,20 +661,31 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         value_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // resolve the source and target dir types
-        let source_type_id = self.type_for_expression_or_error(value_id)?;
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let target_type_id = self.type_for_expression_or_error(expression_id)?;
-
-        // resolve the target mir type
         let target_mir_type = self.lower_type_for_expression(expression_id)?;
+
+        self.lower_union_upcast_to_type(expression_id, value_id, target_type_id, target_mir_type)
+    }
+
+    /// Lower a union upcast into a known target type.
+    pub(crate) fn lower_union_upcast_to_type(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        value_id: dir::LocalNodeId<dir::Expression>,
+        target_type_id: dir::LocalTypeId,
+        target_mir_type: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // resolve the source dir type
+        let source_type_id = self.type_for_expression_or_error(value_id)?;
 
         // resolve union layout metadata
         let layout = self
             .context
             .type_lowerer
             .union_layout(target_type_id)
-            .ok_or_else(|| self.missing_type_error(expression_id))?;
+            .ok_or_else(|| self.missing_type_error(expression_id))
+            .map_err(CompilerError::from)?;
 
         // skip when the source is already the target union type
         if dir::are_types_equal(source_type_id, target_type_id, self.context.types) {
@@ -405,11 +699,14 @@ impl FunctionLowerer<'_> {
             .iter()
             .position(|element| self.type_ids_equivalent(*element, source_type_id))
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "union upcast missing matching element".to_string(),
-            })?;
+            })
+            .map_err(CompilerError::from)?;
 
         // build the tag constant
         let (tag_width, tag_signed) = match self.state.builder.tree().get(layout.tag_type) {
@@ -419,11 +716,14 @@ impl FunctionLowerer<'_> {
             } => (*width, *signed),
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "union tag must be an integer type".to_string(),
-                });
+                }
+                .into());
             }
         };
         let tag_value = self
@@ -490,7 +790,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         value_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower the source value and target type
         let (value, _source_mir_type) = self.lower_value_expression(value_id)?;
         let target_mir_type = self.lower_type_for_expression(expression_id)?;
@@ -503,7 +803,8 @@ impl FunctionLowerer<'_> {
             .context
             .type_lowerer
             .union_layout(source_type_id)
-            .ok_or_else(|| self.missing_type_error(expression_id))?;
+            .ok_or_else(|| self.missing_type_error(expression_id))
+            .map_err(CompilerError::from)?;
 
         // extract the payload value
         let payload_value = self
@@ -560,7 +861,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         value_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let target_type_id = self.type_for_expression_or_error(expression_id)?;
         if self
             .context
@@ -580,21 +881,27 @@ impl FunctionLowerer<'_> {
             }
         ) {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "nullable upcast does not accept undefined".to_string(),
-            });
+            }
+            .into());
         }
 
         let target_mir_type = self.lower_type_for_expression(expression_id)?;
         let mir::Type::Reference { .. } = self.state.builder.tree().get(target_mir_type) else {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "nullable upcast requires a reference target".to_string(),
-            });
+            }
+            .into());
         };
 
         // handle null literals without lowering a payload value
@@ -634,7 +941,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         value_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let source_type_id = self.type_for_expression_or_error(value_id)?;
         if self
             .context
@@ -649,11 +956,14 @@ impl FunctionLowerer<'_> {
         let target_mir_type = self.lower_type_for_expression(expression_id)?;
         let mir::Type::Reference { .. } = self.state.builder.tree().get(target_mir_type) else {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "nullable downcast requires a reference target".to_string(),
-            });
+            }
+            .into());
         };
 
         let value = self
@@ -695,13 +1005,14 @@ impl FunctionLowerer<'_> {
         interface_symbol: dir::GlobalSymbolId,
         target_type_id: dir::LocalTypeId,
         target_mir_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve interface reference layout
         let layout = self
             .context
             .type_lowerer
             .interface_ref_layout(target_type_id)
-            .ok_or_else(|| self.missing_type_error(expression_id))?;
+            .ok_or_else(|| self.missing_type_error(expression_id))
+            .map_err(CompilerError::from)?;
 
         // resolve the concrete symbol for the source type
         let source_dir_type = self.context.types.get_type(source_type_id);
@@ -716,20 +1027,26 @@ impl FunctionLowerer<'_> {
                 dir::Type::Reference { symbol, .. } if symbol.ty() == dir::SymbolType::Interface
             ) {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "FUGU #Broken: interface to interface upcast requires RTTI"
                         .to_string(),
-                });
+                }
+                .into());
             }
 
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "interface upcast requires a concrete symbol".to_string(),
-            });
+            }
+            .into());
         };
 
         // resolve the itab global for the concrete and interface pair
@@ -739,11 +1056,14 @@ impl FunctionLowerer<'_> {
             .get(&(concrete_symbol, interface_symbol))
             .copied()
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "missing interface itab for concrete type".to_string(),
-            })?;
+            })
+            .map_err(CompilerError::from)?;
 
         // convert the source value into an object pointer
         let object_ptr =
@@ -779,7 +1099,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         source: ScalarType,
         target: ScalarType,
-    ) -> LowerResult<Option<mir::CastOperator>> {
+    ) -> CompilerResult<Option<mir::CastOperator>> {
         let source_signed = matches!(source, ScalarType::SignedInt { .. });
         let target_signed = matches!(target, ScalarType::SignedInt { .. });
 
@@ -787,22 +1107,28 @@ impl FunctionLowerer<'_> {
             ScalarType::SignedInt { width } | ScalarType::UnsignedInt { width } => width,
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "unsupported enum cast source type".to_string(),
-                });
+                }
+                .into());
             }
         };
         let target_width = match target {
             ScalarType::SignedInt { width } | ScalarType::UnsignedInt { width } => width,
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "unsupported enum cast target type".to_string(),
-                });
+                }
+                .into());
             }
         };
 
@@ -917,7 +1243,11 @@ impl FunctionLowerer<'_> {
             | dir::Expression::Satisfies { expression, .. } => {
                 self.concrete_symbol_for_expression(*expression)
             }
-            dir::Expression::New { left, .. } => self.concrete_symbol_for_expression(*left),
+            dir::Expression::New { left, .. } => self
+                .constructor_target_symbol_for_expression(expression_id)
+                .ok()
+                .flatten()
+                .or_else(|| self.concrete_symbol_for_expression(*left)),
             dir::Expression::TaggedScalarExpression { ty, .. }
             | dir::Expression::TaggedTupleExpression { ty, .. }
             | dir::Expression::TaggedObjectExpression { ty, .. } => {

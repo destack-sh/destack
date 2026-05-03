@@ -161,7 +161,7 @@ impl Compiler {
         let kind = self.bind_dependency_kind(ast_kind.unwrap_or(kind));
         let mode = self.bind_dependency_mode(*ast_mode);
         let name = ast_name.map(|name| self.bind_name(ast, name));
-        let alias = ast_alias.map(|alias| self.repository.strings.intern_from(&ast.strings, alias));
+        let alias = ast_alias.map(|alias| alias);
 
         // the symbol key is the alias if present, otherwise the name
         // (e.g., `import { foo as bar }` has key `bar`, `import * as baz` has key `baz`)

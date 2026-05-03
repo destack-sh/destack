@@ -1,191 +1,177 @@
-use crate::{
-    CompileError, DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet,
-};
+use crate::DiagnosticAnchor;
+use destack_artifact_macros::Diagnostic;
 use destack_builtin::LanguageSymbol;
-use destack_compiler_macros::DefineError;
-use destack_dir::{AnchoredGlobalNodeId, GlobalScopeId, GlobalSymbolId, StaticKey, StringId};
+use destack_dir::{GlobalScopeId, GlobalSymbolId};
 use destack_source::{ModuleId, PackageId, TargetId};
-use destack_workspace::Repository;
 
 /// Errors during the resolve phase.
-#[derive(Debug, Clone, PartialEq, DefineError)]
-#[phase(Resolve)]
+#[derive(Debug, Clone, PartialEq, Diagnostic)]
+#[diagnostic(severity = Error, phase = Resolve)]
 pub enum ResolveError {
-    // -------------------------------------------------------------------------
-    // 0xx: Yield / requirement
-    // -------------------------------------------------------------------------
-    /// Wait for an artifact requirement.
-    #[error(code = "ER000", r#yield)]
-    Yield { requirement: RequirementSet },
-
-    /// Yield requirement has failed.
-    #[error(code = "ER001", yield_failed)]
-    UnsatisfiedRequirement { requirement: RequirementSet },
-
-    /// Task was skipped due to stale versions.
-    #[error(code = "ER002", message = "task skipped")]
-    Skipped,
-
     // -------------------------------------------------------------------------
     // 1xx: Symbol lookup
     // -------------------------------------------------------------------------
     /// Use of undeclared symbol.
-    #[error(code = "ER100", message = "missing symbol {key}")]
+    #[diagnostic(code = "ER100", message = "missing symbol {key}")]
     UndeclaredSymbol {
-        node: AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         scope: GlobalScopeId,
-        key: StaticKey,
+        key: String,
     },
 
     /// Use of missing symbol.
-    #[error(code = "ER101", message = "missing symbol {key}")]
+    #[diagnostic(code = "ER101", message = "missing symbol {key}")]
     MissingSymbol {
-        node: AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         scope: GlobalScopeId,
         via_module: Option<ModuleId>,
-        key: StaticKey,
+        key: String,
     },
 
     /// Use of ambiguous symbol.
-    #[error(code = "ER102", message = "ambiguous symbol {key}")]
+    #[diagnostic(code = "ER102", message = "ambiguous symbol {key}")]
     AmbiguousSymbol {
-        node: AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         scope: GlobalScopeId,
         symbol: GlobalSymbolId,
-        key: StaticKey,
+        key: String,
     },
 
     /// Cyclic symbol reference (re-export chain forms a cycle).
-    #[error(code = "ER103", message = "cyclic reference (recursive) to '{symbol}'")]
+    #[diagnostic(code = "ER103", message = "cyclic reference")]
     CyclicSymbol {
-        node: AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         symbol: GlobalSymbolId,
     },
 
     /// Export clause references a local binding that is not declared.
-    #[error(code = "ER104", message = "missing exported local binding '{name}'")]
+    #[diagnostic(code = "ER104", message = "missing exported local binding '{name}'")]
     MissingExportBinding {
-        node: AnchoredGlobalNodeId,
-        name: StringId,
+        anchor: DiagnosticAnchor,
+        name: String,
     },
 
     // -------------------------------------------------------------------------
     // 2xx: Module / target resolution
     // -------------------------------------------------------------------------
     /// Unresolved module.
-    #[error(code = "ER200", message = "unresolved module '{target}'")]
+    #[diagnostic(code = "ER200", message = "unresolved module '{target}'")]
     UnresolvedModule {
-        node: AnchoredGlobalNodeId,
-        target: StringId,
+        anchor: DiagnosticAnchor,
+        target: String,
     },
 
     /// Missing target for a control flow expression.
-    #[error(code = "ER201", message = "missing target")]
-    MissingTarget {
-        node: AnchoredGlobalNodeId,
-        target: Option<StringId>,
-    },
+    #[diagnostic(code = "ER201", message = "missing target")]
+    MissingTarget { anchor: DiagnosticAnchor },
 
     /// Invalid target for a control flow expression.
-    #[error(code = "ER202", message = "invalid target")]
-    InvalidTarget {
-        node: AnchoredGlobalNodeId,
-        target: Option<StringId>,
-        target_node: AnchoredGlobalNodeId,
-    },
+    #[diagnostic(code = "ER202", message = "invalid target")]
+    InvalidTarget { anchor: DiagnosticAnchor },
 
     /// Invalid loader type in import attributes.
-    #[error(code = "ER203", message = "invalid import attribute type '{value}'")]
+    #[diagnostic(code = "ER203", message = "invalid import attribute type '{value}'")]
     InvalidImportAttributeType {
-        node: AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         value: String,
     },
 
     /// Unknown protocol scheme in an import specifier.
-    #[error(code = "ER204", message = "unknown protocol scheme '{scheme}'")]
+    #[diagnostic(code = "ER204", message = "unknown protocol scheme '{scheme}'")]
     UnknownProtocolScheme {
-        node: AnchoredGlobalNodeId,
-        scheme: StringId,
+        anchor: DiagnosticAnchor,
+        scheme: String,
     },
 
     /// Builtin module is not available for the current runtime.
-    #[error(
+    #[diagnostic(
         code = "ER205",
         message = "builtin module '{target}' is not supported for runtime '{runtime}'"
     )]
     UnsupportedBuiltinModule {
-        node: AnchoredGlobalNodeId,
-        target: StringId,
+        anchor: DiagnosticAnchor,
+        target: String,
         runtime: String,
     },
 
     /// Unknown builtin module in a recognized protocol namespace.
-    #[error(code = "ER206", message = "no such built-in module: {target}")]
+    #[diagnostic(code = "ER206", message = "no such built-in module: {target}")]
     UnknownBuiltinModule {
-        node: AnchoredGlobalNodeId,
-        target: StringId,
+        anchor: DiagnosticAnchor,
+        target: String,
     },
 
     /// Bare builtin module import must use an explicit protocol prefix.
-    #[error(
+    #[diagnostic(
         code = "ER207",
         message = "builtin module '{target}' must use the '{suggested}' protocol form"
     )]
     UnprefixedBuiltinModule {
-        node: AnchoredGlobalNodeId,
-        target: StringId,
-        suggested: StringId,
+        anchor: DiagnosticAnchor,
+        target: String,
+        suggested: String,
     },
 
     /// Internal protocol import is disabled by compiler policy.
-    #[error(
+    #[diagnostic(
         code = "ER208",
         message = "internal module import '{target}' is disabled by compiler policy"
     )]
     UnsupportedInternalModule {
-        node: AnchoredGlobalNodeId,
-        target: StringId,
+        anchor: DiagnosticAnchor,
+        target: String,
     },
     // -------------------------------------------------------------------------
     // 3xx: Dependencies / cycles
     // -------------------------------------------------------------------------
     /// Circular dependency.
-    #[error(code = "ER300", message = "circular dependency")]
+    #[diagnostic(code = "ER300", message = "circular dependency")]
     CircularDependency {
-        node: AnchoredGlobalNodeId,
-        depends_on: Vec<AnchoredGlobalNodeId>,
+        anchor: DiagnosticAnchor,
+        depends_on: Vec<DiagnosticAnchor>,
     },
 
     // -------------------------------------------------------------------------
     // 4xx: Builtins / config
     // -------------------------------------------------------------------------
     /// Missing language item (builtin not found).
-    #[error(code = "ER400", message = "missing language item '{item}'")]
-    MissingLanguageSymbol { item: LanguageSymbol },
+    #[diagnostic(code = "ER400", message = "missing language item '{item}'")]
+    MissingLanguageSymbol {
+        anchor: DiagnosticAnchor,
+        item: LanguageSymbol,
+    },
 
     /// Missing builtin library.
-    #[error(code = "ER401", message = "missing builtin library '{name}'")]
-    MissingBuiltinLibrary { name: String },
+    #[diagnostic(code = "ER401", message = "missing builtin library '{name}'")]
+    MissingBuiltinLibrary {
+        anchor: DiagnosticAnchor,
+        name: String,
+    },
 
     /// Conflicting builtin library versions.
-    #[error(
+    #[diagnostic(
         code = "ER402",
         message = "conflicting builtin library versions for '{base}': {libs}"
     )]
-    ConflictingBuiltinLibraryVersions { base: String, libs: String },
+    ConflictingBuiltinLibraryVersions {
+        anchor: DiagnosticAnchor,
+        base: String,
+        libs: String,
+    },
 
     /// Invalid target configuration.
-    #[error(code = "ER403", message = "invalid target config: {target}: {message}")]
+    #[diagnostic(code = "ER403", message = "invalid target config: {target}: {message}")]
     InvalidTargetConfig {
+        anchor: DiagnosticAnchor,
         package: PackageId,
         target: TargetId,
         message: String,
     },
 
     /// Invalid intrinsic binding in builtin modules.
-    #[error(code = "ER404", message = "invalid intrinsic binding: {message}")]
+    #[diagnostic(code = "ER404", message = "invalid intrinsic binding: {message}")]
     InvalidIntrinsicBinding {
-        node: AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         message: String,
     },
 
@@ -193,17 +179,20 @@ pub enum ResolveError {
     // 9xx: Unsupported / internal
     // -------------------------------------------------------------------------
     /// Unsupported node.
-    #[error(code = "ER900", message = "unsupported {node}")]
-    UnsupportedConstruct { node: AnchoredGlobalNodeId },
+    #[diagnostic(code = "ER900", message = "unsupported construct")]
+    UnsupportedConstruct { anchor: DiagnosticAnchor },
 
     /// Invalid static if decorator.
-    #[error(code = "ER901", message = "invalid static if: {message}")]
+    #[diagnostic(code = "ER901", message = "invalid static if: {message}")]
     InvalidStaticIf {
-        node: AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         message: String,
     },
 
     /// Internal resolve failure.
-    #[error(code = "ER902", message = "internal error: {message}")]
-    Internal { message: String },
+    #[diagnostic(code = "ER902", message = "internal error: {message}")]
+    Internal {
+        anchor: DiagnosticAnchor,
+        message: String,
+    },
 }

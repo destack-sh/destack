@@ -69,6 +69,7 @@ impl<'a> ScriptLinker<'a> {
             let output_location =
                 plan.stylesheet_output_location(module_id)
                     .ok_or_else(|| LinkError::Internal {
+                        anchor: (self.package_id).into(),
                         package: self.package_id,
                         message: format!(
                             "missing planned output location for stylesheet {:?}",
@@ -95,6 +96,7 @@ impl<'a> ScriptLinker<'a> {
         let stylesheet_location =
             plan.stylesheet_output_location(module_id)
                 .ok_or_else(|| LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message: format!(
                         "missing planned output location for stylesheet {:?}",
@@ -141,7 +143,7 @@ impl<'a> ScriptLinker<'a> {
     ) -> LinkResult<(IndexSet<String>, String)> {
         let module = self.module(module_id);
         let module = module.as_ref();
-        let module_graph = self.module_graph_for_module(module_id)?;
+        let module_edges = self.module_edges_for_module(module_id)?;
 
         // emit each reachable css module once per effective import context
         if !emitted_modules.insert((module_id, context.clone())) {
@@ -166,7 +168,7 @@ impl<'a> ScriptLinker<'a> {
 
         self.plan_stylesheet_rewrites(
             module,
-            &module_graph,
+            &module_edges,
             &mut css,
             &mut import_targets,
             &mut rewrites,
@@ -205,6 +207,7 @@ impl<'a> ScriptLinker<'a> {
                 Rule::Import(import_rule) => import_rule,
                 _ => {
                     return Err(LinkError::Internal {
+                        anchor: (self.package_id).into(),
                         package: self.package_id,
                         message: "inlined css import did not point to one import rule".to_string(),
                     });
@@ -286,6 +289,7 @@ impl<'a> ScriptLinker<'a> {
         for (placeholder, (module_id, suffix)) in rewrites {
             let Some(asset_reference) = assets.get(module_id) else {
                 return Err(LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message: format!(
                         "missing planned output for css asset '{}'",

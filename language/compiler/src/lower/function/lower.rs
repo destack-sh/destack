@@ -2,12 +2,12 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use {destack_dir as dir, destack_mir as mir};
 
-use destack_artifact::{DirAnalyzed, DirDeclared, WellKnownIntrinsics};
+use destack_artifact::{DiagnosticAnchor, DirChecked, DirDeclared, WellKnownIntrinsics};
 use destack_core::{StringId, StringPool};
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Repository, Revision};
+use destack_workspace::{ProfileId, ProviderContext};
 
-use crate::{Compiler, LowerError, LowerResult, RequirementError};
+use crate::{Compiler, CompilerError, CompilerResult, LowerError};
 
 use super::constructor::ConstructorState;
 use super::policy::RuntimeCheckConfig;
@@ -25,12 +25,10 @@ pub(crate) struct FunctionLoweringContext<'a> {
     pub(crate) module_id: ModuleId,
     /// Identify the profile used for DIR access.
     pub(crate) profile: ProfileId,
-    /// Pinned revision for cross-module reads.
-    pub(crate) revision: Revision,
-    /// Provide access to program metadata for remote symbol lookup.
-    pub(crate) program: &'a Repository,
     /// Provide access to compiler helpers for artifact-backed reads.
     pub(crate) compiler: &'a Compiler,
+    /// Provider attempt used for artifact-backed reads.
+    pub(crate) provider: &'a dyn ProviderContext,
     /// Provide access to the DIR tree for expression lookup.
     pub(crate) dir_tree: &'a dir::Tree,
     /// Provide access to symbol metadata for type resolution.
@@ -46,9 +44,11 @@ pub(crate) struct FunctionLoweringContext<'a> {
     /// Runtime check configuration for this target.
     pub(crate) checks: RuntimeCheckConfig,
     /// Lower and cache DIR types into MIR types.
-    pub(crate) type_lowerer: &'a TypeLowerer,
+    pub(crate) type_lowerer: &'a TypeLowerer<'a>,
     /// MIR return type for this function.
     pub(crate) return_type: mir::LocalNodeId<mir::Type>,
+    /// DIR return type for assignment conversion.
+    pub(crate) return_type_id: Option<dir::LocalTypeId>,
 
     /// Resolve direct calls for known function instances.
     pub(crate) functions_by_instance: &'a HashMap<InstanceKey, mir::LocalNodeId<mir::Function>>,
@@ -195,6 +195,11 @@ impl<'a> FunctionLowerer<'a> {
         Self { context, state }
     }
 
+    /// Return a diagnostic anchor for one DIR node.
+    pub(crate) fn diagnostic_anchor(&self, node: dir::AnchoredGlobalNodeId) -> DiagnosticAnchor {
+        self.context.type_lowerer.diagnostic_anchor(node)
+    }
+
     /// Read one committed declared DIR snapshot for a module when available.
     pub(crate) fn artifact_dir_data_if_present(
         &self,
@@ -202,28 +207,24 @@ impl<'a> FunctionLowerer<'a> {
     ) -> Option<Arc<DirDeclared>> {
         self.context
             .compiler
-            .dir_declared(module_id, self.context.profile)
+            .dir_declared(self.context.provider, module_id, self.context.profile)
+            .ok()
     }
 
     /// Read one committed analyzed DIR snapshot for a module.
     pub(crate) fn require_analyzed_dir_data(
         &self,
         module_id: ModuleId,
-    ) -> LowerResult<Arc<DirAnalyzed>> {
-        let snapshot = self.context.compiler.require_artifact_dir_analyzed(
-            self.context.revision,
+    ) -> CompilerResult<Arc<DirChecked>> {
+        let snapshot = self.context.compiler.dir_checked(
+            self.context.provider,
             module_id,
             self.context.profile,
         );
 
         match snapshot {
             Ok(snapshot) => Ok(snapshot),
-            Err(RequirementError::NotReady { requirement }) => {
-                Err(LowerError::Yield { requirement })
-            }
-            Err(RequirementError::Failed { requirement }) => {
-                Err(LowerError::UnsatisfiedRequirement { requirement })
-            }
+            Err(error) => Err(CompilerError::from(error)),
         }
     }
 
@@ -240,8 +241,66 @@ impl<'a> FunctionLowerer<'a> {
     pub(crate) fn lower_body(
         &mut self,
         body_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<Terminates> {
-        self.lower_statement_expression(body_id)
+    ) -> CompilerResult<Terminates> {
+        self.lower_tail_expression(body_id)
+    }
+
+    /// Lower a tail expression and emit an implicit return when needed.
+    fn lower_tail_expression(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Terminates> {
+        if self.state.constructor_state.is_some() {
+            return self.lower_statement_expression(expression_id);
+        }
+
+        match self.context.dir_tree.get(expression_id) {
+            dir::Expression::Block(block_id) => self.lower_tail_block(*block_id),
+            dir::Expression::Return { .. }
+            | dir::Expression::Labelled { .. }
+            | dir::Expression::Let { .. }
+            | dir::Expression::Loop { .. }
+            | dir::Expression::For { .. }
+            | dir::Expression::Break { .. }
+            | dir::Expression::Continue { .. }
+            | dir::Expression::Match { .. } => self.lower_statement_expression(expression_id),
+            _ if self.context.return_type == self.context.type_lowerer.ty_void => {
+                self.lower_statement_expression(expression_id)
+            }
+            _ => {
+                let (value, _) = self.lower_value_for_target(
+                    expression_id,
+                    expression_id,
+                    self.context.return_type_id,
+                    self.context.return_type,
+                )?;
+                self.state.builder.return_(Some(value));
+
+                Ok(Terminates::Yes)
+            }
+        }
+    }
+
+    /// Lower a block body with tail-expression return semantics.
+    fn lower_tail_block(
+        &mut self,
+        block_id: dir::LocalNodeId<dir::Block>,
+    ) -> CompilerResult<Terminates> {
+        let block = self.context.dir_tree.get(block_id);
+        let expressions = block.iter_expressions().collect::<Vec<_>>();
+        let Some((tail, statements)) = expressions.split_last() else {
+            return Ok(Terminates::No);
+        };
+
+        // lower leading statements normally
+        for expression_id in statements {
+            let terminated = self.lower_statement_expression(*expression_id)?;
+            if terminated.is_yes() {
+                return Ok(Terminates::Yes);
+            }
+        }
+
+        self.lower_tail_expression(*tail)
     }
 
     /// Create an UnsupportedConstruct error for the given expression.
@@ -251,9 +310,11 @@ impl<'a> FunctionLowerer<'a> {
         message: impl Into<String>,
     ) -> LowerError {
         LowerError::UnsupportedConstruct {
-            node: expression_id
-                .into_global_any(self.context.module_id)
-                .into_anchored(Some(self.context.profile)),
+            anchor: self.diagnostic_anchor(
+                expression_id
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
+            ),
             message: message.into(),
         }
     }
@@ -263,15 +324,18 @@ impl<'a> FunctionLowerer<'a> {
         &self,
         node_id: dir::LocalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-    ) -> LowerResult<dir::LocalTypeId> {
+    ) -> CompilerResult<dir::LocalTypeId> {
         self.context
             .types
             .get_value_type_id(symbol)
             .ok_or_else(|| LowerError::MissingType {
-                node: node_id
-                    .into_global(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    node_id
+                        .into_global(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
             })
+            .map_err(CompilerError::from)
     }
 
     /// Resolve a symbol instance type or return MissingType.
@@ -279,24 +343,27 @@ impl<'a> FunctionLowerer<'a> {
         &self,
         node_id: dir::LocalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-    ) -> LowerResult<dir::LocalTypeId> {
+    ) -> CompilerResult<dir::LocalTypeId> {
         self.context
             .types
             .get_instance_type_id(symbol)
             .ok_or_else(|| LowerError::MissingType {
-                node: node_id
-                    .into_global(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    node_id
+                        .into_global(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
             })
+            .map_err(CompilerError::from)
     }
 
     /// Load a string literal value for an internal message.
     pub(crate) fn string_literal_value(
         &mut self,
         literal: &str,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // intern the message so the global lookup is consistent
-        let literal_id = self.context.program.strings.intern(literal);
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // use content identity for runtime strings
+        let literal_id = StringId::for_text(literal);
         self.string_literal_value_for_id(literal_id, None)
     }
 
@@ -305,7 +372,7 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         literal_id: StringId,
         anchor: Option<dir::AnchoredGlobalNodeId>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve the literal global
         let global = self
             .context
@@ -313,9 +380,11 @@ impl<'a> FunctionLowerer<'a> {
             .get(&literal_id)
             .copied()
             .ok_or_else(|| LowerError::Internal {
+                anchor: (self.context.module_id).into(),
                 module: self.context.module_id,
                 message: format!("missing string literal global for {literal_id:?}"),
-            })?;
+            })
+            .map_err(CompilerError::from)?;
 
         // load the string value from its static global
         let value = self.state.builder.load_global(global);
@@ -325,10 +394,11 @@ impl<'a> FunctionLowerer<'a> {
             let message = "missing well known String layout (load library/native)".to_string();
             match anchor {
                 Some(anchor) => LowerError::UnsupportedConstruct {
-                    node: anchor,
+                    anchor: self.diagnostic_anchor(anchor),
                     message,
                 },
                 None => LowerError::Internal {
+                    anchor: (self.context.module_id).into(),
                     module: self.context.module_id,
                     message,
                 },
@@ -344,7 +414,7 @@ impl<'a> FunctionLowerer<'a> {
         class_symbol: dir::GlobalSymbolId,
         _node: dir::AnchoredGlobalNodeId,
         result_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         // resolve the vtable global for the class
         let vtable_global = self
             .context
@@ -352,9 +422,11 @@ impl<'a> FunctionLowerer<'a> {
             .get(&class_symbol)
             .copied()
             .ok_or_else(|| LowerError::Internal {
+                anchor: (self.context.module_id).into(),
                 module: self.context.module_id,
                 message: format!("missing vtable global for class {class_symbol:?}"),
-            })?;
+            })
+            .map_err(CompilerError::from)?;
 
         // load the address of the vtable global
         let address = self
@@ -380,7 +452,7 @@ impl<'a> FunctionLowerer<'a> {
     pub(crate) fn lower_value_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let expression = self.context.dir_tree.get(expression_id);
         match expression {
             dir::Expression::Parenthesized { expression } => {
@@ -393,6 +465,11 @@ impl<'a> FunctionLowerer<'a> {
                 self.lower_reference_expression(expression_id, *target_symbol)
             }
 
+            dir::Expression::UnresolvedPath { path, .. } => {
+                let target_symbol = self.resolve_local_path_symbol(expression_id, path)?;
+                self.lower_reference_expression(expression_id, target_symbol)
+            }
+
             dir::Expression::ScalarLiteral { value } => {
                 self.lower_scalar_literal(expression_id, value)
             }
@@ -403,11 +480,12 @@ impl<'a> FunctionLowerer<'a> {
                 expression,
                 target_type: _,
             } => {
-                let Some(operator) = operator else {
-                    return Err(self.error(expression_id, "unresolved cast operator"));
+                let operator = match operator {
+                    Some(operator) => *operator,
+                    None => self.classify_explicit_cast_operator(expression_id, *expression)?,
                 };
 
-                self.lower_cast_expression(expression_id, *operator, *expression)
+                self.lower_cast_expression(expression_id, operator, *expression)
             }
 
             dir::Expression::Satisfies { expression, .. } => {
@@ -458,22 +536,29 @@ impl<'a> FunctionLowerer<'a> {
             | dir::Expression::PrivateMember { left, name } => {
                 let Some(name) = *name else {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "missing member name".to_string(),
-                    });
+                    }
+                    .into());
                 };
                 self.lower_member_expression(expression_id, *left, name)
             }
 
             dir::Expression::Index { left, right } => {
-                let index_expr = right.ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
-                    message: "missing index expression".to_string(),
-                })?;
+                let index_expr = right
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
+                        message: "missing index expression".to_string(),
+                    })
+                    .map_err(CompilerError::from)?;
                 self.lower_index_expression(expression_id, *left, index_expr)
             }
 
@@ -504,11 +589,14 @@ impl<'a> FunctionLowerer<'a> {
                 dir::IfCondition::Let { .. } => {
                     // if let should be elaborated before lowering
                     Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "unsupported if-let condition".to_string(),
-                    })
+                    }
+                    .into())
                 }
             },
 
@@ -529,11 +617,14 @@ impl<'a> FunctionLowerer<'a> {
                 let declaration = self.context.dir_tree.get(*declaration_id);
                 let dir::Declaration::Function(declaration) = declaration else {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "unsupported declaration value".to_string(),
-                    });
+                    }
+                    .into());
                 };
 
                 let symbol = declaration.symbol.into_global(self.context.module_id);
@@ -542,12 +633,14 @@ impl<'a> FunctionLowerer<'a> {
 
             dir::Expression::This => self.lower_this_expression(expression_id),
 
-            _ => Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+            _ => Err(CompilerError::from(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: format!("unsupported value expression '{}'", expression.kind_name()),
-            })?,
+            }))?,
         }
     }
 
@@ -556,7 +649,7 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         target_symbol: dir::GlobalSymbolId,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let symbol_data = self.context.symbols.get_symbol(target_symbol.local_id);
         if symbol_data.ty == dir::SymbolType::Function {
             return self.lower_function_value_for_symbol(expression_id, target_symbol);
@@ -600,19 +693,67 @@ impl<'a> FunctionLowerer<'a> {
         }
     }
 
+    /// Resolve an unresolved local path from its expression scope.
+    pub(crate) fn resolve_local_path_symbol(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        path: &dir::Path,
+    ) -> CompilerResult<dir::GlobalSymbolId> {
+        let Some(name) = path.last_segment() else {
+            return Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
+                message: "empty path".to_string(),
+            }
+            .into());
+        };
+        let key = dir::StaticKey::Name(name);
+        let (mut scope_id, mut mark) = self.context.dir_tree.get_scope(expression_id);
+
+        loop {
+            let scope = self.context.symbols.get_scope_by_id(scope_id);
+            if let Some(symbol_id) = self
+                .context
+                .symbols
+                .find_active_symbol_up_to(scope, key, mark)
+            {
+                return Ok(symbol_id.into_global(self.context.module_id));
+            }
+
+            let Some((parent_scope_id, _)) = scope.parent else {
+                return Err(LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
+                    message: "unresolved path".to_string(),
+                }
+                .into());
+            };
+
+            scope_id = parent_scope_id;
+            mark = dir::LocalScopeMark::end();
+        }
+    }
+
     /// Lower a function symbol reference to a closure value.
     fn lower_function_value_for_symbol(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         target_symbol: dir::GlobalSymbolId,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve the closure value type
         let closure_type = self.lower_type_for_expression(expression_id)?;
 
         // resolve the target function and environment type
         let target_function = self
             .function_for_symbol(target_symbol)
-            .ok_or_else(|| self.error(expression_id, "missing function binding"))?;
+            .ok_or_else(|| self.error(expression_id, "missing function binding"))
+            .map_err(CompilerError::from)?;
 
         // materialize the function environment
         let (env_value, env_value_type) =
@@ -634,7 +775,7 @@ impl<'a> FunctionLowerer<'a> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::CastOperator,
         value_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         match operator {
             dir::CastOperator::InstanceUpcast => {
                 return self.lower_instance_upcast(expression_id, value_id);
@@ -697,7 +838,7 @@ impl<'a> FunctionLowerer<'a> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::AssignPattern>,
         right: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let left = self.assign_pattern_target_expression(left)?;
 
         // lower the assigned value
@@ -717,6 +858,16 @@ impl<'a> FunctionLowerer<'a> {
                 // update the variable binding
                 self.set_binding_value(binding, value);
             }
+            dir::Expression::UnresolvedPath { path, .. } => {
+                let target_symbol = self.resolve_local_path_symbol(left, path)?;
+                if let Some(field) = self.capture_field_for_symbol(target_symbol) {
+                    self.store_captured_binding(expression_id, &field, value)?;
+                    return Ok((value, value_type));
+                }
+
+                let binding = self.local_binding_for_symbol(left, target_symbol)?;
+                self.set_binding_value(binding, value);
+            }
             dir::Expression::Member {
                 left: receiver_id,
                 name,
@@ -729,30 +880,38 @@ impl<'a> FunctionLowerer<'a> {
                 let receiver = self.context.dir_tree.get(*receiver_id);
                 if !matches!(receiver, dir::Expression::This) {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "unsupported assignment target".to_string(),
-                    });
+                    }
+                    .into());
                 }
 
                 // require a constructor context for this assignment
                 if self.state.constructor_state.is_none() {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "assignment to this fields is only supported in constructors"
                             .to_string(),
-                    });
+                    }
+                    .into());
                 }
 
                 // resolve the this binding
                 let binding = self.state.bindings.this_binding.ok_or_else(|| {
                     LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "this reference outside of constructor context".to_string(),
                     }
                 })?;
@@ -775,20 +934,26 @@ impl<'a> FunctionLowerer<'a> {
                     .field_index_for_type(
                         binding.ty,
                         name.ok_or_else(|| LowerError::UnsupportedConstruct {
-                            node: expression_id
-                                .into_global_any(self.context.module_id)
-                                .into_anchored(Some(self.context.profile)),
+                            anchor: self.diagnostic_anchor(
+                                expression_id
+                                    .into_global_any(self.context.module_id)
+                                    .into_anchored(Some(self.context.profile)),
+                            ),
                             message: "missing member name".to_string(),
-                        })?,
+                        })
+                        .map_err(CompilerError::from)?,
                         self.context.strings,
                         self.state.builder.tree(),
                     )
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "field not found in aggregate type".to_string(),
-                    })?;
+                    })
+                    .map_err(CompilerError::from)?;
 
                 // update the aggregate value
                 let current = self.binding_value(binding);
@@ -815,11 +980,14 @@ impl<'a> FunctionLowerer<'a> {
             }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: "unsupported assignment target".to_string(),
-                })?;
+                }
+                .into());
             }
         }
 
@@ -830,7 +998,7 @@ impl<'a> FunctionLowerer<'a> {
     fn assign_pattern_target_expression(
         &self,
         mut assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
-    ) -> LowerResult<dir::LocalNodeId<dir::Expression>> {
+    ) -> CompilerResult<dir::LocalNodeId<dir::Expression>> {
         loop {
             let assign_pattern = self.context.dir_tree.get(assign_pattern_id);
 
@@ -847,11 +1015,14 @@ impl<'a> FunctionLowerer<'a> {
 
             // MIR lowering does not yet support destructuring assignment
             return Err(LowerError::UnsupportedConstruct {
-                node: assign_pattern_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    assign_pattern_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "destructuring assignment is not supported in MIR lowering".to_string(),
-            });
+            }
+            .into());
         }
     }
 
@@ -861,7 +1032,7 @@ impl<'a> FunctionLowerer<'a> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::UnaryOperator,
         right: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower operand and emit unary operation
         let (operand_value, operand_type) = self.lower_value_expression(right)?;
         let op = self.lower_unary_operator(expression_id, operator, right)?;
@@ -881,7 +1052,7 @@ impl<'a> FunctionLowerer<'a> {
     pub(crate) fn lower_this_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // prefer the method-local binding when present
         if let Some(binding) = self.state.bindings.this_binding {
             let value = self.binding_value(binding);
@@ -896,10 +1067,13 @@ impl<'a> FunctionLowerer<'a> {
         }
 
         Err(LowerError::UnsupportedConstruct {
-            node: expression_id
-                .into_global_any(self.context.module_id)
-                .into_anchored(Some(self.context.profile)),
+            anchor: self.diagnostic_anchor(
+                expression_id
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
+            ),
             message: "this reference outside of method context".to_string(),
-        })
+        }
+        .into())
     }
 }

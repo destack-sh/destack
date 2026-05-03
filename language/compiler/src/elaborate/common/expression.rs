@@ -4,8 +4,8 @@ use dir::{
     TypeExpression, TypeLiteral,
 };
 
-use super::ElaborateState;
 use crate::Compiler;
+use crate::elaborate::ElaborateState;
 
 impl Compiler {
     /// Clone one type generic argument into the requested scope.
@@ -166,8 +166,8 @@ impl Compiler {
         );
         let cloned_id = state.tree.insert_as_owner(cloned_id, cloned_expression);
         state.types.copy_node_analysis(
-            expression_id.into_global_any(state.ctx.module_id),
-            cloned_id.into_global_any(state.ctx.module_id),
+            expression_id.into_global_any(state.module_id),
+            cloned_id.into_global_any(state.module_id),
         );
 
         cloned_id

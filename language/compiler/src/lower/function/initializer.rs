@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::{LowerError, LowerResult};
+use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_> {
     /// Build a zero value for a MIR type.
@@ -12,7 +12,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
         node: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         // initialize recursion guard
         let mut visiting = HashSet::new();
 
@@ -26,13 +26,14 @@ impl FunctionLowerer<'_> {
         ty: mir::LocalNodeId<mir::Type>,
         node: dir::AnchoredGlobalNodeId,
         visiting: &mut HashSet<mir::LocalNodeId<mir::Type>>,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         // guard against recursive constructor initialization
         if !visiting.insert(ty) {
             return Err(LowerError::UnsupportedConstruct {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "recursive constructor initialization not supported".to_string(),
-            });
+            }
+            .into());
         }
 
         // build the zero value for the requested type
@@ -40,21 +41,23 @@ impl FunctionLowerer<'_> {
         let value = match mir_type {
             mir::Type::Void => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "constructor cannot initialize void field".to_string(),
-                });
+                }
+                .into());
             }
             mir::Type::Boolean => self.state.builder.bconst(false),
             mir::Type::Int { width, is_signed } => self.state.builder.iconst(0, width, is_signed),
             mir::Type::FunctionSignature { .. } => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "constructor cannot initialize function signatures".to_string(),
-                });
+                }
+                .into());
             }
             mir::Type::Float { width } => {
                 let width = u8::try_from(width).map_err(|_| LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "unsupported float width for constructor initialization".to_string(),
                 })?;
                 self.state.builder.fconst(0.0, width)
@@ -90,13 +93,14 @@ impl FunctionLowerer<'_> {
                 let element = element
                     .ty()
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node,
+                        anchor: self.diagnostic_anchor(node),
                         message: "array element type is not concrete".to_string(),
-                    })?;
+                    })
+                    .map_err(CompilerError::from)?;
 
                 let length =
                     usize::try_from(length).map_err(|_| LowerError::UnsupportedConstruct {
-                        node,
+                        anchor: self.diagnostic_anchor(node),
                         message: "array too large for constructor initialization".to_string(),
                     })?;
                 let mut elements = Vec::with_capacity(length);
@@ -107,9 +111,10 @@ impl FunctionLowerer<'_> {
             }
             mir::Type::Slice { .. } => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "constructor cannot initialize slice values".to_string(),
-                });
+                }
+                .into());
             }
             mir::Type::Tuple { elements, .. } => {
                 let mut values = Vec::with_capacity(elements.len());
@@ -117,9 +122,10 @@ impl FunctionLowerer<'_> {
                     let element = element
                         .ty()
                         .ok_or_else(|| LowerError::UnsupportedConstruct {
-                            node,
+                            anchor: self.diagnostic_anchor(node),
                             message: "tuple element type is not concrete".to_string(),
-                        })?;
+                        })
+                        .map_err(CompilerError::from)?;
                     values.push(self.zero_value_for_type_inner(element, node, visiting)?);
                 }
                 self.state.builder.tuple(ty, values)
@@ -136,26 +142,15 @@ impl FunctionLowerer<'_> {
                 }
                 self.state.builder.struct_(ty, values)
             }
-            mir::Type::Callable { signature } => {
-                let environment = self.state.builder.tree().callable_environment_type();
-                let signature = signature
+            mir::Type::Callable { .. } => self.state.builder.null(ty),
+            mir::Type::Newtype { inner, .. } => {
+                let inner = inner
                     .ty()
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node,
-                        message: "closure signature type is not concrete".to_string(),
-                    })?;
-                let signature_value = self.zero_value_for_type_inner(signature, node, visiting)?;
-                let environment_value =
-                    self.zero_value_for_type_inner(environment, node, visiting)?;
-                self.state
-                    .builder
-                    .struct_(ty, vec![signature_value, environment_value])
-            }
-            mir::Type::Newtype { inner, .. } => {
-                let inner = inner.ty().ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node,
-                    message: "newtype inner type is not concrete".to_string(),
-                })?;
+                        anchor: self.diagnostic_anchor(node),
+                        message: "newtype inner type is not concrete".to_string(),
+                    })
+                    .map_err(CompilerError::from)?;
                 let inner_value = self.zero_value_for_type_inner(inner, node, visiting)?;
                 self.state.builder.bitcast(inner_value, ty)
             }
@@ -168,9 +163,10 @@ impl FunctionLowerer<'_> {
             }
             mir::Type::Vector { .. } | mir::Type::Tensor { .. } => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "constructor cannot initialize vector or tensor values".to_string(),
-                });
+                }
+                .into());
             }
         };
 

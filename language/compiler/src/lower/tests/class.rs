@@ -126,28 +126,28 @@ function readPacketSize(value: int32): int32 {
         module_id,
         "native",
         r#"
-type Struct0 {
+type PacketHeader {
     vtable: ref<void, raw, readonly, space(static)>;
     packetSize: int32;
 }
 
-global PacketHeader#vtable: ref?<void, raw, readonly, space(static)>[2], readonly = zeroInit
-global MessageHeader#vtable: ref?<void, raw, readonly, space(static)>[3], readonly = zeroInit
+global PacketHeader#vtable: ref?<void, raw, readonly, space(static)>[2], readonly, space(static) = zeroInit
+global MessageHeader#vtable: ref?<void, raw, readonly, space(static)>[3], readonly, space(static) = zeroInit
 
 function readPacketSize(value0: int32): int32 {
 entry0(value0: int32):
     value1: ref<ref?<void, raw, readonly, space(static)>[2], raw, readonly, space(static)> = global.address PacketHeader#vtable
     value2: ref<void, raw, readonly, space(static)> = cast.bit value1 -> ref<void, raw, readonly, space(static)>
-    value3: Struct0 = struct Struct0 (value2, value0)
-    value4: ref<Struct0, managed, readonly> = new Struct0
+    value3: PacketHeader = struct PacketHeader (value2, value0)
+    value4: ref<PacketHeader, managed, readonly> = new PacketHeader
     store value4, value3
-    value5: Struct0 = load value4
+    value5: PacketHeader = load value4
     value6: int32 = field.get value5, 1
     return value6
 }
 
-function MessageHeader.ping(value0: ref<Struct0, managed, readonly>): int32 {
-entry0(value0: ref<Struct0, managed, readonly>):
+function MessageHeader.ping(this0: ref<PacketHeader, managed, readonly>): int32 {
+entry0(this0: ref<PacketHeader, managed, readonly>):
     value1: int32 = 1int32
     return value1
 }
@@ -305,8 +305,8 @@ type Dog {
     breed: int32;
 }
 
-global Animal#vtable: ref?<void, raw, readonly, space(static)>[3], readonly = zeroInit
-global Dog#vtable: ref?<void, raw, readonly, space(static)>[3], readonly = zeroInit
+global Animal#vtable: ref?<void, raw, readonly, space(static)>[3], readonly, space(static) = zeroInit
+global Dog#vtable: ref?<void, raw, readonly, space(static)>[3], readonly, space(static) = zeroInit
 
 function useDog(value0: ref<Dog, managed, readonly>): int32 {
 entry0(value0: ref<Dog, managed, readonly>):
@@ -314,14 +314,14 @@ entry0(value0: ref<Dog, managed, readonly>):
     return value1
 }
 
-function Animal.speak(value0: ref<Animal, managed, readonly>): int32 {
-entry0(value0: ref<Animal, managed, readonly>):
+function Animal.speak(this0: ref<Animal, managed, readonly>): int32 {
+entry0(this0: ref<Animal, managed, readonly>):
     value1: int32 = 1int32
     return value1
 }
 
-function Dog.speak(value0: ref<Dog, managed, readonly>): int32 {
-entry0(value0: ref<Dog, managed, readonly>):
+function Dog.speak(this0: ref<Dog, managed, readonly>): int32 {
+entry0(this0: ref<Dog, managed, readonly>):
     value1: int32 = 2int32
     return value1
 }
@@ -384,29 +384,29 @@ type Vehicle {
     vtable: ref<void, raw, readonly, space(static)>;
 }
 
-global Vehicle#vtable: ref?<void, raw, readonly, space(static)>[4], readonly = zeroInit
-global Car#vtable: ref?<void, raw, readonly, space(static)>[5], readonly = zeroInit
+global Vehicle#vtable: ref?<void, raw, readonly, space(static)>[4], readonly, space(static) = zeroInit
+global Car#vtable: ref?<void, raw, readonly, space(static)>[5], readonly, space(static) = zeroInit
 
-function Vehicle.start(value0: ref<Vehicle, managed, readonly>): int32 {
-entry0(value0: ref<Vehicle, managed, readonly>):
+function Vehicle.start(this0: ref<Vehicle, managed, readonly>): int32 {
+entry0(this0: ref<Vehicle, managed, readonly>):
     value1: int32 = 1int32
     return value1
 }
 
-function Vehicle.stop(value0: ref<Vehicle, managed, readonly>): int32 {
-entry0(value0: ref<Vehicle, managed, readonly>):
+function Vehicle.stop(this0: ref<Vehicle, managed, readonly>): int32 {
+entry0(this0: ref<Vehicle, managed, readonly>):
     value1: int32 = 2int32
     return value1
 }
 
-function Car.start(value0: ref<Vehicle, managed, readonly>): int32 {
-entry0(value0: ref<Vehicle, managed, readonly>):
+function Car.start(this0: ref<Vehicle, managed, readonly>): int32 {
+entry0(this0: ref<Vehicle, managed, readonly>):
     value1: int32 = 3int32
     return value1
 }
 
-function Car.honk(value0: ref<Vehicle, managed, readonly>): int32 {
-entry0(value0: ref<Vehicle, managed, readonly>):
+function Car.honk(this0: ref<Vehicle, managed, readonly>): int32 {
+entry0(this0: ref<Vehicle, managed, readonly>):
     value1: int32 = 4int32
     return value1
 }
@@ -481,8 +481,8 @@ type FileLogger {
     fileMode: int32;
 }
 
-global Logger#vtable: ref?<void, raw, readonly, space(static)>[3], readonly = zeroInit
-global FileLogger#vtable: ref?<void, raw, readonly, space(static)>[3], readonly = zeroInit
+global Logger#vtable: ref?<void, raw, readonly, space(static)>[3], readonly, space(static) = zeroInit
+global FileLogger#vtable: ref?<void, raw, readonly, space(static)>[3], readonly, space(static) = zeroInit
 
 function callLogger(value0: ref<Logger, managed, readonly>): int32 {
 entry0(value0: ref<Logger, managed, readonly>):
@@ -490,14 +490,14 @@ entry0(value0: ref<Logger, managed, readonly>):
     return value1
 }
 
-function Logger.log(value0: ref<Logger, managed, readonly>): int32 {
-entry0(value0: ref<Logger, managed, readonly>):
+function Logger.log(this0: ref<Logger, managed, readonly>): int32 {
+entry0(this0: ref<Logger, managed, readonly>):
     value1: int32 = 1int32
     return value1
 }
 
-function FileLogger.log(value0: ref<FileLogger, managed, readonly>): int32 {
-entry0(value0: ref<FileLogger, managed, readonly>):
+function FileLogger.log(this0: ref<FileLogger, managed, readonly>): int32 {
+entry0(this0: ref<FileLogger, managed, readonly>):
     value1: int32 = 2int32
     return value1
 }
@@ -551,8 +551,8 @@ type Logger {
     vtable: ref<void, raw, readonly, space(static)>;
 }
 
-global Logger#vtable: ref?<void, raw, readonly, space(static)>[3], readonly = zeroInit
-global FileLogger#vtable: ref?<void, raw, readonly, space(static)>[3], readonly = zeroInit
+global Logger#vtable: ref?<void, raw, readonly, space(static)>[3], readonly, space(static) = zeroInit
+global FileLogger#vtable: ref?<void, raw, readonly, space(static)>[3], readonly, space(static) = zeroInit
 
 function callLogger(value0: ref<Logger, managed, readonly>): int32 {
 entry0(value0: ref<Logger, managed, readonly>):
@@ -560,14 +560,14 @@ entry0(value0: ref<Logger, managed, readonly>):
     return value1
 }
 
-function Logger.log(value0: ref<Logger, managed, readonly>): int32 {
-entry0(value0: ref<Logger, managed, readonly>):
+function Logger.log(this0: ref<Logger, managed, readonly>): int32 {
+entry0(this0: ref<Logger, managed, readonly>):
     value1: int32 = 1int32
     return value1
 }
 
-function FileLogger.log(value0: ref<Logger, managed, readonly>): int32 {
-entry0(value0: ref<Logger, managed, readonly>):
+function FileLogger.log(this0: ref<Logger, managed, readonly>): int32 {
+entry0(this0: ref<Logger, managed, readonly>):
     value1: int32 = 2int32
     return value1
 }
@@ -749,9 +749,9 @@ function useHeader(value: TextureHeader): int32 {
         let base_type = test.type_parent(tree, derived_type);
 
         let base_vtable_offset =
-            test.expect_struct_field_offset_by_name(tree, strings, base_type, "@vtable");
+            test.expect_struct_field_offset_by_name(tree, strings, base_type, "vtable");
         let derived_vtable_offset =
-            test.expect_struct_field_offset_by_name(tree, strings, derived_type, "@vtable");
+            test.expect_struct_field_offset_by_name(tree, strings, derived_type, "vtable");
 
         assert_eq!(base_vtable_offset, 0);
         assert_eq!(derived_vtable_offset, 0);
@@ -784,7 +784,7 @@ function usePlain(value: PlainRecord): int32 {
     // inspect layout for absence of vtable header
     test.with_mir_tree(module_id, "native", |tree, strings| {
         let class_type = test.type_by_metadata_name(tree, strings, "test/test:PlainRecord");
-        let vtable_offset = test.struct_field_offset_by_name(tree, strings, class_type, "@vtable");
+        let vtable_offset = test.struct_field_offset_by_name(tree, strings, class_type, "vtable");
         assert!(vtable_offset.is_none());
     });
 }

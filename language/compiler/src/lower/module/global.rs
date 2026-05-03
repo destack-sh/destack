@@ -1,6 +1,6 @@
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult};
+use crate::{CompilerError, CompilerResult, LowerError};
 
 use crate::lower::r#type::{EnumFieldValueDescriptor, enum_field_value_for_symbol};
 use crate::lower::{GlobalBinding, ModuleLowerer};
@@ -12,7 +12,7 @@ impl ModuleLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         mutability: dir::Mutability,
         declarators: &[dir::LocalNodeId<dir::Declarator>],
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         for declarator_id in declarators {
             let declarator = self.dir_tree.get(*declarator_id);
 
@@ -20,11 +20,14 @@ impl ModuleLowerer<'_> {
             let value_id = declarator
                 .value
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                    ),
                     message: "module-level binding requires initializer".to_string(),
-                })?;
+                })
+                .map_err(CompilerError::from)?;
 
             // get the binding pattern
             let pattern_id = declarator.pattern;
@@ -36,20 +39,26 @@ impl ModuleLowerer<'_> {
             } = pattern
             else {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: pattern_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                    anchor: self.diagnostic_anchor(
+                        pattern_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                    ),
                     message: "unsupported module-level binding pattern".to_string(),
-                });
+                }
+                .into());
             };
             if nested_pattern.is_some() {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: pattern_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                    anchor: self.diagnostic_anchor(
+                        pattern_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                    ),
                     message: "nested binding patterns not supported for module-level bindings"
                         .to_string(),
-                });
+                }
+                .into());
             }
 
             // binding name (module-level bindings must have names)
@@ -60,11 +69,14 @@ impl ModuleLowerer<'_> {
                 .types
                 .get_declared_or_inferred_type_id(value_id.into_global_any(self.module_id))
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: value_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                    anchor: self.diagnostic_anchor(
+                        value_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                    ),
                     message: "cannot determine type for module-level binding".to_string(),
-                })?;
+                })
+                .map_err(CompilerError::from)?;
             let mir_type = self.lower_type(
                 type_id,
                 value_id
@@ -76,11 +88,14 @@ impl ModuleLowerer<'_> {
             let initializer = self
                 .lower_const_initializer(value_id, mir_type)?
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: value_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                    anchor: self.diagnostic_anchor(
+                        value_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                    ),
                     message: "module-level binding requires constant initializer".to_string(),
-                })?;
+                })
+                .map_err(CompilerError::from)?;
 
             // mir global
             let mir_mutability = lower_mutability(mutability);
@@ -105,7 +120,7 @@ impl ModuleLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         mir_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<Option<mir::GlobalInitializer>> {
+    ) -> CompilerResult<Option<mir::GlobalInitializer>> {
         let expression = self.dir_tree.get(expression_id);
         let initializer = match expression {
             dir::Expression::ScalarLiteral { value } => {
@@ -194,17 +209,22 @@ impl ModuleLowerer<'_> {
     fn global_initializer_repr_type(
         &self,
         mut mir_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         loop {
             let mir::Type::Newtype { inner, .. } = self.builder.tree().get(mir_type) else {
                 return Ok(mir_type);
             };
 
-            mir_type = inner.ty().ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: dir::GlobalNodeIdAny::new(self.module_id, self.anchor_node)
-                    .into_anchored(Some(self.profile)),
-                message: "global initializer newtype inner type is not concrete".to_string(),
-            })?;
+            mir_type = inner
+                .ty()
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(
+                        dir::GlobalNodeIdAny::new(self.module_id, self.module_node)
+                            .into_anchored(Some(self.profile)),
+                    ),
+                    message: "global initializer newtype inner type is not concrete".to_string(),
+                })
+                .map_err(CompilerError::from)?;
         }
     }
 
@@ -213,7 +233,7 @@ impl ModuleLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         mir_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<Option<mir::GlobalInitializer>> {
+    ) -> CompilerResult<Option<mir::GlobalInitializer>> {
         // resolve the static symbol target for the member expression
         let node_id = expression_id.into_global_any(self.module_id);
         let resolution_id = self.types.get_resolution_for_node(node_id);
@@ -227,12 +247,13 @@ impl ModuleLowerer<'_> {
 
         // resolve enum field constants when the target is an enum field
         let node = node_id.into_anchored(Some(self.profile));
+        let anchor = self.diagnostic_anchor(node);
         let Some(EnumFieldValueDescriptor { backing: _, value }) = enum_field_value_for_symbol(
             self.compiler,
-            self.context.revision(),
+            self.context,
             self.profile,
             candidate.target_symbol,
-            node,
+            anchor,
         )?
         else {
             return Ok(None);
@@ -285,7 +306,7 @@ impl ModuleLowerer<'_> {
                 if string_type != Some(mir_type) {
                     return Ok(None);
                 }
-                let literal = self.compiler.repository.strings.get(value);
+                let literal = self.strings.get(value);
                 Some(mir::GlobalInitializer::string(literal.as_ref()))
             }
             _ => None,

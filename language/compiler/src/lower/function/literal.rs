@@ -1,6 +1,6 @@
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult, ScalarType};
+use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 
 use crate::lower::FunctionLowerer;
 
@@ -20,7 +20,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         value: &dir::ScalarLiteral,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         match value {
             dir::ScalarLiteral::Boolean(value) => {
                 let value = self.state.builder.bconst(*value);
@@ -46,12 +46,14 @@ impl FunctionLowerer<'_> {
                         };
                         Ok((value, ty))
                     }
-                    _ => Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                    _ => Err(CompilerError::from(LowerError::UnsupportedConstruct {
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: format!("unsupported scalar literal '{value:?}'"),
-                    })?,
+                    }))?,
                 }
             }
             dir::ScalarLiteral::Float(value) => {
@@ -79,12 +81,14 @@ impl FunctionLowerer<'_> {
                 };
                 Ok((value, ty))
             }
-            _ => Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+            _ => Err(CompilerError::from(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: format!("unsupported scalar literal '{value:?}'"),
-            })?,
+            }))?,
         }
     }
 }

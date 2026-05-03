@@ -34,7 +34,7 @@ In general, the front-end operates per-Profile, and once we get closer to actual
 
 ## Scheduling and Caching
 
-The compiler schedules `Task`s to solve `ArtifactRequirement`s with a chain of `ArtifactKey`s producing actual `Artifact`s.
+The compiler schedules work over `ArtifactKey`s and records the exact source and artifact inputs used to produce each artifact.
 We store those `Artifact`s in-memory in an `ArtifactStore` and on disk via `ArtifactCache`.
 For `Dir*`, the on-disk image also validates the restored workspace string universe from `WorkspaceIndex`, because DIR still uses shared `StringId` identity.
 On the way, the scheduler deduplicates in-flight work by artifact key and discards stale completed work when dependencies have drifted.

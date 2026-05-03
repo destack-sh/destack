@@ -1,15 +1,14 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use destack_artifact::ArtifactKey;
-use destack_compiler::{Compiler, CompilerOptions};
+use destack_artifact::{ArtifactKey, DiskCacheStore};
+use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_session::Session;
-use destack_source::{FileType, ModuleId, glob};
-use destack_workspace::{Change, Edit, Ref, Repository};
+use destack_source::{FileSystem, FileType, ModuleId, PhysicalFileSystem, glob};
+use destack_workspace::{Edit, HostEnvironment, Ref, Repository};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
 use std::fs;
-use std::hint::black_box;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -119,17 +118,23 @@ fn build_workspace(
 ) -> (Arc<Compiler>, Arc<Session>, Vec<ModuleId>) {
     // repository
     let workspace_root = workspace_root.to_path_buf();
-    let repository = Arc::new(Repository::open_root(workspace_root.clone()));
+    let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+    let repository = Arc::new(Repository::new(
+        workspace_root.clone(),
+        Arc::new(DiskCacheStore::new()),
+        file_system,
+        HostEnvironment::capture_process(),
+    ));
 
     // materialize modules into the workspace revision
     let mut modules = Vec::with_capacity(sources.len());
     let reference = Ref::for_workspace_root(&workspace_root);
     for source in sources.iter() {
-        let logical_path = repository.normalize_workspace_path(&source.path);
+        let logical_path = repository.logical_path(&source.path);
         repository
-            .apply(
+            .apply_to_ref(
                 &reference,
-                Change::single(Edit::set_text(&logical_path, source.content.clone())),
+                [Edit::set_text(&logical_path, source.content.clone())],
             )
             .unwrap_or_else(|error| panic!("failed to materialize benchmark source: {error}"));
         let module_id = repository
@@ -145,30 +150,20 @@ fn build_workspace(
     }
 
     // compiler
-    let compiler = Arc::new(Compiler::new(
-        repository.clone(),
-        CompilerOptions {
-            workers: 1,
-            ..Default::default()
-        },
-    ));
+    let compiler = Arc::new(Compiler::new(repository.clone()));
     let linter = Arc::new(Linter::new(repository.clone()));
-    let session = Arc::new(
-        Session::new(
-            workspace_root.clone(),
-            repository,
-            reference,
-            None,
-            compiler.clone(),
-            linter,
-            None,
-            None,
-        )
-        .expect("failed to initialize compiler bench session"),
-    );
-    session
-        .scan_filesystem(true)
-        .expect("failed to materialize compiler bench workspace");
+    let session = Session::new(
+        workspace_root.clone(),
+        workspace_root,
+        repository,
+        reference,
+        compiler.clone(),
+        linter,
+        1,
+        None,
+    )
+    .unwrap_or_else(|error| panic!("failed to create benchmark session: {error}"));
+    let session = Arc::new(session);
 
     (compiler, session, modules)
 }
@@ -191,14 +186,15 @@ fn run_compile(session: &Session, compiler: &Compiler, modules: &[ModuleId], mod
     // collect root artifacts
     for module_id in modules.iter().copied() {
         let profile_id = compiler
-            .context(revision)
-            .unwrap_or_else(|message| panic!("{message}"))
-            .default_profile_id_for_module(module_id);
+            .repository
+            .module_profile(revision, module_id)
+            .unwrap_or_else(|error| panic!("failed to resolve benchmark profile: {error}"))
+            .id();
 
         // choose the root for this module
         match mode {
             CompileMode::Check => {
-                artifact_keys.push(ArtifactKey::dir_analyzed(module_id, profile_id))
+                artifact_keys.push(ArtifactKey::dir_checked(module_id, profile_id))
             }
             CompileMode::Lint => {
                 artifact_keys.push(ArtifactKey::module_linted(module_id, profile_id))
@@ -206,8 +202,11 @@ fn run_compile(session: &Session, compiler: &Compiler, modules: &[ModuleId], mod
         }
     }
 
+    let revision = session
+        .revision(session.head())
+        .unwrap_or_else(|error| panic!("failed to read benchmark revision: {error}"));
     session
-        .provide(&artifact_keys)
+        .provide(revision, &artifact_keys)
         .unwrap_or_else(|error| panic!("failed to provide benchmark artifacts: {error}"));
 }
 
@@ -243,9 +242,6 @@ fn bench_compile(criterion: &mut Criterion) {
                     &modules,
                     CompileMode::Check,
                 );
-
-                // capture stats
-                black_box(compiler.stats.snapshot());
             });
         },
     );
@@ -267,9 +263,6 @@ fn bench_compile(criterion: &mut Criterion) {
                     &modules,
                     CompileMode::Lint,
                 );
-
-                // capture stats
-                black_box(compiler.stats.snapshot());
             });
         },
     );

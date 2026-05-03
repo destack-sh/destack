@@ -1,9 +1,9 @@
 use super::*;
-use destack_artifact::{Data, Loader, ModuleEdgeRelation, ModuleKind};
+use destack_artifact::Data;
 use destack_css::{Rule, Token};
 use destack_dir::{StaticKey, SymbolSpace};
 use destack_html::Content;
-use destack_source::{FileType, ModuleId};
+use destack_source::ModuleEdgeRelation;
 
 /// Return whether one html name matches one expected local spelling.
 fn html_name_is(html: &destack_artifact::Html, name: &destack_html::Name, expected: &str) -> bool {
@@ -26,7 +26,7 @@ fn css_function_name_is(
 fn assert_has_type_export(test: &TestProgram, module_id: destack_source::ModuleId, name: &str) {
     let profile = test.default_profile_id(module_id);
     let dir = test.artifact_dir(module_id, profile);
-    let exports = &dir.exported_symbols;
+    let exports = &dir.export_by_symbol_key;
     let name_id = test.program.strings.intern(name);
     let key = (SymbolSpace::Type, StaticKey::Name(name_id));
 
@@ -39,9 +39,9 @@ fn assert_has_type_export(test: &TestProgram, module_id: destack_source::ModuleI
     );
 }
 
-/// Build module graph edges for import dependencies.
+/// Build module dependencies edges for import dependencies.
 #[test]
-fn test_module_graph_import_dependency() {
+fn test_module_dependencies_import_dependency() {
     let test = TestProgram::memory_sequential();
     let dep_source = r#"
 export const value = 1;
@@ -59,19 +59,19 @@ value;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(main_module_id);
-    let graph = test.module_graph(profile);
-    let dependencies = graph.dependencies_for(main_module_id);
+    let module_dependencies = test.module_dependencies(profile);
+    let dependencies = module_dependencies.dependencies_for(main_module_id);
 
     // assert dependency edges
     assert!(
         dependencies.contains(&dep_module_id),
-        "expected module graph to include dep.ts"
+        "expected module dependencies to include dep.ts"
     );
 }
 
-/// Build module graph stylesheet edges for preload style links.
+/// Build module dependencies stylesheet edges for preload style links.
 #[test]
-fn test_module_graph_html_preload_style_dependency() {
+fn test_module_dependencies_html_preload_style_dependency() {
     let test = TestProgram::memory_sequential();
     let stylesheet_module_id = test.add_module(
         "styles/site.css",
@@ -97,19 +97,19 @@ body {
     test.compile_check_clean();
 
     let profile = test.default_profile_id(html_module_id);
-    let graph = test.module_graph(profile);
-    let dependencies = graph.dependencies_for(html_module_id);
+    let module_dependencies = test.module_dependencies(profile);
+    let dependencies = module_dependencies.dependencies_for(html_module_id);
 
     // assert dependency edges
     assert!(
         dependencies.contains(&stylesheet_module_id),
-        "expected module graph to include stylesheet preload target",
+        "expected module dependencies to include stylesheet preload target",
     );
 }
 
-/// Record exact authored HTML edge relations and specifiers in the module graph.
+/// Record exact authored HTML edge relations and specifiers in the module dependencies.
 #[test]
-fn test_module_graph_html_records_exact_document_edge_specifiers() {
+fn test_module_dependencies_html_records_exact_document_edge_specifiers() {
     let test = TestProgram::memory_sequential();
     let stylesheet_module_id = test.add_module(
         "src/styles/site.css",
@@ -156,13 +156,13 @@ export const value = 1;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(html_module_id);
-    let graph = test.module_graph(profile);
+    let module_dependencies = test.module_dependencies(profile);
     let stylesheet_specifier = test.program.strings.intern("/styles/site.css?v=1");
     let script_specifier = test.program.strings.intern("/scripts/app.ts?worker");
     let asset_specifier = test.program.strings.intern("/assets/logo.svg#icon");
 
     assert_eq!(
-        graph.dependency_target_for_specifier(
+        module_dependencies.dependency_target_for_specifier(
             html_module_id,
             ModuleEdgeRelation::DocumentStylesheet,
             stylesheet_specifier,
@@ -170,7 +170,7 @@ export const value = 1;
         Some(stylesheet_module_id),
     );
     assert_eq!(
-        graph.dependency_target_for_specifier(
+        module_dependencies.dependency_target_for_specifier(
             html_module_id,
             ModuleEdgeRelation::DocumentScript,
             script_specifier,
@@ -178,7 +178,7 @@ export const value = 1;
         Some(script_module_id),
     );
     assert_eq!(
-        graph.dependency_target_for_specifier(
+        module_dependencies.dependency_target_for_specifier(
             html_module_id,
             ModuleEdgeRelation::Resource,
             asset_specifier,
@@ -187,9 +187,9 @@ export const value = 1;
     );
 }
 
-/// Record exact HTML attribute sites in the module graph.
+/// Record exact HTML attribute sites in the module dependencies.
 #[test]
-fn test_module_graph_html_records_attribute_sites() {
+fn test_module_dependencies_html_records_attribute_sites() {
     let test = TestProgram::memory_sequential();
     let stylesheet_module_id = test.add_module(
         "styles.css",
@@ -226,7 +226,7 @@ export const value = 1;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(html_module_id);
-    let graph = test.module_graph(profile);
+    let module_dependencies = test.module_dependencies(profile);
     let data = test.data(html_module_id);
     let html = match data.as_ref() {
         Data::Html(html) => html,
@@ -303,7 +303,7 @@ export const value = 1;
     let asset_specifier = test.program.strings.intern("./logo.svg");
 
     assert_eq!(
-        graph
+        module_dependencies
             .dependency_edge_for_site_specifier(
                 html_module_id,
                 ModuleEdgeRelation::DocumentStylesheet,
@@ -314,7 +314,7 @@ export const value = 1;
         Some(stylesheet_module_id),
     );
     assert_eq!(
-        graph
+        module_dependencies
             .dependency_edge_for_site_specifier(
                 html_module_id,
                 ModuleEdgeRelation::DocumentScript,
@@ -325,7 +325,7 @@ export const value = 1;
         Some(script_module_id),
     );
     assert_eq!(
-        graph
+        module_dependencies
             .dependency_edge_for_site_specifier(
                 html_module_id,
                 ModuleEdgeRelation::Resource,
@@ -339,7 +339,7 @@ export const value = 1;
 
 /// Keep owned link href relations narrow while preserving intended asset references.
 #[test]
-fn test_module_graph_html_link_asset_policy() {
+fn test_module_dependencies_html_link_asset_policy() {
     let test = TestProgram::memory_sequential();
     let canonical_module_id =
         test.add_module("canonical.html", "<!doctype html><title>Canonical</title>");
@@ -365,8 +365,8 @@ fn test_module_graph_html_link_asset_policy() {
     test.compile_check_clean();
 
     let profile = test.default_profile_id(html_module_id);
-    let graph = test.module_graph(profile);
-    let dependencies = graph.dependencies_for(html_module_id);
+    let module_dependencies = test.module_dependencies(profile);
+    let dependencies = module_dependencies.dependencies_for(html_module_id);
     let data = test.data(html_module_id);
     let html = match data.as_ref() {
         Data::Html(html) => html,
@@ -423,7 +423,7 @@ fn test_module_graph_html_link_asset_policy() {
 
 /// Record `imagesrcset` sites on link preload elements as owned asset references.
 #[test]
-fn test_module_graph_html_records_link_imagesrcset_sites() {
+fn test_module_dependencies_html_records_link_imagesrcset_sites() {
     let test = TestProgram::memory_sequential();
     let fallback_module_id = test.add_module("hero.jpg", "fallback image");
     let small_module_id = test.add_module("hero-small.jpg", "small image");
@@ -449,7 +449,7 @@ fn test_module_graph_html_records_link_imagesrcset_sites() {
     test.compile_check_clean();
 
     let profile = test.default_profile_id(html_module_id);
-    let graph = test.module_graph(profile);
+    let module_dependencies = test.module_dependencies(profile);
     let data = test.data(html_module_id);
     let html = match data.as_ref() {
         Data::Html(html) => html,
@@ -495,7 +495,7 @@ fn test_module_graph_html_records_link_imagesrcset_sites() {
     let large_specifier = test.program.strings.intern("./hero-large.jpg");
 
     assert_eq!(
-        graph
+        module_dependencies
             .dependency_edge_for_site_specifier(
                 html_module_id,
                 ModuleEdgeRelation::Resource,
@@ -506,7 +506,7 @@ fn test_module_graph_html_records_link_imagesrcset_sites() {
         Some(fallback_module_id),
     );
     assert_eq!(
-        graph
+        module_dependencies
             .dependency_edge_for_site_specifier(
                 html_module_id,
                 ModuleEdgeRelation::Resource,
@@ -517,7 +517,7 @@ fn test_module_graph_html_records_link_imagesrcset_sites() {
         Some(small_module_id),
     );
     assert_eq!(
-        graph
+        module_dependencies
             .dependency_edge_for_site_specifier(
                 html_module_id,
                 ModuleEdgeRelation::Resource,
@@ -529,9 +529,9 @@ fn test_module_graph_html_records_link_imagesrcset_sites() {
     );
 }
 
-/// Build module graph edges for root-relative HTML script and stylesheet references.
+/// Build module dependencies edges for root-relative HTML script and stylesheet references.
 #[test]
-fn test_module_graph_html_root_relative_dependencies() {
+fn test_module_dependencies_html_root_relative_dependencies() {
     let test = TestProgram::memory_sequential();
     let stylesheet_module_id = test.add_module(
         "src/styles/site.css",
@@ -574,25 +574,25 @@ export const value = 1;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(html_module_id);
-    let graph = test.module_graph(profile);
-    let dependencies = graph.dependencies_for(html_module_id);
+    let module_dependencies = test.module_dependencies(profile);
+    let dependencies = module_dependencies.dependencies_for(html_module_id);
 
     // assert dependency edges
     assert!(
         dependencies.contains(&stylesheet_module_id),
-        "expected module graph to include root-relative stylesheet target",
+        "expected module dependencies to include root-relative stylesheet target",
     );
 
     // assert dependency edges
     assert!(
         dependencies.contains(&script_module_id),
-        "expected module graph to include root-relative script target",
+        "expected module dependencies to include root-relative script target",
     );
 }
 
-/// Record exact authored CSS import and url edge specifiers in the module graph.
+/// Record exact authored CSS import and url edge specifiers in the module dependencies.
 #[test]
-fn test_module_graph_css_records_exact_edge_specifiers() {
+fn test_module_dependencies_css_records_exact_edge_specifiers() {
     let test = TestProgram::memory_sequential();
     let imported_stylesheet_module_id = test.add_module(
         "styles/reset.css",
@@ -618,7 +618,7 @@ body {
     test.compile_check_clean();
 
     let profile = test.default_profile_id(stylesheet_module_id);
-    let graph = test.module_graph(profile);
+    let module_dependencies = test.module_dependencies(profile);
     let data = test.data(stylesheet_module_id);
     let css = match data.as_ref() {
         Data::Css(css) => css,
@@ -678,7 +678,7 @@ body {
         .unwrap_or_else(|| panic!("missing css url resource"));
 
     assert_eq!(
-        graph.dependency_target_for_specifier(
+        module_dependencies.dependency_target_for_specifier(
             stylesheet_module_id,
             ModuleEdgeRelation::StyleImport,
             import_specifier,
@@ -686,7 +686,7 @@ body {
         Some(imported_stylesheet_module_id),
     );
     assert_eq!(
-        graph.dependency_target_for_specifier(
+        module_dependencies.dependency_target_for_specifier(
             stylesheet_module_id,
             ModuleEdgeRelation::StyleUrl,
             asset_specifier,
@@ -694,7 +694,7 @@ body {
         Some(asset_module_id),
     );
     assert_eq!(
-        graph
+        module_dependencies
             .dependency_edge_for_site_specifier(
                 stylesheet_module_id,
                 ModuleEdgeRelation::StyleImport,
@@ -705,7 +705,7 @@ body {
         Some(imported_stylesheet_module_id),
     );
     assert_eq!(
-        graph
+        module_dependencies
             .dependency_edge_for_site_specifier(
                 stylesheet_module_id,
                 ModuleEdgeRelation::StyleUrl,
@@ -717,65 +717,9 @@ body {
     );
 }
 
-/// Keep loader-distinct module views separate while preserving stable file identity.
-#[test]
-fn test_resolve_path_to_module_with_loader_keeps_distinct_file_views() {
-    let test = TestProgram::memory_sequential();
-    let module_id = test.add_module("main.ts", "export const value = 1;");
-
-    let module = test.program.module_descriptor(module_id);
-    let path = module
-        .path
-        .clone()
-        .unwrap_or_else(|| panic!("missing module path for {module_id:?}"));
-    let revision = test.current_revision();
-
-    let code_module_id = test
-        .compiler
-        .resolve_path_to_module(revision, &path)
-        .unwrap_or_else(|error| panic!("failed to resolve code module: {error:?}"));
-    let text_module_id = test
-        .compiler
-        .resolve_path_to_module_with_loader(revision, &path, Some(Loader::Text))
-        .unwrap_or_else(|error| panic!("failed to resolve text module: {error:?}"));
-
-    let package = test.program.package_descriptor(module.package_id);
-    let file_id = test
-        .program
-        .source_file_id_for_path(&path)
-        .unwrap_or_else(|| panic!("missing file id for '{}'", path.display()));
-    let file = test.program.source_file(file_id);
-
-    assert_ne!(code_module_id, text_module_id);
-    assert_eq!(code_module_id, module_id);
-    assert_eq!(file.uri, module.uri);
-    assert_eq!(file.ty, FileType::TypeScript);
-    assert_eq!(
-        code_module_id,
-        ModuleId::from_path_with_loader(module.package_id, &path, package.path.as_deref(), None),
-    );
-    assert_eq!(
-        text_module_id,
-        ModuleId::from_path_with_loader(
-            module.package_id,
-            &path,
-            package.path.as_deref(),
-            Some("text"),
-        ),
-    );
-    assert_eq!(
-        ModuleKind::from_file_type_and_loader(file.ty, module.loader),
-        ModuleKind::Code
-    );
-    assert_eq!(
-        ModuleKind::from_file_type_and_loader(file.ty, Loader::Text),
-        ModuleKind::Data,
-    );
-}
-
 /// Resolve ts relative .js specifiers through TypeScript extension substitution.
 #[test]
-fn test_module_graph_typescript_import_js_specifier_dependency() {
+fn test_module_dependencies_typescript_import_js_specifier_dependency() {
     let test = TestProgram::memory_sequential();
     let dep_source = r#"
 export const value = 1;
@@ -793,13 +737,13 @@ value;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(main_module_id);
-    let graph = test.module_graph(profile);
-    let dependencies = graph.dependencies_for(main_module_id);
+    let module_dependencies = test.module_dependencies(profile);
+    let dependencies = module_dependencies.dependencies_for(main_module_id);
 
     // assert dependency edges
     assert!(
         dependencies.contains(&dep_module_id),
-        "expected module graph to include dep.ts for ./dep.js import"
+        "expected module dependencies to include dep.ts for ./dep.js import"
     );
 }
 
@@ -841,7 +785,7 @@ export default interface User {
 
 /// Resolve declaration imports with .js specifiers through declaration targets.
 #[test]
-fn test_module_graph_declaration_import_js_specifier_dependency() {
+fn test_module_dependencies_declaration_import_js_specifier_dependency() {
     let test = TestProgram::memory_sequential();
     let dep_source = r#"
 export type TaskResultPack = { ok: true };
@@ -859,19 +803,19 @@ type Wrapped = TaskResultPack;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(main_module_id);
-    let graph = test.module_graph(profile);
-    let dependencies = graph.dependencies_for(main_module_id);
+    let module_dependencies = test.module_dependencies(profile);
+    let dependencies = module_dependencies.dependencies_for(main_module_id);
 
     // assert dependency edges
     assert!(
         dependencies.contains(&dep_module_id),
-        "expected module graph to include dep.d.ts for ./dep.js import"
+        "expected module dependencies to include dep.d.ts for ./dep.js import"
     );
 }
 
 /// Resolve declaration reexports that rename type-only exports from .js specifiers.
 #[test]
-fn test_module_graph_declaration_reexport_type_alias_from_js_specifier() {
+fn test_module_dependencies_declaration_reexport_type_alias_from_js_specifier() {
     let test = TestProgram::memory_sequential();
     let task_source = r#"
 export interface TaskResultPack {
@@ -899,7 +843,7 @@ type Wrapped = TaskResultPack;
 
 /// Resolve declaration export-from when the module also imports from the same target.
 #[test]
-fn test_module_graph_declaration_export_from_with_sibling_import() {
+fn test_module_dependencies_declaration_export_from_with_sibling_import() {
     let test = TestProgram::memory_sequential();
     let tasks_source = r#"
 export interface TaskResult {
@@ -931,7 +875,7 @@ type Wrapped = TaskResultPack;
 
 /// Keep node strict self package behavior for packages without exports.
 #[test]
-fn test_module_graph_self_package_import_without_exports_reports_error() {
+fn test_module_dependencies_self_package_import_without_exports_reports_error() {
     let test = TestProgram::memory_sequential();
 
     // build absolute test paths so package discovery can locate package.json
@@ -961,9 +905,9 @@ value;
     test.check_has_diagnostic("ER200");
 }
 
-/// Build module graph edges for self package imports with exports.
+/// Build module dependencies edges for self package imports with exports.
 #[test]
-fn test_module_graph_self_package_import_with_exports_dependency() {
+fn test_module_dependencies_self_package_import_with_exports_dependency() {
     let test = TestProgram::memory_sequential();
 
     // build absolute test paths so package discovery can locate package.json
@@ -994,24 +938,24 @@ value;
 "#,
     );
 
-    // resolve graph and ensure dependency targets exports root
+    // resolve dependencies and ensure dependency targets exports root
     test.resolve_module(consumer_module_id);
     test.compile_check_clean();
 
     let profile = test.default_profile_id(consumer_module_id);
-    let graph = test.module_graph(profile);
-    let dependencies = graph.dependencies_for(consumer_module_id);
+    let module_dependencies = test.module_dependencies(profile);
+    let dependencies = module_dependencies.dependencies_for(consumer_module_id);
 
     // assert dependency edges
     assert!(
         dependencies.contains(&package_entry_module_id),
-        "expected module graph to include src/index.ts for exported self import"
+        "expected module dependencies to include src/index.ts for exported self import"
     );
 }
 
-/// Build module graph edges for namespace exports.
+/// Build module dependencies edges for namespace exports.
 #[test]
-fn test_module_graph_namespace_export_dependency() {
+fn test_module_dependencies_namespace_export_dependency() {
     let test = TestProgram::memory_sequential();
     let dep_source = r#"
 export const value = 1;
@@ -1027,19 +971,19 @@ export * from "./dep.ts";
     test.compile_check_clean();
 
     let profile = test.default_profile_id(export_module_id);
-    let graph = test.module_graph(profile);
-    let dependencies = graph.dependencies_for(export_module_id);
+    let module_dependencies = test.module_dependencies(profile);
+    let dependencies = module_dependencies.dependencies_for(export_module_id);
 
     // assert dependency edges
     assert!(
         dependencies.contains(&dep_module_id),
-        "expected module graph to include dep.ts"
+        "expected module dependencies to include dep.ts"
     );
 }
 
-/// Build module graph edges for module binding imports.
+/// Build module dependencies edges for module binding imports.
 #[test]
-fn test_module_graph_binding_dependency() {
+fn test_module_dependencies_binding_dependency() {
     let test = TestProgram::memory_sequential();
     let decl_source = r#"
 declare module "foo" {
@@ -1062,12 +1006,12 @@ value;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(main_module_id);
-    let graph = test.module_graph(profile);
-    let dependencies = graph.dependencies_for(main_module_id);
+    let module_dependencies = test.module_dependencies(profile);
+    let dependencies = module_dependencies.dependencies_for(main_module_id);
 
     // assert dependency edges
     assert!(
         dependencies.contains(&decl_module_id),
-        "expected module graph to include module binding module"
+        "expected module dependencies to include module binding module"
     );
 }

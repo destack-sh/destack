@@ -35,6 +35,7 @@ impl ModuleLowerer<'_> {
                 self.vtable_layout_symbols
                     .as_ref()
                     .ok_or_else(|| LowerError::Internal {
+                        anchor: (self.module_id).into(),
                         module: self.module_id,
                         message: "missing vtable layout symbols".to_string(),
                     })?;
@@ -49,9 +50,11 @@ impl ModuleLowerer<'_> {
             let declaration_id = self.declaration_ids_for_symbol(symbol).first().copied();
             let Some(declaration_id) = declaration_id else {
                 return Err(LowerError::Internal {
+                    anchor: (self.module_id).into(),
                     module: self.module_id,
                     message: format!("missing class declaration for vtable symbol {symbol:?}"),
-                });
+                }
+                .into());
             };
             let anchor = declaration_id
                 .into_global_any(self.module_id)

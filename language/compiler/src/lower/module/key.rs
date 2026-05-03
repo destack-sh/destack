@@ -23,11 +23,13 @@ impl ModuleLowerer<'_> {
                 Ok(self.dispatch_construct_name)
             }
             _ => Err(LowerError::UnsupportedConstruct {
-                node: node
-                    .into_global(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                anchor: self.diagnostic_anchor(
+                    node.into_global(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
                 message: "method must have a static name".to_string(),
-            }),
+            }
+            .into()),
         }
     }
 }

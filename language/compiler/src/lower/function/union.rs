@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult, ScalarType};
+use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 
 use crate::lower::FunctionLowerer;
 use crate::lower::r#type::{
@@ -48,7 +48,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         layout: &UnionLayout,
         node: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         // build the zero value based on the payload strategy
         match layout.payload_kind {
             UnionPayloadKind::Inline => {
@@ -65,7 +65,7 @@ impl FunctionLowerer<'_> {
         value: mir::Value,
         value_type: mir::LocalNodeId<mir::Type>,
         node: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         // allocate payload storage on the stack
         let payload_ref_type = self.state.builder.type_reference(
             mir::ReferenceKind::Raw,
@@ -105,7 +105,7 @@ impl FunctionLowerer<'_> {
         payload_value: mir::Value,
         target_type: mir::LocalNodeId<mir::Type>,
         _node: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         // use stack scratch storage for payload reinterpretation
         let payload_ref_type = self.state.builder.type_reference(
             mir::ReferenceKind::Raw,
@@ -143,16 +143,17 @@ impl FunctionLowerer<'_> {
         variant_value: mir::Value,
         variant_mir_type: mir::LocalNodeId<mir::Type>,
         node: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         // resolve the tag index for the variant
         let tag_index = layout
             .element_types
             .iter()
             .position(|element| dir::are_types_equal(*element, variant_type_id, self.context.types))
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "union variant is not a member of the union type".to_string(),
-            })?;
+            })
+            .map_err(CompilerError::from)?;
 
         // build the tag constant
         let (tag_width, tag_signed) = match self.state.builder.tree().get(layout.tag_type) {
@@ -162,9 +163,10 @@ impl FunctionLowerer<'_> {
             } => (*width, *signed),
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "union tag must be an integer type".to_string(),
-                });
+                }
+                .into());
             }
         };
         let tag_value = self
@@ -199,7 +201,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         payload_type: mir::LocalNodeId<mir::Type>,
         node: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         let (element, length) = match self.state.builder.tree().get(payload_type) {
             mir::Type::Array {
                 element, length, ..
@@ -207,16 +209,18 @@ impl FunctionLowerer<'_> {
                 element
                     .ty()
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node,
+                        anchor: self.diagnostic_anchor(node),
                         message: "inline union element type is not concrete".to_string(),
-                    })?,
+                    })
+                    .map_err(CompilerError::from)?,
                 *length,
             ),
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "inline union payload must be an array".to_string(),
-                });
+                }
+                .into());
             }
         };
 
@@ -232,7 +236,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         element_type: mir::LocalNodeId<mir::Type>,
         node: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         let element = self.state.builder.tree().get(element_type);
         match element {
             mir::Type::Int {
@@ -251,9 +255,10 @@ impl FunctionLowerer<'_> {
             }
             mir::Type::Boolean => Ok(self.state.builder.bconst(false)),
             _ => Err(LowerError::UnsupportedConstruct {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "inline union payload element must be scalar".to_string(),
-            }),
+            }
+            .into()),
         }
     }
 
@@ -264,7 +269,7 @@ impl FunctionLowerer<'_> {
         left: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
         right: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<Option<UnionTagComparison>> {
+    ) -> CompilerResult<Option<UnionTagComparison>> {
         // only handle equality comparisons
         if !matches!(
             operator,
@@ -335,12 +340,11 @@ impl FunctionLowerer<'_> {
             .into_anchored(Some(self.context.profile));
         let key = match literal_value {
             DiscriminantLiteralValue::Scalar(literal) => {
-                DiscriminantKey::from_scalar_literal(literal, node)?.ok_or_else(|| {
-                    LowerError::UnsupportedConstruct {
-                        node,
+                DiscriminantKey::from_scalar_literal(literal, self.diagnostic_anchor(node))?
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        anchor: self.diagnostic_anchor(node),
                         message: "unsupported discriminant literal in comparison".to_string(),
-                    }
-                })?
+                    })?
             }
             DiscriminantLiteralValue::Type(literal) => match literal {
                 dir::TypeLiteral::Null => DiscriminantKey::Null,
@@ -353,7 +357,7 @@ impl FunctionLowerer<'_> {
 
         let tag_index = field.tag_by_value.get(&key).copied().ok_or_else(|| {
             LowerError::UnsupportedConstruct {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "discriminant literal does not match union".to_string(),
             }
         })?;
@@ -399,7 +403,7 @@ impl FunctionLowerer<'_> {
         left: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
         right: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<Option<mir::Value>> {
+    ) -> CompilerResult<Option<mir::Value>> {
         // resolve the tag comparison data
         let Some(comparison) = self.union_tag_comparison(expression_id, left, operator, right)?
         else {
@@ -439,7 +443,7 @@ impl FunctionLowerer<'_> {
         left: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
         right: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<Option<mir::Value>> {
+    ) -> CompilerResult<Option<mir::Value>> {
         // only handle equality comparisons
         if !matches!(
             operator,
@@ -489,7 +493,7 @@ impl FunctionLowerer<'_> {
                 ) {
                     return Ok(None);
                 }
-                return Err(self.missing_type_error(expression_id));
+                return Err(self.missing_type_error(expression_id).into());
             }
         };
 
@@ -529,6 +533,9 @@ impl FunctionLowerer<'_> {
         // resolve literal expressions used in union comparisons
         let expression = self.context.dir_tree.get(expression_id);
         match expression {
+            dir::Expression::ScalarLiteral {
+                value: dir::ScalarLiteral::Null,
+            } => Some(UnionLiteralValue::Null),
             dir::Expression::ScalarLiteral { value } => {
                 Some(UnionLiteralValue::Scalar(value.clone()))
             }
@@ -538,6 +545,18 @@ impl FunctionLowerer<'_> {
             dir::Expression::TypeLiteral {
                 value: dir::TypeLiteral::Undefined,
             } => Some(UnionLiteralValue::Undefined),
+            dir::Expression::Type { .. } => {
+                let type_id = self.type_for_expression(expression_id)?;
+                match self.context.types.get_type(type_id) {
+                    dir::Type::TypeLiteral {
+                        value: dir::TypeLiteral::Null,
+                    } => Some(UnionLiteralValue::Null),
+                    dir::Type::TypeLiteral {
+                        value: dir::TypeLiteral::Undefined,
+                    } => Some(UnionLiteralValue::Undefined),
+                    _ => None,
+                }
+            }
             _ => None,
         }
     }
@@ -548,7 +567,7 @@ impl FunctionLowerer<'_> {
         layout: &UnionLayout,
         literal: &UnionLiteralValue,
         node: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<usize> {
+    ) -> CompilerResult<usize> {
         let tag_index = layout
             .element_types
             .iter()
@@ -576,9 +595,10 @@ impl FunctionLowerer<'_> {
                 },
             )
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "union literal does not match any element".to_string(),
-            })?;
+            })
+            .map_err(CompilerError::from)?;
 
         Ok(tag_index)
     }
@@ -604,7 +624,7 @@ impl FunctionLowerer<'_> {
         condition_id: dir::LocalNodeId<dir::Expression>,
         then_block: mir::LocalNodeId<mir::Block>,
         else_block: mir::LocalNodeId<mir::Block>,
-    ) -> LowerResult<bool> {
+    ) -> CompilerResult<bool> {
         // unwrap implicit casts and parens before matching
         let condition_id = self.unwrap_expression(condition_id);
 
@@ -693,7 +713,7 @@ impl FunctionLowerer<'_> {
         _receiver_type_id: dir::LocalTypeId,
         layout: UnionLayout,
         field: UnionDiscriminantField,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower the receiver value
         let (union_value, _) = self.lower_value_expression(receiver_id)?;
 
@@ -711,11 +731,14 @@ impl FunctionLowerer<'_> {
             .type_lowerer
             .union_layout(result_type_id)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "missing union layout for discriminant field".to_string(),
-            })?;
+            })
+            .map_err(CompilerError::from)?;
 
         // allocate a result variable for tag based selection
         let result_variable = self.state.builder.variable(result_type);
@@ -783,21 +806,23 @@ impl FunctionLowerer<'_> {
         union_mir_type: mir::LocalNodeId<mir::Type>,
         union_layout: &UnionLayout,
         literal: &DiscriminantLiteral,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         // resolve the tag index for the literal type
         let tag_index = union_layout
             .element_types
             .iter()
             .position(|element| self.type_ids_equivalent(*element, literal.type_id))
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: self
-                    .context
-                    .types
-                    .get_type_source(union_type_id)
-                    .into_global(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    self.context
+                        .types
+                        .get_type_source(union_type_id)
+                        .into_global(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "missing union element for discriminant literal".to_string(),
-            })?;
+            })
+            .map_err(CompilerError::from)?;
 
         // build the literal payload
         let node = self
@@ -837,21 +862,23 @@ impl FunctionLowerer<'_> {
         &mut self,
         layout: &UnionLayout,
         tag_index: usize,
-    ) -> LowerResult<mir::Value> {
+    ) -> CompilerResult<mir::Value> {
         let mir::Type::Int {
             width,
             is_signed: signed,
         } = self.state.builder.tree().get(layout.tag_type)
         else {
             return Err(LowerError::UnsupportedConstruct {
-                node: self
-                    .context
-                    .types
-                    .get_type_source(layout.element_types[0])
-                    .into_global(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    self.context
+                        .types
+                        .get_type_source(layout.element_types[0])
+                        .into_global(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "union tag must be an integer type".to_string(),
-            });
+            }
+            .into());
         };
 
         Ok(self
@@ -865,7 +892,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         literal: &DiscriminantLiteral,
         node: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         match &literal.value {
             DiscriminantValue::Boolean(value) => {
                 let value = self.state.builder.bconst(*value);
@@ -894,9 +921,10 @@ impl FunctionLowerer<'_> {
                         Ok((value, ty))
                     }
                     _ => Err(LowerError::UnsupportedConstruct {
-                        node,
+                        anchor: self.diagnostic_anchor(node),
                         message: "unsupported discriminant numeric literal".to_string(),
-                    }),
+                    }
+                    .into()),
                 }
             }
             DiscriminantValue::String(value) => {
@@ -907,9 +935,10 @@ impl FunctionLowerer<'_> {
             | DiscriminantValue::Undefined
             | DiscriminantValue::Bigint(_)
             | DiscriminantValue::UniqueSymbol => Err(LowerError::UnsupportedConstruct {
-                node,
+                anchor: self.diagnostic_anchor(node),
                 message: "unsupported discriminant literal value".to_string(),
-            }),
+            }
+            .into()),
         }
     }
 }

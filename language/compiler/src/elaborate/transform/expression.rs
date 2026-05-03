@@ -1,8 +1,8 @@
 use destack_dir::{SymbolTable, Tree, TypeTable};
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ProfileId, ProviderContext};
 
-use crate::elaborate::common::{ElaborateContext, ElaborateState};
-use crate::{Compiler, CompilerContext, ElaborateResult};
+use crate::elaborate::ElaborateState;
+use crate::{Compiler, ElaborateResult};
 
 impl Compiler {
     /// Transform a module with target-independent simplifications:
@@ -18,21 +18,23 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        context: &CompilerContext<'_>,
+        context: &dyn ProviderContext,
         tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> ElaborateResult<()> {
         // ensure analysis is complete
-        if !context.is_code_module(module.id) {
+        if !self.is_code_module(context.revision(), module.id) {
             return Ok(());
         }
 
-        let ctx = ElaborateContext::new(context, module.id, module, profile);
-        let mut state = ElaborateState::new(ctx, tree, symbols, types);
+        let options = self.elaborate_options(context, module);
+        let mut state = ElaborateState::new(
+            context, module.id, module, profile, options, tree, symbols, types,
+        );
 
         // 0. split multi-declarators into individual lets
-        if self.options.elaborate_split_declarators {
+        if state.options.split_declarators {
             self.transform_split_declarators(&mut state)?;
         }
 
@@ -47,12 +49,12 @@ impl Compiler {
         self.transform_match(&mut state)?;
 
         // 4. ternary optimization (only for source if/else that were unwrapped)
-        if self.options.elaborate_with_ternary {
+        if state.options.ternary {
             self.transform_if_to_ternary(&mut state)?;
         }
 
         // 5. implicit returns → explicit return statements
-        if self.options.elaborate_explicit_return {
+        if state.options.explicit_return {
             self.transform_explicit_return(&mut state)?;
         }
 

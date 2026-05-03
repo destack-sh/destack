@@ -354,7 +354,7 @@ impl Compiler {
                 }
 
                 dir::Expression::Labelled { label, body, .. } => {
-                    let label = ast_strings.intern_from(&self.repository.strings, *label);
+                    let label = *label;
                     let body = self.unbind_expression(
                         module,
                         *body,
@@ -381,7 +381,7 @@ impl Compiler {
                     let target = match target {
                         dir::ImportTarget::String(target) => {
                             ast::ImportTarget::String(
-                                ast_strings.intern_from(&self.repository.strings, *target),
+                                *target,
                             )
                         }
                         dir::ImportTarget::Expression { target } => {
@@ -445,7 +445,7 @@ impl Compiler {
                     let source = self.unbind_import_source(*source);
                     let kind = self.unbind_dependency_kind(context, *kind);
                     let target = ast::ImportTarget::String(
-                        ast_strings.intern_from(&self.repository.strings, *target),
+                        *target,
                     );
                     let items = items.as_ref().map(|items| {
                         items
@@ -496,7 +496,7 @@ impl Compiler {
                     ..
                 } => {
                     let kind = self.unbind_dependency_kind(context, *kind);
-                    let target = ast_strings.intern_from(&self.repository.strings, *target);
+                    let target = *target;
                     let items = items.iter().map(|item| {
                         self.unbind_dependency_item(module, *item, tree, symbols, types, ast_tree, ast_strings, context)
                     }).collect();
@@ -531,7 +531,7 @@ impl Compiler {
                     }
                 }
                 dir::Expression::ExportNamespace { name } => {
-                    let name = ast_strings.intern_from(&self.repository.strings, *name);
+                    let name = *name;
                     ast::Expression::ExportNamespace { name }
                 }
 
@@ -782,13 +782,13 @@ impl Compiler {
 
                 dir::Expression::Member { left, name } => {
                     let left = self.unbind_expression(module, *left, tree, symbols, types, ast_tree, ast_strings, context);
-                    let name = name.map(|name| ast_strings.intern_from(&self.repository.strings, name));
+                    let name = name.map(|name| name);
 
                     ast::Expression::Member { left, name }
                 }
                 dir::Expression::PrivateMember { left, name } => {
                     let left = self.unbind_expression(module, *left, tree, symbols, types, ast_tree, ast_strings, context);
-                    let name = name.map(|name| ast_strings.intern_from(&self.repository.strings, name));
+                    let name = name.map(|name| name);
 
                     ast::Expression::PrivateMember { left, name }
                 }
@@ -933,7 +933,7 @@ impl Compiler {
                 }
 
                 dir::Expression::PrivateIdentifier { name } => {
-                    let name = ast_strings.intern_from(&self.repository.strings, *name);
+                    let name = *name;
                     ast::Expression::PrivateIdentifier { name }
                 }
 
@@ -1404,24 +1404,24 @@ impl Compiler {
                 }
 
                 dir::Expression::UnresolvedBreak { target, value } => {
-                    let label = Some(ast_strings.intern_from(&self.repository.strings, *target));
+                    let label = Some(*target);
                     let value = value.map(|v| self.unbind_expression(module, v, tree, symbols, types, ast_tree, ast_strings, context));
                     ast::Expression::Break { label, value }
                 }
 
                 dir::Expression::Break { target, value, .. } => {
-                    let label = target.map(|t| ast_strings.intern_from(&self.repository.strings, t));
+                    let label = target.map(|t| t);
                     let value = value.map(|v| self.unbind_expression(module, v, tree, symbols, types, ast_tree, ast_strings, context));
                     ast::Expression::Break { label, value }
                 }
 
                 dir::Expression::UnresolvedContinue { target } => {
-                    let label = Some(ast_strings.intern_from(&self.repository.strings, *target));
+                    let label = Some(*target);
                     ast::Expression::Continue { label }
                 }
 
                 dir::Expression::Continue { target, .. } => {
-                    let label = target.map(|t| ast_strings.intern_from(&self.repository.strings, t));
+                    let label = target.map(|t| t);
                     ast::Expression::Continue { label }
                 }
 
@@ -1475,13 +1475,13 @@ impl Compiler {
         subject: dir::TypePredicateSubject,
         _module: &Module,
         _symbols: &dir::SymbolTable,
-        ast_strings: &mut StringPool,
+        _ast_strings: &mut StringPool,
         _context: &mut UnbindContext,
     ) -> ast::TypePredicateSubject {
         match subject {
             dir::TypePredicateSubject::This => ast::TypePredicateSubject::This,
             dir::TypePredicateSubject::Identifier(name) => {
-                let name = ast_strings.intern_from(&self.repository.strings, name);
+                let name = name;
                 ast::TypePredicateSubject::Identifier(name)
             }
         }

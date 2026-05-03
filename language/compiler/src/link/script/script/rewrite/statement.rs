@@ -76,7 +76,7 @@ impl Rewriter<'_, '_> {
 
     /// Return whether one expression is a direct identifier reference with the given name.
     fn is_matching_identifier_reference(
-        module: &js::ScriptModule,
+        module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
         name: StringId,
     ) -> bool {
@@ -92,7 +92,7 @@ impl Rewriter<'_, '_> {
     }
 
     /// Rewrite `let x = undefined` into `let x` for simple mutable bindings.
-    pub(super) fn elide_undefined_let_initializers(module: &mut js::ScriptModule) {
+    pub(super) fn elide_undefined_let_initializers(module: &mut js::Module) {
         let statement_ids = module.tree.get_nodes::<js::Statement>();
 
         // let statements
@@ -133,7 +133,7 @@ impl Rewriter<'_, '_> {
     }
 
     /// Merge adjacent binding statements that share declaration fields and mutability.
-    pub(super) fn merge_adjacent_binding_statements(module: &mut js::ScriptModule) {
+    pub(super) fn merge_adjacent_binding_statements(module: &mut js::Module) {
         let roots = std::mem::take(&mut module.roots);
         module.roots = Self::merge_adjacent_root_binding_statements(module, roots);
 
@@ -151,7 +151,7 @@ impl Rewriter<'_, '_> {
 
     /// Merge adjacent binding statements across one root list.
     fn merge_adjacent_root_binding_statements(
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         roots: Vec<js::LocalNodeIdAny>,
     ) -> Vec<js::LocalNodeIdAny> {
         let mut merged_roots = Vec::with_capacity(roots.len());
@@ -173,7 +173,7 @@ impl Rewriter<'_, '_> {
 
     /// Merge adjacent binding statements across one statement list.
     fn merge_adjacent_statement_bindings(
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         statements: Vec<js::LocalNodeId<js::Statement>>,
     ) -> Vec<js::LocalNodeId<js::Statement>> {
         let mut merged_statements = Vec::with_capacity(statements.len());
@@ -195,7 +195,7 @@ impl Rewriter<'_, '_> {
 
     /// Try to merge one root statement into the previous root statement.
     fn try_merge_root_binding_statement(
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         left_root_id: js::LocalNodeIdAny,
         right_root_id: js::LocalNodeIdAny,
     ) -> bool {
@@ -213,7 +213,7 @@ impl Rewriter<'_, '_> {
 
     /// Try to merge one binding statement into the previous binding statement.
     fn try_merge_binding_statement(
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         left_statement_id: js::LocalNodeId<js::Statement>,
         right_statement_id: js::LocalNodeId<js::Statement>,
     ) -> bool {
@@ -255,7 +255,7 @@ impl Rewriter<'_, '_> {
     }
 
     /// Rewrite `return undefined` inside function bodies where that is implicit.
-    pub(super) fn elide_undefined_returns(module: &mut js::ScriptModule) {
+    pub(super) fn elide_undefined_returns(module: &mut js::Module) {
         let declaration_ids = module.tree.get_nodes::<js::Declaration>();
 
         // function declarations
@@ -283,7 +283,7 @@ impl Rewriter<'_, '_> {
 
     /// Rewrite `return undefined` recursively within one function block.
     fn elide_undefined_returns_in_block(
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         block_id: js::LocalNodeId<js::Block>,
     ) {
         let block = module.tree.get(block_id).clone();
@@ -296,7 +296,7 @@ impl Rewriter<'_, '_> {
 
     /// Rewrite `return undefined` recursively within one statement tree.
     fn elide_undefined_returns_in_statement(
-        module: &mut js::ScriptModule,
+        module: &mut js::Module,
         statement_id: js::LocalNodeId<js::Statement>,
     ) {
         let statement = module.tree.get(statement_id).clone();

@@ -22,7 +22,7 @@ impl Compiler {
     ) -> ast::LocalNodeId<ast::WhereClause> {
         let clause = tree.get(clause_id);
         let span = self.unbind_span(module, clause_id.into());
-        let left = ast_strings.intern_from(&self.repository.strings, clause.left);
+        let left = clause.left;
         let right = self.unbind_type_expression(
             module,
             clause.right,

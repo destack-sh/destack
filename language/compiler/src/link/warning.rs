@@ -1,23 +1,21 @@
-use crate::{CompileWarning, DiagnosticAnchor, DiagnosticDefinition};
-use destack_compiler_macros::DefineWarning;
-use destack_mir::AnchoredGlobalNodeId;
-use destack_workspace::Repository;
+use crate::DiagnosticAnchor;
+use destack_artifact_macros::Diagnostic;
 
 /// Warnings during the link phase.
-#[derive(Debug, Clone, PartialEq, DefineWarning)]
-#[phase(Link)]
+#[derive(Debug, Clone, PartialEq, Diagnostic)]
+#[diagnostic(severity = Warning, phase = Link)]
 pub enum LinkWarning {
     // -------------------------------------------------------------------------
     // 1xx: Symbol issues
     // -------------------------------------------------------------------------
     /// Missing target for a symbol.
-    #[warning(code = "WK100", message = "missing target for a symbol")]
-    MissingTarget { node: AnchoredGlobalNodeId },
+    #[diagnostic(code = "WK100", message = "missing target for a symbol")]
+    MissingTarget { anchor: DiagnosticAnchor },
 
     /// Weak/duplicate symbol but one chosen deterministically (e.g. ODR violation that's survivable).
-    #[warning(code = "WK101", message = "weak symbol")]
+    #[diagnostic(code = "WK101", message = "weak symbol")]
     WeakSymbol {
-        node: AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         symbol: String,
     },
 
@@ -25,9 +23,9 @@ pub enum LinkWarning {
     // 2xx: Size issues
     // -------------------------------------------------------------------------
     /// Large binary / large static data section.
-    #[warning(code = "WK200", message = "large binary")]
+    #[diagnostic(code = "WK200", message = "large binary")]
     LargeBinary {
-        node: AnchoredGlobalNodeId,
+        anchor: DiagnosticAnchor,
         size_mb: u64,
     },
 }

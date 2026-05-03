@@ -1,12 +1,12 @@
 use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
 use crate::{LinkError, LinkResult};
 use destack_artifact::EmitFormat;
+use destack_core::{StableHasher, stable_hash_bytes};
 use destack_source::{FileContent, FileType, ModuleId};
 use destack_workspace::{BundleFormat, BundleMode, Module, Target};
-use rustc_hash::FxHasher;
 
 use crate::link::{OutputFileNameValues, OutputLocation, TargetLocation, module_source_path};
 
@@ -182,19 +182,14 @@ impl<'a> ScriptLinker<'a> {
     fn source_hash(&self, module_id: ModuleId) -> LinkResult<String> {
         let module = self.module(module_id);
         let file = self.file(module.file_id);
-        let mut hasher = FxHasher::default();
 
         // hash the loaded content directly, regardless of file kind
-        match file.content.payload() {
-            FileContent::Text { content } => {
-                content.as_bytes().hash(&mut hasher);
-            }
-            FileContent::Binary { content } => {
-                content.hash(&mut hasher);
-            }
-        }
+        let hash = match file.content.payload() {
+            FileContent::Text { content } => stable_hash_bytes(content.as_bytes()),
+            FileContent::Binary { content } => stable_hash_bytes(content),
+        };
 
-        Ok(format!("{:08x}", hasher.finish() as u32))
+        Ok(format!("{:08x}", hash as u32))
     }
 
     /// Build the output layout over the current script output graph.
@@ -292,6 +287,7 @@ impl<'a> ScriptLinker<'a> {
                 .or_else(|| output.modules().first().copied());
             let Some(module_id) = module_id else {
                 return Err(LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message: "preserve-modules script output had no facade or member modules"
                         .to_string(),
@@ -306,6 +302,7 @@ impl<'a> ScriptLinker<'a> {
                 file_type,
             )
             .map_err(|message| LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message,
             })?;
@@ -342,7 +339,7 @@ impl<'a> ScriptLinker<'a> {
 
     /// Build one stable emitted file-name hash for one script output.
     fn script_output_hash(&self, output: &super::Output) -> LinkResult<String> {
-        let mut hasher = FxHasher::default();
+        let mut hasher = StableHasher::new();
 
         // output shape
         output.kind().hash(&mut hasher);
@@ -366,7 +363,7 @@ impl<'a> ScriptLinker<'a> {
             }
         }
 
-        Ok(format!("{:08x}", hasher.finish() as u32))
+        Ok(format!("{:08x}", hasher.finish_u64() as u32))
     }
 
     /// Build one default output name candidate for one automatic chunk.
@@ -430,9 +427,8 @@ impl<'a> ScriptLinker<'a> {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use destack_artifact::Loader;
-    use destack_source::{FileId, FileType, LanguageType, ModuleId, PackageId, Uri};
-    use destack_workspace::{Module, ModuleSource, Target};
+    use destack_source::{FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri};
+    use destack_workspace::{Module, Target};
 
     use crate::link::{OutputLayout, TargetLocation};
 
@@ -497,13 +493,12 @@ mod tests {
         let package_id = PackageId::from_path(Path::new("/workspace/pkg"));
         let module = Module::blank(
             ModuleId::from_relative_path(package_id, Path::new("src/util/math.ds")),
-            FileId::new(1),
+            FileId::from_logical_str("src/util/math.ds"),
             Uri::from_path("src/util/math.ds"),
             Some(PathBuf::from("src/util/math.ds")),
             package_id,
-            LanguageType::Destack,
+            Some(LanguageType::Destack),
             Loader::Destack,
-            ModuleSource::User,
         );
 
         let output_path = OutputLayout::module_output_path(

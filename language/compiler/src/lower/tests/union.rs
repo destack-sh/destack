@@ -52,9 +52,9 @@ entry0(value0: takeShape.value#union):
         let union_type = test.type_by_metadata_name(tree, strings, union_metadata_name);
 
         // resolve the tag and payload field types
-        let tag_type = test.expect_struct_field_type_by_name(tree, strings, union_type, "@tag");
+        let tag_type = test.expect_struct_field_type_by_name(tree, strings, union_type, "tag");
         let payload_type =
-            test.expect_struct_field_type_by_name(tree, strings, union_type, "@payload");
+            test.expect_struct_field_type_by_name(tree, strings, union_type, "payload");
 
         // assert the tag field type
         let tag_type = tree.get(tag_type);
@@ -146,7 +146,7 @@ entry0(value0: takeFrame.value#union):
 
         // assert the payload field is a managed reference
         let payload_type =
-            test.expect_struct_field_type_by_name(tree, strings, union_type, "@payload");
+            test.expect_struct_field_type_by_name(tree, strings, union_type, "payload");
         let payload_type = tree.get(payload_type);
         let mir::Type::Reference {
             kind: mir::ReferenceKind::Managed,
@@ -509,14 +509,14 @@ function makeFrame(value: Frame): Frame | MegaFrame {
         module_id,
         "native",
         r#"
-type makeFrame.return#union {
-    tag: uint8;
-    payload: ref<void, managed, readonly>;
-}
 type Frame {
     first: int64;
     second: int64;
     third: int64;
+}
+type makeFrame.return#union {
+    tag: uint8;
+    payload: ref<void, managed, readonly>;
 }
 
 function makeFrame(value0: Frame): makeFrame.return#union {
@@ -610,16 +610,15 @@ function select(value0: select.value#union): int32 {
 entry0(value0: select.value#union):
     value1: uint8 = field.get value0, 0
     value2: uint8 = 0uint8
-    value3: boolean = int.eq value1, value2
     check unionTag value1, 0 -> block1, block2
 block1:
-    value4: int32 = 1int32
-    jump block3(value4)
+    value3: int32 = 1int32
+    jump block3(value3)
 block2:
-    value5: int32 = 2int32
-    jump block3(value5)
-block3(value6: int32):
-    return value6
+    value4: int32 = 2int32
+    jump block3(value4)
+block3(value5: int32):
+    return value5
 }
         "#,
     );
@@ -838,14 +837,11 @@ function isA(value: { kind: "b", value: int32 } | { kind: "a", value: int32 }): 
 
     let string_alias = test.string_type_alias_definition();
     let string_a_name = test.string_literal_global_name("a");
-    let string_b_name = test.string_literal_global_name("b");
-
     // assert the lowered mir
     let expected = r#"
-type isA.value#union { tag: uint8, payload: usize[2] }
 ${string_alias}
+type isA.value#union { tag: uint8, payload: usize[2] }
 global ${string_a}: ref<String, managed, readonly>, readonly = "a"
-global ${string_b}: ref<String, managed, readonly>, readonly = "b"
 function isA(value0: isA.value#union): boolean {
 entry0(value0: isA.value#union):
     value1: uint8 = field.get value0, 0
@@ -856,7 +852,6 @@ entry0(value0: isA.value#union):
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
     let expected = expected.replace("${string_a}", &string_a_name);
-    let expected = expected.replace("${string_b}", &string_b_name);
     test.assert_mir(module_id, "native", &expected);
 }
 

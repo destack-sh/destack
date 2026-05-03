@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult};
+use crate::{CompilerError, CompilerResult, LowerError};
 
 use crate::lower::{DispatchTarget, FunctionLowerer};
 
@@ -21,7 +21,7 @@ impl FunctionLowerer<'_> {
     fn static_index_literal(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<usize> {
+    ) -> CompilerResult<usize> {
         // require a compile time integer literal
         let index_expression = self.unwrap_expression(expression_id);
         match self.context.dir_tree.get(index_expression) {
@@ -31,7 +31,9 @@ impl FunctionLowerer<'_> {
             | dir::Expression::ScalarLiteral {
                 value: dir::ScalarLiteral::Bigint(value),
             } if *value >= 0 => Ok(*value as usize),
-            _ => Err(self.error(expression_id, "tuple index must be a constant integer")),
+            _ => Err(self
+                .error(expression_id, "tuple index must be a constant integer")
+                .into()),
         }
     }
 
@@ -53,7 +55,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         left_id: dir::LocalNodeId<dir::Expression>,
         field_name: StringId,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower getter access into function call
         if let Some(target_symbol) = self.resolved_member_symbol(expression_id)
             && matches!(
@@ -105,11 +107,14 @@ impl FunctionLowerer<'_> {
                 self.state.builder.tree(),
             )
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "field not found in aggregate type".to_string(),
-            })?;
+            })
+            .map_err(CompilerError::from)?;
 
         // ensure constructor fields are initialized before read
         if matches!(self.context.dir_tree.get(left_id), dir::Expression::This) {
@@ -257,7 +262,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         receiver_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(
+    ) -> CompilerResult<(
         Option<mir::Value>,
         Option<mir::Value>,
         Option<dir::LocalTypeId>,
@@ -312,7 +317,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         receiver_id: dir::LocalNodeId<dir::Expression>,
         target_symbol: dir::GlobalSymbolId,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve receiver values for the call
         let (call_receiver, dispatch_receiver, receiver_type_id) =
             self.member_call_receivers(expression_id, receiver_id)?;
@@ -327,14 +332,17 @@ impl FunctionLowerer<'_> {
         }
 
         // resolve the target function
-        let function_id =
-            self.function_for_symbol(target_symbol)
-                .ok_or_else(|| LowerError::MissingFunction {
-                    node: expression_id
+        let function_id = self
+            .function_for_symbol(target_symbol)
+            .ok_or_else(|| LowerError::MissingFunction {
+                anchor: self.diagnostic_anchor(
+                    expression_id
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
-                    symbol: target_symbol,
-                })?;
+                ),
+                symbol: target_symbol,
+            })
+            .map_err(CompilerError::from)?;
 
         // resolve the call signature
         let signature = self.signature_type_for_function(expression_id, function_id)?;
@@ -364,12 +372,16 @@ impl FunctionLowerer<'_> {
                             signature,
                             arguments,
                         );
-                        let value = value.ok_or_else(|| LowerError::UnsupportedConstruct {
-                            node: expression_id
-                                .into_global_any(self.context.module_id)
-                                .into_anchored(Some(self.context.profile)),
-                            message: "getter call returned no value".to_string(),
-                        })?;
+                        let value = value
+                            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                                anchor: self.diagnostic_anchor(
+                                    expression_id
+                                        .into_global_any(self.context.module_id)
+                                        .into_anchored(Some(self.context.profile)),
+                                ),
+                                message: "getter call returned no value".to_string(),
+                            })
+                            .map_err(CompilerError::from)?;
                         return Ok((value, result_type));
                     }
                     DispatchTarget::Virtual {
@@ -385,12 +397,16 @@ impl FunctionLowerer<'_> {
                             signature,
                             arguments,
                         );
-                        let value = value.ok_or_else(|| LowerError::UnsupportedConstruct {
-                            node: expression_id
-                                .into_global_any(self.context.module_id)
-                                .into_anchored(Some(self.context.profile)),
-                            message: "getter call returned no value".to_string(),
-                        })?;
+                        let value = value
+                            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                                anchor: self.diagnostic_anchor(
+                                    expression_id
+                                        .into_global_any(self.context.module_id)
+                                        .into_anchored(Some(self.context.profile)),
+                                ),
+                                message: "getter call returned no value".to_string(),
+                            })
+                            .map_err(CompilerError::from)?;
                         return Ok((value, result_type));
                     }
                 }
@@ -399,12 +415,16 @@ impl FunctionLowerer<'_> {
 
         // emit the direct call
         let value = self.state.builder.call(function_id, signature, arguments);
-        let value = value.ok_or_else(|| LowerError::UnsupportedConstruct {
-            node: expression_id
-                .into_global_any(self.context.module_id)
-                .into_anchored(Some(self.context.profile)),
-            message: "getter call returned no value".to_string(),
-        })?;
+        let value = value
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
+                message: "getter call returned no value".to_string(),
+            })
+            .map_err(CompilerError::from)?;
 
         Ok((value, result_type))
     }
@@ -431,7 +451,7 @@ impl FunctionLowerer<'_> {
         receiver_id: dir::LocalNodeId<dir::Expression>,
         target_symbol: dir::GlobalSymbolId,
         value: mir::Value,
-    ) -> LowerResult<()> {
+    ) -> CompilerResult<()> {
         // resolve receiver values for the call
         let (call_receiver, dispatch_receiver, receiver_type_id) =
             self.member_call_receivers(expression_id, receiver_id)?;
@@ -444,14 +464,17 @@ impl FunctionLowerer<'_> {
         arguments.push(value);
 
         // resolve the target function
-        let function_id =
-            self.function_for_symbol(target_symbol)
-                .ok_or_else(|| LowerError::MissingFunction {
-                    node: expression_id
+        let function_id = self
+            .function_for_symbol(target_symbol)
+            .ok_or_else(|| LowerError::MissingFunction {
+                anchor: self.diagnostic_anchor(
+                    expression_id
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
-                    symbol: target_symbol,
-                })?;
+                ),
+                symbol: target_symbol,
+            })
+            .map_err(CompilerError::from)?;
 
         // resolve the call signature
         let signature = self.signature_type_for_function(expression_id, function_id)?;
@@ -528,7 +551,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         left_id: dir::LocalNodeId<dir::Expression>,
         index_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve the left-hand type
         let left_type_id = self.type_for_expression_or_error(left_id)?;
         let left_type_id = self.unwrap_value_type_id(left_type_id);
@@ -611,12 +634,15 @@ impl FunctionLowerer<'_> {
                 }
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
                         message: "index signatures are not supported for native lowering"
                             .to_string(),
-                    });
+                    }
+                    .into());
                 }
             }
         };
@@ -633,7 +659,9 @@ impl FunctionLowerer<'_> {
 
         // ensure the index is in bounds
         if index >= element_types.len() {
-            return Err(self.error(expression_id, "tuple index is out of bounds"));
+            return Err(self
+                .error(expression_id, "tuple index is out of bounds")
+                .into());
         }
 
         // extract the payload element

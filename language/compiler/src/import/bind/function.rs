@@ -1,6 +1,6 @@
 use crate::Compiler;
 use destack_artifact::Ast;
-use destack_ast as ast;
+use destack_ast::{self as ast, StringId};
 use destack_dir::{
     Asynchrony, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
     GenericParameter, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeType,
@@ -43,7 +43,7 @@ impl Compiler {
                 constraint,
                 default,
             } => {
-                let name = self.repository.strings.intern_from(&ast.strings, *name);
+                let name = *name;
                 let variance = variance.map(|variance| match variance {
                     ast::VarianceModifier::In => VarianceModifier::In,
                     ast::VarianceModifier::Out => VarianceModifier::Out,
@@ -113,7 +113,7 @@ impl Compiler {
                 default,
                 is_comptime,
             } => {
-                let name = self.repository.strings.intern_from(&ast.strings, *name);
+                let name = *name;
                 let declared_type = declared_type.map(|declared_type| {
                     self.bind_type_expression(
                         module,
@@ -206,7 +206,7 @@ impl Compiler {
             return false;
         }
 
-        module.language_type.is_javascript() || module.language_type.is_typescript()
+        module.is_ecmascript()
     }
 
     /// Return true when the function scope already contains an `arguments` binding.
@@ -215,7 +215,7 @@ impl Compiler {
         scope_id: LocalScopeId,
         symbols: &SymbolTable,
     ) -> bool {
-        let arguments_name = self.repository.strings.intern("arguments");
+        let arguments_name = StringId::for_text("arguments");
         let arguments_key = StaticKey::Name(arguments_name);
         let scope = symbols.get_scope_by_id(scope_id);
         scope
@@ -320,11 +320,11 @@ impl Compiler {
             if this_parameter.is_none()
                 && let Some(first_id) = parameters.first().copied()
             {
-                let this_name = self.repository.strings.intern("this");
+                let this_name = StringId::for_text("this");
                 let ast_parameter = ast.tree.get(first_id);
                 let is_explicit_this = match ast_parameter {
                     ast::Parameter::Named { name, .. } => {
-                        let name = self.repository.strings.intern_from(&ast.strings, *name);
+                        let name = *name;
                         name == this_name
                     }
                     _ => false,
@@ -379,7 +379,7 @@ impl Compiler {
         if self.function_has_runtime_arguments(module, kind)
             && !self.function_scope_has_arguments_binding(scope.0, symbols)
         {
-            let arguments_name = self.repository.strings.intern("arguments");
+            let arguments_name = StringId::for_text("arguments");
             let arguments_key = StaticKey::Name(arguments_name);
             self.bind_named_local(
                 module,

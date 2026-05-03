@@ -1,6 +1,6 @@
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult, ScalarType};
+use crate::{CompilerResult, LowerError, ScalarType};
 
 use crate::lower::FunctionLowerer;
 
@@ -20,11 +20,8 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
-        operand_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<mir::BinaryOperator> {
-        let scalar_type = self
-            .scalar_type_for_expression(operand_id)
-            .ok_or_else(|| self.missing_type_error(expression_id))?;
+        scalar_type: ScalarType,
+    ) -> CompilerResult<mir::BinaryOperator> {
         let is_float = matches!(scalar_type, ScalarType::Float { .. });
         let is_signed = matches!(scalar_type, ScalarType::SignedInt { .. });
 
@@ -61,8 +58,12 @@ impl FunctionLowerer<'_> {
             }
 
             // integer comparison
-            (dir::BinaryOperator::Equal, false, _) => mir::BinaryOperator::Equal,
-            (dir::BinaryOperator::NotEqual, false, _) => mir::BinaryOperator::NotEqual,
+            (dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict, false, _) => {
+                mir::BinaryOperator::Equal
+            }
+            (dir::BinaryOperator::NotEqual | dir::BinaryOperator::NotEqualStrict, false, _) => {
+                mir::BinaryOperator::NotEqual
+            }
             (dir::BinaryOperator::LessThan, false, true) => mir::BinaryOperator::SignedLessThan,
             (dir::BinaryOperator::LessThanOrEqual, false, true) => {
                 mir::BinaryOperator::SignedLessEqual
@@ -85,8 +86,12 @@ impl FunctionLowerer<'_> {
             }
 
             // float comparison
-            (dir::BinaryOperator::Equal, true, _) => mir::BinaryOperator::FloatEqual,
-            (dir::BinaryOperator::NotEqual, true, _) => mir::BinaryOperator::FloatNotEqual,
+            (dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict, true, _) => {
+                mir::BinaryOperator::FloatEqual
+            }
+            (dir::BinaryOperator::NotEqual | dir::BinaryOperator::NotEqualStrict, true, _) => {
+                mir::BinaryOperator::FloatNotEqual
+            }
             (dir::BinaryOperator::LessThan, true, _) => mir::BinaryOperator::FloatLessThan,
             (dir::BinaryOperator::LessThanOrEqual, true, _) => mir::BinaryOperator::FloatLessEqual,
             (dir::BinaryOperator::GreaterThan, true, _) => mir::BinaryOperator::FloatGreaterThan,
@@ -96,11 +101,14 @@ impl FunctionLowerer<'_> {
 
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: format!("unsupported binary operator '{operator:?}'"),
-                });
+                }
+                .into());
             }
         };
 
@@ -123,7 +131,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::UnaryOperator,
         operand_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<mir::UnaryOperator> {
+    ) -> CompilerResult<mir::UnaryOperator> {
         let scalar_type = self.scalar_type_for_expression(operand_id);
         let is_float = matches!(scalar_type, Some(ScalarType::Float { .. }));
 
@@ -139,11 +147,14 @@ impl FunctionLowerer<'_> {
 
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: format!("unsupported unary operator '{operator:?}'"),
-                });
+                }
+                .into());
             }
         };
 
@@ -175,18 +186,21 @@ impl FunctionLowerer<'_> {
         operator: dir::BinaryOperator,
         left_id: dir::LocalNodeId<dir::Expression>,
         right_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // evaluate LHS first
         let (lhs_value, lhs_type) = self.lower_value_expression(left_id)?;
 
         // verify LHS is boolean
         if lhs_type != self.context.type_lowerer.ty_bool {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "logical operator requires boolean operands".to_string(),
-            });
+            }
+            .into());
         }
 
         // create blocks for short-circuit evaluation
@@ -216,11 +230,14 @@ impl FunctionLowerer<'_> {
             }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
                     message: format!("unexpected logical operator '{operator:?}'"),
-                });
+                }
+                .into());
             }
         }
 
@@ -243,11 +260,14 @@ impl FunctionLowerer<'_> {
         // verify RHS is boolean
         if rhs_type != self.context.type_lowerer.ty_bool {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
                 message: "logical operator requires boolean operands".to_string(),
-            });
+            }
+            .into());
         }
 
         // set result and jump to merge

@@ -37,13 +37,15 @@ impl ModuleLowerer<'_> {
                 .map(|id| id.into_global_any(self.module_id))
                 .map(|id| id.into_anchored(Some(self.profile)))
                 .ok_or_else(|| LowerError::Internal {
+                    anchor: (self.module_id).into(),
                     module: self.module_id,
                     message: "itab cycle missing declaration".to_string(),
                 })?;
             return Err(LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "cycle detected while lowering itab".to_string(),
-            });
+            }
+            .into());
         }
         self.itab_in_progress.insert((concrete, interface));
 
@@ -58,9 +60,11 @@ impl ModuleLowerer<'_> {
             });
         let Some(declaration_id) = declaration_id else {
             return Err(LowerError::Internal {
+                anchor: (self.module_id).into(),
                 module: self.module_id,
                 message: "interface declaration missing for itab".to_string(),
-            });
+            }
+            .into());
         };
 
         // collect interface slots in declaration order
@@ -69,7 +73,7 @@ impl ModuleLowerer<'_> {
         // resolve concrete instance type
         let instance_type_id = self.types.get_instance_type_id(concrete).ok_or_else(|| {
             LowerError::UnsupportedConstruct {
-                node: declaration_id,
+                anchor: self.diagnostic_anchor(declaration_id),
                 message: "missing concrete instance type".to_string(),
             }
         })?;
@@ -80,7 +84,7 @@ impl ModuleLowerer<'_> {
         // resolve interface instance type
         let interface_type_id = self.types.get_instance_type_id(interface).ok_or_else(|| {
             LowerError::UnsupportedConstruct {
-                node: declaration_id,
+                anchor: self.diagnostic_anchor(declaration_id),
                 message: "missing interface instance type".to_string(),
             }
         })?;
@@ -149,9 +153,10 @@ impl ModuleLowerer<'_> {
             Some(existing_shape) => {
                 if existing_shape != &shape {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: declaration_id,
+                        anchor: self.diagnostic_anchor(declaration_id),
                         message: "inconsistent interface dispatch shape".to_string(),
-                    });
+                    }
+                    .into());
                 }
             }
             None => {
@@ -200,20 +205,25 @@ impl ModuleLowerer<'_> {
         let member = self.dir_tree.get(member_id);
         let dir::TypeMember::Method { symbol, .. } = member else {
             return Err(LowerError::UnsupportedConstruct {
-                node: member_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                anchor: self.diagnostic_anchor(
+                    member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
                 message: "interface slot member is not a method".to_string(),
-            });
+            }
+            .into());
         };
 
         // resolve the lowered method function id
         let method_symbol = symbol.into_global(self.module_id);
         self.function_for_symbol(method_symbol)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: member_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                anchor: self.diagnostic_anchor(
+                    member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
                 message: "missing method function".to_string(),
             })
     }
@@ -236,9 +246,11 @@ impl ModuleLowerer<'_> {
             layout
                 .field_index(field_name)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: member_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                    anchor: self.diagnostic_anchor(
+                        member_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                    ),
                     message: "interface field missing on concrete type".to_string(),
                 })?;
 
@@ -246,9 +258,11 @@ impl ModuleLowerer<'_> {
         let field_offset = layout
             .field(field_index)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: member_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                anchor: self.diagnostic_anchor(
+                    member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
                 message: "interface field offset missing".to_string(),
             })?
             .offset;
@@ -330,11 +344,14 @@ impl ModuleLowerer<'_> {
 
         // report missing implementation
         Err(LowerError::UnsupportedConstruct {
-            node: member_id
-                .into_global_any(self.module_id)
-                .into_anchored(Some(self.profile)),
+            anchor: self.diagnostic_anchor(
+                member_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
+            ),
             message: "missing interface method implementation".to_string(),
-        })
+        }
+        .into())
     }
 
     /// Collect concrete to interface pairs for itab generation.

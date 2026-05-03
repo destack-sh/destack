@@ -33,7 +33,7 @@ impl Compiler {
                 default,
                 ..
             } => {
-                let name = ast_strings.intern_from(&self.repository.strings, *name);
+                let name = *name;
                 let variance = variance.map(|variance| match variance {
                     dir::VarianceModifier::In => ast::VarianceModifier::In,
                     dir::VarianceModifier::Out => ast::VarianceModifier::Out,
@@ -79,7 +79,7 @@ impl Compiler {
                 is_comptime,
                 ..
             } => {
-                let name = ast_strings.intern_from(&self.repository.strings, *name);
+                let name = *name;
                 let declared_type = declared_type.map(|declared_type| {
                     self.unbind_type_expression(
                         module,

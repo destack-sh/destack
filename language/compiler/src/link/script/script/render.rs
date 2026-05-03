@@ -8,7 +8,7 @@ use super::super::plan::Plan;
 use super::super::{OutputId, ScriptLinker};
 use super::linker::OutputModule;
 use crate::link::{OutputLocation, TargetLocation};
-use destack_artifact::ScriptArtifact;
+use destack_artifact::ScriptOutput;
 
 impl<'a> ScriptLinker<'a> {
     /// Build one linked script text for one output node.
@@ -22,6 +22,7 @@ impl<'a> ScriptLinker<'a> {
             .output_graph()
             .output(output_id)
             .ok_or_else(|| LinkError::Internal {
+                anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!(
                     "missing script output graph node for output id {}",
@@ -32,7 +33,7 @@ impl<'a> ScriptLinker<'a> {
 
         // rewrite each output member in stable member order
         for module_id in output.modules() {
-            let script = self.script_artifact_for_output(output_id, *module_id, plan)?;
+            let script = self.script_output_for_output(output_id, *module_id, plan)?;
 
             modules.push((*module_id, script.module));
         }
@@ -66,6 +67,7 @@ impl<'a> ScriptLinker<'a> {
                     self.context,
                 )
                 .map_err(|message| LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message,
                 })?;
@@ -97,15 +99,16 @@ impl<'a> ScriptLinker<'a> {
                 .output_graph()
                 .output_id_for_module(*module_id)
                 .ok_or_else(|| LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message: format!("missing output id for script module {:?}", module_id),
                 })?;
-            let script = self.script_artifact_for_output(output_id, *module_id, plan)?;
+            let script = self.script_output_for_output(output_id, *module_id, plan)?;
             let module = self.module(*module_id);
 
             let files = self
                 .compiler
-                .link_script_artifact_files(
+                .link_script_output_files(
                     module.as_ref(),
                     &script,
                     self.target_id,
@@ -115,8 +118,9 @@ impl<'a> ScriptLinker<'a> {
                     self.context,
                 )
                 .map_err(|message| LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
-                    message: format!("failed to link script artifact: {message}"),
+                    message: format!("failed to link script output: {message}"),
                 })?;
 
             output_files.extend(files);
@@ -125,18 +129,18 @@ impl<'a> ScriptLinker<'a> {
         Ok(output_files)
     }
 
-    /// Return the final linked script artifact for one output member.
-    fn script_artifact_for_output(
+    /// Return the final linked script output for one output member.
+    fn script_output_for_output(
         &self,
         output_id: OutputId,
         module_id: ModuleId,
         plan: &Plan,
-    ) -> LinkResult<ScriptArtifact> {
+    ) -> LinkResult<ScriptOutput> {
         let source_module = self.module(module_id);
 
         // resource modules are synthesized by the linker with final linked values
         if !source_module.is_code() {
-            return self.build_resource_script_artifact(
+            return self.build_resource_script_output(
                 output_id,
                 module_id,
                 plan.output_graph(),
@@ -144,7 +148,7 @@ impl<'a> ScriptLinker<'a> {
             );
         }
 
-        let script = self.script_artifact(module_id)?;
+        let script = self.script_output(module_id)?;
         let rewritten_module = self.rewrite_code_script_module(
             output_id,
             module_id,
@@ -173,6 +177,7 @@ impl<'a> ScriptLinker<'a> {
                 plan.output_layout()
                     .output_location(output_id)
                     .ok_or_else(|| LinkError::Internal {
+                        anchor: (self.package_id).into(),
                         package: self.package_id,
                         message: format!(
                             "missing output location for script output id {}",
@@ -213,6 +218,7 @@ impl<'a> ScriptLinker<'a> {
                     source_map_path,
                 )
                 .map_err(|message| LinkError::Internal {
+                    anchor: (self.package_id).into(),
                     package: self.package_id,
                     message,
                 })?;
