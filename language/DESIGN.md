@@ -209,38 +209,62 @@ enum Priority {
 
 ### Arrays, Slices and Tuples
 
-Destack supports regular dynamic arrays woth both `T[]` and `Array<T>`
-Also `Slice<T>`
-And fixed arrays like `T[20 as comptime]`
+Destack supports richer sequence forms bBeyond the classic dynamic arrays - `T[]` / `Array<T>` with explicit slice, fixed array, and tuple forms:
 
-Array tuples are recognized, but explicit tuple is preferred for clarity.
-(Conversely, legacy TS sequence expressions are supported in non-`.ds` files, but discouraged.)
+| Forms | Meaning |
+|------|---------|
+| `T[]`, `Array<T>` | Dynamic, homnogenous, dense array |
+| `[T]`, `Slice<T>` | Fixed, homogenous slice into dense array |
+| `[T; N]`, `FixedArray<T, N>` | Fixed, owned sequence of values |
+| `(A, B)` | Sequence of heterogenous, owned values |
 
-Explicit tuple syntax uses parentheses:
+Unlike JavaScript, Destack does not permit holes in arrays (or any other sequences)
+Indexing into `T[]` therefore returns `T`, not `T | undefined`; out-of-bounds indexing traps or errors according to the active profile.
+
+```ds
+let xs: int32[] = [1, 2, 3];
+let ys: Array<int32> = [1, 2, 3];
+```
+
+Fixed arrays are homogeneous arrays whose length is statically known and part of the type.
+They are inline value/layout types by default, and definitionally cannot grow.
+
+```ds
+type Block = [uint8; 4096];
+type Vec3 = [float32; 3];
+
+let rgb: [uint8; 3] = [255, 128, 0];
+let zeroes: [uint8; 32] = [0; 32];
+```
+
+For tuples, we still parse the "array tuple" syntax like `[number, string]` in non-`.ds` files, but require explicit tuple syntax like `(number, string)` in `.ds`.
+Tuples are fixed heterogeneous products, and of course also work as patterns:
 
 ```ds
 const point: (int32, int32) = (1, 2);
 const (x, _) = getPoint();
 ```
 
-Arrays like `T[]` or `Array<T>` are dense, homogeneous and bounds checked by default with no holes allowed.
-Thus, accessing into `T[]` just gives you a straight `T` always, because out of bounds and holes are both forbidden.
-Like in JS/TS, dynamic `Array` grow automatically like you would expect.
-
-In addition to dynamic arrays, Destack also provides fixed-size arrays with `T[N]`.
-Because TypeScript already uses `T[N]` for indexed access, Destack honors that behavior when indexed access is admissible, and we have to use `N as comptime` to force fixed-size array construction in ambiguous cases.
-`FixedArray<T, comptime N>` is an explicit alias for `T[N as comptime]`.
-
-### Generic
-
-Destack generalizes TypeScript's generic parameters to also carry values that are accessible to the data abstract data tye.
-A generic parameter can be a type parameter like in TypeScript, or a compile-time value parameter marked with `comptime`.
+One-element tuples use a trailing comma, empty tuples are just `()`:
 
 ```ds
-type Buffer<comptime N: uint> = uint8[N];
+type One = (int32,);
+const one: One = (1,);
+const empty: () = ();
+```
+
+### Generics
+
+Destack keeps TypeScript-shaped generics and extends generic parameter lists with compile-time value parameters.
+Type parameters still use TypeScript-style inference, constraints, defaults, conditional types, mapped types, and indexed access types.
+Compile-time value parameters are ordinary generic parameters whose values are known during static evaluation.
+
+```ds
+type Buffer<comptime N: uint> = [uint8; N];
 
 function repeat<comptime N: uint>(value: string): string {
     let result = "";
+    @unroll(N)
     for (let i = 0; i < N; i++) {
         result += value;
     }
@@ -248,66 +272,57 @@ function repeat<comptime N: uint>(value: string): string {
 }
 ```
 
-Type parameters still use TypeScript-style inference and constraints.
-Compile-time value parameters require values known during static analysis.
-Local inference can infer compile-time values from local literal arguments, such as fixed array lengths.
-Inference is local to the current call and module surface; Destack does not solve exported API shapes through module cycles.
+### Associated Types and Constants
 
-### Associated Types And Constants
+Associated types and constants contribute static members to a type, instead of forcing every API to carry more generic parameters.
+This is basically exactly like how it works in Rust, for example.
 
-Structs, classes, and interfaces can declare associated type aliases:
+```ds
+interface Iterator {
+    type Item;
+
+    next(): Option<this.Item>;
+}
+
+function collect<I: Iterator>(iter: I): I.Item[] { ... }
+```
+
+Associated types are type aliases scoped to some struct, class, or interface and can of course also reference the owner's generic parameters.
 
 ```ds
 struct Cache<K, V> {
-    type Entry = CacheEntry<K, V>;  // associated type
+    type Entry = CacheEntry<K, V>;
 
     entries: Entry[],
 }
 ```
 
-Associated types are resolved at compile time and can reference generic parameters.
-Associated projection uses the same member lookup and substitution model as value members.
-
-Associated types are static members of a type owner.
-Projection substitutes the owner's generic arguments first, then resolves the associated member.
+Associated types can have their own generic parameters with same generic parameter forms as ordinary declarations, including type parameters and `comptime` value parameters.
 
 ```ds
-type Entry = Cache<string, User>.Entry;
-```
-
-Interfaces may declare abstract associated types and defaults.
-Implementors must provide concrete definitions for abstract associated types, and may override defaults when the replacement satisfies the declared constraint.
-
-Associated types can have their own generic parameters.
-Generic associated types cover cases where the associated shape depends on both the owner and a later type or compile-time value.
-Generic associated types support the same generic parameter forms as ordinary declarations, including type parameters and `comptime` value parameters.
-
-```ds
-interface Slice<T> {
+interface Collection<T> {
     type View<U>;
 }
 
-struct Buffer<T> {
+struct Buffer<T> implements Collection<T> {
     type View<U> = BufferView<T, U>;
 }
 ```
 
-Class-shaped declarations can also declare associated compile-time constants with `comptime const`.
-Associated constants are static members, have no instance storage, and must be statically evaluable.
-When an associated constant is used in a type expression, its evaluated value participates in that resulting type.
-Associated constants do not otherwise become part of a type's identity merely by existing.
-If an associated constant affects a type, a member set, or layout, it has to fit the static path described below.
+In addition to associated types, nominal type declarations also support Associated constants as static compile-time values.
+Unlike `static` members, `comptime const`s have no instance storage and must be statically evaluable during compilation.
 
 ```ds
-interface LogStore<Record> {
-    comptime const SegmentRows: uint = 1024;
-    type Segment = Record[this.SegmentRows];
+interface BlockCipher {
+    comptime const BlockSize: uint;
+
+    encrypt(block: &[uint8; this.BlockSize]): [uint8; this.BlockSize];
 }
 ```
 
 ### Constraints
 
-`where` clauses for readable generic constraints:
+`where` clauses for readable generic constraints in complex types:
 
 ```ds
 function merge<T: int, U>(): T where (
@@ -917,7 +932,7 @@ struct Buffer<comptime size: uint> {
     comptime {
         assert(size > 0 && size <= 65536);
     }
-    data: uint8[size],
+    data: [uint8; size],
 }
 ```
 
