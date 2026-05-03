@@ -23,6 +23,7 @@ More specifically, the following are areas of divergence:
 
 - **Ambiguous generic arrow**: `<T>() => ...` is ambiguous in `.tsx`, and `.ds` inherits this since it supports TSX syntax natively.
 - **Sequence expressions**: `(A, B, C)` is - confusingly - a "sequence eexpression" in JS, which nobody every really types out by hand, and `.ds` instead uses `(A, B, C)` for explicit tuples.
+- **Enum coercion**:: `enum Level { A = 1, B = 2, C = 3 }` is _just_ an alias in TypeScript, but we do _not_ coerce `Level.A` to `number` without an explicit cast.
 - **Flow**: We support TypeScript only, where Flow and TS overlap we obviously support both, but we do no special JSDoc analysis.
 - **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript. Non-strict ("sloppy mode") behaviors like duplicate function declarations or `yield` as an identifier are not supported. This aligns with how TypeScript modules work (always strict) and modern best practices.
 - **Declaration expressions**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with proper AOT compilation.
@@ -116,31 +117,38 @@ AuthenticatedUser(user) satisfies AuthenticatedUser;
 
 ### Extensions
 
-Destack introduces extensions to add methods and static constants for any _nominal_ type:
+It is sometimes very convenient to attach additional logic and data to the (nominal identity of) a type.
+Rust does this with `impl` blocks, and Destack introduces `extension`s to add methods and static constants for any _nominal_ type:
 
 ```ds
+newtype Vector2 = {
+    x: float32;
+    y: float32;
+};
+
 extension of Vector2 {
-    magnitude(): float32 { (this.x * this.x + this.y * this.y).sqrt() }
+    static ZERO = Vector2 { x: 0.0, y: 0.0 };
+
+    magnitude(): float32 { 
+        return (this.x * this.x + this.y * this.y).sqrt() 
+    }
 }
 ```
 
-Extensions require **nominal types** with identity.
-This includes `struct`, `class`, `enum`, `newtype`, and primitive types declared in the prelude (`int32`, `string`, etc.).
-Type aliases (`type X = ...`) and inline structural types (`{ x: number }`) cannot be extended (because that would be very unpredictable).
-
-To extend a structural shape, wrap it in a nominal type:
+Extensions can be added to any **nominal types**, so all types like `struct`, `class`, `enum`, `newtype`, whether defined locally or in a foreign / imported module; accordingly, type aliases (`type X = ...`) and structural types (`{ x: number }`) cannot receive extensions.
+Further, extensions can be named for explicit export / reference:
 
 ```ds
-type Point = { x: number, y: number };
+import { User } from "@/model/user";
 
-extension of Point { ... }  // ERROR
-
-newtype Point = { x: number, y: number };
-// works - extend newtype / struct / class / ..
-extension of Point { ... }  // ok
+export extension UserUtils of User {
+    validate(): bool {
+        ...
+    }
+}
 ```
 
-Extension visibility is basically as you would expect:
+The visibility of extension members is straightforward:
 - **Same file as type**: Extensions are automatically visible wherever the type is used.
 - **Anonymous on foreign type**: Only visible in the file where declared (`extension of int32 { ... }`).
 - **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils of Date { ... }`).
@@ -148,8 +156,7 @@ Extension visibility is basically as you would expect:
 ### Structs
 
 Structs are nominal value types for data with fixed shape, but without reference identity, constructors, or inheritance.
-Basically, structs are just data with a name, much like structs in other "systems languages".
-Plain `T` of a struct is just an alias to the struct's components values, that is, structs are stored and passed by value by default.
+Basically, structs are just data with a name, much like structs in other "systems languages": an alias to the struct's components.
 
 ```ds
 struct Point {
@@ -157,34 +164,28 @@ struct Point {
     y: float32;
 }
 
-let x: Point = Point { x, y };  // ok
+let x: Point = Point { x, y };  // OK
 let x: Point = { x, y };        // ERROR: plain object is not Point
 ```
 
 For composition, structs use embedding instead of inheritance, similar to Go:
 
 ```ds
-struct Transform { position: Vec3; rotation: Quat; }
-struct Player { ...Transform; health: int; }  // embeds Transform's fields
+struct Transform { 
+    position: Vec3; 
+    rotation: Quat; 
+}
+
+struct Player { 
+    // embeds Transform's fields
+    ...Transform; 
+    health: int; 
+} 
 ```
-
-Classes are unchanged and still behave like full object types (albeit with fixed shape) with reference identity.
-Plain `T` for a class means a managed reference to a class instance, with identity, constructors, static members, methods, inheritance, and ordinary TS-shaped method lookup.
-
-| | `struct` | `class` |
-|---|---|---|
-| Plain `T` | Value | Managed reference |
-| Reference identity | No (`===` is an error) | Yes (`===` compares managed identity) |
-| Inheritance | No | Yes (`extends`) |
-| Default storage | Inline value | Managed instance |
-| JS output | Plain object shape | ES6 class |
-
-Ownership forms compose with both declaration kinds.
-`^Entity` is still an owned class instance, not a struct.
 
 ### Enums
 
-Enums are nominal values for a set of constants, just like in Typescript, except that Destack's enums do not implicitly cast to with their backing type. 
+Enums are nominal aliases to a set of constants, just like in Typescript, except that Destack's enums do not implicitly cast to with their backing type. 
 Explicit conversions are required when you want the backing value.
 Like other nominal types, enums can carry static members and methods and can also receive extensions.
 
