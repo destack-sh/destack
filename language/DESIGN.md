@@ -1,22 +1,44 @@
-# Destack Language Design
+# "Language"
 
-The Destack language (`.ds`), colloqially "TypeScript++", is a superset of "strict modern" TypeScript with support for `.ts` and `.tsx` files, native AOT compilation and a fullly integrated language toolchain, _and_ it can also compile nicely to standard JS/TS targets.
-Unmodified TypeScript _just works_ **if** it follows its strict TypeScript-based type system - i.e., what you get when enabling most existing TypeScript's strict flags that improve soundness.
-TypeScript++ adds new features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do for frontend-shaped softare, but for the entire software stack including "systems software".
+The Destack language (`.ds`) and toolchain, colloqially "TypeScript++", are a superset of "strict modern" TypeScript with support for `.ts` and `.tsx` files, native AOT compilation and a fully integrated language toolchain, _and_ it can also compile nicely to standard JS/TS targets.
+By "language" we mean much more than "just" a programming language, we mean the 
 
 ## "TypeScript++"
 
-We're very early in software engineering, and we're still figuring out how to build optimal, correct, and integrated software.
-Destack aims to make building software systems simple and fast, and we believe that requires deeply integrating all the historically fragmented pieces of the software development lifecycle: the programming language itself, the language toolchain with linters and formatters, a VM, compiler, runtime, and so on.
-TypeScript is the closest thing we have to a unified software foundation today that _could_ conceivably express all software well (because in many ways, it already is, albeit suboptimally).
+We're very early in software, and we're still figuring out how to build optimal, correct, and integrated software systems.
+Over 50 years, we have grown more and more layers of software sediment and need ever _more_ tools to manage the get any code out the door, and yet confidence and performance have plummeted.
 
-The TypeScript ecosystem has a good answer to modern developer experience, rich frontends, *and* a very strong "already runs everywhere" story because browsers are the most ubiquitous software platform.
-Performance-wise, modern TypeScript is surprisingly close to a fully AOT-compilable language (and most browsers retrofit compilation internally already, sort of).
-Embracing TypeScript lets us build a new toolchain that truly covers the full stack, is immediately familiar to millions of developers, and _can_ be completely free of JS overhead and (some) historic baggage.
+We believe the best possible stack is the most integrated one, and it must truly span the entire lifecycle: the language itself, the toolchain with linters and formatters, a VM, compiler, runtime, and basically anything that touches the code.
+Only TypeScript is seriously close to being a universal software foundation, because it runs direclty on the web, and the web is the most ubiqutious application platform.
+The TypeScript ecosystem has good - if not perfect - answers to all modern software needs, from great developer tools to rich interactive frontends to quite _decent_ and performant backends.
 
-TypeScript is not a simple language, and thus any additional language features risk becoming unpredictably combinatorial (hello C++).
-There are solid arguments that a language should be minimal (like Zig or Go or even C), and while minimal languages have their advantages, we do not believe the "minimalist" framing to be correct for the universal language and toolchain we think we need.
-We needed to add _some_ affordances to TypeScript for serious systems programming, and we wanted to take the opportunity to round out the language with modern ergonomics like patterns, operator overloading, reflection, and comptime.
+If you remove all the JS baggage and dynamic prototype mess, modern TypeScript is surprisingly close to a fully AOT-compilable language (and most browsers retrofit compilation internally already based on this assumptions).
+Embracing TypeScript and "the web ecosystems" lets us build a new toolchain that truly covers the full stack, is immediately familiar to millions of developers, runs transparently on existing targets, and can be completely free of JS overhead and (some) historic baggage.
+
+## Compatibility
+
+**Destack aims for 100% compatibility with _modern_ strict TypeScript**.
+To be completely fair, "modern strict" is a little sneaky, because we get to decide what "modern" and "strict" mean - but really, it just means that all the dynamic JS stuff and most of the legacy TS stuff is out of scope.
+More specifically, the following are areas of divergence:
+
+- **Ambiguous generic arrow**: `<T>() => ...` is ambiguous in `.tsx`, and `.ds` inherits this since it supports TSX syntax natively.
+- **Sequence expressions**: `(A, B, C)` is - confusingly - a "sequence eexpression" in JS, which nobody every really types out by hand, and `.ds` instead uses `(A, B, C)` for explicit tuples.
+- **Flow**: We support TypeScript only, where Flow and TS overlap we obviously support both, but we do no special JSDoc analysis.
+- **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript. Non-strict ("sloppy mode") behaviors like duplicate function declarations or `yield` as an identifier are not supported. This aligns with how TypeScript modules work (always strict) and modern best practices.
+- **Declaration expressions**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with proper AOT compilation.
+- **Prototype modification**: Dynamic shapes and strict native compilations do not mix, so anything to do with `.prototype` is forbidden in `.ds`.
+- **XML namespace resolution**: Destack does not implement XML `xmlns` namespace binding semantics.
+  Namespaced tree tags like `<svg:path />` are treated as intrinsic string tag names (`"svg:path"`).
+
+# Language
+
+"TypeScript++" is a superset of "strict modern" TypeScript, which essentially means that existing TypeScript _just works_ **if** it follows our strict TypeScript-based type system.
+Fortunately, strict TypeScript is already a best practice, and it's what you get when enabling the recommended soundness flags in TSC.
+TypeScript++ then adds new features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do for frontend-shaped softare, but for the entire software stack including "systems software".
+
+There are solid arguments that a language should be minimal (like Zig or Go or even C), but we do not believe "language minimalism" to be pragmatic for the universal language and toolchain we want.
+That said, TypeScript is already not a simple language, and any additional language features risk becoming unwieldy.
+We needed _some_ additions for serious systems programming, and we wanted to take the opportunity to round out the language with modern ergonomics like patterns, operator overloading, reflection, and comptime.
 
 | Feature | What | Why |
 |---------|-------------|-----|
@@ -32,7 +54,7 @@ We needed to add _some_ affordances to TypeScript for serious systems programmin
 
 ## Types
 
-Destack extends TypeScript's type system with precise primitives, nominal types ("newtypes"), value types ("structs"), tuples, ergonomic constraints, and some additional niceties.
+Destack extends TypeScript's type system with precise primitives, nominal types ("`newtype`s"), value types ("`struct`s"), tuples, ergonomic constraints, and some additional niceties.
 
 ### Primitives
 
@@ -49,7 +71,31 @@ n satisfies float64;
 
 Pointer-sized integers - that integers that are as wide as the target's pointer size - are spelled `isize` and `usize`, respectively.
 
+### Newtypes
+
+TypeScript is structurally typed, that is, an interface is satisfied by any object matching its shape, even when it doesn't explicitly `implement` it (similar to Go).
+Structural typing is a useful default, but sometimes explicit nominality is important for correctness and expressiveness.
+Destack adds `newtype` as anominal counterpart to `type`: newtype aliases and newtype interfaces, which are really just a convenience around newtype aliases.
+
+With plain `type`:
+```ds
+// type
+type UserId = number;
+type OrderId = string;
+
+0 satisfies number; // ok, but ouch
+"invalid" satisfies OrderId; // also ok, also ouch
+```
+
+With plain `newtype` types must be explicitly cast into the nominal form:
+```ds
+// scalar newtype
+newtype UserId = number;
+newtype OrderLabel = string;
+```
+
 ### Structs
+
 
 Structs are nominal value types for data with fixed shape, but without reference identity, constructors, or inheritance.
 Basically, structs are just data with a name, much like structs in other "systems languages".
@@ -110,24 +156,14 @@ enum Priority {
 }
 ```
 
-### Newtypes
+### Arrays, Slices and Tuples
 
-TypeScript is structurally typed for most types, that is, an interface is satisfied by any object matching its shape, even when it doesn't explicitly `implement` it (very similar to Go).
-This is useful, and Destack keeps that default behavior, but also supports nominal interfaces for situations where identity is part of the program meaning.
+Destack supports regular dynamic arrays woth both `T[]` and `Array<T>`
+Also `Slice<T>`
+And fixed arrays like `T[20 as comptime]`
 
-```ds
-newtype UserId = int64;
-newtype OrderId = int64;
-// UserId and OrderId don't mix, even though both are int64
-```
-
-```ds
-const id = UserId(42);            // wraps scalar
-const p = Point(1.0, 2.0);        // wraps tuple
-const c = Config { debug: true };  // wraps object
-```
-
-### Arrays And Tuples
+Array tuples are recognized, but explicit tuple is preferred for clarity.
+(Conversely, legacy TS sequence expressions are supported in non-`.ds` files, but discouraged.)
 
 Explicit tuple syntax uses parentheses:
 
@@ -144,9 +180,9 @@ In addition to dynamic arrays, Destack also provides fixed-size arrays with `T[N
 Because TypeScript already uses `T[N]` for indexed access, Destack honors that behavior when indexed access is admissible, and we have to use `N as comptime` to force fixed-size array construction in ambiguous cases.
 `FixedArray<T, comptime N>` is an explicit alias for `T[N as comptime]`.
 
-### Generic Parameters
+### Generic
 
-Destack generalizes TypeScript's generic parameters.
+Destack generalizes TypeScript's generic parameters to also carry values that are accessible to the data abstract data tye.
 A generic parameter can be a type parameter like in TypeScript, or a compile-time value parameter marked with `comptime`.
 
 ```ds
@@ -648,15 +684,6 @@ extension of Vector2 implements Add<Vector2> {
 
 Structural compatibility is not enough to overload an operator.
 That keeps accidental method names from changing expression meaning.
-
-### Equality And Identity
-
-`==` is value equality and can use `Equal`.
-`===` is identity equality and is not overloadable.
-
-Classes have identity, so `===` compares managed object identity.
-Structs do not have reference identity, so `===` on structs is a compile-time error.
-Use `==` for value comparison.
 
 ### Arithmetic And Checks
 
@@ -1276,50 +1303,3 @@ Reflection metadata is separate from dispatch metadata.
 `Type<T>` is a descriptor used for reflection.
 Class vtables and nominal interface implementation tables are dispatch artifacts.
 They may share type identity, but ordinary dispatch must not require rich reflection metadata.
-
-## Compatibility
-
-### Modern Strict TypeScript
-
-**Destack aims for 100% compatibility with _modern_ TypeScript.**
-To be completely fair, this is a little sneaky, because we get to decide what "modern" means - but really, it just means that much of the deprecated TS legacy stuff is unsupported, and most _runtime dynamic_ JS features are profile-gated or deliberately out of scope.
-For example, runtime `Function` and `eval` are profile-gated, while prototype modification is deliberately out of scope.
-TypeScript-style `declare global` maps to `global { ... }` with ambient declarations.
-
-### `.ds` Syntax Differences
-
-Syntax-wise, for `.ds` files, a few obscure syntax patterns work differently due to built-in TSX support and additional typing features:
-
-| Pattern | `.ts` | `.tsx` | `.ds` |
-|---------|-------|--------|-------|
-| `<T>() => ...` | Generic arrow | Ambiguous (use `<T,>`) | Ambiguous (use `<T,>`) |
-| `(a, b, c)` | Comma operator | Comma operator | Tuple literal |
-
-Fortunately, these patterns already rarely appear in production code:
-- The **generic arrow** ambiguity already exists in `.tsx` files, and `.ds` inherits this since it supports TSX syntax natively.
-  The workaround (`<T,>`) is standard practice in TSX codebases.
-- The **comma operator** is mostly seen in minified code or obscure one-liners. Destack uses `()` for tuples instead, which is more explicit and composes better with the type system than TypeScript's `[T, U]` array syntax.
-
-### Profile Gates
-
-Profiles control how strict and portable a build must be.
-The important gates are:
-
-| Option | Meaning |
-|--------|---------|
-| `noExceptions` | disables `throw`, while keeping `try`/`catch` for `Try` propagation |
-| `noDynamicEvaluation` | disables runtime `eval` and runtime `new Function` |
-| `noDynamicShapes` | disables runtime shape generation required by declaration expressions on portable targets |
-| `noImplicitManaged` | requires explicit ownership forms where managed defaults would otherwise appear |
-| `noManaged` | forbids managed allocation for profiles that need explicit memory only |
-
-Safety profiles also control overflow checks, bounds checks, null checks, division checks, shift checks, and the failure mode for those checks.
-
-### Unsupported Legacy And Dynamic JavaScript
-
-Destack does not and will not support:
-- **Flow**: We support TypeScript only.
-- **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript. Non-strict ("sloppy mode") behaviors like duplicate function declarations or `yield` as an identifier are not supported. This aligns with how TypeScript modules work (always strict) and modern best practices.
-- **Declaration expressions (native targets)**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with ahead-of-time compilation. Use named declarations instead. On JS targets, enable `noDynamicShapes` for portability.
-- **XML namespace resolution**: Destack does not implement XML `xmlns` namespace binding semantics.
-  Namespaced tree tags like `<svg:path />` are treated as intrinsic string tag names (`"svg:path"`).
