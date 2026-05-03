@@ -13,16 +13,6 @@ use crate::program::{
 };
 use destack_mir as mir;
 
-/// Return the integer layout carried by one lowered integer opcode.
-fn binary_integer_layout(operands: &BinaryInteger) -> (u8, bool) {
-    (operands.width, operands.is_signed)
-}
-
-/// Return the integer layout carried by one lowered unary opcode.
-fn unary_integer_layout(operands: &UnaryInteger) -> (u8, bool) {
-    (operands.width, operands.is_signed)
-}
-
 /// Rebuild one canonical VM word from integer bits.
 #[inline(always)]
 fn integer_word(raw: u64, width: u8, is_signed: bool) -> Word {
@@ -101,6 +91,44 @@ fn load_unary_word_operand(
     let UnaryWord { dest, arg } = instruction.payload_as::<UnaryWord>();
 
     (*dest, state.get_word_at(*arg))
+}
+
+/// Load one lowered binary integer operation.
+#[inline(always)]
+fn load_binary_integer_operands(
+    state: &DispatchState<'_, '_>,
+    instruction: &Instruction,
+) -> (u32, u64, u64, u8, bool) {
+    let BinaryInteger {
+        dest,
+        left,
+        right,
+        width,
+        is_signed,
+    } = instruction.payload_as::<BinaryInteger>();
+
+    let left = state.get_word_at(*left).bits();
+    let right = state.get_word_at(*right).bits();
+
+    (*dest, left, right, *width, *is_signed)
+}
+
+/// Load one lowered unary integer operation.
+#[inline(always)]
+fn load_unary_integer_operand(
+    state: &DispatchState<'_, '_>,
+    instruction: &Instruction,
+) -> (u32, u64, u8, bool) {
+    let UnaryInteger {
+        dest,
+        arg,
+        width,
+        is_signed,
+    } = instruction.payload_as::<UnaryInteger>();
+
+    let argument = state.get_word_at(*arg).bits();
+
+    (*dest, argument, *width, *is_signed)
 }
 
 /// Execute constant load.
@@ -457,13 +485,12 @@ pub(crate) fn execute_add_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits();
-    let b = state.get_word_at(*right).bits();
-    let (width, is_signed) = binary_integer_layout(instruction.payload_as::<BinaryInteger>());
-    state.set_word_at(*dest, integer_word(a.wrapping_add(b), width, is_signed));
+    let (dest, left, right, width, is_signed) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(
+        dest,
+        integer_word(left.wrapping_add(right), width, is_signed),
+    );
+
     Transfer::Continue
 }
 
@@ -473,13 +500,12 @@ pub(crate) fn execute_sub_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits();
-    let b = state.get_word_at(*right).bits();
-    let (width, is_signed) = binary_integer_layout(instruction.payload_as::<BinaryInteger>());
-    state.set_word_at(*dest, integer_word(a.wrapping_sub(b), width, is_signed));
+    let (dest, left, right, width, is_signed) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(
+        dest,
+        integer_word(left.wrapping_sub(right), width, is_signed),
+    );
+
     Transfer::Continue
 }
 
@@ -489,13 +515,12 @@ pub(crate) fn execute_mul_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits();
-    let b = state.get_word_at(*right).bits();
-    let (width, is_signed) = binary_integer_layout(instruction.payload_as::<BinaryInteger>());
-    state.set_word_at(*dest, integer_word(a.wrapping_mul(b), width, is_signed));
+    let (dest, left, right, width, is_signed) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(
+        dest,
+        integer_word(left.wrapping_mul(right), width, is_signed),
+    );
+
     Transfer::Continue
 }
 
@@ -505,17 +530,15 @@ pub(crate) fn execute_div_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits() as i64;
-    let b = state.get_word_at(*right).bits() as i64;
-    if b == 0 {
+    let (dest, left, right, width, _) = load_binary_integer_operands(state, instruction);
+    if right == 0 {
         return Transfer::Error(Error::DivisionByZero);
     }
 
-    let (width, _) = binary_integer_layout(instruction.payload_as::<BinaryInteger>());
-    state.set_word_at(*dest, Word::int(a.wrapping_div(b), width));
+    let left = left as i64;
+    let right = right as i64;
+    state.set_word_at(dest, Word::int(left.wrapping_div(right), width));
+
     Transfer::Continue
 }
 
@@ -525,17 +548,15 @@ pub(crate) fn execute_rem_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits() as i64;
-    let b = state.get_word_at(*right).bits() as i64;
-    if b == 0 {
+    let (dest, left, right, width, _) = load_binary_integer_operands(state, instruction);
+    if right == 0 {
         return Transfer::Error(Error::DivisionByZero);
     }
 
-    let (width, _) = binary_integer_layout(instruction.payload_as::<BinaryInteger>());
-    state.set_word_at(*dest, Word::int(a.wrapping_rem(b), width));
+    let left = left as i64;
+    let right = right as i64;
+    state.set_word_at(dest, Word::int(left.wrapping_rem(right), width));
+
     Transfer::Continue
 }
 
@@ -545,17 +566,13 @@ pub(crate) fn execute_div_uint(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits();
-    let b = state.get_word_at(*right).bits();
-    if b == 0 {
+    let (dest, left, right, width, _) = load_binary_integer_operands(state, instruction);
+    if right == 0 {
         return Transfer::Error(Error::DivisionByZero);
     }
 
-    let (width, _) = binary_integer_layout(instruction.payload_as::<BinaryInteger>());
-    state.set_word_at(*dest, Word::uint(a.wrapping_div(b), width));
+    state.set_word_at(dest, Word::uint(left.wrapping_div(right), width));
+
     Transfer::Continue
 }
 
@@ -565,17 +582,13 @@ pub(crate) fn execute_rem_uint(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits();
-    let b = state.get_word_at(*right).bits();
-    if b == 0 {
+    let (dest, left, right, width, _) = load_binary_integer_operands(state, instruction);
+    if right == 0 {
         return Transfer::Error(Error::DivisionByZero);
     }
 
-    let (width, _) = binary_integer_layout(instruction.payload_as::<BinaryInteger>());
-    state.set_word_at(*dest, Word::uint(a.wrapping_rem(b), width));
+    state.set_word_at(dest, Word::uint(left.wrapping_rem(right), width));
+
     Transfer::Continue
 }
 
@@ -585,13 +598,9 @@ pub(crate) fn execute_and_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits();
-    let b = state.get_word_at(*right).bits();
-    let (width, is_signed) = binary_integer_layout(instruction.payload_as::<BinaryInteger>());
-    state.set_word_at(*dest, integer_word(a & b, width, is_signed));
+    let (dest, left, right, width, is_signed) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(dest, integer_word(left & right, width, is_signed));
+
     Transfer::Continue
 }
 
@@ -601,13 +610,9 @@ pub(crate) fn execute_or_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits();
-    let b = state.get_word_at(*right).bits();
-    let (width, is_signed) = binary_integer_layout(instruction.payload_as::<BinaryInteger>());
-    state.set_word_at(*dest, integer_word(a | b, width, is_signed));
+    let (dest, left, right, width, is_signed) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(dest, integer_word(left | right, width, is_signed));
+
     Transfer::Continue
 }
 
@@ -617,13 +622,9 @@ pub(crate) fn execute_xor_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits();
-    let b = state.get_word_at(*right).bits();
-    let (width, is_signed) = binary_integer_layout(instruction.payload_as::<BinaryInteger>());
-    state.set_word_at(*dest, integer_word(a ^ b, width, is_signed));
+    let (dest, left, right, width, is_signed) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(dest, integer_word(left ^ right, width, is_signed));
+
     Transfer::Continue
 }
 
@@ -633,13 +634,12 @@ pub(crate) fn execute_shl_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits();
-    let b = state.get_word_at(*right).bits() as u32;
-    let (width, is_signed) = binary_integer_layout(instruction.payload_as::<BinaryInteger>());
-    state.set_word_at(*dest, integer_word(a.wrapping_shl(b), width, is_signed));
+    let (dest, left, right, width, is_signed) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(
+        dest,
+        integer_word(left.wrapping_shl(right as u32), width, is_signed),
+    );
+
     Transfer::Continue
 }
 
@@ -649,13 +649,12 @@ pub(crate) fn execute_shr_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits() as i64;
-    let b = state.get_word_at(*right).bits() as u32;
-    let (width, _) = binary_integer_layout(instruction.payload_as::<BinaryInteger>());
-    state.set_word_at(*dest, Word::int(a.wrapping_shr(b), width));
+    let (dest, left, right, width, _) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(
+        dest,
+        Word::int((left as i64).wrapping_shr(right as u32), width),
+    );
+
     Transfer::Continue
 }
 
@@ -665,13 +664,9 @@ pub(crate) fn execute_shr_uint(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits();
-    let b = state.get_word_at(*right).bits() as u32;
-    let (width, _) = binary_integer_layout(instruction.payload_as::<BinaryInteger>());
-    state.set_word_at(*dest, Word::uint(a.wrapping_shr(b), width));
+    let (dest, left, right, width, _) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(dest, Word::uint(left.wrapping_shr(right as u32), width));
+
     Transfer::Continue
 }
 
@@ -685,12 +680,9 @@ pub(crate) fn execute_eq_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits() as i64;
-    let b = state.get_word_at(*right).bits() as i64;
-    state.set_word_at(*dest, Word::bool(a == b));
+    let (dest, left, right, _, _) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(dest, Word::bool(left == right));
+
     Transfer::Continue
 }
 
@@ -700,12 +692,9 @@ pub(crate) fn execute_ne_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits() as i64;
-    let b = state.get_word_at(*right).bits() as i64;
-    state.set_word_at(*dest, Word::bool(a != b));
+    let (dest, left, right, _, _) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(dest, Word::bool(left != right));
+
     Transfer::Continue
 }
 
@@ -715,12 +704,9 @@ pub(crate) fn execute_lt_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits() as i64;
-    let b = state.get_word_at(*right).bits() as i64;
-    state.set_word_at(*dest, Word::bool(a < b));
+    let (dest, left, right, _, _) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(dest, Word::bool((left as i64) < (right as i64)));
+
     Transfer::Continue
 }
 
@@ -730,12 +716,9 @@ pub(crate) fn execute_le_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits() as i64;
-    let b = state.get_word_at(*right).bits() as i64;
-    state.set_word_at(*dest, Word::bool(a <= b));
+    let (dest, left, right, _, _) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(dest, Word::bool((left as i64) <= (right as i64)));
+
     Transfer::Continue
 }
 
@@ -745,12 +728,9 @@ pub(crate) fn execute_gt_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits() as i64;
-    let b = state.get_word_at(*right).bits() as i64;
-    state.set_word_at(*dest, Word::bool(a > b));
+    let (dest, left, right, _, _) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(dest, Word::bool((left as i64) > (right as i64)));
+
     Transfer::Continue
 }
 
@@ -760,12 +740,9 @@ pub(crate) fn execute_ge_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits() as i64;
-    let b = state.get_word_at(*right).bits() as i64;
-    state.set_word_at(*dest, Word::bool(a >= b));
+    let (dest, left, right, _, _) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(dest, Word::bool((left as i64) >= (right as i64)));
+
     Transfer::Continue
 }
 
@@ -775,12 +752,9 @@ pub(crate) fn execute_lt_uint(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits();
-    let b = state.get_word_at(*right).bits();
-    state.set_word_at(*dest, Word::bool(a < b));
+    let (dest, left, right, _, _) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(dest, Word::bool(left < right));
+
     Transfer::Continue
 }
 
@@ -790,12 +764,9 @@ pub(crate) fn execute_le_uint(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits();
-    let b = state.get_word_at(*right).bits();
-    state.set_word_at(*dest, Word::bool(a <= b));
+    let (dest, left, right, _, _) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(dest, Word::bool(left <= right));
+
     Transfer::Continue
 }
 
@@ -805,12 +776,9 @@ pub(crate) fn execute_gt_uint(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits();
-    let b = state.get_word_at(*right).bits();
-    state.set_word_at(*dest, Word::bool(a > b));
+    let (dest, left, right, _, _) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(dest, Word::bool(left > right));
+
     Transfer::Continue
 }
 
@@ -820,12 +788,9 @@ pub(crate) fn execute_ge_uint(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let BinaryInteger {
-        dest, left, right, ..
-    } = instruction.payload_as::<BinaryInteger>();
-    let a = state.get_word_at(*left).bits();
-    let b = state.get_word_at(*right).bits();
-    state.set_word_at(*dest, Word::bool(a >= b));
+    let (dest, left, right, _, _) = load_binary_integer_operands(state, instruction);
+    state.set_word_at(dest, Word::bool(left >= right));
+
     Transfer::Continue
 }
 
@@ -1042,12 +1007,9 @@ pub(crate) fn execute_neg_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let UnaryInteger { dest, arg, .. } = instruction.payload_as::<UnaryInteger>();
-    let (width, is_signed) = unary_integer_layout(instruction.payload_as::<UnaryInteger>());
-
-    let argument = state.get_word_at(*arg).as_u64();
+    let (dest, argument, width, is_signed) = load_unary_integer_operand(state, instruction);
     state.set_word_at(
-        *dest,
+        dest,
         integer_word(argument.wrapping_neg(), width, is_signed),
     );
 
@@ -1060,11 +1022,8 @@ pub(crate) fn execute_not_int(
     state: &mut DispatchState<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let UnaryInteger { dest, arg, .. } = instruction.payload_as::<UnaryInteger>();
-    let (width, is_signed) = unary_integer_layout(instruction.payload_as::<UnaryInteger>());
-
-    let argument = state.get_word_at(*arg).as_u64();
-    state.set_word_at(*dest, integer_word(!argument, width, is_signed));
+    let (dest, argument, width, is_signed) = load_unary_integer_operand(state, instruction);
+    state.set_word_at(dest, integer_word(!argument, width, is_signed));
 
     Transfer::Continue
 }

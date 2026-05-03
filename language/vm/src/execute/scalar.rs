@@ -5,6 +5,7 @@ use super::operator;
 use crate::Word;
 use crate::diagnostic::Error;
 use destack_mir as mir;
+
 /// Reduction operators for vector or tensor reductions.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum ReduceOperator {

@@ -315,30 +315,6 @@ pub(crate) fn encode_argument_bytes(
     Ok(bytes)
 }
 
-/// Encode one frame value into its byte representation.
-pub(crate) fn encode_frame_value_bytes(
-    state: &mut DispatchState<'_, '_>,
-    ty: mir::LocalNodeId<mir::Type>,
-    value: mir::Value,
-) -> Result<Vec<u8>, Error> {
-    let layout = state.layout(ty)?.clone();
-    if layout.is_word() {
-        return Ok(encode_word_bytes(state.tree(), ty, state.get(value))?
-            .as_slice()
-            .to_vec());
-    }
-
-    let bytes = state.value_bytes(value)?;
-    if bytes.len() != layout.byte_len {
-        return Err(Error::TypeMismatch {
-            expected: format!("{} value bytes", layout.byte_len),
-            actual: format!("{} value bytes", bytes.len()),
-        });
-    }
-
-    Ok(bytes.to_vec())
-}
-
 /// Return one frame byte range for one lowered memory access.
 #[inline(always)]
 pub(crate) fn frame_value_bytes_for_access(

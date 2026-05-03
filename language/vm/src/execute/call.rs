@@ -269,9 +269,9 @@ pub(crate) fn execute_load_callable_environment(
     Transfer::Continue
 }
 
-/// Return one local callee for a direct call.
+/// Return one local function for a call target.
 #[inline]
-fn direct_callee(state: &DispatchState<'_, '_>, target: CallTarget) -> Option<NonNull<Function>> {
+fn local_function(state: &DispatchState<'_, '_>, target: CallTarget) -> Option<NonNull<Function>> {
     // only local callees can enter directly
     match target {
         CallTarget::Local(index) => state.program.functions.pointer(index),
@@ -279,20 +279,20 @@ fn direct_callee(state: &DispatchState<'_, '_>, target: CallTarget) -> Option<No
     }
 }
 
-/// Try to enter one lowered callee without creating a call transfer.
+/// Enter one local callee without creating a call transfer.
 #[inline]
-fn try_enter_direct_call(
+fn enter_local_call(
     state: &mut DispatchState<'_, '_>,
     target: CallTarget,
     env: Option<Word>,
     move_plan: Option<MoveRange>,
     resume_pc: usize,
 ) -> Option<Transfer> {
-    // NOTE #Performance: avoid call transfers for hot lowered calls
+    // NOTE #Performance: avoid transfer plumbing for local calls
     let move_plan = move_plan?;
 
     // require one local callee before entering
-    let callee_ptr = direct_callee(state, target)?;
+    let callee_ptr = local_function(state, target)?;
     let callee = unsafe { callee_ptr.as_ref() };
 
     // reject stack overflow before mutating any live state
@@ -376,7 +376,7 @@ fn enter_call(
 ) -> Transfer {
     // enter local callees without bouncing through transfer handling
     if allow_direct
-        && let Some(transfer) = try_enter_direct_call(state, target, env, move_plan, resume_pc)
+        && let Some(transfer) = enter_local_call(state, target, env, move_plan, resume_pc)
     {
         return transfer;
     }

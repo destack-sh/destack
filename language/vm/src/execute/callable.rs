@@ -3,7 +3,6 @@ use crate::interpreter::DispatchState;
 use crate::{FunctionPointer, HeapReference, Word};
 use destack_mir as mir;
 
-use super::frame::encode_frame_value_bytes;
 use crate::program::{callable_object_layout, decode_word_bits, encode_word_bytes};
 
 use super::access::load_scalar_bits;
@@ -60,21 +59,22 @@ fn decode_callable_object(
     Ok((function, environment_value))
 }
 
-/// Encode one callable environment value.
+/// Encode one callable environment value into pointer-sized bits.
 fn encode_callable_environment(
     state: &mut DispatchState<'_, '_>,
     function_id: mir::LocalNodeId<mir::Function>,
     environment_value: mir::Value,
-) -> Result<Vec<u8>, Error> {
+) -> Result<u64, Error> {
     let environment_type = callable_environment_type(state.tree(), function_id)?;
     if state.layout(environment_type)?.is_word() {
-        return Ok(encode_word_bytes(
-            state.tree(),
-            environment_type,
-            state.get(environment_value),
-        )?
-        .as_slice()
-        .to_vec());
+        let environment =
+            encode_word_bytes(state.tree(), environment_type, state.get(environment_value))?;
+        let pointer_bytes = state.tree().pointer_bytes() as usize;
+        let mut bytes = [0u8; Word::BYTE_LEN];
+
+        bytes[..pointer_bytes].copy_from_slice(&environment.as_slice()[..pointer_bytes]);
+
+        return Ok(u64::from_le_bytes(bytes));
     }
 
     // non-word environments are copied into one heap allocation
@@ -82,15 +82,11 @@ fn encode_callable_environment(
         .program
         .layout_id_for_type(environment_type)
         .ok_or(Error::InvalidInstruction)?;
-    let environment_bytes = encode_frame_value_bytes(state, environment_type, environment_value)?;
+    let environment_bytes = state.value_bytes(environment_value)?.to_vec();
     let environment_reference =
         state.allocate_heap_layout_bytes(environment_layout_id, &environment_bytes)?;
 
-    Ok(
-        (environment_reference.bits() as u64).to_le_bytes()
-            [..state.tree().pointer_bytes() as usize]
-            .to_vec(),
-    )
+    Ok(environment_reference.bits() as u64)
 }
 
 /// Bind one function and environment into a callable value.
@@ -104,15 +100,18 @@ pub(crate) fn bind_callable(
     let function = function.as_function_pointer();
     let function_id = mir::LocalNodeId::new(function.function_index());
     let function_bytes = (function.bits() as u64).to_le_bytes();
-    let environment_bytes = encode_callable_environment(state, function_id, environment_value)?;
-    let mut bytes = vec![0; layout.byte_len];
+    let environment_bytes =
+        encode_callable_environment(state, function_id, environment_value)?.to_le_bytes();
+    let mut bytes = [0u8; Word::BYTE_LEN * 2];
+    let bytes = &mut bytes[..layout.byte_len];
 
     // place the two pointer sized fields
     let pointer_bytes = state.tree().pointer_bytes() as usize;
     let function_end = layout.function_offset + pointer_bytes;
     let environment_end = layout.environment_offset + pointer_bytes;
     bytes[layout.function_offset..function_end].copy_from_slice(&function_bytes[..pointer_bytes]);
-    bytes[layout.environment_offset..environment_end].copy_from_slice(&environment_bytes);
+    bytes[layout.environment_offset..environment_end]
+        .copy_from_slice(&environment_bytes[..pointer_bytes]);
 
     // allocate the callable object
     let layout_id = state
