@@ -43,15 +43,10 @@ We needed _some_ additions for serious systems programming, and we wanted to tak
 
 | Feature | What | Why |
 |---------|-------------|-----|
-| [**Types**](#types) | Type system extensions: primitives, nominality, tuples, generic values, associated types | Soundness, memory, precision |
-| [**Declarations**](#declarations) | Declaration extensions: nominal interfaces, annotations, static `@if` | Metadata and gates |
-| [**Expressions**](#expressions) | Expression extensions: blocks, patterns, trees, errors, `loop`, `using` | Better ergonomics |
-| [**Operators**](#operators) | Operator interfaces, equality, indexing, overflow and runtime checks | No hidden behavior |
-| [**Comptime**](#comptime) | Compile-time evaluation, generic evaluation, conditional compilation | Metaprogramming |
-| [**Dispatch**](#dispatch) | Type-dependent dispatch: `extension`s, overloads, dynamic union resolution | Better ergonomics |
-| [**Ownership**](#ownership) | Ownership, borrowing, local/shared spaces, and memory type algebra | Systems programming |
-| [**Modules**](#modules) | Typed imports for code, data, text, and binary assets | Typed assets |
-| [**Reflection**](#reflection) | Types as values, runtime type descriptors, schema validation | Metaprogramming |
+| [**Types**](#types) | Type system extensions: primitives, nominality, tuples, generic values, associated types, reflection | Soundness, memory, precision |
+| [**Expressions**](#expressions) | Expression extensions: blocks, patterns, trees, errors, operators, dispatch, decorators, comptime | Better ergonomics |
+| [**Memory**](#memory) | Ownership, borrowing, local/shared spaces, and memory type algebra | Systems programming |
+| [**Runtime**](#runtime) | Globals and typed imports for code, data, text, and binary assets | Program assembly |
 
 ## Types
 
@@ -115,43 +110,70 @@ Rectangle { start: ..., } satisfies Rectangle:
 AuthenticatedUser(user) satisfies AuthenticatedUser;
 ```
 
-### Extensions
+### Nominal Interfaces
 
-It is sometimes very convenient to attach additional logic and data to the (nominal identity of) a type.
-Rust does this with `impl` blocks, and Destack introduces `extension`s to add methods and static constants for any _nominal_ type:
+TypeScript interfaces are structural, i.e., any type with matching shape satisfies the interface.
+This is usually what we want, but sometimes nominality is required for a contract, and in those cases the TS ecosystem usually uses branding symbols.
+
+Destack adds real **nominal interfaces** using the `newtype` modifier on `interface` declarations:
 
 ```ds
-newtype Vector2 = {
-    x: float32;
-    y: float32;
-};
+// structural interface (standard TypeScript behavior)
+interface Drawable {
+    draw(): void;
+}
+const x: Drawable = { draw() {} };  // OK: structural match
 
-extension of Vector2 {
-    static ZERO = Vector2 { x: 0.0, y: 0.0 };
+// nominal interface (requires explicit `implements`)
+newtype interface Add<T, R = this> {
+    add(other: T): R;
+}
+```
 
-    magnitude(): float32 { 
-        return (this.x * this.x + this.y * this.y).sqrt() 
+Nominal interfaces require **explicit `implements`** declarations.
+Structural compatibility alone doesn't satisfy the constraint.
+Nominal interfaces are used for operator interfaces like `Add` and `Compare`, and for capability traits like `Send`, `Sync`, `Copy`, and `Clone`.
+
+The `newtype` modifier on `interface` follows the same pattern as `newtype` on type aliases, making a `newtype interface` more like a nominal trait in other languages.
+
+```ds
+// structural interface: requirements only
+interface Drawable {
+    draw(): void;
+}
+
+// nominal interface: defaults allowed
+newtype interface Print<T> {
+    print() {
+        // do nothing by default
     }
 }
 ```
 
-Extensions can be added to any **nominal types**, so all types like `struct`, `class`, `enum`, `newtype`, whether defined locally or in a foreign / imported module; accordingly, type aliases (`type X = ...`) and structural types (`{ x: number }`) cannot receive extensions.
-Further, extensions can be named for explicit export / reference:
+### Enums
+
+Enums are nominal aliases to a set of constants, just like in Typescript, except that Destack's enums do not implicitly cast to with their backing type. 
+Explicit conversions are required when you want the backing value.
+Like other nominal types, enums can carry static members and methods and can also receive extensions.
 
 ```ds
-import { User } from "@/model/user";
+enum Priority {
+    Low = 1,
+    Medium = 2,
+    High = 3,
 
-export extension UserUtils of User {
-    validate(): bool {
-        ...
+    static Default = Priority.Medium;
+
+    label(): string {
+        match (this) {
+            Low => "low"
+            Medium => "medium"
+            High => "high"
+        }
     }
 }
 ```
 
-The visibility of extension members is straightforward:
-- **Same file as type**: Extensions are automatically visible wherever the type is used.
-- **Anonymous on foreign type**: Only visible in the file where declared (`extension of int32 { ... }`).
-- **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils of Date { ... }`).
 
 ### Structs
 
@@ -181,30 +203,6 @@ struct Player {
     ...Transform; 
     health: int; 
 } 
-```
-
-### Enums
-
-Enums are nominal aliases to a set of constants, just like in Typescript, except that Destack's enums do not implicitly cast to with their backing type. 
-Explicit conversions are required when you want the backing value.
-Like other nominal types, enums can carry static members and methods and can also receive extensions.
-
-```ds
-enum Priority {
-    Low = 1,
-    Medium = 2,
-    High = 3,
-
-    static Default = Priority.Medium;
-
-    label(): string {
-        match (this) {
-            Low => "low"
-            Medium => "medium"
-            High => "high"
-        }
-    }
-}
 ```
 
 ### Arrays, Slices and Tuples
@@ -335,137 +333,35 @@ function merge<T: int, U>(): T where (
 Destack supports TypeScript's polymorphic `this` type for instance members, and also allows it in static type positions.
 `this` is type-only and resolves to the surrounding receiver or containing type.
 
-## Declarations
+### Reflection
 
-### Interfaces And Classes
+TypeScript types are - by design - erased at runtime, which means we can't easily perform runtime type checks or any meaningful reflection.
+Destack supports `Type` as a first-class value so reflection has one typed path instead of ad hoc schema side channels.
 
-Interfaces and classes behave like TypeScript unless Destack explicitly adds something.
-Interfaces are structural by default.
-Classes are reference types with identity, constructors, static members, methods, inheritance, and ordinary TS-shaped method lookup.
-
-Destack does not use TypeScript's prototype dynamism as a language extension point.
-Extensions, nominal interfaces, and static metadata are the typed extension surfaces instead.
-
-### Nominal Interfaces
-
-TypeScript interfaces are structural, i.e., any type with matching shape satisfies the interface.
-This is usually what we want, but sometimes nominality is required for a contract, and in those cases the TS ecosystem usually uses branding symbols.
-
-Destack adds real **nominal interfaces** using the `newtype` modifier on `interface` declarations:
+Every nominal type `T` in Destack has a corresponding descriptor value of type `Type<T>`:
 
 ```ds
-// structural interface (standard TypeScript behavior)
-interface Drawable {
-    draw(): void;
-}
-const x: Drawable = { draw() {} };  // OK: structural match
-
-// nominal interface (requires explicit `implements`)
-newtype interface Add<T, R = this> {
-    add(other: T): R;
-}
-```
-
-Nominal interfaces require **explicit `implements`** declarations.
-Structural compatibility alone doesn't satisfy the constraint.
-Nominal interfaces are used for operator interfaces like `Add` and `Compare`, and for capability traits like `Send`, `Sync`, `Copy`, and `Clone`.
-
-The `newtype` modifier on `interface` follows the same pattern as `newtype` on type aliases, making a `newtype interface` more like a nominal trait in other languages.
-
-```ds
-// structural interface: requirements only
-interface Drawable {
-    draw(): void;
-}
-
-// nominal interface: defaults allowed
-newtype interface Print<T> {
-    print() {
-        // do nothing by default
-    }
-}
-```
-
-### Annotations And Decorators
-
-Destack extends decorators (`@`) to work on many more language constructs than TypeScript supports: declarations, statements, members, parameters, types, match arms, etc..
-
-```ds
-@deprecated("use newAPI instead")
-function oldAPI() { }
-
-@memoize
-function expensive() { }
-
-@unroll
-for (let i = 0; i < 4; i++) { }
-
-// on struct members
 struct User {
-    @schema.validate(schema.minLength(1))
-    name: string,
+    name: string;
+    age: uint;
 }
 
-// on function parameters
-function process(input: string) { }
+// User in type position: the type
+let u: User = User { name: "Alice", age: 30 };
 
-// on reference types
-function kernel(data: @space("shared") &Point) { }
-
-// on match arms
-match (result) {
-    @cold
-    Err(e) => handleError(e),
-    Ok(v) => v,
-}
+// User in value position: the type descriptor
+const UserType = User;              // UserType: Type<User>
+UserType.name                       // "User"
+UserType.fields                     // [{ name: "name", type: string }, ...]
 ```
 
-Decorator behavior depends on what the decorator resolves to:
-- **Function**: Transforms the target, `@foo body` desugars to `foo(body)`
-- **Newtype**: Compile-time metadata, available for reflection but stripped from output
-
-### Static If
-
-`@if(...)` gates declarations and declaration members based on a static expression.
-When the condition is false, the annotated item is removed before the rest of analysis can depend on it.
-
-```ds
-enum OperatingSystem {
-    @if(import.meta.target.os == "windows")
-    Windows,
-    @if(import.meta.target.os == "macos")
-    Mac,
-}
-```
-
-`@if` is allowed on module declarations, class and struct members, interface members, enum fields, and other declaration-shaped nodes.
-`@if` can use whatever static facts are in scope.
-At module level, that mostly means `import.meta` and profile constants.
-Inside a generic declaration, `@if` is evaluated after generic arguments are known, so it can also branch on those arguments, associated constants, and type algebra queries.
-Multiple `@if` annotations combine with logical AND.
-
-### Globals
-
-In addition to ambient global typings, Destack supports "real" `global { ... }` value declarations that contribute to the ambient environment without explicit qualification.
-That is, with `global { const registry: Registry }` in some (known) module `A` we can just do `registry.whatever` in module `B` without any direct imports.
-Used sparingly, this is incredibly convenient.
-
-Globals can be ambient declarations (for non-native targets) or implemented declarations (for native targets):
-
-```ds
-global {
-    const console: Console = runtime.console();
-    const runtimeId = Runtime.current.id;
-    shared const registry = new Registry();
-}
-```
-
-A `global` block is active when its containing module is in the closure reached from the target's entrypoints, includes, configured global provider roots, or profile/prelude modules.
-Of course, because these globals are real values, duplicate global value names are errors unless the declarations.
+For classes and structs, the constructor value can also serve as the descriptor.
+`typeOf(value)` returns a descriptor for the value's static type, unlike JavaScript's runtime `typeof`, which returns a coarse string.
+The type-level `typeof` operator still means TypeScript's value-type query.
 
 ## Expressions
 
-### Blocks And Conditionals
+### Values
 
 In TypeScript, control flow expressions like `if` are a statement, and you need a ternary or temporary to get a value out.
 To enable more ergonomic data flow and particularly better pattern matching capabilities, Destack also supports statements as expressions ("everything is an expression").
@@ -728,12 +624,12 @@ try {
 }
 ```
 
-## Operators
+### Operators
 
 Destack keeps TypeScript's operators where they already have clear JavaScript semantics, and adds typed overloads only where the operator maps cleanly to an explicit protocol.
 Operator overloading is receiver-based and nominal: a type must explicitly implement the corresponding nominal operator interface.
 
-### Operator Dispatch
+#### Operator Dispatch
 
 For overloadable binary operators, the left operand selects the implementation family and the right operand selects the overload within that family.
 For example, `a + b` lowers to the left receiver's `add` implementation when the receiver implements `Add`.
@@ -751,7 +647,7 @@ extension of Vector2 implements Add<Vector2> {
 Structural compatibility is not enough to overload an operator.
 That keeps accidental method names from changing expression meaning.
 
-### Arithmetic And Checks
+#### Arithmetic And Checks
 
 Precise integers use defined overflow behavior.
 The ordinary arithmetic operators follow the active safety profile.
@@ -769,14 +665,14 @@ Destack also reserves explicit wrapping and saturating forms for code that wants
 Division, remainder, shifts, bounds checks, null checks, and other runtime checks are controlled by profile options.
 The point is to make unsafe behavior explicit instead of letting it leak in through target defaults.
 
-### Indexing
+#### Indexing
 
 Array and tuple indexing is bounds checked and returns the element type directly.
 `noUncheckedIndexedAccess` still matters for index signatures and other dynamic indexers, but dense arrays do not produce `T | undefined` on every access.
 
 Custom indexing can be modeled through nominal interfaces, but builtin arrays, tuples, slices, tensors, and string-like types keep their builtin semantics.
 
-### Special Operators
+#### Special Operators
 
 Some operators are deliberately not overloadable because their control-flow or type-system behavior is too fundamental.
 This includes `&&`, `||`, `?.`, `as`, `satisfies`, `typeof`, `keyof`, `extends`, `implements`, `is`, `instanceof`, `?`, and `??`.
@@ -784,7 +680,7 @@ This includes `&&`, `||`, `?.`, `as`, `satisfies`, `typeof`, `keyof`, `extends`,
 `?` and `??` are protocol-driven, but they are not ordinary overloadable operators.
 Their semantics are fixed by the language and implemented through `Try`.
 
-### Overload Resolution
+#### Overload Resolution
 
 Real function and method overloading with distinct implementations:
 
@@ -799,7 +695,7 @@ Overload order is defined at the declaring module and is forwarded unchanged acr
 
 The compiler should warn when an earlier overload shadows a later one completely.
 
-### Dynamic Resolution
+#### Dynamic Resolution
 
 When the receiver of a member access or method call is a union, Destack resolves the member for each union variant.
 If all variants resolve to the same symbol, the call is static.
@@ -809,8 +705,99 @@ Dynamic resolution only applies when every union variant exposes the member.
 Arguments must satisfy all candidate signatures, and the resulting type is the union of per-candidate return types after substitutions.
 Extension methods participate in member resolution, too.
 
+### Extensions
 
-## Comptime
+It is sometimes very convenient to attach additional logic and data to the (nominal identity of) a type.
+Rust does this with `impl` blocks, and Destack introduces `extension`s to add methods and static constants for any _nominal_ type:
+
+```ds
+newtype Vector2 = {
+    x: float32;
+    y: float32;
+};
+
+extension of Vector2 {
+    static ZERO = Vector2 { x: 0.0, y: 0.0 };
+
+    magnitude(): float32 {
+        return (this.x * this.x + this.y * this.y).sqrt()
+    }
+}
+```
+
+Extensions can be added to any **nominal types**, so all types like `struct`, `class`, `enum`, `newtype`, whether defined locally or in a foreign / imported module; accordingly, type aliases (`type X = ...`) and structural types (`{ x: number }`) cannot receive extensions.
+Further, extensions can be named for explicit export / reference:
+
+```ds
+import { User } from "@/model/user";
+
+export extension UserUtils of User {
+    validate(): bool {
+        ...
+    }
+}
+```
+
+The visibility of extension members is straightforward:
+- **Same file as type**: Extensions are automatically visible wherever the type is used.
+- **Anonymous on foreign type**: Only visible in the file where declared (`extension of int32 { ... }`).
+- **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils of Date { ... }`).
+
+### Annotations And Decorators
+
+Destack extends decorators (`@`) to work on many more language constructs than TypeScript supports: declarations, statements, members, parameters, types, match arms, etc..
+
+```ds
+@deprecated("use newAPI instead")
+function oldAPI() { }
+
+@memoize
+function expensive() { }
+
+@unroll
+for (let i = 0; i < 4; i++) { }
+
+// on struct members
+struct User {
+    @schema.validate(schema.minLength(1))
+    name: string,
+}
+
+// on function parameters
+function process(input: string) { }
+
+// on reference types
+function kernel(data: @space("shared") &Point) { }
+
+// on match arms
+match (result) {
+    @cold
+    Err(e) => handleError(e),
+    Ok(v) => v,
+}
+```
+
+### Static If
+
+`@if(...)` gates declarations and declaration members based on a static expression.
+When the condition is false, the annotated item is removed before the rest of analysis can depend on it.
+
+```ds
+enum OperatingSystem {
+    @if(import.meta.target.os == "windows")
+    Windows,
+    @if(import.meta.target.os == "macos")
+    Mac,
+}
+```
+
+`@if` is allowed on module declarations, class and struct members, interface members, enum fields, and other declaration-shaped nodes.
+`@if` can use whatever static facts are in scope.
+At module level, that mostly means `import.meta` and profile constants.
+Inside a generic declaration, `@if` is evaluated after generic arguments are known, so it can also branch on those arguments, associated constants, and type algebra queries.
+Multiple `@if` annotations combine with logical AND.
+
+### Comptime
 
 Inspired by Zig, Destack supports compile-time evaluation via the `comptime` keyword.
 The `comptime` keyword requires that an expression must be evaluated at compile time (otherwise it is a compile error):
@@ -837,7 +824,7 @@ const dynamicValue = factorial(getUserInput()); // runtime (in this case, at mod
 Functions are not marked explicitly as either "comptime" or "runtime" functions.
 The call site determines when a function runs.
 
-### Static Evaluation
+#### Static Evaluation
 
 Some compile-time questions come before comptime code can run at all.
 Destack has to know which declarations exist, what types mean, and what layout a generic instantiation has before it can lower that instantiation.
@@ -848,7 +835,7 @@ It can fold literals, arithmetic and boolean logic on static values, `import.met
 Generic value parameters, associated constants in type positions, conditional types, `@if`, fixed array lengths, and layout decisions all go through this path.
 Runtime values do not, and neither does full comptime execution.
 
-### Execution Model
+#### Execution Model
 
 Static evaluation decides program shape during Analyze and generic instantiation.
 Full comptime execution is the more general path.
@@ -858,7 +845,7 @@ The separation matters.
 Without it, generic solving, type normalization, layout, and comptime code can all end up waiting on each other.
 Full comptime evaluation happens after monomorphization and lowering, with full type information available.
 
-### Generic Evaluation
+#### Generic Evaluation
 
 Generic parameters, associated types, associated constants, conditional types, mapped types, and ownership algebra are all resolved by static evaluation.
 Generic type parameters range over types.
@@ -923,7 +910,7 @@ function process<T, Context: CacheContext<T>>(ctx: Context, key: T) {
 Both branches of a comptime condition must type check unless the branch is removed by static `@if`.
 That keeps ordinary generic code stable under different profiles while still allowing profile-specific declarations when needed.
 
-### Comptime Blocks
+#### Comptime Blocks
 
 Comptime blocks can also appear as struct/class members for compile-time assertions:
 
@@ -939,7 +926,7 @@ struct Buffer<comptime size: uint> {
 Member comptime blocks run once per type instantiation.
 Module-level comptime blocks run during module compilation.
 
-### Compile-time Eval
+#### Compile-time Eval
 
 At comptime, `eval` and `new Function` mean compile-time code evaluation, not runtime string execution.
 The source string must be statically known.
@@ -952,7 +939,7 @@ const value = comptime eval("add(1, 2)");
 
 Runtime `eval` and `new Function` are JS compatibility features, and portable Destack code should not depend on them.
 
-## Ownership
+## Memory
 
 TypeScript does not encode memory "ownership" in its type system: all reference types are implicitly GC-managed, and all value types are copied by default.
 This is a convenient default for a "safe" language, but sometimes we need to take direct control of memory, whether for better control and performance, or just to express invariants in the code.
@@ -1118,67 +1105,26 @@ Borrowed<T, _>     // normalized form
 Borrowed<T, "a">
 ```
 
-Declarations that store borrowed fields are implicitly region generic.
-Owned fields make the enclosing type affine.
-Affine storage-bearing positions default to owned storage rather than implicit heap storage.
-Borrowed fields make the enclosing type region generic.
+# Runtime
 
-Managed objects may contain owned fields.
+## Globals
 
-That integration is required so ownership composes with ordinary managed programming rather than creating a second disjoint language.
+In addition to ambient global typings, Destack supports "real" `global { ... }` value declarations that contribute to the ambient environment without explicit qualification.
+That is, with `global { const registry: Registry }` in some (known) module `A` we can just do `registry.whatever` in module `B` without any direct imports.
+Used sparingly, this is incredibly convenient.
 
-Types containing owned fields are affine and therefore do not silently copy.
-
-Ordinary borrows should not cross `await`, suspension, or Worker transfer boundaries at first.
-Owned values may cross suspension points by moving into the coroutine frame.
-If an owned value is dead before suspension, cleanup is inserted before the suspend edge.
-
-Moving an owned value invalidates the previous binding and every borrow rooted in it.
-Dropping or freeing a value invalidates every borrow rooted in that value.
-Borrow checking is provenance-based: a borrow tracks the owner or storage root it depends on, and derived borrows preserve that root.
-
-### Type Algebra
-
-Internally, Destack normalizes ownership and place into one type-addressable `Form<T, O, S, R>`.
-That lets ordinary TS-style type algebra talk about base type, ownership, place, and borrow region directly, which makes for some very convenient conditional and mapped type algebra.
-
-Traceability is derived from the base type and layout metadata rather than from ownership itself.
-
-| Surface spelling | Algebraic spelling |
-|------------------|--------------------|
-| `T` | `Default<T>` in storage-bearing positions |
-| `Managed<T>` | `Managed<T>` |
-| `&T` | `Borrowed<T, _>` |
-| `^T` | `Owned<T>` |
-| `*T` | `Raw<T>` |
-| `shared T` | `Shared<T>` |
-| `@space("shared") T` | `WithSpace<T, "shared">` |
-
-The core kernel is:
+Globals can be ambient declarations (for non-native targets) or implemented declarations (for native targets):
 
 ```ds
-type Form<T, O = "default", S = "local", R = never> = ...
-
-type BaseOf<T> = ...
-type OwnershipOf<T> = ...
-type SpaceOf<T> = ...
-type RegionOf<T> = ...
-
-type OwnershipOr<T, D> = ...
-type SpaceOr<T, D> = ...
-
-type Default<T> = ...
-type Managed<T> = ...
-type Borrowed<T, R> = ...
-type Owned<T> = ...
-type Raw<T> = ...
-type Shared<T> = ...
-
-type WithBase<Q, T> = ...
-type WithOwnership<Q, O> = ...
-type WithSpace<Q, S> = ...
-type WithRegion<Q, R> = ...
+global {
+    const console: Console = runtime.console();
+    const runtimeId = Runtime.current.id;
+    shared const registry = new Registry();
+}
 ```
+
+A `global` block is active when its containing module is in the closure reached from the target's entrypoints, includes, configured global provider roots, or profile/prelude modules.
+Of course, because these globals are real values, duplicate global value names are errors unless the declarations.
 
 ## Modules
 
@@ -1280,57 +1226,3 @@ import dataBytes from "./file.txt" with { type: "binary" };  // import as uint8[
 
 Supported `type` loaders are `json`, `toml`, `yaml`, `text`, `binary`, and `base64`.
 (The same file with different loaders produces different modules, of course.)
-
-## Reflection
-
-In TypeScript, types are - by design - erased at runtime.
-This was critical for early adoption, but it also means you can't easily perform runtime type checks or any meaningful reflection (without additional libraries or build steps).
-Destack supports `Type` as a first-class value so reflection has one typed path instead of ad hoc schema side channels.
-
-### Type Descriptors
-
-Every nominal type `T` in Destack has a corresponding descriptor value of type `Type<T>`:
-
-```ds
-struct User {
-    name: string;
-    age: uint;
-}
-
-// User in type position: the type
-let u: User = User { name: "Alice", age: 30 };
-
-// User in value position: the type descriptor
-const UserType = User;              // UserType: Type<User>
-UserType.name                       // "User"
-UserType.fields                     // [{ name: "name", type: string }, ...]
-```
-
-For classes and structs, the constructor value can also serve as the descriptor.
-`typeOf(value)` returns a descriptor for the value's static type, unlike JavaScript's runtime `typeof`, which returns a coarse string.
-The type-level `typeof` operator still means TypeScript's value-type query.
-
-### Decorator Metadata
-
-Decorator information is accessible at runtime:
-
-```ds
-@deprecated("use newAPI")
-function oldAPI() { }
-
-oldAPI.decorators       // [{ name: "deprecated", arguments: ["use newAPI"] }]
-```
-
-### Profile
-
-Reflection is useful for schema validation, serialization, metadata, tooling, and runtime type checks.
-It also has output-size and portability costs.
-
-Profiles may control how much reflection metadata is emitted.
-The type system should still be able to reason about `Type<T>` even when a target strips runtime metadata that code does not use.
-
-Reflection metadata is separate from dispatch metadata.
-`TypeId` is compact runtime type identity.
-`Type<T>` is a descriptor used for reflection.
-Class vtables and nominal interface implementation tables are dispatch artifacts.
-They may share type identity, but ordinary dispatch must not require rich reflection metadata.
