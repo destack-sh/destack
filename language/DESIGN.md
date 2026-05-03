@@ -73,29 +73,79 @@ Pointer-sized integers - that integers that are as wide as the target's pointer 
 
 ### Newtypes
 
-TypeScript is structurally typed, that is, an interface is satisfied by any object matching its shape, even when it doesn't explicitly `implement` it (similar to Go).
+TypeScript is structurally typed, that is, an interface is satisfied by any value matching its shape, even when it doesn't explicitly `implement` it (similar to Go).
 Structural typing is a useful default, but sometimes explicit nominality is important for correctness and expressiveness.
 Destack adds `newtype` as anominal counterpart to `type`: newtype aliases and newtype interfaces, which are really just a convenience around newtype aliases.
 
-With plain `type`:
-```ds
-// type
+With plain `type`s and aliases, there is no actual protection against accidental assignment.
+(The TS ecosystem commonly resorts to "branding" hacks to work around this limitation.)
+```ts
 type UserId = number;
-type OrderId = string;
+type OrderTag = string;
 
-0 satisfies number; // ok, but ouch
-"invalid" satisfies OrderId; // also ok, also ouch
+0 satisfies number; // OK, TS is happy, but ouch
+"invalid" satisfies OrderTag; // OK, TS still happy, also ouch
 ```
 
-With plain `newtype` types must be explicitly cast into the nominal form:
+With explicit `newtype`, receiver types must be explicitly cast into the nominal form:
 ```ds
-// scalar newtype
 newtype UserId = number;
-newtype OrderLabel = string;
+newtype OrderTag = string;
+
+0 satisfies number; // ERROR!
+"invalid" satisfies OrderTag; // ERROR!
 ```
+
+To actually cast a value to a newtype you either use regular `<expr> as T` conversion or explicit `T(..)` style construciton, like:
+```ds
+newtype UserId = number;
+newtype OrderTag = string;
+newtype Point = (number, number);
+newtype Rectangle = {
+    start: Point,
+    end: Point,
+}
+newtype AuthenticatedUser = User;
+
+UserId(1) satisfies UserId;
+OrderTag("tag") satisfies OrderTag;
+Point(1, 2) satisfies Point;
+Rectangle { start: ..., } satisfies Rectangle:
+AuthenticatedUser(user) satisfies AuthenticatedUser;
+```
+
+### Extensions
+
+Destack introduces extensions to add methods and static constants for any _nominal_ type:
+
+```ds
+extension of Vector2 {
+    magnitude(): float32 { (this.x * this.x + this.y * this.y).sqrt() }
+}
+```
+
+Extensions require **nominal types** with identity.
+This includes `struct`, `class`, `enum`, `newtype`, and primitive types declared in the prelude (`int32`, `string`, etc.).
+Type aliases (`type X = ...`) and inline structural types (`{ x: number }`) cannot be extended (because that would be very unpredictable).
+
+To extend a structural shape, wrap it in a nominal type:
+
+```ds
+type Point = { x: number, y: number };
+
+extension of Point { ... }  // ERROR
+
+newtype Point = { x: number, y: number };
+// works - extend newtype / struct / class / ..
+extension of Point { ... }  // ok
+```
+
+Extension visibility is basically as you would expect:
+- **Same file as type**: Extensions are automatically visible wherever the type is used.
+- **Anonymous on foreign type**: Only visible in the file where declared (`extension of int32 { ... }`).
+- **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils of Date { ... }`).
 
 ### Structs
-
 
 Structs are nominal value types for data with fixed shape, but without reference identity, constructors, or inheritance.
 Basically, structs are just data with a name, much like structs in other "systems languages".
@@ -718,6 +768,32 @@ This includes `&&`, `||`, `?.`, `as`, `satisfies`, `typeof`, `keyof`, `extends`,
 `?` and `??` are protocol-driven, but they are not ordinary overloadable operators.
 Their semantics are fixed by the language and implemented through `Try`.
 
+### Overload Resolution
+
+Real function and method overloading with distinct implementations:
+
+```ds
+function parse(input: string): int32 { parseInt(input) }
+function parse(input: int32): int32 { input }
+```
+
+Following TS, to avoid ambiguity, Destack uses **declaration order**, i.e., the first matching overload wins.
+Applicability includes generic argument inference and validation, including `comptime` generic value parameters.
+Overload order is defined at the declaring module and is forwarded unchanged across exports, reexports, and namespace imports.
+
+The compiler should warn when an earlier overload shadows a later one completely.
+
+### Dynamic Resolution
+
+When the receiver of a member access or method call is a union, Destack resolves the member for each union variant.
+If all variants resolve to the same symbol, the call is static.
+If the symbols differ, the compiler records a dynamic resolution and reifies it into `if (receiver is Type)` branches.
+
+Dynamic resolution only applies when every union variant exposes the member.
+Arguments must satisfy all candidate signatures, and the resulting type is the union of per-candidate return types after substitutions.
+Extension methods participate in member resolution, too.
+
+
 ## Comptime
 
 Inspired by Zig, Destack supports compile-time evaluation via the `comptime` keyword.
@@ -859,67 +935,6 @@ const value = comptime eval("add(1, 2)");
 ```
 
 Runtime `eval` and `new Function` are JS compatibility features, and portable Destack code should not depend on them.
-
-## Dispatch
-
-TypeScript has parametric polymorphism ("generics") but does not support type-based dispatch (by design).
-Destack adds type extensions and real overloading for type-based dispatch and operator overloading.
-
-### Extensions
-
-Destack introduces extensions to add methods and static constants for any _nominal_ type:
-
-```ds
-extension of Vector2 {
-    magnitude(): float32 { (this.x * this.x + this.y * this.y).sqrt() }
-}
-```
-
-Extensions require **nominal types** with identity.
-This includes `struct`, `class`, `enum`, `newtype`, and primitive types declared in the prelude (`int32`, `string`, etc.).
-Type aliases (`type X = ...`) and inline structural types (`{ x: number }`) cannot be extended (because that would be very unpredictable).
-
-To extend a structural shape, wrap it in a nominal type:
-
-```ds
-type Point = { x: number, y: number };
-
-extension of Point { ... }  // ERROR
-
-newtype Point = { x: number, y: number };
-// works - extend newtype / struct / class / ..
-extension of Point { ... }  // ok
-```
-
-Extension visibility is basically as you would expect:
-- **Same file as type**: Extensions are automatically visible wherever the type is used.
-- **Anonymous on foreign type**: Only visible in the file where declared (`extension of int32 { ... }`).
-- **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils of Date { ... }`).
-
-### Overload Resolution
-
-Real function and method overloading with distinct implementations:
-
-```ds
-function parse(input: string): int32 { parseInt(input) }
-function parse(input: int32): int32 { input }
-```
-
-Following TS, to avoid ambiguity, Destack uses **declaration order**, i.e., the first matching overload wins.
-Applicability includes generic argument inference and validation, including `comptime` generic value parameters.
-Overload order is defined at the declaring module and is forwarded unchanged across exports, reexports, and namespace imports.
-
-The compiler should warn when an earlier overload shadows a later one completely.
-
-### Dynamic Resolution
-
-When the receiver of a member access or method call is a union, Destack resolves the member for each union variant.
-If all variants resolve to the same symbol, the call is static.
-If the symbols differ, the compiler records a dynamic resolution and reifies it into `if (receiver is Type)` branches.
-
-Dynamic resolution only applies when every union variant exposes the member.
-Arguments must satisfy all candidate signatures, and the resulting type is the union of per-candidate return types after substitutions.
-Extension methods participate in member resolution, too.
 
 ## Ownership
 
