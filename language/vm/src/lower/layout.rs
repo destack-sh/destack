@@ -3,7 +3,7 @@ use destack_mir as mir;
 use crate::program::{ElementAccess, FieldAccess, Layout};
 use crate::{Error, Result};
 
-use super::access::{aggregate_field_count, array_element_count, element_access, field_access};
+use super::access::{array_element_count, element_access, field_access, field_count_for_layout};
 use super::lower::BlockLowerer;
 use super::value::{
     heap_pointee_type_for_value, heap_pointee_type_for_value_layout, pointer_class_for_value,
@@ -29,12 +29,12 @@ impl<'a> BlockLowerer<'a> {
         if let Some(count) = self
             .value_layout_map()
             .get(value)
-            .and_then(|layout| aggregate_field_count(self.tree, layout))
+            .and_then(|layout| field_count_for_layout(self.tree, layout))
         {
             return Ok(count);
         }
 
-        let value_type = self.aggregate_type_for_value(value)?;
+        let value_type = self.projection_type_for_value(value)?;
         let Some(value_type) = value_type else {
             return Err(Error::InvalidInstruction);
         };
@@ -52,7 +52,7 @@ impl<'a> BlockLowerer<'a> {
             return Ok(length);
         }
 
-        let value_type = self.aggregate_type_for_value(value)?;
+        let value_type = self.projection_type_for_value(value)?;
         let Some(value_type) = value_type else {
             return Err(Error::InvalidInstruction);
         };
@@ -60,8 +60,8 @@ impl<'a> BlockLowerer<'a> {
         self.array_length_for_type(value_type)
     }
 
-    /// Return the aggregate type behind one value.
-    pub(super) fn aggregate_type_for_value(
+    /// Return the type projected by one value.
+    pub(super) fn projection_type_for_value(
         &self,
         value: mir::Value,
     ) -> Result<Option<mir::LocalNodeId<mir::Type>>> {
@@ -84,7 +84,7 @@ impl<'a> BlockLowerer<'a> {
         index: u32,
     ) -> Result<FieldAccess> {
         let field_count = self.field_count_for_value(value)? as usize;
-        let value_type = self.aggregate_type_for_value(value)?;
+        let value_type = self.projection_type_for_value(value)?;
         let Some(value_type) = value_type else {
             return Err(Error::InvalidFieldAccess { index, field_count });
         };
@@ -96,7 +96,7 @@ impl<'a> BlockLowerer<'a> {
 
     /// Return one lowered element access for a value.
     pub(super) fn element_access_for_value(&self, value: mir::Value) -> Result<ElementAccess> {
-        let value_type = self.aggregate_type_for_value(value)?;
+        let value_type = self.projection_type_for_value(value)?;
         let Some(value_type) = value_type else {
             return Err(Error::InvalidInstruction);
         };

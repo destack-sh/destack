@@ -11,8 +11,27 @@ use super::lower::BlockLowerer;
 use super::pool::Pool;
 use super::value::reference_meta_for_value;
 
+/// Return one word value's frame byte offset.
+pub(super) fn word_offset(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Result<u32> {
+    // resolve the value region in the lowered frame
+    let region = lowerer
+        .frame_layout
+        .value(value.0)
+        .ok_or(Error::InvalidInstruction)?;
+
+    // word opcodes require single-word frame regions
+    if !region.is_word {
+        return Err(Error::TypeMismatch {
+            expected: "word value".to_string(),
+            actual: format!("frame-backed value: {value:?}"),
+        });
+    }
+
+    Ok(region.offset)
+}
+
 impl<'a> BlockLowerer<'a> {
-    /// Lower one MIR aggregate constructor into frame stores.
+    /// Lower one MIR value constructor into frame stores.
     pub(super) fn lower_frame_constructor(
         &self,
         pool: &mut Pool<'_>,
@@ -23,7 +42,7 @@ impl<'a> BlockLowerer<'a> {
         let destination = destination
             .value()
             .ok_or_else(|| Error::MissingRepresentation {
-                context: "aggregate destination".to_string(),
+                context: "frame constructor destination".to_string(),
             })?;
         let values = self.tree.get_arguments(values);
 
@@ -62,7 +81,7 @@ impl<'a> BlockLowerer<'a> {
         Ok(instructions)
     }
 
-    /// Lower one aggregate field read into a word load or frame move.
+    /// Lower one frame field read into a word load or frame move.
     pub(super) fn lower_field_read(
         &self,
         pool: &mut Pool<'_>,
@@ -70,7 +89,7 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Vec<Instruction>> {
         let mir::Instruction::FieldGet {
             destination,
-            aggregate,
+            aggregate: base,
             index,
         } = inst
         else {
@@ -83,19 +102,17 @@ impl<'a> BlockLowerer<'a> {
             .ok_or_else(|| Error::MissingRepresentation {
                 context: "field get destination".to_string(),
             })?;
-        let aggregate = aggregate
-            .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "field get aggregate".to_string(),
-            })?;
+        let base = base.value().ok_or_else(|| Error::MissingRepresentation {
+            context: "field get base".to_string(),
+        })?;
         let destination_type = self.value_type_for_value(destination)?;
-        let aggregate_type = self.value_type_for_value(aggregate)?;
-        let layout = self.layout_for_type(aggregate_type)?;
+        let base_type = self.value_type_for_value(base)?;
+        let layout = self.layout_for_type(base_type)?;
         let field_count = layout.field_count().ok_or(Error::InvalidInstruction)?;
         let field = field_access(
             self.tree,
             self.layouts(),
-            aggregate_type,
+            base_type,
             PointerClass::Frame,
             *index,
         )
@@ -111,7 +128,7 @@ impl<'a> BlockLowerer<'a> {
                 Opcode::LoadFrame,
                 LoadFrame {
                     dest: destination,
-                    base: aggregate,
+                    base,
                     access: pool.frame_access(field.into()),
                 },
             )]);
@@ -134,13 +151,13 @@ impl<'a> BlockLowerer<'a> {
             MoveFrame {
                 destination,
                 destination_access: pool.frame_access(destination_access.into()),
-                source: aggregate,
+                source: base,
                 source_access: pool.frame_access(source_access.into()),
             },
         )])
     }
 
-    /// Lower one aggregate element read into a word load or frame move.
+    /// Lower one frame element read into a word load or frame move.
     pub(super) fn lower_element_read(
         &self,
         pool: &mut Pool<'_>,
@@ -168,11 +185,12 @@ impl<'a> BlockLowerer<'a> {
         let array_type = self.value_type_for_value(array)?;
         if matches!(self.tree.get(array_type), mir::Type::Slice { .. }) {
             return Err(Error::TypeMismatch {
-                expected: "fixed aggregate element get".to_string(),
+                expected: "fixed frame element get".to_string(),
                 actual: format!("{array_type:?}"),
             });
         }
 
+        // resolve element layout
         let element = element_access(self.tree, self.layouts(), array_type, PointerClass::Frame)
             .ok_or(Error::InvalidInstruction)?;
         let element_layout = self.layout_for_type(element.value_type)?;
@@ -218,6 +236,7 @@ impl<'a> BlockLowerer<'a> {
         index: u32,
         value: mir::ValueReference,
     ) -> Result<Vec<Instruction>> {
+        // require SSA values
         let destination = destination
             .value()
             .ok_or_else(|| Error::MissingRepresentation {
@@ -230,7 +249,7 @@ impl<'a> BlockLowerer<'a> {
             context: "field set value".to_string(),
         })?;
 
-        // resolve original aggregate and replacement field
+        // resolve original frame value and replacement field
         let destination_type = self.value_type_for_value(destination)?;
         let layout = self.layout_for_type(destination_type)?;
         let field_count = layout.field_count().ok_or(Error::InvalidInstruction)?;
@@ -248,7 +267,7 @@ impl<'a> BlockLowerer<'a> {
             byte_len: field.byte_len,
         };
 
-        // move the original aggregate and overwrite one field
+        // move the original frame value and overwrite one field
         Ok(vec![
             self.store_frame_range(pool, destination, base, whole)?,
             self.store_frame_range(pool, destination, value, field)?,
@@ -264,6 +283,7 @@ impl<'a> BlockLowerer<'a> {
         index: u32,
         value: mir::ValueReference,
     ) -> Result<Vec<Instruction>> {
+        // require SSA values
         let destination = destination
             .value()
             .ok_or_else(|| Error::MissingRepresentation {
@@ -276,15 +296,16 @@ impl<'a> BlockLowerer<'a> {
             context: "element set value".to_string(),
         })?;
 
-        // resolve original aggregate and replacement element
+        // reject dynamic slices
         let destination_type = self.value_type_for_value(destination)?;
         if matches!(self.tree.get(destination_type), mir::Type::Slice { .. }) {
             return Err(Error::TypeMismatch {
-                expected: "fixed aggregate element set".to_string(),
+                expected: "fixed frame element set".to_string(),
                 actual: format!("{destination_type:?}"),
             });
         }
 
+        // resolve original frame value and replacement element
         let layout = self.layout_for_type(destination_type)?;
         let whole = FrameRange {
             value_type: destination_type,
@@ -297,14 +318,10 @@ impl<'a> BlockLowerer<'a> {
             destination_type,
             PointerClass::Frame,
         )
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!(
-                "missing element access for {:?}: {:?}",
-                destination_type,
-                self.tree.get(destination_type)
-            ),
-        })?;
+        .ok_or(Error::InvalidInstruction)?;
         let element_offset = element.byte_stride * index as usize;
+
+        // store word elements directly
         let instruction = if element.is_word() {
             Instruction::new(
                 Opcode::StoreFrame,
@@ -334,7 +351,7 @@ impl<'a> BlockLowerer<'a> {
             )
         };
 
-        // move the original aggregate and overwrite one element
+        // move the original frame value and overwrite one element
         Ok(vec![
             self.store_frame_range(pool, destination, array, whole)?,
             instruction,
@@ -370,14 +387,7 @@ impl<'a> BlockLowerer<'a> {
         let element_count = layout.element_count().ok_or(Error::InvalidInstruction)?;
         let mut ranges = Vec::with_capacity(element_count);
         for index in 0..element_count {
-            let byte_offset =
-                element
-                    .stride
-                    .checked_mul(index)
-                    .ok_or(Error::InvalidArrayAccess {
-                        index: index as u64,
-                        length: element_count as u64,
-                    })?;
+            let byte_offset = element.stride * index;
             ranges.push(FrameRange {
                 value_type: element.ty,
                 byte_offset,

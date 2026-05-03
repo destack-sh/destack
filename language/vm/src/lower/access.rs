@@ -224,7 +224,7 @@ pub(super) fn tensor_element_type(
 }
 
 /// Resolve the field count for a struct or tuple layout.
-pub(super) fn aggregate_field_count(tree: &mir::Tree, layout: ValueLayout) -> Option<u32> {
+pub(super) fn field_count_for_layout(tree: &mir::Tree, layout: ValueLayout) -> Option<u32> {
     match layout {
         ValueLayout::FrameBytes { ty } => match tree.get(ty) {
             mir::Type::Struct { fields, copy: _ } => u32::try_from(fields.len()).ok(),
