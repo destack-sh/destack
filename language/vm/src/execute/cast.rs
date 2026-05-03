@@ -212,16 +212,11 @@ pub(crate) fn execute_select_frame(
     let condition = state.get_word_at(*condition).as_bool();
     let source = if condition { *then_value } else { *else_value };
 
-    // move source bytes into the destination frame region
-    let source_bytes = match state.value_bytes(source) {
-        Ok(bytes) => bytes.to_vec(),
+    // move the selected frame region directly
+    match state.move_value_to_value(source, *dest) {
+        Ok(()) => {}
         Err(error) => return Transfer::Error(error),
-    };
-    let dest = match state.value_bytes_mut(*dest) {
-        Ok(dest) => dest,
-        Err(error) => return Transfer::Error(error),
-    };
-    dest.copy_from_slice(&source_bytes);
+    }
 
     // continue to next instruction
     Transfer::Continue

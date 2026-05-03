@@ -12,21 +12,32 @@ use crate::{RawPointer, Word};
 
 use crate::interpreter::DispatchState;
 
-/// Collect argument words for one intrinsic call.
+/// Intrinsic arguments decoded from one pooled argument range.
+struct IntrinsicArguments {
+    /// Argument value ids.
+    values: SmallVec<[mir::Value; 16]>,
+    /// Argument words.
+    words: SmallVec<[Word; 16]>,
+}
+
+/// Collect intrinsic arguments for one call.
 #[inline]
-fn load_argument_words(
+fn load_intrinsic_arguments(
     state: &mut DispatchState<'_, '_>,
     arguments: ArgumentRange,
-) -> SmallVec<[Word; 16]> {
+) -> IntrinsicArguments {
     let argument_slice = state.argument_slice(arguments);
+    let mut values = SmallVec::with_capacity(argument_slice.len());
     let mut words = SmallVec::with_capacity(argument_slice.len());
 
     for argument in argument_slice {
         let word = state.get(*argument);
+
+        values.push(*argument);
         words.push(word);
     }
 
-    words
+    IntrinsicArguments { values, words }
 }
 
 /// Execute intrinsic call.
@@ -42,11 +53,15 @@ pub(crate) fn execute_intrinsic(
     } = instruction.payload_as::<Intrinsic>();
 
     // resolve arguments
-    let args = load_argument_words(state, *arguments);
-    let arguments = state.argument_slice(*arguments).to_vec();
+    let arguments = load_intrinsic_arguments(state, *arguments);
 
     // execute intrinsic
-    match state.evaluate_intrinsic(*dest, *intrinsic, arguments.as_slice(), args.as_slice()) {
+    match state.evaluate_intrinsic(
+        *dest,
+        *intrinsic,
+        arguments.values.as_slice(),
+        arguments.words.as_slice(),
+    ) {
         Ok(result) => {
             if let Some(dest) = *dest {
                 let is_word = match state.value_is_word(dest) {
@@ -242,7 +257,7 @@ impl DispatchState<'_, '_> {
         })
     }
 
-    /// Require the destination for an intrinsic that writes an aggregate result.
+    /// Require the destination for an intrinsic that writes a frame result.
     fn require_intrinsic_destination(
         &self,
         destination: Option<mir::Value>,

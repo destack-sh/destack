@@ -16,20 +16,14 @@ use crate::options::IsolateOptions;
 use crate::program::{ArgumentRange, CallTarget, Function, MoveRange, Program};
 use destack_heap::{Heap, SharedRawLimits};
 
-/// The lowered callee entry for one call.
-struct LoweredCallee {
-    /// The lowered program function pointer.
-    function_ptr: NonNull<Function>,
-}
-
 impl Interpreter {
-    /// Require one lowered callee from one call target.
-    fn require_lowered_callee(
+    /// Require one local function from one call target.
+    fn require_local_function(
         program: &Program,
         function_id: mir::LocalNodeId<mir::Function>,
         target: CallTarget,
-    ) -> RuntimeResult<LoweredCallee> {
-        // require a lowered target first
+    ) -> RuntimeResult<NonNull<Function>> {
+        // reject imports before touching program storage
         let function_index = match target {
             CallTarget::Local(index) => index,
             CallTarget::Import => {
@@ -46,7 +40,7 @@ impl Interpreter {
             })
         })?;
 
-        Ok(LoweredCallee { function_ptr })
+        Ok(function_ptr)
     }
 
     /// Call one imported function with pre-collected argument values.
@@ -89,13 +83,13 @@ impl Interpreter {
         Ok(result)
     }
 
-    /// Push one lowered callee frame on the stack.
-    fn push_lowered_call_frame(
+    /// Push one local call frame on the stack.
+    fn push_call_frame(
         &mut self,
         program: &Program,
         options: &IsolateOptions,
         current_func: &Function,
-        callee: LoweredCallee,
+        callee: NonNull<Function>,
         arguments: ArgumentRange,
         env: Option<Word>,
         moves: Option<MoveRange>,
@@ -107,9 +101,9 @@ impl Interpreter {
             return Err(self.runtime_error(program, Error::StackOverflow));
         }
 
-        // load the lowered callee entry metadata
+        // load callee entry metadata
         let (entry_block_ptr, frame_layout) = unsafe {
-            let callee = callee.function_ptr.as_ref();
+            let callee = callee.as_ref();
             let entry = callee.entry;
             let entry_block = &callee.blocks[entry as usize];
 
@@ -129,8 +123,8 @@ impl Interpreter {
         caller_frame.exceptional_call = exceptional_call;
 
         let mut new_frame = Frame::new(
-            unsafe { callee.function_ptr.as_ref().frame_layout },
-            callee.function_ptr,
+            unsafe { callee.as_ref().frame_layout },
+            callee,
             entry_block_ptr,
             frame_layout,
             stack_offset,
@@ -153,7 +147,7 @@ impl Interpreter {
             )
             .map_err(RuntimeError::new)?;
         } else {
-            let callee_function = unsafe { callee.function_ptr.as_ref() };
+            let callee_function = unsafe { callee.as_ref() };
             move_arguments_between_frames(
                 program,
                 caller,
@@ -175,13 +169,13 @@ impl Interpreter {
     fn reuse_tail_call_frame(
         &mut self,
         program: &Program,
-        callee: LoweredCallee,
+        callee: NonNull<Function>,
         arguments: &[FrameValue],
         env: Option<Word>,
     ) -> RuntimeResult<()> {
         // load the callee entry metadata first
         let (entry_block_ptr, frame_layout) = unsafe {
-            let callee_function = callee.function_ptr.as_ref();
+            let callee_function = callee.as_ref();
             let entry = callee_function.entry;
             let entry_block = &callee_function.blocks[entry as usize];
 
@@ -206,8 +200,8 @@ impl Interpreter {
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-        frame.frame_layout = unsafe { callee.function_ptr.as_ref().frame_layout };
-        frame.function_ptr = callee.function_ptr;
+        frame.frame_layout = unsafe { callee.as_ref().frame_layout };
+        frame.function_ptr = callee;
         frame.block_ptr = entry_block_ptr;
         frame.resume_pc = 0;
         frame.exceptional_call = None;
@@ -215,7 +209,7 @@ impl Interpreter {
         frame.set_environment(frame_layout, env);
 
         // bind the new arguments into the reused frame
-        let callee_function = unsafe { callee.function_ptr.as_ref() };
+        let callee_function = unsafe { callee.as_ref() };
         store_parameters(
             program,
             frame,
@@ -306,9 +300,9 @@ impl Interpreter {
             return Ok(());
         }
 
-        // otherwise enter the lowered callee on a new frame
-        let callee = Self::require_lowered_callee(program, function_id, target)?;
-        self.push_lowered_call_frame(
+        // otherwise enter the local callee on a new frame
+        let callee = Self::require_local_function(program, function_id, target)?;
+        self.push_call_frame(
             program,
             options,
             current_func,
@@ -370,8 +364,8 @@ impl Interpreter {
             return Ok(());
         }
 
-        // otherwise push the lowered callee and record the exceptional edge
-        let callee = Self::require_lowered_callee(program, function_id, target)?;
+        // otherwise push the local callee and record the exceptional edge
+        let callee = Self::require_local_function(program, function_id, target)?;
         let caller = self
             .frames
             .last()
@@ -385,7 +379,7 @@ impl Interpreter {
             unwind_state,
         };
 
-        self.push_lowered_call_frame(
+        self.push_call_frame(
             program,
             options,
             current_func,
@@ -488,8 +482,8 @@ impl Interpreter {
             return Ok(None);
         }
 
-        // otherwise reuse the current frame for the lowered callee
-        let callee = Self::require_lowered_callee(program, function_id, target)?;
+        // otherwise reuse the current frame for the local callee
+        let callee = Self::require_local_function(program, function_id, target)?;
         self.reuse_tail_call_frame(program, callee, &argument_values, env)?;
 
         Ok(None)
