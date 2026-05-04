@@ -48,7 +48,13 @@ export {
 } from "./memory/index.ds";
 
 // control flow
-export { type Try, type TryBranch, type TryContinue, type TryFailure } from "./control/try.ds";
+export {
+    type Try,
+    type FromFailure,
+    type TryBranch,
+    type TryContinue,
+    type TryFailure,
+} from "./control/try.ds";
 export { type Error } from "./control/error.ds";
 export {
     type Promise,
