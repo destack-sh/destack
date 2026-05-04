@@ -104,12 +104,8 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         | Instruction::AtomicFence { .. }
         | Instruction::BarrierWrite { .. } => false,
 
-        // cleanup and drops run user hooks / deallocate
-        Instruction::Dispose { .. }
-        | Instruction::AsyncDispose { .. }
-        | Instruction::Pin { .. }
-        | Instruction::Unpin { .. }
-        | Instruction::Drop { .. } => false,
+        // pinning and drops have side effects
+        Instruction::Pin { .. } | Instruction::Unpin { .. } | Instruction::Drop { .. } => false,
 
         // calls may have side effects
         Instruction::Call { .. }
@@ -271,12 +267,8 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         // side effects if the result is unused (they produce new values, not mutate)
         Instruction::FieldSet { .. } | Instruction::ElementSet { .. } => false,
 
-        // cleanup and drops have side effects
-        Instruction::Dispose { .. }
-        | Instruction::AsyncDispose { .. }
-        | Instruction::Pin { .. }
-        | Instruction::Unpin { .. }
-        | Instruction::Drop { .. } => true,
+        // pinning and drops have side effects
+        Instruction::Pin { .. } | Instruction::Unpin { .. } | Instruction::Drop { .. } => true,
 
         // calls may have side effects
         Instruction::Call { .. }
@@ -347,8 +339,6 @@ pub fn instruction_may_affect_memory(instruction: &Instruction) -> bool {
             | Instruction::NewSlice { .. }
             | Instruction::RawAlloc { .. }
             | Instruction::RawFree { .. }
-            | Instruction::Dispose { .. }
-            | Instruction::AsyncDispose { .. }
             | Instruction::Pin { .. }
             | Instruction::Unpin { .. }
             | Instruction::Drop { .. }
@@ -655,14 +645,14 @@ pub fn instruction_substitute_uses(
             offset: substitute(offset),
             byte_len: substitute(byte_len),
         },
-        mir::Instruction::Dispose { value } => mir::Instruction::Dispose {
+        mir::Instruction::Pin {
+            destination,
+            value,
+            result_type,
+        } => mir::Instruction::Pin {
+            destination: *destination,
             value: substitute(value),
-        },
-        mir::Instruction::AsyncDispose { value } => mir::Instruction::AsyncDispose {
-            value: substitute(value),
-        },
-        mir::Instruction::Pin { value } => mir::Instruction::Pin {
-            value: substitute(value),
+            result_type: *result_type,
         },
         mir::Instruction::Unpin { value } => mir::Instruction::Unpin {
             value: substitute(value),
@@ -2139,14 +2129,14 @@ pub fn instruction_map(
             pointer: remap(*pointer),
             value: remap(*value),
         },
-        mir::Instruction::Dispose { value } => mir::Instruction::Dispose {
+        mir::Instruction::Pin {
+            destination,
+            value,
+            result_type,
+        } => mir::Instruction::Pin {
+            destination: remap(*destination),
             value: remap(*value),
-        },
-        mir::Instruction::AsyncDispose { value } => mir::Instruction::AsyncDispose {
-            value: remap(*value),
-        },
-        mir::Instruction::Pin { value } => mir::Instruction::Pin {
-            value: remap(*value),
+            result_type: *result_type,
         },
         mir::Instruction::Unpin { value } => mir::Instruction::Unpin {
             value: remap(*value),
@@ -3375,14 +3365,14 @@ pub fn instruction_map_with_locals(
         mir::Instruction::RawFree { pointer } => mir::Instruction::RawFree {
             pointer: remap(*pointer),
         },
-        mir::Instruction::Dispose { value } => mir::Instruction::Dispose {
+        mir::Instruction::Pin {
+            destination,
+            value,
+            result_type,
+        } => mir::Instruction::Pin {
+            destination: remap(*destination),
             value: remap(*value),
-        },
-        mir::Instruction::AsyncDispose { value } => mir::Instruction::AsyncDispose {
-            value: remap(*value),
-        },
-        mir::Instruction::Pin { value } => mir::Instruction::Pin {
-            value: remap(*value),
+            result_type: *result_type,
         },
         mir::Instruction::Unpin { value } => mir::Instruction::Unpin {
             value: remap(*value),

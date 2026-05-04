@@ -44,7 +44,7 @@ fn run_drop_insert(
 ) -> bool {
     // find values that need drops using ownership analysis
     let value_types = ValueTypeMap::new(function, tree);
-    let droppable = find_droppable_values_with_ownership(function, tree, ownership, &value_types);
+    let droppable = find_droppable_values(function, tree, &value_types);
     if droppable.is_empty() {
         return false;
     }
@@ -222,10 +222,9 @@ enum DropInsertionPoint {
 ///
 /// Uses the value type table for accurate value type tracking, which handles
 /// field.set/element.set without inference.
-fn find_droppable_values_with_ownership(
+fn find_droppable_values(
     function: &mir::Function,
     tree: &mir::Tree,
-    ownership: &OwnershipAnalysis,
     value_types: &ValueTypeMap,
 ) -> HashSet<Value> {
     let mut droppable = HashSet::new();
@@ -237,7 +236,7 @@ fn find_droppable_values_with_ownership(
             continue;
         };
 
-        if value_needs_drop(param_value, ownership, value_types, tree) {
+        if value_needs_drop(param_value, value_types, tree) {
             droppable.insert(param_value);
         }
     }
@@ -252,7 +251,7 @@ fn find_droppable_values_with_ownership(
                 continue;
             };
 
-            if value_needs_drop(param_value, ownership, value_types, tree) {
+            if value_needs_drop(param_value, value_types, tree) {
                 droppable.insert(param_value);
             }
         }
@@ -262,7 +261,7 @@ fn find_droppable_values_with_ownership(
             let instruction = tree.get(instruction_id);
 
             if let Some(dest) = instruction.destination().and_then(|value| value.value())
-                && value_needs_drop(dest, ownership, value_types, tree)
+                && value_needs_drop(dest, value_types, tree)
             {
                 droppable.insert(dest);
             }
@@ -273,17 +272,7 @@ fn find_droppable_values_with_ownership(
 }
 
 /// Return true when a value requires explicit drop insertion.
-fn value_needs_drop(
-    value: Value,
-    ownership: &OwnershipAnalysis,
-    value_types: &ValueTypeMap,
-    tree: &mir::Tree,
-) -> bool {
-    // heap allocations are GC owned
-    if ownership.is_heap_allocated(value) {
-        return false;
-    }
-
+fn value_needs_drop(value: Value, value_types: &ValueTypeMap, tree: &mir::Tree) -> bool {
     // resolve the value type from ownership
     let type_id = value_types.require_value_type(value);
 
@@ -796,6 +785,36 @@ b0:
         test.run_pass(&DropInsert);
         test.assert_no_errors();
         test.assert_unchanged(input);
+    }
+
+    /// Owned heap allocation is dropped at last use.
+    #[test]
+    fn test_insert_drop_for_owned_heap_alloc() {
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, owned> = new int32
+    v1: int32 = 42int32
+    store v0, v1
+    v2: int32 = load v0
+    return v2
+}"#;
+
+        let expected = r#"
+function test(): int32 {
+entry0:
+    value0: ref<int32, owned> = new int32
+    value1: int32 = 42int32
+    store value0, value1
+    value2: int32 = load value0
+    drop value0
+    return value2
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_output(expected);
     }
 
     /// Owned parameter gets drop inserted before return.

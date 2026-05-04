@@ -1150,11 +1150,9 @@ impl<'a> MemoryAccessCollector<'a> {
                 self.call_effects(instruction, call.arguments, None)
             }
             mir::Instruction::RawFree { .. }
-            | mir::Instruction::Dispose { .. }
-            | mir::Instruction::AsyncDispose { .. }
+            | mir::Instruction::Drop { .. }
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }
-            | mir::Instruction::Drop { .. }
             | mir::Instruction::New { .. }
             | mir::Instruction::NewSlice { .. }
             | mir::Instruction::RawAlloc { .. }

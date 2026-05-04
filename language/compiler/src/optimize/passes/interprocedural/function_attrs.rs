@@ -741,9 +741,7 @@ fn effects_for_instruction(
             let effect = stack_effect(mir::MemoryEffect::write_only(mir::MemorySpaceSet::STACK));
             (effect, mir::CallBehavior::none())
         }
-        mir::Instruction::Dispose { .. }
-        | mir::Instruction::AsyncDispose { .. }
-        | mir::Instruction::Pin { .. }
+        mir::Instruction::Pin { .. }
         | mir::Instruction::Unpin { .. }
         | mir::Instruction::Drop { .. } => {
             (mir::MemoryEffect::unknown(), mir::CallBehavior::unknown())

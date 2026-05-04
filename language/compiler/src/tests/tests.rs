@@ -30,8 +30,8 @@ use destack_source::{
     TargetId, Uri, print_diff,
 };
 use destack_vm::{
-    Allocator, Heap, HeapLimits, HeapOptions, Isolate, IsolateId, IsolateOptions, SharedHeap,
-    SharedHeapLimits, StaticSpace, Word,
+    Allocator, Heap, HeapLimits, HeapOptions, Isolate, IsolateId, IsolateOptions, SharedAllocator,
+    SharedHeap, SharedHeapLimits, StaticSpace,
 };
 use destack_workspace::{
     AmbientSnapshot, BoundsCheckPolicy, BundleFormat, BundleMode, CacheMode, Change,
@@ -488,6 +488,8 @@ pub struct TestIsolate {
     heap: Heap,
     /// The world-shared heap for the isolate.
     shared: SharedHeap,
+    /// The worker-local allocator for shared heap allocations.
+    shared_allocator: SharedAllocator,
     /// The shared collector worker used by the isolate.
     shared_gc: destack_vm::SharedGcWorker,
 }
@@ -501,6 +503,7 @@ impl TestIsolate {
                 &mut self.statics,
                 &mut self.heap,
                 &self.shared,
+                &mut self.shared_allocator,
                 &self.shared_gc,
                 function,
                 arguments,
@@ -2772,6 +2775,7 @@ impl TestProgram {
                 .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
         let mut statics = StaticSpace::empty();
         let (heap, shared) = create_test_heaps();
+        let shared_allocator = shared.allocator();
         let shared_gc = shared.register_collector_worker();
 
         isolate
@@ -2783,6 +2787,7 @@ impl TestProgram {
             statics,
             heap,
             shared,
+            shared_allocator,
             shared_gc,
         }
     }

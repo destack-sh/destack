@@ -611,8 +611,6 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::NewSlice { .. }
         | mir::Instruction::RawAlloc { .. }
         | mir::Instruction::RawFree { .. }
-        | mir::Instruction::Dispose { .. }
-        | mir::Instruction::AsyncDispose { .. }
         | mir::Instruction::Pin { .. }
         | mir::Instruction::Unpin { .. }
         | mir::Instruction::Drop { .. }
