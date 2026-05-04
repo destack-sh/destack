@@ -93,8 +93,8 @@ pub struct GcPacer {
 pub enum GcPressure {
     /// No collection work is currently requested.
     Idle,
-    /// A regular collection cycle should start.
-    Start,
+    /// A regular collection cycle is requested.
+    Cycle,
     /// A full collection cycle should start.
     Full,
 }
@@ -155,7 +155,7 @@ impl GcPacer {
     /// Return the collection pressure for the current heap size.
     pub fn pressure(&self, heap_bytes: u64) -> GcPressure {
         if self.goal_bytes == 0 && heap_bytes > 0 {
-            return GcPressure::Start;
+            return GcPressure::Cycle;
         }
 
         if heap_bytes >= self.goal_bytes && self.goal_bytes > 0 {
@@ -163,7 +163,7 @@ impl GcPacer {
         }
 
         if heap_bytes >= self.trigger_bytes && self.goal_bytes > 0 {
-            return GcPressure::Start;
+            return GcPressure::Cycle;
         }
 
         GcPressure::Idle
