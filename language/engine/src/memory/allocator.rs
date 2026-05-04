@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{StaticId, StaticRegion, StaticSpace, TypeId};
+use crate::{LayoutId, StaticId, StaticRegion, StaticSpace};
 
 /// Allocator for static memory.
 #[derive(Debug, Default)]
@@ -23,7 +23,7 @@ impl StaticAllocator {
     pub fn define(
         &mut self,
         id: StaticId,
-        ty: TypeId,
+        layout: LayoutId,
         alignment: usize,
         is_mutable: bool,
         bytes: &[u8],
@@ -44,7 +44,7 @@ impl StaticAllocator {
             id,
             offset,
             byte_len: bytes.len(),
-            ty,
+            layout,
             is_mutable,
         });
         self.region_by_id.insert(id, index);

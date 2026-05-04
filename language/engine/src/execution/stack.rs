@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{FrameLayoutId, FrameRegionId, SafepointId, Value};
+use crate::{FrameLayoutId, FrameSlotId, SafepointId, Value};
 
 /// One stack map.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -17,26 +17,26 @@ pub struct StackLocation {
     pub offset: i32,
 }
 
-/// One value location at a safepoint.
+/// Source for one live frame slot.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ValueLocation {
-    /// One register location.
+pub struct SlotSource {
+    /// The destination frame slot.
+    pub slot: FrameSlotId,
+    /// Where the slot value comes from.
+    pub source: ValueSource,
+}
+
+/// Origin of one frame slot value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ValueSource {
+    /// Value from one logical frame slot.
+    Slot(FrameSlotId),
+    /// Value from one machine register.
     Register(RegisterId),
-    /// One stack location.
+    /// Value from one machine stack location.
     Stack(StackLocation),
     /// One constant value.
     Constant(Value),
-    /// One dead region.
-    Dead,
-}
-
-/// One frame region location.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct StackMapRegion {
-    /// The frame region.
-    pub region: FrameRegionId,
-    /// The region location.
-    pub location: ValueLocation,
 }
 
 /// One frame stack map.
@@ -44,11 +44,11 @@ pub struct StackMapRegion {
 pub struct StackMapFrame {
     /// The frame layout.
     pub frame_layout: FrameLayoutId,
-    /// The frame region locations.
-    pub regions: Vec<StackMapRegion>,
+    /// Sources for live slots.
+    pub sources: Vec<SlotSource>,
 }
 
-/// Value locations at one safepoint.
+/// Slot sources at one safepoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StackMap {
     /// The stack map id.

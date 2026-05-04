@@ -12,9 +12,7 @@ pub trait Engine: Send {
     type Error;
 
     /// Initialize worker static memory.
-    fn initialize(&mut self, _context: Context<'_>) -> Result<(), Self::Error> {
-        Ok(())
-    }
+    fn initialize(&mut self, context: Context<'_>) -> Result<(), Self::Error>;
 
     /// Run one entrypoint.
     fn run(

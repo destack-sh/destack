@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::TypeId;
+use crate::LayoutId;
 
 /// One static region.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -15,8 +15,8 @@ pub struct StaticRegion {
     pub offset: usize,
     /// The region byte length.
     pub byte_len: usize,
-    /// The region value type.
-    pub ty: TypeId,
+    /// The region value layout.
+    pub layout: LayoutId,
     /// Whether this region allows stores.
     pub is_mutable: bool,
 }
