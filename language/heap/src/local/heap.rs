@@ -154,6 +154,11 @@ impl Heap {
         self.heap.unpin(reference)
     }
 
+    /// Free one heap allocation immediately.
+    pub fn free_heap(&mut self, reference: HeapReference) -> HeapResult<bool> {
+        self.heap.free(reference)
+    }
+
     /// Return the current derived collector pacing targets.
     pub fn gc_pacer(&self) -> GcPacer {
         self.gc_pacer
@@ -575,7 +580,7 @@ impl Heap {
         // translate pacer pressure into local cycle policy
         match self.gc_pacer.pressure(heap_bytes) {
             GcPressure::Idle => {}
-            GcPressure::Start => self.request_gc(GcRequest::Minor),
+            GcPressure::Cycle => self.request_gc(GcRequest::Minor),
             GcPressure::Full => self.request_gc(GcRequest::Full),
         }
 

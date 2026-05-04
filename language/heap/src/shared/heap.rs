@@ -586,6 +586,11 @@ impl SharedHeap {
         self.heap.is_live(reference)
     }
 
+    /// Free one shared heap allocation immediately.
+    pub fn free_heap(&self, reference: SharedHeapReference) -> HeapResult<bool> {
+        self.heap.free(reference).map(|_| true)
+    }
+
     /// Return the base native address for direct shared heap access.
     #[inline(always)]
     pub fn heap_base_address(&self) -> usize {
@@ -862,7 +867,7 @@ impl SharedHeap {
         // shared cycles are full-heap cycles
         match self.gc_pacer().pressure(self.heap_allocated_bytes()) {
             GcPressure::Idle => {}
-            GcPressure::Start | GcPressure::Full => {
+            GcPressure::Cycle | GcPressure::Full => {
                 self.collection_requested.store(true, Ordering::Release);
             }
         }

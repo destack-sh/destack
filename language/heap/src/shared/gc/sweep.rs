@@ -2,8 +2,8 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use crate::shared::gc::SharedGcPhase;
-use crate::shared::space::{SharedHeapPlace, SharedHeapSpace};
-use crate::{GcKind, GcProgress, GcStats, HeapError, HeapResult, SharedHeapReference};
+use crate::shared::space::SharedHeapSpace;
+use crate::{GcKind, GcProgress, GcStats, HeapError, HeapResult};
 
 impl SharedHeapSpace {
     /// Transition from concurrent mark into sweeping.
@@ -69,7 +69,7 @@ impl SharedHeapSpace {
 
         // reclaimed allocation
         for reference in released_references {
-            let released_bytes = self.free_reference(reference)?;
+            let released_bytes = self.free(reference)?;
 
             self.gc.freed_allocations.fetch_add(1, Ordering::AcqRel);
             self.gc
@@ -83,58 +83,6 @@ impl SharedHeapSpace {
         }
 
         Ok(GcProgress::Active)
-    }
-
-    /// Free one shared heap reference.
-    fn free_reference(&self, reference: SharedHeapReference) -> HeapResult<u64> {
-        // resolve the live allocation before mutating space state
-        let Some(location) = self.resolve_location(reference) else {
-            return Err(HeapError::InvalidSharedHeapReference { reference });
-        };
-        let released_bytes = location.byte_len as u64;
-        let mut store = self.state.write();
-
-        // location release
-        match location.place {
-            SharedHeapPlace::Small(slot) => {
-                self.release_small_slot(&mut store, slot)?;
-            }
-            SharedHeapPlace::Large(allocation_id) => {
-                // retire the large allocation record
-                let Some(allocation) = store.large.allocations.get(allocation_id.index()?).cloned()
-                else {
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
-                };
-                let (first_offset, pages) = {
-                    let mut allocation = allocation.write();
-                    if !allocation.is_live {
-                        return Err(HeapError::MissingLargeAllocation {
-                            allocation_id: allocation_id.id(),
-                        });
-                    }
-
-                    let first_offset = allocation.first_offset;
-                    let pages = allocation.pages;
-                    allocation.retire();
-
-                    (first_offset, pages)
-                };
-
-                // release its backing pages
-                store
-                    .large
-                    .free_large_allocation_ids
-                    .push(allocation_id.id());
-                self.unmap_page_run(&mut store, first_offset, &pages);
-                store
-                    .page_run_cache
-                    .release_page_run(&self.allocator, pages)?;
-            }
-        }
-
-        Ok(released_bytes)
     }
 
     /// Finish one completed shared collection cycle.

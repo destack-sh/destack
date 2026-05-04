@@ -203,6 +203,55 @@ impl SharedHeapSpace {
         self.resolve_location(reference).is_some()
     }
 
+    /// Free one shared heap allocation immediately.
+    pub(crate) fn free(&self, reference: SharedHeapReference) -> HeapResult<u64> {
+        let Some(location) = self.resolve_location(reference) else {
+            return Err(HeapError::InvalidSharedHeapReference { reference });
+        };
+        let released_bytes = location.byte_len as u64;
+        let mut store = self.state.write();
+
+        // release the live place
+        match location.place {
+            SharedHeapPlace::Small(slot) => {
+                self.release_small_slot(&mut store, slot)?;
+            }
+            SharedHeapPlace::Large(allocation_id) => {
+                let Some(allocation) = store.large.allocations.get(allocation_id.index()?).cloned()
+                else {
+                    return Err(HeapError::MissingLargeAllocation {
+                        allocation_id: allocation_id.id(),
+                    });
+                };
+                let (first_offset, pages) = {
+                    let mut allocation = allocation.write();
+                    if !allocation.is_live {
+                        return Err(HeapError::MissingLargeAllocation {
+                            allocation_id: allocation_id.id(),
+                        });
+                    }
+
+                    let first_offset = allocation.first_offset;
+                    let pages = allocation.pages;
+                    allocation.retire();
+
+                    (first_offset, pages)
+                };
+
+                store
+                    .large
+                    .free_large_allocation_ids
+                    .push(allocation_id.id());
+                self.unmap_page_run(&mut store, first_offset, &pages);
+                store
+                    .page_run_cache
+                    .release_page_run(&self.allocator, pages)?;
+            }
+        }
+
+        Ok(released_bytes)
+    }
+
     /// Create one worker-local shared heap allocator.
     pub fn allocator(&self) -> SharedAllocator {
         // allocator shape follows shared heap options
