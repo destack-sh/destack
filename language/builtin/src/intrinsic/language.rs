@@ -199,67 +199,301 @@ define_language_symbols! {
         AsyncResult => (Newtype, "control/result", "AsyncResult"),
     }
 
-    /// Reflection types for type descriptors.
+    /// Reflection types for type handles and shapes.
     reflect {
-        /// The `Type<T>` union
+        /// Opaque `Type<T>` handle.
         Type => (Newtype, "reflect/type", "Type"),
 
-        /// `TypeBase<T>` interface
-        TypeBase => (Interface, "reflect/type", "TypeBase"),
-
-        /// `TypeId` newtype
+        /// Stable type identifier.
         TypeId => (Newtype, "reflect/type", "TypeId"),
 
-        /// `typeOf` intrinsic function
-        TypeOf => (Function, "reflect/type", "typeOf"),
+        /// Stable type symbol identifier.
+        TypeSymbolId => (Newtype, "reflect/type", "TypeSymbolId"),
 
-        /// Primitive type descriptor
+        /// Type declaration kind alias.
+        TypeDeclarationKind => (TypeAlias, "reflect/type", "TypeDeclarationKind"),
+
+        /// Type symbol descriptor.
+        TypeSymbol => (Struct, "reflect/type", "TypeSymbol"),
+
+        /// Static key alias.
+        StaticKey => (TypeAlias, "reflect/type", "StaticKey"),
+
+        /// Static argument alias.
+        StaticArgument => (TypeAlias, "reflect/type", "StaticArgument"),
+
+        /// Type argument descriptor.
+        TypeArgument => (Struct, "reflect/type", "TypeArgument"),
+
+        /// Value argument descriptor.
+        ValueArgument => (Struct, "reflect/type", "ValueArgument"),
+
+        /// Type literal alias.
+        TypeLiteral => (TypeAlias, "reflect/type", "TypeLiteral"),
+
+        /// Intrinsic type alias.
+        IntrinsicType => (TypeAlias, "reflect/type", "IntrinsicType"),
+
+        /// Primitive category alias.
+        Primitive => (TypeAlias, "reflect/type", "Primitive"),
+
+        /// Integer type descriptor.
+        IntegerType => (Struct, "reflect/type", "IntegerType"),
+
+        /// Float type alias.
+        FloatType => (TypeAlias, "reflect/type", "FloatType"),
+
+        /// Scalar literal alias.
+        ScalarLiteral => (TypeAlias, "reflect/type", "ScalarLiteral"),
+
+        /// Type shape alias.
+        TypeShape => (TypeAlias, "reflect/type", "TypeShape"),
+
+        /// Type literal shape.
+        LiteralType => (Struct, "reflect/type", "LiteralType"),
+
+        /// Primitive type shape.
         PrimitiveType => (Struct, "reflect/type", "PrimitiveType"),
 
-        /// Struct type descriptor
-        StructType => (Struct, "reflect/type", "StructType"),
+        /// Scalar literal type shape.
+        ScalarLiteralType => (Struct, "reflect/type", "ScalarLiteralType"),
 
-        /// Class type descriptor
-        ClassType => (Struct, "reflect/type", "ClassType"),
+        /// This type shape.
+        ThisType => (Struct, "reflect/type", "ThisType"),
 
-        /// Enum type descriptor
-        EnumType => (Struct, "reflect/type", "EnumType"),
+        /// Reference type shape.
+        ReferenceType => (Struct, "reflect/type", "ReferenceType"),
 
-        /// Interface type descriptor
-        InterfaceType => (Struct, "reflect/type", "InterfaceType"),
+        /// Value type shape.
+        ValueType => (Struct, "reflect/type", "ValueType"),
 
-        /// Newtype type descriptor
-        NewtypeType => (Struct, "reflect/type", "NewtypeType"),
+        /// Conditional type shape.
+        ConditionalType => (Struct, "reflect/type", "ConditionalType"),
 
-        /// Array type descriptor
+        /// Mapped type modifier alias.
+        MappedTypeModifier => (TypeAlias, "reflect/type", "MappedTypeModifier"),
+
+        /// Mapped type modifiers.
+        MappedTypeModifiers => (Struct, "reflect/type", "MappedTypeModifiers"),
+
+        /// Mapped type parameter.
+        MappedTypeParameter => (Struct, "reflect/type", "MappedTypeParameter"),
+
+        /// Mapped type shape.
+        MappedType => (Struct, "reflect/type", "MappedType"),
+
+        /// Index type shape.
+        IndexType => (Struct, "reflect/type", "IndexType"),
+
+        /// Template literal type shape.
+        TemplateLiteralType => (Struct, "reflect/type", "TemplateLiteralType"),
+
+        /// Import type shape.
+        ImportType => (Struct, "reflect/type", "ImportType"),
+
+        /// Infer type shape.
+        InferType => (Struct, "reflect/type", "InferType"),
+
+        /// Predicate subject alias.
+        PredicateSubject => (TypeAlias, "reflect/type", "PredicateSubject"),
+
+        /// Predicate type shape.
+        PredicateType => (Struct, "reflect/type", "PredicateType"),
+
+        /// Readonly type shape.
+        ReadonlyType => (Struct, "reflect/type", "ReadonlyType"),
+
+        /// Keyof type shape.
+        KeyOfType => (Struct, "reflect/type", "KeyOfType"),
+
+        /// Must type shape.
+        MustType => (Struct, "reflect/type", "MustType"),
+
+        /// Comptime type shape.
+        ComptimeType => (Struct, "reflect/type", "ComptimeType"),
+
+        /// Not type shape.
+        NotType => (Struct, "reflect/type", "NotType"),
+
+        /// Mutability alias.
+        Mutability => (TypeAlias, "reflect/type", "Mutability"),
+
+        /// Variance bound alias.
+        VarianceBound => (TypeAlias, "reflect/type", "VarianceBound"),
+
+        /// Value-of type shape.
+        ValueOfType => (Struct, "reflect/type", "ValueOfType"),
+
+        /// Reference-of type shape.
+        ReferenceOfType => (Struct, "reflect/type", "ReferenceOfType"),
+
+        /// Pointer-of type shape.
+        PointerOfType => (Struct, "reflect/type", "PointerOfType"),
+
+        /// In type shape.
+        InType => (Struct, "reflect/type", "InType"),
+
+        /// Extends type shape.
+        ExtendsType => (Struct, "reflect/type", "ExtendsType"),
+
+        /// Implements type shape.
+        ImplementsType => (Struct, "reflect/type", "ImplementsType"),
+
+        /// Fixed array type shape.
+        FixedArrayType => (Struct, "reflect/type", "FixedArrayType"),
+
+        /// Array type shape.
         ArrayType => (Struct, "reflect/type", "ArrayType"),
 
-        /// Tuple type descriptor
+        /// Slice type shape.
+        SliceType => (Struct, "reflect/type", "SliceType"),
+
+        /// Tuple element shape.
+        TupleElement => (Struct, "reflect/type", "TupleElement"),
+
+        /// Tuple type shape.
         TupleType => (Struct, "reflect/type", "TupleType"),
 
-        /// Union type descriptor
-        UnionType => (Struct, "reflect/type", "UnionType"),
+        /// Object field shape.
+        ObjectField => (Struct, "reflect/type", "ObjectField"),
 
-        /// Intersection type descriptor
-        IntersectionType => (Struct, "reflect/type", "IntersectionType"),
+        /// Object index signature shape.
+        ObjectIndexSignature => (Struct, "reflect/type", "ObjectIndexSignature"),
 
-        /// Function type descriptor
-        FunctionType => (Struct, "reflect/type", "FunctionType"),
-
-        /// Object type descriptor
+        /// Object type shape.
         ObjectType => (Struct, "reflect/type", "ObjectType"),
 
-        /// Property descriptor
-        Property => (Struct, "reflect/property", "Property"),
+        /// Function asynchrony alias.
+        FunctionAsynchrony => (TypeAlias, "reflect/type", "FunctionAsynchrony"),
 
-        /// Enum variant descriptor
-        Variant => (Struct, "reflect/property", "Variant"),
+        /// Function cardinality alias.
+        FunctionCardinality => (TypeAlias, "reflect/type", "FunctionCardinality"),
+
+        /// Function parameter shape.
+        FunctionParameter => (Struct, "reflect/type", "FunctionParameter"),
+
+        /// Function type shape.
+        FunctionType => (Struct, "reflect/type", "FunctionType"),
+
+        /// Union type shape.
+        UnionType => (Struct, "reflect/type", "UnionType"),
+
+        /// Intersection type shape.
+        IntersectionType => (Struct, "reflect/type", "IntersectionType"),
+
+        /// Form type shape.
+        FormType => (Struct, "reflect/type", "FormType"),
+
+        /// Layout kind alias.
+        LayoutKind => (TypeAlias, "reflect/type", "LayoutKind"),
+
+        /// Layout descriptor.
+        LayoutDescriptor => (Struct, "reflect/type", "LayoutDescriptor"),
+
+        /// Layout field descriptor.
+        LayoutFieldDescriptor => (Struct, "reflect/type", "LayoutFieldDescriptor"),
+
+        /// Runtime type handle intrinsic.
+        TypeOf => (Function, "reflect/type", "typeOf"),
+
+        /// Stable type identity intrinsic.
+        IdOf => (Function, "reflect/type", "idOf"),
+
+        /// Type symbol intrinsic.
+        SymbolOf => (Function, "reflect/type", "symbolOf"),
+
+        /// Type shape intrinsic.
+        ShapeOf => (Function, "reflect/type", "shapeOf"),
+
+        /// Type display name intrinsic.
+        DisplayNameOf => (Function, "reflect/type", "displayNameOf"),
+
+        /// Size query intrinsic.
+        SizeOf => (Function, "reflect/type", "sizeOf"),
+
+        /// Alignment query intrinsic.
+        AlignOf => (Function, "reflect/type", "alignOf"),
+
+        /// Stride query intrinsic.
+        StrideOf => (Function, "reflect/type", "strideOf"),
+
+        /// Layout query intrinsic.
+        LayoutOf => (Function, "reflect/type", "layoutOf"),
+
+        /// Generic argument kind alias.
+        GenericArgumentKind => (TypeAlias, "reflect/property", "GenericArgumentKind"),
+
+        /// Signature asynchrony alias.
+        SignatureAsynchrony => (TypeAlias, "reflect/property", "SignatureAsynchrony"),
+
+        /// Signature cardinality alias.
+        SignatureCardinality => (TypeAlias, "reflect/property", "SignatureCardinality"),
+
+        /// Generic argument descriptor.
+        GenericArgumentDescriptor => (Struct, "reflect/property", "GenericArgumentDescriptor"),
+
+        /// Field descriptor.
+        FieldDescriptor => (Struct, "reflect/property", "FieldDescriptor"),
+
+        /// Method descriptor.
+        MethodDescriptor => (Struct, "reflect/property", "MethodDescriptor"),
+
+        /// Parameter descriptor.
+        ParameterDescriptor => (Struct, "reflect/property", "ParameterDescriptor"),
+
+        /// Signature descriptor.
+        SignatureDescriptor => (Struct, "reflect/property", "SignatureDescriptor"),
+
+        /// Tuple element descriptor.
+        TupleElementDescriptor => (Struct, "reflect/property", "TupleElementDescriptor"),
+
+        /// Index signature descriptor.
+        IndexSignatureDescriptor => (Struct, "reflect/property", "IndexSignatureDescriptor"),
+
+        /// Variant descriptor.
+        VariantDescriptor => (Struct, "reflect/property", "VariantDescriptor"),
+
+        /// Generic argument reflection intrinsic.
+        GenericArgumentsOf => (Function, "reflect/property", "genericArgumentsOf"),
+
+        /// Field reflection intrinsic.
+        FieldsOf => (Function, "reflect/property", "fieldsOf"),
+
+        /// Method reflection intrinsic.
+        MethodsOf => (Function, "reflect/property", "methodsOf"),
+
+        /// Call signature reflection intrinsic.
+        CallSignaturesOf => (Function, "reflect/property", "callSignaturesOf"),
+
+        /// Construct signature reflection intrinsic.
+        ConstructSignaturesOf => (Function, "reflect/property", "constructSignaturesOf"),
+
+        /// Tuple element reflection intrinsic.
+        ElementsOf => (Function, "reflect/property", "elementsOf"),
+
+        /// Index signature reflection intrinsic.
+        IndexSignaturesOf => (Function, "reflect/property", "indexSignaturesOf"),
+
+        /// Variant reflection intrinsic.
+        VariantsOf => (Function, "reflect/property", "variantsOf"),
     }
 
-    /// Decorator metadata (in reflect/).
-    decorator_metadata {
-        /// Decorator metadata
-        DecoratorInfo => (Struct, "reflect/decorator", "DecoratorInfo"),
+    /// Annotation reflection metadata.
+    annotation_metadata {
+        /// Annotation effect alias.
+        AnnotationEffect => (TypeAlias, "reflect/annotation", "AnnotationEffect"),
+
+        /// Documentation descriptor.
+        DocumentationDescriptor => (Struct, "reflect/annotation", "DocumentationDescriptor"),
+
+        /// Documentation tag descriptor.
+        DocumentationTagDescriptor => (Struct, "reflect/annotation", "DocumentationTagDescriptor"),
+
+        /// Annotation descriptor.
+        AnnotationDescriptor => (Struct, "reflect/annotation", "AnnotationDescriptor"),
+
+        /// Annotation reflection intrinsic.
+        AnnotationsOf => (Function, "reflect/annotation", "annotationsOf"),
     }
 
     /// Intrinsic interfaces for compiler-known metadata.

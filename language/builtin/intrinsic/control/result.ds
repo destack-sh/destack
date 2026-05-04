@@ -171,16 +171,24 @@ extension<T, E> of Result<T, E> {
     }
 }
 
-/// Result implements Try for the ? operator.
-extension<T, E> of Result<T, E> implements Try<T, E> {
+/// Result implements Try for the ? and ?? operators.
+extension<T, E> of Result<T, E> implements Try {
+    /// The successful result value.
+    type Value = T;
+
+    /// The failed result value.
+    type Error = E;
+
+    /// Branch on Ok or Err.
     branch(): TryBranch<T, E> {
         match (this) {
-            Ok { value } => ({ kind: "ok", value })
-            Err { error } => ({ kind: "err", error })
+            Ok { value } => ({ kind: "continue", value })
+            Err { error } => ({ kind: "failure", error })
         }
     }
 
-    static fromError(error: E): Result<T, E> {
+    /// Construct a Result from a Try failure.
+    static fromFailure(error: E): Result<T, E> {
         Result.err(error);
     }
 }

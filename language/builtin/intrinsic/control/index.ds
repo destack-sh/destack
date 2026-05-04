@@ -3,7 +3,7 @@
 // Types and interfaces for control flow operations:
 // - Error handling: Result, Try
 
-export { type Try, type TryBranch } from "./try.ds";
+export { type Try, type TryBranch, type TryContinue, type TryFailure } from "./try.ds";
 export { type Error } from "./error.ds";
 export {
     type Promise,

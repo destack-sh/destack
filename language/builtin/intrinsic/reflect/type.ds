@@ -1,251 +1,766 @@
-import { type Property, type Variant } from "./property.ds";
-import { type DecoratorInfo } from "./decorator.ds";
+import { type Ownership, type Region, type Space } from "../memory/ownership.ds";
 import { intrinsic } from "../primitive/decorator.ds";
+import {
+    type AnnotationDescriptor,
+    type DocumentationDescriptor,
+} from "./annotation.ds";
 
-/// Stable unique identifier for a type.
-///
-/// Format: "module/path:TypeName" (e.g., "myapp/models:User")
+/// Stable identity for one normalized type.
 export newtype TypeId = string;
 
-/// Common interface implemented by all type descriptor variants.
-export interface TypeBase<T> {
-    /// The name of this type (e.g., "User", "int", "string[]").
-    readonly name: string;
+/// Stable identity for one reflected type symbol.
+export newtype TypeSymbolId = string;
 
-    /// Stable unique identifier for this type.
-    readonly id: TypeId;
+/// Opaque handle for the normalized type `T`.
+export newtype Type<T = unknown> = intrinsic;
 
-    /// Type guard - checks if a value is of this type.
-    is(input: unknown): boolean;
-}
+/// Reflected declaration category for one type symbol.
+export type TypeDeclarationKind =
+    | "class"
+    | "struct"
+    | "interface"
+    | "enum"
+    | "function"
+    | "extension"
+    | "typeAlias"
+    | "newtype";
 
-/// Primitive type descriptor (string, int, float, boolean, null).
-export struct PrimitiveType<T> implements TypeBase<T> {
-    kind: "primitive" = "primitive";
+/// Reflected source identity for one declared type-like symbol.
+export struct TypeSymbol {
+    /// The stable symbol identity.
+    id: TypeSymbolId;
+
+    /// The declaration category.
+    declaration: TypeDeclarationKind;
+
+    /// The exported or declared name.
     name: string;
-    id: TypeId;
 
-    /// The specific primitive kind.
-    primitive: PrimitiveKind;
+    /// The canonical module specifier or path.
+    module: string;
+
+    /// Retained annotations on the declaration.
+    annotations: readonly AnnotationDescriptor[];
+
+    /// Normalized documentation when retained.
+    docs?: DocumentationDescriptor;
 }
 
-/// The specific kind of primitive type.
-export type PrimitiveKind =
-    | "string"
-    | "boolean"
-    | "null"
+/// Static key used by object-like type members.
+export type StaticKey = string | number | symbol;
+
+/// Static argument passed to a generic declaration.
+export type StaticArgument = TypeArgument | ValueArgument;
+
+/// Static type argument.
+export struct TypeArgument {
+    /// The argument category.
+    kind: "type";
+
+    /// The argument type.
+    type: Type<unknown>;
+}
+
+/// Static value argument.
+export struct ValueArgument {
+    /// The argument category.
+    kind: "value";
+
+    /// The argument value.
+    value: unknown;
+}
+
+/// Type-literal category.
+export type TypeLiteral =
+    | "never"
+    | "any"
     | "undefined"
-    | "int8"
-    | "int16"
-    | "int32"
-    | "int64"
-    | "int128"
-    | "isize"
-    | "uint8"
-    | "uint16"
-    | "uint32"
-    | "uint64"
-    | "uint128"
-    | "usize"
-    | "float32"
-    | "float64"
-    | "bigint";
+    | "unknown"
+    | "object"
+    | "void"
+    | "null"
+    | IntrinsicType;
 
-/// Struct type descriptor.
-export struct StructType<T> implements TypeBase<T> {
-    kind: "struct" = "struct";
-    name: string;
-    id: TypeId;
+/// Compiler-provided intrinsic type.
+export type IntrinsicType =
+    | "uppercase"
+    | "lowercase"
+    | "capitalize"
+    | "uncapitalize"
+    | "noInfer"
+    | "builtinIteratorReturn";
 
-    /// Properties of this struct.
-    properties: readonly Property[];
+/// Primitive category.
+export type Primitive =
+    | "boolean"
+    | "character"
+    | "string"
+    | "bigint"
+    | "number"
+    | IntegerType
+    | FloatType
+    | "symbol"
+    | "uniqueSymbol";
 
-    /// Decorators on the struct declaration.
-    decorators: readonly DecoratorInfo[];
+/// Integer type.
+export struct IntegerType {
+    /// The integer category.
+    kind: "integer";
 
-    /// Documentation comment, if present.
-    description?: string;
+    /// The integer bit width when it is statically fixed.
+    width?: uint;
+
+    /// Whether the integer is signed.
+    signed: boolean;
+
+    /// Whether the width follows the target pointer size.
+    pointerSized: boolean;
 }
 
-/// Class type descriptor.
-export struct ClassType<T> implements TypeBase<T> {
-    kind: "class" = "class";
-    name: string;
-    id: TypeId;
+/// Floating-point type.
+export type FloatType = "float32" | "float64";
 
-    /// Properties of this class (instance fields).
-    properties: readonly Property[];
+/// Scalar literal value retained in type space.
+export type ScalarLiteral = string | number | bigint | boolean | null | undefined | symbol;
 
-    /// Parent class, if any.
-    extends?: Type<unknown>;
+/// Reflected semantic shape for one normalized type.
+export type TypeShape =
+    | LiteralType
+    | PrimitiveType
+    | ScalarLiteralType
+    | ThisType
+    | ReferenceType
+    | ValueType
+    | ConditionalType
+    | MappedType
+    | IndexType
+    | TemplateLiteralType
+    | ImportType
+    | InferType
+    | PredicateType
+    | ReadonlyType
+    | KeyOfType
+    | MustType
+    | ComptimeType
+    | NotType
+    | ValueOfType
+    | ReferenceOfType
+    | PointerOfType
+    | InType
+    | ExtendsType
+    | ImplementsType
+    | FixedArrayType
+    | ArrayType
+    | SliceType
+    | TupleType
+    | ObjectType
+    | FunctionType
+    | UnionType
+    | IntersectionType
+    | FormType;
 
-    /// Implemented interfaces.
-    implements: readonly Type<unknown>[];
+/// Shape for scalar type literals like `unknown` or `never`.
+export struct LiteralType {
+    /// The shape category.
+    kind: "literal";
 
-    /// Decorators on the class declaration.
-    decorators: readonly DecoratorInfo[];
-
-    /// Documentation comment, if present.
-    description?: string;
+    /// The literal category.
+    value: TypeLiteral;
 }
 
-/// Enum type descriptor.
-export struct EnumType<T> implements TypeBase<T> {
-    kind: "enum" = "enum";
-    name: string;
-    id: TypeId;
+/// Shape for a primitive type.
+export struct PrimitiveType {
+    /// The shape category.
+    kind: "primitive";
 
-    /// Variants of this enum.
-    variants: readonly Variant[];
-
-    /// Decorators on the enum declaration.
-    decorators: readonly DecoratorInfo[];
-
-    /// Documentation comment, if present.
-    description?: string;
+    /// The primitive type.
+    primitive: Primitive;
 }
 
-/// Interface type descriptor.
-export struct InterfaceType<T> implements TypeBase<T> {
-    kind: "interface" = "interface";
-    name: string;
-    id: TypeId;
+/// Shape for a scalar literal type like `"ok"` or `42`.
+export struct ScalarLiteralType {
+    /// The shape category.
+    kind: "scalarLiteral";
 
-    /// Whether this is a nominal interface (newtype interface).
-    nominal: boolean;
-
-    /// Properties defined in this interface.
-    properties: readonly Property[];
-
-    /// Extended interfaces.
-    extends: readonly Type<unknown>[];
-
-    /// Documentation comment, if present.
-    description?: string;
+    /// The literal value.
+    value: ScalarLiteral;
 }
 
-/// Newtype type descriptor (nominal wrapper around another type).
-export struct NewtypeType<T> implements TypeBase<T> {
-    kind: "newtype" = "newtype";
-    name: string;
-    id: TypeId;
-
-    /// The underlying type being wrapped.
-    underlying: Type<unknown>;
-
-    /// Decorators on the newtype declaration.
-    decorators: readonly DecoratorInfo[];
-
-    /// Documentation comment, if present.
-    description?: string;
+/// Shape for `this` in type space.
+export struct ThisType {
+    /// The shape category.
+    kind: "this";
 }
 
-/// Array type descriptor.
-export struct ArrayType<T> implements TypeBase<T> {
-    kind: "array" = "array";
+/// Shape for a reference to a declared type.
+export struct ReferenceType {
+    /// The shape category.
+    kind: "reference";
+
+    /// The referenced type symbol.
+    symbol: TypeSymbol;
+
+    /// The applied static arguments.
+    arguments: readonly StaticArgument[];
+}
+
+/// Shape for a runtime type value in type space.
+export struct ValueType {
+    /// The shape category.
+    kind: "value";
+
+    /// The represented type.
+    value: Type<unknown>;
+}
+
+/// Shape for `A extends B ? C : D`.
+export struct ConditionalType {
+    /// The shape category.
+    kind: "conditional";
+
+    /// The distributive symbol when this conditional distributes.
+    distributiveSymbol?: TypeSymbol;
+
+    /// The left side of the relation.
+    left: Type<unknown>;
+
+    /// The right side of the relation.
+    right: Type<unknown>;
+
+    /// The result when the relation holds.
+    thenType: Type<unknown>;
+
+    /// The result when the relation does not hold.
+    elseType: Type<unknown>;
+}
+
+/// Mapped-type modifier.
+export type MappedTypeModifier = "present" | "add" | "remove" | "none";
+
+/// Mapped-type modifiers.
+export struct MappedTypeModifiers {
+    /// The readonly modifier.
+    readonly: MappedTypeModifier;
+
+    /// The optional modifier.
+    optional: MappedTypeModifier;
+}
+
+/// Shape for one mapped-type parameter.
+export struct MappedTypeParameter {
+    /// The parameter name.
     name: string;
-    id: TypeId;
+
+    /// The parameter symbol.
+    symbol: TypeSymbol;
+
+    /// The parameter constraint.
+    constraint: Type<unknown>;
+
+    /// The optional key remap.
+    keyRemap?: Type<unknown>;
+}
+
+/// Shape for `{ [K in keyof T]: U }`.
+export struct MappedType {
+    /// The shape category.
+    kind: "mapped";
+
+    /// The mapped parameter.
+    parameter: MappedTypeParameter;
+
+    /// The mapped modifiers.
+    modifiers: MappedTypeModifiers;
+
+    /// The mapped value type.
+    value: Type<unknown>;
+}
+
+/// Shape for `T[K]`.
+export struct IndexType {
+    /// The shape category.
+    kind: "index";
+
+    /// The indexed type.
+    left: Type<unknown>;
+
+    /// The index type.
+    index: Type<unknown>;
+}
+
+/// Shape for a template literal type.
+export struct TemplateLiteralType {
+    /// The shape category.
+    kind: "templateLiteral";
+
+    /// The fixed string spans.
+    strings: readonly string[];
+
+    /// The type spans between fixed strings.
+    spans: readonly Type<unknown>[];
+}
+
+/// Shape for an `import(...)` type.
+export struct ImportType {
+    /// The shape category.
+    kind: "import";
+
+    /// The imported module target.
+    target: string;
+
+    /// The optional exported qualifier.
+    qualifier?: string;
+
+    /// The applied static arguments.
+    arguments: readonly StaticArgument[];
+}
+
+/// Shape for an `infer` binding in type space.
+export struct InferType {
+    /// The shape category.
+    kind: "infer";
+
+    /// The inferred binding name.
+    name: string;
+
+    /// The optional inferred binding constraint.
+    constraint?: Type<unknown>;
+}
+
+/// Predicate subject.
+export type PredicateSubject =
+    | string
+    | TypeSymbol
+    | "this";
+
+/// Shape for a type predicate.
+export struct PredicateType {
+    /// The shape category.
+    kind: "predicate";
+
+    /// Whether the predicate asserts the subject.
+    asserts: boolean;
+
+    /// The predicate subject.
+    subject: PredicateSubject;
+
+    /// The predicate target when present.
+    target?: Type<unknown>;
+}
+
+/// Shape for `readonly T`.
+export struct ReadonlyType {
+    /// The shape category.
+    kind: "readonly";
+
+    /// The target type.
+    target: Type<unknown>;
+}
+
+/// Shape for `keyof T`.
+export struct KeyOfType {
+    /// The shape category.
+    kind: "keyof";
+
+    /// The target type.
+    target: Type<unknown>;
+}
+
+/// Shape for `T!`.
+export struct MustType {
+    /// The shape category.
+    kind: "must";
+
+    /// The target type.
+    target: Type<unknown>;
+}
+
+/// Shape for `T as comptime`.
+export struct ComptimeType {
+    /// The shape category.
+    kind: "comptime";
+
+    /// The target type.
+    target: Type<unknown>;
+}
+
+/// Shape for `!T`.
+export struct NotType {
+    /// The shape category.
+    kind: "not";
+
+    /// The target type.
+    target: Type<unknown>;
+}
+
+/// Reflected mutability.
+export type Mutability = "readonly" | "mutable";
+
+/// Reflected variance bound.
+export type VarianceBound = "implements" | "extends" | "super";
+
+/// Shape for `^T`.
+export struct ValueOfType {
+    /// The shape category.
+    kind: "valueOf";
+
+    /// The value mutability when explicit.
+    mutability?: Mutability;
+
+    /// The variance bound when explicit.
+    variance?: VarianceBound;
+
+    /// The target type.
+    target: Type<unknown>;
+}
+
+/// Shape for `&T`.
+export struct ReferenceOfType {
+    /// The shape category.
+    kind: "referenceOf";
+
+    /// The reference mutability when explicit.
+    mutability?: Mutability;
+
+    /// The variance bound when explicit.
+    variance?: VarianceBound;
+
+    /// The target type.
+    target: Type<unknown>;
+}
+
+/// Shape for `*T`.
+export struct PointerOfType {
+    /// The shape category.
+    kind: "pointerOf";
+
+    /// The pointer mutability when explicit.
+    mutability?: Mutability;
+
+    /// The target type.
+    target: Type<unknown>;
+}
+
+/// Shape for `A in B`.
+export struct InType {
+    /// The shape category.
+    kind: "in";
+
+    /// The left side of the relation.
+    left: Type<unknown>;
+
+    /// The right side of the relation.
+    right: Type<unknown>;
+}
+
+/// Shape for `A extends B`.
+export struct ExtendsType {
+    /// The shape category.
+    kind: "extends";
+
+    /// The left side of the relation.
+    left: Type<unknown>;
+
+    /// The right side of the relation.
+    right: Type<unknown>;
+}
+
+/// Shape for `A implements B`.
+export struct ImplementsType {
+    /// The shape category.
+    kind: "implements";
+
+    /// The left side of the relation.
+    left: Type<unknown>;
+
+    /// The right side of the relation.
+    right: Type<unknown>;
+}
+
+/// Shape for `[T; N]`.
+export struct FixedArrayType {
+    /// The shape category.
+    kind: "fixedArray";
 
     /// The element type.
     element: Type<unknown>;
 
-    /// Fixed length, if this is a fixed-size array (e.g., `int[10]`).
-    length?: int;
+    /// The compile-time element count.
+    count: unknown;
+
+    /// Whether the array is readonly.
+    readonly: boolean;
 }
 
-/// Tuple type descriptor.
-export struct TupleType<T> implements TypeBase<T> {
-    kind: "tuple" = "tuple";
-    name: string;
-    id: TypeId;
+/// Shape for `T[]`.
+export struct ArrayType {
+    /// The shape category.
+    kind: "array";
 
-    /// Element types, in order.
-    elements: readonly Type<unknown>[];
+    /// The element type when known.
+    element?: Type<unknown>;
 
-    /// Element names, if this is a named tuple.
-    names?: readonly string[];
+    /// Whether the array is readonly.
+    readonly: boolean;
 }
 
-/// Union type descriptor.
-export struct UnionType<T> implements TypeBase<T> {
-    kind: "union" = "union";
-    name: string;
-    id: TypeId;
+/// Shape for `[T]`.
+export struct SliceType {
+    /// The shape category.
+    kind: "slice";
 
-    /// Member types of the union.
-    members: readonly Type<unknown>[];
+    /// The element type.
+    element: Type<unknown>;
+
+    /// Whether the slice is readonly.
+    readonly: boolean;
 }
 
-/// Intersection type descriptor.
-export struct IntersectionType<T> implements TypeBase<T> {
-    kind: "intersection" = "intersection";
-    name: string;
-    id: TypeId;
+/// Shape for one tuple element.
+export struct TupleElement {
+    /// The optional element label.
+    label?: string;
 
-    /// Member types of the intersection.
-    members: readonly Type<unknown>[];
-}
-
-/// Function type descriptor.
-export struct FunctionType<T> implements TypeBase<T> {
-    kind: "function" = "function";
-    name: string;
-    id: TypeId;
-
-    /// Parameter types.
-    parameters: readonly Parameter[];
-
-    /// Return type.
-    returnType: Type<unknown>;
-
-    /// Whether this function is async.
-    isAsync: boolean;
-
-    /// Whether this function is a generator.
-    isGenerator: boolean;
-}
-
-/// A function parameter.
-export struct Parameter {
-    name: string;
+    /// The element type.
     type: Type<unknown>;
+
+    /// Whether the element is optional.
     optional: boolean;
+
+    /// Whether the element is readonly.
+    readonly: boolean;
+
+    /// Whether the element is a rest element.
     rest: boolean;
 }
 
-/// Object type descriptor (anonymous structural type `{ x: T, y: U }`).
-export struct ObjectType<T> implements TypeBase<T> {
-    kind: "object" = "object";
-    name: string;
-    id: TypeId;
+/// Shape for `(A, B)`.
+export struct TupleType {
+    /// The shape category.
+    kind: "tuple";
 
-    /// Properties of this object type.
-    properties: readonly Property[];
+    /// The tuple elements.
+    elements: readonly TupleElement[];
+
+    /// Whether the tuple is readonly.
+    readonly: boolean;
 }
 
-/// A type descriptor.
-/// Type is the union of all possible type variants.
-///
-/// This is the primary type for working with type reflection.
-/// All variants implement `TypeBase<T>`, so common operations like
-/// `.name`, `.id`, `.is()`, and `.validate()` work on any `Type<T>`.
-export newtype Type<T> =
-    | PrimitiveType<T>
-    | StructType<T>
-    | ClassType<T>
-    | EnumType<T>
-    | InterfaceType<T>
-    | NewtypeType<T>
-    | ArrayType<T>
-    | TupleType<T>
-    | UnionType<T>
-    | IntersectionType<T>
-    | FunctionType<T>
-    | ObjectType<T>;
+/// Shape for one object field.
+export struct ObjectField {
+    /// The field key.
+    key: StaticKey;
 
-/// Get the type descriptor for a value.
-///
-/// Unlike JavaScript's `typeof` (which returns a coarse string like "object"),
-/// this returns the full `Type<T>` descriptor.
-@intrinsic
+    /// The field type.
+    type: Type<unknown>;
+
+    /// Whether the field is optional.
+    optional: boolean;
+
+    /// Whether the field is readonly.
+    readonly: boolean;
+}
+
+/// Shape for one object index signature.
+export struct ObjectIndexSignature {
+    /// The parameter name.
+    name: string;
+
+    /// The index key type.
+    keyType: Type<unknown>;
+
+    /// The indexed value type.
+    valueType: Type<unknown>;
+
+    /// Whether indexed entries are optional.
+    optional: boolean;
+
+    /// Whether indexed entries are readonly.
+    readonly: boolean;
+}
+
+/// Shape for `{ a: A, b: B }`.
+export struct ObjectType {
+    /// The shape category.
+    kind: "object";
+
+    /// The object fields.
+    fields: readonly ObjectField[];
+
+    /// The call signatures.
+    callSignatures: readonly Type<unknown>[];
+
+    /// The construct signatures.
+    constructSignatures: readonly Type<unknown>[];
+
+    /// The index signatures.
+    indexSignatures: readonly ObjectIndexSignature[];
+}
+
+/// Function asynchrony.
+export type FunctionAsynchrony = "sync" | "async";
+
+/// Function cardinality.
+export type FunctionCardinality = "single" | "generator";
+
+/// Shape for one function parameter.
+export struct FunctionParameter {
+    /// The parameter type.
+    type: Type<unknown>;
+}
+
+/// Shape for a function type.
+export struct FunctionType {
+    /// The shape category.
+    kind: "function";
+
+    /// Whether the function is async.
+    asynchrony: FunctionAsynchrony;
+
+    /// Whether the function is a generator.
+    cardinality: FunctionCardinality;
+
+    /// The generic parameter types.
+    genericParameters: readonly Type<unknown>[];
+
+    /// The explicit `this` parameter when present.
+    thisParameter?: Type<unknown>;
+
+    /// The runtime parameters.
+    parameters: readonly FunctionParameter[];
+
+    /// The return type when present.
+    returnType?: Type<unknown>;
+}
+
+/// Shape for `A | B`.
+export struct UnionType {
+    /// The shape category.
+    kind: "union";
+
+    /// The union elements.
+    elements: readonly Type<unknown>[];
+}
+
+/// Shape for `A & B`.
+export struct IntersectionType {
+    /// The shape category.
+    kind: "intersection";
+
+    /// The intersection elements.
+    elements: readonly Type<unknown>[];
+}
+
+/// Shape for a canonical storage form.
+export struct FormType {
+    /// The shape category.
+    kind: "form";
+
+    /// The unqualified base type.
+    base: Type<unknown>;
+
+    /// The ownership form.
+    ownership: Ownership;
+
+    /// The storage space.
+    space: Space;
+
+    /// The borrow region when the form is borrowed.
+    region?: Region;
+}
+
+/// Layout category for one reflected storage representation.
+export type LayoutKind =
+    | "zero"
+    | "scalar"
+    | "reference"
+    | "aggregate"
+    | "union"
+    | "slice"
+    | "function";
+
+/// Stable layout descriptor for one normalized storage form.
+export struct LayoutDescriptor {
+    /// The layout category.
+    kind: LayoutKind;
+
+    /// The size in bytes.
+    size: usize;
+
+    /// The alignment in bytes.
+    alignment: usize;
+
+    /// The array stride in bytes.
+    stride: usize;
+
+    /// The fields for aggregate layouts.
+    fields: readonly LayoutFieldDescriptor[];
+}
+
+/// Field layout for one aggregate storage representation.
+export struct LayoutFieldDescriptor {
+    /// The source field name when the field came from source.
+    name?: string;
+
+    /// The field type.
+    type: Type<unknown>;
+
+    /// The byte offset from the start of the aggregate.
+    offset: usize;
+
+    /// The size in bytes.
+    size: usize;
+
+    /// The alignment in bytes.
+    alignment: usize;
+
+    /// Whether this field was synthesized by lowering.
+    synthetic: boolean;
+}
+
+/// Static helpers for `Type<T>` handles.
+export declare namespace Type {
+    /// Return the type handle for `T`.
+    @intrinsic("reflect.type")
+    export function of<T>(): Type<T>;
+
+    /// Return whether two handles refer to the same normalized type.
+    @intrinsic("reflect.type.equals")
+    export function equals<A, B>(left: Type<A>, right: Type<B>): boolean;
+}
+
+/// Return the type handle for a value's runtime type.
+@intrinsic("typeOf")
 export declare function typeOf<T>(value: T): Type<T>;
+
+/// Return the stable identity for `type`.
+@intrinsic("reflect.id")
+export declare function idOf<T>(type: Type<T>): TypeId;
+
+/// Return the declared symbol for `type` when it has one.
+@intrinsic("reflect.symbol")
+export declare function symbolOf<T>(type: Type<T>): TypeSymbol | undefined;
+
+/// Return the semantic shape of `type`.
+@intrinsic("reflect.shape")
+export declare function shapeOf<T>(type: Type<T>): TypeShape;
+
+/// Return a human-readable display string for `type`.
+@intrinsic("reflect.displayName")
+export declare function displayNameOf<T>(type: Type<T>): string;
+
+/// Return the size of `T` in bytes for the active target and profile.
+@intrinsic("sizeOf")
+export declare function sizeOf<T>(): usize;
+
+/// Return the alignment of `T` in bytes for the active target and profile.
+@intrinsic("alignOf")
+export declare function alignOf<T>(): usize;
+
+/// Return the array stride of `T` in bytes for the active target and profile.
+@intrinsic("strideOf")
+export declare function strideOf<T>(): usize;
+
+/// Return the layout of `T` for the active target and profile.
+@intrinsic("layoutOf")
+export declare function layoutOf<T>(): LayoutDescriptor;
