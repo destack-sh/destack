@@ -110,7 +110,7 @@ Rectangle { start: ..., } satisfies Rectangle:
 AuthenticatedUser(user) satisfies AuthenticatedUser;
 ```
 
-### Nominal Interfaces
+### Newtype Interfaces
 
 TypeScript interfaces are structural, i.e., any type with matching shape satisfies the interface.
 This is usually what we want, but sometimes nominality is required for a contract, and in those cases the TS ecosystem usually uses branding symbols.
@@ -149,6 +149,44 @@ newtype interface Print<T> {
     }
 }
 ```
+
+### Extensions
+
+It is sometimes very convenient to attach additional logic and data to the (nominal identity of) a type.
+Rust does this with `impl` blocks, and Destack introduces `extension`s to add methods and static constants for any _nominal_ type:
+
+```ds
+newtype Vector2 = {
+    x: float32;
+    y: float32;
+};
+
+extension of Vector2 {
+    static ZERO = Vector2 { x: 0.0, y: 0.0 };
+
+    magnitude(): float32 {
+        return (this.x * this.x + this.y * this.y).sqrt()
+    }
+}
+```
+
+Extensions can be added to any **nominal types**, so all types like `struct`, `class`, `enum`, `newtype`, whether defined locally or in a foreign / imported module; accordingly, type aliases (`type X = ...`) and structural types (`{ x: number }`) cannot receive extensions.
+Further, extensions can be named for explicit export / reference:
+
+```ds
+import { User } from "@/model/user";
+
+export extension UserUtils of User {
+    validate(): bool {
+        ...
+    }
+}
+```
+
+The visibility of extension members is straightforward:
+- **Same file as type**: Extensions are automatically visible wherever the type is used.
+- **Anonymous on foreign type**: Only visible in the file where declared (`extension of int32 { ... }`).
+- **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils of Date { ... }`).
 
 ### Enums
 
@@ -365,7 +403,7 @@ The type-level `typeof` operator still means TypeScript's value-type query.
 
 In TypeScript, control flow expressions like `if` are a statement, and you need a ternary or temporary to get a value out.
 To enable more ergonomic data flow and particularly better pattern matching capabilities, Destack also supports statements as expressions ("everything is an expression").
-Like in similar languages, the last non-statement expression (no trailing `;`) becomes the value of the expression.
+The last expression (no trailing `;`) becomes the value of the overall expression.
 
 ```ds
 const result = if (condition) {
@@ -484,41 +522,6 @@ Ownership and `using` are intentionally separate mechanisms.
 `^T` controls memory ownership and lifetime.
 `using` controls resource protocol disposal and pins cleanup to a lexical scope.
 
-### Trees (TSX)
-
-Destack generalizes TSX syntax for any tree-shaped data:
-
-```ds
-// Wall.ds
-<Wall id={1}>
-    <Block name="foo" color={Color.RED} />
-    <Block name="bar" color={Color.BLUE} />
-</Wall>
-
-// Prompt.ds
-<Prompt>
-    <System>You are a helpful assistant.</System>
-    <User>{userMessage}</User>
-</Prompt>
-
-// Level.ds
-<Level difficulty={3}>
-    <Player position={spawn} />
-    {enemies.map(e => <Enemy {...e} />)}
-</Level>
-```
-
-Destack's tree literals work with any tree-compatible type, not just UI component systems, and not just any _single_ JSX/TSX-style per project.
-Because we have real type analysis you can mix and match.
-Types can opt into custom tree tag behavior by implementing the `TreeTag` interface, and custom intrinsic types (lowercase tags like `<div>`) are programmable via `TreeTagBuilder`.
-
-Tree literals have two routing paths.
-Uppercase or qualified tags resolve as value tags through normal value lookup and the `TreeTag` interface.
-Lowercase unqualified tags resolve as intrinsic tags through the active `TreeTagBuilder`.
-
-Fragments route through the active builder's fragment type.
-Namespaced tags like `<svg:path />` are not XML namespace bindings; they are intrinsic string tag names.
-
 ### Errors
 
 Destack strongly encourages **Result-first error handling** inspired by Rust: recoverable errors use `Result<T, E>`, while exceptions exist for compatibility, interop, and migration.
@@ -545,7 +548,7 @@ TypeScript's `??` coalescing operator then supports a convenient default value f
 const config = loadConfig() ?? defaultConfig;  // use default on error
 ```
 
-#### Try Protocol
+#### Try
 
 `?` and `??` are driven by a standard `Try` protocol rather than being hard-coded only for `Result`.
 `Result<T, E>` implements `Try`, and other library types may implement it when they have the same success-or-failure shape.
@@ -644,8 +647,13 @@ extension of Vector2 implements Add<Vector2> {
 }
 ```
 
-Structural compatibility is not enough to overload an operator.
-That keeps accidental method names from changing expression meaning.
+#### Special Operators
+
+Some operators are deliberately not overloadable because their control-flow or type-system behavior is too fundamental.
+This includes `&&`, `||`, `?.`, `as`, `satisfies`, `typeof`, `keyof`, `extends`, `implements`, `is`, `instanceof`, `?`, and `??`.
+
+`?` and `??` are protocol-driven, but they are not ordinary overloadable operators.
+Their semantics are fixed by the language and implemented through `Try`.
 
 #### Arithmetic And Checks
 
@@ -662,25 +670,7 @@ Destack also reserves explicit wrapping and saturating forms for code that wants
 | `-` | `-%` | `-|` |
 | `*` | `*%` | `*|` |
 
-Division, remainder, shifts, bounds checks, null checks, and other runtime checks are controlled by profile options.
-The point is to make unsafe behavior explicit instead of letting it leak in through target defaults.
-
-#### Indexing
-
-Array and tuple indexing is bounds checked and returns the element type directly.
-`noUncheckedIndexedAccess` still matters for index signatures and other dynamic indexers, but dense arrays do not produce `T | undefined` on every access.
-
-Custom indexing can be modeled through nominal interfaces, but builtin arrays, tuples, slices, tensors, and string-like types keep their builtin semantics.
-
-#### Special Operators
-
-Some operators are deliberately not overloadable because their control-flow or type-system behavior is too fundamental.
-This includes `&&`, `||`, `?.`, `as`, `satisfies`, `typeof`, `keyof`, `extends`, `implements`, `is`, `instanceof`, `?`, and `??`.
-
-`?` and `??` are protocol-driven, but they are not ordinary overloadable operators.
-Their semantics are fixed by the language and implemented through `Try`.
-
-#### Overload Resolution
+### Overloads
 
 Real function and method overloading with distinct implementations:
 
@@ -705,43 +695,40 @@ Dynamic resolution only applies when every union variant exposes the member.
 Arguments must satisfy all candidate signatures, and the resulting type is the union of per-candidate return types after substitutions.
 Extension methods participate in member resolution, too.
 
-### Extensions
+### Trees (TSX)
 
-It is sometimes very convenient to attach additional logic and data to the (nominal identity of) a type.
-Rust does this with `impl` blocks, and Destack introduces `extension`s to add methods and static constants for any _nominal_ type:
-
-```ds
-newtype Vector2 = {
-    x: float32;
-    y: float32;
-};
-
-extension of Vector2 {
-    static ZERO = Vector2 { x: 0.0, y: 0.0 };
-
-    magnitude(): float32 {
-        return (this.x * this.x + this.y * this.y).sqrt()
-    }
-}
-```
-
-Extensions can be added to any **nominal types**, so all types like `struct`, `class`, `enum`, `newtype`, whether defined locally or in a foreign / imported module; accordingly, type aliases (`type X = ...`) and structural types (`{ x: number }`) cannot receive extensions.
-Further, extensions can be named for explicit export / reference:
+Destack generalizes TSX syntax for any tree-shaped data:
 
 ```ds
-import { User } from "@/model/user";
+// Wall.ds
+<Wall id={1}>
+    <Block name="foo" color={Color.RED} />
+    <Block name="bar" color={Color.BLUE} />
+</Wall>
 
-export extension UserUtils of User {
-    validate(): bool {
-        ...
-    }
-}
+// Prompt.ds
+<Prompt>
+    <System>You are a helpful assistant.</System>
+    <User>{userMessage}</User>
+</Prompt>
+
+// Level.ds
+<Level difficulty={3}>
+    <Player position={spawn} />
+    {enemies.map(e => <Enemy {...e} />)}
+</Level>
 ```
 
-The visibility of extension members is straightforward:
-- **Same file as type**: Extensions are automatically visible wherever the type is used.
-- **Anonymous on foreign type**: Only visible in the file where declared (`extension of int32 { ... }`).
-- **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils of Date { ... }`).
+Destack's tree literals work with any tree-compatible type, not just UI component systems, and not just any _single_ JSX/TSX-style per project.
+Because we have real type analysis you can mix and match.
+Types can opt into custom tree tag behavior by implementing the `TreeTag` interface, and custom intrinsic types (lowercase tags like `<div>`) are programmable via `TreeTagBuilder`.
+
+Tree literals have two routing paths.
+Uppercase or qualified tags resolve as value tags through normal value lookup and the `TreeTag` interface.
+Lowercase unqualified tags resolve as intrinsic tags through the active `TreeTagBuilder`.
+
+Fragments route through the active builder's fragment type.
+Namespaced tags like `<svg:path />` are not XML namespace bindings; they are intrinsic string tag names.
 
 ### Annotations And Decorators
 
@@ -796,6 +783,25 @@ enum OperatingSystem {
 At module level, that mostly means `import.meta` and profile constants.
 Inside a generic declaration, `@if` is evaluated after generic arguments are known, so it can also branch on those arguments, associated constants, and type algebra queries.
 Multiple `@if` annotations combine with logical AND.
+
+## Globals
+
+In addition to ambient global typings, Destack supports "real" `global { ... }` value declarations that contribute to the ambient environment without explicit qualification.
+That is, with `global { const registry: Registry }` in some (known) module `A` we can just do `registry.whatever` in module `B` without any direct imports.
+Used sparingly, this is incredibly convenient.
+
+Globals can be ambient declarations (for non-native targets) or implemented declarations (for native targets):
+
+```ds
+global {
+    const console: Console = runtime.console();
+    const runtimeId = Runtime.current.id;
+    shared const registry = new Registry();
+}
+```
+
+A `global` block is active when its containing module is in the closure reached from the target's entrypoints, includes, configured global provider roots, or profile/prelude modules.
+Of course, because these globals are real values, duplicate global value names are errors unless the declarations.
 
 ### Comptime
 
@@ -941,8 +947,8 @@ Runtime `eval` and `new Function` are JS compatibility features, and portable De
 
 ## Memory
 
-TypeScript does not encode memory "ownership" in its type system: all reference types are implicitly GC-managed, and all value types are copied by default.
-This is a convenient default for a "safe" language, but sometimes we need to take direct control of memory, whether for better control and performance, or just to express invariants in the code.
+TypeScript, like most managed high level languages, does not encode memory "ownership" in its type system: all reference types are implicitly GC-managed, and all value types are copied by default.
+This is a convenient, but sometimes we need to take direct control of memory, whether for better control and performance, or just to express invariants in the code.
 Destack adds explicit, optional modifiers for controlling memory ownership and placement inspired by Rust and Mojo's ownership models with `^T` as the "owned" signifier.
 Plain `T` keeps the base type's default representation: value types are values, object types are managed references.
 
@@ -1106,25 +1112,6 @@ Borrowed<T, "a">
 ```
 
 # Runtime
-
-## Globals
-
-In addition to ambient global typings, Destack supports "real" `global { ... }` value declarations that contribute to the ambient environment without explicit qualification.
-That is, with `global { const registry: Registry }` in some (known) module `A` we can just do `registry.whatever` in module `B` without any direct imports.
-Used sparingly, this is incredibly convenient.
-
-Globals can be ambient declarations (for non-native targets) or implemented declarations (for native targets):
-
-```ds
-global {
-    const console: Console = runtime.console();
-    const runtimeId = Runtime.current.id;
-    shared const registry = new Registry();
-}
-```
-
-A `global` block is active when its containing module is in the closure reached from the target's entrypoints, includes, configured global provider roots, or profile/prelude modules.
-Of course, because these globals are real values, duplicate global value names are errors unless the declarations.
 
 ## Modules
 
