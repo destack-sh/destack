@@ -2,22 +2,6 @@ use destack_heap::{AddressSpace, DEFAULT_PAGE_BYTES};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 
-/// Align one stack byte count.
-fn align_stack_bytes(offset: usize, alignment: usize) -> usize {
-    // already aligned
-    if alignment <= 1 {
-        return offset;
-    }
-
-    // round up to the next aligned address
-    let remainder = offset % alignment;
-    if remainder == 0 {
-        offset
-    } else {
-        offset + alignment - remainder
-    }
-}
-
 /// Page-backed byte stack for one interpreter.
 #[derive(Debug)]
 pub(crate) struct Stack {
@@ -33,8 +17,7 @@ impl Stack {
     /// Reserve one empty stack.
     pub(crate) fn reserve(byte_len: usize) -> RuntimeResult<Self> {
         // reserve page-backed virtual memory
-        let page_bytes = DEFAULT_PAGE_BYTES;
-        let space = AddressSpace::reserve(byte_len, page_bytes).map_err(Error::from)?;
+        let space = AddressSpace::reserve(byte_len, DEFAULT_PAGE_BYTES).map_err(Error::from)?;
 
         Ok(Self {
             space,
@@ -49,13 +32,14 @@ impl Stack {
         if self.byte_len != byte_len {
             *self = Self::reserve(byte_len)?;
 
-            return Ok(());
+            Ok(())
         }
-
         // keep the reservation and forget live bytes
-        self.len = 0;
+        else {
+            self.len = 0;
 
-        Ok(())
+            Ok(())
+        }
     }
 
     /// Fork this stack with page-granular isolation.
@@ -87,7 +71,7 @@ impl Stack {
     pub(crate) fn allocate(&mut self, byte_len: usize, alignment: usize) -> RuntimeResult<usize> {
         // reserve the next aligned byte range
         let old_len = self.len;
-        let base = align_stack_bytes(self.len, alignment);
+        let base = Self::align_len(self.len, alignment);
         let end = base + byte_len;
         if end > self.byte_len {
             return Err(RuntimeError::new(Error::StackOverflow));
@@ -100,6 +84,22 @@ impl Stack {
         self.len = end;
 
         Ok(base)
+    }
+
+    /// Align one stack byte count.
+    fn align_len(offset: usize, alignment: usize) -> usize {
+        // already aligned
+        if alignment <= 1 {
+            return offset;
+        }
+
+        // round up to the next aligned address
+        let remainder = offset % alignment;
+        if remainder == 0 {
+            offset
+        } else {
+            offset + alignment - remainder
+        }
     }
 
     /// Return the native address for one live byte range.
@@ -117,6 +117,16 @@ impl Stack {
         let stack_end = start + self.len;
 
         start <= address && end <= stack_end
+    }
+
+    /// Return the stack offset for one live native address range.
+    #[inline]
+    pub(crate) fn offset_for_address(&self, address: usize, byte_len: usize) -> Option<usize> {
+        if !self.contains_address(address, byte_len) {
+            return None;
+        }
+
+        Some(address - self.space.base_address())
     }
 
     /// Write bytes into one live byte range.

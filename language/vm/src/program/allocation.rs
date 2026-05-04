@@ -3,7 +3,7 @@ use destack_mir::ReferenceMap;
 
 use super::{AllocationClassId, ReferenceMapId};
 
-/// The allocation layout consumed by heap allocation opcodes.
+/// The allocation layout consumed by heap allocation instructions.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct AllocationLayout {
     /// The exact payload byte length.

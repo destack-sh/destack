@@ -15,29 +15,33 @@ pub struct IsolateOptions {
 impl IsolateOptions {
     /// Create options with no step limit for trusted code.
     pub fn unbounded() -> Self {
-        // use default options without instruction limits
-        let mut options = Self::default();
-        options.limits.max_instructions = None;
-        options
+        Self {
+            limits: LimitOptions {
+                max_instructions: None,
+                ..LimitOptions::default()
+            },
+            ..Self::default()
+        }
     }
 
     /// Create options for testing with smaller limits.
     pub fn test() -> Self {
-        // use strict settings with tighter resource limits
-        let mut options = Self::default();
-        options.limits.max_stack_depth = TEST_MAX_STACK_DEPTH;
-        options.limits.max_stack_bytes = TEST_MAX_STACK_BYTES;
-        options.limits.max_instructions = Some(TEST_MAX_INSTRUCTIONS);
-        options.checks = CheckOptions::debug();
-        options
+        Self {
+            checks: CheckOptions::debug(),
+            limits: LimitOptions {
+                max_stack_depth: TEST_MAX_STACK_DEPTH,
+                max_stack_bytes: TEST_MAX_STACK_BYTES,
+                max_instructions: Some(TEST_MAX_INSTRUCTIONS),
+            },
+        }
     }
 
     /// Create options for debug execution.
     pub fn debug() -> Self {
-        // use strict runtime checks
-        let mut options = Self::default();
-        options.checks = CheckOptions::debug();
-        options
+        Self {
+            checks: CheckOptions::debug(),
+            ..Self::default()
+        }
     }
 
     /// Create options for comptime execution.

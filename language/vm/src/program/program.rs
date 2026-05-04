@@ -5,52 +5,13 @@ use destack_core::ImmutableStringPool;
 use destack_mir::{LayoutId, LayoutKind, LayoutTable, ReferenceMap};
 use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
-use super::layout::{Layout, build_layouts, callable_object_layout};
-use super::{CallTarget, Function, FunctionTable, OperandTable, OperandTableBuilder};
+use super::layout::{Layout, LayoutIndex, build_layouts, callable_object_layout};
+use super::{
+    CallTarget, FrameBinding, FrameEntry, FrameState, FrameStateTable, Function, FunctionTable,
+    ProgramPoint, SideTable, SideTableBuilder,
+};
 use crate::lower::{ValueType, analyze_value_types, lower_function};
 use crate::{Error, FunctionPointer, Result, StaticPointer, Word};
-
-/// Align one byte offset up to the requested byte alignment.
-fn align_offset(offset: usize, alignment: usize) -> Result<usize> {
-    if alignment <= 1 {
-        return Ok(offset);
-    }
-
-    let remainder = offset % alignment;
-    if remainder == 0 {
-        return Ok(offset);
-    }
-
-    offset
-        .checked_add(alignment - remainder)
-        .ok_or(Error::InvalidInstruction)
-}
-
-/// One lowered instruction boundary inside the VM program.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct ProgramPoint {
-    /// The owning function.
-    pub(crate) function: mir::LocalNodeId<mir::Function>,
-    /// The owning block.
-    pub(crate) block: mir::LocalNodeId<mir::Block>,
-    /// The lowered instruction index within the block.
-    pub(crate) instruction_index: u32,
-}
-
-impl ProgramPoint {
-    /// Create one lowered instruction boundary.
-    const fn new(
-        function: mir::LocalNodeId<mir::Function>,
-        block: mir::LocalNodeId<mir::Block>,
-        instruction_index: u32,
-    ) -> Self {
-        Self {
-            function,
-            block,
-            instruction_index,
-        }
-    }
-}
 
 /// Lowered MIR program and execution metadata shared across isolates.
 pub struct Program {
@@ -60,41 +21,19 @@ pub struct Program {
     pub(crate) strings: ImmutableStringPool,
     /// Lowered function bodies for the current interpreter backend.
     pub(crate) functions: FunctionTable,
-    /// Side table referenced by compact instruction operands.
-    pub(crate) operand_table: OperandTable,
+    /// Side table referenced by compact side records.
+    pub(crate) side_table: SideTable,
     /// Lookup table for function ids by name.
     pub(crate) function_id_by_name: HashMap<String, mir::LocalNodeId<mir::Function>>,
-    /// MIR layouts keyed by layout id.
-    pub(crate) layouts: LayoutTable,
-    /// Compiled type layouts keyed by MIR type id.
-    pub(crate) type_layouts: HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    /// Layout ids keyed by MIR type id.
-    pub(crate) layout_id_by_type: HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
+    /// Layout metadata for types, heap allocation, and external views.
+    layout_index: LayoutIndex,
     /// Immutable program static data.
     pub(crate) statics: engine::StaticSpace,
 
     /// Logical frame layouts by dense layout id.
     pub(crate) frame_layouts: Vec<engine::FrameLayout>,
-    /// Logical frame layout id by owning function.
-    pub(crate) frame_layout_id_by_function:
-        HashMap<mir::LocalNodeId<mir::Function>, engine::FrameLayoutId>,
-
-    /// Frame states by dense frame state id.
-    pub(crate) frame_states: Vec<engine::FrameState>,
-    /// Lowered program point by dense frame state id.
-    pub(crate) point_by_frame_state: Vec<ProgramPoint>,
-    /// Frame entry recipes by dense entry id.
-    pub(crate) frame_entries: Vec<engine::FrameEntry>,
-    /// Frame state ids keyed by lowered program point.
-    pub(crate) frame_state_by_point: HashMap<ProgramPoint, engine::FrameStateId>,
-    /// Caller return destination keyed by lowered program point.
-    pub(crate) return_destination_by_point: HashMap<ProgramPoint, mir::Value>,
-    /// Safepoints by dense safepoint id.
-    pub(crate) safepoints: Vec<engine::Safepoint>,
-    /// Safepoint id keyed by logical frame state.
-    pub(crate) safepoint_id_by_frame_state: HashMap<engine::FrameStateId, engine::SafepointId>,
-    /// Materializations by dense materialization id.
-    pub(crate) materializations: Vec<engine::Materialization>,
+    /// Dense frame-state metadata.
+    frame_states: FrameStateTable,
 }
 
 impl Program {
@@ -124,8 +63,6 @@ impl Program {
         &self,
         entry: engine::Entry,
     ) -> mir::LocalNodeId<mir::Function> {
-        let _ = self;
-
         mir::LocalNodeId::new(entry.index())
     }
 
@@ -137,32 +74,24 @@ impl Program {
         block: mir::LocalNodeId<mir::Block>,
         instruction_index: u32,
     ) -> ProgramPoint {
-        let _ = self;
-
         ProgramPoint::new(function, block, instruction_index)
     }
 
-    /// Convert one MIR type id into one program type id.
+    /// Convert one MIR type id into one program layout id.
     #[inline]
-    pub(crate) fn type_id(&self, ty: mir::LocalNodeId<mir::Type>) -> engine::TypeId {
-        let _ = self;
-
-        engine::TypeId(ty.id)
+    pub(crate) fn layout_id(&self, ty: mir::LocalNodeId<mir::Type>) -> engine::LayoutId {
+        LayoutIndex::engine_layout_id(ty)
     }
 
-    /// Convert one program type id into one MIR type id.
+    /// Convert one program layout id into one MIR type id.
     #[inline]
-    pub(crate) fn type_for_id(&self, ty: engine::TypeId) -> mir::LocalNodeId<mir::Type> {
-        let _ = self;
-
-        mir::LocalNodeId::new(ty.0)
+    pub(crate) fn type_for_layout(&self, layout: engine::LayoutId) -> mir::LocalNodeId<mir::Type> {
+        LayoutIndex::type_for_layout(layout)
     }
 
     /// Convert one MIR global id into one worker static id.
     #[inline]
     pub(crate) fn static_id(&self, global: mir::LocalNodeId<mir::Global>) -> engine::StaticId {
-        let _ = self;
-
         engine::StaticId(global.id)
     }
 
@@ -171,8 +100,9 @@ impl Program {
         &self,
         function: mir::LocalNodeId<mir::Function>,
     ) -> Option<&engine::FrameLayout> {
-        let layout_id = self.frame_layout_id_by_function.get(&function)?;
-        self.frame_layouts.get(layout_id.0 as usize)
+        let function = self.functions.function_for(function)?;
+
+        self.frame_layout_by_id(function.frame_layout)
     }
 
     /// Return the frame layout for one layout id when present.
@@ -183,78 +113,39 @@ impl Program {
         self.frame_layouts.get(frame_layout.0 as usize)
     }
 
-    /// Return one frame state by id.
-    pub(crate) fn frame_state(
-        &self,
-        frame_state: engine::FrameStateId,
-    ) -> Option<&engine::FrameState> {
-        self.frame_states.get(frame_state.0 as usize)
-    }
-
     /// Return the lowered program point for one frame state.
     pub(crate) fn point_for_frame_state(
         &self,
         frame_state: engine::FrameStateId,
     ) -> Option<ProgramPoint> {
-        self.point_by_frame_state
-            .get(frame_state.0 as usize)
-            .copied()
+        self.frame_states.get(frame_state).map(|state| state.point)
     }
 
-    /// Return one frame entry recipe by id.
-    pub(crate) fn frame_entry(
-        &self,
-        frame_entry: engine::FrameEntryId,
-    ) -> Option<&engine::FrameEntry> {
-        self.frame_entries.get(frame_entry.0 as usize)
+    /// Return the entry data for one frame state.
+    pub(crate) fn frame_entry(&self, frame_state: engine::FrameStateId) -> Option<&FrameEntry> {
+        self.frame_states
+            .get(frame_state)
+            .and_then(|state| state.entry.as_ref())
     }
 
-    /// Return one safepoint by id.
-    pub(crate) fn safepoint(&self, safepoint: engine::SafepointId) -> Option<&engine::Safepoint> {
-        self.safepoints.get(safepoint.0 as usize)
-    }
-
-    /// Return one safepoint id for one frame state.
-    pub(crate) fn safepoint_for_frame_state(
+    /// Return the single-frame materialization for one frame state.
+    pub(crate) fn frame_materialization(
         &self,
         frame_state: engine::FrameStateId,
-    ) -> Option<engine::SafepointId> {
-        self.safepoint_id_by_frame_state.get(&frame_state).copied()
-    }
-
-    /// Return one materialization by id.
-    pub(crate) fn materialization(
-        &self,
-        materialization: engine::MaterializationId,
-    ) -> Option<&engine::Materialization> {
-        self.materializations.get(materialization.0 as usize)
-    }
-
-    /// Return the single-frame materialization recipe for one frame state.
-    pub(crate) fn materialization_frame(
-        &self,
-        frame_state: engine::FrameStateId,
-    ) -> Option<&engine::MaterializationFrame> {
-        let safepoint = self.safepoint_for_frame_state(frame_state)?;
-        let safepoint = self.safepoint(safepoint)?;
-        let materialization = safepoint.materialization?;
-        let materialization = self.materialization(materialization)?;
-
-        if materialization.frames.len() != 1 {
-            return None;
-        }
-
-        materialization.frames.first()
+    ) -> Option<&engine::FrameMaterialization> {
+        self.frame_states
+            .get(frame_state)
+            .map(|state| &state.materialization)
     }
 
     /// Return the compiled layout for one MIR type.
     pub(crate) fn layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<&Layout> {
-        self.type_layouts.get(&ty)
+        self.layout_index.layout(ty)
     }
 
-    /// Return the compiled layout for one program type id.
-    pub(crate) fn layout_for_id(&self, ty: engine::TypeId) -> Option<&Layout> {
-        self.layout(self.type_for_id(ty))
+    /// Return the compiled layout for one program layout id.
+    pub(crate) fn layout_for_layout(&self, layout: engine::LayoutId) -> Option<&Layout> {
+        self.layout_index.layout_for_layout(layout)
     }
 
     /// Encode one global initializer into its declared bytes.
@@ -263,32 +154,27 @@ impl Program {
         initializer: &mir::GlobalInitializer,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Result<Vec<u8>> {
-        initializer_bytes(&self.tree, &self.type_layouts, initializer, ty)
+        initializer_bytes(
+            &self.tree,
+            self.layout_index.type_layouts(),
+            initializer,
+            ty,
+        )
     }
 
     /// Return the MIR layouts for this program.
     pub(crate) fn layouts(&self) -> &LayoutTable {
-        &self.layouts
+        self.layout_index.table()
     }
 
     /// Return the resolved heap allocation plan for one layout id.
     pub(crate) fn allocation_plan(&self, layout_id: LayoutId) -> Result<heap::AllocationPlan<'_>> {
-        let Some(layout) = self.layouts.layouts.get(layout_id.index()) else {
-            return Err(Error::InvariantViolation {
-                context: format!("missing allocation layout {layout_id:?}"),
-            });
-        };
-
-        Ok(heap::AllocationPlan::new(
-            layout.size as usize,
-            layout.alignment as usize,
-            &layout.reference_map,
-        ))
+        self.layout_index.allocation_plan(layout_id)
     }
 
     /// Return the layout id for one MIR type.
     pub(crate) fn layout_id_for_type(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<LayoutId> {
-        self.layout_id_by_type.get(&ty).copied()
+        self.layout_index.layout_id_for_type(ty)
     }
 
     /// Return the program static address for one global.
@@ -330,12 +216,20 @@ impl Program {
 
     /// Return one frame state id for one lowered program point.
     pub(crate) fn frame_state_at(&self, point: ProgramPoint) -> Option<engine::FrameStateId> {
-        self.frame_state_by_point.get(&point).copied()
+        self.frame_states.state_at(point)
     }
 
     /// Return the caller return destination implied by one lowered program point.
     pub(crate) fn return_destination_at(&self, point: ProgramPoint) -> Result<Option<mir::Value>> {
-        Ok(self.return_destination_by_point.get(&point).copied())
+        let Some(frame_state) = self.frame_states.state_at(point) else {
+            return Ok(None);
+        };
+        let destination = self
+            .frame_states
+            .get(frame_state)
+            .and_then(|state| state.return_destination);
+
+        Ok(destination)
     }
 }
 
@@ -347,10 +241,7 @@ impl fmt::Debug for Program {
                 &format!("<{} functions>", self.function_id_by_name.len()),
             )
             .field("frame_layouts", &self.frame_layouts.len())
-            .field("frame_states", &self.frame_states.len())
-            .field("frame_entries", &self.frame_entries.len())
-            .field("safepoints", &self.safepoints.len())
-            .field("materializations", &self.materializations.len())
+            .field("frame_states", &self.frame_states.states.len())
             .field("statics", &self.statics.len())
             .finish_non_exhaustive()
     }
@@ -643,15 +534,7 @@ struct ProgramBuilder {
     tree: mir::Tree,
     strings: ImmutableStringPool,
     frame_layouts: Vec<engine::FrameLayout>,
-    frame_layout_id_by_function: HashMap<mir::LocalNodeId<mir::Function>, engine::FrameLayoutId>,
-    frame_states: Vec<engine::FrameState>,
-    point_by_frame_state: Vec<ProgramPoint>,
-    frame_entries: Vec<engine::FrameEntry>,
-    safepoints: Vec<engine::Safepoint>,
-    safepoint_id_by_frame_state: HashMap<engine::FrameStateId, engine::SafepointId>,
-    materializations: Vec<engine::Materialization>,
-    frame_state_by_point: HashMap<ProgramPoint, engine::FrameStateId>,
-    return_destination_by_point: HashMap<ProgramPoint, mir::Value>,
+    frame_states: FrameStateTable,
 }
 
 impl ProgramBuilder {
@@ -668,15 +551,7 @@ impl ProgramBuilder {
             tree,
             strings,
             frame_layouts: Vec::new(),
-            frame_layout_id_by_function: HashMap::new(),
-            frame_states: Vec::new(),
-            point_by_frame_state: Vec::new(),
-            frame_entries: Vec::new(),
-            safepoints: Vec::new(),
-            safepoint_id_by_frame_state: HashMap::new(),
-            materializations: Vec::new(),
-            frame_state_by_point: HashMap::new(),
-            return_destination_by_point: HashMap::new(),
+            frame_states: FrameStateTable::default(),
         }
     }
 
@@ -687,15 +562,16 @@ impl ProgramBuilder {
         let type_layouts = build_layouts(&self.tree)?;
         let layout_id_by_type = self.build_layout_id_map(&type_layouts)?;
         let layouts = self.build_layout_table(&type_layouts, &layout_id_by_type)?;
-        let statics = self.build_statics(&type_layouts)?;
-        let mut operand_table = OperandTableBuilder::default();
+        let layout_index = LayoutIndex::new(layouts, type_layouts, layout_id_by_type);
+        let statics = self.build_statics(layout_index.type_layouts())?;
+        let mut side_table = SideTableBuilder::default();
         let functions = self.build_functions(
             &function_ids,
             &target_by_id,
-            &type_layouts,
-            &mut operand_table,
+            layout_index.type_layouts(),
+            &mut side_table,
         )?;
-        let operand_table = operand_table.finish();
+        let side_table = side_table.finish();
         let functions = FunctionTable::new(functions, target_by_id);
 
         Ok(Program {
@@ -703,21 +579,11 @@ impl ProgramBuilder {
             strings: self.strings,
             function_id_by_name,
             statics,
-            layouts,
-            layout_id_by_type,
+            layout_index,
             frame_layouts: self.frame_layouts,
-            frame_layout_id_by_function: self.frame_layout_id_by_function,
             frame_states: self.frame_states,
-            point_by_frame_state: self.point_by_frame_state,
-            frame_entries: self.frame_entries,
-            safepoints: self.safepoints,
-            safepoint_id_by_frame_state: self.safepoint_id_by_frame_state,
-            materializations: self.materializations,
-            type_layouts,
-            frame_state_by_point: self.frame_state_by_point,
-            return_destination_by_point: self.return_destination_by_point,
             functions,
-            operand_table,
+            side_table,
         })
     }
 
@@ -807,7 +673,7 @@ impl ProgramBuilder {
     ) -> Result<()> {
         let was_defined = data.define(
             engine::StaticId(global.id),
-            engine::TypeId(ty.id),
+            engine::LayoutId(ty.id),
             alignment,
             is_mutable,
             bytes,
@@ -872,7 +738,7 @@ impl ProgramBuilder {
         Ok(layout_id_by_type)
     }
 
-    /// Build the MIR layout table from the program type layouts.
+    /// Build the MIR layout table from the program layouts.
     fn build_layout_table(
         &self,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
@@ -892,7 +758,7 @@ impl ProgramBuilder {
             fields: Vec::new(),
         });
 
-        // program types
+        // program layouts
         for (type_id, layout_id) in layout_id_by_type {
             let layout = layouts
                 .get(type_id)
@@ -965,7 +831,7 @@ impl ProgramBuilder {
         function_ids: &[mir::LocalNodeId<mir::Function>],
         target_by_id: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-        operand_table: &mut OperandTableBuilder,
+        side_table: &mut SideTableBuilder,
     ) -> Result<Vec<Function>> {
         let call_targets = target_by_id.clone();
 
@@ -973,8 +839,7 @@ impl ProgramBuilder {
 
         // build one lowered function at a time
         for function_id in function_ids {
-            let function =
-                self.build_function(*function_id, &call_targets, layouts, operand_table)?;
+            let function = self.build_function(*function_id, &call_targets, layouts, side_table)?;
             functions.push(function);
         }
 
@@ -987,7 +852,7 @@ impl ProgramBuilder {
         function_id: mir::LocalNodeId<mir::Function>,
         call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-        operand_table: &mut OperandTableBuilder,
+        side_table: &mut SideTableBuilder,
     ) -> Result<Function> {
         let function = self.tree.get(function_id);
         let value_types = analyze_value_types(function);
@@ -1010,46 +875,35 @@ impl ProgramBuilder {
             &self.heap_options,
             &self.shared_heap_options,
             &value_types,
-            operand_table,
+            side_table,
         )?
         .ok_or_else(|| Error::MissingRepresentation {
             context: format!("program function {function_id:?}"),
         })?;
 
         // append the frame layout before assigning frame states
-        self.frame_layout_id_by_function
-            .insert(function_id, frame_layout.id);
         self.frame_layouts.push(frame_layout.clone());
 
         // append states for every lowered instruction boundary
         for block in &function.blocks {
-            for (instruction_index, source_completed_instruction_count) in block
-                .source_completed_instruction_counts
-                .iter()
-                .copied()
-                .enumerate()
+            for (instruction_index, source_boundary) in
+                block.source_boundary_by_pc.iter().copied().enumerate()
             {
                 let point =
                     ProgramPoint::new(function_id, block.mir_block, instruction_index as u32);
-                let frame_state_id = engine::FrameStateId(self.frame_states.len() as u32);
-                let frame_state = engine::FrameState {
-                    id: frame_state_id,
-                    entry: None,
-                };
+                let frame_state_id = self.frame_states.next_id();
+                let return_destination =
+                    self.return_destination(block.mir_block, source_boundary)?;
 
-                if let Some(destination) =
-                    self.return_destination(block.mir_block, source_completed_instruction_count)?
-                {
-                    self.return_destination_by_point.insert(point, destination);
-                }
-                self.frame_state_by_point.insert(point, frame_state_id);
                 self.append_frame_state(
                     &frame_layout,
                     &liveness,
                     block.mir_block,
                     point,
-                    &frame_state,
-                    Some(source_completed_instruction_count),
+                    frame_state_id,
+                    None,
+                    return_destination,
+                    Some(source_boundary),
                 )?;
             }
         }
@@ -1099,24 +953,24 @@ impl ProgramBuilder {
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ) -> Result<engine::FrameLayout> {
         let mut byte_len = 0usize;
-        let mut region_id = 0u32;
+        let mut slot_id = 0u32;
 
-        let region_count =
+        let slot_count =
             value_types.len() + function.locals.len() + usize::from(function.environment.is_some());
-        let mut regions = Vec::with_capacity(region_count);
+        let mut slots = Vec::with_capacity(slot_count);
 
         for value_type in value_types {
-            let region = self.frame_region(
-                engine::FrameRegionId(region_id),
+            let slot = self.frame_slot(
+                engine::FrameSlotId(slot_id),
                 layouts,
                 value_type.ty,
                 &mut byte_len,
             )?;
-            region_id += 1;
-            regions.push(region);
+            slot_id += 1;
+            slots.push(slot);
         }
 
-        let value_count = region_id;
+        let value_count = slot_id;
         for local_id in &function.locals {
             let local = self.tree.get(*local_id);
             let local_type = (local.ty)
@@ -1124,18 +978,18 @@ impl ProgramBuilder {
                 .ok_or_else(|| Error::MissingRepresentation {
                     context: "frame local type".to_string(),
                 })?;
-            let region = self.frame_region(
-                engine::FrameRegionId(region_id),
+            let slot = self.frame_slot(
+                engine::FrameSlotId(slot_id),
                 layouts,
                 local_type,
                 &mut byte_len,
             )?;
-            region_id += 1;
-            regions.push(region);
+            slot_id += 1;
+            slots.push(slot);
         }
 
-        let local_count = region_id - value_count;
-        let environment_region = function
+        let local_count = slot_id - value_count;
+        let environment_slot = function
             .environment
             .map(|ty| {
                 ty.ty().ok_or_else(|| Error::MissingRepresentation {
@@ -1144,69 +998,67 @@ impl ProgramBuilder {
             })
             .transpose()?
             .map(|environment| {
-                self.frame_region(
-                    engine::FrameRegionId(region_id),
+                self.frame_slot(
+                    engine::FrameSlotId(slot_id),
                     layouts,
                     environment,
                     &mut byte_len,
                 )
             })
             .transpose()?;
-        let environment_region = environment_region.map(|region| {
-            let id = region.id;
-            regions.push(region);
+        let environment_slot = environment_slot.map(|slot| {
+            let id = slot.id;
+            slots.push(slot);
 
             id
         });
 
         Ok(engine::FrameLayout {
             id: engine::FrameLayoutId(self.frame_layouts.len() as u32),
-            regions,
+            slots,
             value_count,
             local_count,
-            environment_region,
+            environment_slot,
             byte_len: u32::try_from(byte_len).map_err(|_| Error::InvalidInstruction)?,
         })
     }
 
-    /// Allocate one typed region inside a frame layout.
-    fn frame_region(
+    /// Allocate one typed slot inside a frame layout.
+    fn frame_slot(
         &self,
-        id: engine::FrameRegionId,
+        id: engine::FrameSlotId,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
         ty: mir::LocalNodeId<mir::Type>,
         byte_len: &mut usize,
-    ) -> Result<engine::FrameRegion> {
+    ) -> Result<engine::FrameSlot> {
         let layout = layouts
             .get(&ty)
             .ok_or_else(|| Error::MissingRepresentation {
-                context: "frame region layout".to_string(),
+                context: "frame slot layout".to_string(),
             })?;
         let is_word = layout.is_word();
-        let region_alignment = if is_word {
+        let slot_alignment = if is_word {
             layout.alignment().max(Word::BYTE_LEN)
         } else {
             layout.alignment()
         };
-        let region_len = if is_word {
+        let slot_len = if is_word {
             layout.byte_len.max(Word::BYTE_LEN)
         } else {
             layout.byte_len
         };
 
-        let offset = align_offset(*byte_len, region_alignment)?;
-        let end = offset
-            .checked_add(region_len)
-            .ok_or(Error::InvalidInstruction)?;
+        let offset = align_offset(*byte_len, slot_alignment);
+        let end = offset + slot_len;
         *byte_len = end;
 
-        Ok(engine::FrameRegion {
+        Ok(engine::FrameSlot {
             id,
             offset: u32::try_from(offset).map_err(|_| Error::InvalidInstruction)?,
-            byte_len: u32::try_from(region_len).map_err(|_| Error::InvalidInstruction)?,
-            alignment: u16::try_from(region_alignment).map_err(|_| Error::InvalidInstruction)?,
+            byte_len: u32::try_from(slot_len).map_err(|_| Error::InvalidInstruction)?,
+            alignment: u16::try_from(slot_alignment).map_err(|_| Error::InvalidInstruction)?,
             is_word,
-            ty: engine::TypeId(ty.id),
+            layout: engine::LayoutId(ty.id),
         })
     }
 
@@ -1402,12 +1254,12 @@ impl ProgramBuilder {
         received_value: Option<mir::Value>,
     ) -> Result<engine::FrameStateId> {
         let entry_block = self.tree.get(block);
-        let move_parameters = if received_value.is_some() {
+        let entry_parameters = if received_value.is_some() {
             &entry_block.parameters[..entry_block.parameters.len() - 1]
         } else {
             &entry_block.parameters[..]
         };
-        let moves = move_parameters
+        let bindings = entry_parameters
             .iter()
             .zip(arguments.iter())
             .map(|(parameter, argument)| {
@@ -1419,40 +1271,43 @@ impl ProgramBuilder {
                         })?;
 
                 let source = frame_layout
-                    .value_region_id(argument.0)
+                    .value_slot_id(argument.0)
                     .ok_or(Error::InvalidInstruction)?;
                 let destination = frame_layout
-                    .value_region_id(destination.0)
+                    .value_slot_id(destination.0)
                     .ok_or(Error::InvalidInstruction)?;
 
-                Ok(engine::FrameMove {
+                Ok(FrameBinding {
                     source,
                     destination,
                 })
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let entry_id = engine::FrameEntryId(self.frame_entries.len() as u32);
-        self.frame_entries.push(engine::FrameEntry {
-            id: entry_id,
-            moves,
+        let frame_entry = FrameEntry {
+            bindings,
             received_value: received_value
                 .map(|value| {
                     frame_layout
-                        .value_region_id(value.0)
+                        .value_slot_id(value.0)
                         .ok_or(Error::InvalidInstruction)
                 })
                 .transpose()?,
-        });
-
-        let frame_state_id = engine::FrameStateId(self.frame_states.len() as u32);
-        let frame_state = engine::FrameState {
-            id: frame_state_id,
-            entry: Some(entry_id),
         };
+
+        let frame_state_id = self.frame_states.next_id();
         let point = ProgramPoint::new(function_id, block, 0);
 
-        self.append_frame_state(frame_layout, liveness, block, point, &frame_state, None)?;
+        self.append_frame_state(
+            frame_layout,
+            liveness,
+            block,
+            point,
+            frame_state_id,
+            Some(frame_entry),
+            None,
+            None,
+        )?;
 
         Ok(frame_state_id)
     }
@@ -1464,55 +1319,52 @@ impl ProgramBuilder {
         liveness: &mir::FunctionLiveness,
         block: mir::LocalNodeId<mir::Block>,
         point: ProgramPoint,
-        frame_state: &engine::FrameState,
-        source_completed_instruction_count: Option<u32>,
+        frame_state: engine::FrameStateId,
+        frame_entry: Option<FrameEntry>,
+        return_destination: Option<mir::Value>,
+        source_boundary: Option<u32>,
     ) -> Result<()> {
-        let safepoint_id = engine::SafepointId(self.safepoints.len() as u32);
-        let materialization_id = engine::MaterializationId(self.materializations.len() as u32);
         let materialized_values = self.materialized_values(
             frame_layout,
             liveness,
             block,
-            frame_state,
-            source_completed_instruction_count,
+            frame_entry.as_ref(),
+            source_boundary,
         )?;
         let materialized_locals = self.materialized_locals(liveness, block);
-        let regions = frame_layout
-            .region_ids()
-            .map(|region| {
-                if self.is_materialized_region(
+        let sources = frame_layout
+            .slot_ids()
+            .filter_map(|slot| {
+                if !self.is_materialized_slot(
                     frame_layout,
-                    region,
+                    slot,
                     &materialized_values,
                     &materialized_locals,
                 ) {
-                    return engine::MaterializationValue::FrameRegion(region);
+                    return None;
                 }
 
-                engine::MaterializationValue::Undefined
+                Some(engine::SlotSource {
+                    slot,
+                    source: engine::ValueSource::Slot(slot),
+                })
             })
             .collect();
 
-        self.materializations.push(engine::Materialization {
-            id: materialization_id,
-            safepoint: safepoint_id,
-            frames: vec![engine::MaterializationFrame {
-                frame_layout: frame_layout.id,
-                frame_state: frame_state.id,
-                regions,
-            }],
-        });
-
-        self.safepoints.push(engine::Safepoint {
-            id: safepoint_id,
-            frame_state: frame_state.id,
-            stack_map: None,
-            materialization: Some(materialization_id),
-        });
-        self.safepoint_id_by_frame_state
-            .insert(frame_state.id, safepoint_id);
-        self.point_by_frame_state.push(point);
-        self.frame_states.push(frame_state.clone());
+        let materialization = engine::FrameMaterialization {
+            frame_layout: frame_layout.id,
+            frame_state,
+            sources,
+        };
+        self.frame_states.push(
+            frame_state,
+            FrameState {
+                point,
+                entry: frame_entry,
+                return_destination,
+                materialization,
+            },
+        );
 
         Ok(())
     }
@@ -1523,20 +1375,16 @@ impl ProgramBuilder {
         frame_layout: &engine::FrameLayout,
         liveness: &mir::FunctionLiveness,
         block: mir::LocalNodeId<mir::Block>,
-        frame_state: &engine::FrameState,
-        source_completed_instruction_count: Option<u32>,
+        frame_entry: Option<&FrameEntry>,
+        source_boundary: Option<u32>,
     ) -> Result<HashSet<mir::Value>> {
-        let Some(frame_entry) = frame_state
-            .entry
-            .and_then(|frame_entry| self.frame_entries.get(frame_entry.0 as usize))
-        else {
-            let source_completed_instruction_count =
-                source_completed_instruction_count.ok_or(Error::InvalidInstruction)?;
+        let Some(frame_entry) = frame_entry else {
+            let source_boundary = source_boundary.ok_or(Error::InvalidInstruction)?;
 
             return Ok(liveness.value_live_before_instruction(
                 &self.tree,
                 block,
-                source_completed_instruction_count as usize,
+                source_boundary as usize,
             ));
         };
 
@@ -1557,10 +1405,10 @@ impl ProgramBuilder {
         let mut values: HashSet<mir::Value> =
             live_in.difference(&parameter_values).copied().collect();
 
-        // frame moves are the source bytes for block parameters
-        for frame_move in &frame_entry.moves {
+        // entry bindings keep their source values live
+        for binding in &frame_entry.bindings {
             let source = frame_layout
-                .value_for_region(frame_move.source)
+                .value_for_slot(binding.source)
                 .ok_or(Error::InvalidInstruction)?;
             let source = mir::Value::new(source);
 
@@ -1579,22 +1427,36 @@ impl ProgramBuilder {
         liveness.local_live_in(block).clone()
     }
 
-    /// Return whether one frame region is materialized at this frame state.
-    fn is_materialized_region(
+    /// Return whether one frame slot is materialized at this frame state.
+    fn is_materialized_slot(
         &self,
         layout: &engine::FrameLayout,
-        region: engine::FrameRegionId,
+        slot: engine::FrameSlotId,
         materialized_values: &HashSet<mir::Value>,
         materialized_locals: &HashSet<mir::LocalNodeId<mir::Local>>,
     ) -> bool {
-        if let Some(value) = layout.value_for_region(region) {
+        if let Some(value) = layout.value_for_slot(slot) {
             return materialized_values.contains(&mir::Value::new(value));
         }
 
-        if let Some(local) = layout.local_for_region(region) {
+        if let Some(local) = layout.local_for_slot(slot) {
             return materialized_locals.contains(&mir::LocalNodeId::new(local));
         }
 
-        layout.is_environment_region(region)
+        layout.is_environment_slot(slot)
     }
+}
+
+/// Align one byte offset up to the requested byte alignment.
+fn align_offset(offset: usize, alignment: usize) -> usize {
+    if alignment <= 1 {
+        return offset;
+    }
+
+    let remainder = offset % alignment;
+    if remainder == 0 {
+        return offset;
+    }
+
+    offset + alignment - remainder
 }

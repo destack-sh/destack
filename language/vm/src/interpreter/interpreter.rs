@@ -21,6 +21,9 @@ pub struct Interpreter {
     pub(crate) stack: Stack,
 }
 
+/// Coroutine-capable interpreter outcome.
+pub type Outcome = engine::Outcome<Continuation, engine::Value>;
+
 /// Immutable interpreter image.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InterpreterImage {
@@ -170,7 +173,7 @@ impl Interpreter {
             };
             let was_defined = initialized_statics.define(
                 program.static_id(id),
-                program.type_id(ty),
+                program.layout_id(ty),
                 layout.alignment(),
                 program.tree.get(id).is_mutable(),
                 &bytes,
@@ -228,7 +231,8 @@ impl Interpreter {
 
         // statics
         for (_id, region, bytes) in statics.iter_regions() {
-            Frame::visit_byte_roots(program, program.type_for_id(region.ty), bytes, roots)
+            program
+                .visit_byte_roots(program.type_for_layout(region.layout), bytes, roots)
                 .map_err(|error| self.runtime_error(program, error))?;
         }
 
@@ -270,7 +274,8 @@ impl Interpreter {
                 .bytes_mut(id)
                 .ok_or_else(|| self.runtime_error(program, Error::InvalidInstruction))?;
 
-            Frame::visit_byte_root_slots(program, program.type_for_id(region.ty), bytes, visit)
+            program
+                .visit_byte_root_slots(program.type_for_layout(region.layout), bytes, visit)
                 .map_err(|error| self.runtime_error(program, error))?;
         }
 

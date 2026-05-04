@@ -1,12 +1,65 @@
 use std::collections::HashMap;
 
-use destack_mir as mir;
-use destack_mir::{LayoutKind, ReferenceMap};
+use destack_mir::{LayoutId, LayoutKind, LayoutTable, ReferenceMap};
+use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
 use crate::{Error, Result, Word};
 
 const SLICE_DATA_FIELD: u32 = 0;
 const SLICE_LENGTH_FIELD: u32 = 1;
+
+/// One compiled layout for one MIR type.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Layout {
+    /// The byte width of the value representation.
+    pub byte_len: usize,
+    /// The structural layout shape.
+    shape: LayoutShape,
+    /// The reference map for this type.
+    pub reference_map: ReferenceMap,
+    /// The byte alignment of the value representation.
+    alignment: usize,
+}
+
+/// Layout metadata for one lowered program.
+pub(crate) struct LayoutIndex {
+    /// MIR layouts keyed by layout id.
+    table: LayoutTable,
+    /// Compiled type layouts keyed by MIR type id.
+    type_layout: HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    /// Layout ids keyed by MIR type id.
+    layout_id_by_type: HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
+}
+
+/// The compiled shape for one MIR type.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum LayoutShape {
+    /// One scalar or pointer value with no structural decomposition.
+    Scalar,
+    /// One field-addressable payload with a fixed field list.
+    Fields(Vec<FieldLayout>),
+    /// One element-addressable array with a fixed element stride.
+    Array {
+        /// The element layout.
+        element: ElementLayout,
+        /// The static element count.
+        length: usize,
+    },
+    /// One vector with a fixed lane count and element width.
+    Vector {
+        /// The element layout.
+        element: ElementLayout,
+        /// The lane count.
+        lanes: usize,
+    },
+    /// One tensor with a static flattened shape.
+    Tensor {
+        /// The element layout.
+        element: ElementLayout,
+        /// The flattened logical length.
+        element_count: usize,
+    },
+}
 
 /// One compiled field layout.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -50,49 +103,6 @@ pub(crate) struct CallableObjectLayout {
     pub byte_len: usize,
     /// The callable object byte alignment.
     pub alignment: usize,
-}
-
-/// The compiled shape for one MIR type.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum LayoutShape {
-    /// One scalar or pointer value with no structural decomposition.
-    Scalar,
-    /// One field-addressable payload with a fixed field list.
-    Fields(Vec<FieldLayout>),
-    /// One element-addressable array with a fixed element stride.
-    Array {
-        /// The element layout.
-        element: ElementLayout,
-        /// The static element count.
-        length: usize,
-    },
-    /// One vector with a fixed lane count and element width.
-    Vector {
-        /// The element layout.
-        element: ElementLayout,
-        /// The lane count.
-        lanes: usize,
-    },
-    /// One tensor with a static flattened shape.
-    Tensor {
-        /// The element layout.
-        element: ElementLayout,
-        /// The flattened logical length.
-        element_count: usize,
-    },
-}
-
-/// One compiled layout for one MIR type.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Layout {
-    /// The byte width of the value representation.
-    pub byte_len: usize,
-    /// The structural layout shape.
-    shape: LayoutShape,
-    /// The reference map for this type.
-    pub reference_map: ReferenceMap,
-    /// The byte alignment of the value representation.
-    alignment: usize,
 }
 
 impl Layout {
@@ -160,6 +170,71 @@ impl Layout {
     /// Return the aligned stride.
     pub(crate) fn stride(&self) -> usize {
         align_offset(self.byte_len, self.alignment)
+    }
+}
+
+impl LayoutIndex {
+    /// Create one layout index.
+    pub(crate) fn new(
+        table: LayoutTable,
+        type_layout: HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+        layout_id_by_type: HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
+    ) -> Self {
+        Self {
+            table,
+            type_layout,
+            layout_id_by_type,
+        }
+    }
+
+    /// Return the MIR layout table.
+    pub(crate) fn table(&self) -> &LayoutTable {
+        &self.table
+    }
+
+    /// Return all compiled type layouts.
+    pub(crate) fn type_layouts(&self) -> &HashMap<mir::LocalNodeId<mir::Type>, Layout> {
+        &self.type_layout
+    }
+
+    /// Return one compiled type layout.
+    pub(crate) fn layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<&Layout> {
+        self.type_layout.get(&ty)
+    }
+
+    /// Return one compiled layout by engine layout id.
+    pub(crate) fn layout_for_layout(&self, layout: engine::LayoutId) -> Option<&Layout> {
+        self.layout(Self::type_for_layout(layout))
+    }
+
+    /// Return the MIR type id encoded by one engine layout id.
+    pub(crate) fn type_for_layout(layout: engine::LayoutId) -> mir::LocalNodeId<mir::Type> {
+        mir::LocalNodeId::new(layout.0)
+    }
+
+    /// Return the engine layout id for one MIR type id.
+    pub(crate) fn engine_layout_id(ty: mir::LocalNodeId<mir::Type>) -> engine::LayoutId {
+        engine::LayoutId(ty.id)
+    }
+
+    /// Return the MIR layout id for one MIR type.
+    pub(crate) fn layout_id_for_type(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<LayoutId> {
+        self.layout_id_by_type.get(&ty).copied()
+    }
+
+    /// Return one heap allocation plan.
+    pub(crate) fn allocation_plan(&self, layout_id: LayoutId) -> Result<heap::AllocationPlan<'_>> {
+        let Some(layout) = self.table.layouts.get(layout_id.index()) else {
+            return Err(Error::InvariantViolation {
+                context: format!("missing allocation layout {layout_id:?}"),
+            });
+        };
+
+        Ok(heap::AllocationPlan::new(
+            layout.size as usize,
+            layout.alignment as usize,
+            &layout.reference_map,
+        ))
     }
 }
 

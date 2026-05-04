@@ -113,7 +113,7 @@ impl Isolate {
         shared: &SharedHeap,
         statics: &mut StaticSpace,
     ) -> RuntimeResult<()> {
-        // lower allocation opcodes for the live heap geometry
+        // lower allocation ops for the live heap geometry
         self.program = Arc::new(Program::with_heap_options(
             self.program.tree.clone(),
             self.program.strings.clone(),
@@ -161,9 +161,14 @@ impl Isolate {
         let program = self.program.as_ref();
         let mut context = ExternalCallContext::new(program, heap, shared, shared_raw_limits);
         let result = run(&mut context);
-        context.release_pins()?;
 
-        result
+        // release pins before returning to managed code
+        let release_result = context.release_pins();
+        match (result, release_result) {
+            (Err(error), _) => Err(error),
+            (Ok(_), Err(error)) => Err(error),
+            (Ok(value), Ok(())) => Ok(value),
+        }
     }
 
     /// Resolve a function id by name.
@@ -212,50 +217,16 @@ impl Isolate {
         arguments: &[engine::Value],
     ) -> RuntimeResult<engine::Value> {
         let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
+        let function_id = self.function_id_by_name(name)?;
 
-        self.run_function_by_name_words(
+        self.run_function_frame(
             statics,
             heap,
             shared,
             shared_allocator,
             shared_gc,
-            name,
+            function_id,
             &arguments,
-        )
-    }
-
-    /// Run a function by name with VM words and return its output.
-    pub(crate) fn run_function_by_name_words(
-        &mut self,
-        statics: &mut StaticSpace,
-        heap: &mut Heap,
-        shared: &SharedHeap,
-        shared_allocator: &mut SharedAllocator,
-        shared_gc: &SharedGcWorker,
-        name: &str,
-        arguments: &[Word],
-    ) -> RuntimeResult<engine::Value> {
-        let Self {
-            id: isolate_id,
-            program,
-            options,
-            externals,
-            interpreter,
-            ..
-        } = self;
-
-        interpreter.run_function_by_name(
-            *isolate_id,
-            program.as_ref(),
-            options,
-            statics,
-            externals,
-            heap,
-            shared,
-            shared_allocator,
-            shared_gc,
-            name,
-            arguments,
         )
     }
 
@@ -271,39 +242,16 @@ impl Isolate {
         arguments: &[engine::Value],
     ) -> RuntimeResult<Outcome> {
         let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
-
-        self.run_function_by_name_yielding_words(
-            statics,
-            heap,
-            shared,
-            shared_allocator,
-            shared_gc,
-            name,
-            &arguments,
-        )
-    }
-
-    /// Run a function by name with VM words and allow yielding.
-    pub(crate) fn run_function_by_name_yielding_words(
-        &mut self,
-        statics: &mut StaticSpace,
-        heap: &mut Heap,
-        shared: &SharedHeap,
-        shared_allocator: &mut SharedAllocator,
-        shared_gc: &SharedGcWorker,
-        name: &str,
-        arguments: &[Word],
-    ) -> RuntimeResult<Outcome> {
         let function_id = self.function_id_by_name(name)?;
 
-        self.run_function_yielding_words(
+        self.run_function_yielding_frame(
             statics,
             heap,
             shared,
             shared_allocator,
             shared_gc,
             function_id,
-            arguments,
+            &arguments,
         )
     }
 
@@ -320,7 +268,7 @@ impl Isolate {
     ) -> RuntimeResult<engine::Value> {
         let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
 
-        self.run_function_words(
+        self.run_function_frame(
             statics,
             heap,
             shared,
@@ -331,8 +279,8 @@ impl Isolate {
         )
     }
 
-    /// Run a function by id with VM words and return its output.
-    pub(crate) fn run_function_words(
+    /// Run a function by id with VM frame arguments and return its output.
+    pub(crate) fn run_function_frame(
         &mut self,
         statics: &mut StaticSpace,
         heap: &mut Heap,
@@ -379,7 +327,7 @@ impl Isolate {
     ) -> RuntimeResult<Outcome> {
         let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
 
-        self.run_function_yielding_words(
+        self.run_function_yielding_frame(
             statics,
             heap,
             shared,
@@ -390,8 +338,8 @@ impl Isolate {
         )
     }
 
-    /// Run a function by id with VM words and allow yielding.
-    pub(crate) fn run_function_yielding_words(
+    /// Run a function by id with VM frame arguments and allow yielding.
+    pub(crate) fn run_function_yielding_frame(
         &mut self,
         statics: &mut StaticSpace,
         heap: &mut Heap,

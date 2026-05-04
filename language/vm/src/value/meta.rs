@@ -105,6 +105,11 @@ impl ReferenceMeta {
     /// Empty reference metadata.
     pub const NONE: Self = Self { bits: 0 };
 
+    /// Create reference metadata from raw bits.
+    pub fn from_bits(bits: u8) -> Self {
+        Self { bits }
+    }
+
     /// Create reference metadata.
     pub fn new(
         kind: mir::ReferenceKind,

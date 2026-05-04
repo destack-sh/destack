@@ -12,55 +12,55 @@ use crate::diagnostic::{Error, RuntimeError};
 use crate::options::IsolateOptions;
 use crate::program::{
     ArgumentRange, ElementAccess, ElementAccessId, FieldAccess, FieldAccessId, FrameAccess,
-    FrameAccessId, Function, Layout, OperandTable, PointeeAccess, PointeeAccessId, Program,
-    SliceElementAccess, SliceElementAccessId,
+    FrameAccessId, Function, Instruction, Layout, PointeeAccess, PointeeAccessId, Program,
+    SideRecord, SideTable, SliceElementAccess, SliceElementAccessId,
 };
 use crate::{FramePointer, SharedHeap, StackPointer, StaticPointer, Word};
 
-/// Cached state for one interpreter dispatch.
-pub(crate) struct DispatchState<'ctx, 'iso> {
-    /// Program executed by this dispatch.
+/// Execution context for one interpreter frame.
+pub(crate) struct Machine<'ctx, 'iso> {
+    /// Program being executed.
     pub(crate) program: &'iso Program,
     /// Immutable isolate options.
     pub(crate) options: &'iso IsolateOptions,
     /// Mutable static byte arena.
     pub(crate) statics: &'iso mut StaticSpace,
-    /// Shared collector worker for allocation assist.
-    shared_gc: &'iso SharedGcWorker,
     /// The worker-local heap.
     heap: *mut Heap,
     /// The world-shared heap.
     shared: *const SharedHeap,
+    /// Shared collector worker for allocation assist.
+    shared_gc: &'iso SharedGcWorker,
     /// The worker cache for shared heap allocations.
     shared_allocator: *mut SharedAllocator,
-    /// Interpreter engine state for this dispatch.
-    pub(crate) engine: &'ctx mut Interpreter,
+    /// Interpreter owning the live stack.
+    pub(crate) interpreter: &'ctx mut Interpreter,
 
     /// Index of the current frame in the stack.
     pub frame_index: usize,
-    /// Whether bounds checks are enabled for this dispatch.
+    /// Whether bounds checks are enabled.
     pub bounds_checks: bool,
-    /// Whether null checks are enabled for this dispatch.
+    /// Whether null checks are enabled.
     pub null_checks: bool,
-    /// Whether reference address-space checks are enabled for this dispatch.
+    /// Whether reference address-space checks are enabled.
     pub reference_kind_checks: bool,
-    /// Whether reference mutability checks are enabled for this dispatch.
+    /// Whether reference mutability checks are enabled.
     pub reference_mutability_checks: bool,
     /// Pointer to the current frame.
     frame: *mut Frame,
     /// Pointer to the current frame layout.
     frame_layout: *const engine::FrameLayout,
-    /// Pointer to the program operand table.
-    operand_table: *const OperandTable,
+    /// Pointer to the program side table.
+    side_table: *const SideTable,
     /// Argument pool for the current function.
     argument_pool: *const mir::Value,
     /// Argument pool length.
     argument_pool_len: usize,
 }
 
-impl fmt::Debug for DispatchState<'_, '_> {
+impl fmt::Debug for Machine<'_, '_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("DispatchState")
+        f.debug_struct("Machine")
             .field("frame_index", &self.frame_index)
             .field("argument_pool_len", &self.argument_pool_len)
             .field("bounds_checks", &self.bounds_checks)
@@ -74,8 +74,8 @@ impl fmt::Debug for DispatchState<'_, '_> {
     }
 }
 
-impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
-    /// Create dispatch state for the current frame.
+impl<'ctx, 'iso> Machine<'ctx, 'iso> {
+    /// Create a machine context for the current frame.
     pub(crate) fn new(
         program: &'iso Program,
         options: &'iso IsolateOptions,
@@ -84,7 +84,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         shared: &'iso SharedHeap,
         shared_gc: &'iso SharedGcWorker,
         shared_allocator: &'iso mut SharedAllocator,
-        engine: &'ctx mut Interpreter,
+        interpreter: &'ctx mut Interpreter,
         frame_index: usize,
         function: &'iso Function,
     ) -> Result<Self, Error> {
@@ -96,11 +96,11 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
 
         // get frame pointer
         debug_assert!(
-            frame_index < engine.frames.len(),
+            frame_index < interpreter.frames.len(),
             "frame index out of bounds"
         );
         // safety: frame_index always points at the current frame
-        let frame = unsafe { engine.frames.get_unchecked_mut(frame_index) as *mut Frame };
+        let frame = unsafe { interpreter.frames.get_unchecked_mut(frame_index) as *mut Frame };
 
         let frame_layout = unsafe { (*frame).frame_layout };
         let frame_layout = program
@@ -116,7 +116,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
             heap: heap as *mut Heap,
             shared: shared as *const SharedHeap,
             shared_allocator: shared_allocator as *mut SharedAllocator,
-            engine,
+            interpreter,
             frame_index,
             bounds_checks,
             null_checks,
@@ -124,7 +124,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
             reference_mutability_checks,
             frame,
             frame_layout,
-            operand_table: &program.operand_table,
+            side_table: &program.side_table,
             argument_pool: function.argument_pool.as_ptr(),
             argument_pool_len: function.argument_pool.len(),
         })
@@ -134,6 +134,12 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     #[inline]
     pub(crate) fn tree(&self) -> &mir::Tree {
         &self.program.tree
+    }
+
+    /// Borrow one pooled side record.
+    #[inline(always)]
+    pub(crate) fn side<T: SideRecord>(&self, instruction: &Instruction) -> &'iso T {
+        unsafe { T::get(&*self.side_table, instruction.a) }
     }
 
     /// Return the compiled layout for one MIR type.
@@ -151,17 +157,17 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         &self,
         value: mir::Value,
     ) -> Result<mir::LocalNodeId<mir::Type>, Error> {
-        let region = self
+        let slot = self
             .frame_layout()
             .value(value.0)
             .ok_or(Error::InvalidInstruction)?;
 
-        Ok(self.program.type_for_id(region.ty))
+        Ok(self.program.type_for_layout(slot.layout))
     }
 
-    /// Return the frame region for one SSA value.
+    /// Return the frame slot for one SSA value.
     #[inline]
-    pub(crate) fn value_region(&self, value: mir::Value) -> Result<&engine::FrameRegion, Error> {
+    pub(crate) fn value_slot(&self, value: mir::Value) -> Result<&engine::FrameSlot, Error> {
         self.frame_layout()
             .value(value.0)
             .ok_or(Error::InvalidInstruction)
@@ -170,14 +176,14 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     /// Return whether one SSA value is stored as one word.
     #[inline]
     pub(crate) fn value_is_word(&self, value: mir::Value) -> Result<bool, Error> {
-        Ok(self.value_region(value)?.is_word)
+        Ok(self.value_slot(value)?.is_word)
     }
 
     /// Return the frame address for one SSA value.
     #[inline]
     pub(crate) fn value_address(&self, value: mir::Value) -> Result<FramePointer, Error> {
-        let region = self.value_region(value)?;
-        let address = unsafe { (*self.frame).region_address(region) };
+        let slot = self.value_slot(value)?;
+        let address = unsafe { (*self.frame).slot_address(slot) };
 
         Ok(FramePointer::from_address(address))
     }
@@ -185,8 +191,8 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     /// Return one value as the operand expected by pointer-style access helpers.
     #[inline]
     pub(crate) fn value_operand(&self, value: mir::Value) -> Result<Word, Error> {
-        let region = self.value_region(value)?;
-        if region.is_word {
+        let slot = self.value_slot(value)?;
+        if slot.is_word {
             return Ok(self.get(value));
         }
 
@@ -196,10 +202,10 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     /// Borrow one SSA value's bytes.
     #[inline]
     pub(crate) fn value_bytes(&self, value: mir::Value) -> Result<&[u8], Error> {
-        let region = self.value_region(value)?;
+        let slot = self.value_slot(value)?;
         let frame = unsafe { &*self.frame };
 
-        Ok(frame.region_bytes(region))
+        Ok(frame.slot_bytes(slot))
     }
 
     /// Return one SSA value's frame byte range.
@@ -208,9 +214,9 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         &self,
         value: mir::Value,
     ) -> Result<(*const u8, usize), Error> {
-        let region = self.value_region(value)?;
+        let slot = self.value_slot(value)?;
         let frame = unsafe { &*self.frame };
-        let bytes = frame.region_bytes(region);
+        let bytes = frame.slot_bytes(slot);
 
         Ok((bytes.as_ptr(), bytes.len()))
     }
@@ -218,10 +224,10 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     /// Borrow one SSA value's bytes mutably.
     #[inline]
     pub(crate) fn value_bytes_mut(&mut self, value: mir::Value) -> Result<&mut [u8], Error> {
-        let region = self.value_region(value)? as *const engine::FrameRegion;
+        let slot = self.value_slot(value)? as *const engine::FrameSlot;
         let frame = self.current_frame_mut();
 
-        Ok(frame.region_bytes_mut(unsafe { &*region }))
+        Ok(frame.slot_bytes_mut(unsafe { &*slot }))
     }
 
     /// Borrow the isolate options.
@@ -233,7 +239,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     /// Create a runtime error with current call stack.
     #[cold]
     pub(crate) fn runtime_error(&self, error: Error) -> RuntimeError {
-        self.engine.runtime_error(self.program, error)
+        self.interpreter.runtime_error(self.program, error)
     }
 
     /// Refresh cached frame data after moving to another function.
@@ -252,43 +258,43 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         Ok(())
     }
 
-    /// Return the program operand table pointer.
+    /// Return the program side table pointer.
     #[inline(always)]
-    pub(crate) fn operand_table_ptr(&self) -> *const OperandTable {
-        self.operand_table
+    pub(crate) fn side_table_ptr(&self) -> *const SideTable {
+        self.side_table
     }
 
     /// Return one pooled field access.
     #[inline(always)]
     pub(crate) fn field_access(&self, id: FieldAccessId) -> FieldAccess {
-        *unsafe { (*self.operand_table).field_access(id) }
+        *unsafe { (*self.side_table).field_access(id) }
     }
 
     /// Return one pooled frame access.
     #[inline(always)]
     pub(crate) fn frame_access(&self, id: FrameAccessId) -> FrameAccess {
-        *unsafe { (*self.operand_table).frame_access(id) }
+        *unsafe { (*self.side_table).frame_access(id) }
     }
 
     /// Return one pooled element access.
     #[inline(always)]
     pub(crate) fn element_access(&self, id: ElementAccessId) -> ElementAccess {
-        *unsafe { (*self.operand_table).element_access(id) }
+        *unsafe { (*self.side_table).element_access(id) }
     }
 
     /// Return one pooled slice element access.
     #[inline(always)]
     pub(crate) fn slice_element_access(&self, id: SliceElementAccessId) -> SliceElementAccess {
-        *unsafe { (*self.operand_table).slice_element_access(id) }
+        *unsafe { (*self.side_table).slice_element_access(id) }
     }
 
     /// Return one pooled pointee access.
     #[inline(always)]
     pub(crate) fn pointee_access(&self, id: PointeeAccessId) -> PointeeAccess {
-        *unsafe { (*self.operand_table).pointee_access(id) }
+        *unsafe { (*self.side_table).pointee_access(id) }
     }
 
-    /// Borrow the heap for the current block.
+    /// Borrow the worker heap mutably.
     #[inline]
     pub(crate) fn heap_mut(&mut self) -> &mut Heap {
         unsafe { &mut *self.heap }
@@ -380,13 +386,13 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         unsafe { &mut *self.shared_allocator }.reserve_small_zeroed(small)
     }
 
-    /// Borrow the heap immutably for the current block.
+    /// Borrow the worker heap immutably.
     #[inline]
     pub(crate) fn heap(&self) -> &Heap {
         unsafe { &*self.heap }
     }
 
-    /// Borrow the shared heap immutably for the current block.
+    /// Borrow the shared heap immutably.
     #[inline]
     pub(crate) fn shared(&self) -> &SharedHeap {
         unsafe { &*self.shared }
@@ -398,7 +404,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         unsafe { &*self.shared }.flush_allocator(unsafe { &mut *self.shared_allocator });
     }
 
-    /// Move the state to a new frame and function.
+    /// Move the machine to a new frame and function.
     pub(crate) fn enter_frame(
         &mut self,
         frame_index: usize,
@@ -406,12 +412,12 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     ) -> Result<(), Error> {
         // validate frame index in debug builds
         debug_assert!(
-            frame_index < self.engine.frames.len(),
+            frame_index < self.interpreter.frames.len(),
             "frame index out of bounds"
         );
 
         // update cached frame pointer
-        let frame = unsafe { self.engine.frames.get_unchecked_mut(frame_index) };
+        let frame = unsafe { self.interpreter.frames.get_unchecked_mut(frame_index) };
         self.frame_index = frame_index;
         self.frame = frame as *mut Frame;
 
@@ -434,7 +440,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     /// Borrow one frame.
     #[inline(always)]
     pub(crate) fn frame(&self, frame_index: usize) -> Result<&Frame, Error> {
-        self.engine
+        self.interpreter
             .frames
             .get(frame_index)
             .ok_or(Error::InvalidInstruction)
@@ -455,7 +461,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     /// Return whether the interpreter owns one stack address range.
     #[inline]
     fn owns_stack_address_range(&self, address: usize, byte_len: usize) -> bool {
-        self.engine.stack.contains_address(address, byte_len)
+        self.interpreter.stack.contains_address(address, byte_len)
     }
 
     /// Allocate bytes owned by the current frame.
@@ -465,18 +471,58 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         alignment: usize,
     ) -> Result<usize, Error> {
         let base = self
-            .engine
+            .interpreter
             .stack
             .allocate(byte_len, alignment)
             .map_err(|_| Error::StackOverflow)?;
-        let end = self.engine.stack.len();
+        let end = self.interpreter.stack.len();
         self.current_frame_mut().extend_bytes_to(end);
 
         Ok(self
-            .engine
+            .interpreter
             .stack
             .address(base, byte_len)
             .map_err(|_| Error::StackOverflow)? as usize)
+    }
+
+    /// Retire the most recent stack allocation owned by the current frame.
+    pub(crate) fn retire_stack(
+        &mut self,
+        pointer: StackPointer,
+        byte_len: usize,
+    ) -> Result<(), Error> {
+        let offset = self
+            .interpreter
+            .stack
+            .offset_for_address(pointer.address(), byte_len)
+            .ok_or(Error::InvalidAddressSpace {
+                expected: "stack".to_string(),
+                actual: format!("0x{:x}", pointer.address()),
+            })?;
+
+        // stack allocations are bump allocated and must retire in reverse order
+        let end = offset + byte_len;
+        if end != self.interpreter.stack.len() {
+            return Err(Error::InvalidAddressSpace {
+                expected: "top of stack".to_string(),
+                actual: format!("0x{:x}", pointer.address()),
+            });
+        }
+
+        // the current frame owns all stack allocations made while it runs
+        let frame = self.current_frame_mut();
+        if offset < frame.stack_offset {
+            return Err(Error::InvalidAddressSpace {
+                expected: "current frame stack".to_string(),
+                actual: format!("0x{:x}", pointer.address()),
+            });
+        }
+
+        self.interpreter.truncate_stack(offset);
+        let frame = self.current_frame_mut();
+        frame.truncate_bytes_to(offset);
+
+        Ok(())
     }
 
     /// Return whether one static pointer targets VM-owned static memory.
@@ -518,18 +564,18 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
     /// Get value by SSA id.
     #[inline(always)]
     pub(crate) fn get(&self, v: mir::Value) -> Word {
-        let region = self.value_region_unchecked(v);
+        let slot = self.value_slot_unchecked(v);
 
-        unsafe { (*self.frame).read_operand(region) }
+        unsafe { (*self.frame).read_operand(slot) }
     }
 
     /// Read one word by SSA id.
     #[inline(always)]
     pub(crate) fn get_word(&self, v: mir::Value) -> Word {
-        let region = self.value_region_unchecked(v);
+        let slot = self.value_slot_unchecked(v);
 
-        debug_assert!(region.is_word, "attempted word read from frame bytes");
-        unsafe { (*self.frame).read_word(region) }
+        debug_assert!(slot.is_word, "attempted word read from frame bytes");
+        unsafe { (*self.frame).read_word(slot) }
     }
 
     /// Read one word by frame byte offset.
@@ -538,9 +584,9 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         unsafe { (*self.frame).read_word_at(offset) }
     }
 
-    /// Return the frame region for one SSA value without release checks.
+    /// Return the frame slot for one SSA value without release checks.
     #[inline(always)]
-    fn value_region_unchecked(&self, v: mir::Value) -> &engine::FrameRegion {
+    fn value_slot_unchecked(&self, v: mir::Value) -> &engine::FrameSlot {
         let index = v.0 as usize;
         let layout = self.frame_layout();
         debug_assert!(
@@ -560,10 +606,10 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
             index < layout.values().len(),
             "ssa value out of bounds: {v:?}"
         );
-        let region = unsafe { layout.values().get_unchecked(index) };
+        let slot = unsafe { layout.values().get_unchecked(index) };
 
-        debug_assert!(region.is_word, "attempted word write into frame bytes");
-        unsafe { (*self.frame).write_word(region, val) }
+        debug_assert!(slot.is_word, "attempted word write into frame bytes");
+        unsafe { (*self.frame).write_word(slot, val) }
     }
 
     /// Write one word by frame byte offset.
@@ -580,15 +626,14 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         value: mir::Value,
     ) -> Result<(), Error> {
         let layout = self.frame_layout();
-        let local_region = layout
+        let local_slot = layout
             .locals()
             .get(local_index as usize)
-            .ok_or(Error::InvalidInstruction)?
-            as *const engine::FrameRegion;
-        let value_region =
-            layout.value(value.0).ok_or(Error::InvalidInstruction)? as *const engine::FrameRegion;
+            .ok_or(Error::InvalidInstruction)? as *const engine::FrameSlot;
+        let value_slot =
+            layout.value(value.0).ok_or(Error::InvalidInstruction)? as *const engine::FrameSlot;
 
-        self.move_frame_region(unsafe { &*local_region }, unsafe { &*value_region })
+        self.move_frame_slot(unsafe { &*local_slot }, unsafe { &*value_slot })
     }
 
     /// Move one SSA value into one local variable.
@@ -599,15 +644,14 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         local_index: u32,
     ) -> Result<(), Error> {
         let layout = self.frame_layout();
-        let value_region =
-            layout.value(value.0).ok_or(Error::InvalidInstruction)? as *const engine::FrameRegion;
-        let local_region = layout
+        let value_slot =
+            layout.value(value.0).ok_or(Error::InvalidInstruction)? as *const engine::FrameSlot;
+        let local_slot = layout
             .locals()
             .get(local_index as usize)
-            .ok_or(Error::InvalidInstruction)?
-            as *const engine::FrameRegion;
+            .ok_or(Error::InvalidInstruction)? as *const engine::FrameSlot;
 
-        self.move_frame_region(unsafe { &*value_region }, unsafe { &*local_region })
+        self.move_frame_slot(unsafe { &*value_slot }, unsafe { &*local_slot })
     }
 
     /// Move one SSA value into another SSA value.
@@ -618,14 +662,14 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         destination: mir::Value,
     ) -> Result<(), Error> {
         let layout = self.frame_layout();
-        let source_region =
-            layout.value(source.0).ok_or(Error::InvalidInstruction)? as *const engine::FrameRegion;
-        let destination_region = layout
+        let source_slot =
+            layout.value(source.0).ok_or(Error::InvalidInstruction)? as *const engine::FrameSlot;
+        let destination_slot = layout
             .value(destination.0)
             .ok_or(Error::InvalidInstruction)?
-            as *const engine::FrameRegion;
+            as *const engine::FrameSlot;
 
-        self.move_frame_region(unsafe { &*source_region }, unsafe { &*destination_region })
+        self.move_frame_slot(unsafe { &*source_slot }, unsafe { &*destination_slot })
     }
 
     /// Move one frame byte range into another frame byte range.
@@ -658,12 +702,12 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         Ok(())
     }
 
-    /// Move bytes between two frame regions in the current frame.
+    /// Move bytes between two frame slots in the current frame.
     #[inline(always)]
-    fn move_frame_region(
+    fn move_frame_slot(
         &mut self,
-        source: &engine::FrameRegion,
-        destination: &engine::FrameRegion,
+        source: &engine::FrameSlot,
+        destination: &engine::FrameSlot,
     ) -> Result<(), Error> {
         if source.byte_len != destination.byte_len || source.is_word != destination.is_word {
             return Err(Error::TypeMismatch {
@@ -685,8 +729,8 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
 
         unsafe {
             std::ptr::copy(
-                frame.region_address(source) as *const u8,
-                frame.region_address(destination) as *mut u8,
+                frame.slot_address(source) as *const u8,
+                frame.slot_address(destination) as *mut u8,
                 source.byte_len as usize,
             );
         }

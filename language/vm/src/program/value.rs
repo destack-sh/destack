@@ -31,7 +31,7 @@ pub(crate) enum PointerClass {
     Unknown,
 }
 
-/// Runtime value layout used for dispatch selection.
+/// Runtime value layout used for op selection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ValueLayout {
     /// Void value.

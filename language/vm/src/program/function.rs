@@ -5,29 +5,7 @@ use {destack_engine as engine, destack_mir as mir};
 
 use super::{ArgumentRange, Instruction, MovePair, MoveRange};
 
-/// Switch case.
-#[derive(Clone, Debug)]
-pub(crate) struct SwitchCase {
-    /// Match value.
-    pub value: i128,
-    /// Target block.
-    pub target: u32,
-    /// Block parameter moves.
-    pub moves: MoveRange,
-}
-
-/// Lowered basic block.
-#[derive(Clone, Debug)]
-pub(crate) struct Block {
-    /// Original MIR block id.
-    pub mir_block: mir::LocalNodeId<mir::Block>,
-    /// Instructions including terminator.
-    pub instructions: Vec<Instruction>,
-    /// Completed source instruction count for each lowered PC in this block.
-    pub source_completed_instruction_counts: Vec<u32>,
-}
-
-/// Lowered function with predecoded dispatch metadata.
+/// Lowered function with executable code and frame metadata.
 #[derive(Clone, Debug)]
 pub(crate) struct Function {
     /// Original MIR function id.
@@ -38,12 +16,24 @@ pub(crate) struct Function {
     pub parameters: ArgumentRange,
     /// Entry block index.
     pub entry: u32,
-    /// All blocks.
+    /// Contiguous instruction code.
+    pub code: Vec<Instruction>,
+    /// Lowered block ranges.
     pub blocks: Vec<Block>,
     /// Pool of argument values referenced by ranges.
     pub argument_pool: Vec<mir::Value>,
     /// Pool of value move pairs referenced by ranges.
     pub move_pool: Vec<MovePair>,
+}
+
+impl Function {
+    /// Return one block's instruction count.
+    #[inline(always)]
+    pub(crate) fn block_len(&self, block: u32) -> Option<usize> {
+        self.blocks
+            .get(block as usize)
+            .map(|block| block.len as usize)
+    }
 }
 
 /// Lowered function registry owned by one program.
@@ -53,15 +43,6 @@ pub(crate) struct FunctionTable {
     functions: Vec<Function>,
     /// Callable target by function id.
     target_by_id: HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
-}
-
-/// Program call target resolved for one function id.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum CallTarget {
-    /// The function id names one imported callable.
-    Import,
-    /// The function id names one lowered callable.
-    Local(u32),
 }
 
 impl FunctionTable {
@@ -102,4 +83,58 @@ impl FunctionTable {
         let index = self.index_for(func_id)?;
         self.pointer(index)
     }
+
+    /// Return one lowered function by function id.
+    pub(crate) fn function_for(
+        &self,
+        func_id: mir::LocalNodeId<mir::Function>,
+    ) -> Option<&Function> {
+        let index = self.index_for(func_id)?;
+
+        self.functions.get(index as usize)
+    }
+}
+
+/// Program call target resolved for one function id.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CallTarget {
+    /// The function id names one imported callable.
+    Import,
+    /// The function id names one lowered callable.
+    Local(u32),
+}
+
+/// Lowered basic block position inside one function.
+#[derive(Clone, Debug)]
+pub(crate) struct Block {
+    /// Original MIR block id.
+    pub mir_block: mir::LocalNodeId<mir::Block>,
+    /// First instruction in the function code.
+    pub start: u32,
+    /// Number of instructions in this block.
+    pub len: u32,
+    /// Source MIR boundary for each lowered PC in this block.
+    pub source_boundary_by_pc: Vec<u32>,
+}
+
+/// Instruction bytes emitted for one block during lowering.
+#[derive(Clone, Debug)]
+pub(crate) struct BlockCode {
+    /// Original MIR block id.
+    pub mir_block: mir::LocalNodeId<mir::Block>,
+    /// Instructions including terminator.
+    pub instructions: Vec<Instruction>,
+    /// Source MIR boundary for each lowered PC in this block.
+    pub source_boundary_by_pc: Vec<u32>,
+}
+
+/// One lowered switch case.
+#[derive(Clone, Debug)]
+pub(crate) struct SwitchCase {
+    /// Match value.
+    pub value: i128,
+    /// Target block.
+    pub target: u32,
+    /// Block parameter moves.
+    pub moves: MoveRange,
 }
