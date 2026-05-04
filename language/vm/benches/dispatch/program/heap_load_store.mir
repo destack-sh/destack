@@ -1,0 +1,19 @@
+function heapLoadStore(v0: int32): int32 {
+b0(v0: int32):
+    v1: ref<int32, managed, readonly> = new int32
+    v2: int32 = 0int32
+    v3: int32 = 0int32
+    jump b1(v2, v3)
+b1(v4: int32, v5: int32):
+    v6: boolean = int.lt.s v4, v0
+    branch v6, b2(v4, v5), b3(v5)
+b2(v7: int32, v8: int32):
+    store v1, v7
+    v9: int32 = load v1
+    v10: int32 = 1int32
+    v11: int32 = int.add v7, v10
+    v12: int32 = int.add v8, v9
+    jump b1(v11, v12)
+b3(v13: int32):
+    return v13
+}
