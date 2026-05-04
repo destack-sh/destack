@@ -1,15 +1,13 @@
-use std::ptr::NonNull;
-
 use crate::Word;
 use destack_engine as engine;
 
 use super::frame::{FrameValue, frame_value_type, store_frame_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::interpreter::{Frame, Interpreter};
-use crate::program::Program;
+use crate::program::{FrameBinding, Program};
 use destack_mir as mir;
 
-/// Saved frame value used while applying moves.
+/// Saved frame value used while binding parameters.
 enum SavedFrameValue {
     /// One scalar word.
     Word(Word),
@@ -17,50 +15,50 @@ enum SavedFrameValue {
     Bytes(Vec<u8>),
 }
 
-/// Complete frame moves within one frame.
-fn complete_frame_moves(
+/// Bind frame parameters within one frame.
+fn bind_frame_parameters(
     layout: &engine::FrameLayout,
     frame: &mut Frame,
-    moves: &[engine::FrameMove],
+    bindings: &[FrameBinding],
 ) -> RuntimeResult<()> {
     // gather source values before rewriting destinations
-    let saved_values = moves
+    let saved_values = bindings
         .iter()
-        .map(|frame_move| {
-            let source_region = layout
-                .region(frame_move.source)
+        .map(|binding| {
+            let source_slot = layout
+                .slot(binding.source)
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-            let destination_region = layout
-                .region(frame_move.destination)
+            let destination_slot = layout
+                .slot(binding.destination)
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-            if source_region.byte_len != destination_region.byte_len
-                || source_region.is_word != destination_region.is_word
+            if source_slot.byte_len != destination_slot.byte_len
+                || source_slot.is_word != destination_slot.is_word
             {
                 return Err(RuntimeError::new(Error::InvalidInstruction));
             }
 
-            if destination_region.is_word {
-                return Ok(SavedFrameValue::Word(frame.read_word(source_region)));
+            if destination_slot.is_word {
+                return Ok(SavedFrameValue::Word(frame.read_word(source_slot)));
             }
 
             Ok(SavedFrameValue::Bytes(
-                frame.region_bytes(source_region).to_vec(),
+                frame.slot_bytes(source_slot).to_vec(),
             ))
         })
         .collect::<RuntimeResult<Vec<_>>>()?;
 
-    // store the saved values back into their destination regions
-    for (frame_move, value) in moves.iter().zip(saved_values) {
-        let destination_region = layout
-            .region(frame_move.destination)
+    // store the saved values into their destination slots
+    for (binding, value) in bindings.iter().zip(saved_values) {
+        let destination_slot = layout
+            .slot(binding.destination)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
         match value {
-            SavedFrameValue::Word(word) => frame.write_word(destination_region, word),
+            SavedFrameValue::Word(word) => frame.write_word(destination_slot, word),
             SavedFrameValue::Bytes(bytes) => {
                 frame
-                    .region_bytes_mut(destination_region)
+                    .slot_bytes_mut(destination_slot)
                     .copy_from_slice(&bytes);
             }
         }
@@ -78,17 +76,11 @@ impl Interpreter {
         frame_state_id: engine::FrameStateId,
         received_value: Option<FrameValue>,
     ) -> RuntimeResult<()> {
-        // resolve frame-state metadata first
-        let frame_state = program
-            .frame_state(frame_state_id)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        // resolve target position
         let point = program
             .point_for_frame_state(frame_state_id)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let frame_entry = frame_state
-            .entry
-            .and_then(|frame_entry| program.frame_entry(frame_entry))
-            .cloned();
+        let frame_entry = program.frame_entry(frame_state_id).cloned();
         let target_block_id = point.block;
         let instruction_index = point.instruction_index as usize;
         let expected_function = point.function;
@@ -99,7 +91,7 @@ impl Interpreter {
             .get(frame_index)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-        // require the frame to match the target state
+        // require the frame to match the target function
         if frame.function() != expected_function {
             return Err(RuntimeError::new(Error::InvalidInstruction));
         }
@@ -114,9 +106,7 @@ impl Interpreter {
                     block: target_block_id,
                 })
             })?;
-        let target_block = &function.blocks[target_index];
-
-        // bind frame moves and the optional received value
+        // bind frame parameters and the optional received value
         let frame = self
             .frames
             .get_mut(frame_index)
@@ -125,25 +115,25 @@ impl Interpreter {
             .frame_layout_by_id(frame.frame_layout)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         if let Some(frame_entry) = &frame_entry {
-            complete_frame_moves(frame_layout, frame, &frame_entry.moves)?;
+            bind_frame_parameters(frame_layout, frame, &frame_entry.bindings)?;
         }
 
-        if let Some(received_value_region) =
+        if let Some(received_value_slot) =
             frame_entry.and_then(|frame_entry| frame_entry.received_value)
         {
             let Some(frame_value) = received_value else {
                 return Err(RuntimeError::new(Error::InvalidInstruction));
             };
             let received_value = frame_layout
-                .value_for_region(received_value_region)
+                .value_for_slot(received_value_slot)
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
             store_frame_value(program, frame, mir::Value::new(received_value), frame_value)
                 .map_err(RuntimeError::new)?;
         }
 
         // advance the frame to the resumed position
-        frame.block_ptr = NonNull::from(target_block);
-        frame.resume_pc = instruction_index;
+        frame.block = target_index as u32;
+        frame.pc = instruction_index;
 
         Ok(())
     }
@@ -162,13 +152,8 @@ impl Interpreter {
             .checked_sub(1)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-        let frame_state = program
-            .frame_state(frame_state_id)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let frame_entry = frame_state
-            .entry
-            .and_then(|frame_entry| program.frame_entry(frame_entry));
-        let received_value_region = frame_entry
+        let frame_entry = program.frame_entry(frame_state_id);
+        let received_value_slot = frame_entry
             .and_then(|frame_entry| frame_entry.received_value)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let frame = self
@@ -179,7 +164,7 @@ impl Interpreter {
             .frame_layout_by_id(frame.frame_layout)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let received_value = layout
-            .value_for_region(received_value_region)
+            .value_for_slot(received_value_slot)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let ty = frame_value_type(program, frame, mir::Value::new(received_value))
             .map_err(RuntimeError::new)?;

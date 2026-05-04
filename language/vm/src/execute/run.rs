@@ -1,105 +1,21 @@
-use std::collections::HashMap;
-use std::ptr::NonNull;
-
 use engine::StaticSpace;
+use std::collections::HashMap;
 use {destack_engine as engine, destack_mir as mir};
 
 use super::frame::{dematerialize_value, frame_value_type, function_return_type, materialize_word};
 use super::{dispatch_block, dispatch_block_counted};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::interpreter::{Continuation, DispatchState, Frame, Interpreter, Outcome};
+use crate::interpreter::{Continuation, Frame, Interpreter, Machine, Outcome};
 use crate::isolate::{ExternalCallContext, ExternalFn};
 use crate::options::IsolateOptions;
-use crate::program::{Block, CallTarget, Function, Program};
+use crate::program::{CallTarget, Function, Program};
 use crate::{SharedHeap, Word};
 use destack_heap::{Heap, SharedAllocator, SharedGcWorker, SharedRawLimits};
 
 impl Interpreter {
-    /// Execute a function by name.
-    ///
-    /// Looks up a function in the MIR tree by name and executes it.
-    pub(crate) fn run_function_by_name(
-        &mut self,
-        isolate_id: engine::EngineId,
-        program: &Program,
-        options: &IsolateOptions,
-        statics: &mut StaticSpace,
-        externals: &HashMap<String, ExternalFn>,
-        heap: &mut Heap,
-        shared: &SharedHeap,
-        shared_allocator: &mut SharedAllocator,
-        shared_gc: &SharedGcWorker,
-        name: &str,
-        arguments: &[Word],
-    ) -> RuntimeResult<engine::Value> {
-        let outcome = self.run_function_by_name_yielding(
-            isolate_id,
-            program,
-            options,
-            statics,
-            externals,
-            heap,
-            shared,
-            shared_allocator,
-            shared_gc,
-            name,
-            arguments,
-        )?;
-
-        match outcome {
-            Outcome::Completed { value } => Ok(value),
-            Outcome::Yielded { .. } => Err(self.runtime_error(program, Error::UnexpectedYield)),
-        }
-    }
-
-    /// Execute a function by name with yield support.
-    ///
-    /// Returns a yielded value when the coroutine suspends.
-    pub(crate) fn run_function_by_name_yielding(
-        &mut self,
-        isolate_id: engine::EngineId,
-        program: &Program,
-        options: &IsolateOptions,
-        statics: &mut StaticSpace,
-        externals: &HashMap<String, ExternalFn>,
-        heap: &mut Heap,
-        shared: &SharedHeap,
-        shared_allocator: &mut SharedAllocator,
-        shared_gc: &SharedGcWorker,
-        name: &str,
-        arguments: &[Word],
-    ) -> RuntimeResult<Outcome> {
-        let function_id = program
-            .function_id_by_name
-            .get(name)
-            .copied()
-            .ok_or_else(|| {
-                self.runtime_error(
-                    program,
-                    Error::ExternalFunctionNotFound {
-                        name: name.to_string(),
-                    },
-                )
-            })?;
-
-        self.run_function_yielding(
-            isolate_id,
-            program,
-            options,
-            statics,
-            externals,
-            heap,
-            shared,
-            shared_allocator,
-            shared_gc,
-            function_id,
-            arguments,
-        )
-    }
-
     /// Execute a function by id.
     ///
-    /// Uses direct dispatch for maximum performance.
+    /// Uses the lowered op loop for maximum performance.
     /// Functions are lowered when the interpreter is created.
     pub(crate) fn run_function(
         &mut self,
@@ -269,13 +185,8 @@ impl Interpreter {
         frame_state: engine::FrameStateId,
         received_value: engine::Value,
     ) -> RuntimeResult<Outcome> {
-        let frame_state_metadata = program
-            .frame_state(frame_state)
-            .ok_or_else(|| self.runtime_error(program, Error::InvalidContinuation))?;
-        let frame_entry = frame_state_metadata
-            .entry
-            .and_then(|frame_entry| program.frame_entry(frame_entry));
-        let received_value_region = frame_entry
+        let frame_entry = program.frame_entry(frame_state);
+        let received_value_slot = frame_entry
             .and_then(|frame_entry| frame_entry.received_value)
             .ok_or_else(|| self.runtime_error(program, Error::InvalidContinuation))?;
         let frame = self
@@ -286,7 +197,7 @@ impl Interpreter {
             .frame_layout_by_id(frame.frame_layout)
             .ok_or_else(|| self.runtime_error(program, Error::InvalidContinuation))?;
         let received_value_id = layout
-            .value_for_region(received_value_region)
+            .value_for_slot(received_value_slot)
             .ok_or_else(|| self.runtime_error(program, Error::InvalidContinuation))?;
         let received_type = frame_value_type(program, frame, mir::Value::new(received_value_id))
             .map_err(|_| self.runtime_error(program, Error::InvalidContinuation))?;
@@ -345,14 +256,11 @@ impl Interpreter {
                 function: function_id,
             })
         })?;
-        let entry_block_ptr = unsafe {
+        let (entry_block, frame_layout) = unsafe {
             let function = function_ptr.as_ref();
-            let entry = function.entry;
-            let entry_block = &function.blocks[entry as usize];
 
-            NonNull::from(entry_block)
+            (function.entry, function.frame_layout)
         };
-        let frame_layout = unsafe { function_ptr.as_ref().frame_layout };
         let frame_layout_ref = program
             .frame_layout_by_id(frame_layout)
             .ok_or_else(|| self.runtime_error(program, Error::InvalidInstruction))?;
@@ -362,7 +270,7 @@ impl Interpreter {
         let frame = Frame::new(
             frame_layout,
             function_ptr,
-            entry_block_ptr,
+            entry_block,
             frame_layout_ref,
             stack_offset,
             frame_base,
@@ -389,7 +297,7 @@ impl Interpreter {
         {
             let frame_index = self.frames.len() - 1;
             let function = unsafe { function_ptr.as_ref() };
-            let mut state = DispatchState::new(
+            let mut machine = Machine::new(
                 program,
                 options,
                 statics,
@@ -404,16 +312,16 @@ impl Interpreter {
             .map_err(RuntimeError::new)?;
             for (index, param) in parameter_slice.iter().enumerate() {
                 let value = arguments[index];
-                let is_word = state.value_is_word(*param).map_err(RuntimeError::new)?;
+                let is_word = machine.value_is_word(*param).map_err(RuntimeError::new)?;
                 if is_word {
-                    state.set_word(*param, value);
+                    machine.set_word(*param, value);
                     continue;
                 }
 
-                let ty = state.value_type(*param).map_err(RuntimeError::new)?;
-                let bytes = super::frame::encode_argument_bytes(&mut state, ty, value)
+                let ty = machine.value_type(*param).map_err(RuntimeError::new)?;
+                let bytes = super::frame::encode_argument_bytes(&mut machine, ty, value)
                     .map_err(RuntimeError::new)?;
-                let destination = state.value_bytes_mut(*param).map_err(RuntimeError::new)?;
+                let destination = machine.value_bytes_mut(*param).map_err(RuntimeError::new)?;
                 if destination.len() != bytes.len() {
                     return Err(RuntimeError::new(Error::InvalidInstruction));
                 }
@@ -462,23 +370,23 @@ impl Interpreter {
                 return Err(self.runtime_error(program, Error::StepLimitExceeded));
             }
 
-            // load the current frame position and clear any pending resume pc
-            let (function_ptr, block_ptr, start_pc) = {
+            // load the current frame position and clear any pending pc
+            let (function_ptr, block_index, start_pc) = {
                 let frame = self
                     .frames
                     .last_mut()
                     .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                let pc = frame.resume_pc;
-                frame.resume_pc = 0;
-                (frame.function_ptr, frame.block_ptr, pc)
+                let pc = frame.pc;
+                frame.pc = 0;
+                (frame.function_ptr, frame.block, pc)
             };
 
             let current_func: &Function = unsafe { function_ptr.as_ref() };
-            let block: &Block = unsafe { block_ptr.as_ref() };
+
             // run the current lowered block from the chosen instruction offset
             let block_run = {
                 let frame_index = self.frames.len() - 1;
-                let mut state = DispatchState::new(
+                let mut machine = Machine::new(
                     program,
                     options,
                     statics,
@@ -494,11 +402,14 @@ impl Interpreter {
 
                 if options.limits.max_instructions.is_some() {
                     let block_run =
-                        dispatch_block_counted(&mut state, &block.instructions, start_pc);
+                        dispatch_block_counted(&mut machine, current_func, block_index, start_pc);
 
                     (block_run.transfer, block_run.executed)
                 } else {
-                    (dispatch_block(&mut state, &block.instructions, start_pc), 0)
+                    (
+                        dispatch_block(&mut machine, current_func, block_index, start_pc),
+                        0,
+                    )
                 }
             };
 

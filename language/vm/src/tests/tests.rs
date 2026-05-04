@@ -170,7 +170,9 @@ impl TestIsolate {
         function: &str,
         arguments: &[Word],
     ) -> RuntimeResult<Value> {
-        self.isolate.run_function_by_name_words(
+        let function = self.isolate.function_id_by_name(function)?;
+
+        self.isolate.run_function_frame(
             &mut self.statics,
             &mut self.heap,
             &self.shared_heap,

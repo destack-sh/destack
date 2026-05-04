@@ -98,19 +98,6 @@ pub(crate) enum ScalarResult {
     Bytes(Vec<u8>),
 }
 
-impl From<mir::VectorConvertMode> for ScalarConvertMode {
-    fn from(value: mir::VectorConvertMode) -> Self {
-        match value {
-            mir::VectorConvertMode::Exact => ScalarConvertMode::Exact,
-            mir::VectorConvertMode::RoundTiesEven => ScalarConvertMode::RoundTiesEven,
-            mir::VectorConvertMode::RoundTowardZero => ScalarConvertMode::RoundTowardZero,
-            mir::VectorConvertMode::RoundFloor => ScalarConvertMode::RoundFloor,
-            mir::VectorConvertMode::RoundCeil => ScalarConvertMode::RoundCeil,
-            mir::VectorConvertMode::Saturate => ScalarConvertMode::Saturate,
-        }
-    }
-}
-
 /// Evaluate a binary operator over one fixed-width scalar byte value.
 pub(crate) fn binary_bytes(
     ty: ScalarLayout,

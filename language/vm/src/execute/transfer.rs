@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::mem;
-use std::ptr::NonNull;
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::interpreter::{Continuation, Interpreter, Outcome, Stack};
@@ -14,7 +13,7 @@ use {destack_engine as engine, destack_mir as mir};
 use super::frame::move_values_within_frame;
 
 impl Interpreter {
-    /// Capture execution state into a continuation.
+    /// Capture execution machine into a continuation.
     pub(crate) fn capture_continuation(
         &mut self,
         isolate_id: engine::EngineId,
@@ -47,7 +46,6 @@ impl Interpreter {
         moves: MoveRange,
     ) -> RuntimeResult<()> {
         // move block parameters before updating the frame position
-        let target_block = &current_func.blocks[target as usize];
         let frame = self
             .frames
             .last_mut()
@@ -60,7 +58,7 @@ impl Interpreter {
             .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        frame.block_ptr = NonNull::from(target_block);
+        frame.block = target;
 
         Ok(())
     }
@@ -127,9 +125,10 @@ impl Interpreter {
         current_func: &Function,
         transfer: Transfer,
     ) -> RuntimeResult<Option<Outcome>> {
-        // dispatch the transfer to the matching machine opcode
+        // complete the concrete transfer
         match transfer {
             Transfer::Continue => Err(self.runtime_error(program, Error::InvalidInstruction)),
+            Transfer::Enter => Ok(None),
             Transfer::Jump { block, moves } => {
                 self.complete_jump(program, current_func, block, moves)?;
                 Ok(None)

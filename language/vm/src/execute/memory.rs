@@ -4,32 +4,31 @@ use super::access;
 use super::frame::frame_value_bytes_for_access;
 use super::reference::check_reference_address_space;
 use crate::diagnostic::Error;
-use crate::interpreter::DispatchState;
+use crate::interpreter::Machine;
 use crate::program::{
-    FrameAccess, Instruction, Load, LoadFrameBytes, LocalAddr, LocalGet, LocalSet, MoveFrame,
-    PointeeAccess, PointerClass, StaticAddr, StaticLoad, StaticStore, Store, StoreFrameBytes,
+    FrameAccess, FrameAccessId, Instruction, PointeeAccess, PointeeAccessId, PointerClass,
     Transfer, decode_word_bytes, word_layout_from_type,
 };
-use crate::{FramePointer, StaticPointer, Word};
+use crate::{FramePointer, ReferenceMeta, StaticPointer, Word};
 use {destack_engine as engine, destack_mir as mir};
 
 /// Load one scalar static directly from isolate bytes.
 #[inline(always)]
 fn load_static_word(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     dest: mir::Value,
     global: u32,
 ) -> Result<(), Error> {
     let global_id: mir::LocalNodeId<mir::Global> = mir::LocalNodeId::new(global);
-    let global = state.program.tree.get(global_id);
+    let global = machine.program.tree.get(global_id);
     let ty = global.ty.ty().ok_or_else(|| Error::MissingRepresentation {
         context: "static load type".to_string(),
     })?;
-    let bytes = state
+    let bytes = machine
         .static_bytes(global_id)
         .ok_or(Error::UndefinedGlobal { global: global_id })?;
-    let value = decode_word_bytes(state.tree(), ty, bytes)?;
-    state.set_word(dest, value);
+    let value = decode_word_bytes(machine.tree(), ty, bytes)?;
+    machine.set_word(dest, value);
 
     Ok(())
 }
@@ -37,14 +36,14 @@ fn load_static_word(
 /// Execute local variable load.
 #[inline(always)]
 pub(crate) fn execute_load_local(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let LocalGet { dest, local } = instruction.payload_as::<LocalGet>();
+    let dest = mir::Value::new(instruction.a);
+    let local = instruction.b;
 
     // move local bytes into the destination region
-    if let Err(error) = state.move_local_to_value(*local, *dest) {
+    if let Err(error) = machine.move_local_to_value(local, dest) {
         return Transfer::Error(error);
     }
 
@@ -55,14 +54,14 @@ pub(crate) fn execute_load_local(
 /// Execute local variable store.
 #[inline(always)]
 pub(crate) fn execute_store_local(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let LocalSet { local, value } = instruction.payload_as::<LocalSet>();
+    let local = instruction.a;
+    let value = mir::Value::new(instruction.b);
 
     // move the value bytes into the local region
-    if let Err(error) = state.move_value_to_local(*value, *local) {
+    if let Err(error) = machine.move_value_to_local(value, local) {
         return Transfer::Error(error);
     }
 
@@ -73,22 +72,20 @@ pub(crate) fn execute_store_local(
 /// Execute frame byte move.
 #[inline(always)]
 pub(crate) fn execute_move_frame(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let MoveFrame {
-        destination,
-        destination_access,
-        source,
-        source_access,
-    } = instruction.payload_as::<MoveFrame>();
+    let destination = mir::Value::new(instruction.a);
+    let destination_access = FrameAccessId(instruction.b);
+    let source = mir::Value::new(instruction.c);
+    let source_access = FrameAccessId(instruction.d);
 
     let result = move_frame_range(
-        state,
-        *destination,
-        state.frame_access(*destination_access),
-        *source,
-        state.frame_access(*source_access),
+        machine,
+        destination,
+        machine.frame_access(destination_access),
+        source,
+        machine.frame_access(source_access),
     );
     if let Err(error) = result {
         return Transfer::Error(error);
@@ -97,40 +94,298 @@ pub(crate) fn execute_move_frame(
     Transfer::Continue
 }
 
-/// Execute one byte load from memory into a frame value.
+/// Execute one byte load from local heap memory.
 #[inline(always)]
-pub(crate) fn execute_load_frame_bytes(
-    state: &mut DispatchState<'_, '_>,
+pub(crate) fn execute_load_heap_bytes(
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let LoadFrameBytes {
-        destination,
-        address,
-        access,
-    } = instruction.payload_as::<LoadFrameBytes>();
-    let access = state.pointee_access(*access);
+    let (address, access, destination, destination_len) =
+        match load_bytes_operands(machine, instruction) {
+            Ok(operands) => operands,
+            Err(error) => return Transfer::Error(error),
+        };
 
-    if let Err(error) = load_frame_bytes(state, *destination, *address, access) {
+    if let Err(error) =
+        access::load_heap_bytes(machine, address, access, destination, destination_len)
+    {
         return Transfer::Error(error);
     }
 
     Transfer::Continue
 }
 
-/// Execute one byte store from a frame value into memory.
+/// Execute one byte load from shared heap memory.
 #[inline(always)]
-pub(crate) fn execute_store_frame_bytes(
-    state: &mut DispatchState<'_, '_>,
+pub(crate) fn execute_load_shared_heap_bytes(
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let StoreFrameBytes {
-        address,
-        source,
-        access,
-    } = instruction.payload_as::<StoreFrameBytes>();
-    let access = state.pointee_access(*access);
+    let (address, access, destination, destination_len) =
+        match load_bytes_operands(machine, instruction) {
+            Ok(operands) => operands,
+            Err(error) => return Transfer::Error(error),
+        };
 
-    if let Err(error) = store_frame_bytes(state, *address, *source, access) {
+    if let Err(error) =
+        access::load_shared_heap_bytes(machine, address, access, destination, destination_len)
+    {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
+}
+
+/// Execute one byte load from local raw memory.
+#[inline(always)]
+pub(crate) fn execute_load_raw_bytes(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let (address, access, destination, destination_len) =
+        match load_bytes_operands(machine, instruction) {
+            Ok(operands) => operands,
+            Err(error) => return Transfer::Error(error),
+        };
+
+    if let Err(error) =
+        access::load_raw_bytes(machine, address, access, destination, destination_len)
+    {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
+}
+
+/// Execute one byte load from shared raw memory.
+#[inline(always)]
+pub(crate) fn execute_load_shared_raw_bytes(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let (address, access, destination, destination_len) =
+        match load_bytes_operands(machine, instruction) {
+            Ok(operands) => operands,
+            Err(error) => return Transfer::Error(error),
+        };
+
+    if let Err(error) =
+        access::load_shared_raw_bytes(machine, address, access, destination, destination_len)
+    {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
+}
+
+/// Execute one byte load from stack memory.
+#[inline(always)]
+pub(crate) fn execute_load_stack_bytes(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let (address, access, destination, destination_len) =
+        match load_bytes_operands(machine, instruction) {
+            Ok(operands) => operands,
+            Err(error) => return Transfer::Error(error),
+        };
+
+    if let Err(error) = access::load_stack_bytes(
+        machine,
+        address.as_stack_pointer(),
+        access,
+        destination,
+        destination_len,
+    ) {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
+}
+
+/// Execute one byte load from frame memory.
+#[inline(always)]
+pub(crate) fn execute_load_frame_bytes(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let (address, access, destination, destination_len) =
+        match load_bytes_operands(machine, instruction) {
+            Ok(operands) => operands,
+            Err(error) => return Transfer::Error(error),
+        };
+
+    if let Err(error) = access::load_frame_bytes(
+        machine,
+        address.as_frame_pointer(),
+        access,
+        destination,
+        destination_len,
+    ) {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
+}
+
+/// Execute one byte load from static memory.
+#[inline(always)]
+pub(crate) fn execute_load_static_bytes(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let (address, access, destination, destination_len) =
+        match load_bytes_operands(machine, instruction) {
+            Ok(operands) => operands,
+            Err(error) => return Transfer::Error(error),
+        };
+
+    if let Err(error) = access::load_static_bytes(
+        machine,
+        address.as_static_pointer(),
+        access,
+        destination,
+        destination_len,
+    ) {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
+}
+
+/// Execute one byte store into local heap memory.
+#[inline(always)]
+pub(crate) fn execute_store_heap_bytes(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let (address, access, source, source_len) = match store_bytes_operands(machine, instruction) {
+        Ok(operands) => operands,
+        Err(error) => return Transfer::Error(error),
+    };
+    let source = unsafe { slice::from_raw_parts(source, source_len) };
+
+    if let Err(error) = access::store_heap_bytes(machine, address, access, source) {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
+}
+
+/// Execute one byte store into shared heap memory.
+#[inline(always)]
+pub(crate) fn execute_store_shared_heap_bytes(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let (address, access, source, source_len) = match store_bytes_operands(machine, instruction) {
+        Ok(operands) => operands,
+        Err(error) => return Transfer::Error(error),
+    };
+    let source = unsafe { slice::from_raw_parts(source, source_len) };
+
+    if let Err(error) = access::store_shared_heap_bytes(machine, address, access, source) {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
+}
+
+/// Execute one byte store into local raw memory.
+#[inline(always)]
+pub(crate) fn execute_store_raw_bytes(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let (address, access, source, source_len) = match store_bytes_operands(machine, instruction) {
+        Ok(operands) => operands,
+        Err(error) => return Transfer::Error(error),
+    };
+    let source = unsafe { slice::from_raw_parts(source, source_len) };
+
+    if let Err(error) = access::store_raw_bytes(machine, address, access, source) {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
+}
+
+/// Execute one byte store into shared raw memory.
+#[inline(always)]
+pub(crate) fn execute_store_shared_raw_bytes(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let (address, access, source, source_len) = match store_bytes_operands(machine, instruction) {
+        Ok(operands) => operands,
+        Err(error) => return Transfer::Error(error),
+    };
+    let source = unsafe { slice::from_raw_parts(source, source_len) };
+
+    if let Err(error) = access::store_shared_raw_bytes(machine, address, access, source) {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
+}
+
+/// Execute one byte store into stack memory.
+#[inline(always)]
+pub(crate) fn execute_store_stack_bytes(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let (address, access, source, source_len) = match store_bytes_operands(machine, instruction) {
+        Ok(operands) => operands,
+        Err(error) => return Transfer::Error(error),
+    };
+    let source = unsafe { slice::from_raw_parts(source, source_len) };
+
+    if let Err(error) =
+        access::store_stack_bytes(machine, address.as_stack_pointer(), access, source)
+    {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
+}
+
+/// Execute one byte store into frame memory.
+#[inline(always)]
+pub(crate) fn execute_store_frame_bytes(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let (address, access, source, source_len) = match store_bytes_operands(machine, instruction) {
+        Ok(operands) => operands,
+        Err(error) => return Transfer::Error(error),
+    };
+    let source = unsafe { slice::from_raw_parts(source, source_len) };
+
+    if let Err(error) =
+        access::store_frame_bytes(machine, address.as_frame_pointer(), access, source)
+    {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
+}
+
+/// Execute one byte store into static memory.
+#[inline(always)]
+pub(crate) fn execute_store_static_bytes(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let (address, access, source, source_len) = match store_bytes_operands(machine, instruction) {
+        Ok(operands) => operands,
+        Err(error) => return Transfer::Error(error),
+    };
+    let source = unsafe { slice::from_raw_parts(source, source_len) };
+
+    if let Err(error) =
+        access::store_static_bytes(machine, address.as_static_pointer(), access, source)
+    {
         return Transfer::Error(error);
     }
 
@@ -139,14 +394,14 @@ pub(crate) fn execute_store_frame_bytes(
 
 /// Move one frame byte range into another frame byte range.
 fn move_frame_range(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     destination: mir::Value,
     destination_access: FrameAccess,
     source: mir::Value,
     source_access: FrameAccess,
 ) -> Result<(), Error> {
     move_frame_range_at(
-        state,
+        machine,
         destination,
         destination_access.byte_offset,
         source,
@@ -158,7 +413,7 @@ fn move_frame_range(
 
 /// Move one frame byte range at concrete offsets.
 fn move_frame_range_at(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     destination: mir::Value,
     destination_offset: usize,
     source: mir::Value,
@@ -170,7 +425,7 @@ fn move_frame_range_at(
         return Err(Error::InvalidInstruction);
     }
 
-    state.move_value_range(
+    machine.move_value_range(
         destination,
         destination_offset,
         source,
@@ -179,54 +434,54 @@ fn move_frame_range_at(
     )
 }
 
-/// Load bytes through one computed address into a frame value.
-fn load_frame_bytes(
-    state: &mut DispatchState<'_, '_>,
-    destination: mir::Value,
-    address: mir::Value,
-    access: PointeeAccess,
-) -> Result<(), Error> {
-    // expose the destination region as raw bytes
-    let address = state.get(address);
-    let destination = state.value_bytes_mut(destination)?;
+/// Load byte operands from one instruction.
+fn load_bytes_operands(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(Word, PointeeAccess, *mut u8, usize), Error> {
+    let destination = mir::Value::new(instruction.a);
+    let address = mir::Value::new(instruction.b);
+    let access = PointeeAccessId(instruction.c);
+    let access = machine.pointee_access(access);
+
+    let address = machine.get(address);
+    let destination = machine.value_bytes_mut(destination)?;
     let destination_len = destination.len();
     let destination = destination.as_mut_ptr();
 
-    access::load_pointer_bytes(state, address, access, destination, destination_len)
+    Ok((address, access, destination, destination_len))
 }
 
-/// Store bytes from a frame value through one computed address.
-fn store_frame_bytes(
-    state: &mut DispatchState<'_, '_>,
-    address: mir::Value,
-    source: mir::Value,
-    access: PointeeAccess,
-) -> Result<(), Error> {
-    // borrow the bytes before loading the address
-    let address = state.get(address);
-    let (source, source_len) = frame_value_bytes_for_access(state, source, access.byte_len)?;
-    let source = unsafe { slice::from_raw_parts(source, source_len) };
+/// Load byte store operands from one instruction.
+fn store_bytes_operands(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(Word, PointeeAccess, *const u8, usize), Error> {
+    let address = mir::Value::new(instruction.a);
+    let source = mir::Value::new(instruction.b);
+    let access = PointeeAccessId(instruction.c);
+    let access = machine.pointee_access(access);
 
-    access::store_pointer_bytes(state, address, access, source)
+    let address = machine.get(address);
+    let (source, source_len) = frame_value_bytes_for_access(machine, source, access.byte_len)?;
+
+    Ok((address, access, source, source_len))
 }
 
 /// Execute local address.
 #[inline(always)]
 pub(crate) fn execute_address_local(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let LocalAddr {
-        dest,
-        local,
-        reference,
-    } = instruction.payload_as::<LocalAddr>();
+    let dest = mir::Value::new(instruction.a);
+    let local = instruction.b;
+    let reference = ReferenceMeta::from_bits(instruction.c as u8);
 
     // take the address of the local value
-    let local = mir::LocalNodeId::new(*local);
-    let frame_layout = state.frame_layout() as *const engine::FrameLayout;
-    let address = match state
+    let local = mir::LocalNodeId::new(local);
+    let frame_layout = machine.frame_layout() as *const engine::FrameLayout;
+    let address = match machine
         .current_frame_mut()
         .local_address(unsafe { &*frame_layout }, local)
     {
@@ -237,12 +492,12 @@ pub(crate) fn execute_address_local(
     let value = Word::frame_pointer(pointer);
 
     // validate reference address space
-    if let Err(error) = check_reference_address_space(state, *reference) {
+    if let Err(error) = check_reference_address_space(machine, reference) {
         return Transfer::Error(error);
     }
 
     // store result
-    state.set_word(*dest, value);
+    machine.set_word(dest, value);
 
     // continue to next instruction
     Transfer::Continue
@@ -250,30 +505,26 @@ pub(crate) fn execute_address_local(
 
 /// Execute static address.
 pub(crate) fn execute_address_static(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let StaticAddr {
-        dest,
-        global,
-        reference,
-    } = instruction.payload_as::<StaticAddr>();
+    let dest = mir::Value::new(instruction.a);
+    let reference = ReferenceMeta::from_bits(instruction.c as u8);
 
-    let global: mir::LocalNodeId<mir::Global> = mir::LocalNodeId::new(*global);
-    let pointer = match state.static_pointer(global) {
+    let global: mir::LocalNodeId<mir::Global> = mir::LocalNodeId::new(instruction.b);
+    let pointer = match machine.static_pointer(global) {
         Some(pointer) => pointer,
         None => return Transfer::Error(Error::UndefinedGlobal { global }),
     };
     let pointer = Word::static_pointer(pointer);
 
     // validate reference address space
-    if let Err(error) = check_reference_address_space(state, *reference) {
+    if let Err(error) = check_reference_address_space(machine, reference) {
         return Transfer::Error(error);
     }
 
     // store result
-    state.set_word(*dest, pointer);
+    machine.set_word(dest, pointer);
 
     // continue to next instruction
     Transfer::Continue
@@ -282,14 +533,14 @@ pub(crate) fn execute_address_static(
 /// Execute fused static address and load.
 #[inline(always)]
 pub(crate) fn execute_load_static_id(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let StaticLoad { dest, global } = instruction.payload_as::<StaticLoad>();
+    let dest = mir::Value::new(instruction.a);
+    let global = instruction.b;
 
     // load static word directly
-    match load_static_word(state, *dest, *global) {
+    match load_static_word(machine, dest, global) {
         Ok(()) => {}
         Err(error) => return Transfer::Error(error),
     }
@@ -301,19 +552,16 @@ pub(crate) fn execute_load_static_id(
 /// Execute fused static address and word store.
 #[inline(always)]
 pub(crate) fn execute_store_static_id(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let StaticStore {
-        global,
-        value,
-        reference,
-    } = instruction.payload_as::<StaticStore>();
+    let global = instruction.a;
+    let value = mir::Value::new(instruction.b);
+    let reference = ReferenceMeta::from_bits(instruction.c as u8);
 
     // check mutability via reference metadata
-    let global_id: mir::LocalNodeId<mir::Global> = mir::LocalNodeId::new(*global);
-    let global_def = state.program.tree.get(global_id);
+    let global_id: mir::LocalNodeId<mir::Global> = mir::LocalNodeId::new(global);
+    let global_def = machine.program.tree.get(global_id);
     if !global_def.is_mutable() || reference.mutability() != Some(mir::Mutability::Mutable) {
         return Transfer::Error(Error::ImmutableGlobalWrite { global: global_id });
     }
@@ -329,7 +577,7 @@ pub(crate) fn execute_store_static_id(
         Ok(ty) => ty,
         Err(error) => return Transfer::Error(error),
     };
-    let layout = match state.layout(ty) {
+    let layout = match machine.layout(ty) {
         Ok(layout) => layout,
         Err(error) => return Transfer::Error(error),
     };
@@ -338,16 +586,16 @@ pub(crate) fn execute_store_static_id(
         value_type: ty,
         byte_offset: 0,
         byte_len: layout.byte_len,
-        word_layout: word_layout_from_type(state.tree(), ty),
+        word_layout: word_layout_from_type(machine.tree(), ty),
     };
 
     // store scalar static without allocating a byte vector
-    let value = state.get(*value);
-    let static_id = state.program.static_id(global_id);
-    let Some(pointer) = state.statics.pointer(static_id) else {
+    let value = machine.get(value);
+    let static_id = machine.program.static_id(global_id);
+    let Some(pointer) = machine.statics.pointer(static_id) else {
         return Transfer::Error(Error::UndefinedGlobal { global: global_id });
     };
-    if let Err(error) = access::store_static_word(state, pointer, access, value) {
+    if let Err(error) = access::store_static_word(machine, pointer, access, value) {
         return Transfer::Error(error);
     }
 
@@ -358,13 +606,13 @@ pub(crate) fn execute_store_static_id(
 /// Return the immutable static region for one static address.
 #[inline(always)]
 fn immutable_static_region_for_pointer(
-    state: &DispatchState<'_, '_>,
+    machine: &Machine<'_, '_>,
     pointer: StaticPointer,
 ) -> Option<mir::LocalNodeId<mir::Global>> {
-    let region = state
+    let region = machine
         .statics
         .region_for_pointer(pointer)
-        .or_else(|| state.program.statics.region_for_pointer(pointer))?;
+        .or_else(|| machine.program.statics.region_for_pointer(pointer))?;
     if region.is_mutable {
         return None;
     }
@@ -372,28 +620,45 @@ fn immutable_static_region_for_pointer(
     Some(mir::LocalNodeId::new(region.id.0))
 }
 
+/// Load direct word access operands.
+#[inline(always)]
+fn load_operands(
+    machine: &Machine<'_, '_>,
+    instruction: &Instruction,
+) -> (mir::Value, Word, PointeeAccess) {
+    let dest = mir::Value::new(instruction.a);
+    let pointer = machine.get(mir::Value::new(instruction.b));
+    let access = machine.pointee_access(PointeeAccessId(instruction.c));
+
+    (dest, pointer, access)
+}
+
+/// Load direct word store operands.
+#[inline(always)]
+fn store_operands(
+    machine: &Machine<'_, '_>,
+    instruction: &Instruction,
+) -> (Word, Word, PointeeAccess) {
+    let pointer = machine.get(mir::Value::new(instruction.a));
+    let value = machine.get(mir::Value::new(instruction.b));
+    let access = machine.pointee_access(PointeeAccessId(instruction.c));
+
+    (pointer, value, access)
+}
+
 /// Execute local heap word load.
 #[inline(always)]
 pub(crate) fn execute_load_heap(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let Load {
-        dest,
-        pointer,
-        access,
-    } = instruction.payload_as::<Load>();
+    let (dest, pointer, access) = load_operands(machine, instruction);
 
-    // load pointer word
-    let pointer = state.get(*pointer);
-    let access = state.pointee_access(*access);
-
-    let value = match access::load_heap_word(state, pointer, access) {
+    let value = match access::load_heap_word(machine, pointer, access) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
-    state.set_word(*dest, value);
+    machine.set_word(dest, value);
 
     Transfer::Continue
 }
@@ -401,25 +666,16 @@ pub(crate) fn execute_load_heap(
 /// Execute shared heap word load.
 #[inline(always)]
 pub(crate) fn execute_load_shared_heap(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let Load {
-        dest,
-        pointer,
-        access,
-    } = instruction.payload_as::<Load>();
+    let (dest, pointer, access) = load_operands(machine, instruction);
 
-    // load pointer word
-    let pointer = state.get(*pointer);
-    let access = state.pointee_access(*access);
-
-    let value = match access::load_shared_heap_word(state, pointer, access) {
+    let value = match access::load_shared_heap_word(machine, pointer, access) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
-    state.set_word(*dest, value);
+    machine.set_word(dest, value);
 
     Transfer::Continue
 }
@@ -427,25 +683,16 @@ pub(crate) fn execute_load_shared_heap(
 /// Execute local raw word load.
 #[inline(always)]
 pub(crate) fn execute_load_raw(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let Load {
-        dest,
-        pointer,
-        access,
-    } = instruction.payload_as::<Load>();
+    let (dest, pointer, access) = load_operands(machine, instruction);
 
-    // load pointer word
-    let pointer = state.get(*pointer);
-    let access = state.pointee_access(*access);
-
-    let value = match access::load_raw_word(state, pointer, access) {
+    let value = match access::load_raw_word(machine, pointer, access) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
-    state.set_word(*dest, value);
+    machine.set_word(dest, value);
 
     Transfer::Continue
 }
@@ -453,25 +700,16 @@ pub(crate) fn execute_load_raw(
 /// Execute shared raw word load.
 #[inline(always)]
 pub(crate) fn execute_load_shared_raw(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let Load {
-        dest,
-        pointer,
-        access,
-    } = instruction.payload_as::<Load>();
+    let (dest, pointer, access) = load_operands(machine, instruction);
 
-    // load pointer word
-    let pointer = state.get(*pointer);
-    let access = state.pointee_access(*access);
-
-    let value = match access::load_shared_raw_word(state, pointer, access) {
+    let value = match access::load_shared_raw_word(machine, pointer, access) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
-    state.set_word(*dest, value);
+    machine.set_word(dest, value);
 
     Transfer::Continue
 }
@@ -479,25 +717,16 @@ pub(crate) fn execute_load_shared_raw(
 /// Execute stack word load.
 #[inline(always)]
 pub(crate) fn execute_load_stack(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let Load {
-        dest,
-        pointer,
-        access,
-    } = instruction.payload_as::<Load>();
+    let (dest, pointer, access) = load_operands(machine, instruction);
 
-    // load pointer word
-    let pointer = state.get(*pointer);
-    let access = state.pointee_access(*access);
-
-    let value = match access::load_stack_word(state, pointer.as_stack_pointer(), access) {
+    let value = match access::load_stack_word(machine, pointer.as_stack_pointer(), access) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
-    state.set_word(*dest, value);
+    machine.set_word(dest, value);
 
     Transfer::Continue
 }
@@ -505,25 +734,16 @@ pub(crate) fn execute_load_stack(
 /// Execute static word load.
 #[inline(always)]
 pub(crate) fn execute_load_static(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let Load {
-        dest,
-        pointer,
-        access,
-    } = instruction.payload_as::<Load>();
+    let (dest, pointer, access) = load_operands(machine, instruction);
 
-    // load pointer word
-    let pointer = state.get(*pointer);
-    let access = state.pointee_access(*access);
-
-    let value = match access::load_static_word(state, pointer.as_static_pointer(), access) {
+    let value = match access::load_static_word(machine, pointer.as_static_pointer(), access) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
-    state.set_word(*dest, value);
+    machine.set_word(dest, value);
 
     Transfer::Continue
 }
@@ -531,22 +751,11 @@ pub(crate) fn execute_load_static(
 /// Execute local heap word store.
 #[inline(always)]
 pub(crate) fn execute_store_heap(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let Store {
-        pointer,
-        value,
-        access,
-    } = instruction.payload_as::<Store>();
-
-    // load pointer word
-    let pointer = state.get(*pointer);
-    let access = state.pointee_access(*access);
-
-    let value = state.get(*value);
-    if let Err(error) = access::store_heap_word(state, pointer, access, value) {
+    let (pointer, value, access) = store_operands(machine, instruction);
+    if let Err(error) = access::store_heap_word(machine, pointer, access, value) {
         return Transfer::Error(error);
     }
 
@@ -557,22 +766,11 @@ pub(crate) fn execute_store_heap(
 /// Execute shared heap word store.
 #[inline(always)]
 pub(crate) fn execute_store_shared_heap(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let Store {
-        pointer,
-        value,
-        access,
-    } = instruction.payload_as::<Store>();
-
-    // load pointer word
-    let pointer = state.get(*pointer);
-    let access = state.pointee_access(*access);
-
-    let value = state.get(*value);
-    if let Err(error) = access::store_shared_heap_word(state, pointer, access, value) {
+    let (pointer, value, access) = store_operands(machine, instruction);
+    if let Err(error) = access::store_shared_heap_word(machine, pointer, access, value) {
         return Transfer::Error(error);
     }
 
@@ -583,22 +781,11 @@ pub(crate) fn execute_store_shared_heap(
 /// Execute local raw word store.
 #[inline(always)]
 pub(crate) fn execute_store_raw(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let Store {
-        pointer,
-        value,
-        access,
-    } = instruction.payload_as::<Store>();
-
-    // load pointer word
-    let pointer = state.get(*pointer);
-    let access = state.pointee_access(*access);
-
-    let value = state.get(*value);
-    if let Err(error) = access::store_raw_word(state, pointer, access, value) {
+    let (pointer, value, access) = store_operands(machine, instruction);
+    if let Err(error) = access::store_raw_word(machine, pointer, access, value) {
         return Transfer::Error(error);
     }
 
@@ -609,22 +796,11 @@ pub(crate) fn execute_store_raw(
 /// Execute shared raw word store.
 #[inline(always)]
 pub(crate) fn execute_store_shared_raw(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let Store {
-        pointer,
-        value,
-        access,
-    } = instruction.payload_as::<Store>();
-
-    // load pointer word
-    let pointer = state.get(*pointer);
-    let access = state.pointee_access(*access);
-
-    let value = state.get(*value);
-    if let Err(error) = access::store_shared_raw_word(state, pointer, access, value) {
+    let (pointer, value, access) = store_operands(machine, instruction);
+    if let Err(error) = access::store_shared_raw_word(machine, pointer, access, value) {
         return Transfer::Error(error);
     }
 
@@ -635,23 +811,12 @@ pub(crate) fn execute_store_shared_raw(
 /// Execute stack word store.
 #[inline(always)]
 pub(crate) fn execute_store_stack(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let Store {
-        pointer,
-        value,
-        access,
-    } = instruction.payload_as::<Store>();
-
-    // load pointer word
-    let pointer = state.get(*pointer);
-    let access = state.pointee_access(*access);
-
+    let (pointer, value, access) = store_operands(machine, instruction);
     let pointer = pointer.as_stack_pointer();
-    let value = state.get(*value);
-    if let Err(error) = access::store_stack_word(state, pointer, access, value) {
+    if let Err(error) = access::store_stack_word(machine, pointer, access, value) {
         return Transfer::Error(error);
     }
 
@@ -662,27 +827,17 @@ pub(crate) fn execute_store_stack(
 /// Execute static word store.
 #[inline(always)]
 pub(crate) fn execute_store_static(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
-    let Store {
-        pointer,
-        value,
-        access,
-    } = instruction.payload_as::<Store>();
-
-    // load pointer word
-    let pointer = state.get(*pointer);
+    let (pointer, value, access) = store_operands(machine, instruction);
     let pointer = pointer.as_static_pointer();
-    let access = state.pointee_access(*access);
 
-    if let Some(global) = immutable_static_region_for_pointer(state, pointer) {
+    if let Some(global) = immutable_static_region_for_pointer(machine, pointer) {
         return Transfer::Error(Error::ImmutableGlobalWrite { global });
     }
 
-    let value = state.get(*value);
-    if let Err(error) = access::store_static_word(state, pointer, access, value) {
+    if let Err(error) = access::store_static_word(machine, pointer, access, value) {
         return Transfer::Error(error);
     }
 

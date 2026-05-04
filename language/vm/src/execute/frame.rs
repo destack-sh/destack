@@ -4,14 +4,13 @@ use smallvec::SmallVec;
 use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::Error;
-use crate::interpreter::{DispatchState, Frame};
+use crate::interpreter::{Frame, Machine};
 use crate::program::{
-    AddressFrame, AddressFrameElement, ArgumentRange, FrameAccess, Instruction, LoadFrame,
-    LoadFrameElement, MovePair, MoveRange, MoveSource, PointeeAccess, PointerClass, Program,
-    StoreFrame, StoreFrameElement, Transfer, ValueLayout, encode_word_bytes,
+    ArgumentRange, FrameAccess, FrameAccessId, Instruction, MovePair, MoveRange, MoveSource,
+    PointeeAccess, PointerClass, Program, Transfer, ValueLayout, encode_word_bytes,
     pointer_class_from_reference, repr_type, value_layout_from_type,
 };
-use crate::{FramePointer, SharedHeap, Word};
+use crate::{FramePointer, ReferenceMeta, SharedHeap, Word};
 use destack_heap::{Heap, SharedAllocator, SharedGcWorker};
 
 use super::access;
@@ -20,12 +19,12 @@ use super::reference::{check_reference_address_space, check_reference_mutability
 /// Return the byte offset for one frame element access.
 #[inline(always)]
 pub(super) fn frame_element_offset(
-    state: &DispatchState<'_, '_>,
+    machine: &Machine<'_, '_>,
     access: FrameAccess,
     index: mir::Value,
 ) -> Result<usize, Error> {
-    let index = state.get_word(index).as_u64();
-    if state.bounds_checks && index >= access.length {
+    let index = machine.get_word(index).as_u64();
+    if machine.bounds_checks && index >= access.length {
         return Err(Error::InvalidArrayAccess {
             index,
             length: access.length,
@@ -38,29 +37,27 @@ pub(super) fn frame_element_offset(
 /// Execute fixed frame address calculation.
 #[inline(always)]
 pub(crate) fn execute_address_frame(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let AddressFrame {
-        dest,
-        base,
-        reference,
-        access,
-    } = instruction.payload_as::<AddressFrame>();
+    let dest = mir::Value::new(instruction.a);
+    let base = mir::Value::new(instruction.b);
+    let reference = ReferenceMeta::from_bits(instruction.c as u8);
+    let access = FrameAccessId(instruction.d);
 
-    let base = match state.value_operand(*base) {
+    let base = match machine.value_operand(base) {
         Ok(base) => base,
         Err(error) => return Transfer::Error(error),
     };
-    let access = state.frame_access(*access);
+    let access = machine.frame_access(access);
     let pointer = base.as_frame_pointer().add_bytes(access.byte_offset);
     let value = Word::frame_pointer(pointer);
 
-    if let Err(error) = check_reference_address_space(state, *reference) {
+    if let Err(error) = check_reference_address_space(machine, reference) {
         return Transfer::Error(error);
     }
 
-    state.set_word(*dest, value);
+    machine.set_word(dest, value);
 
     Transfer::Continue
 }
@@ -68,62 +65,61 @@ pub(crate) fn execute_address_frame(
 /// Execute frame element address calculation.
 #[inline(always)]
 pub(crate) fn execute_address_frame_element(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let AddressFrameElement {
-        dest,
-        base,
-        index,
-        reference,
-        access,
-    } = instruction.payload_as::<AddressFrameElement>();
+    let dest = mir::Value::new(instruction.a);
+    let base = mir::Value::new(instruction.b);
+    let index = mir::Value::new(instruction.c);
+    let access = FrameAccessId(instruction.d);
 
-    let base = match state.value_operand(*base) {
+    let base = match machine.value_operand(base) {
         Ok(base) => base,
         Err(error) => return Transfer::Error(error),
     };
-    let access = state.frame_access(*access);
-    let offset = match frame_element_offset(state, access, *index) {
+    let access = machine.frame_access(access);
+    let offset = match frame_element_offset(machine, access, index) {
         Ok(offset) => offset,
         Err(error) => return Transfer::Error(error),
     };
     let pointer = base.as_frame_pointer().add_bytes(offset);
     let value = Word::frame_pointer(pointer);
 
-    if let Err(error) = check_reference_address_space(state, *reference) {
+    if let Err(error) = check_reference_address_space(machine, access.reference) {
         return Transfer::Error(error);
     }
 
-    state.set_word(*dest, value);
+    machine.set_word(dest, value);
 
     Transfer::Continue
 }
 
 /// Execute fixed frame word load.
 #[inline(always)]
-pub(crate) fn execute_frame_load(
-    state: &mut DispatchState<'_, '_>,
+pub(crate) fn execute_load_frame(
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let LoadFrame { dest, base, access } = instruction.payload_as::<LoadFrame>();
+    let dest = mir::Value::new(instruction.a);
+    let base = mir::Value::new(instruction.b);
+    let access = FrameAccessId(instruction.c);
 
-    let base = match state.value_operand(*base) {
+    let base = match machine.value_operand(base) {
         Ok(base) => base,
         Err(error) => return Transfer::Error(error),
     };
-    let access = state.frame_access(*access);
+    let access = machine.frame_access(access);
     let access = PointeeAccess {
         byte_offset: access.byte_offset,
         ..access.into()
     };
 
-    let value = match access::load_frame_word(state, base.as_frame_pointer(), access) {
+    let value = match access::load_frame_word(machine, base.as_frame_pointer(), access) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
 
-    state.set_word(*dest, value);
+    machine.set_word(dest, value);
 
     Transfer::Continue
 }
@@ -131,22 +127,20 @@ pub(crate) fn execute_frame_load(
 /// Execute frame element word load.
 #[inline(always)]
 pub(crate) fn execute_load_frame_element(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let LoadFrameElement {
-        dest,
-        base,
-        index,
-        access,
-    } = instruction.payload_as::<LoadFrameElement>();
+    let dest = mir::Value::new(instruction.a);
+    let base = mir::Value::new(instruction.b);
+    let index = mir::Value::new(instruction.c);
+    let access = FrameAccessId(instruction.d);
 
-    let base = match state.value_operand(*base) {
+    let base = match machine.value_operand(base) {
         Ok(base) => base,
         Err(error) => return Transfer::Error(error),
     };
-    let access = state.frame_access(*access);
-    let offset = match frame_element_offset(state, access, *index) {
+    let access = machine.frame_access(access);
+    let offset = match frame_element_offset(machine, access, index) {
         Ok(offset) => offset,
         Err(error) => return Transfer::Error(error),
     };
@@ -155,48 +149,46 @@ pub(crate) fn execute_load_frame_element(
         ..access.into()
     };
 
-    let value = match access::load_frame_word(state, base.as_frame_pointer(), access) {
+    let value = match access::load_frame_word(machine, base.as_frame_pointer(), access) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
 
-    state.set_word(*dest, value);
+    machine.set_word(dest, value);
 
     Transfer::Continue
 }
 
 /// Execute fixed frame word store.
 #[inline(always)]
-pub(crate) fn execute_frame_store(
-    state: &mut DispatchState<'_, '_>,
+pub(crate) fn execute_store_frame(
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let StoreFrame {
-        base,
-        value,
-        reference,
-        access,
-    } = instruction.payload_as::<StoreFrame>();
+    let base = mir::Value::new(instruction.a);
+    let value = mir::Value::new(instruction.b);
+    let access = FrameAccessId(instruction.c);
+    let reference = ReferenceMeta::from_bits(instruction.d as u8);
 
-    let base = match state.value_operand(*base) {
+    let base = match machine.value_operand(base) {
         Ok(base) => base,
         Err(error) => return Transfer::Error(error),
     };
-    if let Err(error) = check_reference_address_space(state, *reference) {
+    if let Err(error) = check_reference_address_space(machine, reference) {
         return Transfer::Error(error);
     }
-    if let Err(error) = check_reference_mutability(state, *reference) {
+    if let Err(error) = check_reference_mutability(machine, reference) {
         return Transfer::Error(error);
     }
 
-    let access = state.frame_access(*access);
+    let access = machine.frame_access(access);
     let access = PointeeAccess {
         byte_offset: access.byte_offset,
         ..access.into()
     };
-    let value = state.get_word(*value);
+    let value = machine.get_word(value);
 
-    if let Err(error) = access::store_frame_word(state, base.as_frame_pointer(), access, value) {
+    if let Err(error) = access::store_frame_word(machine, base.as_frame_pointer(), access, value) {
         return Transfer::Error(error);
     }
 
@@ -206,30 +198,27 @@ pub(crate) fn execute_frame_store(
 /// Execute frame element word store.
 #[inline(always)]
 pub(crate) fn execute_store_frame_element(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let StoreFrameElement {
-        base,
-        index,
-        value,
-        reference,
-        access,
-    } = instruction.payload_as::<StoreFrameElement>();
+    let base = mir::Value::new(instruction.a);
+    let index = mir::Value::new(instruction.b);
+    let value = mir::Value::new(instruction.c);
+    let access = FrameAccessId(instruction.d);
 
-    let base = match state.value_operand(*base) {
+    let base = match machine.value_operand(base) {
         Ok(base) => base,
         Err(error) => return Transfer::Error(error),
     };
-    if let Err(error) = check_reference_address_space(state, *reference) {
+    let access = machine.frame_access(access);
+    if let Err(error) = check_reference_address_space(machine, access.reference) {
         return Transfer::Error(error);
     }
-    if let Err(error) = check_reference_mutability(state, *reference) {
+    if let Err(error) = check_reference_mutability(machine, access.reference) {
         return Transfer::Error(error);
     }
 
-    let access = state.frame_access(*access);
-    let offset = match frame_element_offset(state, access, *index) {
+    let offset = match frame_element_offset(machine, access, index) {
         Ok(offset) => offset,
         Err(error) => return Transfer::Error(error),
     };
@@ -237,9 +226,9 @@ pub(crate) fn execute_store_frame_element(
         byte_offset: offset,
         ..access.into()
     };
-    let value = state.get_word(*value);
+    let value = machine.get_word(value);
 
-    if let Err(error) = access::store_frame_word(state, base.as_frame_pointer(), access, value) {
+    if let Err(error) = access::store_frame_word(machine, base.as_frame_pointer(), access, value) {
         return Transfer::Error(error);
     }
 
@@ -298,19 +287,19 @@ impl FrameValue {
 
 /// Encode one function entry argument into frame bytes.
 pub(crate) fn encode_argument_bytes(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     ty: mir::LocalNodeId<mir::Type>,
     value: Word,
 ) -> Result<Vec<u8>, Error> {
-    let layout = state.layout(ty)?.clone();
+    let layout = machine.layout(ty)?.clone();
     if layout.is_word() {
-        return Ok(encode_word_bytes(state.tree(), ty, value)?
+        return Ok(encode_word_bytes(machine.tree(), ty, value)?
             .as_slice()
             .to_vec());
     }
 
     let mut bytes = vec![0u8; layout.byte_len];
-    store_argument_bytes(state, ty, value, &mut bytes)?;
+    store_argument_bytes(machine, ty, value, &mut bytes)?;
 
     Ok(bytes)
 }
@@ -318,11 +307,11 @@ pub(crate) fn encode_argument_bytes(
 /// Return one frame byte range for one lowered memory access.
 #[inline(always)]
 pub(crate) fn frame_value_bytes_for_access(
-    state: &DispatchState<'_, '_>,
+    machine: &Machine<'_, '_>,
     value: mir::Value,
     byte_len: usize,
 ) -> Result<(*const u8, usize), Error> {
-    let (bytes, actual_byte_len) = state.frame_value_byte_range(value)?;
+    let (bytes, actual_byte_len) = machine.frame_value_byte_range(value)?;
     if actual_byte_len != byte_len {
         return Err(Error::InvalidInstruction);
     }
@@ -332,22 +321,22 @@ pub(crate) fn frame_value_bytes_for_access(
 
 /// Store one field-shaped value into destination frame bytes.
 pub(crate) fn store_frame_fields<F>(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     destination: mir::Value,
     mut field_value: F,
 ) -> Result<(), Error>
 where
-    F: FnMut(&mut DispatchState<'_, '_>, u32, mir::LocalNodeId<mir::Type>) -> Result<Word, Error>,
+    F: FnMut(&mut Machine<'_, '_>, u32, mir::LocalNodeId<mir::Type>) -> Result<Word, Error>,
 {
-    let ty = state.value_type(destination)?;
-    let layout = state.layout(ty)?.clone();
+    let ty = machine.value_type(destination)?;
+    let layout = machine.layout(ty)?.clone();
     let field_count = layout.field_count().ok_or(Error::TypeMismatch {
         expected: "field-shaped frame value".to_string(),
         actual: format!("{ty:?}"),
     })?;
 
     // validate the destination once before incremental writes
-    if state.value_bytes(destination)?.len() != layout.byte_len {
+    if machine.value_bytes(destination)?.len() != layout.byte_len {
         return Err(Error::InvalidInstruction);
     }
 
@@ -357,14 +346,14 @@ where
         let field = layout
             .field(index)
             .ok_or(Error::InvalidFieldAccess { index, field_count })?;
-        let value = field_value(state, index, field.ty)?;
+        let value = field_value(machine, index, field.ty)?;
         let value_end = field.offset + field.byte_len;
-        let value_bytes = encode_word_bytes(state.tree(), field.ty, value)?;
+        let value_bytes = encode_word_bytes(machine.tree(), field.ty, value)?;
         if value_bytes.len() != field.byte_len {
             return Err(Error::InvalidInstruction);
         }
 
-        let destination_bytes = state.value_bytes_mut(destination)?;
+        let destination_bytes = machine.value_bytes_mut(destination)?;
         let value_window = destination_bytes.get_mut(field.offset..value_end).ok_or(
             Error::InvalidFieldAccess {
                 index,
@@ -380,15 +369,15 @@ where
 
 /// Store one indexed value into destination frame bytes.
 pub(crate) fn store_frame_elements<F>(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     destination: mir::Value,
     mut element_value: F,
 ) -> Result<(), Error>
 where
-    F: FnMut(&mut DispatchState<'_, '_>, usize, mir::LocalNodeId<mir::Type>) -> Result<Word, Error>,
+    F: FnMut(&mut Machine<'_, '_>, usize, mir::LocalNodeId<mir::Type>) -> Result<Word, Error>,
 {
-    let ty = state.value_type(destination)?;
-    let layout = state.layout(ty)?.clone();
+    let ty = machine.value_type(destination)?;
+    let layout = machine.layout(ty)?.clone();
     let element = layout.element().ok_or(Error::TypeMismatch {
         expected: "indexed frame value".to_string(),
         actual: format!("{ty:?}"),
@@ -396,7 +385,7 @@ where
     let element_count = layout.element_count().ok_or(Error::InvalidInstruction)?;
 
     // validate the destination once before incremental writes
-    if state.value_bytes(destination)?.len() != layout.byte_len {
+    if machine.value_bytes(destination)?.len() != layout.byte_len {
         return Err(Error::InvalidInstruction);
     }
 
@@ -404,13 +393,13 @@ where
     for index in 0..element_count {
         let offset = element.stride * index;
         let value_end = offset + element.byte_len;
-        let value = element_value(state, index, element.ty)?;
-        let value_bytes = encode_word_bytes(state.tree(), element.ty, value)?;
+        let value = element_value(machine, index, element.ty)?;
+        let value_bytes = encode_word_bytes(machine.tree(), element.ty, value)?;
         if value_bytes.len() != element.byte_len {
             return Err(Error::InvalidInstruction);
         }
 
-        let destination_bytes = state.value_bytes_mut(destination)?;
+        let destination_bytes = machine.value_bytes_mut(destination)?;
         let value_window =
             destination_bytes
                 .get_mut(offset..value_end)
@@ -427,13 +416,13 @@ where
 
 /// Store one function entry argument into one byte range.
 fn store_argument_bytes(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     ty: mir::LocalNodeId<mir::Type>,
     value: Word,
     destination: &mut [u8],
 ) -> Result<(), Error> {
-    if state.layout(ty)?.is_word() {
-        let bytes = encode_word_bytes(state.tree(), ty, value)?;
+    if machine.layout(ty)?.is_word() {
+        let bytes = encode_word_bytes(machine.tree(), ty, value)?;
         if bytes.len() != destination.len() {
             return Err(Error::InvalidHeapReference);
         }
@@ -443,8 +432,8 @@ fn store_argument_bytes(
     }
 
     let reference = value.as_heap_reference();
-    if state.heap().is_heap_live(reference) {
-        let address = state.heap().heap_base_address() + reference.offset();
+    if machine.heap().is_heap_live(reference) {
+        let address = machine.heap().heap_base_address() + reference.offset();
 
         // copy from the managed payload address
         unsafe {
@@ -459,12 +448,12 @@ fn store_argument_bytes(
     }
 
     let reference = value.as_shared_heap_reference();
-    if !state.shared().is_heap_live(reference) {
-        state.flush_shared_allocator();
+    if !machine.shared().is_heap_live(reference) {
+        machine.flush_shared_allocator();
     }
 
-    if state.shared().is_heap_live(reference) {
-        let address = state.shared().heap_base_address() + reference.offset();
+    if machine.shared().is_heap_live(reference) {
+        let address = machine.shared().heap_base_address() + reference.offset();
 
         // copy from the shared payload address
         unsafe {
@@ -493,11 +482,11 @@ pub(crate) fn frame_value_type(
     let frame_layout = program
         .frame_layout_by_id(frame.frame_layout)
         .ok_or(Error::InvalidInstruction)?;
-    let region = frame_layout
+    let slot = frame_layout
         .value(value.0)
         .ok_or(Error::InvalidInstruction)?;
 
-    Ok(program.type_for_id(region.ty))
+    Ok(program.type_for_layout(slot.layout))
 }
 
 /// Return the addressable word for one frame value.
@@ -505,21 +494,22 @@ fn frame_value_word(program: &Program, frame: &Frame, value: mir::Value) -> Resu
     let frame_layout = program
         .frame_layout_by_id(frame.frame_layout)
         .ok_or(Error::InvalidInstruction)?;
-    let region = frame_layout
+    let slot = frame_layout
         .value(value.0)
         .ok_or(Error::InvalidInstruction)?;
-    let layout = program
-        .layout_for_id(region.ty)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing frame value layout: type={:?}", region.ty),
-        })?;
+    let layout =
+        program
+            .layout_for_layout(slot.layout)
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!("missing frame value layout: layout={:?}", slot.layout),
+            })?;
 
     if layout.is_word() {
-        return Ok(frame.read_word(region));
+        return Ok(frame.read_word(slot));
     }
 
     Ok(Word::frame_pointer(FramePointer::from_address(
-        frame.region_address(region),
+        frame.slot_address(slot),
     )))
 }
 
@@ -596,7 +586,7 @@ fn load_frame_value(
     frame_value_from_word(program, frames, ty, value)
 }
 
-/// Store one owned frame value into a destination frame region.
+/// Store one owned frame value into a destination frame slot.
 pub(crate) fn store_frame_value(
     program: &Program,
     dest_frame: &mut Frame,
@@ -606,19 +596,20 @@ pub(crate) fn store_frame_value(
     let frame_layout = program
         .frame_layout_by_id(dest_frame.frame_layout)
         .ok_or(Error::InvalidInstruction)?;
-    let region = frame_layout
+    let slot = frame_layout
         .value(destination.0)
         .ok_or(Error::InvalidInstruction)?;
-    let layout = program
-        .layout_for_id(region.ty)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing destination value layout: type={:?}", region.ty),
-        })?;
+    let layout =
+        program
+            .layout_for_layout(slot.layout)
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!("missing destination value layout: layout={:?}", slot.layout),
+            })?;
 
     match (layout.is_word(), value.body) {
-        (true, FrameValueBody::Word(value)) => dest_frame.write_word(region, value),
-        (false, FrameValueBody::Bytes(bytes)) if bytes.len() == region.byte_len as usize => {
-            dest_frame.region_bytes_mut(region).copy_from_slice(&bytes);
+        (true, FrameValueBody::Word(value)) => dest_frame.write_word(slot, value),
+        (false, FrameValueBody::Bytes(bytes)) if bytes.len() == slot.byte_len as usize => {
+            dest_frame.slot_bytes_mut(slot).copy_from_slice(&bytes);
         }
         (false, FrameValueBody::Word(value)) => {
             return Err(Error::TypeMismatch {
@@ -634,7 +625,7 @@ pub(crate) fn store_frame_value(
         }
         (false, FrameValueBody::Bytes(bytes)) => {
             return Err(Error::TypeMismatch {
-                expected: format!("{} bytes", region.byte_len),
+                expected: format!("{} bytes", slot.byte_len),
                 actual: format!("{} bytes", bytes.len()),
             });
         }
@@ -938,39 +929,32 @@ pub(crate) fn move_frame_value(
         .frame_layout_by_id(dest_frame.frame_layout)
         .ok_or(Error::InvalidInstruction)?;
 
-    let source_region = source_layout
+    let source_slot = source_layout
         .value(source.0)
         .ok_or(Error::InvalidInstruction)?;
-    let dest_region = dest_layout
+    let dest_slot = dest_layout
         .value(destination.0)
         .ok_or(Error::InvalidInstruction)?;
 
-    if source_region.byte_len != dest_region.byte_len
-        || source_region.is_word != dest_region.is_word
-    {
+    if source_slot.byte_len != dest_slot.byte_len || source_slot.is_word != dest_slot.is_word {
         return Err(Error::TypeMismatch {
-            expected: format!(
-                "{} bytes, word={}",
-                dest_region.byte_len, dest_region.is_word
-            ),
+            expected: format!("{} bytes, word={}", dest_slot.byte_len, dest_slot.is_word),
             actual: format!(
                 "{} bytes, word={}",
-                source_region.byte_len, source_region.is_word
+                source_slot.byte_len, source_slot.is_word
             ),
         });
     }
 
-    if dest_region.is_word {
-        let value = source_frame.read_word(source_region);
-        dest_frame.write_word(dest_region, value);
+    if dest_slot.is_word {
+        let value = source_frame.read_word(source_slot);
+        dest_frame.write_word(dest_slot, value);
 
         return Ok(());
     }
 
-    let bytes = source_frame.region_bytes(source_region);
-    dest_frame
-        .region_bytes_mut(dest_region)
-        .copy_from_slice(bytes);
+    let bytes = source_frame.slot_bytes(source_slot);
+    dest_frame.slot_bytes_mut(dest_slot).copy_from_slice(bytes);
 
     Ok(())
 }
@@ -984,17 +968,17 @@ fn store_void_value(
     let frame_layout = program
         .frame_layout_by_id(frame.frame_layout)
         .ok_or(Error::InvalidInstruction)?;
-    let region = frame_layout
+    let slot = frame_layout
         .value(destination.0)
         .ok_or(Error::InvalidInstruction)?;
 
-    if region.is_word {
-        frame.write_word(region, Word::VOID);
+    if slot.is_word {
+        frame.write_word(slot, Word::VOID);
 
         return Ok(());
     }
 
-    frame.region_bytes_mut(region).fill(0);
+    frame.slot_bytes_mut(slot).fill(0);
 
     Ok(())
 }
@@ -1056,6 +1040,10 @@ pub(crate) fn move_values_within_frame(
     move_pool: &[MovePair],
 ) -> Result<(), Error> {
     let pairs = moves.slice(move_pool);
+    if move_words_within_frame(program, frame, pairs)? {
+        return Ok(());
+    }
+
     let mut values = SmallVec::<[FrameValue; 16]>::with_capacity(pairs.len());
 
     // collect sources before writing destinations
@@ -1080,6 +1068,50 @@ pub(crate) fn move_values_within_frame(
     }
 
     Ok(())
+}
+
+/// Move word frame values within one frame.
+#[inline(always)]
+fn move_words_within_frame(
+    program: &Program,
+    frame: &mut Frame,
+    pairs: &[MovePair],
+) -> Result<bool, Error> {
+    let layout = program
+        .frame_layout_by_id(frame.frame_layout)
+        .ok_or(Error::InvalidInstruction)?;
+    let mut values = SmallVec::<[Word; 16]>::with_capacity(pairs.len());
+
+    // collect word sources before writing destinations
+    for pair in pairs {
+        let destination = layout.value(pair.dest.0).ok_or(Error::InvalidInstruction)?;
+        if !destination.is_word {
+            return Ok(false);
+        }
+
+        let value = match pair.source {
+            MoveSource::Value(source) => {
+                let source = layout.value(source.0).ok_or(Error::InvalidInstruction)?;
+                if !source.is_word {
+                    return Ok(false);
+                }
+
+                frame.read_word(source)
+            }
+            MoveSource::Void => Word::VOID,
+        };
+
+        values.push(value);
+    }
+
+    // store destinations after preserving parallel move semantics
+    for (pair, value) in pairs.iter().zip(values) {
+        let destination = layout.value(pair.dest.0).ok_or(Error::InvalidInstruction)?;
+
+        frame.write_word(destination, value);
+    }
+
+    Ok(true)
 }
 
 /// Copy one ordered argument list out of the current frame.
@@ -1127,7 +1159,7 @@ pub(crate) fn load_planned_arguments(
     Ok(arguments)
 }
 
-/// Write owned frame values into parameter regions.
+/// Write owned frame values into parameter slots.
 pub(crate) fn store_parameters(
     program: &Program,
     frame: &mut Frame,
