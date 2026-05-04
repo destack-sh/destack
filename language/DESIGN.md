@@ -822,8 +822,8 @@ Portable `.ds` does not support legacy TypeScript decorators, parameter decorato
 
 ### Static If
 
-`@if(...)` gates declarations and declaration members based on a static expression.
-When the condition is false, the annotated item is removed before the rest of analysis can depend on it.
+There is a special `@if` decorator for gating the inclusion of certain nodes based on some statically evaluatable expression.
+When the condition is false, the annotated item is (in effect) removed and removed from analysis and the final shape.
 
 ```ds
 enum OperatingSystem {
@@ -834,11 +834,7 @@ enum OperatingSystem {
 }
 ```
 
-`@if` is allowed on module declarations, class and struct members, interface members, enum fields, and other declaration-shaped nodes.
-`@if` can use whatever static facts are in scope.
-At module level, that mostly means `import.meta` and profile constants.
-Inside a generic declaration, `@if` is evaluated after generic arguments are known, so it can also branch on those arguments, associated constants, and type algebra queries.
-Multiple `@if` annotations combine with logical AND.
+`@if` works on module declarations, class and struct members, interface members, enum fields, and other declaration-shaped nodes.
 
 ### Globals
 
@@ -858,10 +854,8 @@ Of course, because these globals are real values, duplicate global value names a
 
 ### Comptime
 
-Inspired by Zig, Destack supports compile-time evaluation via the `comptime` keyword.
-The `comptime` keyword, as the name implies, requires that an expression must be evaluated at compile time (otherwise it is a compile error).
-Functions do not declare themselves as either "comptime" or "runtime".
-Evaluation time is defined by how the expression or value is used.
+Inspired by Zig and Jai, Destack supports compile-time evaluation with `comptime`.
+The `comptime` keyword and modifier requires that an expression be evaluated at compile time (otherwise it is a compile error).
 
 ```ds
 const LOOKUP_TABLE: uint8[] = comptime {
@@ -872,6 +866,9 @@ const LOOKUP_TABLE: uint8[] = comptime {
     table
 };
 ```
+
+Unlike in other languages, functions do not declare themselves as either "comptime" or "runtime"; instead, evaluation "time" is inferred from the usage site.
+Functions and "comptime" functions can therefore intermingle freely and call each other:
 
 ```ds
 function factorial(n: int): int {
