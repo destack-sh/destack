@@ -31,7 +31,7 @@ let pair = (1, 2);
 pair satisfies (1, 2);
 ```
 
-- contains: expected (1, 2)
+- contains: not assignable
 
 ### const tuples still widen without const assertions
 
@@ -51,7 +51,7 @@ const pair = (1, 2);
 pair satisfies (1, 2);
 ```
 
-- contains: expected (1, 2)
+- contains: not assignable
 
 ### nested tuple
 
@@ -80,7 +80,7 @@ const nested = (1, (2, 3)) as const;
 nested satisfies readonly (1, readonly (2, 3));
 ```
 
-## Contextual Tuples
+## contextual tuples
 
 ### contextual tuple literal
 
@@ -109,7 +109,7 @@ const pair: (1 | 2, "a" | "b") = (1, "a");
 pair satisfies (1, "a");
 ```
 
-- contains: expected (1, "a")
+- contains: not assignable
 
 ### contextual tuple literal mismatch
 
@@ -119,4 +119,4 @@ pair satisfies (1, "a");
 const pair: (number, string) = (1, 2);
 ```
 
-- type (number, int32) is not assignable to type (number, string)
+- contains: not assignable

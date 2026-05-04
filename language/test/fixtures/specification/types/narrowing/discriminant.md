@@ -2,7 +2,7 @@
 
 Discriminant guard narrowing.
 
-## Equality Guards
+## equality guards
 
 ### discriminant guard narrows to matching variant
 

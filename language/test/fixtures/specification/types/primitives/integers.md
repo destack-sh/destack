@@ -1,4 +1,4 @@
-# Arbitrary width integers
+# Arbitrary Width Integers
 
 ## ranges
 

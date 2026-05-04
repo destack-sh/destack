@@ -28,7 +28,7 @@ function make() {
 
 ### capture accepts byMove
 
-> `byMove` is a valid capture policy.
+> `byMove` is an accepted capture policy.
 
 ```ds
 @capture("byMove")
@@ -52,9 +52,9 @@ class Counter {
 }
 ```
 
-## validation
+## rejections
 
-### capture rejects unsupported targets
+### capture rejects non-function targets
 
 > `@capture` only supports function-like targets.
 
@@ -76,7 +76,7 @@ function make() {
 }
 ```
 
-- capture policy must be "byValue", "byReference", or "byMove"
+- contains: capture policy must be "byValue", "byReference", or "byMove"
 
 ### capture rejects dynamic policies
 
@@ -106,4 +106,4 @@ function make() {
 }
 ```
 
-- invalid well-known annotation: capture annotation values must be string literals
+- contains: invalid well-known annotation: capture annotation values must be string literals

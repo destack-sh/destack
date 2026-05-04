@@ -2,7 +2,7 @@
 
 Type-only imports and exports never create runtime values.
 
-## Type-only Exports
+## type-only exports
 
 ### type-only reexports stay type-only
 
@@ -44,7 +44,7 @@ const value = Options;
 - contains: value
 
 
-## Type-only Imports
+## type-only imports
 
 ### type-only imports do not create values
 

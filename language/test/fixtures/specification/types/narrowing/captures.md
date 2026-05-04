@@ -19,7 +19,7 @@ if (value !== null) {
 }
 ```
 
-- type undefined is not assignable to type string
+- contains: not assignable
 
 ### nested alias writes invalidate discriminant member availability
 
@@ -85,7 +85,7 @@ const current = read();
 current satisfies string;
 ```
 
-- type undefined is not assignable to type string
+- contains: not assignable
 
 ### branch joins keep only shared member availability
 
@@ -128,7 +128,7 @@ while (true) {
 value satisfies "a";
 ```
 
-- type undefined is not assignable to type string
+- contains: not assignable
 
 ## destructuring and property writes
 

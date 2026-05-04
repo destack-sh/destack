@@ -3,7 +3,7 @@
 Key queries such as `keyof` and mapped types operates on apparent types.
 Apparent types do not substitute constraint shapes into instantiated types.
 
-## Constraint shapes
+## constraint shapes
 
 ### keyof does not collapse to constraint keys
 
@@ -31,7 +31,7 @@ const ok: Actual = { a: true, b: false };
 ok satisfies Actual;
 ```
 
-## Union keys
+## union keys
 
 ### keyof over unions uses shared apparent keys
 
@@ -62,7 +62,7 @@ const bad: Keys = "a";
 
 - contains: not assignable
 
-## Utility types
+## utility types
 
 ### constrained pick honors instantiated keys
 

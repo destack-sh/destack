@@ -63,7 +63,7 @@ const result = drive(value => choose(value));
 result satisfies "number";
 ```
 
-- expected "number", found "ok"
+- contains: not assignable
 
 ## widening
 
@@ -81,7 +81,7 @@ drive(input, value => {
 });
 ```
 
-- expected "ready", found string
+- contains: not assignable
 
 ```json:destack.json
 { "compiler": { "allowTs": true, "checkTs": true } }

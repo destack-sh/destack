@@ -4,7 +4,7 @@
 
 ### fixed arrays are assignable to dynamic arrays
 
-> Fixed-size arrays are assignable to dynamic arrays.
+> Fixed arrays are assignable to dynamic arrays.
 
 ```ds
 let fixed: [int32; 3] = [1, 2, 3];

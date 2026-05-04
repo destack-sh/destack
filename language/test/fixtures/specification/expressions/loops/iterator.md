@@ -37,7 +37,7 @@ for (const value of 1) {
 }
 ```
 
-- not iterable
+- contains: not iterable
 
 ### for in keys are strings
 
@@ -70,7 +70,7 @@ for (const key in 1) {
 }
 ```
 
-- not iterable
+- contains: not iterable
 
 ### for in keys stay string typed across union object sources
 
@@ -118,4 +118,4 @@ for (const item of value) {
 }
 ```
 
-- not iterable
+- contains: not iterable

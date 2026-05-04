@@ -15,7 +15,7 @@ export default class Foo {}
 export type Bar = string;
 ```
 
-- type-only imports cannot mix default and named bindings
+- contains: type-only imports cannot mix default and named bindings
 
 ### type-only imports cannot be used as values
 
@@ -212,5 +212,5 @@ function bar() {
 import Foo = bar();
 ```
 
-- import aliases must target a qualified identifier path
+- contains: import aliases must target a qualified identifier path
 

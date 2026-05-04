@@ -33,7 +33,7 @@ type Keys = keyof Person;
 const bad: Keys = "title";
 ```
 
-- type 42 is not assignable to type Name
+- contains: not assignable
 
 ### keyof union keeps shared keys
 
@@ -75,7 +75,7 @@ type Keys = keyof (Left | Right);
 const bad: Keys = "left";
 ```
 
-- type 42 is not assignable to type Name
+- contains: not assignable
 
 ### keyof intersection includes all keys
 
@@ -119,7 +119,7 @@ type Keys = keyof (Left & Right);
 const bad: Keys = "missing";
 ```
 
-- type 42 is not assignable to type Name
+- contains: not assignable
 
 ### keyof includes string index signatures
 
@@ -150,7 +150,7 @@ type Keys = keyof Bag;
 const bad: Keys = true;
 ```
 
-- type 42 is not assignable to type Name
+- contains: not assignable
 
 ### keyof includes number index signatures
 
@@ -180,7 +180,7 @@ type Keys = keyof NumberBag;
 const bad: Keys = "name";
 ```
 
-- type 42 is not assignable to type Name
+- contains: not assignable
 
 ### keyof union keeps shared keys with index signatures
 

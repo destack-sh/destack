@@ -1,12 +1,12 @@
-# Contextual Typing and Best Common Type
+# Contextual Typing
 
 Widening happens when values are bound, not during type-level evaluation.
 
-## Array and tuple literals
+## array and tuple literals
 
 ### arrays widen element literals in let bindings
 
-> Let bindings commit array element literals to widened element types.
+> Let bindings widen array element literals to widened element types.
 
 ```ds
 let values = [1, 2];
@@ -46,7 +46,7 @@ let values = [{ kind: "a" }, { kind: "b" }];
 values[0].kind satisfies "a";
 ```
 
-- contains: expected "a"
+- contains: not assignable
 
 ### const arrays still widen elements without const assertions
 
@@ -90,11 +90,11 @@ const values: (1 | 2)[] = [1, 2];
 values[0] satisfies 1;
 ```
 
-- contains: expected 1
+- contains: not assignable
 
-## Conditional expressions
+## conditional expressions
 
-### let conditionals commit to widened types
+### let conditionals widen to widened types
 
 > Let bindings widen conditional literal unions when no context constrains them.
 
@@ -136,7 +136,7 @@ let value = true ? { mode: "dev" } : { mode: "prod" };
 value.mode satisfies "dev";
 ```
 
-- contains: expected "dev"
+- contains: not assignable
 
 ### const conditionals preserve literal unions
 
@@ -148,7 +148,7 @@ const value = true ? 1 : 2;
 value satisfies 1 | 2;
 ```
 
-## Contextual object literals
+## contextual object literals
 
 ### annotations constrain object literal fields
 
@@ -174,7 +174,7 @@ const config: { mode: Mode } = { mode: "dev" };
 config.mode satisfies "dev";
 ```
 
-- contains: expected "dev"
+- contains: not assignable
 
 ### contextual arrays preserve object literal unions
 
@@ -196,9 +196,9 @@ const values: { kind: "a" | "b" }[] = [{ kind: "a" }, { kind: "b" }];
 values[0].kind satisfies "a";
 ```
 
-- contains: expected "a"
+- contains: not assignable
 
-## Function returns
+## function returns
 
 ### function bodies do not inherit outer const contexts
 
@@ -220,7 +220,7 @@ const make = () => ({ mode: "dev" });
 make().mode satisfies "dev";
 ```
 
-- contains: expected "dev"
+- contains: not assignable
 
 ### contextual return types constrain object literal members
 
@@ -246,11 +246,11 @@ const make = (): { mode: Mode } => ({ mode: "dev" });
 make().mode satisfies "dev";
 ```
 
-- contains: expected "dev"
+- contains: not assignable
 
-## Assignment freshness boundaries
+## assignment freshness
 
-### fresh object literals enforce excess checks at commitment
+### fresh object literals enforce excess checks at typed bindings
 
 > Fresh object literals enforce excess property checks at annotated binding sites.
 
@@ -262,7 +262,7 @@ const value: Named = { name: "Ada", extra: true };
 
 - contains: excess property
 
-### non-fresh objects skip excess checks at later commitments
+### non-fresh objects skip excess checks at later bindings
 
 > Non-fresh object values do not re-run excess checks at later assignment points.
 
@@ -273,7 +273,7 @@ const source = { name: "Ada", extra: true };
 const value: Named = source;
 ```
 
-## Contextual generics
+## contextual generics
 
 ### explicit generic unions constrain object literal members
 
@@ -303,7 +303,7 @@ const result = wrap<"dev" | "prod">("dev");
 result.value satisfies "dev";
 ```
 
-- contains: expected "dev"
+- contains: not assignable
 
 ### method calls keep explicit generic unions
 
@@ -337,7 +337,7 @@ const result = wrapper.wrap<"dev" | "prod">("dev");
 result.value satisfies "dev";
 ```
 
-- contains: expected "dev"
+- contains: not assignable
 
 ### return type annotations keep union members
 
@@ -387,7 +387,7 @@ const config = make("dev");
 config.inner.mode satisfies "dev";
 ```
 
-- contains: expected "dev"
+- contains: not assignable
 
 ### return type annotations do not narrow to a single literal
 
@@ -405,9 +405,9 @@ const config = make("dev");
 config.mode satisfies "dev";
 ```
 
-- contains: expected "dev"
+- contains: not assignable
 
-## Contextual tuples
+## contextual tuples
 
 ### contextual tuples preserve literal element types
 
@@ -430,9 +430,9 @@ const pair: (number, number) = (1, 2);
 pair[0] satisfies 1;
 ```
 
-- contains: expected 1
+- contains: not assignable
 
-## Mixed literal arrays
+## mixed literal arrays
 
 ### arrays widen mixed literals to a common union
 
@@ -454,4 +454,4 @@ let values = [1, "a"];
 values[0] satisfies 1;
 ```
 
-- contains: expected 1
+- contains: not assignable

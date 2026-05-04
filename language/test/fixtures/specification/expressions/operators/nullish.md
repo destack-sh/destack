@@ -60,4 +60,4 @@ let value: string | null = null;
 value ??= 1;
 ```
 
-- type string | 1 is not assignable to type string | null
+- contains: not assignable

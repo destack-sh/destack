@@ -51,7 +51,7 @@ const x = { a: 1, b: "two" } as const;
 x satisfies { readonly a: 1, readonly b: "two" };
 ```
 
-## Object Spreads
+## object spreads
 
 ### object spread adds fields
 
@@ -104,7 +104,7 @@ const value = { ...base, c: true };
 value satisfies { a: number, b: string, c: boolean };
 ```
 
-## Contextual Objects
+## contextual objects
 
 ### contextual object literal
 
@@ -123,7 +123,7 @@ value satisfies { a: number, b: string };
 const value: { a: number, b: string } = { a: 1, b: 2 };
 ```
 
-- type { a: number, b: int32 } is not assignable to type { a: number, b: string }
+- contains: not assignable
 
 ### contextual object literal via alias
 
@@ -146,7 +146,7 @@ type Point = { x: number, y: number };
 const value: Point = { x: 1, y: "hi" };
 ```
 
-- type { x: number, y: string } is not assignable to type Point
+- contains: not assignable
 
 ### contextual object spread literal
 
@@ -167,7 +167,7 @@ const value: { a: number } = { ...{ a: "hi" } };
 
 - contains: not assignable to type { a: number }
 
-## Object Members
+## object members
 
 ### object toString resolves
 

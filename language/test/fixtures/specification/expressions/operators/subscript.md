@@ -58,7 +58,7 @@ const bag = getBag();
 bag[1] = "nope";
 ```
 
-- type unknown is not assignable to type int32
+- contains: not assignable
 
 ### index access rejects missing Index contracts
 
@@ -109,4 +109,4 @@ const value = bag["one"];
 value satisfies int;
 ```
 
-- type unknown is not assignable to type int32
+- contains: not assignable

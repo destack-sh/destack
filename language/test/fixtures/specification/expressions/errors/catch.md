@@ -1,6 +1,6 @@
 # Try Catch Variables
 
-## Try error typing
+## error typing
 
 ### try catch uses Try error type
 
@@ -12,7 +12,7 @@ declare function readConfig(): Result<int, string>;
 const value = try {
     readConfig()?;
     1
-} catch e {
+} catch (e) {
     e satisfies string;
     2
 };
@@ -29,7 +29,7 @@ declare function readConfig(): Result<int, "missing"> | Result<int, "bad">;
 const value = try {
     readConfig()?;
     1
-} catch e {
+} catch (e) {
     e satisfies "missing" | "bad";
     2
 };
@@ -48,16 +48,16 @@ const value = try {
     readConfig()?;
     readVersion()?;
     1
-} catch e {
+} catch (e) {
     e satisfies "missing" | "bad";
     0
 };
 value satisfies int;
 ```
 
-### try catch allows missing fromFailure
+### try catch handles custom Try failures
 
-> Catching a Try error does not require Try.fromFailure.
+> Catching a Try error does not require FromFailure.
 
 ```ds
 type BrokenBranch<T, E> =
@@ -68,7 +68,9 @@ struct BrokenTry<T, E> {
     value: BrokenBranch<T, E>;
 }
 
-extension<T, E> of BrokenTry<T, E> implements Try<T, E> {
+extension<T, E> of BrokenTry<T, E> implements Try {
+    type Value = T;
+    type Error = E;
     branch(): BrokenBranch<T, E> {
         this.value
     }
@@ -79,14 +81,14 @@ declare function getBroken(): BrokenTry<int, string>;
 const value = try {
     getBroken()?;
     1
-} catch e {
+} catch (e) {
     e satisfies string;
     0
 };
 value satisfies int;
 ```
 
-### try catch allows missing fromFailure in functions
+### try catch handles custom Try failures in functions
 
 > Catching a Try error allows non Try return types.
 
@@ -99,7 +101,9 @@ struct BrokenTry<T, E> {
     value: BrokenBranch<T, E>;
 }
 
-extension<T, E> of BrokenTry<T, E> implements Try<T, E> {
+extension<T, E> of BrokenTry<T, E> implements Try {
+    type Value = T;
+    type Error = E;
     branch(): BrokenBranch<T, E> {
         this.value
     }
@@ -111,7 +115,7 @@ function read(): int {
     const value = try {
         getBroken()?;
         1
-    } catch e {
+    } catch (e) {
         e satisfies string;
         0
     };
@@ -119,7 +123,7 @@ function read(): int {
 }
 ```
 
-## Typed catch annotations
+## typed catch annotations
 
 ### catch annotation allows unknown
 
@@ -133,7 +137,7 @@ try {
 }
 ```
 
-- contains: expected string
+- contains: not assignable
 
 ### catch annotation rejects concrete types
 
@@ -147,4 +151,4 @@ try {
 }
 ```
 
-- catch type annotations must be unknown
+- contains: catch type annotations must be unknown

@@ -10,7 +10,7 @@
 type Bad = intrinsic["foo"];
 ```
 
-- intrinsic types cannot be indexed
+- contains: intrinsic types cannot be indexed
 
 ### intrinsic types cannot appear in value annotations
 

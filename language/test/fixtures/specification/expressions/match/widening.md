@@ -3,7 +3,7 @@
 Match expressions use scrutinee types as contextual types for pattern bindings.
 Widening happens when values are bound or when match expression results are joined.
 
-## Pattern bindings
+## pattern bindings
 
 ### match patterns inherit tuple literal precision from const assertions
 
@@ -39,7 +39,7 @@ match (pair) {
 
 ### match patterns are exhaustive for fixed arrays
 
-> Fixed-size arrays can be exhaustively matched without a fallback arm.
+> Fixed arrays can be exhaustively matched without a fallback arm.
 
 ```ds
 declare const pair: [int32; 2];
@@ -54,7 +54,7 @@ match (pair) {
 
 ### match expression results widen in let bindings
 
-> Let bindings commit match results to widened types when no contextual type exists.
+> Let bindings widen match results when no contextual type exists.
 
 ```ds
 let value = match (1) {
@@ -92,11 +92,11 @@ value satisfies 1;
 
 - contains: not assignable
 
-## Match results
+## match results
 
 ### match expression results keep literal unions in const bindings
 
-> Const bindings keep literal unions when no widening commitment is required.
+> Const bindings keep literal unions when no widening is required.
 
 ```ds
 const value = match (1) {

@@ -32,9 +32,9 @@ const value: int32 = comptime {
 value satisfies int32;
 ```
 
-### comptime calls evaluate functions
+### comptime expressions can call functions
 
-> Comptime expressions can call pure functions.
+> Comptime expressions can call functions when all inputs are static.
 
 ```ds
 function add(a: int, b: int): int {

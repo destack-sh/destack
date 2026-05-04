@@ -51,7 +51,7 @@ let { x, y } = point;
 const { x }: { x: number };
 ```
 
-- destructuring declarations require initializers
+- contains: destructuring declarations require initializers
 
 ### object patterns bind readonly named identifiers
 
@@ -70,7 +70,7 @@ readonly satisfies number;
 let { readonly value } = { readonly: 1 };
 ```
 
-- parse error: unexpected Identifier in Expression
+- contains: parse error: unexpected Identifier in Expression
 
 ## defaults
 

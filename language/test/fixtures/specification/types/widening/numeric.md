@@ -2,7 +2,7 @@
 
 Implicit numeric type widening.
 
-## Integer Widening
+## integer widening
 
 ### int8 to int16
 
@@ -24,7 +24,7 @@ declare const mediumInteger: int32;
 takeInt64(mediumInteger);
 ```
 
-### int16 to int8 fails
+### int16 to int8 rejects narrowing
 
 > Larger integers cannot narrow to smaller integers.
 
@@ -34,7 +34,7 @@ declare const mediumInteger: int16;
 takeInt8(mediumInteger);
 ```
 
-- type int16 is not assignable to type int8
+- contains: not assignable
 
 ### uint8 to int16
 
@@ -46,7 +46,7 @@ declare const smallUnsigned: uint8;
 takeInt16(smallUnsigned);
 ```
 
-### int8 to uint8 fails
+### int8 to uint8 rejects sign changes
 
 > Signed integers cannot widen to unsigned (may lose negative values).
 
@@ -56,9 +56,9 @@ declare const signedInteger: int8;
 takeUint8(signedInteger);
 ```
 
-- type int8 is not assignable to type uint8
+- contains: not assignable
 
-## Float Widening
+## float widening
 
 ### float32 to float64
 
@@ -70,7 +70,7 @@ declare const smallFloat: float32;
 takeFloat64(smallFloat);
 ```
 
-### float64 to float32 fails
+### float64 to float32 rejects narrowing
 
 > Larger floats cannot narrow to smaller floats.
 
@@ -80,9 +80,9 @@ declare const largeFloat: float64;
 takeFloat32(largeFloat);
 ```
 
-- type float64 is not assignable to type float32
+- contains: not assignable
 
-## Int to Float Widening
+## int to float widening
 
 ### int32 to float64
 
@@ -94,7 +94,7 @@ declare const integer: int32;
 takeFloat64(integer);
 ```
 
-## Widening to Number
+## widening to number
 
 ### int32 to number
 

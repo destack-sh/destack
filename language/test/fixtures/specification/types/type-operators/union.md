@@ -21,7 +21,7 @@ x = 42
 const x: string | number = "hello"
 ```
 
-## Union Assignability
+## union assignability
 
 ### union element assignable to union
 
@@ -32,7 +32,7 @@ const x: string = "hello"
 const y: string | number = x
 ```
 
-## Union Normalization
+## union normalization
 
 ### union flattening through aliases
 

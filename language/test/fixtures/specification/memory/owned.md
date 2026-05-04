@@ -139,4 +139,4 @@ let owned: ^readonly Point = ^readonly Point { x: 1 };
 owned.x = 2;
 ```
 
-- cannot assign
+- contains: cannot assign

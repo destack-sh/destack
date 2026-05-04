@@ -2,7 +2,7 @@
 
 Interface declaration validation.
 
-## invalid declarations
+## rejections
 
 ### abstract interfaces are rejected
 
@@ -12,7 +12,7 @@ Interface declaration validation.
 abstract interface Config {}
 ```
 
-- invalid interface
+- contains: invalid interface
 
 ### default export interfaces must be named
 
@@ -24,7 +24,7 @@ export default interface {
 }
 ```
 
-- invalid interface
+- contains: invalid interface
 
 ### empty extends clauses are rejected
 
@@ -35,13 +35,13 @@ interface Config extends {
 }
 ```
 
-- invalid lineage
+- contains: invalid lineage
 
-## valid declarations
+## declarations
 
 ### named default export interfaces are allowed
 
-> Default export interfaces are valid when they provide a name.
+> Default export interfaces are accepted when they provide a name.
 
 ```ds
 export default interface Config {

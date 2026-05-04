@@ -2,7 +2,7 @@
 
 Static if gating on statements.
 
-## Gating
+## gating
 
 ### static if gates module statements
 

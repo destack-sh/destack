@@ -164,7 +164,7 @@ type WeakPoint = {
 const value: WeakPoint = { label: "origin" };
 ```
 
-- has no properties in common
+- contains: has no properties in common
 
 ### weak object targets accept assignments with shared properties
 
@@ -193,7 +193,7 @@ const base = { label: "origin" };
 const value: WeakPoint = { ...base };
 ```
 
-- has no properties in common
+- contains: has no properties in common
 
 ### weak object targets accept spread literals with shared properties
 

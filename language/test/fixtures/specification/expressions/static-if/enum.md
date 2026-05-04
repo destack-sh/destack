@@ -2,7 +2,7 @@
 
 Static if gating on enum fields.
 
-## Gating
+## gating
 
 ### static if gates enum fields
 

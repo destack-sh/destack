@@ -4,7 +4,7 @@
 
 ### comptime block allowed in struct
 
-> Comptime blocks are valid struct members.
+> Comptime blocks are accepted struct members.
 
 ```ds
 struct Buffer {
@@ -22,7 +22,7 @@ buffer satisfies Buffer;
 
 ### comptime block allowed in class
 
-> Comptime blocks are valid class members.
+> Comptime blocks are accepted class members.
 
 ```ds
 class Counter {
@@ -38,9 +38,9 @@ const counter = new Counter();
 counter satisfies Counter;
 ```
 
-## comptime functions
+## calls
 
-### comptime calls evaluate at compile time
+### comptime calls evaluate functions
 
 > Functions can be evaluated in comptime contexts.
 
@@ -56,7 +56,7 @@ const value = comptime factorial(4);
 value satisfies int;
 ```
 
-### comptime calls reject runtime-only inputs
+### comptime calls reject runtime inputs
 
 > Comptime calls reject non-static runtime inputs.
 

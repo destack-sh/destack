@@ -1,12 +1,12 @@
 # Associated Requirements
 
-Interfaces can require associated types and constants from implementors.
+Interfaces can require associated types and constants from implementations.
 
 ## types
 
-### implementors inherit type defaults
+### implementations inherit type defaults
 
-> A default type member is used when the implementor does not override it.
+> A default type member is used when the implementation does not override it.
 
 ```ds
 interface Stream<T> {
@@ -26,7 +26,7 @@ declare const item: Counter.Item;
 item satisfies int32;
 ```
 
-### implementors can override type defaults
+### implementations can override type defaults
 
 > An explicit type member wins over the interface default.
 
@@ -72,9 +72,9 @@ class Empty implements Iterator {}
 
 ## constants
 
-### implementors inherit constant defaults
+### implementations inherit constant defaults
 
-> A default constant member is used when the implementor does not override it.
+> A default constant member is used when the implementation does not override it.
 
 ```ds
 interface RegisterBlock {
@@ -88,7 +88,7 @@ declare const bytes: Status.Bytes;
 bytes satisfies [uint8; 4];
 ```
 
-### implementors can override constant defaults
+### implementations can override constant defaults
 
 > An explicit constant member wins over the interface default.
 

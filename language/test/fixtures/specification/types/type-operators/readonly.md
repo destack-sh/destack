@@ -91,7 +91,7 @@ let bad: int32[] = frozen;
 
 - contains: not assignable
 
-## invalid readonly usage
+## rejections
 
 ### readonly operators require array or tuple targets
 
@@ -107,4 +107,4 @@ type Bad3 = readonly readonly string[];
 type Bad4 = readonly Array<string>;
 ```
 
-- readonly type must target an array or tuple
+- contains: readonly type must target an array or tuple

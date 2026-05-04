@@ -2,7 +2,7 @@
 
 Boolean guard narrowing with logical operators.
 
-## And Guards
+## and guards
 
 ### and guard narrows to non nullish
 
@@ -61,7 +61,7 @@ if ((value !== null) && (value !== undefined)) {
 }
 ```
 
-## Or Guards
+## or guards
 
 ### or guard narrows to nullish
 
@@ -128,7 +128,7 @@ if (left === null || middle === null || right === null) {
 }
 ```
 
-## Not Guards
+## not guards
 
 ### not guard inverts narrowing
 
@@ -180,7 +180,7 @@ if (!(value != null)) {
 }
 ```
 
-## Multi Symbol Guards
+## multi symbol guards
 
 ### and guard narrows multiple symbols
 

@@ -2,10 +2,11 @@
 
 Promise<T> and await expressions.
 
-## Await
+## await
 
 ### await unwraps promise value type
 
+> Await unwraps the resolved value type of a promise.
 
 ```ds libs=es5,es2015.promise
 declare const value: Promise<number>;
@@ -19,6 +20,7 @@ async function read(): Promise<number> {
 
 ### await rejects non promise values
 
+> Await only accepts typed async values.
 
 ```ds libs=es5,es2015.promise
 async function read(): Promise<string> {
@@ -32,6 +34,7 @@ async function read(): Promise<string> {
 
 ### await distributes over unions
 
+> Await distributes across promise unions.
 
 ```ds libs=es5,es2015.promise
 declare const value: Promise<number> | Promise<string>;
@@ -45,6 +48,7 @@ async function read(): Promise<number | string> {
 
 ### await unwraps nested promises
 
+> Await recursively unwraps nested promise values.
 
 ```ds libs=es5,es2015.promise
 declare const value: Promise<Promise<number>>;
@@ -58,6 +62,7 @@ async function read(): Promise<number> {
 
 ### await preserves unknown promise values
 
+> Await preserves `unknown` when the promise value is unknown.
 
 ```ds libs=es5,es2015.promise
 declare const value: Promise<unknown>;
@@ -70,6 +75,8 @@ async function read(): Promise<unknown> {
 ```
 
 ### await unwraps promise aliases
+
+> Await unwraps promise aliases through ordinary alias resolution.
 
 ```ds libs=es5,es2015.promise
 type Box<T> = Promise<T>;

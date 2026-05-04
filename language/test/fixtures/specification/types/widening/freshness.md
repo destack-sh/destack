@@ -18,7 +18,7 @@ use_ready({ kind: "ready", payload: "ok", extra: true });
 
 ### variable indirection drops freshness for excess checks
 
-Once the same literal flows through a variable binding, freshness is dropped and excess checks relaxes.
+Once the same literal flows through a variable binding, freshness is dropped and excess checks relax.
 
 ```ts
 type Ready = { kind: "ready", payload: string };
@@ -42,7 +42,7 @@ config.env.mode satisfies "dev";
 
 ### mutable wrappers widen nested literal members
 
-Mutable generic wrappers commit nested literals to widened mutable member types.
+Mutable generic wrappers widen nested literals to mutable member types.
 
 ```ts
 declare function pass<T>(value: T): T;

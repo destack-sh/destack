@@ -100,7 +100,7 @@ fromNumber.value satisfies string | number;
 { "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
-### constructor call rejects unsupported argument shapes
+### constructor call rejects incompatible argument shapes
 
 > Constructor call arity and argument types must match declared overloads.
 

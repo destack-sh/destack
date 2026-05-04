@@ -60,7 +60,7 @@ clone({ copy() {} });
 
 ### inferred arguments reject unmet constraints
 
-> Inference fails when the inferred type does not satisfy the constraint.
+> Inference rejects inferred types that do not satisfy the constraint.
 
 ```ds
 interface Copy {

@@ -76,4 +76,4 @@ function format<T>(value: T): string {
 }
 ```
 
-- property 'name' does not exist on type T
+- contains: property 'name' does not exist on type T

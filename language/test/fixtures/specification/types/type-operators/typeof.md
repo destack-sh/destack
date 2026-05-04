@@ -26,7 +26,7 @@ type ValueType = typeof value;
 let bad: ValueType = "no";
 ```
 
-- type "no" is not assignable to type valuetype
+- contains: not assignable
 
 ### typeof returns constructor types for classes
 
@@ -70,7 +70,7 @@ type CounterCtor = typeof Counter;
 let badVersion: CounterCtor["version"] = "no";
 ```
 
-- type "no" is not assignable to type counterctor["version"]
+- contains: not assignable
 
 ### typeof includes static methods
 
@@ -105,4 +105,4 @@ let ctor: CounterCtor = Counter;
 let badNext: string = ctor.next(1);
 ```
 
-- type int32 is not assignable to type string
+- contains: not assignable

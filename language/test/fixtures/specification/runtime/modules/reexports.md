@@ -2,7 +2,7 @@
 
 Reexports expose the binding shape from the module that declares it.
 
-## Re-exports
+## re-exports
 
 ### named reexports keep value shapes
 

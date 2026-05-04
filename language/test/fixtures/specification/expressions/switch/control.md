@@ -1,6 +1,6 @@
 # Switch Control Flow
 
-## Breaks
+## breaks
 
 ### switch breaks target the innermost switch
 
@@ -21,7 +21,7 @@ function invalid_switch_break_value_in_loop(value: int32): int32 {
 }
 ```
 
-- switch break cannot have a value
+- contains: switch break cannot have a value
 
 ### labeled break can target a switch
 
@@ -65,11 +65,11 @@ function labeled_break_loop_from_switch(value: int32): int32 {
 }
 ```
 
-## Continues
+## continues
 
 ### switch does not allow continue
 
-> Continue is only valid in loops.
+> Continue is only accepted in loops.
 
 ```ds
 function invalid_switch_continue(value: int32): int32 {
@@ -145,9 +145,9 @@ function invalid_labeled_continue_switch(value: int32): int32 {
 
 - contains: invalid continue
 
-## Guards
+## guards
 
-### switch guards are invalid
+### switch rejects guards
 
 > Switch cases do not support guards.
 
@@ -163,9 +163,9 @@ function invalid_switch_guard(value: int32): int32 {
 }
 ```
 
-- switch cases do not support guards
+- contains: switch cases do not support guards
 
-## Typing
+## typing
 
 ### switch does not yield a value
 
@@ -183,4 +183,4 @@ function invalid_switch_expression(value: int32): int32 {
 }
 ```
 
-- type void is not assignable to type int32
+- contains: not assignable

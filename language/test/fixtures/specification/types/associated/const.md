@@ -4,9 +4,9 @@ Associated constants are `comptime const` members on nominal types and interface
 
 ## values
 
-### constants can use owner generics
+### constants can use enclosing type generics
 
-> A constant member can branch on generic parameters from its owner.
+> A constant member can branch on generic parameters from its enclosing type.
 
 ```ds
 class Segment<Row> {
@@ -33,7 +33,7 @@ lane satisfies [uint8; 8];
 
 ### constants can use other constants
 
-> `this` names other static members on the same owner.
+> `this` names other static members on the same type.
 
 ```ds
 class Layout<Row> {

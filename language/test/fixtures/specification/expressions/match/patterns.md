@@ -2,7 +2,7 @@
 
 Match patterns handle tuple, fixed array, ownership, union, range, and rest forms.
 
-## Tuple patterns
+## tuple patterns
 
 ### match tuple patterns bind tuple elements
 
@@ -35,7 +35,7 @@ match (pair) {
 }
 ```
 
-## Fixed arrays
+## fixed arrays
 
 ### match array patterns bind fixed array elements
 
@@ -52,7 +52,25 @@ match (pair) {
 }
 ```
 
-## Object patterns
+## slices
+
+### match slice patterns bind elements
+
+> Slice patterns bind known positions and keep the tail as a slice.
+
+```ds
+declare const values: [int32];
+
+match (values) {
+    [first, ...rest] => {
+        first satisfies int32;
+        rest satisfies [int32];
+    }
+    _ => {}
+}
+```
+
+## object patterns
 
 ### match object patterns bind named fields
 
@@ -90,7 +108,7 @@ match (config) {
 
 ### match object wildcard filters bind requested fields
 
-> Object wildcard filters composes with named field bindings.
+> Object wildcard filters compose with named field bindings.
 
 ```ds
 type Config =
@@ -106,7 +124,7 @@ match (config) {
 }
 ```
 
-## Rest patterns
+## rest patterns
 
 ### match rest tuple patterns bind remaining elements
 
@@ -125,7 +143,7 @@ match (values) {
 
 ### match rest array patterns bind remaining elements
 
-> Rest array patterns bind the remaining elements as an array.
+> Fixed array rest patterns bind the remaining elements as a fixed array.
 
 ```ds
 declare const values: [int32; 3];
@@ -133,7 +151,7 @@ declare const values: [int32; 3];
 match (values) {
     [first, ...rest] => {
         first satisfies int32;
-        rest satisfies int32[];
+        rest satisfies [int32; 2];
     }
 }
 ```
@@ -155,7 +173,7 @@ match (config) {
 }
 ```
 
-## Must patterns
+## must patterns
 
 ### match must patterns bind non nullish values
 
@@ -172,7 +190,7 @@ match (value) {
 }
 ```
 
-## Ownership patterns
+## ownership patterns
 
 ### match value patterns bind owned values
 
@@ -202,7 +220,7 @@ match (value) {
 }
 ```
 
-## Union patterns
+## union patterns
 
 ### match union patterns cover multiple literals
 

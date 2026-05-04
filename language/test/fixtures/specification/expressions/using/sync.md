@@ -47,6 +47,22 @@ using value = 1;
 
 - contains: Dispose
 
+### using rejects async-only resources
+
+> `using` requires synchronous disposal.
+
+```ds
+class Connection implements AsyncDispose {
+    asyncDispose(): Promise<void> {
+        Promise.resolve()
+    }
+}
+
+using connection = new Connection();
+```
+
+- contains: Dispose
+
 ### using accepts symbol disposal
 
 > `.ts` sources use the symbol-shaped disposal protocol.
@@ -60,7 +76,7 @@ using file = new File();
 file satisfies File;
 ```
 
-### declare using is invalid
+### using rejects declare
 
 > Declare bindings cannot have initializers.
 
@@ -68,5 +84,4 @@ file satisfies File;
 declare using value = null;
 ```
 
-- declare bindings cannot have initializers
-
+- contains: declare bindings cannot have initializers

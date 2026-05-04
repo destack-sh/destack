@@ -1,6 +1,6 @@
 # Interface Members
 
-## valid members
+## members
 
 ### interface properties declare types
 
@@ -101,7 +101,7 @@ interface Config {
 }
 ```
 
-## invalid members
+## rejections
 
 ### interface properties cannot have initializers
 
@@ -113,7 +113,7 @@ interface Config {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
 ### interface members cannot use visibility modifiers
 
@@ -125,7 +125,7 @@ interface Config {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
 ### interface members cannot use static modifiers
 
@@ -137,7 +137,7 @@ interface Config {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
 ### interface members cannot be async
 
@@ -149,7 +149,7 @@ interface Config {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
 ### interface members cannot have bodies
 
@@ -161,7 +161,7 @@ interface Config {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
 ### interface getters cannot take parameters
 
@@ -173,7 +173,7 @@ interface Config {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
 ### interface getters cannot be generic
 
@@ -185,7 +185,7 @@ interface Config {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
 ### interface setters require one parameter
 
@@ -197,7 +197,7 @@ interface Config {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
 ### interface setters cannot be optional
 
@@ -209,7 +209,7 @@ interface Config {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
 ### interface setter return type must be void
 
@@ -221,4 +221,4 @@ interface Config {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier

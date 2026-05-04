@@ -12,7 +12,7 @@ type Route = `api:${string}`;
 
 declare const route: Route | undefined;
 
-if route != undefined {
+if (route != undefined) {
     route satisfies Route;
 }
 ```
@@ -27,7 +27,7 @@ type Route = `api:${string}`;
 
 declare const route: Route;
 
-if route == "api:users" {
+if (route == "api:users") {
     route satisfies Route;
 } else {
     route satisfies Route;

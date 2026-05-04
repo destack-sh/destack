@@ -1,6 +1,6 @@
 # Match Expressions
 
-## Control Flow
+## control flow
 
 ### match does not allow break
 
@@ -16,7 +16,7 @@ function invalid_match_break(value: int32): int32 {
 }
 ```
 
-- invalid break to '<none>'
+- contains: invalid break
 
 ### match does not allow continue
 
@@ -36,7 +36,7 @@ function invalid_match_continue(value: int32): int32 {
 
 ### match allows break inside nested loops
 
-> Break is valid when it targets a loop nested inside a match arm.
+> Break is accepted when it targets a loop nested inside a match arm.
 
 ```ds
 function nested_loop_break(value: int32): int32 {
@@ -58,7 +58,7 @@ function nested_loop_break(value: int32): int32 {
 
 ### match allows continue inside nested loops
 
-> Continue is valid when it targets a loop nested inside a match arm.
+> Continue is accepted when it targets a loop nested inside a match arm.
 
 ```ds
 function nested_loop_continue(value: int32): int32 {
@@ -93,4 +93,4 @@ function invalid_match_break_again(value: int32): int32 {
 }
 ```
 
-- invalid break to '<none>'
+- contains: invalid break

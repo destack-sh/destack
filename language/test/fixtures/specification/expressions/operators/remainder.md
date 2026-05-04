@@ -12,7 +12,7 @@
 const value = 10 % 3;
 value satisfies 1;
 value satisfies int;
-value satisfies float;
+value satisfies float64;
 value satisfies number;
 ```
 
@@ -37,3 +37,24 @@ const right = getScalar();
 const value = left % right;
 value satisfies Scalar;
 ```
+
+### remainder requires Remainder
+
+> `%` requires a matching `Remainder` implementation.
+
+```ds
+struct Scalar { value: int }
+
+extension of Scalar implements Add<Scalar> {
+    add(other: Scalar): Scalar { return this }
+}
+
+declare function getScalar(): Scalar;
+
+const left = getScalar();
+const right = getScalar();
+
+left % right;
+```
+
+- contains: no matching overload

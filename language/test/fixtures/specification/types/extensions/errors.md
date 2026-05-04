@@ -1,8 +1,8 @@
-# Extension Errors
+# Extension Rejections
 
-Error cases with extensions.
+Rejected extension method calls.
 
-## Missing Methods
+## missing methods
 
 ### calling nonexistent extension method
 
@@ -43,11 +43,11 @@ vector.magnitude();
 
 - contains: does not exist
 
-## Type Errors
+## arguments
 
 ### wrong argument type
 
-> Passing wrong argument type to extension method is an error.
+> Extension method arguments must satisfy their declared parameter types.
 
 ```ds
 struct Calculator { value: number }
@@ -64,7 +64,7 @@ calculator.add("one", 2);
 
 - contains: not assignable
 
-## Visibility Errors
+## visibility
 
 ### local extension not visible from another file
 
@@ -92,27 +92,3 @@ vector.magnitude();
 ```
 
 - contains: does not exist
-
-## Duplicate Method Handling
-
-### shadowing between extensions
-
-> When multiple extensions define the same method, the first one wins.
-> This is not an error, but the second definition is ignored.
-
-```ds
-struct Vector2 { x: number; y: number }
-
-extension of Vector2 {
-    process(): number { return 1 }
-}
-
-extension of Vector2 {
-    process(): string { return "" }
-}
-
-declare function getVector(): Vector2;
-
-const vector = getVector();
-vector.process() satisfies number;
-```

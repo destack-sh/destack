@@ -2,7 +2,7 @@
 
 Static if validation errors.
 
-## Diagnostics
+## rejections
 
 ### static if errors when true
 
@@ -56,7 +56,7 @@ const value = 1;
 function demo(@if(true) value: number): void { }
 ```
 
-- invalid static if: static if is only allowed on declarations, members, enum fields, or statements
+- contains: invalid static if: static if is only allowed on declarations, members, enum fields, or statements
 
 ### static if rejects type literal properties
 
@@ -69,7 +69,7 @@ type Box = {
 };
 ```
 
-- invalid static if: static if is only allowed on declarations, members, enum fields, or statements
+- contains: invalid static if: static if is only allowed on declarations, members, enum fields, or statements
 
 ### static if rejects argument placement
 
@@ -81,4 +81,4 @@ function call(value: number): void { }
 call(@if(true) 1);
 ```
 
-- invalid static if: static if is only allowed on declarations, members, enum fields, or statements
+- contains: invalid static if: static if is only allowed on declarations, members, enum fields, or statements

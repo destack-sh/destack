@@ -67,7 +67,7 @@ pinned satisfies 0;
 
 
 
-## Local Chains
+## local chains
 
 ### generic chains export concrete result types
 

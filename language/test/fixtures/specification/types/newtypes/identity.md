@@ -21,4 +21,4 @@ import { UserId as RightUserId } from "./right.ds";
 const id: LeftUserId = RightUserId(42);
 ```
 
-- type UserId is not assignable to type UserId
+- contains: not assignable

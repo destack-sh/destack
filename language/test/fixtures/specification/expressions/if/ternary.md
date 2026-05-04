@@ -144,7 +144,7 @@ const value: "api" | "admin" = true ? "api" : "admin";
 value satisfies "api";
 ```
 
-- contains: expected "api"
+- contains: not assignable
 
 ### let ternary object members widen without const context
 
@@ -307,4 +307,4 @@ let route = true ? "id:users" : "id:posts";
 parse(route);
 ```
 
-- not assignable to type `id:${string}`
+- contains: not assignable to type `id:${string}`

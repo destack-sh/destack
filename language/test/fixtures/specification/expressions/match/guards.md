@@ -3,11 +3,11 @@
 Match guards participate in control flow typing.
 Guard expressions narrow the matched value inside the guarded arm.
 
-## Guard narrowing
+## guard narrowing
 
 ### match guard narrows with is
 
-> Guard expressions using `is` narrows the scrutinee inside the guarded arm.
+> Guard expressions using `is` narrow the scrutinee inside the guarded arm.
 
 ```ds
 struct Foo {
@@ -20,7 +20,7 @@ struct Bar {
 
 function pick(value: Foo | Bar): int32 {
     return match (value) {
-        _ if value is Foo => {
+        _ if (value is Foo) => {
             value.x satisfies int32;
             value.x
         }
@@ -31,7 +31,7 @@ function pick(value: Foo | Bar): int32 {
 
 ### match guard narrows with in
 
-> Guard expressions using `in` narrows object unions inside the guarded arm.
+> Guard expressions using `in` narrow object unions inside the guarded arm.
 
 ```ds
 type WithX = { x: int32 };
@@ -39,7 +39,7 @@ type WithY = { y: int32 };
 
 function pick(value: WithX | WithY): int32 {
     return match (value) {
-        _ if "x" in value => {
+        _ if ("x" in value) => {
             value.x satisfies int32;
             value.x
         }
@@ -64,7 +64,7 @@ struct Other {
 
 function clamp(point: Point | Other): int32 {
     return match (point) {
-        Point { x } if x > 0 => x
+        Point { x } if (x > 0) => x
         _ => 0
     };
 }
@@ -85,7 +85,7 @@ struct Bar {
 
 function pick(value: Foo | Bar): int32 {
     return match (value) {
-        _ if value is Foo => value.x
+        _ if (value is Foo) => value.x
         _ => {
             value satisfies Foo | Bar;
             0
@@ -101,7 +101,7 @@ function pick(value: Foo | Bar): int32 {
 ```ds
 function pick(value: string | int32): int32 {
     return match (value) {
-        _ if typeof value == "string" => {
+        _ if (typeof value == "string") => {
             value satisfies string;
             0
         }
@@ -125,7 +125,7 @@ struct Bar {
 
 function pick(value: Foo | Bar): int32 {
     return match (value) {
-        _ if value is Foo && value.x > 0 => value.x
+        _ if (value is Foo && value.x > 0) => value.x
         _ => 0
     };
 }

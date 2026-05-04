@@ -214,64 +214,6 @@ function run(): void {
 }
 ```
 
-## borrow modes
-
-### hint mode emits warnings for conflicts
-
-> Hint mode reports borrow conflicts as warnings.
-
-```json:destack.json
-{ "compiler": { "borrowMode": "hint" } }
-```
-
-```ds
-struct Data {
-    value: int32;
-}
-
-struct Container {
-    data: Data;
-}
-
-function run(): void {
-    let container = ^Container { data: Data { value: 1 } };
-    let sharedRef = &readonly container.data;
-    let mutableRef = &container.data;
-    sharedRef.value;
-    mutableRef.value;
-}
-```
-
-- warning: cannot borrow as mutable
-
-### strict mode reports conflicts as errors
-
-> Strict mode reports borrow conflicts as errors.
-
-```json:destack.json
-{ "compiler": { "borrowMode": "strict" } }
-```
-
-```ds
-struct Data {
-    value: int32;
-}
-
-struct Container {
-    data: Data;
-}
-
-function run(): void {
-    let container = ^Container { data: Data { value: 1 } };
-    let sharedRef = &readonly container.data;
-    let mutableRef = &container.data;
-    sharedRef.value;
-    mutableRef.value;
-}
-```
-
-- contains: cannot borrow as mutable
-
 ## annotations
 
 ### reference annotations are accepted
@@ -304,7 +246,7 @@ function copy(value: ^Point): ^Point {
 
 ### generic reference annotations are accepted
 
-> Reference annotations accept generic owners.
+> Reference annotations accept generic types.
 
 ```ds
 class Box<T> {

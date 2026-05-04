@@ -1,16 +1,12 @@
 # Overrides
 
-Override modifiers and `noImplicitOverride`.
+Override modifiers mark intentional class member overrides.
 
-## noImplicitOverride
+## overrides
 
 ### missing override on base member
 
 > Members overriding a base class require the `override` modifier.
-
-```json:destack.json
-{ "compiler": { "noImplicitOverride": true } }
-```
 
 ```ds
 class Base {
@@ -22,15 +18,11 @@ class Derived extends Base {
 }
 ```
 
-- missing override modifier
+- contains: missing override modifier
 
 ### override modifier on base member
 
 > Members can opt in to `override` when they extend a base member.
-
-```json:destack.json
-{ "compiler": { "noImplicitOverride": true } }
-```
 
 ```ds
 class Base {
@@ -46,10 +38,6 @@ class Derived extends Base {
 
 > Override members must remain compatible with the base member signature.
 
-```json:destack.json
-{ "compiler": { "noImplicitOverride": true } }
-```
-
 ```ds
 class Base {
     greet(value: string): void {}
@@ -60,4 +48,4 @@ class Derived extends Base {
 }
 ```
 
-- type (number): void is not assignable to type (string): void
+- contains: not assignable

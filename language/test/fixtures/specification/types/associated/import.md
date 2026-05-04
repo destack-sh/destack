@@ -45,7 +45,7 @@ bytes satisfies 4096;
 
 ### imported requirements keep defaults
 
-> Interface defaults still apply when the interface and implementor are imported from different modules.
+> Interface defaults still apply when the interface and implementation are imported from different modules.
 
 ```ds:profile.ds
 export interface RegisterBlock {

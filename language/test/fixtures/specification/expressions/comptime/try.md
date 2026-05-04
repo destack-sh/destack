@@ -12,7 +12,7 @@ In comptime `try/catch`, the expression type joins the body result with the catc
 const value = comptime {
     try {
         1
-    } catch error {
+    } catch (error) {
         error satisfies unknown;
         "fallback"
     }
@@ -57,7 +57,7 @@ function compute(value: int): int {
 
 - contains: static expression
 
-## nested try paths
+## nested try
 
 ### comptime nested try blocks preserve expression result types
 
@@ -68,10 +68,10 @@ const value = comptime {
     try {
         try {
             1
-        } catch error {
+        } catch (error) {
             2
         }
-    } catch error {
+    } catch (error) {
         3
     }
 };
@@ -92,7 +92,7 @@ function compute(value: int): Result<int, Error> {
     const current = comptime {
         try {
             1
-        } catch error {
+        } catch (error) {
             2
         }
     };
@@ -102,11 +102,11 @@ function compute(value: int): Result<int, Error> {
 }
 ```
 
-## runtime rejection
+## runtime inputs
 
-### nested comptime helpers reject runtime dependent try propagation
+### nested comptime lambdas reject runtime dependent try propagation
 
-> A nested comptime helper must reject `try` propagation when any input is runtime-dependent.
+> A nested comptime lambda must reject `try` propagation when any input is runtime-dependent.
 
 ```ds
 function parse(value: int): Result<int, Error> {
@@ -125,9 +125,9 @@ function compute(value: int): int {
 
 - contains: static expression
 
-### nested comptime helpers reject try unwrap outside try contexts
+### nested comptime lambdas reject try unwrap outside try contexts
 
-> `try` unwrap in nested comptime helpers must be rejected when the enclosing function is not `Try`-compatible.
+> `try` unwrap in nested comptime lambdas must be rejected when the enclosing function is not `Try`-compatible.
 
 ```ds
 const value = comptime {
@@ -141,4 +141,4 @@ const value = comptime {
 value satisfies int;
 ```
 
-- try unwrap requires a Try return type
+- contains: try unwrap requires a Try return type

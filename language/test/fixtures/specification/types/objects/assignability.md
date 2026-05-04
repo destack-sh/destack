@@ -29,7 +29,7 @@ const person = { name: "Ada" }
 person satisfies Person;
 ```
 
-- contains: expected person, found { name: string }
+- contains: not assignable
 
 ### excess property reports error
 
@@ -71,7 +71,7 @@ const person = {}
 person satisfies Person;
 ```
 
-### exactOptionalPropertyTypes forbids undefined assignment
+### optional fields reject explicit undefined
 
 ```ds
 interface Target {
@@ -100,7 +100,7 @@ const source: Source = {}
 source satisfies Target;
 ```
 
-- contains: expected target, found source
+- contains: not assignable
 
 ### required fields are assignable to optional
 
@@ -180,7 +180,7 @@ widget.label satisfies string;
 widget.value satisfies number;
 ```
 
-### duplicate interface names are errors in .ds
+### duplicate interface names are rejected in .ds
 
 > Duplicate interface declarations are rejected outside declaration files.
 

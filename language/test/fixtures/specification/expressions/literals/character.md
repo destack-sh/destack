@@ -49,4 +49,4 @@ value satisfies character | string;
 const value: character = 'ab';
 ```
 
-- character
+- contains: character

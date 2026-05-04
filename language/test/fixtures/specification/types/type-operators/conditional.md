@@ -22,11 +22,11 @@ type Select<T> = T extends string ? string : int32;
 let bad: Select<string> = 1;
 ```
 
-- type 1 is not assignable to type Select<string>
+- contains: not assignable
 
 ### conditional types pick false branch
 
-> Conditional types select the else branch when the match fails.
+> Conditional types select the else branch when the match does not hold.
 
 ```ds
 type Select<T> = T extends string ? string : int32;
@@ -44,7 +44,7 @@ type Select<T> = T extends string ? string : int32;
 let bad: Select<int32> = "no";
 ```
 
-- type "no" is not assignable to type Select<int32>
+- contains: not assignable
 
 ### conditional types distribute over unions
 
@@ -66,7 +66,7 @@ type OnlyStrings<T> = T extends string ? T : never;
 let bad: OnlyStrings<string | int32> = 1;
 ```
 
-- type 1 is not assignable to type OnlyStrings<string | int32>
+- contains: not assignable
 
 ### conditional types with unknown select else branch
 
@@ -105,7 +105,7 @@ let bad: Result = "no";
 
 ### conditional types disable distribution with tuples
 
-> Wrapping types disables distributive behavior.
+> Wrapping types disables distribution.
 
 ```ds
 type Wrapped<T> = [T] extends [string] ? "yes" : "no";
@@ -220,3 +220,32 @@ type WrappedUnbox<T> = [T] extends [Box<infer U>] ? U : never;
 const ok1: WrappedUnbox<Box<"a"> | Box<"b">> = "a";
 const ok2: WrappedUnbox<Box<"a"> | Box<"b">> = "b";
 ```
+
+## argument extraction
+
+### distributive conditional argument extraction preserves union members
+
+Distributive conditional extraction of function arguments preserves each union member contribution.
+
+```ts
+type Argument<T> = T extends (value: infer A) => unknown ? A : never;
+
+type Input = Argument<((value: string) => void) | ((value: number) => void)>;
+
+const first: Input = "ok";
+const second: Input = 1;
+```
+
+### distributive conditional argument extraction rejects unrelated members
+
+That extracted argument union rejects unrelated assignments not present in any branch.
+
+```ts
+type Argument<T> = T extends (value: infer A) => unknown ? A : never;
+
+type Input = Argument<((value: string) => void) | ((value: number) => void)>;
+
+const bad: Input = false;
+```
+
+- contains: not assignable

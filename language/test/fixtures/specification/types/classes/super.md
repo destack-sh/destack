@@ -1,8 +1,8 @@
-# Super Inheritance Semantics
+# Super
 
-`super` constructor and member behavior in derived classes.
+`super` constructor and member use in derived classes.
 
-## Constructor Calls
+## constructor calls
 
 ### super call accepts base constructor parameters
 
@@ -58,7 +58,7 @@ class Derived extends Base {
 
 ### super call is rejected outside constructors
 
-> Super constructor calls are only valid in derived constructors.
+> Super constructor calls are only allowed in derived constructors.
 
 ```ds
 class Base {}
@@ -70,11 +70,11 @@ class Derived extends Base {
 }
 ```
 
-- super calls are only valid in constructors of derived classes
+- contains: super calls are only valid in constructors of derived classes
 
 ### super call is rejected in non derived constructors
 
-> Super constructor calls are invalid when the class has no base type.
+> Super constructor calls are rejected when the class has no base type.
 
 ```ds
 class Base {
@@ -84,12 +84,12 @@ class Base {
 }
 ```
 
-- super calls are only valid in constructors of derived classes
-- calling non-callable
+- contains: super calls are only valid in constructors of derived classes
+- contains: calling non-callable
 
 ### super call is rejected in nested constructor functions
 
-> Super constructor calls are invalid inside nested functions, even in derived constructors.
+> Super constructor calls are rejected inside nested functions, even in derived constructors.
 
 ```ds
 class Base {
@@ -107,11 +107,11 @@ class Derived extends Base {
 }
 ```
 
-- super calls are only valid in constructors of derived classes
+- contains: super calls are only valid in constructors of derived classes
 
 ### super call is rejected in static methods
 
-> Super constructor calls are invalid in static methods.
+> Super constructor calls are rejected in static methods.
 
 ```ds
 class Base {
@@ -125,9 +125,9 @@ class Derived extends Base {
 }
 ```
 
-- super calls are only valid in constructors of derived classes
+- contains: super calls are only valid in constructors of derived classes
 
-## Member Access
+## member access
 
 ### super optional chaining is rejected
 
@@ -147,11 +147,11 @@ class Derived extends Base {
 }
 ```
 
-- optional chaining cannot be applied to super
+- contains: optional chaining cannot be applied to super
 
 ### super optional chaining is rejected through members
 
-> Optional chaining is invalid when any optional segment is rooted in super.
+> Optional chaining is rejected when any optional segment is rooted in super.
 
 ```ds
 class Base {
@@ -167,7 +167,7 @@ class Derived extends Base {
 }
 ```
 
-- optional chaining cannot be applied to super
+- contains: optional chaining cannot be applied to super
 
 ### super member calls resolve the base implementation
 

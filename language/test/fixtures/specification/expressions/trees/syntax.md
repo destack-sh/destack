@@ -6,7 +6,7 @@ Tree literals use element syntax.
 
 ### tree literal is allowed
 
-> Tree literals are valid expressions.
+> Tree literals are accepted expressions.
 
 ```ds
 declare const A: unknown;
@@ -59,7 +59,7 @@ const node = <A value={1} value={2} />;
 node;
 ```
 
-- duplicate
+- contains: duplicate
 
 ### tree literals support nested children
 

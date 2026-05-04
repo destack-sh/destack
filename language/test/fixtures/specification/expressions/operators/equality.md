@@ -2,7 +2,7 @@
 
 `==` and `!=` use value equality, while `===` and `!==` are restricted to identity-compatible values.
 
-## loose equality
+## value equality
 
 ### number equals number
 
@@ -35,7 +35,7 @@ value satisfies boolean;
 
 ### strict equality accepts primitives
 
-> `===` and `!==` are valid on primitive identity-compatible values.
+> `===` and `!==` are accepted on primitive identity-compatible values.
 
 ```ds
 const same = 1 === 1;

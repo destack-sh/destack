@@ -58,7 +58,7 @@ value.value satisfies number;
 value.extra satisfies string;
 ```
 
-### primitive intersections collapse to never-like behavior
+### primitive intersections collapse to never
 
 > Incompatible primitive intersections reject concrete values.
 

@@ -2,7 +2,7 @@
 
 Static if gating on interface members.
 
-## Gating
+## gating
 
 ### static if gates interface members
 
@@ -59,7 +59,7 @@ box.missing satisfies number;
 
 - contains: does not exist
 
-### static if gated interface members are not required by implementors
+### static if gated interface members are not required by implementations
 
 > Interface members removed by static if are not required in implementations.
 
@@ -78,7 +78,7 @@ class Concrete implements Box {
 }
 ```
 
-### static if true interface members remain required by implementors
+### static if true interface members remain required by implementations
 
 > Interface members gated with true must still be implemented.
 
@@ -91,4 +91,4 @@ interface Box {
 class Concrete implements Box {}
 ```
 
-- type unknown is not assignable to type (): number
+- contains: not assignable

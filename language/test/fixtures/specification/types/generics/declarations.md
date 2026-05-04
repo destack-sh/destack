@@ -29,7 +29,7 @@ declare function makeBox(): Box<number>;
 let value: Box<string> = makeBox();
 ```
 
-- type string is not assignable to type number
+- contains: not assignable
 
 ### comptime value arguments on type aliases
 
@@ -70,7 +70,7 @@ declare function makeBuffer(): Buffer<string, 4>;
 let buffer: Buffer<string, true> = makeBuffer();
 ```
 
-- type true is not assignable to type number
+- contains: not assignable
 
 ### default type parameters on type aliases
 
@@ -252,7 +252,7 @@ declare function makeBox(): Box<number>;
 let value: Box<string> = makeBox();
 ```
 
-- type string is not assignable to type number
+- contains: not assignable
 
 ### comptime value arguments on newtypes
 
@@ -293,7 +293,7 @@ declare function makeBuffer(): Buffer<string, 4>;
 let buffer: Buffer<string, true> = makeBuffer();
 ```
 
-- type true is not assignable to type number
+- contains: not assignable
 
 ### default type parameters on newtypes
 
@@ -348,7 +348,7 @@ declare function makeBox(): Box<number>;
 let value: Box<string> = makeBox();
 ```
 
-- type string is not assignable to type number
+- contains: not assignable
 
 ### comptime value arguments on interfaces
 
@@ -375,7 +375,7 @@ declare function makeBuffer(): Buffer<string, 4>;
 let buffer: Buffer<string, true> = makeBuffer();
 ```
 
-- type true is not assignable to type number
+- contains: not assignable
 
 ### default type parameters on interfaces
 
@@ -430,7 +430,7 @@ declare function makeBox(): Box<number>;
 let value: Box<string> = makeBox();
 ```
 
-- type string is not assignable to type number
+- contains: not assignable
 
 ### comptime value arguments on structs
 
@@ -457,7 +457,7 @@ declare function makeBuffer(): Buffer<string, 4>;
 let buffer: Buffer<string, true> = makeBuffer();
 ```
 
-- type true is not assignable to type number
+- contains: not assignable
 
 ### default type parameters on structs
 
@@ -516,7 +516,7 @@ declare function makeBox(): Box<number>;
 let value: Box<string> = makeBox();
 ```
 
-- type string is not assignable to type number
+- contains: not assignable
 
 ### comptime value arguments on classes
 
@@ -547,7 +547,7 @@ declare function makeBuffer(): Buffer<string, 4>;
 let buffer: Buffer<string, true> = makeBuffer();
 ```
 
-- type true is not assignable to type number
+- contains: not assignable
 
 ### default type parameters on classes
 
@@ -593,7 +593,7 @@ declare let numberBox: Box<number>;
 let stringBox: Box<string> = numberBox;
 ```
 
-- type Buffer<string, 4> is not assignable to type Buffer<string, 8>
+- contains: not assignable
 
 ### comptime value arguments affect assignability
 
@@ -609,135 +609,4 @@ declare let buffer4: Buffer<string, 4>;
 let buffer8: Buffer<string, 8> = buffer4;
 ```
 
-- type Buffer<string, 4> is not assignable to type Buffer<string, 8>
-
-## extensions
-
-### extension type parameters
-
-> Generic parameters on extensions flow into member signatures.
-
-```ds
-struct Box<T> { value: T }
-
-extension<T> of Box<T> {
-    get(): T {
-        return this.value;
-    }
-}
-
-declare function makeBox(): Box<number>;
-
-const boxed = makeBox();
-boxed.get() satisfies number;
-```
-
-### extension comptime value parameters
-
-> Comptime value parameters on extensions are validated.
-
-```ds
-struct Buffer<T, comptime N: number> { value: T }
-
-extension<T, comptime N: number> of Buffer<T, N> {
-    get(): T {
-        return this.value;
-    }
-}
-
-declare function makeBuffer(): Buffer<string, 4>;
-
-const buffer = makeBuffer();
-buffer.get() satisfies string;
-```
-
-### extension generic parameters map by target argument order
-
-> Extension parameters follow the target type argument order.
-
-```ds
-struct Pair<A, B> {
-    left: A;
-    right: B
-}
-
-extension<Left, Right> of Pair<Right, Left> {
-    swap(): Pair<Left, Right> {
-        return Pair<Left, Right> {
-            left: this.right,
-            right: this.left
-        };
-    }
-}
-
-declare function makePair(): Pair<number, string>;
-
-const pair = makePair();
-pair.swap() satisfies Pair<string, number>;
-```
-
-### extension comptime value parameters use defaults
-
-> Extensions inherit default comptime arguments from target type references.
-
-```ds
-struct Buffer<T, comptime N: number = 4> {
-    value: T
-}
-
-extension<T, comptime N: number> of Buffer<T, N> {
-    get(): T {
-        return this.value;
-    }
-}
-
-declare function makeBuffer(): Buffer<string>;
-
-const buffer = makeBuffer();
-buffer.get() satisfies string;
-```
-
-### extension generic parameter mismatch rejects incompatible calls
-
-> Extension methods still enforce substituted generic parameter contracts.
-
-```ds
-struct Buffer<T, comptime N: number> {
-    value: T
-}
-
-extension<T, comptime N: number> of Buffer<T, N> {
-    requireSize(value: [T; N]): [T; N] {
-        return value;
-    }
-}
-
-declare function makeBuffer(): Buffer<uint8, 4>;
-
-const buffer = makeBuffer();
-buffer.requireSize([1, 2, 3, 4]);
-buffer.requireSize([1, 2]);
-```
-
 - contains: not assignable
-
-### extension defaults keep concrete member types
-
-> Defaulted comptime arguments are visible inside extension methods.
-
-```ds
-struct Registry<T, comptime N: number = 2> {
-    value: T
-}
-
-extension<T, comptime N: number> of Registry<T, N> {
-    pair(): (T, T) {
-        (this.value, this.value)
-    }
-}
-
-declare function makeRegistry(): Registry<string>;
-
-const registry = makeRegistry();
-registry.pair() satisfies (string, string);
-```

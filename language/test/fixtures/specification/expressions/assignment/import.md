@@ -2,7 +2,7 @@
 
 Imported bindings are immutable.
 
-## Imports
+## imports
 
 ### imported bindings are immutable
 

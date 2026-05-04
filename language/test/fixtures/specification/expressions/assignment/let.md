@@ -2,7 +2,7 @@
 
 Let bindings are mutable.
 
-## Bindings
+## bindings
 
 ### let bindings allow assignment
 

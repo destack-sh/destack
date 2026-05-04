@@ -150,3 +150,53 @@ type Lane<comptime N: uint> = [uint8; N];
 declare const value: Lane<4>;
 value satisfies [uint8; 4];
 ```
+
+## optional unions
+
+### indexed access over optional union members includes undefined
+
+Indexed access over optional members in a union includes `undefined` in the resulting value type.
+
+```ts
+type Input =
+    | { kind: "a", value?: number }
+    | { kind: "b", value: string };
+
+type Value = Input["value"];
+
+const maybe: Value = undefined;
+maybe satisfies number | string | undefined;
+```
+
+### indexed access over optional union members rejects assignment to missing required value
+
+Those optional indexed reads reject assignment into required-only target reads.
+
+```ts
+type Input =
+    | { kind: "a", value?: number }
+    | { kind: "b", value: string };
+
+type Value = Input["value"];
+
+const maybe: Value = undefined;
+maybe satisfies number | string;
+```
+
+- contains: not assignable
+
+### indexed access over optional union members rejects unrelated values
+
+Optional-union indexed reads also reject values outside the member union.
+
+```ts
+type Input =
+    | { kind: "a", value?: number }
+    | { kind: "b", value: string };
+
+type Value = Input["value"];
+
+const bad: Value = true;
+```
+
+- contains: not assignable

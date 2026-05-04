@@ -92,7 +92,7 @@ sound satisfies string;
 
 ### union method call resolves through re-exported named extensions
 
-> Re-exported named extensions remains visible when imported by name.
+> Re-exported named extensions remain visible when imported by name.
 
 ```ds:types.ds
 export struct Cat { name: string }

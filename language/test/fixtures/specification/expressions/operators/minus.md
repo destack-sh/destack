@@ -1,6 +1,6 @@
 # Minus
 
-`-`, `-%`, and `-|` use numeric rules for builtin numbers and `Subtract` for receiver overloads.
+`-` supports receiver overloads, while `-%` and `-|` are builtin overflow-policy operators.
 
 ## numbers
 
@@ -12,7 +12,7 @@
 const value = 5 - 3;
 value satisfies 2;
 value satisfies int;
-value satisfies float;
+value satisfies float64;
 value satisfies number;
 ```
 
@@ -71,42 +71,26 @@ left - right;
 
 ## wrapping
 
-### wrapping minus uses Subtract
+### wrapping minus is builtin integer arithmetic
 
-> `-%` uses the same receiver contract as `-`.
+> `-%` wraps modulo the integer range.
 
 ```ds
-struct Scalar { value: int }
+const a: uint8 = 5;
+const b: uint8 = 10;
 
-extension of Scalar implements Subtract<Scalar> {
-    subtract(other: Scalar): Scalar { return this }
-}
-
-declare function getScalar(): Scalar;
-
-const left = getScalar();
-const right = getScalar();
-
-const value = left -% right;
-value satisfies Scalar;
+const value = a -% b;
+value satisfies uint8;
 ```
 
-### saturating minus uses Subtract
+### saturating minus is builtin integer arithmetic
 
-> `-|` uses the same receiver contract as `-`.
+> `-|` clamps to the integer range.
 
 ```ds
-struct Scalar { value: int }
+const a: uint8 = 5;
+const b: uint8 = 10;
 
-extension of Scalar implements Subtract<Scalar> {
-    subtract(other: Scalar): Scalar { return this }
-}
-
-declare function getScalar(): Scalar;
-
-const left = getScalar();
-const right = getScalar();
-
-const value = left -| right;
-value satisfies Scalar;
+const value = a -| b;
+value satisfies uint8;
 ```

@@ -22,7 +22,7 @@ type Segment<T> = T extends `/${infer Name}` ? Name : never;
 let bad: Segment<"/api"> = 1;
 ```
 
-- type 1 is not assignable to type Segment<"/api">
+- contains: not assignable
 
 ### template literal infer extracts span from template literal type
 
@@ -55,7 +55,7 @@ type Strip<T> = T extends `prefix-${infer A}` ? A : "no";
 let bad: Strip<string> = "value";
 ```
 
-- type "value" is not assignable to type Strip<string>
+- contains: not assignable
 
 ### template literal infer falls back for unknown
 
@@ -77,7 +77,7 @@ type Strip<T> = T extends `prefix-${infer A}` ? A : "no";
 let bad: Strip<unknown> = "value";
 ```
 
-- type "value" is not assignable to type Strip<unknown>
+- contains: not assignable
 
 ### template literal infer distributes over union templates
 
@@ -114,7 +114,7 @@ type Result = Extract<`id-${"a" | "b"}`>;
 let bad: Result = "c";
 ```
 
-- type "c" is not assignable to type result
+- contains: not assignable
 
 ### template literal infer merges repeated spans
 
@@ -147,7 +147,7 @@ type Extract<T> = T extends `id-${infer A extends "a" | "b"}` ? A : "no";
 let bad: Extract<"id-c"> = "c";
 ```
 
-- type "c" is not assignable to type Extract<"id-c">
+- contains: not assignable
 
 ### template literal infer falls back for mismatched repeated spans
 
@@ -169,7 +169,7 @@ type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
 let bad: Repeat<"foo-bar"> = "foo";
 ```
 
-- type "foo" is not assignable to type Repeat<"foo-bar">
+- contains: not assignable
 
 ### template literal infer rejects non matching union member
 
@@ -182,7 +182,7 @@ type Result = Extract<`foo-a` | `bar-b`>;
 let bad: Result = "b";
 ```
 
-- type "b" is not assignable to type result
+- contains: not assignable
 
 ### template literal infer rejects non string result
 
@@ -195,7 +195,7 @@ type Result = Strip<"prefix-hello">;
 let bad: Result = 1;
 ```
 
-- type 1 is not assignable to type result
+- contains: not assignable
 
 ### template literal infer splits on first literal
 
@@ -217,7 +217,7 @@ type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
 let bad: Pair<"foo-bar-baz"> = ("foo-bar", "baz");
 ```
 
-- type ("foo-bar", "baz") is not assignable to type Pair<"foo-bar-baz">
+- contains: not assignable
 
 ### template literal infer requires non empty spans
 
@@ -249,4 +249,48 @@ type Split<T> = T extends `${infer A}${infer B}` ? (A, B) : never;
 let bad: Split<"a"> = ("", "a");
 ```
 
-- type ("", "a") is not assignable to type Split<"a">
+- contains: not assignable
+
+## recursion
+
+### recursive template literal parameter extraction keeps all path params
+
+Recursive template-literal parameter extraction keeps every parameter name discovered along the path.
+
+```ts
+type Params<T extends string> =
+    T extends `${string}:${infer Param}/${infer Rest}`
+        ? Param | Params<Rest>
+        : T extends `${string}:${infer Param}`
+            ? Param
+            : never;
+
+type RouteParams = Params<"/users/:userId/posts/:postId">;
+
+declare const key: RouteParams;
+key satisfies "userId" | "postId";
+```
+
+### recursive template literal parameter extraction rejects unrelated params
+
+The extracted parameter-name union rejects names that never appear in the template pattern.
+
+```ts
+type Params<T extends string> =
+    T extends `${string}:${infer Param}/${infer Rest}`
+        ? Param | Params<Rest>
+        : T extends `${string}:${infer Param}`
+            ? Param
+            : never;
+
+type RouteParams = Params<"/users/:userId/posts/:postId">;
+
+declare const key: RouteParams;
+key satisfies "userId" | "postId" | "commentId";
+```
+
+- contains: not assignable
+
+```json:destack.json
+{ "compiler": { "allowTs": true, "checkTs": true } }
+```

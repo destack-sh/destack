@@ -153,7 +153,7 @@ echo("ok") satisfies string;
 function bad(in value: string) {}
 ```
 
-- contains: expected identifier
+- contains: not assignable
 
 ### variance modifiers require parameter names
 
@@ -246,7 +246,7 @@ declare const source_union: Source<string | number>;
 const narrowed: Source<string> = source_union;
 ```
 
-- type Source<string | number> is not assignable to type Source<string>
+- contains: not assignable
 
 ### contravariance allows narrowing
 
@@ -278,4 +278,4 @@ declare const sink_string: Sink<string>;
 const widened: Sink<string | number> = sink_string;
 ```
 
-- type Sink<string> is not assignable to type Sink<string | number>
+- contains: not assignable

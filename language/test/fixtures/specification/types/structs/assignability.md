@@ -162,4 +162,4 @@ struct Child extends Base {
 }
 ```
 
-- invalid lineage
+- contains: invalid lineage

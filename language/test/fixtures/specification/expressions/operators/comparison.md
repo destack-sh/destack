@@ -113,4 +113,4 @@ const right = getOtherMeasure();
 left < right;
 ```
 
-- type OtherMeasure is not assignable to type Measure
+- contains: not assignable

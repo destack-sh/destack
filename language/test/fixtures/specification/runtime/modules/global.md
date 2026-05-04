@@ -190,7 +190,7 @@ GlobalWidget.tag satisfies string;
 
 ### global array augmentations preserve ambient array members
 
-> Global `Array<T>` augmentations add members without removing ambient library behavior.
+> Global `Array<T>` augmentations add members without removing ambient library members.
 
 ```ds:main.ds libs=es5
 declare global {

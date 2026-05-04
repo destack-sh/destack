@@ -43,9 +43,9 @@ function classify(day: int32): int32 {
 }
 ```
 
-## Errors
+## errors
 
-### switch break with value is invalid
+### switch rejects break values
 
 > Switch breaks cannot carry a value.
 
@@ -61,7 +61,7 @@ function invalidBreak(day: int32): int32 {
 }
 ```
 
-- switch break cannot have a value
+- contains: switch break cannot have a value
 
 ### switch cases require expression patterns
 
@@ -79,7 +79,7 @@ function invalidCase(value: int32): int32 {
 }
 ```
 
-- switch cases require expression patterns
+- contains: switch cases require expression patterns
 
 ### switch cases do not accept wildcards
 
@@ -97,7 +97,7 @@ function invalidWildcard(value: int32): int32 {
 }
 ```
 
-- switch cases require expression patterns
+- contains: switch cases require expression patterns
 
 ### switch cases must match the switch type
 
@@ -115,4 +115,4 @@ function invalidCaseType(value: int32): int32 {
 }
 ```
 
-- type "hi" is not assignable to type int32
+- contains: not assignable

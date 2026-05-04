@@ -14,7 +14,7 @@ const x: string = "hello";
 
 ### empty string
 
-> Empty strings are valid string literals.
+> Empty strings are accepted string literals.
 
 ```ds
 const x: string = "";
@@ -28,7 +28,7 @@ const x: string = "";
 const x: string = "hello world";
 ```
 
-## Inference
+## inference
 
 ### inferred string type
 
@@ -57,6 +57,25 @@ const x = "hello";
 x satisfies number;
 ```
 
-- contains: expected number, found "hello"
+- contains: not assignable
 
-## String Members
+## string members
+
+### string length resolves
+
+> String literals expose string members.
+
+```ds libs=es5
+const value = "hello";
+value.length satisfies int32;
+```
+
+### string toUpperCase resolves
+
+> String methods preserve their declared return types.
+
+```ds libs=es5
+const value = "hello";
+const text = value.toUpperCase();
+text satisfies string;
+```

@@ -52,11 +52,11 @@ const node = <>
 node;
 ```
 
-- Fragment
+- contains: Fragment
 
-### namespaced tags route as intrinsic string names
+### namespaced tags resolve as intrinsic string names
 
-> XML namespaced tags are routed as intrinsic string names.
+> XML namespaced tags resolve as intrinsic string names.
 
 ```ds
 const node = <svg:path />;
@@ -64,7 +64,7 @@ node;
 ```
 
 - contains: intrinsic
-- svg:path
+- contains: svg:path
 
 ## attributes and spread
 
@@ -92,5 +92,5 @@ const node = <Button {...dynamicProps} />;
 node;
 ```
 
-- spread
-- dynamic
+- contains: spread
+- contains: dynamic

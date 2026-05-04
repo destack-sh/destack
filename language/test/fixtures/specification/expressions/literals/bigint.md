@@ -13,7 +13,7 @@ Bigint literal type inference and checking.
 const x: bigint = 42n;
 ```
 
-## BigInt Members
+## BigInt members
 
 ### bigint toString resolves
 
@@ -34,7 +34,7 @@ text satisfies string;
 const value: number = 42n;
 ```
 
-- expected bigint, found number (not assignable)
+- contains: not assignable
 
 ### bigint literals participate in bigint arithmetic
 
@@ -54,4 +54,4 @@ const value = 40n + 2;
 value satisfies bigint;
 ```
 
-- expected bigint, found number (not assignable)
+- contains: not assignable

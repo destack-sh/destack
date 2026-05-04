@@ -37,7 +37,7 @@ const result = match (value) {
 result satisfies string;
 ```
 
-## validation
+## rejections
 
 ### conflicting arm hints are rejected
 
@@ -75,4 +75,4 @@ const result = match (value) {
 result satisfies string;
 ```
 
-- duplicate
+- contains: duplicate

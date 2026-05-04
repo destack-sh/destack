@@ -2,7 +2,7 @@
 
 Static if gating on declarations.
 
-## Gating
+## gating
 
 ### static if gates const declarations
 
@@ -80,7 +80,7 @@ value satisfies number;
 
 ### static if combines multiple annotations
 
-> Multiple @if annotations combine with logical and semantics.
+> Multiple @if annotations combine as a conjunction.
 
 ```ds
 @if(import.meta.emit == "js")

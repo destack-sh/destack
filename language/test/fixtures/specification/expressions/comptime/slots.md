@@ -1,4 +1,4 @@
-# Comptime Slots
+# Comptime Values
 
 Using comptime results as fixed compile-time values.
 
@@ -41,9 +41,9 @@ const lane: Lane = [1, 2, 3, 4];
 lane satisfies [uint8; 4];
 ```
 
-### comptime values can drive conditional static slots
+### comptime values can drive static conditionals
 
-> Comptime slot expressions can include static conditional logic.
+> Comptime expressions can include static conditional logic.
 
 ```ds
 const width = comptime (if (true) { 8 } else { 4 });
@@ -53,9 +53,9 @@ const lane: Lane = [1, 2, 3, 4, 5, 6, 7, 8];
 lane satisfies [uint8; 8];
 ```
 
-### comptime slots reject runtime-only dependencies
+### comptime values reject runtime dependencies
 
-> Comptime slots reject expressions that require runtime execution.
+> Comptime values reject expressions that require runtime execution.
 
 ```ds
 function runtime_width(): int32 {
