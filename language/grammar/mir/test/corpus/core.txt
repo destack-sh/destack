@@ -305,7 +305,6 @@ block0(v0: i64):
     v2: ref<borrowed i64> = element.addr v1, v0
     v3: ref<owned i64> = raw.alloc i64
     store v2, v0
-    dispose v3
     raw.free v3
     return
 }

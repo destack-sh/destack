@@ -86,8 +86,6 @@ impl Parser {
                 opcode_text,
                 "local.set"
                     | "store"
-                    | "dispose"
-                    | "dispose.async"
                     | "drop"
                     | "barrier.write"
                     | "atomic.store"
@@ -121,18 +119,6 @@ impl Parser {
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::Store { pointer, value }
-            }
-            "dispose" => {
-                let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::Dispose { value }
-            }
-            "dispose.async" => {
-                let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::AsyncDispose { value }
-            }
-            "pin" => {
-                let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::Pin { value }
             }
             "unpin" => {
                 let value = self.parse_value_segment(&mut segment_spans)?;
@@ -350,6 +336,14 @@ impl Parser {
                         Instruction::LocalAddr {
                             destination,
                             local,
+                            result_type: destination_type.into(),
+                        }
+                    }
+                    "pin" => {
+                        let value = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::Pin {
+                            destination,
+                            value,
                             result_type: destination_type.into(),
                         }
                     }

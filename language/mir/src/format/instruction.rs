@@ -307,13 +307,15 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::Dispose { value } => write!(f, [token("dispose"), space(), value]),
-
-            Instruction::AsyncDispose { value } => {
-                write!(f, [token("dispose.async"), space(), value])
+            Instruction::Pin {
+                destination, value, ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [space(), token("="), space(), token("pin"), space(), value]
+                )
             }
-
-            Instruction::Pin { value } => write!(f, [token("pin"), space(), value]),
 
             Instruction::Unpin { value } => write!(f, [token("unpin"), space(), value]),
 
