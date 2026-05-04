@@ -1,36 +1,13 @@
 use std::mem;
 use std::ptr::NonNull;
 
-use destack_engine::{self as engine, FrameRegionId};
-use destack_mir as mir;
-use destack_mir::ReferenceMap;
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
+use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::program::{Block, Function, FunctionTable, Program, repr_type};
+use crate::program::{Function, FunctionTable, Program};
 use crate::{FramePointer, RootSink, Word};
-use destack_heap::{HeapReference, HeapResult, RootSlot, SharedHeapReference};
-
-/// Heap reference carried by one scalar type.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum ScalarRoot {
-    /// No heap root.
-    None,
-    /// Worker-local heap root.
-    Local,
-    /// World-shared heap root.
-    Shared,
-}
-
-/// One active exceptional call parked on a caller frame.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ExceptionalCall {
-    /// The frame state to enter when the callee returns normally.
-    pub(crate) normal_state: engine::FrameStateId,
-    /// The frame state to enter when the callee throws.
-    pub(crate) unwind_state: engine::FrameStateId,
-}
+use destack_heap::{HeapResult, RootSlot};
 
 /// Call frame in the interpreter.
 #[derive(Debug)]
@@ -39,10 +16,10 @@ pub struct Frame {
     pub(crate) frame_layout: engine::FrameLayoutId,
     /// Pointer to the lowered function.
     pub(crate) function_ptr: NonNull<Function>,
-    /// Pointer to the current block.
-    pub(crate) block_ptr: NonNull<Block>,
+    /// The current block index in the lowered function.
+    pub(crate) block: u32,
     /// Program counter within the current block.
-    pub(crate) resume_pc: usize,
+    pub(crate) pc: usize,
     /// The active exceptional call owned by this frame while one callee runs.
     pub(crate) exceptional_call: Option<ExceptionalCall>,
     /// The byte offset in the interpreter stack arena.
@@ -63,7 +40,7 @@ pub struct FrameImage {
     /// The current block being executed.
     pub current_block: mir::LocalNodeId<mir::Block>,
     /// The program counter within the current block.
-    pub resume_pc: usize,
+    pub pc: usize,
     /// The active exceptional call owned by this frame while one callee runs.
     pub exceptional_call: Option<ExceptionalCall>,
     /// The captured frame bytes.
@@ -73,7 +50,7 @@ pub struct FrameImage {
 // frame should fit in 64 bytes
 const _: () = assert!(std::mem::size_of::<Frame>() <= 64);
 
-// the raw function and block pointers always point into immutable program data
+// the raw function pointer always points into immutable program data
 // that stays alive for the duration of the owning isolate
 unsafe impl Send for Frame {}
 
@@ -82,7 +59,7 @@ impl Frame {
     pub(crate) fn new(
         frame_layout: engine::FrameLayoutId,
         function_ptr: NonNull<Function>,
-        block_ptr: NonNull<Block>,
+        block: u32,
         layout: &engine::FrameLayout,
         stack_offset: usize,
         base: *mut u8,
@@ -90,8 +67,8 @@ impl Frame {
         Self {
             frame_layout,
             function_ptr,
-            block_ptr,
-            resume_pc: 0,
+            block,
+            pc: 0,
             exceptional_call: None,
             stack_offset,
             byte_len: layout.byte_len as usize,
@@ -108,7 +85,7 @@ impl Frame {
     /// Return the current MIR block id.
     #[inline(always)]
     pub(crate) fn current_block(&self) -> mir::LocalNodeId<mir::Block> {
-        unsafe { self.block_ptr.as_ref().mir_block }
+        unsafe { self.function_ptr.as_ref().blocks[self.block as usize].mir_block }
     }
 
     /// Replace this frame's byte range.
@@ -123,6 +100,12 @@ impl Frame {
         if stack_end > self.stack_offset {
             self.byte_len = stack_end - self.stack_offset;
         }
+    }
+
+    /// Truncate this frame's stack-owned byte range.
+    pub(crate) fn truncate_bytes_to(&mut self, stack_end: usize) {
+        debug_assert!(stack_end >= self.stack_offset);
+        self.byte_len = stack_end - self.stack_offset;
     }
 
     /// Return the native address of this frame's byte range.
@@ -143,10 +126,10 @@ impl Frame {
         unsafe { std::slice::from_raw_parts_mut(self.base, self.byte_len) }
     }
 
-    /// Return a pointer to one frame region.
+    /// Return a pointer to one frame slot.
     #[inline(always)]
-    pub(crate) fn region_address(&self, region: &engine::FrameRegion) -> usize {
-        self.base_address() + region.offset as usize
+    pub(crate) fn slot_address(&self, slot: &engine::FrameSlot) -> usize {
+        self.base_address() + slot.offset as usize
     }
 
     /// Read one word from a byte offset.
@@ -169,48 +152,48 @@ impl Frame {
         }
     }
 
-    /// Read one word from a region.
+    /// Read one word from a slot.
     #[inline(always)]
-    pub(crate) fn read_word(&self, region: &engine::FrameRegion) -> Word {
-        debug_assert!(region.byte_len as usize >= Word::BYTE_LEN);
-        debug_assert_eq!((self.region_address(region) % mem::align_of::<Word>()), 0);
+    pub(crate) fn read_word(&self, slot: &engine::FrameSlot) -> Word {
+        debug_assert!(slot.byte_len as usize >= Word::BYTE_LEN);
+        debug_assert_eq!((self.slot_address(slot) % mem::align_of::<Word>()), 0);
 
-        unsafe { std::ptr::read(self.region_address(region) as *const Word) }
+        unsafe { std::ptr::read(self.slot_address(slot) as *const Word) }
     }
 
-    /// Write one word into a region.
+    /// Write one word into a slot.
     #[inline(always)]
-    pub(crate) fn write_word(&mut self, region: &engine::FrameRegion, value: Word) {
-        debug_assert!(region.byte_len as usize >= Word::BYTE_LEN);
-        debug_assert_eq!((self.region_address(region) % mem::align_of::<Word>()), 0);
+    pub(crate) fn write_word(&mut self, slot: &engine::FrameSlot, value: Word) {
+        debug_assert!(slot.byte_len as usize >= Word::BYTE_LEN);
+        debug_assert_eq!((self.slot_address(slot) % mem::align_of::<Word>()), 0);
 
         unsafe {
-            std::ptr::write(self.region_address(region) as *mut Word, value);
+            std::ptr::write(self.slot_address(slot) as *mut Word, value);
         }
     }
 
-    /// Read one word or frame address from a region.
+    /// Read one word or frame address from a slot.
     #[inline(always)]
-    pub(crate) fn read_operand(&self, region: &engine::FrameRegion) -> Word {
-        if region.is_word {
-            return self.read_word(region);
+    pub(crate) fn read_operand(&self, slot: &engine::FrameSlot) -> Word {
+        if slot.is_word {
+            return self.read_word(slot);
         }
 
-        Word::frame_pointer(FramePointer::from_address(self.region_address(region)))
+        Word::frame_pointer(FramePointer::from_address(self.slot_address(slot)))
     }
 
-    /// Borrow one region byte range.
-    pub(crate) fn region_bytes(&self, region: &engine::FrameRegion) -> &[u8] {
-        let start = region.offset as usize;
-        let end = start + region.byte_len as usize;
+    /// Borrow one slot byte range.
+    pub(crate) fn slot_bytes(&self, slot: &engine::FrameSlot) -> &[u8] {
+        let start = slot.offset as usize;
+        let end = start + slot.byte_len as usize;
 
         &self.bytes()[start..end]
     }
 
-    /// Borrow one region byte range mutably.
-    pub(crate) fn region_bytes_mut(&mut self, region: &engine::FrameRegion) -> &mut [u8] {
-        let start = region.offset as usize;
-        let end = start + region.byte_len as usize;
+    /// Borrow one slot byte range mutably.
+    pub(crate) fn slot_bytes_mut(&mut self, slot: &engine::FrameSlot) -> &mut [u8] {
+        let start = slot.offset as usize;
+        let end = start + slot.byte_len as usize;
 
         &mut self.bytes_mut()[start..end]
     }
@@ -223,17 +206,17 @@ impl Frame {
         value: mir::Value,
         word: Word,
     ) -> Result<(), Error> {
-        let region = layout
+        let slot = layout
             .value(value.0)
             .ok_or(Error::UndefinedValue { value })?;
-        if !region.is_word {
+        if !slot.is_word {
             return Err(Error::TypeMismatch {
                 expected: "word value".to_string(),
                 actual: format!("frame-backed value: {value:?}"),
             });
         }
 
-        self.write_word(region, word);
+        self.write_word(slot, word);
 
         Ok(())
     }
@@ -244,35 +227,35 @@ impl Frame {
         layout: &engine::FrameLayout,
         local: mir::LocalNodeId<mir::Local>,
     ) -> Result<usize, Error> {
-        let region = layout
+        let slot = layout
             .local(local.id)
             .ok_or(Error::UndefinedLocal { local })?;
 
-        Ok(self.region_address(region))
+        Ok(self.slot_address(slot))
     }
 
     /// Return the callable environment for this frame.
     pub(crate) fn environment(&self, layout: &engine::FrameLayout) -> Result<Option<Word>, Error> {
-        let Some(region) = layout.environment() else {
+        let Some(slot) = layout.environment() else {
             return Ok(None);
         };
 
-        Ok(Some(self.read_word(region)))
+        Ok(Some(self.read_word(slot)))
     }
 
     /// Store the callable environment for this frame.
     pub(crate) fn set_environment(&mut self, layout: &engine::FrameLayout, value: Option<Word>) {
-        let Some(region) = layout.environment() else {
+        let Some(slot) = layout.environment() else {
             return;
         };
 
-        self.write_word(region, value.unwrap_or(Word::VOID));
+        self.write_word(slot, value.unwrap_or(Word::VOID));
     }
 
     /// Clear all values (but keep locals).
     pub(crate) fn clear_values(&mut self, layout: &engine::FrameLayout) {
-        for region in layout.values() {
-            self.region_bytes_mut(region).fill(0);
+        for slot in layout.values() {
+            self.slot_bytes_mut(slot).fill(0);
         }
     }
 
@@ -299,18 +282,18 @@ impl Frame {
             })?;
 
         // ssa values
-        for region in layout.values() {
-            self.visit_region_roots(program, region, roots)?;
+        for slot in layout.values() {
+            self.visit_slot_roots(program, slot, roots)?;
         }
 
         // locals
-        for region in layout.locals() {
-            self.visit_region_roots(program, region, roots)?;
+        for slot in layout.locals() {
+            self.visit_slot_roots(program, slot, roots)?;
         }
 
         // callable environment
-        if let Some(region) = layout.environment() {
-            self.visit_region_roots(program, region, roots)?;
+        if let Some(slot) = layout.environment() {
+            self.visit_slot_roots(program, slot, roots)?;
         }
 
         Ok(())
@@ -330,18 +313,18 @@ impl Frame {
             })?;
 
         // ssa values
-        for region in layout.values() {
-            self.visit_region_root_slots(program, region, visit)?;
+        for slot in layout.values() {
+            self.visit_slot_root_slots(program, slot, visit)?;
         }
 
         // locals
-        for region in layout.locals() {
-            self.visit_region_root_slots(program, region, visit)?;
+        for slot in layout.locals() {
+            self.visit_slot_root_slots(program, slot, visit)?;
         }
 
         // callable environment
-        if let Some(region) = layout.environment() {
-            self.visit_region_root_slots(program, region, visit)?;
+        if let Some(slot) = layout.environment() {
+            self.visit_slot_root_slots(program, slot, visit)?;
         }
 
         Ok(())
@@ -351,7 +334,7 @@ impl Frame {
     pub(crate) fn visit_materialized_roots(
         &self,
         program: &Program,
-        materialization: &engine::MaterializationFrame,
+        materialization: &engine::FrameMaterialization,
         roots: &mut impl RootSink,
     ) -> Result<(), Error> {
         let layout = program
@@ -362,30 +345,17 @@ impl Frame {
                     materialization.frame_layout
                 ),
             })?;
-        let mut visited = SmallVec::<[FrameRegionId; 16]>::new();
 
-        // scan each live source region once
-        for value in &materialization.regions {
-            let engine::MaterializationValue::FrameRegion(region) = value else {
-                continue;
-            };
-            if visited.contains(region) {
-                continue;
-            }
-            visited.push(*region);
-
-            let region = layout.region(*region).ok_or(Error::InvalidContinuation)?;
-            self.visit_region_roots(program, region, roots)?;
-        }
-
-        Ok(())
+        visit_materialized_slots(layout, materialization, |slot| {
+            self.visit_slot_roots(program, slot, roots)
+        })
     }
 
     /// Visit mutable local root slots materialized at one safepoint.
     pub(crate) fn visit_materialized_root_slots(
         &mut self,
         program: &Program,
-        materialization: &engine::MaterializationFrame,
+        materialization: &engine::FrameMaterialization,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
         let layout = program
@@ -396,321 +366,72 @@ impl Frame {
                     materialization.frame_layout
                 ),
             })?;
-        let mut visited = SmallVec::<[FrameRegionId; 16]>::new();
 
-        // visit each live source region once
-        for value in &materialization.regions {
-            let engine::MaterializationValue::FrameRegion(region) = value else {
-                continue;
-            };
-            if visited.contains(region) {
-                continue;
-            }
-            visited.push(*region);
-
-            let region = layout.region(*region).ok_or(Error::InvalidContinuation)?;
-            self.visit_region_root_slots(program, region, visit)?;
-        }
-
-        Ok(())
+        visit_materialized_slots(layout, materialization, |slot| {
+            self.visit_slot_root_slots(program, slot, visit)
+        })
     }
 
-    /// Visit one heap root stored in one word.
-    pub(crate) fn visit_value_root(
-        program: &Program,
-        ty: mir::LocalNodeId<mir::Type>,
-        value: Word,
-        roots: &mut impl RootSink,
-    ) -> Result<(), Error> {
-        Self::visit_scalar_root(Self::type_scalar_root(program, ty)?, value, roots)
-    }
-
-    /// Visit one scalar root after its reference domain is known.
-    fn visit_scalar_root(
-        root: ScalarRoot,
-        value: Word,
-        roots: &mut impl RootSink,
-    ) -> Result<(), Error> {
-        match root {
-            ScalarRoot::None => {}
-            ScalarRoot::Local => {
-                let reference = HeapReference::from_bits(value.bits() as usize);
-                if !reference.is_null() {
-                    roots.push_heap(reference);
-                }
-            }
-            ScalarRoot::Shared => {
-                let reference = SharedHeapReference::from_bits(value.bits() as usize);
-                if !reference.is_null() {
-                    roots.push_shared_heap(reference);
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Visit heap roots stored in one frame region.
-    fn visit_region_roots(
+    /// Visit heap roots stored in one frame slot.
+    fn visit_slot_roots(
         &self,
         program: &Program,
-        region: &engine::FrameRegion,
+        slot: &engine::FrameSlot,
         roots: &mut impl RootSink,
     ) -> Result<(), Error> {
-        let layout = program
-            .layout_for_id(region.ty)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!(
-                    "missing frame region layout for root scan: type={:?}",
-                    region.ty
-                ),
-            })?;
+        let layout =
+            program
+                .layout_for_layout(slot.layout)
+                .ok_or_else(|| Error::InvariantViolation {
+                    context: format!(
+                        "missing frame slot layout for root scan: layout={:?}",
+                        slot.layout
+                    ),
+                })?;
         if !layout.is_word() {
-            return Self::visit_byte_roots(
-                program,
-                program.type_for_id(region.ty),
-                self.region_bytes(region),
+            return program.visit_byte_roots(
+                program.type_for_layout(slot.layout),
+                self.slot_bytes(slot),
                 roots,
             );
         }
 
-        Self::visit_value_root(
-            program,
-            program.type_for_id(region.ty),
-            self.read_word(region),
+        program.visit_value_root(
+            program.type_for_layout(slot.layout),
+            self.read_word(slot),
             roots,
         )
     }
 
-    /// Visit local root slots stored in one frame region.
-    fn visit_region_root_slots(
+    /// Visit local root slots stored in one frame slot.
+    fn visit_slot_root_slots(
         &mut self,
         program: &Program,
-        region: &engine::FrameRegion,
+        slot: &engine::FrameSlot,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
-        let layout = program
-            .layout_for_id(region.ty)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!(
-                    "missing frame region layout for heap roots: type={:?}",
-                    region.ty
-                ),
-            })?;
+        let layout =
+            program
+                .layout_for_layout(slot.layout)
+                .ok_or_else(|| Error::InvariantViolation {
+                    context: format!(
+                        "missing frame slot layout for heap roots: layout={:?}",
+                        slot.layout
+                    ),
+                })?;
         if !layout.is_word() {
-            return Self::visit_byte_root_slots(
-                program,
-                program.type_for_id(region.ty),
-                self.region_bytes_mut(region),
+            return program.visit_byte_root_slots(
+                program.type_for_layout(slot.layout),
+                self.slot_bytes_mut(slot),
                 visit,
             );
         }
 
-        if Self::type_scalar_root(program, program.type_for_id(region.ty))? == ScalarRoot::Local {
-            visit(RootSlot::Bytes(self.region_bytes_mut(region))).map_err(Error::from)?;
+        if program.is_local_root_type(program.type_for_layout(slot.layout))? {
+            visit(RootSlot::Bytes(self.slot_bytes_mut(slot))).map_err(Error::from)?;
         }
 
         Ok(())
-    }
-
-    /// Return the heap reference domain carried by one scalar type.
-    fn type_scalar_root(
-        program: &Program,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) -> Result<ScalarRoot, Error> {
-        let layout = program
-            .layout(ty)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing scalar layout for root scan: type={ty:?}"),
-            })?;
-        if !layout.is_word() {
-            return Ok(ScalarRoot::None);
-        }
-
-        let repr_ty = repr_type(&program.tree, ty);
-
-        match program.tree.get(repr_ty) {
-            mir::Type::Reference {
-                kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
-                address_space: mir::AddressSpace::Local,
-                ..
-            }
-            | mir::Type::TensorView {
-                kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
-                address_space: mir::AddressSpace::Local,
-                ..
-            }
-            | mir::Type::Callable { .. } => Ok(ScalarRoot::Local),
-            mir::Type::Reference {
-                kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
-                address_space: mir::AddressSpace::Shared,
-                ..
-            }
-            | mir::Type::TensorView {
-                kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
-                address_space: mir::AddressSpace::Shared,
-                ..
-            } => Ok(ScalarRoot::Shared),
-            _ => Ok(ScalarRoot::None),
-        }
-    }
-
-    /// Visit heap roots from one byte range.
-    pub(crate) fn visit_byte_roots(
-        program: &Program,
-        ty: mir::LocalNodeId<mir::Type>,
-        bytes: &[u8],
-        roots: &mut impl RootSink,
-    ) -> Result<(), Error> {
-        let layout = program
-            .layout(ty)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing layout for byte root scan: type={ty:?}"),
-            })?;
-
-        if bytes.len() != layout.byte_len {
-            return Err(Error::InvariantViolation {
-                context: format!(
-                    "byte root length mismatch: type={ty:?}, bytes={}, layout_bytes={}",
-                    bytes.len(),
-                    layout.byte_len,
-                ),
-            });
-        }
-
-        Self::collect_type_roots(program, ty, bytes, 0, roots)
-    }
-
-    /// Visit local root slots from one byte range.
-    pub(crate) fn visit_byte_root_slots(
-        program: &Program,
-        ty: mir::LocalNodeId<mir::Type>,
-        bytes: &mut [u8],
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<(), Error> {
-        let layout = program
-            .layout(ty)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing layout for byte heap roots: type={ty:?}"),
-            })?;
-
-        if bytes.len() != layout.byte_len {
-            return Err(Error::InvariantViolation {
-                context: format!(
-                    "byte heap root length mismatch: type={ty:?}, bytes={}, layout_bytes={}",
-                    bytes.len(),
-                    layout.byte_len,
-                ),
-            });
-        }
-
-        Self::visit_type_root_slots(program, ty, bytes, 0, visit)
-    }
-
-    /// Visit heap roots from one byte range.
-    fn collect_type_roots(
-        program: &Program,
-        ty: mir::LocalNodeId<mir::Type>,
-        bytes: &[u8],
-        base_offset: usize,
-        roots: &mut impl RootSink,
-    ) -> Result<(), Error> {
-        let layout = program
-            .layout(ty)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing layout for stack root scan: type={ty:?}"),
-            })?;
-        let pointer_bytes = program.tree.pointer_bytes() as usize;
-
-        visit_reference_offsets(&layout.reference_map, true, bytes, |offset| {
-            let offset = base_offset + offset;
-            let window = Self::reference_window(bytes, offset, pointer_bytes, "stack root scan")?;
-            let reference = HeapReference::read_from_bytes(window).map_err(Error::from)?;
-
-            if !reference.is_null() {
-                roots.push_heap(reference);
-            }
-
-            Ok(())
-        })?;
-
-        visit_reference_offsets(&layout.reference_map, false, bytes, |offset| {
-            let offset = base_offset + offset;
-            let window = Self::reference_window(bytes, offset, pointer_bytes, "stack root scan")?;
-            let reference = SharedHeapReference::read_from_bytes(window).map_err(Error::from)?;
-
-            if !reference.is_null() {
-                roots.push_shared_heap(reference);
-            }
-
-            Ok(())
-        })?;
-
-        Ok(())
-    }
-
-    /// Visit local root slots from one byte range.
-    fn visit_type_root_slots(
-        program: &Program,
-        ty: mir::LocalNodeId<mir::Type>,
-        bytes: &mut [u8],
-        base_offset: usize,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<(), Error> {
-        let layout = program
-            .layout(ty)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing layout for stack heap roots: type={ty:?}"),
-            })?;
-        let pointer_bytes = program.tree.pointer_bytes() as usize;
-
-        let mut offsets = SmallVec::<[usize; 16]>::new();
-        visit_reference_offsets(&layout.reference_map, true, bytes, |offset| {
-            offsets.push(offset);
-
-            Ok(())
-        })?;
-
-        for offset in offsets {
-            let offset = base_offset + offset;
-            let end = offset + pointer_bytes;
-            let bytes_len = bytes.len();
-            let Some(slot) = bytes.get_mut(offset..end) else {
-                return Err(Error::InvariantViolation {
-                    context: format!(
-                        "stack heap root byte range out of bounds: offset={offset}, width={pointer_bytes}, len={bytes_len}",
-                    ),
-                });
-            };
-
-            visit(RootSlot::Bytes(slot)).map_err(Error::from)?;
-        }
-
-        Ok(())
-    }
-
-    /// Return one immutable reference byte window.
-    fn reference_window<'a>(
-        bytes: &'a [u8],
-        start: usize,
-        width: usize,
-        context: &'static str,
-    ) -> Result<&'a [u8], Error> {
-        if width != HeapReference::BYTE_LEN {
-            return Err(Error::InvariantViolation {
-                context: format!("{context} unsupported reference width: {width}"),
-            });
-        }
-
-        let end = start + width;
-
-        bytes
-            .get(start..end)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!(
-                    "{context} byte range out of bounds: start={start}, width={width}, len={}",
-                    bytes.len(),
-                ),
-            })
     }
 
     /// Clone this frame over one already forked stack address.
@@ -718,8 +439,8 @@ impl Frame {
         Self {
             frame_layout: self.frame_layout,
             function_ptr: self.function_ptr,
-            block_ptr: self.block_ptr,
-            resume_pc: self.resume_pc,
+            block: self.block,
+            pc: self.pc,
             exceptional_call: self.exceptional_call.clone(),
             stack_offset: self.stack_offset,
             byte_len: self.byte_len,
@@ -733,7 +454,7 @@ impl Frame {
             frame_layout: self.frame_layout,
             function: self.function(),
             current_block: self.current_block(),
-            resume_pc: self.resume_pc,
+            pc: self.pc,
             exceptional_call: self.exceptional_call.clone(),
             bytes: self.bytes().to_vec(),
         }
@@ -760,12 +481,12 @@ impl Frame {
             })
         })?;
 
-        // resolve the current block pointer from the lowered function
+        // resolve the current block index from the lowered function
         let function_ref = unsafe { function_ptr.as_ref() };
         let block = function_ref
             .blocks
             .iter()
-            .find(|block| block.mir_block == image.current_block)
+            .position(|block| block.mir_block == image.current_block)
             .ok_or_else(|| {
                 RuntimeError::new(Error::UndefinedBlock {
                     block: image.current_block,
@@ -775,8 +496,8 @@ impl Frame {
         Ok(Self {
             frame_layout: image.frame_layout,
             function_ptr,
-            block_ptr: NonNull::from(block),
-            resume_pc: image.resume_pc,
+            block: block as u32,
+            pc: image.pc,
             exceptional_call: image.exceptional_call.clone(),
             stack_offset,
             byte_len: layout.byte_len as usize,
@@ -785,94 +506,26 @@ impl Frame {
     }
 }
 
-/// Visit heap reference offsets selected by one map and byte payload.
-fn visit_reference_offsets(
-    reference_map: &ReferenceMap,
-    is_local: bool,
-    bytes: &[u8],
-    mut visit: impl FnMut(usize) -> Result<(), Error>,
-) -> Result<(), Error> {
-    visit_reference_offsets_at(reference_map, is_local, bytes, 0, &mut visit)
+/// One active exceptional call parked on a caller frame.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExceptionalCall {
+    /// The frame state to enter when the callee returns normally.
+    pub(crate) normal_state: engine::FrameStateId,
+    /// The frame state to enter when the callee throws.
+    pub(crate) unwind_state: engine::FrameStateId,
 }
 
-/// Visit heap reference offsets from one nested map.
-fn visit_reference_offsets_at(
-    reference_map: &ReferenceMap,
-    is_local: bool,
-    bytes: &[u8],
-    base_offset: usize,
-    visit: &mut dyn FnMut(usize) -> Result<(), Error>,
+/// Visit each materialized frame slot once.
+pub(crate) fn visit_materialized_slots(
+    layout: &engine::FrameLayout,
+    materialization: &engine::FrameMaterialization,
+    mut visit: impl FnMut(&engine::FrameSlot) -> Result<(), Error>,
 ) -> Result<(), Error> {
-    match reference_map {
-        ReferenceMap::None => {}
-        ReferenceMap::Direct {
-            local_offsets,
-            shared_offsets,
-        } => {
-            let offsets = if is_local {
-                local_offsets
-            } else {
-                shared_offsets
-            };
-
-            for offset in offsets {
-                visit(base_offset + *offset as usize)?;
-            }
-        }
-        ReferenceMap::Offset { byte_offset, map } => {
-            let byte_offset = base_offset + *byte_offset as usize;
-
-            visit_reference_offsets_at(map, is_local, bytes, byte_offset, visit)?;
-        }
-        ReferenceMap::Group { maps } => {
-            for map in maps {
-                visit_reference_offsets_at(map, is_local, bytes, base_offset, visit)?;
-            }
-        }
-        ReferenceMap::Repeat {
-            count,
-            stride,
-            element,
-        } => {
-            for index in 0..*count {
-                let element_offset = base_offset + index as usize * *stride as usize;
-
-                visit_reference_offsets_at(element, is_local, bytes, element_offset, visit)?;
-            }
-        }
-        ReferenceMap::Tagged {
-            tag_offset,
-            tag_bytes,
-            variants,
-        } => {
-            let tag_offset = base_offset + *tag_offset as usize;
-            let tag = read_reference_tag(bytes, tag_offset, *tag_bytes)?;
-            let Some(variant) = variants.iter().find(|variant| variant.tag == tag) else {
-                return Ok(());
-            };
-            let variant_offset = base_offset + variant.payload_offset as usize;
-
-            visit_reference_offsets_at(&variant.map, is_local, bytes, variant_offset, visit)?;
-        }
+    // resolve copied source ids into VM frame slots
+    for slot in materialization.copied_slots() {
+        let slot = layout.slot(slot).ok_or(Error::InvalidContinuation)?;
+        visit(slot)?;
     }
 
     Ok(())
-}
-
-/// Read one unsigned reference-map tag from bytes.
-fn read_reference_tag(bytes: &[u8], offset: usize, tag_bytes: u8) -> Result<u64, Error> {
-    let tag_bytes = tag_bytes as usize;
-    let end = offset + tag_bytes;
-    let Some(window) = bytes.get(offset..end) else {
-        return Err(Error::InvariantViolation {
-            context: format!(
-                "reference tag byte range out of bounds: offset={offset}, width={tag_bytes}, len={}",
-                bytes.len(),
-            ),
-        });
-    };
-    let mut raw = [0u8; std::mem::size_of::<u64>()];
-    raw[..tag_bytes].copy_from_slice(window);
-
-    Ok(u64::from_le_bytes(raw))
 }

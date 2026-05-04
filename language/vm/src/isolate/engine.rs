@@ -36,7 +36,7 @@ impl engine::Engine for Isolate {
             context.shared_allocator,
             context.shared_gc,
             function_id,
-            &args,
+            args,
         )
     }
 

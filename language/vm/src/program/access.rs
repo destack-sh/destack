@@ -1,5 +1,7 @@
 use destack_mir as mir;
 
+use crate::ReferenceMeta;
+
 use super::{PointerClass, WordLayout};
 
 /// One compiled frame access.
@@ -7,6 +9,8 @@ use super::{PointerClass, WordLayout};
 pub(crate) struct FrameAccess {
     /// The accessed value type.
     pub value_type: mir::LocalNodeId<mir::Type>,
+    /// The reference contract for address and store checks.
+    pub reference: ReferenceMeta,
     /// The fixed byte offset from the frame value base.
     pub byte_offset: usize,
     /// The byte stride for indexed access.
@@ -26,6 +30,10 @@ pub(crate) struct FieldAccess {
     pub pointer_class: PointerClass,
     /// The field value type.
     pub value_type: mir::LocalNodeId<mir::Type>,
+    /// The field index inside its aggregate.
+    pub index: u32,
+    /// The number of fields in the aggregate.
+    pub field_count: u32,
     /// The byte offset of the field value.
     pub byte_offset: usize,
     /// The byte width of the field value.
@@ -47,8 +55,12 @@ impl FieldAccess {
 pub(crate) struct ElementAccess {
     /// The runtime pointer class.
     pub pointer_class: PointerClass,
+    /// The reference contract for element addresses and stores.
+    pub reference: ReferenceMeta,
     /// The element value type.
     pub value_type: mir::LocalNodeId<mir::Type>,
+    /// The number of elements when the access has fixed bounds.
+    pub length: u64,
     /// The byte stride between adjacent elements.
     pub byte_stride: usize,
     /// The byte width of the element value.
@@ -68,6 +80,8 @@ impl ElementAccess {
 /// One compiled slice element address.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct SliceElementAccess {
+    /// The reference contract for the element address.
+    pub reference: ReferenceMeta,
     /// The slice data.
     pub data: FieldAccess,
     /// The slice length.
@@ -115,6 +129,7 @@ impl From<FieldAccess> for FrameAccess {
     fn from(field: FieldAccess) -> Self {
         Self {
             value_type: field.value_type,
+            reference: ReferenceMeta::NONE,
             byte_offset: field.byte_offset,
             byte_stride: 0,
             length: 0,
@@ -129,6 +144,7 @@ impl ElementAccess {
     pub(crate) fn into_frame_access(self, byte_offset: usize, length: u64) -> FrameAccess {
         FrameAccess {
             value_type: self.value_type,
+            reference: self.reference,
             byte_offset,
             byte_stride: self.byte_stride,
             length,
@@ -154,6 +170,7 @@ impl From<PointeeAccess> for FrameAccess {
     fn from(access: PointeeAccess) -> Self {
         Self {
             value_type: access.value_type,
+            reference: ReferenceMeta::NONE,
             byte_offset: access.byte_offset,
             byte_stride: 0,
             length: 0,

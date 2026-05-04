@@ -10,6 +10,8 @@ use super::{ArgumentRange, CallTarget, MoveRange};
 pub(crate) enum Transfer {
     /// Continue to the next instruction in the current block.
     Continue,
+    /// Continue at the current frame's block.
+    Enter,
     /// Jump to another block.
     Jump {
         /// Target block index.

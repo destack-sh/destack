@@ -1,40 +1,35 @@
 use std::fmt;
 
-use super::{Opcode, Payload};
+use super::Op;
 
 /// One decoded program instruction.
 #[derive(Clone, Copy)]
 pub(crate) struct Instruction {
-    /// The instruction opcode.
-    pub opcode: Opcode,
-    /// The untagged instruction payload.
-    payload: Payload,
+    /// The instruction operation.
+    pub op: Op,
+    /// First operand.
+    pub a: u32,
+    /// Second operand.
+    pub b: u32,
+    /// Third operand.
+    pub c: u32,
+    /// Fourth operand.
+    pub d: u32,
 }
 
-// instruction should fit in 56 bytes
-const _: () = assert!(std::mem::size_of::<Instruction>() <= 56);
+// instruction should fit in 20 bytes
+const _: () = assert!(std::mem::size_of::<Instruction>() <= 20);
 
 impl Instruction {
-    /// Create one instruction with a typed payload.
+    /// Create one instruction.
     #[inline(always)]
-    pub(crate) fn new<T: Copy>(opcode: Opcode, payload: T) -> Self {
-        Self {
-            opcode,
-            payload: Payload::new(payload),
-        }
-    }
-
-    /// Borrow this instruction's typed payload.
-    #[inline(always)]
-    pub(crate) fn payload_as<T>(&self) -> &T {
-        self.payload.get_ref()
+    pub(crate) const fn new(op: Op, a: u32, b: u32, c: u32, d: u32) -> Self {
+        Self { op, a, b, c, d }
     }
 }
 
 impl fmt::Debug for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Instruction")
-            .field("opcode", &self.opcode)
-            .finish()
+        f.debug_struct("Instruction").field("op", &self.op).finish()
     }
 }

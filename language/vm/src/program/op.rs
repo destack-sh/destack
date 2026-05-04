@@ -1,6 +1,6 @@
-/// Operation code for one lowered VM instruction.
+/// Operation executed by one lowered VM instruction.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Opcode {
+pub(crate) enum Op {
     // ============================================================================
     // values
     // ============================================================================
@@ -8,10 +8,34 @@ pub(crate) enum Opcode {
     LoadConst,
     /// Move bytes between frame values.
     MoveFrame,
-    /// Load bytes from memory into a frame value.
+    /// Load bytes from local heap memory into a frame value.
+    LoadHeapBytes,
+    /// Load bytes from shared heap memory into a frame value.
+    LoadSharedHeapBytes,
+    /// Load bytes from local raw memory into a frame value.
+    LoadRawBytes,
+    /// Load bytes from shared raw memory into a frame value.
+    LoadSharedRawBytes,
+    /// Load bytes from stack memory into a frame value.
+    LoadStackBytes,
+    /// Load bytes from frame memory into a frame value.
     LoadFrameBytes,
-    /// Store bytes from a frame value into memory.
+    /// Load bytes from static memory into a frame value.
+    LoadStaticBytes,
+    /// Store bytes from a frame value into local heap memory.
+    StoreHeapBytes,
+    /// Store bytes from a frame value into shared heap memory.
+    StoreSharedHeapBytes,
+    /// Store bytes from a frame value into local raw memory.
+    StoreRawBytes,
+    /// Store bytes from a frame value into shared raw memory.
+    StoreSharedRawBytes,
+    /// Store bytes from a frame value into stack memory.
+    StoreStackBytes,
+    /// Store bytes from a frame value into frame memory.
     StoreFrameBytes,
+    /// Store bytes from a frame value into static memory.
+    StoreStaticBytes,
     /// Select one of two word values.
     SelectWord,
     /// Select one of two frame values.
@@ -138,8 +162,20 @@ pub(crate) enum Opcode {
     AddressStackElement,
     /// Compute an element address in static memory.
     AddressStaticElement,
-    /// Compute an element address through a slice descriptor.
-    AddressSliceElement,
+    /// Compute a slice element address in local heap memory.
+    AddressHeapSliceElement,
+    /// Compute a slice element address in shared heap memory.
+    AddressSharedHeapSliceElement,
+    /// Compute a slice element address in local raw memory.
+    AddressRawSliceElement,
+    /// Compute a slice element address in shared raw memory.
+    AddressSharedRawSliceElement,
+    /// Compute a slice element address in stack memory.
+    AddressStackSliceElement,
+    /// Compute a slice element address in frame memory.
+    AddressFrameSliceElement,
+    /// Compute a slice element address in static memory.
+    AddressStaticSliceElement,
     /// Load a word element through a local heap reference.
     LoadHeapElement,
     /// Load a word element through a shared heap reference.
@@ -168,36 +204,48 @@ pub(crate) enum Opcode {
     // ============================================================================
     // allocation and lifetime
     // ============================================================================
+    /// Allocate a zeroed small noscan local heap value.
+    AllocateHeapSmallNoscan,
     /// Allocate a zeroed local heap value.
     AllocateHeap,
+    /// Allocate a zeroed small noscan shared heap value.
+    AllocateSharedHeapSmallNoscan,
     /// Allocate a zeroed shared heap value.
     AllocateSharedHeap,
-    /// Allocate a zeroed slice backing and descriptor.
+    /// Allocate a zeroed local slice backing and descriptor.
     AllocateSlice,
+    /// Allocate a zeroed shared slice backing and descriptor.
+    AllocateSharedSlice,
     /// Allocate local raw memory.
     AllocateRaw,
     /// Free local raw memory.
     FreeRaw,
+    /// Free shared raw memory.
+    FreeSharedRaw,
     /// Allocate stack memory.
     AllocateStack,
-    /// Run a synchronous disposer.
-    Dispose,
-    /// Run an asynchronous disposer.
-    AsyncDispose,
-    /// Pin one value.
-    Pin,
-    /// Unpin one value.
-    Unpin,
-    /// Drop one value.
-    Drop,
+    /// Pin one local heap reference.
+    PinHeap,
+    /// Pin one shared heap reference.
+    PinSharedHeap,
+    /// Unpin one local heap reference.
+    UnpinHeap,
+    /// Unpin one shared heap reference.
+    UnpinSharedHeap,
+    /// Drop one owned local heap reference.
+    DropHeap,
+    /// Drop one owned shared heap reference.
+    DropSharedHeap,
+    /// Drop one owned stack allocation.
+    DropStack,
+    /// Drop one owned local slice backing allocation.
+    DropSlice,
+    /// Drop one owned shared slice backing allocation.
+    DropSharedSlice,
 
     // ============================================================================
     // arithmetic and casts
     // ============================================================================
-    /// Execute a wide signed integer binary operation.
-    BinaryWideInt,
-    /// Execute a wide unsigned integer binary operation.
-    BinaryWideUint,
     /// Execute an elementwise binary operation.
     BinaryElementwise,
     /// And boolean values.
@@ -220,6 +268,20 @@ pub(crate) enum Opcode {
     RemInt,
     /// Remainder unsigned integer values.
     RemUint,
+    /// Add wide integer values.
+    AddWideInt,
+    /// Subtract wide integer values.
+    SubWideInt,
+    /// Multiply wide integer values.
+    MulWideInt,
+    /// Divide wide signed integer values.
+    DivWideInt,
+    /// Divide wide unsigned integer values.
+    DivWideUint,
+    /// Remainder wide signed integer values.
+    RemWideInt,
+    /// Remainder wide unsigned integer values.
+    RemWideUint,
     /// And integer values.
     AndInt,
     /// Or integer values.
@@ -232,6 +294,18 @@ pub(crate) enum Opcode {
     ShrInt,
     /// Logically shift integer values right.
     ShrUint,
+    /// And wide integer values.
+    AndWideInt,
+    /// Or wide integer values.
+    OrWideInt,
+    /// Xor wide integer values.
+    XorWideInt,
+    /// Shift wide integer values left.
+    ShlWideInt,
+    /// Arithmetically shift wide integer values right.
+    ShrWideInt,
+    /// Logically shift wide integer values right.
+    ShrWideUint,
     /// Add float32 values.
     AddF32,
     /// Add float64 values.
@@ -268,6 +342,26 @@ pub(crate) enum Opcode {
     GeInt,
     /// Compare unsigned integers with greater than or equal.
     GeUint,
+    /// Compare wide integers for equality.
+    EqWideInt,
+    /// Compare wide integers for inequality.
+    NeWideInt,
+    /// Compare wide signed integers with less than.
+    LtWideInt,
+    /// Compare wide unsigned integers with less than.
+    LtWideUint,
+    /// Compare wide signed integers with less than or equal.
+    LeWideInt,
+    /// Compare wide unsigned integers with less than or equal.
+    LeWideUint,
+    /// Compare wide signed integers with greater than.
+    GtWideInt,
+    /// Compare wide unsigned integers with greater than.
+    GtWideUint,
+    /// Compare wide signed integers with greater than or equal.
+    GeWideInt,
+    /// Compare wide unsigned integers with greater than or equal.
+    GeWideUint,
     /// Compare float32 values for equality.
     EqF32,
     /// Compare float64 values for equality.
@@ -292,12 +386,14 @@ pub(crate) enum Opcode {
     GeF32,
     /// Compare float64 values with greater than or equal.
     GeF64,
-    /// Execute a wide integer unary operation.
-    UnaryWideInt,
     /// Negate an integer value.
     NegInt,
     /// Invert an integer value.
     NotInt,
+    /// Negate a wide integer value.
+    NegWideInt,
+    /// Invert a wide integer value.
+    NotWideInt,
     /// Negate a float32 value.
     NegF32,
     /// Negate a float64 value.
@@ -414,20 +510,26 @@ pub(crate) enum Opcode {
     Assume,
     /// Return from the current function.
     Return,
+    /// Return without a value.
+    ReturnVoid,
     /// Yield from the current function.
     Yield,
     /// Throw one value.
     Throw,
-    /// Trap execution.
-    Trap,
+    /// Abort execution.
+    Abort,
+    /// Panic with a runtime payload.
+    Panic,
     /// Mark unreachable execution.
     Unreachable,
 
     // ============================================================================
     // explicit memory effects
     // ============================================================================
-    /// Record a managed reference write.
-    BarrierWrite,
+    /// Record a local heap reference write.
+    BarrierWriteHeap,
+    /// Record a shared heap reference write.
+    BarrierWriteSharedHeap,
     /// Atomically load one word.
     AtomicLoad,
     /// Atomically store one word.
@@ -462,8 +564,18 @@ pub(crate) enum Opcode {
     VectorReduce,
     /// Compare vector elements.
     VectorCompare,
-    /// Convert vector elements.
-    VectorConvert,
+    /// Convert vector elements exactly.
+    VectorConvertExact,
+    /// Convert vector elements with round to nearest even.
+    VectorConvertRoundTiesEven,
+    /// Convert vector elements with round toward zero.
+    VectorConvertRoundTowardZero,
+    /// Convert vector elements with round toward negative infinity.
+    VectorConvertRoundFloor,
+    /// Convert vector elements with round toward positive infinity.
+    VectorConvertRoundCeil,
+    /// Convert vector elements with saturation.
+    VectorConvertSaturate,
 
     // ============================================================================
     // tensors
@@ -514,5 +626,5 @@ pub(crate) enum Opcode {
     TensorView,
 }
 
-// opcode should fit in 2 bytes
-const _: () = assert!(std::mem::size_of::<Opcode>() <= 2);
+// op should fit in 2 bytes
+const _: () = assert!(std::mem::size_of::<Op>() <= 2);
