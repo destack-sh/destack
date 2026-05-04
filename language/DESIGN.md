@@ -876,7 +876,7 @@ Destack adds explicit, optional modifiers for controlling memory ownership and p
 Plain `T` keeps the base type's default representation: value types are values, object types are managed references.
 Memory in Destack lives on two orthogonal axes:
 - **Ownership**: who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`), or raw (`*T`).
-- **Space**: where the value is located: ambient/local by default, `shared` across Workers, or some other target-defined space.
+- **Placement**: where the value is located: ambient by default, `shared` across Workers, explicit `"local"` in the type algebra, or some other target-defined space.
 
 The two axes compose freely, e.g. `^shared T` is an owned handle to a value in shared space, and `&shared T` is a borrow of a shared value.
 
@@ -927,6 +927,7 @@ let there: shared Request<Body>;  // header, body are shared
 Memory placement is contextual and types are ambient by default: an aggregate field with ambient placement is interpreted in the placement of the containing value, while an explicit placement on a field is preserved.
 Some incompatible combinations of explicit placements - like local inside shared - produce an error.
 More broadly, the compiler may lower one source aggregate into distinct concrete layouts depending on its space.
+This is why the type algebra distinguishes `Place` from `Space`: `Space` is concrete, while `Place` may also be `"ambient"`.
 
 #### Shared Space
 
@@ -994,14 +995,7 @@ let a: User = new User();   // managed
 let b: ^User = new User();  // owned
 ```
 
-There is no second primary typed allocation surface alongside `new`.
-`raw.alloc` and `raw.free` are reserved for true raw storage only.
-
-For destruction:
-- `drop` ends ownership of a `^T`, runs destruction, and releases owned heap storage.
-- `dispose` and `dispose.async` are resource cleanup protocols, not allocation primitives.
-
-### Borrows, Regions And Suspension
+### Borrows, Regions and Suspension
 
 A region is one compiler-known lifetime relation for one borrow.
 Explicit region spelling is only needed when a signature must relate returned borrows to input borrows.
@@ -1016,32 +1010,82 @@ Borrowed<T, "a">
 
 ### Algebra
 
-All of the surface forms above (`T`, `^T`, `&T`, `*T`, `shared T`, ...) are sugar over a single normalized type, declared in `@ownership.ds`:
+Okay, "algebra" here is just a fancy way of saying Destack supports querying and manipulating ownership and placement in its type system. 
+Qualified surface forms like `^T`, `&T`, `*T`, and `shared T` are sugar over a single normalized `Form`.
+Plain `T` may remain unqualified, but algebra operators treat it as managed ambient when they need a default:
 
 ```ds
 newtype Form<
     T,
     O: Ownership = "managed",
-    S: Space = "local",
+    P: Place = "ambient",
     R = never,
 > = unknown;
 ```
 
-Each surface form maps to a `Form<...>` with a specific ownership tag and space:
+Each qualified surface form maps to a `Form<...>` with its specific ownership tag and placement:
 
-| Surface | Normalized |
-|---------|------------|
-| `T` (object base) | `Form<T, "managed", "local">` |
-| `^T` | `Form<T, "owned", "local">` |
-| `&T` (in region `R`) | `Form<T, "borrowed", "local", R>` |
-| `*T` | `Form<T, "raw", "local">` |
-| `shared T` | `Form<T, "managed", "shared">` |
-| `^shared T` | `Form<T, "owned", "shared">` |
+```ds
+User            // unqualified, interpreted as managed ambient
+^User           // Form<User, "owned", "ambient">
+&User           // Form<User, "borrowed", "ambient", R>
+*User           // Form<User, "raw", "ambient">
+shared User     // Form<User, "managed", "shared">
+^shared User    // Form<User, "owned", "shared">
+```
 
-The same module exposes constructors and accessors over this representation - `Managed<T>`, `Owned<T>`, `Borrowed<T, R>`, `Raw<T>`, `Shared<T>`, plus `BaseOf<T>`, `OwnershipOf<T>`, `SpaceOf<T>`, `RegionOf<T>`, predicates like `IsOwned<T>` and `IsShared<T>`, and reformulators like `WithBase<Q, T>`, `WithOwnership<Q, O>`, `WithSpace<Q, S>`, and `WithRegion<Q, R>`.
+The operators are just the same few families applied to those axes.
+Constructors build a form from a base type while preserving any existing placement:
 
-This means memory qualification is just ordinary type-level computation: libraries and frameworks can introspect and rewrite ownership and placement using the same generic machinery they would use for any other type, instead of having to special-case each surface modifier.
+```ds
+Managed<User> satisfies Form<User, "managed", "ambient">;
+Owned<User> satisfies Form<User, "owned", "ambient">;
+Borrowed<User, "a"> satisfies Form<User, "borrowed", "ambient", "a">;
+Raw<User> satisfies Form<User, "raw", "ambient">;
 
+shared User satisfies WithSpace<User, "shared">;
+Shared<^User> satisfies Form<User, "owned", "shared">;
+```
+
+Accessors pull the axes back out.
+The `*Of` family returns `never` when that axis is not explicit on the input, while `*Or` applies a default:
+```ds
+BaseOf<^shared User> satisfies User;
+OwnershipOf<^User> satisfies "owned";
+OwnershipOr<User, "managed"> satisfies "managed";
+RegionOf<Borrowed<User, "a">> satisfies "a";
+```
+
+`Space` represents a concrete space like `"local"` or `"shared"` while `Place` means either a concrete `Space` or `"ambient"`, and ambient placement follows the containing context until a final layout is required:
+```ds
+PlaceOf<User> satisfies "ambient";
+SpaceOf<^User> satisfies never;
+PlaceIn<^User, "shared"> satisfies "shared";
+
+PlaceOf<shared User> satisfies "shared";
+SpaceOf<shared User> satisfies "shared";
+PlaceIn<shared User, "local"> satisfies "shared";
+```
+
+Predicates with `Is*` are convenience wrappers around those same accessors:
+```ds
+IsOwned<^User> satisfies true;
+IsBorrowed<&User> satisfies true;
+IsShared<shared User> satisfies true;
+IsShared<^User> satisfies false;
+IsSharedIn<^User, "shared"> satisfies true;
+```
+
+Rewriting one axis leaves the others alone:
+```ds
+WithSpace<^User, "shared"> satisfies Form<User, "owned", "shared">;
+WithOwnership<shared User, "owned"> satisfies Form<User, "owned", "shared">;
+WithPlace<shared User, "ambient"> satisfies Form<User, "managed", "ambient">;
+AsBorrowed<shared User, "a"> satisfies Form<User, "borrowed", "shared", "a">;
+```
+
+It's important to emphasize that except for the intrinsic `Form`, all the rest is just regular TypeScript-shaped type algebra.
+That means memory qualification is just ordinary type-level computation: libraries and frameworks can introspect and rewrite ownership and placement using the same generic machinery they would use for any other type, which is quite useful (and neat).
 
 # Runtime
 
