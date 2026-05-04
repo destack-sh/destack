@@ -436,7 +436,7 @@ type InlineBytes<T> = [uint8; sizeOf<T>()];
 ### Values
 
 In TypeScript, control flow expressions like `if` are a statement, and you need a ternary or temporary to get a value out.
-To enable more ergonomic data flow and particularly better pattern matching capabilities, Destack also supports statements as expressions ("everything is an expression").
+That's fine but makes match-like patterns more complex to express, so Destack also supports statements as expressions ("everything is an expression").
 The last expression (no trailing `;`) becomes the value of the overall expression.
 
 ```ds
@@ -550,15 +550,155 @@ async function runQuery(sql: string): Result<Row[], DatabaseError> {
 } // connection is disposed and awaited
 ```
 
+### Operators
+
+Destack extends TypeScript operators with typed overloads and some additional precision.
+Logical operators (`&&`, `||`, `??`), optional chaining, assignment, and strict identity (`===`, `!==`) are not (directly) overloadable, as usual.
+
+| Operator | Example | Interface |
+|----------|---------|----------|
+| `+` | `a + b` | `Add<T, R>` |
+| `-` | `a - b` | `Subtract<T, R>` |
+| `*` | `a * b` | `Multiply<T, R>` |
+| `/` | `a / b` | `Divide<T, R>` |
+| `%` | `a % b` | `Remainder<T, R>` |
+| `**` | `a ** b` | `Power<T, R>` |
+| `+` | `+a` | `Plus<R>` |
+| `-` | `-a` | `Negate<R>` |
+| `&` | `a & b` | `And<T, R>` |
+| `\|` | `a \| b` | `Or<T, R>` |
+| `^` | `a ^ b` | `Xor<T, R>` |
+| `~` | `~a` | `Not<R>` |
+| `<<` | `a << b` | `ShiftLeft<T, R>` |
+| `>>` | `a >> b` | `ShiftRight<T, R>` |
+| `>>>` | `a >>> b` | `ShiftRightUnsigned<T, R>` |
+| `==`, `!=` | `a == b` | `Equal<T>` or `PartialEqual<T>` |
+| `<`, `<=`, `>`, `>=` | `a < b` | `Compare<T>` or `PartialCompare<T>` |
+| `[]` | `a[i]` | `Index<I, O>` |
+| `[] =` | `a[i] = v` | `IndexSet<I, V>` |
+| `*` | `*a` | `Deref<T>` |
+| `* =` | `*a = v` | `DerefSet<T>` |
+
+When overflow / wrapping policy is part of the algorithm, the expression should say so directly, so Destack provides Zig-style wrapping and saturating arithmetic for integer code:
+
+| Operation | Standard | Wrapping | Saturating |
+|-----------|----------|----------|------------|
+| Add | `a + b` | `a +% b` | `a +\| b` |
+| Subtract | `a - b` | `a -% b` | `a -\| b` |
+| Multiply | `a * b` | `a *% b` | `a *\| b` |
+
+For example, with `a: uint8 = 250` and `b: uint8 = 10`:
+
+| Operation | Standard | Wrapping | Saturating |
+|-----------|----------|----------|------------|
+| `a + b` | trap / error (overflow) | `4` (wraps past `255`) | `255` (clamped to max) |
+| `a - 255` | trap / error (underflow) | `251` (wraps below `0`) | `0` (clamped to min) |
+| `a * b` | trap / error (overflow) | `196` (wraps modulo `256`) | `255` (clamped to max) |
+
+The explicit forms ignore the safety profile.
+`+%`, `-%`, and `*%` wrap modulo the integer's range.
+`+|`, `-|`, and `*|` clamp to the integer's minimum or maximum value.
+
+```ds
+const hash = (hash *% 16777619) +% byte;
+const volume = left +| right;
+```
+
+Overflow-policy operators are not overloadable.
+For user-defined numeric types, use ordinary named methods when wrapping or saturation is part of the type's API.
+
+### Dispatch
+
+"Dispatch" is how calls, member accesses, and overloadable operators select an implementation to invoke.
+The selection rule is TS-derived: build the candidate set, keep candidates compatible with the arguments as written, then pick the first one in declaration order:
+ - Declaring module owns the overload order.
+ - Overloads are truly distinct implementations.
+ - Union arguments do not distribute across overloads (one selected overload must accept the union)
+
+```ds
+function parse(input: string): int32 {
+    return parseInt(input);
+}
+
+function parse(input: int32): int32 {
+    // legal, actually different implementation
+    return input;
+}
+```
+
+Members work the same way (after receiver lookup): inherent members first, then visible extension members in declaration order.
+For overloadable operators, the token chooses the protocol, the left operand is the receiver (matching how it is written in the interface implementation).
+
+```ds
+newtype interface Add<T, R = this> {
+    add(other: T): R;
+}
+
+extension of Vector2 implements Add<Vector2> {
+    add(other: Vector2): Vector2 {
+        Vector2 { x: this.x + other.x, y: this.y + other.y }
+    }
+}
+
+extension of Vector2 implements Add<float32> {
+    add(other: float32): Vector2 {
+        Vector2 { x: this.x + other, y: this.y + other }
+    }
+}
+
+const moved = position + offset; // Add<Vector2>
+const padded = position + 1.0;   // Add<float32>
+
+moved satisfies Vector2;
+padded satisfies Vector2;
+
+1.0 + position; // requires Add<Vector2> on float32
+```
+
+Union receivers are resolved per variant.
+Every variant must expose the member; if all variants resolve to the same symbol the call is static, otherwise the compiler records a dynamic dispatch and the result type is the union of the selected return types.
+
+```ds
+struct TcpStream {
+    write(chunk: [byte]): Result<usize, IOError> { ... }
+}
+
+struct MemoryBuffer {
+    write(chunk: [byte]): Result<usize, never> { ... }
+}
+
+function writeAll(sink: TcpStream | MemoryBuffer, chunk: [byte]) {
+    const written = sink.write(chunk);
+    written satisfies Result<usize, IOError> | Result<usize, never>;
+}
+```
+
 
 ### Errors
 
 Exceptions are deeply enmeshed into TypeScript, and therefore Destack supports them, too (alas).
-However, Destack also supports and strongly encourages **Result-first error handling** inspired by Rust: recoverable errors use `Result<T, E>`, nice try-catch integration, and even support for `T`, `?` and `??` coalescing.
+However, Destack also supports and strongly encourages **Result-first error handling** inspired by Rust: recoverable errors use `Result<T, E>`, nice try-catch integration, and even support for `?` and `??` coalescing.
 
 #### Result
 
-Destack provides `Result<T, E>` as the primary error handling mechanism:
+Destack provides `Result<T, E>` as the primary error handling mechanism.
+The `Result` type is defined as regular code:
+
+```ds
+export struct Ok<T> {
+    kind: "Ok" = "Ok";
+    value: T;
+}
+
+export struct Err<E> {
+    kind: "Err" = "Err";
+    error: E;
+}
+
+export newtype Result<T, E> = Ok<T> | Err<E>;
+```
+
+We typically construct results through `Result.ok(value)` and `Result.err(error)`:
 
 ```ds
 function readConfig(path: string): Result<Config, IOError> {
@@ -568,10 +708,8 @@ function readConfig(path: string): Result<Config, IOError> {
 }
 ```
 
-The `?` operator propagates errors ergonomically using the builtin `Try` operator, similar to Rust.
-When applied to the builtin `Result` type, `?` returns early with the error value if present.
-
-TypeScript's `??` coalescing operator then supports a convenient default value for the failure case:
+When applied to `Result<T, E>`, `?` unwraps `Ok<T>` and propagates `Err<E>`.
+The `??` coalescing operator then also supports a convenient default value for the fallback case:
 
 ```ds
 const config = loadConfig() ?? defaultConfig;  // use default on error
@@ -579,50 +717,44 @@ const config = loadConfig() ?? defaultConfig;  // use default on error
 
 #### Try
 
-`?` and `??` are driven by a standard `Try` protocol rather than being hard-coded only for `Result`.
-`Result<T, E>` implements `Try`, and other library types may implement it when they have the same success-or-failure shape.
-
-The protocol is about control flow, not about exceptions.
-A `Try` value can branch into `Try.Continue<T>`, meaning evaluation continues with a value, or `Try.Failure<E>`, meaning the current path transfers control to the nearest handler or enclosing return.
+`?` and `??` are extensible operators via a standard `Try` newtype interface (which `Result<T, E>` implements, jus tlike any userland type, and also basically like in Rust). 
+The `Try` trait is quite simple, we just define the success branch with `TryContinue<T>` and the failure branch with `TryFailure<E>`, like this:
 
 ```ds
-type Try.Continue<T> = { kind: "continue", value: T };
-type Try.Failure<E> = { kind: "failure", error: E };
+type TryContinue<T> = { kind: "continue"; value: T };
+type TryFailure<E> = { kind: "failure"; error: E };
+type TryBranch<T, E> = TryContinue<T> | TryFailure<E>;
 
 newtype interface Try {
     type Value;
     type Error;
 
-    branch(): Try.Continue<this.Value> | Try.Failure<this.Error>;
-    static fromFailure(error: this.Error): this;
+    branch(): TryBranch<this.Value, this.Error>;
 }
 ```
 
-For `Result<T, E>`, `Ok(value)` branches to `Try.Continue<T>` and `Err(error)` branches to `Try.Failure<E>`.
+For `Result<T, E>`, `Ok { value }` branches to `TryContinue<T>` and `Err { error }` branches to `TryFailure<E>`.
 The branch names describe the operator's control flow, not the data constructors of any one type.
 
-`?` unwraps one success layer or propagates one failure layer.
-Outside a `try` block, propagation returns from the enclosing function using the return type's `fromFailure`.
+Propagation is a separate target-side operation.
+When a failure leaves the current function, the enclosing return type must implement `FromFailure<E>` for the propagated error type.
+
+```ds
+newtype interface FromFailure<E> {
+    static fromFailure(error: E): this;
+}
+```
+
+Extending from TypeScript, `?` unwraps one success layer or propagates one failure layer.
+Outside a `try` block, propagation returns from the enclosing function using the return type's `FromFailure` implementation.
 Inside a `try` block with `catch`, propagation transfers the failure value to the catch instead.
+That means the source value needs `Try`, while the enclosing return type only needs `FromFailure` when the failure actually escapes.
 
 `??` keeps TypeScript's nullish behavior for ordinary nullable values.
 For `Try` values, it behaves like generalized coalescing: failure uses the fallback, success unwraps the value, and a nullish success value also uses the fallback.
 Mixed `Try | null | undefined` inputs are allowed, but arbitrary `Try | NonTry` unions must be narrowed first.
 
-#### throw and native exceptions
-
-Destack also supports exceptions and `throw` for compatibility with classical JS/TS and other exception-oriented ecosystems like Java and C#.
-Destack still prefers `Result` for ordinary recoverable errors, especially in performance-critical code.
-
-```ds
-function assertPositive(n: int) {
-    if (n <= 0) {
-        throw new Error("invariant violated: expected positive")
-    }
-}
-```
-
-#### try/catch with Result and exceptions
+#### Try, Catch and Finally
 
 The `try`/`catch` syntax handles both exceptions and explicit `Try` propagation:
 
@@ -639,11 +771,9 @@ The example uses `Result`, but any type implementing `Try` behaves the same:
 - Note that `try` does not implicitly unwrap `Result` values
 - Use `?` inside the block to propagate `Try` failures into the catch
 - Use `??` inside the block when the failure should be handled locally with a fallback
-- When a `?` is inside a `try` with a catch, `Try.fromFailure` is not required
+- When a `?` is inside a `try` with a catch, `FromFailure` is not required
 
-Thrown exceptions propagate into the catch in the usual way when `throw` is enabled.
-With `noExceptions`, `throw` is unavailable, but `try` and `catch` still work for `Result` and other `Try` values.
-As usual, a `try` expression must include a `catch` or `finally` block.
+When just using known `Try`-implementor types, the full set of possible failures is known, and we can use a syntax sugare form called `catch match` to branch on them directly:
 
 ```ds
 try {
@@ -655,74 +785,6 @@ try {
     _ => Error(`unknown error: ${e}`)
 }
 ```
-
-### Operators
-
-Destack keeps TypeScript's operators where they already have clear JavaScript semantics, and adds typed overloads only where the operator maps cleanly to an explicit protocol.
-Operator overloading is receiver-based and nominal: a type must explicitly implement the corresponding nominal operator interface.
-
-#### Dispatch
-
-For overloadable binary operators, the left operand selects the implementation family and the right operand selects the overload within that family.
-For example, `a + b` lowers to the left receiver's `add` implementation when the receiver implements `Add`.
-
-```ds
-newtype interface Add<T, R = this> {
-    add(other: T): R;
-}
-
-extension of Vector2 implements Add<Vector2> {
-    add(other: Vector2): Vector2 { ... }
-}
-```
-
-#### Special Operators
-
-Some operators are deliberately not overloadable because their control-flow or type-system behavior is too fundamental.
-This includes `&&`, `||`, `?.`, `as`, `satisfies`, `typeof`, `keyof`, `extends`, `implements`, `is`, `instanceof`, `?`, and `??`.
-
-`?` and `??` are protocol-driven, but they are not ordinary overloadable operators.
-Their semantics are fixed by the language and implemented through `Try`.
-
-#### Arithmetic And Checks
-
-Precise integers use defined overflow behavior.
-The ordinary arithmetic operators follow the active safety profile.
-In checked profiles, integer overflow traps.
-In unchecked profiles, integer overflow wraps in two's complement.
-
-Destack also supports explicit wrapping and saturating forms for code that wants the policy at the expression site:
-
-| Standard | Wrapping | Saturating |
-|----------|----------|------------|
-| `+` | `+%` | `+|` |
-| `-` | `-%` | `-|` |
-| `*` | `*%` | `*|` |
-
-### Overloads
-
-TypeScript already has 
-Real function and method overloading with distinct implementations:
-
-```ds
-function parse(input: string): int32 {
-    return parseInt(input);
-}
-function parse(input: int32): int32 {
-    return input;
-}
-```
-
-Following TypeScript, and to avoid ambiguity, Destack uses **declaration order** overloading: the first matching overload wins.
-The overload order is defined by the declaring module and is forwarded unchanged across exports and reexports (so the declaring module decides).
-
-When the receiver of a member access or method call is a union, Destack resolves the member for each union variant:
-- If all variants resolve to the same symbol, the call is static.
-- If the symbols differ, the compiler records a dynamic resolution and reifies it into `if (receiver is Type)` branches.
-
-Dynamic resolution only applies when every union variant exposes the member.
-Arguments must satisfy all candidate signatures, and the resulting type is the union of per-candidate return types after substitutions.
-Extension methods participate in member resolution, too.
 
 ### Trees (TSX)
 
@@ -778,8 +840,8 @@ function kernel(data: @space("shared") &Point) { }
 
 match (result) {
     @cold
-    Err(e) => handleError(e),
-    Ok(v) => v,
+    Err { error } => handleError(error),
+    Ok { value } => value,
 }
 ```
 
