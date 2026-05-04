@@ -1,7 +1,7 @@
 # "Language"
 
 The Destack language (`.ds`) and toolchain, colloqially "TypeScript++", are a superset of "strict modern" TypeScript with support for `.ts` and `.tsx` files, native AOT compilation and a fully integrated language toolchain, _and_ it can also compile nicely to standard JS/TS targets.
-By "language" we mean much more than "just" a programming language, we mean the 
+We believe that the ideal way to build correct, optimal, integrated software systems is to build a fully integrated stack (Destack), and thus by "language" ("TypeScript++") we mean much more than "just" a syntax form: a language, a runtime, a toolchain, plugins, and ultimately, a way of programming.
 
 ## "TypeScript++"
 
@@ -661,7 +661,7 @@ try {
 Destack keeps TypeScript's operators where they already have clear JavaScript semantics, and adds typed overloads only where the operator maps cleanly to an explicit protocol.
 Operator overloading is receiver-based and nominal: a type must explicitly implement the corresponding nominal operator interface.
 
-#### Operator Dispatch
+#### Dispatch
 
 For overloadable binary operators, the left operand selects the implementation family and the right operand selects the overload within that family.
 For example, `a + b` lowers to the left receiver's `add` implementation when the receiver implements `Add`.
@@ -691,7 +691,7 @@ The ordinary arithmetic operators follow the active safety profile.
 In checked profiles, integer overflow traps.
 In unchecked profiles, integer overflow wraps in two's complement.
 
-Destack also reserves explicit wrapping and saturating forms for code that wants the policy at the expression site:
+Destack also supports explicit wrapping and saturating forms for code that wants the policy at the expression site:
 
 | Standard | Wrapping | Saturating |
 |----------|----------|------------|
@@ -701,6 +701,7 @@ Destack also reserves explicit wrapping and saturating forms for code that wants
 
 ### Overloads
 
+TypeScript already has 
 Real function and method overloading with distinct implementations:
 
 ```ds
@@ -725,7 +726,8 @@ Extension methods participate in member resolution, too.
 
 ### Trees (TSX)
 
-Destack generalizes TSX syntax for any tree-shaped data:
+`.tsx` has proven to be a great way of building UIs and has even seen adoption for other tree-shaped data structures.
+Destack (`.ds`) files natively support `.tsx` like constructs:
 
 ```ds
 // Wall.ds
@@ -747,27 +749,24 @@ Destack generalizes TSX syntax for any tree-shaped data:
 </Level>
 ```
 
-Destack's tree literals work with any tree-compatible type, not just UI component systems, and not just any _single_ JSX/TSX-style per project.
-Because we have real type analysis you can mix and match.
-Types can opt into custom tree tag behavior by implementing the `TreeTag` interface, and custom intrinsic types (lowercase tags like `<div>`) are programmable via `TreeTagBuilder`.
+Unlike in TypeScript, in Destack types can participate in custom tree tag behavior by implementing the `TreeTag` interface, and custom intrinsic types (lowercase tags like `<div>`) are programmable via `TreeTagBuilder`.
+Essentially, `TreeTag` generalises `jsxFactory` and `TreeTagBuilder` generalises `jsxFragmentFactory`: 
+ - Uppercase or qualified tags resolve as value tags through normal value lookup and the `TreeTag` interface.
+ - Lowercase unqualified tags resolve as intrinsic tags through the active `TreeTagBuilder`.
 
-Tree literals have two routing paths.
-Uppercase or qualified tags resolve as value tags through normal value lookup and the `TreeTag` interface.
-Lowercase unqualified tags resolve as intrinsic tags through the active `TreeTagBuilder`.
-
-Fragments route through the active builder's fragment type.
+ Fragments route through the active builder's fragment type.
 Namespaced tags like `<svg:path />` are not XML namespace bindings; they are intrinsic string tag names.
 
-### Annotations And Decorators
+### Annotations and Decorators
 
-Destack uses `@` for resolved annotations.
-The expression after `@` must resolve in the current static context.
-If it does not resolve, that is an error.
-There is no stringly metadata by spelling alone.
+Like TypeScript, Destack uses `@` for decorators. 
+Unlike in TypeScript, Destack decorators can appear basically on any declaration, item and statement, much like Rust attributes.
 
 ```ds
 @deprecated("use newAPI instead")
-function oldAPI() { }
+function oldAPI() {
+    // ...
+}
 
 @unroll
 for (let i = 0; i < 4; i++) { }
@@ -787,42 +786,9 @@ match (result) {
 }
 ```
 
-The resolved expression decides the effect.
+#### Static If
 
-`@derive(...)` is an intrinsic expansion annotation.
-It only applies to nominal type declarations.
-Each argument resolves to a nominal capability/interface.
-
-```ds
-@derive(Clone)
-struct User {
-    id: UserId;
-}
-```
-
-For `@derive(Clone)` on `User`, the compiler asks the active derive implementation for `Clone` and `User` to produce ordinary declarations, inserts those declarations, and then type checks the result normally.
-Derive output is additive and declaration-shaped, usually extensions or implementations.
-It does not rewrite the annotated type.
-The provider API is part of the compiler/plugin surface, not runtime type reflection.
-
-If `@expr` resolves to a supported rewrite function, it is a rewrite annotation.
-That gives plain `@memoize` and configured `@memoize({ maxEntries: 256 })` the same shape: both resolve to something the compiler can call during expansion.
-Rewrite annotations are narrow compiler-visible rewrites of the annotated target.
-They must preserve the public type contract and may only target declaration forms they explicitly support.
-Something like `@memoize` can be expressed this way, but it is not a JavaScript property-descriptor decorator and it does not mutate prototypes.
-
-If `@expr` resolves to any other statically known value, it is metadata.
-For example, `@validate(minLength(1))` may just construct a typed value that is attached to the field and later consumed by `@derive(Validate)`, a linter, reflection, or a framework.
-Metadata annotations do not generate code by themselves and do not intercept reads or writes.
-
-Annotations may be retained as reflection metadata.
-Documentation comments are also exposed as normalized documentation descriptors when retained.
-Full trivia belongs to AST/plugin APIs, not runtime type reflection.
-Portable `.ds` does not support legacy TypeScript decorators, parameter decorators, property descriptor mutation, prototype mutation, proxies, hidden dynamic members, or arbitrary expression macros.
-
-### Static If
-
-There is a special `@if` decorator for gating the inclusion of certain nodes based on some statically evaluatable expression.
+There is a another special decorated: `@if` gates the inclusion of certain nodes based on some statically evaluatable expression.
 When the condition is false, the annotated item is (in effect) removed and removed from analysis and the final shape.
 
 ```ds
@@ -907,56 +873,50 @@ struct Buffer<comptime size: uint> {
 ## Memory
 
 TypeScript, like most managed high level languages, does not encode memory "ownership" in its type system: all reference types are implicitly GC-managed, and all value types are copied by default.
-This is a convenient, but sometimes we need to take direct control of memory, whether for better control and performance, or just to express invariants in the code.
-Destack adds explicit, optional modifiers for controlling memory ownership and placement inspired by Rust and Mojo's ownership models with `^T` as the "owned" signifier.
+That is convenient, but sometimes we need to take direct control of memory, whether for better performance, or just to express invariants in the code.
+Destack adds explicit, optional modifiers for controlling memory ownership and placement, inspired by Rust and Mojo with `^T` as the "owned" signifier.
 Plain `T` keeps the base type's default representation: value types are values, object types are managed references.
 
-TypeScript inherits the JavaScript / web model of local, single-threaded execution.
-Destack embraces and extends this ambient model and also supports more ergonomic shared memory as part of a generalized notion of "place": local to a Worker, shared across Workers in a Runtime, or in a different address space.
-For shared memory, this is conceptually like a proper object graph around `SharedArrayBuffer`-like semantics, except that all object and management features work the same.
+Memory in Destack lives on two independent axes:
 
-| Form | Ownership | Region | Place | Liveness | MIR shape | Value |
-|------|-----------|--------|-------|---------------|-----------|-------|
-| `T` for value bases | value | none | ambient | owned by its containing storage | `value<T, space(X)>` | inline value |
-| `T` for object bases | managed | none | ambient | keeps the referent alive | `ref<T, managed, space(X)>` | managed heap handle |
-| `shared T` for value bases | value | none | shared | owned by its containing storage | `value<T, space(shared)>` | inline shared value |
-| `shared T` for object bases | managed | none | shared | keeps the referent alive | `ref<T, managed, space(shared)>` | managed shared handle |
-| `&T` | borrowed | inferred or explicit | ambient | requires liveness | `ref<T, borrowed, space(X)>` | semantic borrow or projection |
-| `&shared T` | borrowed | inferred or explicit | shared | requires liveness | `ref<T, borrowed, space(shared)>` | semantic shared borrow or projection |
-| `^T` | owned | none | ambient | owns the referent | `ref<T, owned, space(X)>` | owned heap handle |
-| `^shared T` | owned | none | shared | owns the referent | `ref<T, owned, space(shared)>` | owned shared heap handle |
-| `*T` | raw | none | ambient | does not keep anything alive | `ref<T, raw, space(X)>` | unsafe raw typed pointer |
-| `*shared T` | raw | none | shared | does not keep anything alive | `ref<T, raw, space(shared)>` | unsafe shared raw typed pointer |
+- **Ownership** - who is responsible for the value: managed (`T`), owned (`^T`), borrowed (`&T`), or raw (`*T`).
+- **Space** - where the value lives: ambient/local by default, `shared` across Workers, or some other target-defined space.
 
-### Local And Shared Space
+The two axes compose freely, e.g. `^shared T` is an owned handle to a value in shared space, and `&shared T` is a borrow of a shared value.
+
+### Ownership
+
+The ownership axis decides who keeps a value alive and who is allowed to mutate it.
+Each form has a corresponding normalized representation in the type algebra (see [Algebra](#algebra)).
+
+| Form | Ownership | Liveness | Meaning |
+|------|-----------|----------|---------|
+| `T` (value base) | value | owned by its containing storage | inline value |
+| `T` (object base) | managed | keeps the referent alive | managed heap handle (GC) |
+| `^T` | owned | owns the referent | unique owned handle |
+| `&T` | borrowed | requires liveness | semantic borrow or projection |
+| `*T` | raw | does not keep anything alive | unsafe typed pointer |
+
+```ds
+let a: User = new User();         // managed handle
+let b: ^User = new User();        // owned handle
+let c: &User = &a;                // borrow
+let d: *User = unsafe { &raw a }; // raw pointer
+```
+
+Plain `T` is the default and matches what TypeScript already does: value types are values, object types are managed references.
+`^T` denotes unique ownership, like Rust's `Box<T>` or Mojo's `^T`.
+`&T` is a borrow that must remain valid for some region; see [Borrows, Regions And Suspension](#borrows-regions-and-suspension).
+`*T` is an unchecked raw pointer; it does not keep anything alive and can only be used inside `unsafe` blocks.
+
+### Space
 
 Following web tradition, a `Worker` is Destack's unit of concurrent execution.
-Local space is the current Worker's local heap.
+The default *local* space is the current Worker's local heap.
 Ordinary managed objects, arrays, strings, functions, closures, and module bindings live in local space unless a type or binding says otherwise.
 
-Shared space is runtime-shared memory visible to multiple Workers in the same Runtime.
-It is the typed, generalized version of the `SharedArrayBuffer` idea rather than a separate language.
-`shared T` means `T` is re-based into shared space, i.e. `WithSpace<T, "shared">`.
-Other spaces can use the same type algebra, for example device or GPU memory, as long as the target and library define what values and operations are valid there.
-`local` is not a surface keyword.
-The local space can be named explicitly through `WithSpace<T, "local">` or `@space("local")` where an explicit space annotation is needed.
-`@space(S)` on a type declaration sets that type's required placement.
-This is useful for types like shared locks, device buffers, or mapped memory handles that only make sense in one space.
-
-Local values may point to shared values.
-Shared values must not point directly into a Worker-local heap.
-That invariant is the core reason placement is in the type system.
-
-Shared placement is not synchronization.
-It does not imply atomic access, locking, actor isolation, or `Sync`.
-Ordinary reads and writes of shared values use ordinary syntax, but they do not establish cross-Worker ordering, mutual exclusion, or communication.
-Code that needs those guarantees uses atomics, locks, channels, actors, transactions, job systems, or another explicit protocol.
-Libraries and strict profiles may require capabilities like `Send` and `Sync` for APIs that transfer or publish values, but `shared` itself is only placement.
-
-Placement is contextual.
-An aggregate field with ambient placement is interpreted in the placement of the containing value.
-An aggregate field with explicit placement keeps that placement.
-Therefore the compiler may lower one source aggregate into distinct concrete layouts for local and shared placement.
+Placement is contextual: an aggregate field with ambient placement is interpreted in the placement of the containing value, while an explicit placement on a field is preserved.
+The compiler may therefore lower one source aggregate into distinct concrete layouts depending on placement.
 
 ```ds
 struct Request<T> {
@@ -964,76 +924,88 @@ struct Request<T> {
     body: T,
 }
 
-let local: Request<Body>;
-let shared: shared Request<Body>;
+let here: Request<Body>;          // header, body are local
+let there: shared Request<Body>;  // header, body are shared
 ```
 
-In the local value, `header` and `body` are local.
-In the shared value, the ambient `header` and `body` fields are shared.
 If a field is explicitly `WithSpace<T, "local">`, the enclosing aggregate cannot be placed in shared space unless that field is some explicitly permitted cross-space handle.
 
+#### Shared Space
+
+Shared space is runtime-shared memory visible to multiple Workers in the same Runtime.
+Conceptually, `shared` is the typed, generalized version of the `SharedArrayBuffer` idea with the full type system and object graphs at our disposal:
+- Local values may point to shared values.
+- Shared values must not point directly into a local heap.
+
+Shared placement is **not** a synchronization primitive in itself, and does **not** imply atomic access, locking, actor isolation, `Sync`, or anything like it.
+It's just a name for a region of memory..
+Libraries and strict profiles may require capabilities like `Send` and `Sync` for APIs that transfer or publish values, but `shared` itself is only placement.
+
 Not every type can be placed in every space.
-Transparent values are checked structurally, and opaque or runtime-backed values are checked by the compiler and library definitions for that space.
+Transparent values are checked structurally, and opaque or runtime-backed values are checked by the compiler and userland definitions for that space.
 `shared T` is only valid when `T` can be represented in shared space.
 
 ### Capabilities
 
-`Copy`, `Clone`, `Send`, and `Sync` are capability interfaces, not placement forms.
+Like many other languages, Destack encodes synchronisation and memory primitives as (newtype) interfaces like `Copy`, `Clone`, `Send`, and `Sync`
+(These are separate from and orthogonal to ownership and placement.)
 
-`Copy` means a value can be duplicated implicitly without changing ownership responsibilities.
-`Clone` means code can explicitly create another value, possibly by running code or allocating.
-`Send` means a value can cross a Worker boundary.
-`Sync` means references to shared values can be used concurrently through the type's own API.
+| Capability | Meaning |
+|------------|---------|
+| `Copy` | Value can be duplicated implicitly without changing ownership responsibilities. |
+| `Clone` | Code can explicitly create another value, possibly by running code or allocating. |
+| `Send` | Value can cross a Worker boundary. |
+| `Sync` | References to shared values can be used concurrently through the type's own API. |
 
-These capabilities are separate from placement.
-`shared T` means `T` lives in shared space; it does not make `T` `Sync`.
-Library APIs such as channels, Worker pools, atomics, locks, and actors can require `Send` or `Sync` when they need those stronger guarantees.
+As discussed above, `shared T` means `T` lives in shared space; it does _not_ make `T` automatically `Sync`.
+Userland APIs such as channels, Worker pools, atomics, locks, and actors can require `Send` or `Sync` when they need those stronger guarantees.
 
-### Relations
+### Conversions
 
-The rules for who can point into what mostly follow from the fact that references must always be valid, and shared memory should not point into a Worker-local heap.
-(And raw pointers are your own dangerous business.)
+The rules for who can convert into what mostly follow from two facts: references must always be valid, and shared memory must not point into a Worker-local heap.
+(Raw pointers are your own dangerous business.)
 
 | From \ To | `T` | `shared T` | `&T` | `&shared T` | `^T` | `^shared T` | `*T` | `*shared T` |
 |-----------|-----|------------|------|-------------|------|-------------|------|-------------|
-| `T` | - | yes | yes | no | no | no | explicit unsafe | no |
-| `shared T` | no | - | no | yes | no | no | no | explicit unsafe |
-| `&T` | no | no | - | no | no | no | explicit unsafe | no |
-| `&shared T` | no | no | no | -- | no | no | no | explicit unsafe |
-| `^T` | no | yes | yes | no | - | no | explicit unsafe | no |
-| `^shared T` | no | no | no | yes | no | - | no | explicit unsafe |
-| `*T` | no | no | unsafe checked reborrow | no | no | no | - | no |
-| `*shared T` | no | no | no | unsafe checked reborrow | no | no | no | - |
+| `T` | - | yes | yes | no | no | no | unsafe | no |
+| `shared T` | no | - | no | yes | no | no | no | unsafe |
+| `&T` | no | no | - | no | no | no | unsafe | no |
+| `&shared T` | no | no | no | - | no | no | no | unsafe |
+| `^T` | no | yes | yes | no | - | no | unsafe | no |
+| `^shared T` | no | no | no | yes | no | - | no | unsafe |
+| `*T` | no | no | reborrow | no | no | no | - | no |
+| `*shared T` | no | no | no | reborrow | no | no | no | - |
 
-### Bindings
+"unsafe" conversions require an explicit `unsafe` block, and "reborrow" from `*T` to `&T` requires an unsafe checked reborrow that asserts validity.
 
-Because Destack inherits the JS/TS "Worker" model for isolation and memory ownership, module-scoped constants are owned by each _Worker_ and not actually process-global as they would be in many other languages.
-For actually shared process-global globals, the binding itself can be declared as `shared`.
+### Statics
+
+Because Destack inherits the JS/TS Worker model for isolation, module-scoped constants are owned by each _Worker_ and are not actually process-global as they would be in many other languages.
+For genuinely shared process-global state, the binding _itself_ can be declared as `shared`.
 
 | Form | Binding cell | Value place | Meaning |
-|----------|--------------|-------------|---------|
+|------|--------------|-------------|---------|
 | `const world = new World()` | local | local | one local module binding and one local value |
 | `const world: shared World = new World()` | local | shared | one local binding cell holding one shared handle |
 | `shared const world: World = new World()` | shared | shared | one shared binding cell initialized in shared space |
 | `shared const world: shared World = new World()` | shared | shared | same runtime meaning, explicit on both axes |
 
-### Allocation And Destruction
+### Allocation
 
-The primary typed construction path is `new`.
+The primary typed construction path is `new`, which allocates heap storage, initializes a `T`, and produces the ownership form required by the destination type and the base type's affinity.
+`new` is destination-typed: the expected type decides whether construction produces a managed or owned value, with affine base types preferring owned forms in unconstrained positions.
 
-`new` allocates heap storage, initializes a `T`, and produces the ownership form required by the destination type and the base type's affinity.
-
-`new` is destination-typed.
-
-The expected type decides whether construction produces a managed or owned value, with affine base types preferring owned forms in unconstrained positions.
+```ds
+let a: User = new User();   // managed
+let b: ^User = new User();  // owned
+```
 
 There is no second primary typed allocation surface alongside `new`.
-
 `raw.alloc` and `raw.free` are reserved for true raw storage only.
 
-`drop` ends ownership of a `^T`, runs destruction, and releases owned heap storage.
-
-`dispose` and `dispose.async` are resource cleanup protocols rather than allocation primitives.
+For destruction:
+- `drop` ends ownership of a `^T`, runs destruction, and releases owned heap storage.
+- `dispose` and `dispose.async` are resource cleanup protocols, not allocation primitives.
 
 ### Borrows, Regions And Suspension
 
@@ -1047,6 +1019,35 @@ Borrowed<T, _>     // normalized form
 @lifetime("a") &T
 Borrowed<T, "a">
 ```
+
+### Algebra
+
+All of the surface forms above (`T`, `^T`, `&T`, `*T`, `shared T`, ...) are sugar over a single normalized type, declared in `@ownership.ds`:
+
+```ds
+newtype Form<
+    T,
+    O: Ownership = "managed",
+    S: Space = "local",
+    R = never,
+> = unknown;
+```
+
+Each surface form maps to a `Form<...>` with a specific ownership tag and space:
+
+| Surface | Normalized |
+|---------|------------|
+| `T` (object base) | `Form<T, "managed", "local">` |
+| `^T` | `Form<T, "owned", "local">` |
+| `&T` (in region `R`) | `Form<T, "borrowed", "local", R>` |
+| `*T` | `Form<T, "raw", "local">` |
+| `shared T` | `Form<T, "managed", "shared">` |
+| `^shared T` | `Form<T, "owned", "shared">` |
+
+The same module exposes constructors and accessors over this representation - `Managed<T>`, `Owned<T>`, `Borrowed<T, R>`, `Raw<T>`, `Shared<T>`, plus `BaseOf<T>`, `OwnershipOf<T>`, `SpaceOf<T>`, `RegionOf<T>`, predicates like `IsOwned<T>` and `IsShared<T>`, and reformulators like `WithBase<Q, T>`, `WithOwnership<Q, O>`, `WithSpace<Q, S>`, and `WithRegion<Q, R>`.
+
+This means memory qualification is just ordinary type-level computation: libraries and frameworks can introspect and rewrite ownership and placement using the same generic machinery they would use for any other type, instead of having to special-case each surface modifier.
+
 
 # Runtime
 
