@@ -1,9 +1,15 @@
 // Control flow primitives
 //
 // Types and interfaces for control flow operations:
-// - Error handling: Result, Try
+// - Error handling: Result, Try, FromFailure
 
-export { type Try, type TryBranch, type TryContinue, type TryFailure } from "./try.ds";
+export {
+    type Try,
+    type FromFailure,
+    type TryBranch,
+    type TryContinue,
+    type TryFailure,
+} from "./try.ds";
 export { type Error } from "./error.ds";
 export {
     type Promise,

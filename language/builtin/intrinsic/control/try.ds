@@ -1,81 +1,26 @@
-/// Interface for the `?` and `??` operators.
-///
-/// Types implementing `Try` support error propagation with `?` and fallback values with `??`.
-///
-/// The branch value is structural.
-/// Implementations must return a `TryBranch<T, E>` shape from `branch()`.
-///
-/// ## The `?` Operator (propagate)
-///
-/// `x?` extracts the success value or returns early with the error:
-/// ```
-/// match (x.branch()) {
-///     { kind: "continue", value } => value
-///     { kind: "failure", error } => return fromFailure(error)
-/// }
-/// ```
-///
-/// ## The `??` Operator (default)
-///
-/// `x ?? default` extracts the success value or uses the default:
-/// ```
-/// match (x.branch()) {
-///     { kind: "continue", value } => value
-///     { kind: "failure", error: _ } => default
-/// }
-/// ```
-///
-/// This means `??` on `Result<T, E>` works like `unwrapOr`:
-/// ```
-/// const config = loadConfig() ?? defaultConfig;
-/// ```
-///
-/// For nullable types (`T | null`), `??` behaves exactly like TypeScript's
-/// nullish coalescing operator.
-///
-/// ## Example
-///
-/// ```
-/// function divide(a: int, b: int): Result<int, string> {
-///     if (b == 0) {
-///         Result.err("division by zero")
-///     } else {
-///         Result.ok(a / b)
-///     }
-/// }
-///
-/// function calculate(): Result<int, string> {
-///     const x = divide(10, 2)?;  // x = 5, or returns early on error
-///     const y = divide(x, 0)?;   // returns Err("division by zero")
-///     Result.ok(y)
-/// }
-///
-/// // Using ?? for defaults
-/// const result = divide(10, 0) ?? 0;  // result = 0
-/// ```
-
 /// Successful `Try` branch.
 export type TryContinue<T> = { kind: "continue"; value: T };
-///
+
 /// Failed `Try` branch.
 export type TryFailure<E> = { kind: "failure"; error: E };
 
-/// Try branch result for the `?` and `??` operators.
-///
-/// Implementations may return this shape directly or any compatible union.
+/// Branch result for the `?` and `??` operators.
 export type TryBranch<T, E> = TryContinue<T> | TryFailure<E>;
 
+/// Source protocol for values that can be unwrapped or propagated with `?`.
 export newtype interface Try {
-    /// The success value produced by `?` and `??`.
+    /// The value produced when evaluation continues.
     type Value;
 
-    /// The failure value propagated by `?` or consumed by `??`.
+    /// The value produced when evaluation fails.
     type Error;
 
-    /// Branch on success or failure.
-    /// Returns a TryBranch value to continue or fail.
+    /// Branch into success or failure control flow.
     branch(): TryBranch<this.Value, this.Error>;
+}
 
-    /// Construct the implementing type from a failure value.
-    static fromFailure(error: this.Error): this;
+/// Target protocol for rebuilding a return type from a propagated failure.
+export newtype interface FromFailure<E> {
+    /// Construct this type from a failure value.
+    static fromFailure(error: E): this;
 }
