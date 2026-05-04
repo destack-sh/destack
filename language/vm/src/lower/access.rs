@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
+use crate::ReferenceMeta;
 use crate::program::{
     ElementAccess, FieldAccess, Layout, PointeeAccess, PointerClass, SliceElementAccess,
     ValueLayout, WordLayout, pointer_class_from_reference, repr_type, word_layout_from_type,
@@ -21,6 +22,7 @@ pub(super) fn field_access(
     // resolve the pointee field layout first
     let layout = layouts.get(&pointee_type)?;
     let field = layout.field(index)?;
+    let field_count = layout.field_count()? as u32;
 
     // cache scalar layout for lowered memory ops
     let word_layout = access_word_layout(tree, layouts, field.ty);
@@ -28,6 +30,8 @@ pub(super) fn field_access(
     Some(FieldAccess {
         pointer_class,
         value_type: field.ty,
+        index,
+        field_count,
         byte_offset: field.offset,
         byte_len: field.byte_len,
         word_layout,
@@ -76,17 +80,21 @@ pub(super) fn element_access(
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     pointee_type: mir::LocalNodeId<mir::Type>,
     pointer_class: PointerClass,
+    reference: ReferenceMeta,
 ) -> Option<ElementAccess> {
     // resolve the pointee element layout first
     let layout = layouts.get(&pointee_type)?;
     let element = layout.element()?;
+    let length = layout.element_count()? as u64;
 
     // cache scalar layout for lowered memory ops
     let word_layout = access_word_layout(tree, layouts, element.ty);
 
     Some(ElementAccess {
         pointer_class,
+        reference,
         value_type: element.ty,
+        length,
         byte_stride: element.stride,
         byte_len: element.byte_len,
         word_layout,
@@ -104,6 +112,7 @@ pub(super) fn slice_element_access(
         kind,
         element,
         address_space,
+        mutability,
         ..
     } = tree.get(repr_type(tree, slice_type))
     else {
@@ -114,12 +123,16 @@ pub(super) fn slice_element_access(
     let slice = layout.slice()?;
     let element_layout = layouts.get(&element_type)?;
     let element_class = pointer_class_from_reference(address_space.clone(), *kind);
+    let element_reference = ReferenceMeta::new(*kind, address_space.clone(), *mutability, false);
     let element_word_layout = access_word_layout(tree, layouts, element_type);
 
     Some(SliceElementAccess {
+        reference: element_reference,
         data: FieldAccess {
             pointer_class: descriptor_class,
             value_type: slice.data.ty,
+            index: 0,
+            field_count: 2,
             byte_offset: slice.data.offset,
             byte_len: slice.data.byte_len,
             word_layout: word_layout_from_type(tree, slice.data.ty),
@@ -127,13 +140,17 @@ pub(super) fn slice_element_access(
         length: FieldAccess {
             pointer_class: descriptor_class,
             value_type: slice.length.ty,
+            index: 1,
+            field_count: 2,
             byte_offset: slice.length.offset,
             byte_len: slice.length.byte_len,
             word_layout: word_layout_from_type(tree, slice.length.ty),
         },
         element: ElementAccess {
             pointer_class: element_class,
+            reference: element_reference,
             value_type: element_type,
+            length: 0,
             byte_stride: element_layout.stride(),
             byte_len: element_layout.byte_len,
             word_layout: element_word_layout,
@@ -174,7 +191,9 @@ pub(super) fn tensor_element_access(
 
     Some(ElementAccess {
         pointer_class,
+        reference: ReferenceMeta::NONE,
         value_type: element_type,
+        length: 0,
         byte_stride: layout.stride(),
         byte_len: layout.byte_len,
         word_layout,

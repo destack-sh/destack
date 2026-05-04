@@ -1,13 +1,10 @@
 use destack_mir as mir;
 
-use crate::program::{
-    Branch, Check, Instruction, Jump, Opcode, Return, Switch, TableSwitch, Throw, Trap,
-    Unreachable, Yield,
-};
+use crate::program::{Instruction, Op};
 use crate::{Error, Result};
 
 use super::lower::BlockLowerer;
-use super::opcode::{select_branch_opcode, select_switch_opcode, select_switch_table_opcode};
+use super::op::{select_switch_op, select_switch_table_op};
 use super::pool::Pool;
 
 impl<'a> BlockLowerer<'a> {
@@ -23,18 +20,16 @@ impl<'a> BlockLowerer<'a> {
                     context: "terminator".to_string(),
                 });
             }
-            mir::Terminator::Return { value } => Instruction::new(
-                Opcode::Return,
-                Return {
-                    value: (*value)
-                        .map(|value| {
-                            value.value().ok_or_else(|| Error::MissingRepresentation {
-                                context: "return value".to_string(),
-                            })
-                        })
-                        .transpose()?,
-                },
-            ),
+            mir::Terminator::Return { value } => {
+                let Some(value) = value else {
+                    return Ok(Instruction::new(Op::ReturnVoid, 0, 0, 0, 0));
+                };
+                let value = value.value().ok_or_else(|| Error::MissingRepresentation {
+                    context: "return value".to_string(),
+                })?;
+
+                Instruction::new(Op::Return, value.id(), 0, 0, 0)
+            }
 
             mir::Terminator::Jump { target } => {
                 let target_block =
@@ -62,13 +57,7 @@ impl<'a> BlockLowerer<'a> {
                     .unwrap_or_default();
                 let moves = pool.edge_move_plan(target_parameters, &arguments)?;
 
-                Instruction::new(
-                    Opcode::Jump,
-                    Jump {
-                        target: target_index as u32,
-                        moves,
-                    },
-                )
+                Instruction::new(Op::Jump, target_index as u32, moves.start, moves.len, 0)
             }
 
             mir::Terminator::Branch {
@@ -130,17 +119,10 @@ impl<'a> BlockLowerer<'a> {
                     .unwrap_or_default();
                 let then_moves = pool.edge_move_plan(then_parameters, &then_arguments)?;
                 let else_moves = pool.edge_move_plan(else_parameters, &else_arguments)?;
+                let then_edge = pool.edge(then_index as u32, then_moves);
+                let else_edge = pool.edge(else_index as u32, else_moves);
 
-                Instruction::new(
-                    select_branch_opcode(self.value_layout_map(), condition),
-                    Branch {
-                        condition,
-                        then_target: then_index as u32,
-                        then_moves,
-                        else_target: else_index as u32,
-                        else_moves,
-                    },
-                )
+                Instruction::new(Op::BranchBool, condition.id(), then_edge.0, else_edge.0, 0)
             }
 
             mir::Terminator::Check {
@@ -196,17 +178,11 @@ impl<'a> BlockLowerer<'a> {
                     .unwrap_or_default();
                 let success_moves = pool.edge_move_plan(success_parameters, &success_arguments)?;
                 let failure_moves = pool.edge_move_plan(failure_parameters, &failure_arguments)?;
+                let constraint = pool.check(constraint.clone());
+                let success_edge = pool.edge(success_index as u32, success_moves);
+                let failure_edge = pool.edge(failure_index as u32, failure_moves);
 
-                Instruction::new(
-                    Opcode::Check,
-                    Check {
-                        constraint: pool.check(constraint.clone()),
-                        then_target: success_index as u32,
-                        then_moves: success_moves,
-                        else_target: failure_index as u32,
-                        else_moves: failure_moves,
-                    },
-                )
+                Instruction::new(Op::Check, constraint.0, success_edge.0, failure_edge.0, 0)
             }
 
             mir::Terminator::Switch {
@@ -243,6 +219,7 @@ impl<'a> BlockLowerer<'a> {
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
                 let default_moves = pool.edge_move_plan(default_parameters, &default_arguments)?;
+                let default_edge = pool.edge(default_index as u32, default_moves);
 
                 let is_word = self
                     .value_type_for_value(value)
@@ -259,13 +236,11 @@ impl<'a> BlockLowerer<'a> {
                     )?
                 {
                     Instruction::new(
-                        select_switch_table_opcode(self.value_layout_map(), value),
-                        TableSwitch {
-                            value,
-                            table,
-                            default_target: default_index as u32,
-                            default_moves,
-                        },
+                        select_switch_table_op(self.value_layout_map(), value),
+                        value.id(),
+                        table.0,
+                        default_edge.0,
+                        0,
                     )
                 } else {
                     let cases = pool.switch_case_range(
@@ -274,32 +249,29 @@ impl<'a> BlockLowerer<'a> {
                         cases,
                     )?;
                     Instruction::new(
-                        select_switch_opcode(self.value_layout_map(), value),
-                        Switch {
-                            value,
-                            cases,
-                            default_target: default_index as u32,
-                            default_moves,
-                        },
+                        select_switch_op(self.value_layout_map(), value),
+                        value.id(),
+                        cases.0,
+                        default_edge.0,
+                        0,
                     )
                 }
             }
 
-            mir::Terminator::Trap { kind, payload } => Instruction::new(
-                Opcode::Trap,
-                Trap {
-                    kind: *kind,
-                    payload: (*payload)
-                        .map(|value| {
-                            value.value().ok_or_else(|| Error::MissingRepresentation {
-                                context: "trap payload".to_string(),
-                            })
-                        })
-                        .transpose()?,
-                },
-            ),
+            mir::Terminator::Trap { kind, payload } => match kind {
+                mir::TrapKind::Abort => Instruction::new(Op::Abort, 0, 0, 0, 0),
+                mir::TrapKind::Panic => {
+                    let payload = payload.and_then(|payload| payload.value()).ok_or_else(|| {
+                        Error::MissingRepresentation {
+                            context: "trap panic payload".to_string(),
+                        }
+                    })?;
 
-            mir::Terminator::Unreachable => Instruction::new(Opcode::Unreachable, Unreachable),
+                    Instruction::new(Op::Panic, payload.id(), 0, 0, 0)
+                }
+            },
+
+            mir::Terminator::Unreachable => Instruction::new(Op::Unreachable, 0, 0, 0, 0),
 
             mir::Terminator::Yield { value, .. } => {
                 let value = (*value)
@@ -318,26 +290,18 @@ impl<'a> BlockLowerer<'a> {
                         ),
                     })?;
 
-                Instruction::new(
-                    Opcode::Yield,
-                    Yield {
-                        value,
-                        source: value,
-                        frame_state,
-                    },
-                )
+                Instruction::new(Op::Yield, value.id(), value.id(), frame_state.0, 0)
             }
 
-            mir::Terminator::Throw { value } => Instruction::new(
-                Opcode::Throw,
-                Throw {
-                    value: (*value)
-                        .value()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "throw value".to_string(),
-                        })?,
-                },
-            ),
+            mir::Terminator::Throw { value } => {
+                let value = (*value)
+                    .value()
+                    .ok_or_else(|| Error::MissingRepresentation {
+                        context: "throw value".to_string(),
+                    })?;
+
+                Instruction::new(Op::Throw, value.id(), 0, 0, 0)
+            }
 
             mir::Terminator::Invoke { .. }
             | mir::Terminator::InvokeIndirect { .. }

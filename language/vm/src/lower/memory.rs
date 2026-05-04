@@ -1,14 +1,11 @@
 use destack_mir as mir;
 
-use crate::program::{
-    FrameAccess, FunctionAddr, Instruction, Load, LoadFrame, LoadFrameBytes, LocalAddr, LocalGet,
-    LocalSet, Opcode, PointeeAccess, StaticAddr, Store, StoreFrame, StoreFrameBytes,
-};
-use crate::{Error, Result};
+use crate::program::{FrameAccess, Instruction, Op, PointeeAccess};
+use crate::{Error, ReferenceMeta, Result};
 
 use super::access::pointee_access;
 use super::lower::BlockLowerer;
-use super::opcode::{select_load_opcode, select_store_opcode};
+use super::op::{select_load_op, select_store_op};
 use super::pool::Pool;
 use super::value::{
     heap_pointee_type_for_value, heap_pointee_type_for_value_layout, pointer_class_for_value,
@@ -19,6 +16,7 @@ use super::value::{
 fn frame_access(access: PointeeAccess) -> FrameAccess {
     FrameAccess {
         value_type: access.value_type,
+        reference: ReferenceMeta::NONE,
         byte_offset: access.byte_offset,
         byte_stride: 0,
         length: 0,
@@ -45,11 +43,11 @@ impl<'a> BlockLowerer<'a> {
         let local = self.local_index(local)?;
 
         Ok(Instruction::new(
-            Opcode::LoadLocal,
-            LocalGet {
-                dest: destination,
-                local,
-            },
+            Op::LoadLocal,
+            destination.id(),
+            local,
+            0,
+            0,
         ))
     }
 
@@ -68,14 +66,14 @@ impl<'a> BlockLowerer<'a> {
             context: "local address local".to_string(),
         })?;
         let local = self.local_index(local)?;
+        let reference = reference_meta_for_value(self.value_layout_map(), destination);
 
         Ok(Instruction::new(
-            Opcode::AddressLocal,
-            LocalAddr {
-                dest: destination,
-                local,
-                reference: reference_meta_for_value(self.value_layout_map(), destination),
-            },
+            Op::AddressLocal,
+            destination.id(),
+            local,
+            reference.bits() as u32,
+            0,
         ))
     }
 
@@ -93,10 +91,7 @@ impl<'a> BlockLowerer<'a> {
         })?;
         let local = self.local_index(local)?;
 
-        Ok(Instruction::new(
-            Opcode::StoreLocal,
-            LocalSet { local, value },
-        ))
+        Ok(Instruction::new(Op::StoreLocal, local, value.id(), 0, 0))
     }
 
     /// Lower one static address.
@@ -115,14 +110,14 @@ impl<'a> BlockLowerer<'a> {
             .ok_or_else(|| Error::MissingRepresentation {
                 context: "static address global".to_string(),
             })?;
+        let reference = reference_meta_for_value(self.value_layout_map(), destination);
 
         Ok(Instruction::new(
-            Opcode::AddressStatic,
-            StaticAddr {
-                dest: destination,
-                global: global.id,
-                reference: reference_meta_for_value(self.value_layout_map(), destination),
-            },
+            Op::AddressStatic,
+            destination.id(),
+            global.id,
+            reference.bits() as u32,
+            0,
         ))
     }
 
@@ -144,11 +139,11 @@ impl<'a> BlockLowerer<'a> {
             })?;
 
         Ok(Instruction::new(
-            Opcode::AddressFunction,
-            FunctionAddr {
-                dest: destination,
-                function: function.id,
-            },
+            Op::AddressFunction,
+            destination.id(),
+            function.id,
+            0,
+            0,
         ))
     }
 
@@ -170,32 +165,18 @@ impl<'a> BlockLowerer<'a> {
                 context: "load pointer".to_string(),
             })?;
         let access = self.pointee_access_for_value(pointer)?;
-        let opcode = select_load_opcode(access)?;
-        let instruction = match opcode {
-            Opcode::LoadFrame => Instruction::new(
-                opcode,
-                LoadFrame {
-                    dest: destination,
-                    base: pointer,
-                    access: pool.frame_access(frame_access(access)),
-                },
-            ),
-            Opcode::LoadFrameBytes => Instruction::new(
-                opcode,
-                LoadFrameBytes {
-                    destination,
-                    address: pointer,
-                    access: pool.pointee_access(access),
-                },
-            ),
-            _ => Instruction::new(
-                opcode,
-                Load {
-                    dest: destination,
-                    pointer,
-                    access: pool.pointee_access(access),
-                },
-            ),
+        let op = select_load_op(access)?;
+        let instruction = match op {
+            Op::LoadFrame => {
+                let access = pool.frame_access(frame_access(access));
+
+                Instruction::new(op, destination.id(), pointer.id(), access.0, 0)
+            }
+            _ => {
+                let access = pool.pointee_access(access);
+
+                Instruction::new(op, destination.id(), pointer.id(), access.0, 0)
+            }
         };
 
         Ok(instruction)
@@ -217,33 +198,25 @@ impl<'a> BlockLowerer<'a> {
             context: "store value".to_string(),
         })?;
         let access = self.pointee_access_for_value(pointer)?;
-        let opcode = select_store_opcode(access)?;
-        let instruction = match opcode {
-            Opcode::StoreFrame => Instruction::new(
-                opcode,
-                StoreFrame {
-                    base: pointer,
-                    value,
-                    reference: reference_meta_for_value(self.value_layout_map(), pointer),
-                    access: pool.frame_access(frame_access(access)),
-                },
-            ),
-            Opcode::StoreFrameBytes => Instruction::new(
-                opcode,
-                StoreFrameBytes {
-                    address: pointer,
-                    source: value,
-                    access: pool.pointee_access(access),
-                },
-            ),
-            _ => Instruction::new(
-                opcode,
-                Store {
-                    pointer,
-                    value,
-                    access: pool.pointee_access(access),
-                },
-            ),
+        let op = select_store_op(access)?;
+        let instruction = match op {
+            Op::StoreFrame => {
+                let reference = reference_meta_for_value(self.value_layout_map(), pointer);
+                let access = pool.frame_access(frame_access(access));
+
+                Instruction::new(
+                    op,
+                    pointer.id(),
+                    value.id(),
+                    access.0,
+                    reference.bits() as u32,
+                )
+            }
+            _ => {
+                let access = pool.pointee_access(access);
+
+                Instruction::new(op, pointer.id(), value.id(), access.0, 0)
+            }
         };
 
         Ok(instruction)

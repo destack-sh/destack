@@ -2,8 +2,8 @@ use {destack_engine as engine, destack_mir as mir};
 
 use crate::program::{
     Call, CallBranch, CallIndirect, CallIndirectBranch, CallInterface, CallInterfaceBranch,
-    CallVirtual, CallVirtualBranch, CallableBind, CallableEnvironment, Instruction, Opcode,
-    TailCall, TailCallIndirect, TailCallInterface, TailCallSelf, TailCallVirtual,
+    CallVirtual, CallVirtualBranch, Instruction, Op, TailCall, TailCallIndirect, TailCallInterface,
+    TailCallVirtual,
 };
 use crate::{Error, Result};
 
@@ -91,8 +91,8 @@ impl<'a> BlockLowerer<'a> {
         let moves = pool.parameter_move_range(&callee.parameters, &argument_value)?;
         let target = self.call_target(function)?;
 
-        Ok(Instruction::new(
-            Opcode::Call,
+        Ok(pool.instruction_with_side(
+            Op::Call,
             Call {
                 dest: self.optional_value(destination, "call destination")?,
                 function: function.id,
@@ -129,8 +129,8 @@ impl<'a> BlockLowerer<'a> {
         )
         .map(|field| pool.field_access(field));
 
-        Ok(Instruction::new(
-            Opcode::CallVirtual,
+        Ok(pool.instruction_with_side(
+            Op::CallVirtual,
             CallVirtual {
                 dest: self.optional_value(destination, "virtual call destination")?,
                 receiver,
@@ -167,8 +167,8 @@ impl<'a> BlockLowerer<'a> {
         )
         .map(|field| pool.field_access(field));
 
-        Ok(Instruction::new(
-            Opcode::CallInterface,
+        Ok(pool.instruction_with_side(
+            Op::CallInterface,
             CallInterface {
                 dest: self.optional_value(destination, "interface call destination")?,
                 receiver,
@@ -195,8 +195,8 @@ impl<'a> BlockLowerer<'a> {
             context: "indirect call callee".to_string(),
         })?;
 
-        Ok(Instruction::new(
-            Opcode::CallIndirect,
+        Ok(pool.instruction_with_side(
+            Op::CallIndirect,
             CallIndirect {
                 dest: self.optional_value(destination, "indirect call destination")?,
                 callee,
@@ -208,6 +208,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one callable binding.
     pub(super) fn lower_callable_bind(
         &self,
+        _pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         function: mir::FunctionReference,
         environment: mir::ValueReference,
@@ -229,12 +230,11 @@ impl<'a> BlockLowerer<'a> {
             })?;
 
         Ok(Instruction::new(
-            Opcode::BindCallable,
-            CallableBind {
-                dest: destination,
-                function: function.id,
-                environment,
-            },
+            Op::BindCallable,
+            destination.id(),
+            function.id,
+            environment.id(),
+            0,
         ))
     }
 
@@ -250,8 +250,11 @@ impl<'a> BlockLowerer<'a> {
             })?;
 
         Ok(Instruction::new(
-            Opcode::LoadCallableEnvironment,
-            CallableEnvironment { dest: destination },
+            Op::LoadCallableEnvironment,
+            destination.id(),
+            0,
+            0,
+            0,
         ))
     }
 
@@ -299,8 +302,8 @@ impl<'a> BlockLowerer<'a> {
             pool.argument_reference_range(call.arguments.as_slice(), "invoke argument")?;
         let (normal_state, unwind_state) = self.exceptional_call_states()?;
 
-        Ok(Instruction::new(
-            Opcode::Invoke,
+        Ok(pool.instruction_with_side(
+            Op::Invoke,
             CallBranch {
                 function: function.id,
                 target: self.call_target(function)?,
@@ -325,8 +328,8 @@ impl<'a> BlockLowerer<'a> {
             pool.argument_reference_range(call.arguments.as_slice(), "invoke indirect argument")?;
         let (normal_state, unwind_state) = self.exceptional_call_states()?;
 
-        Ok(Instruction::new(
-            Opcode::InvokeIndirect,
+        Ok(pool.instruction_with_side(
+            Op::InvokeIndirect,
             CallIndirectBranch {
                 callee,
                 arguments,
@@ -360,8 +363,8 @@ impl<'a> BlockLowerer<'a> {
         )
         .map(|field| pool.field_access(field));
 
-        Ok(Instruction::new(
-            Opcode::InvokeVirtual,
+        Ok(pool.instruction_with_side(
+            Op::InvokeVirtual,
             CallVirtualBranch {
                 receiver,
                 table_field,
@@ -397,8 +400,8 @@ impl<'a> BlockLowerer<'a> {
         )
         .map(|field| pool.field_access(field));
 
-        Ok(Instruction::new(
-            Opcode::InvokeInterface,
+        Ok(pool.instruction_with_side(
+            Op::InvokeInterface,
             CallInterfaceBranch {
                 receiver,
                 table_field,
@@ -427,11 +430,11 @@ impl<'a> BlockLowerer<'a> {
                 pool.argument_reference_range(call.arguments.as_slice(), "tail call argument")?;
 
             return Ok(Instruction::new(
-                Opcode::TailCallSelf,
-                TailCallSelf {
-                    entry: self.entry_block,
-                    arguments,
-                },
+                Op::TailCallSelf,
+                self.entry_block,
+                arguments.start,
+                arguments.len,
+                0,
             ));
         }
 
@@ -450,8 +453,8 @@ impl<'a> BlockLowerer<'a> {
         let moves = pool.parameter_move_range(&callee.parameters, &arguments)?;
         let target = self.call_target(function)?;
 
-        Ok(Instruction::new(
-            Opcode::TailCall,
+        Ok(pool.instruction_with_side(
+            Op::TailCall,
             TailCall {
                 function: function.id,
                 target,
@@ -473,10 +476,12 @@ impl<'a> BlockLowerer<'a> {
         let arguments =
             pool.argument_reference_range(call.arguments.as_slice(), "tail indirect argument")?;
 
-        Ok(Instruction::new(
-            Opcode::TailCallIndirect,
-            TailCallIndirect { callee, arguments },
-        ))
+        Ok(
+            pool.instruction_with_side(
+                Op::TailCallIndirect,
+                TailCallIndirect { callee, arguments },
+            ),
+        )
     }
 
     /// Lower one virtual tail call.
@@ -502,8 +507,8 @@ impl<'a> BlockLowerer<'a> {
         )
         .map(|field| pool.field_access(field));
 
-        Ok(Instruction::new(
-            Opcode::TailCallVirtual,
+        Ok(pool.instruction_with_side(
+            Op::TailCallVirtual,
             TailCallVirtual {
                 receiver,
                 table_field,
@@ -536,8 +541,8 @@ impl<'a> BlockLowerer<'a> {
         )
         .map(|field| pool.field_access(field));
 
-        Ok(Instruction::new(
-            Opcode::TailCallInterface,
+        Ok(pool.instruction_with_side(
+            Op::TailCallInterface,
             TailCallInterface {
                 receiver,
                 table_field,

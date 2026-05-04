@@ -1,10 +1,10 @@
 use destack_mir as mir;
 
-use crate::program::{AddressFrame, FieldAddr, Instruction, Opcode};
+use crate::program::{Instruction, Op};
 use crate::{Error, Result};
 
 use super::lower::BlockLowerer;
-use super::opcode::select_field_addr_opcode;
+use super::op::select_field_addr_op;
 use super::pool::Pool;
 use super::value::reference_meta_for_value;
 
@@ -27,32 +27,32 @@ impl<'a> BlockLowerer<'a> {
             context: "field address base".to_string(),
         })?;
 
-        // lower frame projections through the frame address opcode
-        let opcode = select_field_addr_opcode(self.value_layout_map(), base)?;
+        // lower frame projections through the frame address op
+        let op = select_field_addr_op(self.value_layout_map(), base)?;
         let field = self.field_access_for_value(base, index)?;
-        if opcode == Opcode::AddressFrame {
+        if op == Op::AddressFrame {
+            let reference = reference_meta_for_value(self.value_layout_map(), destination);
+            let access = pool.frame_access(field.into());
+
             return Ok(Instruction::new(
-                opcode,
-                AddressFrame {
-                    dest: destination,
-                    base,
-                    reference: reference_meta_for_value(self.value_layout_map(), destination),
-                    access: pool.frame_access(field.into()),
-                },
+                op,
+                destination.id(),
+                base.id(),
+                reference.bits() as u32,
+                access.0,
             ));
         }
 
         // lower memory projections through the selected address family
+        let field = pool.field_access(field);
+        let reference = reference_meta_for_value(self.value_layout_map(), destination);
+
         Ok(Instruction::new(
-            opcode,
-            FieldAddr {
-                dest: destination,
-                base,
-                index,
-                reference: reference_meta_for_value(self.value_layout_map(), destination),
-                field_count: self.field_count_for_value(base)?,
-                field: pool.field_access(field),
-            },
+            op,
+            destination.id(),
+            base.id(),
+            reference.bits() as u32,
+            field.0,
         ))
     }
 }

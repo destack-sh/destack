@@ -1,18 +1,42 @@
 use destack_mir as mir;
 
-use crate::program::{
-    Instruction, Opcode, VectorCompare, VectorConvert, VectorExtract, VectorInsert, VectorReduce,
-    VectorSelect, VectorShuffle, VectorSplat,
-};
+use crate::program::{Instruction, Op};
 use crate::{Error, Result};
 
+use super::arithmetic::binary_operator_operand;
 use super::lower::BlockLowerer;
 use super::pool::Pool;
+
+/// Return one vector reduction operator operand.
+fn vector_reduce_operator_operand(operator: mir::VectorReduceOperator) -> u32 {
+    match operator {
+        mir::VectorReduceOperator::Add => 0,
+        mir::VectorReduceOperator::Multiply => 1,
+        mir::VectorReduceOperator::Min => 2,
+        mir::VectorReduceOperator::Max => 3,
+        mir::VectorReduceOperator::And => 4,
+        mir::VectorReduceOperator::Or => 5,
+        mir::VectorReduceOperator::Xor => 6,
+    }
+}
+
+/// Return the vector conversion operation for one mode.
+fn vector_convert_op(mode: mir::VectorConvertMode) -> Op {
+    match mode {
+        mir::VectorConvertMode::Exact => Op::VectorConvertExact,
+        mir::VectorConvertMode::RoundTiesEven => Op::VectorConvertRoundTiesEven,
+        mir::VectorConvertMode::RoundTowardZero => Op::VectorConvertRoundTowardZero,
+        mir::VectorConvertMode::RoundFloor => Op::VectorConvertRoundFloor,
+        mir::VectorConvertMode::RoundCeil => Op::VectorConvertRoundCeil,
+        mir::VectorConvertMode::Saturate => Op::VectorConvertSaturate,
+    }
+}
 
 impl<'a> BlockLowerer<'a> {
     /// Lower one vector splat.
     pub(super) fn lower_vector_splat(
         &self,
+        _pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         value: mir::ValueReference,
     ) -> Result<Instruction> {
@@ -26,17 +50,18 @@ impl<'a> BlockLowerer<'a> {
         })?;
 
         Ok(Instruction::new(
-            Opcode::VectorSplat,
-            VectorSplat {
-                dest: destination,
-                value,
-            },
+            Op::VectorSplat,
+            destination.id(),
+            value.id(),
+            0,
+            0,
         ))
     }
 
     /// Lower one vector extract.
     pub(super) fn lower_vector_extract(
         &self,
+        _pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         vector: mir::ValueReference,
         index: mir::ValueReference,
@@ -54,18 +79,18 @@ impl<'a> BlockLowerer<'a> {
         })?;
 
         Ok(Instruction::new(
-            Opcode::VectorExtract,
-            VectorExtract {
-                dest: destination,
-                vector,
-                index,
-            },
+            Op::VectorExtract,
+            destination.id(),
+            vector.id(),
+            index.id(),
+            0,
         ))
     }
 
     /// Lower one vector insert.
     pub(super) fn lower_vector_insert(
         &self,
+        _pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         vector: mir::ValueReference,
         index: mir::ValueReference,
@@ -87,13 +112,11 @@ impl<'a> BlockLowerer<'a> {
         })?;
 
         Ok(Instruction::new(
-            Opcode::VectorInsert,
-            VectorInsert {
-                dest: destination,
-                vector,
-                index,
-                value,
-            },
+            Op::VectorInsert,
+            destination.id(),
+            vector.id(),
+            index.id(),
+            value.id(),
         ))
     }
 
@@ -118,20 +141,21 @@ impl<'a> BlockLowerer<'a> {
             context: "vector shuffle right".to_string(),
         })?;
 
+        let mask = pool.u32_range(mask);
+
         Ok(Instruction::new(
-            Opcode::VectorShuffle,
-            VectorShuffle {
-                dest: destination,
-                left,
-                right,
-                mask: pool.u32_range(mask),
-            },
+            Op::VectorShuffle,
+            destination.id(),
+            left.id(),
+            right.id(),
+            mask.0,
         ))
     }
 
     /// Lower one vector select.
     pub(super) fn lower_vector_select(
         &self,
+        _pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         mask: mir::ValueReference,
         then_value: mir::ValueReference,
@@ -157,19 +181,18 @@ impl<'a> BlockLowerer<'a> {
             })?;
 
         Ok(Instruction::new(
-            Opcode::VectorSelect,
-            VectorSelect {
-                dest: destination,
-                mask,
-                then_value,
-                else_value,
-            },
+            Op::VectorSelect,
+            destination.id(),
+            mask.id(),
+            then_value.id(),
+            else_value.id(),
         ))
     }
 
     /// Lower one vector reduction.
     pub(super) fn lower_vector_reduce(
         &self,
+        _pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         operator: mir::VectorReduceOperator,
         vector: mir::ValueReference,
@@ -184,18 +207,18 @@ impl<'a> BlockLowerer<'a> {
         })?;
 
         Ok(Instruction::new(
-            Opcode::VectorReduce,
-            VectorReduce {
-                dest: destination,
-                operator,
-                vector,
-            },
+            Op::VectorReduce,
+            destination.id(),
+            vector_reduce_operator_operand(operator),
+            vector.id(),
+            0,
         ))
     }
 
     /// Lower one vector comparison.
     pub(super) fn lower_vector_compare(
         &self,
+        _pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         operator: mir::BinaryOperator,
         left: mir::ValueReference,
@@ -214,19 +237,18 @@ impl<'a> BlockLowerer<'a> {
         })?;
 
         Ok(Instruction::new(
-            Opcode::VectorCompare,
-            VectorCompare {
-                dest: destination,
-                operator,
-                left,
-                right,
-            },
+            Op::VectorCompare,
+            destination.id(),
+            binary_operator_operand(operator),
+            left.id(),
+            right.id(),
         ))
     }
 
     /// Lower one vector conversion.
     pub(super) fn lower_vector_convert(
         &self,
+        _pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         mode: mir::VectorConvertMode,
         vector: mir::ValueReference,
@@ -243,14 +265,11 @@ impl<'a> BlockLowerer<'a> {
         let source_type = self.value_type_for_value(vector)?;
 
         Ok(Instruction::new(
-            Opcode::VectorConvert,
-            VectorConvert {
-                dest: destination,
-                mode,
-                vector,
-                source_type,
-                dest_type,
-            },
+            vector_convert_op(mode),
+            destination.id(),
+            vector.id(),
+            source_type.id,
+            dest_type.id,
         ))
     }
 }

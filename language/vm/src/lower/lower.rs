@@ -3,7 +3,7 @@ use std::ops::Deref;
 
 use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
-use crate::program::{Block, CallTarget, Function, Layout, OperandTableBuilder};
+use crate::program::{Block, BlockCode, CallTarget, Function, Layout, SideTableBuilder};
 use crate::{Error, Result};
 
 use super::block::{BlockOrder, FunctionContext};
@@ -35,7 +35,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
         heap_options: &'a heap::HeapOptions,
         shared_heap_options: &'a heap::HeapOptions,
         value_types: &'a [ValueType],
-        operand_table: &'table mut OperandTableBuilder,
+        side_table: &'table mut SideTableBuilder,
     ) -> Result<Option<Self>> {
         let func = tree.get(func_id);
 
@@ -83,7 +83,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             context,
             func,
             frame_layout,
-            pool: Pool::new(operand_table),
+            pool: Pool::new(side_table),
         }))
     }
 
@@ -109,27 +109,43 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             .map(|(block_id, index)| (*index, *block_id))
             .collect::<Vec<_>>();
         mir_block.sort_unstable_by_key(|(index, _)| *index);
-        let mut block = Vec::with_capacity(mir_block.len());
+        let mut lowered_blocks = Vec::with_capacity(mir_block.len());
 
         for (_, mir_block) in mir_block {
-            block.push(self.lower_block(mir_block)?);
+            lowered_blocks.push(self.lower_block(mir_block)?);
         }
 
         let (argument_pool, move_pool) = self.pool.finish();
+        let mut code = Vec::new();
+        let mut blocks = Vec::with_capacity(lowered_blocks.len());
+
+        for block in lowered_blocks {
+            let start = code.len() as u32;
+            let len = block.instructions.len() as u32;
+
+            code.extend(block.instructions);
+            blocks.push(Block {
+                mir_block: block.mir_block,
+                start,
+                len,
+                source_boundary_by_pc: block.source_boundary_by_pc,
+            });
+        }
 
         Ok(Function {
             mir_function: self.context.function_id,
             frame_layout: self.frame_layout.id,
             parameters: parameter,
             entry: self.context.entry_block,
-            blocks: block,
+            code,
+            blocks,
             argument_pool,
             move_pool,
         })
     }
 
     /// Lower one MIR block into program form.
-    fn lower_block(&mut self, mir_block: mir::LocalNodeId<mir::Block>) -> Result<Block> {
+    fn lower_block(&mut self, mir_block: mir::LocalNodeId<mir::Block>) -> Result<BlockCode> {
         let lowerer = BlockLowerer {
             function: &self.context,
             mir_block,
@@ -197,7 +213,7 @@ pub(crate) fn lower_function(
     heap_options: &heap::HeapOptions,
     shared_heap_options: &heap::HeapOptions,
     value_types: &[ValueType],
-    operand_table: &mut OperandTableBuilder,
+    side_table: &mut SideTableBuilder,
 ) -> Result<Option<Function>> {
     let lowerer = FunctionLowerer::new(
         tree,
@@ -210,7 +226,7 @@ pub(crate) fn lower_function(
         heap_options,
         shared_heap_options,
         value_types,
-        operand_table,
+        side_table,
     )?;
 
     lowerer.map(FunctionLowerer::lower).transpose()
@@ -238,11 +254,10 @@ impl<'a> BlockLowerer<'a> {
     }
 
     /// Lower the block into program form.
-    fn lower(self, pool: &mut Pool<'_>) -> Result<Block> {
+    fn lower(self, pool: &mut Pool<'_>) -> Result<BlockCode> {
         let mut instructions = Vec::with_capacity(self.block.instructions.len() + 1);
-        let mut source_completed_instruction_counts =
-            Vec::with_capacity(self.block.instructions.len() + 2);
-        source_completed_instruction_counts.push(0);
+        let mut source_boundary_by_pc = Vec::with_capacity(self.block.instructions.len() + 2);
+        source_boundary_by_pc.push(0);
 
         // convert regular instructions
         let mut inst_index = 0usize;
@@ -258,15 +273,26 @@ impl<'a> BlockLowerer<'a> {
             ) {
                 instructions.push(instruction);
                 inst_index += skip;
-                source_completed_instruction_counts.push(inst_index as u32);
+                source_boundary_by_pc.push(inst_index as u32);
                 continue;
             }
 
             // lower the remaining instruction shape
             let lowered = self.lower_instructions(inst, pool)?;
+            let lowered_len = lowered.len();
             instructions.extend(lowered);
+
+            // internal instructions still belong to the current MIR operation
+            for _ in 1..lowered_len {
+                source_boundary_by_pc.push(inst_index as u32);
+            }
+
             inst_index += 1;
-            source_completed_instruction_counts.push(inst_index as u32);
+
+            // record the boundary after the MIR operation is complete
+            if lowered_len > 0 {
+                source_boundary_by_pc.push(inst_index as u32);
+            }
         }
 
         let terminator = self.tree.get(self.block.terminator);
@@ -279,12 +305,12 @@ impl<'a> BlockLowerer<'a> {
             instructions.push(lowered_terminator);
         }
 
-        source_completed_instruction_counts.push((self.block.instructions.len() + 1) as u32);
+        source_boundary_by_pc.push((self.block.instructions.len() + 1) as u32);
 
-        Ok(Block {
+        Ok(BlockCode {
             mir_block: self.mir_block,
             instructions,
-            source_completed_instruction_counts,
+            source_boundary_by_pc,
         })
     }
 

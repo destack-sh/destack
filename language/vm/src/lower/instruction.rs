@@ -1,8 +1,6 @@
 use destack_mir as mir;
 
-use crate::program::{
-    Assume, AsyncDispose, AtomicFence, Dispose, DropValue, Instruction, Opcode, Pin, UnpinValue,
-};
+use crate::program::{Instruction, Op};
 use crate::{Error, Result};
 
 use super::lower::BlockLowerer;
@@ -74,6 +72,7 @@ impl<'a> BlockLowerer<'a> {
                 index,
                 value,
             } => self.lower_element_update(pool, *destination, *array, *index, *value),
+            mir::Instruction::Drop { value } => self.lower_drop(pool, *value),
             _ => Ok(vec![self.lower_instruction(inst, pool)?]),
         }
     }
@@ -99,27 +98,27 @@ impl<'a> BlockLowerer<'a> {
                 operator,
                 left,
                 right,
-            } => self.lower_binary(*destination, *operator, *left, *right)?,
+            } => self.lower_binary(pool, *destination, *operator, *left, *right)?,
 
             mir::Instruction::Unary {
                 destination,
                 operator,
                 argument,
-            } => self.lower_unary(*destination, *operator, *argument)?,
+            } => self.lower_unary(pool, *destination, *operator, *argument)?,
 
             mir::Instruction::Cast {
                 destination,
                 operator,
                 argument,
                 to_type,
-            } => self.lower_cast(*destination, *operator, *argument, *to_type)?,
+            } => self.lower_cast(pool, *destination, *operator, *argument, *to_type)?,
 
             mir::Instruction::Select {
                 destination,
                 condition,
                 then_value,
                 else_value,
-            } => self.lower_select(*destination, *condition, *then_value, *else_value)?,
+            } => self.lower_select(pool, *destination, *condition, *then_value, *else_value)?,
 
             mir::Instruction::Call {
                 destination,
@@ -175,7 +174,7 @@ impl<'a> BlockLowerer<'a> {
                 destination,
                 function,
                 environment,
-            } => self.lower_callable_bind(*destination, *function, *environment)?,
+            } => self.lower_callable_bind(pool, *destination, *function, *environment)?,
             mir::Instruction::CallableEnvironment { destination } => {
                 self.lower_callable_environment(*destination)?
             }
@@ -189,43 +188,15 @@ impl<'a> BlockLowerer<'a> {
                 self.lower_store(pool, *pointer, *value)?
             }
 
-            mir::Instruction::Dispose { .. } => Instruction::new(Opcode::Dispose, Dispose),
+            mir::Instruction::Pin {
+                destination, value, ..
+            } => self.lower_pin(*destination, *value)?,
 
-            mir::Instruction::AsyncDispose { .. } => {
-                Instruction::new(Opcode::AsyncDispose, AsyncDispose)
-            }
+            mir::Instruction::Unpin { value } => self.lower_unpin(*value)?,
 
-            mir::Instruction::Pin { value } => {
-                let value = (*value)
-                    .value()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "pin value".to_string(),
-                    })?;
+            mir::Instruction::Drop { .. } => return Err(Error::InvalidInstruction),
 
-                Instruction::new(Opcode::Pin, Pin { value })
-            }
-
-            mir::Instruction::Unpin { value } => {
-                let value = (*value)
-                    .value()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "unpin value".to_string(),
-                    })?;
-
-                Instruction::new(Opcode::Unpin, UnpinValue { value })
-            }
-
-            mir::Instruction::Drop { value } => {
-                let value = (*value)
-                    .value()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "drop value".to_string(),
-                    })?;
-
-                Instruction::new(Opcode::Drop, DropValue { value })
-            }
-
-            mir::Instruction::Assume { condition: _ } => Instruction::new(Opcode::Assume, Assume),
+            mir::Instruction::Assume { condition: _ } => Instruction::new(Op::Assume, 0, 0, 0, 0),
 
             mir::Instruction::FieldGet { .. } => return Err(Error::InvalidInstruction),
 
@@ -256,21 +227,21 @@ impl<'a> BlockLowerer<'a> {
             mir::Instruction::Array { .. } => return Err(Error::InvalidInstruction),
 
             mir::Instruction::VectorSplat { destination, value } => {
-                self.lower_vector_splat(*destination, *value)?
+                self.lower_vector_splat(pool, *destination, *value)?
             }
 
             mir::Instruction::VectorExtract {
                 destination,
                 vector,
                 index,
-            } => self.lower_vector_extract(*destination, *vector, *index)?,
+            } => self.lower_vector_extract(pool, *destination, *vector, *index)?,
 
             mir::Instruction::VectorInsert {
                 destination,
                 vector,
                 index,
                 value,
-            } => self.lower_vector_insert(*destination, *vector, *index, *value)?,
+            } => self.lower_vector_insert(pool, *destination, *vector, *index, *value)?,
 
             mir::Instruction::VectorShuffle {
                 destination,
@@ -283,26 +254,26 @@ impl<'a> BlockLowerer<'a> {
                 mask,
                 then_value,
                 else_value,
-            } => self.lower_vector_select(*destination, *mask, *then_value, *else_value)?,
+            } => self.lower_vector_select(pool, *destination, *mask, *then_value, *else_value)?,
 
             mir::Instruction::VectorReduce {
                 destination,
                 operator,
                 vector,
-            } => self.lower_vector_reduce(*destination, *operator, *vector)?,
+            } => self.lower_vector_reduce(pool, *destination, *operator, *vector)?,
 
             mir::Instruction::VectorCompare {
                 destination,
                 operator,
                 left,
                 right,
-            } => self.lower_vector_compare(*destination, *operator, *left, *right)?,
+            } => self.lower_vector_compare(pool, *destination, *operator, *left, *right)?,
 
             mir::Instruction::VectorConvert {
                 destination,
                 mode,
                 vector,
-            } => self.lower_vector_convert(*destination, *mode, *vector)?,
+            } => self.lower_vector_convert(pool, *destination, *mode, *vector)?,
 
             inst if is_tensor_instruction(inst) => self.lower_tensor(inst, pool)?,
 
@@ -344,10 +315,10 @@ impl<'a> BlockLowerer<'a> {
                 destination,
                 pointer,
                 ..
-            } => self.lower_atomic_load(*destination, *pointer)?,
+            } => self.lower_atomic_load(pool, *destination, *pointer)?,
 
             mir::Instruction::AtomicStore { pointer, value, .. } => {
-                self.lower_atomic_store(*pointer, *value)?
+                self.lower_atomic_store(pool, *pointer, *value)?
             }
 
             mir::Instruction::AtomicCompareExchange {
@@ -356,9 +327,13 @@ impl<'a> BlockLowerer<'a> {
                 expected,
                 new_value,
                 ..
-            } => {
-                self.lower_atomic_compare_exchange(*destination, *pointer, *expected, *new_value)?
-            }
+            } => self.lower_atomic_compare_exchange(
+                pool,
+                *destination,
+                *pointer,
+                *expected,
+                *new_value,
+            )?,
 
             mir::Instruction::AtomicRmw {
                 destination,
@@ -366,17 +341,15 @@ impl<'a> BlockLowerer<'a> {
                 pointer,
                 value,
                 ..
-            } => self.lower_atomic_rmw(*destination, *operator, *pointer, *value)?,
+            } => self.lower_atomic_rmw(pool, *destination, *operator, *pointer, *value)?,
 
-            mir::Instruction::AtomicFence { .. } => {
-                Instruction::new(Opcode::AtomicFence, AtomicFence)
-            }
+            mir::Instruction::AtomicFence { .. } => Instruction::new(Op::AtomicFence, 0, 0, 0, 0),
 
             mir::Instruction::BarrierWrite {
                 object,
                 offset,
                 byte_len,
-            } => self.lower_barrier_write(*object, *offset, *byte_len)?,
+            } => self.lower_barrier_write(pool, *object, *offset, *byte_len)?,
             _ => return Err(Error::InvalidInstruction),
         })
     }

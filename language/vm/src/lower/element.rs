@@ -1,11 +1,11 @@
 use destack_mir as mir;
 
-use crate::program::{AddressFrameElement, ElementAddr, Instruction, Opcode, SliceElementAddr};
+use crate::program::{Instruction, Op};
 use crate::{Error, Result};
 
 use super::access::slice_element_access;
 use super::lower::BlockLowerer;
-use super::opcode::select_element_addr_opcode;
+use super::op::{select_element_addr_op, select_slice_element_addr_op};
 use super::pool::Pool;
 use super::value::{pointer_class_for_value, reference_meta_for_value};
 
@@ -34,49 +34,50 @@ impl<'a> BlockLowerer<'a> {
         // slice descriptors have a distinct address path
         let pointer_class = pointer_class_for_value(self.value_layout_map(), array);
         let pointee_type = self.projection_type_for_value(array)?;
-        if let Some(access) = pointee_type.and_then(|pointee_type| {
+        if let Some(mut access) = pointee_type.and_then(|pointee_type| {
             slice_element_access(self.tree, self.layouts(), pointee_type, pointer_class)
         }) {
+            let reference = reference_meta_for_value(self.value_layout_map(), destination);
+            access.reference = reference;
+            let op = select_slice_element_addr_op(access.element.pointer_class)?;
+            let access = pool.slice_element_access(access);
+
             return Ok(Instruction::new(
-                Opcode::AddressSliceElement,
-                SliceElementAddr {
-                    dest: destination,
-                    slice: array,
-                    index,
-                    reference: reference_meta_for_value(self.value_layout_map(), destination),
-                    access: pool.slice_element_access(access),
-                },
+                op,
+                destination.id(),
+                array.id(),
+                index.id(),
+                access.0,
             ));
         }
 
         // frame projections keep the dynamic index in frame metadata
-        let opcode = select_element_addr_opcode(self.value_layout_map(), array)?;
-        let element = self.element_access_for_value(array)?;
+        let op = select_element_addr_op(self.value_layout_map(), array)?;
+        let mut element = self.element_access_for_value(array)?;
         let array_length = self.array_length_for_value(array)?;
-        if opcode == Opcode::AddressFrame {
+        let reference = reference_meta_for_value(self.value_layout_map(), destination);
+        element.reference = reference;
+        if op == Op::AddressFrame {
+            let access = pool.frame_access(element.into_frame_access(0, array_length));
+
             return Ok(Instruction::new(
-                Opcode::AddressFrameElement,
-                AddressFrameElement {
-                    dest: destination,
-                    base: array,
-                    index,
-                    reference: reference_meta_for_value(self.value_layout_map(), destination),
-                    access: pool.frame_access(element.into_frame_access(0, array_length)),
-                },
+                Op::AddressFrameElement,
+                destination.id(),
+                array.id(),
+                index.id(),
+                access.0,
             ));
         }
 
         // memory projections use the selected address family
+        let element = pool.element_access(element);
+
         Ok(Instruction::new(
-            opcode,
-            ElementAddr {
-                dest: destination,
-                array,
-                index,
-                reference: reference_meta_for_value(self.value_layout_map(), destination),
-                array_length,
-                element: pool.element_access(element),
-            },
+            op,
+            destination.id(),
+            array.id(),
+            index.id(),
+            element.0,
         ))
     }
 }

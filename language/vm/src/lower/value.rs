@@ -741,11 +741,9 @@ fn infer_instruction_layout(
         | mir::Instruction::AtomicFence { .. }
         | mir::Instruction::BarrierWrite { .. }
         | mir::Instruction::RawFree { .. }
-        | mir::Instruction::Dispose { .. }
-        | mir::Instruction::AsyncDispose { .. }
+        | mir::Instruction::Drop { .. }
         | mir::Instruction::Pin { .. }
         | mir::Instruction::Unpin { .. }
-        | mir::Instruction::Drop { .. }
         | mir::Instruction::Assume { .. } => None,
     }
 }

@@ -7,7 +7,7 @@ use super::access::{array_element_count, element_access, field_access, field_cou
 use super::lower::BlockLowerer;
 use super::value::{
     heap_pointee_type_for_value, heap_pointee_type_for_value_layout, pointer_class_for_value,
-    raw_pointee_type_for_value, raw_pointee_type_for_value_layout,
+    raw_pointee_type_for_value, raw_pointee_type_for_value_layout, reference_meta_for_value,
     value_type_for_value as lookup_value_type_for_value,
 };
 
@@ -101,9 +101,16 @@ impl<'a> BlockLowerer<'a> {
             return Err(Error::InvalidInstruction);
         };
         let pointer_class = pointer_class_for_value(self.value_layout_map(), value);
+        let reference = reference_meta_for_value(self.value_layout_map(), value);
 
-        element_access(self.tree, self.layouts(), value_type, pointer_class)
-            .ok_or(Error::InvalidInstruction)
+        element_access(
+            self.tree,
+            self.layouts(),
+            value_type,
+            pointer_class,
+            reference,
+        )
+        .ok_or(Error::InvalidInstruction)
     }
 
     /// Return one field count from a concrete type.
