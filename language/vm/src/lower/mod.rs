@@ -17,7 +17,7 @@ mod intrinsic;
 mod layout;
 mod lower;
 mod memory;
-mod opcode;
+mod op;
 mod pool;
 mod tensor;
 mod tree;

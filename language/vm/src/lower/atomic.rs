@@ -1,17 +1,52 @@
 use destack_mir as mir;
 
-use crate::program::{
-    AtomicCompareExchange, AtomicLoad, AtomicRmw, AtomicStore, Instruction, Opcode,
-};
+use crate::program::{Instruction, Op};
 use crate::{Error, Result};
 
 use super::lower::BlockLowerer;
+use super::pool::Pool;
 use super::value::raw_pointee_type_for_value;
+
+/// Return one atomic read modify write operator operand.
+fn atomic_rmw_operator_operand(operator: mir::AtomicRmwOperator) -> u32 {
+    match operator {
+        mir::AtomicRmwOperator::Exchange => 0,
+        mir::AtomicRmwOperator::Add => 1,
+        mir::AtomicRmwOperator::Sub => 2,
+        mir::AtomicRmwOperator::And => 3,
+        mir::AtomicRmwOperator::Or => 4,
+        mir::AtomicRmwOperator::Xor => 5,
+        mir::AtomicRmwOperator::Min => 6,
+        mir::AtomicRmwOperator::Max => 7,
+        mir::AtomicRmwOperator::Umin => 8,
+        mir::AtomicRmwOperator::Umax => 9,
+        mir::AtomicRmwOperator::Fadd => 10,
+        mir::AtomicRmwOperator::Fmin => 11,
+        mir::AtomicRmwOperator::Fmax => 12,
+    }
+}
+
+/// Require an atomic pointer with a concrete raw pointee type.
+fn require_atomic_pointee(
+    tree: &mir::Tree,
+    value_types: &[mir::LocalNodeId<mir::Type>],
+    pointer: mir::Value,
+) -> Result<()> {
+    // atomics operate over raw memory in the VM interpreter
+    if raw_pointee_type_for_value(tree, value_types, pointer).is_none() {
+        return Err(Error::InvalidPointerType {
+            actual: format!("{pointer:?}"),
+        });
+    }
+
+    Ok(())
+}
 
 impl<'a> BlockLowerer<'a> {
     /// Lower one atomic load.
     pub(super) fn lower_atomic_load(
         &self,
+        _pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         pointer: mir::ValueReference,
     ) -> Result<Instruction> {
@@ -27,19 +62,21 @@ impl<'a> BlockLowerer<'a> {
                 context: "atomic load pointer".to_string(),
             })?;
 
+        require_atomic_pointee(self.tree, self.value_type(), pointer)?;
+
         Ok(Instruction::new(
-            Opcode::AtomicLoad,
-            AtomicLoad {
-                dest: destination,
-                pointer,
-                raw_pointee: raw_pointee_type_for_value(self.tree, self.value_type(), pointer),
-            },
+            Op::AtomicLoad,
+            destination.id(),
+            pointer.id(),
+            0,
+            0,
         ))
     }
 
     /// Lower one atomic store.
     pub(super) fn lower_atomic_store(
         &self,
+        _pool: &mut Pool<'_>,
         pointer: mir::ValueReference,
         value: mir::ValueReference,
     ) -> Result<Instruction> {
@@ -53,19 +90,21 @@ impl<'a> BlockLowerer<'a> {
             context: "atomic store value".to_string(),
         })?;
 
+        require_atomic_pointee(self.tree, self.value_type(), pointer)?;
+
         Ok(Instruction::new(
-            Opcode::AtomicStore,
-            AtomicStore {
-                pointer,
-                value,
-                raw_pointee: raw_pointee_type_for_value(self.tree, self.value_type(), pointer),
-            },
+            Op::AtomicStore,
+            pointer.id(),
+            value.id(),
+            0,
+            0,
         ))
     }
 
     /// Lower one atomic compare exchange.
     pub(super) fn lower_atomic_compare_exchange(
         &self,
+        _pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         pointer: mir::ValueReference,
         expected: mir::ValueReference,
@@ -93,21 +132,21 @@ impl<'a> BlockLowerer<'a> {
                 context: "atomic compare exchange new value".to_string(),
             })?;
 
+        require_atomic_pointee(self.tree, self.value_type(), pointer)?;
+
         Ok(Instruction::new(
-            Opcode::AtomicCompareExchange,
-            AtomicCompareExchange {
-                dest: destination,
-                pointer,
-                expected,
-                new_value,
-                raw_pointee: raw_pointee_type_for_value(self.tree, self.value_type(), pointer),
-            },
+            Op::AtomicCompareExchange,
+            destination.id(),
+            pointer.id(),
+            expected.id(),
+            new_value.id(),
         ))
     }
 
     /// Lower one atomic read-modify-write.
     pub(super) fn lower_atomic_rmw(
         &self,
+        _pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         operator: mir::AtomicRmwOperator,
         pointer: mir::ValueReference,
@@ -128,15 +167,14 @@ impl<'a> BlockLowerer<'a> {
             context: "atomic rmw value".to_string(),
         })?;
 
+        require_atomic_pointee(self.tree, self.value_type(), pointer)?;
+
         Ok(Instruction::new(
-            Opcode::AtomicRmw,
-            AtomicRmw {
-                dest: destination,
-                operator,
-                pointer,
-                value,
-                raw_pointee: raw_pointee_type_for_value(self.tree, self.value_type(), pointer),
-            },
+            Op::AtomicRmw,
+            destination.id(),
+            atomic_rmw_operator_operand(operator),
+            pointer.id(),
+            value.id(),
         ))
     }
 }

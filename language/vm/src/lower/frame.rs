@@ -1,10 +1,9 @@
 use destack_mir as mir;
 
 use crate::program::{
-    FrameAccess, Instruction, LoadFrame, MoveFrame, Opcode, PointeeAccess, PointerClass,
-    StoreFrame, word_layout_from_type,
+    FrameAccess, FrameAccessId, Instruction, Op, PointeeAccess, PointerClass, word_layout_from_type,
 };
-use crate::{Error, Result};
+use crate::{Error, ReferenceMeta, Result};
 
 use super::access::{element_access, field_access};
 use super::lower::BlockLowerer;
@@ -19,7 +18,7 @@ pub(super) fn word_offset(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Resu
         .value(value.0)
         .ok_or(Error::InvalidInstruction)?;
 
-    // word opcodes require single-word frame regions
+    // word instructions require single-word frame slots
     if !region.is_word {
         return Err(Error::TypeMismatch {
             expected: "word value".to_string(),
@@ -28,6 +27,22 @@ pub(super) fn word_offset(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Resu
     }
 
     Ok(region.offset)
+}
+
+/// Return one frame byte move instruction.
+fn move_frame_instruction(
+    destination: mir::Value,
+    destination_access: FrameAccessId,
+    source: mir::Value,
+    source_access: FrameAccessId,
+) -> Instruction {
+    Instruction::new(
+        Op::MoveFrame,
+        destination.id(),
+        destination_access.0,
+        source.id(),
+        source_access.0,
+    )
 }
 
 impl<'a> BlockLowerer<'a> {
@@ -124,13 +139,14 @@ impl<'a> BlockLowerer<'a> {
 
         // read word fields directly
         if field_layout.is_word() {
+            let access = pool.frame_access(field.into());
+
             return Ok(vec![Instruction::new(
-                Opcode::LoadFrame,
-                LoadFrame {
-                    dest: destination,
-                    base,
-                    access: pool.frame_access(field.into()),
-                },
+                Op::LoadFrame,
+                destination.id(),
+                base.id(),
+                access.0,
+                0,
             )]);
         }
 
@@ -146,14 +162,14 @@ impl<'a> BlockLowerer<'a> {
             byte_len: field.byte_len,
         };
 
-        Ok(vec![Instruction::new(
-            Opcode::MoveFrame,
-            MoveFrame {
-                destination,
-                destination_access: pool.frame_access(destination_access.into()),
-                source: base,
-                source_access: pool.frame_access(source_access.into()),
-            },
+        let destination_access = pool.frame_access(destination_access.into());
+        let source_access = pool.frame_access(source_access.into());
+
+        Ok(vec![move_frame_instruction(
+            destination,
+            destination_access,
+            base,
+            source_access,
         )])
     }
 
@@ -191,20 +207,27 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // resolve element layout
-        let element = element_access(self.tree, self.layouts(), array_type, PointerClass::Frame)
-            .ok_or(Error::InvalidInstruction)?;
+        let element = element_access(
+            self.tree,
+            self.layouts(),
+            array_type,
+            PointerClass::Frame,
+            ReferenceMeta::NONE,
+        )
+        .ok_or(Error::InvalidInstruction)?;
         let element_layout = self.layout_for_type(element.value_type)?;
         let element_offset = element.byte_stride * *index as usize;
 
         // read word elements directly
         if element_layout.is_word() {
+            let access = pool.frame_access(element.into_frame_access(element_offset, 0));
+
             return Ok(vec![Instruction::new(
-                Opcode::LoadFrame,
-                LoadFrame {
-                    dest: destination,
-                    base: array,
-                    access: pool.frame_access(element.into_frame_access(element_offset, 0)),
-                },
+                Op::LoadFrame,
+                destination.id(),
+                array.id(),
+                access.0,
+                0,
             )]);
         }
 
@@ -216,14 +239,14 @@ impl<'a> BlockLowerer<'a> {
         };
         let source_access = element.into_frame_access(element_offset, 0);
 
-        Ok(vec![Instruction::new(
-            Opcode::MoveFrame,
-            MoveFrame {
-                destination,
-                destination_access: pool.frame_access(destination_access.into()),
-                source: array,
-                source_access: pool.frame_access(source_access),
-            },
+        let destination_access = pool.frame_access(destination_access.into());
+        let source_access = pool.frame_access(source_access);
+
+        Ok(vec![move_frame_instruction(
+            destination,
+            destination_access,
+            array,
+            source_access,
         )])
     }
 
@@ -317,20 +340,22 @@ impl<'a> BlockLowerer<'a> {
             self.layouts(),
             destination_type,
             PointerClass::Frame,
+            ReferenceMeta::NONE,
         )
         .ok_or(Error::InvalidInstruction)?;
         let element_offset = element.byte_stride * index as usize;
 
         // store word elements directly
         let instruction = if element.is_word() {
+            let reference = reference_meta_for_value(self.value_layout_map(), destination);
+            let access = pool.frame_access(element.into_frame_access(element_offset, 0));
+
             Instruction::new(
-                Opcode::StoreFrame,
-                StoreFrame {
-                    base: destination,
-                    value,
-                    reference: reference_meta_for_value(self.value_layout_map(), destination),
-                    access: pool.frame_access(element.into_frame_access(element_offset, 0)),
-                },
+                Op::StoreFrame,
+                destination.id(),
+                value.id(),
+                access.0,
+                reference.bits() as u32,
             )
         } else {
             let destination_access = element.into_frame_access(element_offset, 0);
@@ -340,15 +365,10 @@ impl<'a> BlockLowerer<'a> {
                 byte_len: element.byte_len,
             };
 
-            Instruction::new(
-                Opcode::MoveFrame,
-                MoveFrame {
-                    destination,
-                    destination_access: pool.frame_access(destination_access),
-                    source: value,
-                    source_access: pool.frame_access(source_access.into()),
-                },
-            )
+            let destination_access = pool.frame_access(destination_access);
+            let source_access = pool.frame_access(source_access.into());
+
+            move_frame_instruction(destination, destination_access, value, source_access)
         };
 
         // move the original frame value and overwrite one element
@@ -408,20 +428,20 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         // move non-word values as frame bytes
         if word_layout_from_type(self.tree, range.value_type).is_none() {
-            return Ok(Instruction::new(
-                Opcode::MoveFrame,
-                MoveFrame {
-                    destination,
-                    destination_access: pool.frame_access(range.into()),
-                    source: value,
-                    source_access: pool.frame_access(
-                        FrameRange {
-                            byte_offset: 0,
-                            ..range
-                        }
-                        .into(),
-                    ),
-                },
+            let destination_access = pool.frame_access(range.into());
+            let source_access = pool.frame_access(
+                FrameRange {
+                    byte_offset: 0,
+                    ..range
+                }
+                .into(),
+            );
+
+            return Ok(move_frame_instruction(
+                destination,
+                destination_access,
+                value,
+                source_access,
             ));
         }
 
@@ -434,14 +454,15 @@ impl<'a> BlockLowerer<'a> {
             word_layout: word_layout_from_type(self.tree, range.value_type),
         };
 
+        let reference = reference_meta_for_value(self.value_layout_map(), destination);
+        let access = pool.frame_access(access.into());
+
         Ok(Instruction::new(
-            Opcode::StoreFrame,
-            StoreFrame {
-                base: destination,
-                value,
-                reference: reference_meta_for_value(self.value_layout_map(), destination),
-                access: pool.frame_access(access.into()),
-            },
+            Op::StoreFrame,
+            destination.id(),
+            value.id(),
+            access.0,
+            reference.bits() as u32,
         ))
     }
 }
@@ -461,6 +482,7 @@ impl From<FrameRange> for FrameAccess {
     fn from(range: FrameRange) -> Self {
         Self {
             value_type: range.value_type,
+            reference: ReferenceMeta::NONE,
             byte_offset: range.byte_offset,
             byte_stride: 0,
             length: 0,

@@ -1,6 +1,6 @@
 use destack_mir as mir;
 
-use crate::program::{Instruction, Intrinsic, Opcode};
+use crate::program::{Instruction, Intrinsic, Op};
 use crate::{Error, Result};
 
 use super::lower::BlockLowerer;
@@ -28,8 +28,8 @@ impl<'a> BlockLowerer<'a> {
             })
             .transpose()?;
 
-        Ok(Instruction::new(
-            Opcode::Intrinsic,
+        Ok(pool.instruction_with_side(
+            Op::Intrinsic,
             Intrinsic {
                 dest: destination,
                 intrinsic,

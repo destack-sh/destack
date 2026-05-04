@@ -1,15 +1,12 @@
 use destack_mir as mir;
 
-use crate::program::{
-    CompareAndBranch, ElementLoad, ElementStore, FieldLoad, FieldStore, Instruction, LoadFrame,
-    LoadFrameElement, Opcode, StaticLoad, StaticStore, StoreFrame, StoreFrameElement,
-};
+use crate::program::{Instruction, Op};
 
 use super::access::slice_element_access;
 use super::lower::BlockLowerer;
-use super::opcode::{
-    select_compare_branch_opcode, select_element_load_opcode, select_element_store_opcode,
-    select_field_load_opcode, select_field_store_opcode,
+use super::op::{
+    select_compare_branch_op, select_element_load_op, select_element_store_op,
+    select_field_load_op, select_field_store_op,
 };
 use super::pool::Pool;
 use super::value::{pointer_class_for_value, reference_meta_for_value};
@@ -63,7 +60,6 @@ impl<'a> BlockLowerer<'a> {
             return None;
         }
 
-        let field_count = self.field_count_for_value(base).ok()?;
         let field = self.field_access_for_value(base, index).ok()?;
 
         match next_inst {
@@ -72,61 +68,42 @@ impl<'a> BlockLowerer<'a> {
                 pointer,
                 ..
             } if pointer.value()? == destination => {
-                let opcode = select_field_load_opcode(self.value_layout_map(), base, field).ok()?;
-                let instruction = if opcode == Opcode::LoadFrame {
-                    Instruction::new(
-                        opcode,
-                        LoadFrame {
-                            dest: load_dest.value()?,
-                            base,
-                            access: pool.frame_access(field.into()),
-                        },
-                    )
+                let op = select_field_load_op(self.value_layout_map(), base, field).ok()?;
+                let instruction = if op == Op::LoadFrame {
+                    let access = pool.frame_access(field.into());
+
+                    Instruction::new(op, load_dest.value()?.id(), base.id(), access.0, 0)
                 } else {
-                    Instruction::new(
-                        opcode,
-                        FieldLoad {
-                            dest: load_dest.value()?,
-                            base,
-                            index,
-                            field_count,
-                            field: pool.field_access(field),
-                        },
-                    )
+                    let field = pool.field_access(field);
+
+                    Instruction::new(op, load_dest.value()?.id(), base.id(), field.0, 0)
                 };
 
                 Some((instruction, 2))
             }
             mir::Instruction::Store { pointer, value } if pointer.value()? == destination => {
-                let opcode =
-                    select_field_store_opcode(self.value_layout_map(), base, field).ok()?;
-                let instruction = if opcode == Opcode::StoreFrame {
+                let op = select_field_store_op(self.value_layout_map(), base, field).ok()?;
+                let instruction = if op == Op::StoreFrame {
+                    let reference = reference_meta_for_value(self.value_layout_map(), destination);
+                    let access = pool.frame_access(field.into());
+
                     Instruction::new(
-                        opcode,
-                        StoreFrame {
-                            base,
-                            value: value.value()?,
-                            reference: reference_meta_for_value(
-                                self.value_layout_map(),
-                                destination,
-                            ),
-                            access: pool.frame_access(field.into()),
-                        },
+                        op,
+                        base.id(),
+                        value.value()?.id(),
+                        access.0,
+                        reference.bits() as u32,
                     )
                 } else {
+                    let field = pool.field_access(field);
+                    let reference = reference_meta_for_value(self.value_layout_map(), destination);
+
                     Instruction::new(
-                        opcode,
-                        FieldStore {
-                            base,
-                            index,
-                            value: value.value()?,
-                            reference: reference_meta_for_value(
-                                self.value_layout_map(),
-                                destination,
-                            ),
-                            field_count,
-                            field: pool.field_access(field),
-                        },
+                        op,
+                        base.id(),
+                        value.value()?.id(),
+                        reference.bits() as u32,
+                        field.0,
                     )
                 };
 
@@ -164,7 +141,9 @@ impl<'a> BlockLowerer<'a> {
         }
 
         let array_length = self.array_length_for_value(array).ok()?;
-        let element = self.element_access_for_value(array).ok()?;
+        let mut element = self.element_access_for_value(array).ok()?;
+        let reference = reference_meta_for_value(self.value_layout_map(), destination);
+        element.reference = reference;
 
         match next_inst {
             mir::Instruction::Load {
@@ -172,64 +151,52 @@ impl<'a> BlockLowerer<'a> {
                 pointer,
                 ..
             } if pointer.value()? == destination => {
-                let opcode =
-                    select_element_load_opcode(self.value_layout_map(), array, element).ok()?;
-                let instruction = if opcode == Opcode::LoadFrame {
+                let op = select_element_load_op(self.value_layout_map(), array, element).ok()?;
+                let instruction = if op == Op::LoadFrame {
+                    let access = pool.frame_access(element.into_frame_access(0, array_length));
+
                     Instruction::new(
-                        Opcode::LoadFrameElement,
-                        LoadFrameElement {
-                            dest: load_dest.value()?,
-                            base: array,
-                            index: index.value()?,
-                            access: pool.frame_access(element.into_frame_access(0, array_length)),
-                        },
+                        Op::LoadFrameElement,
+                        load_dest.value()?.id(),
+                        array.id(),
+                        index.value()?.id(),
+                        access.0,
                     )
                 } else {
+                    let element = pool.element_access(element);
+
                     Instruction::new(
-                        opcode,
-                        ElementLoad {
-                            dest: load_dest.value()?,
-                            array,
-                            index: index.value()?,
-                            array_length,
-                            element: pool.element_access(element),
-                        },
+                        op,
+                        load_dest.value()?.id(),
+                        array.id(),
+                        index.value()?.id(),
+                        element.0,
                     )
                 };
 
                 Some((instruction, 2))
             }
             mir::Instruction::Store { pointer, value } if pointer.value()? == destination => {
-                let opcode =
-                    select_element_store_opcode(self.value_layout_map(), array, element).ok()?;
-                let instruction = if opcode == Opcode::StoreFrame {
+                let op = select_element_store_op(self.value_layout_map(), array, element).ok()?;
+                let instruction = if op == Op::StoreFrame {
+                    let access = pool.frame_access(element.into_frame_access(0, array_length));
+
                     Instruction::new(
-                        Opcode::StoreFrameElement,
-                        StoreFrameElement {
-                            base: array,
-                            index: index.value()?,
-                            value: value.value()?,
-                            reference: reference_meta_for_value(
-                                self.value_layout_map(),
-                                destination,
-                            ),
-                            access: pool.frame_access(element.into_frame_access(0, array_length)),
-                        },
+                        Op::StoreFrameElement,
+                        array.id(),
+                        index.value()?.id(),
+                        value.value()?.id(),
+                        access.0,
                     )
                 } else {
+                    let element = pool.element_access(element);
+
                     Instruction::new(
-                        opcode,
-                        ElementStore {
-                            array,
-                            index: index.value()?,
-                            value: value.value()?,
-                            reference: reference_meta_for_value(
-                                self.value_layout_map(),
-                                destination,
-                            ),
-                            array_length,
-                            element: pool.element_access(element),
-                        },
+                        op,
+                        array.id(),
+                        index.value()?.id(),
+                        value.value()?.id(),
+                        element.0,
                     )
                 };
 
@@ -265,13 +232,7 @@ impl<'a> BlockLowerer<'a> {
                 pointer,
                 ..
             } if pointer.value()? == destination && is_word => Some((
-                Instruction::new(
-                    Opcode::LoadStaticId,
-                    StaticLoad {
-                        dest: load_dest.value()?,
-                        global: global.id,
-                    },
-                ),
+                Instruction::new(Op::LoadStaticId, load_dest.value()?.id(), global.id, 0, 0),
                 2,
             )),
             mir::Instruction::Store { pointer, value }
@@ -279,12 +240,11 @@ impl<'a> BlockLowerer<'a> {
             {
                 Some((
                     Instruction::new(
-                        Opcode::StoreStaticId,
-                        StaticStore {
-                            global: global.id,
-                            value: value.value()?,
-                            reference,
-                        },
+                        Op::StoreStaticId,
+                        global.id,
+                        value.value()?.id(),
+                        reference.bits() as u32,
+                        0,
                     ),
                     2,
                 ))
@@ -370,20 +330,18 @@ impl<'a> BlockLowerer<'a> {
             .unwrap_or_default();
         let then_moves = pool.move_range(then_parameters, &then_arguments).ok()?;
         let else_moves = pool.move_range(else_parameters, &else_arguments).ok()?;
+        let then_edge = pool.edge(then_index as u32, then_moves);
+        let else_edge = pool.edge(else_index as u32, else_moves);
 
         let left_layout = self.value_layout_map().get(left);
-        let opcode = select_compare_branch_opcode(*operator, left_layout)?;
+        let op = select_compare_branch_op(*operator, left_layout)?;
 
         Some(Instruction::new(
-            opcode,
-            CompareAndBranch {
-                left,
-                right,
-                then_target: then_index as u32,
-                then_moves,
-                else_target: else_index as u32,
-                else_moves,
-            },
+            op,
+            left.id(),
+            right.id(),
+            then_edge.0,
+            else_edge.0,
         ))
     }
 }

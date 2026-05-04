@@ -4,11 +4,12 @@ use destack_mir as mir;
 
 use crate::program::{
     AllocationClassId, AllocationLayout, AllocationLayoutId, ArgumentRange, CallTarget, CheckId,
-    ConstValue, ConstValueId, ElementAccess, ElementAccessId, FieldAccess, FieldAccessId,
-    FrameAccess, FrameAccessId, MovePair, MoveRange, MoveSource, OperandTableBuilder,
-    PointeeAccess, PointeeAccessId, ReferenceMapId, SliceElementAccess, SliceElementAccessId,
-    SwitchCase, SwitchCasesId, SwitchTable, SwitchTableId, TensorConvolutionId, TensorDotId,
-    TensorGatherId, TensorScatterId, TensorWindowId, TypeRangeId, U32RangeId,
+    ConstValue, ConstValueId, Edge, EdgeId, ElementAccess, ElementAccessId, FieldAccess,
+    FieldAccessId, FrameAccess, FrameAccessId, Instruction, MovePair, MoveRange, MoveSource, Op,
+    PointeeAccess, PointeeAccessId, ReferenceMapId, SideRecord, SideTableBuilder,
+    SliceElementAccess, SliceElementAccessId, SmallAllocationLayoutId, SwitchCase, SwitchCasesId,
+    SwitchTable, SwitchTableId, TensorConvolutionId, TensorDotId, TensorGatherId, TensorScatterId,
+    TensorWindowId, TypeRangeId, U32RangeId,
 };
 use crate::{Error, Result};
 
@@ -26,18 +27,29 @@ pub(super) struct Pool<'a> {
     argument: Vec<mir::Value>,
     /// The pooled move pairs.
     move_pair: Vec<MovePair>,
-    /// The program operand table.
-    operand_table: &'a mut OperandTableBuilder,
+    /// The program side table.
+    side_table: &'a mut SideTableBuilder,
 }
 
 impl<'a> Pool<'a> {
     /// Create one empty lowering pool.
-    pub(super) fn new(operand_table: &'a mut OperandTableBuilder) -> Self {
+    pub(super) fn new(side_table: &'a mut SideTableBuilder) -> Self {
         Self {
             argument: Vec::new(),
             move_pair: Vec::new(),
-            operand_table,
+            side_table,
         }
+    }
+
+    /// Return one lowered instruction with a pooled side record.
+    pub(super) fn instruction_with_side<T: SideRecord>(
+        &mut self,
+        op: Op,
+        record: T,
+    ) -> Instruction {
+        let record = T::push(self.side_table, record);
+
+        Instruction::new(op, record, 0, 0, 0)
     }
 
     /// Finish the pool.
@@ -47,12 +59,12 @@ impl<'a> Pool<'a> {
 
     /// Return one pooled allocation layout id.
     pub(super) fn allocation_layout(&mut self, allocation: AllocationLayout) -> AllocationLayoutId {
-        self.operand_table.push_allocation_layout(allocation)
+        self.side_table.push_allocation_layout(allocation)
     }
 
     /// Return one pooled constant id.
     pub(super) fn constant(&mut self, constant: ConstValue) -> ConstValueId {
-        self.operand_table.push_constant(constant)
+        self.side_table.push_constant(constant)
     }
 
     /// Return one pooled allocation class id.
@@ -60,27 +72,35 @@ impl<'a> Pool<'a> {
         &mut self,
         allocation_class: destack_heap::AllocationClass,
     ) -> AllocationClassId {
-        self.operand_table.push_allocation_class(allocation_class)
+        self.side_table.push_allocation_class(allocation_class)
+    }
+
+    /// Return one pooled small allocation layout id.
+    pub(super) fn small_allocation_layout(
+        &mut self,
+        small: destack_heap::SmallAllocationLayout,
+    ) -> SmallAllocationLayoutId {
+        self.side_table.push_small_allocation_layout(small)
     }
 
     /// Return one pooled reference map id.
     pub(super) fn reference_map(&mut self, reference_map: mir::ReferenceMap) -> ReferenceMapId {
-        self.operand_table.push_reference_map(reference_map)
+        self.side_table.push_reference_map(reference_map)
     }
 
     /// Return one pooled field access id.
     pub(super) fn field_access(&mut self, access: FieldAccess) -> FieldAccessId {
-        self.operand_table.push_field_access(access)
+        self.side_table.push_field_access(access)
     }
 
     /// Return one pooled frame access id.
     pub(super) fn frame_access(&mut self, access: FrameAccess) -> FrameAccessId {
-        self.operand_table.push_frame_access(access)
+        self.side_table.push_frame_access(access)
     }
 
     /// Return one pooled element access id.
     pub(super) fn element_access(&mut self, access: ElementAccess) -> ElementAccessId {
-        self.operand_table.push_element_access(access)
+        self.side_table.push_element_access(access)
     }
 
     /// Return one pooled slice element access id.
@@ -88,12 +108,12 @@ impl<'a> Pool<'a> {
         &mut self,
         access: SliceElementAccess,
     ) -> SliceElementAccessId {
-        self.operand_table.push_slice_element_access(access)
+        self.side_table.push_slice_element_access(access)
     }
 
     /// Return one pooled pointee access id.
     pub(super) fn pointee_access(&mut self, access: PointeeAccess) -> PointeeAccessId {
-        self.operand_table.push_pointee_access(access)
+        self.side_table.push_pointee_access(access)
     }
 
     /// Return one argument range from the pool.
@@ -148,6 +168,11 @@ impl<'a> Pool<'a> {
         move_range(&mut self.move_pair, parameters, arguments)
     }
 
+    /// Return one pooled control edge id.
+    pub(super) fn edge(&mut self, target: u32, moves: MoveRange) -> EdgeId {
+        self.side_table.push_edge(Edge { target, moves })
+    }
+
     /// Return one switch-case range from the pool.
     pub(super) fn switch_case_range(
         &mut self,
@@ -158,7 +183,7 @@ impl<'a> Pool<'a> {
         let cases =
             switch_case_range(&mut self.move_pair, block_index_map, block_parameter, cases)?;
 
-        Ok(self.operand_table.push_switch_cases(cases))
+        Ok(self.side_table.push_switch_cases(cases))
     }
 
     /// Return one switch-table range from the pool.
@@ -180,29 +205,29 @@ impl<'a> Pool<'a> {
         )?;
 
         Ok(table.map(|(min, cases)| {
-            self.operand_table
+            self.side_table
                 .push_switch_table(SwitchTable { min, cases })
         }))
     }
 
     /// Return one pooled check constraint id.
     pub(super) fn check(&mut self, constraint: mir::CheckConstraint) -> CheckId {
-        self.operand_table.push_check(constraint)
+        self.side_table.push_check(constraint)
     }
 
     /// Return one pooled u32 slice id.
     pub(super) fn u32_range(&mut self, values: &[u32]) -> U32RangeId {
-        self.operand_table.push_u32_range(values)
+        self.side_table.push_u32_range(values)
     }
 
     /// Return one pooled MIR type slice id.
     pub(super) fn type_range(&mut self, values: &[mir::LocalNodeId<mir::Type>]) -> TypeRangeId {
-        self.operand_table.push_type_range(values)
+        self.side_table.push_type_range(values)
     }
 
     /// Return one pooled tensor dot descriptor id.
     pub(super) fn tensor_dot(&mut self, dimensions: mir::TensorDotDimensionNumbers) -> TensorDotId {
-        self.operand_table.push_tensor_dot(dimensions)
+        self.side_table.push_tensor_dot(dimensions)
     }
 
     /// Return one pooled tensor convolution dimension descriptor id.
@@ -210,12 +235,12 @@ impl<'a> Pool<'a> {
         &mut self,
         dimensions: mir::TensorConvolutionDimensionNumbers,
     ) -> TensorConvolutionId {
-        self.operand_table.push_tensor_convolution(dimensions)
+        self.side_table.push_tensor_convolution(dimensions)
     }
 
     /// Return one pooled tensor convolution window descriptor id.
     pub(super) fn tensor_window(&mut self, window: mir::TensorConvolutionWindow) -> TensorWindowId {
-        self.operand_table.push_tensor_window(window)
+        self.side_table.push_tensor_window(window)
     }
 
     /// Return one pooled tensor gather descriptor id.
@@ -223,7 +248,7 @@ impl<'a> Pool<'a> {
         &mut self,
         dimensions: mir::TensorGatherDimensionNumbers,
     ) -> TensorGatherId {
-        self.operand_table.push_tensor_gather(dimensions)
+        self.side_table.push_tensor_gather(dimensions)
     }
 
     /// Return one pooled tensor scatter descriptor id.
@@ -231,7 +256,7 @@ impl<'a> Pool<'a> {
         &mut self,
         dimensions: mir::TensorScatterDimensionNumbers,
     ) -> TensorScatterId {
-        self.operand_table.push_tensor_scatter(dimensions)
+        self.side_table.push_tensor_scatter(dimensions)
     }
 }
 

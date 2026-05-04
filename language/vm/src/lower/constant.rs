@@ -2,7 +2,7 @@ use destack_mir as mir;
 
 use destack_heap::{HeapReference, RawPointer, SharedHeapReference, SharedRawPointer};
 
-use crate::program::{ConstValue, Instruction, LoadConst, Opcode};
+use crate::program::{ConstValue, Instruction, Op};
 use crate::{Error, ReferenceAddressSpace, Result, Word};
 
 use super::lower::BlockLowerer;
@@ -81,13 +81,12 @@ impl<'a> BlockLowerer<'a> {
         };
         let value = pool.constant(value);
 
-        // keep constants in the operand table
         Ok(Instruction::new(
-            Opcode::LoadConst,
-            LoadConst {
-                dest: destination,
-                value,
-            },
+            Op::LoadConst,
+            destination.id(),
+            value.0,
+            0,
+            0,
         ))
     }
 

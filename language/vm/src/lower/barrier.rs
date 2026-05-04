@@ -1,14 +1,16 @@
 use destack_mir as mir;
 
-use crate::program::{BarrierWrite, Instruction, Opcode, ValueLayout, value_layout_from_type};
+use crate::program::{Instruction, Op, PointerClass, ValueLayout, value_layout_from_type};
 use crate::{Error, Result};
 
 use super::lower::BlockLowerer;
+use super::pool::Pool;
 
 impl<'a> BlockLowerer<'a> {
     /// Lower one write barrier.
     pub(super) fn lower_barrier_write(
         &self,
+        _pool: &mut Pool<'_>,
         object: mir::ValueReference,
         offset: mir::ValueReference,
         byte_len: mir::ValueReference,
@@ -36,14 +38,23 @@ impl<'a> BlockLowerer<'a> {
             });
         };
 
+        let op = match pointer_class {
+            PointerClass::Heap => Op::BarrierWriteHeap,
+            PointerClass::SharedHeap => Op::BarrierWriteSharedHeap,
+            _ => {
+                return Err(Error::TypeMismatch {
+                    expected: "managed barrier reference".to_string(),
+                    actual: format!("{pointer_class:?}"),
+                });
+            }
+        };
+
         Ok(Instruction::new(
-            Opcode::BarrierWrite,
-            BarrierWrite {
-                object,
-                offset,
-                byte_len,
-                pointer_class,
-            },
+            op,
+            object.id(),
+            offset.id(),
+            byte_len.id(),
+            0,
         ))
     }
 }

@@ -1,10 +1,10 @@
 use destack_mir as mir;
 
 use crate::program::{
-    ElementAccess, Instruction, Opcode, TensorBroadcast, TensorCast, TensorCompare, TensorConcat,
-    TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill,
-    TensorGather, TensorLoad, TensorPad, TensorReduce, TensorReshape, TensorScatter, TensorSelect,
-    TensorSlice, TensorSplat, TensorStore, TensorTranspose, TensorView,
+    ElementAccess, Instruction, Op, TensorBroadcast, TensorCompare, TensorConcat, TensorConvert,
+    TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather, TensorLoad,
+    TensorPad, TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore,
+    TensorTranspose, TensorView,
 };
 use crate::{Error, Result};
 
@@ -26,12 +26,11 @@ impl<'a> BlockLowerer<'a> {
                 let tensor_type = self.value_type_for_value(destination)?;
 
                 Instruction::new(
-                    Opcode::TensorSplat,
-                    TensorSplat {
-                        dest: destination,
-                        value,
-                        tensor_type,
-                    },
+                    Op::TensorSplat,
+                    destination.id(),
+                    value.id(),
+                    tensor_type.id,
+                    0,
                 )
             }
             mir::Instruction::TensorLoad {
@@ -50,8 +49,8 @@ impl<'a> BlockLowerer<'a> {
                     .tensor_element_access(view_type)
                     .map(|element| pool.element_access(element));
 
-                Instruction::new(
-                    Opcode::TensorLoad,
+                pool.instruction_with_side(
+                    Op::TensorLoad,
                     TensorLoad {
                         dest: destination,
                         view,
@@ -74,8 +73,8 @@ impl<'a> BlockLowerer<'a> {
                     "tensor extract index",
                 )?;
 
-                Instruction::new(
-                    Opcode::TensorExtract,
+                pool.instruction_with_side(
+                    Op::TensorExtract,
                     TensorExtract {
                         dest: destination,
                         tensor,
@@ -100,8 +99,8 @@ impl<'a> BlockLowerer<'a> {
                     .tensor_element_access(view_type)
                     .map(|element| pool.element_access(element));
 
-                Instruction::new(
-                    Opcode::TensorStore,
+                pool.instruction_with_side(
+                    Op::TensorStore,
                     TensorStore {
                         view,
                         indices,
@@ -119,8 +118,8 @@ impl<'a> BlockLowerer<'a> {
                     .tensor_element_access(view_type)
                     .map(|element| pool.element_access(element));
 
-                Instruction::new(
-                    Opcode::TensorFill,
+                pool.instruction_with_side(
+                    Op::TensorFill,
                     TensorFill {
                         view,
                         value,
@@ -141,8 +140,8 @@ impl<'a> BlockLowerer<'a> {
                     .tensor_element_access(source_type)
                     .map(|element| pool.element_access(element));
 
-                Instruction::new(
-                    Opcode::TensorCopy,
+                pool.instruction_with_side(
+                    Op::TensorCopy,
                     TensorCopy {
                         target,
                         source,
@@ -166,8 +165,8 @@ impl<'a> BlockLowerer<'a> {
                     "tensor reshape shape",
                 )?;
 
-                Instruction::new(
-                    Opcode::TensorReshape,
+                pool.instruction_with_side(
+                    Op::TensorReshape,
                     TensorReshape {
                         dest: destination,
                         tensor,
@@ -185,13 +184,14 @@ impl<'a> BlockLowerer<'a> {
                 let tensor = tensor_value(*tensor, "tensor broadcast source")?;
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
+                let dimensions = pool.u32_range(dimensions);
 
-                Instruction::new(
-                    Opcode::TensorBroadcast,
+                pool.instruction_with_side(
+                    Op::TensorBroadcast,
                     TensorBroadcast {
                         dest: destination,
                         tensor,
-                        dimensions: pool.u32_range(dimensions),
+                        dimensions,
                         source_type,
                         dest_type,
                     },
@@ -206,13 +206,14 @@ impl<'a> BlockLowerer<'a> {
                 let tensor = tensor_value(*tensor, "tensor transpose source")?;
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
+                let permutation = pool.u32_range(permutation);
 
-                Instruction::new(
-                    Opcode::TensorTranspose,
+                pool.instruction_with_side(
+                    Op::TensorTranspose,
                     TensorTranspose {
                         dest: destination,
                         tensor,
-                        permutation: pool.u32_range(permutation),
+                        permutation,
                         source_type,
                         dest_type,
                     },
@@ -235,8 +236,8 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
 
-                Instruction::new(
-                    Opcode::TensorSlice,
+                pool.instruction_with_side(
+                    Op::TensorSlice,
                     TensorSlice {
                         dest: destination,
                         tensor,
@@ -268,8 +269,8 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
 
-                Instruction::new(
-                    Opcode::TensorPad,
+                pool.instruction_with_side(
+                    Op::TensorPad,
                     TensorPad {
                         dest: destination,
                         tensor,
@@ -298,13 +299,14 @@ impl<'a> BlockLowerer<'a> {
                     tensor_types.push(self.value_type_for_value(value)?);
                 }
                 let dest_type = self.value_type_for_value(destination)?;
+                let tensor_types = pool.type_range(&tensor_types);
 
-                Instruction::new(
-                    Opcode::TensorConcat,
+                pool.instruction_with_side(
+                    Op::TensorConcat,
                     TensorConcat {
                         dest: destination,
                         tensors,
-                        tensor_types: pool.type_range(&tensor_types),
+                        tensor_types,
                         axis: *axis,
                         dest_type,
                     },
@@ -322,15 +324,16 @@ impl<'a> BlockLowerer<'a> {
                 let initial = tensor_value(*initial, "tensor reduce initial")?;
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
+                let axes = pool.u32_range(axes);
 
-                Instruction::new(
-                    Opcode::TensorReduce,
+                pool.instruction_with_side(
+                    Op::TensorReduce,
                     TensorReduce {
                         dest: destination,
                         operator: *operator,
                         tensor,
                         initial,
-                        axes: pool.u32_range(axes),
+                        axes,
                         source_type,
                         dest_type,
                     },
@@ -348,14 +351,15 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let left_type = self.value_type_for_value(left)?;
                 let right_type = self.value_type_for_value(right)?;
+                let dimensions = pool.tensor_dot(dimensions.clone());
 
-                Instruction::new(
-                    Opcode::TensorDot,
+                pool.instruction_with_side(
+                    Op::TensorDot,
                     TensorDot {
                         dest: destination,
                         left,
                         right,
-                        dimensions: pool.tensor_dot(dimensions.clone()),
+                        dimensions,
                         left_type,
                         right_type,
                         dest_type,
@@ -377,15 +381,17 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let input_type = self.value_type_for_value(input)?;
                 let kernel_type = self.value_type_for_value(kernel)?;
+                let dimensions = pool.tensor_convolution(dimensions.clone());
+                let window = pool.tensor_window(window.clone());
 
-                Instruction::new(
-                    Opcode::TensorConvolution,
+                pool.instruction_with_side(
+                    Op::TensorConvolution,
                     TensorConvolution {
                         dest: destination,
                         input,
                         kernel,
-                        dimensions: pool.tensor_convolution(dimensions.clone()),
-                        window: pool.tensor_window(window.clone()),
+                        dimensions,
+                        window,
                         feature_group_count: *feature_group_count,
                         batch_group_count: *batch_group_count,
                         input_type,
@@ -407,15 +413,17 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let operand_type = self.value_type_for_value(operand)?;
                 let indices_type = self.value_type_for_value(indices)?;
+                let dimensions = pool.tensor_gather(dimensions.clone());
+                let slice_sizes = pool.u32_range(slice_sizes);
 
-                Instruction::new(
-                    Opcode::TensorGather,
+                pool.instruction_with_side(
+                    Op::TensorGather,
                     TensorGather {
                         dest: destination,
                         operand,
                         indices,
-                        dimensions: pool.tensor_gather(dimensions.clone()),
-                        slice_sizes: pool.u32_range(slice_sizes),
+                        dimensions,
+                        slice_sizes,
                         operand_type,
                         indices_type,
                         dest_type,
@@ -438,15 +446,16 @@ impl<'a> BlockLowerer<'a> {
                 let operand_type = self.value_type_for_value(operand)?;
                 let indices_type = self.value_type_for_value(indices)?;
                 let updates_type = self.value_type_for_value(updates)?;
+                let dimensions = pool.tensor_scatter(dimensions.clone());
 
-                Instruction::new(
-                    Opcode::TensorScatter,
+                pool.instruction_with_side(
+                    Op::TensorScatter,
                     TensorScatter {
                         dest: destination,
                         operand,
                         indices,
                         updates,
-                        dimensions: pool.tensor_scatter(dimensions.clone()),
+                        dimensions,
                         mode: *mode,
                         operand_type,
                         indices_type,
@@ -468,8 +477,8 @@ impl<'a> BlockLowerer<'a> {
                 let left_type = self.value_type_for_value(left)?;
                 let right_type = self.value_type_for_value(right)?;
 
-                Instruction::new(
-                    Opcode::TensorCompare,
+                pool.instruction_with_side(
+                    Op::TensorCompare,
                     TensorCompare {
                         dest: destination,
                         operator: *operator,
@@ -493,8 +502,8 @@ impl<'a> BlockLowerer<'a> {
                 let else_value = tensor_value(*else_value, "tensor select else value")?;
                 let dest_type = self.value_type_for_value(destination)?;
 
-                Instruction::new(
-                    Opcode::TensorSelect,
+                pool.instruction_with_side(
+                    Op::TensorSelect,
                     TensorSelect {
                         dest: destination,
                         mask,
@@ -514,8 +523,8 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
 
-                Instruction::new(
-                    Opcode::TensorConvert,
+                pool.instruction_with_side(
+                    Op::TensorConvert,
                     TensorConvert {
                         dest: destination,
                         mode: *mode,
@@ -529,11 +538,11 @@ impl<'a> BlockLowerer<'a> {
                 destination,
                 tensor,
             } => Instruction::new(
-                Opcode::TensorCast,
-                TensorCast {
-                    dest: tensor_value(*destination, "tensor cast destination")?,
-                    tensor: tensor_value(*tensor, "tensor cast source")?,
-                },
+                Op::TensorCast,
+                tensor_value(*destination, "tensor cast destination")?.id(),
+                tensor_value(*tensor, "tensor cast source")?.id(),
+                0,
+                0,
             ),
             mir::Instruction::TensorView {
                 destination,
@@ -555,8 +564,8 @@ impl<'a> BlockLowerer<'a> {
                     .tensor_element_access(source_type)
                     .map(|element| pool.element_access(element));
 
-                Instruction::new(
-                    Opcode::TensorView,
+                pool.instruction_with_side(
+                    Op::TensorView,
                     TensorView {
                         dest: destination,
                         view,
