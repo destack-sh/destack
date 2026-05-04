@@ -19,17 +19,49 @@ Embracing TypeScript and "the web ecosystems" lets us build a new toolchain that
 
 **Destack aims for 100% compatibility with _modern_ strict TypeScript**.
 To be completely fair, "modern strict" is a little sneaky, because we get to decide what "modern" and "strict" mean - but really, it just means that all the dynamic JS stuff and most of the legacy TS stuff is out of scope.
-More specifically, the following are areas of divergence:
+More specifically, Destack excludes legacy syntax and all sorts of dynamic shapes and protocols that are not statically fixed / knowable.
+
+### Syntax
+
+Some JS/TS syntax and legacy behavior is either ambiguous, obsolete, or just not worth carrying forward.
 
 - **Ambiguous generic arrow**: `<T>() => ...` is ambiguous in `.tsx`, and `.ds` inherits this since it supports TSX syntax natively.
-- **Sequence expressions**: `(A, B, C)` is - confusingly - a "sequence eexpression" in JS, which nobody every really types out by hand, and `.ds` instead uses `(A, B, C)` for explicit tuples.
-- **Enum coercion**:: `enum Level { A = 1, B = 2, C = 3 }` is _just_ an alias in TypeScript, but we do _not_ coerce `Level.A` to `number` without an explicit cast.
-- **Flow**: We support TypeScript only, where Flow and TS overlap we obviously support both, but we do no special JSDoc analysis.
-- **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript. Non-strict ("sloppy mode") behaviors like duplicate function declarations or `yield` as an identifier are not supported. This aligns with how TypeScript modules work (always strict) and modern best practices.
-- **Declaration expressions**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with proper AOT compilation.
-- **Prototype modification**: Dynamic shapes and strict native compilations do not mix, so anything to do with `.prototype` is forbidden in `.ds`.
+- **Sequence expressions**: `(A, B, C)` is - confusingly - a "sequence expression" in JS, which nobody ever really types out by hand, and `.ds` instead uses `(A, B, C)` for explicit tuples.
+- **Enum coercion**: `enum Level { A = 1, B = 2, C = 3 }` is _just_ an alias in TypeScript, but we do _not_ coerce `Level.A` to `number` without an explicit cast.
+- **Flow and JSDoc _typing_**: We support TypeScript only.
+  Where Flow and TS overlap we obviously support both, but we do no special JSDoc analysis.
+- **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript.
+  Non-strict ("sloppy mode") behaviors like duplicate function declarations, `arguments` magic, `caller` / `callee`, or `yield` as an identifier are not supported.
 - **XML namespace resolution**: Destack does not implement XML `xmlns` namespace binding semantics.
   Namespaced tree tags like `<svg:path />` are treated as intrinsic string tag names (`"svg:path"`).
+
+### Shapes
+
+Dynamic shapes and strict native compilation do not mix.
+In `.ds`, values have statically known shape, and classes have a fixed static object model instead of some mutable JS constructor object.
+
+- **Declaration expressions**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with proper AOT compilation.
+- **Dynamic code generation**: Runtime `eval`, runtime `new Function`, and dynamic class generation are in conflict with a strict AOT model and unsupported.
+  We do however support `comptime` forms _during_ compilation for certain use cases.
+- **Prototype objects**: `.prototype`, `.__proto__`, `.constructor`, `Object.getPrototypeOf`, `Object.setPrototypeOf`, and `Object.create(proto)` all rely on the prototype-based object model and are not supported.
+- **Shape mutation**: `delete`, `Object.defineProperty`, `Object.defineProperties`, `Reflect.defineProperty`, `Reflect.deleteProperty`, and shape-changing `Object.assign` are forbidden.
+- **Metaobject dispatch**: `Proxy` and most `Reflect.*` APIs exist to intercept or emulate dynamic object behavior, so they are also unsupported.
+- **CommonJS mutation**: `require`, `module.exports`, and require-cache monkeypatching are dynamic module-shape features, and are also (mostly) unsupported.
+
+### Protocols
+
+JS also has a lot of behavior where the runtime secretly calls user code through special names or symbols.
+Destack instead uses typed protocols, declared members, static members, and extensions instead.
+
+- **Thenables**: `await` does not mean "anything with a `.then` property".
+  It targets `Promise<T>` or another typed async protocol.
+- **Coercion hooks**: `valueOf`, `toString`, and `Symbol.toPrimitive` do not participate in implicit object coercion.
+  Use explicit conversions, formatting/display protocols, interpolation, or operator overloads.
+- **Loose equality coercion**: Object coercion through `==` and `!=` is not part of portable `.ds`.
+- **Well-known symbol magic**: `Symbol.hasInstance`, `Symbol.species`, `Symbol.isConcatSpreadable`, and similar hooks are not language semantics.
+  Iteration can still exist as a typed `Iterable<T>` protocol, even if a JS target lowers it to symbols.
+- **Implicit call and construct hooks**: Arbitrary `[[Call]]`, `[[Construct]]`, and `Function.prototype.call` / `apply` / `bind` are not implicit members.
+  Callable and constructable values must have declared callable or constructable types.
 
 # Language
 
@@ -112,10 +144,7 @@ AuthenticatedUser(user) satisfies AuthenticatedUser;
 
 ### Newtype Interfaces
 
-TypeScript interfaces are structural, i.e., any type with matching shape satisfies the interface.
-This is usually what we want, but sometimes nominality is required for a contract, and in those cases the TS ecosystem usually uses branding symbols.
-
-Destack adds real **nominal interfaces** using the `newtype` modifier on `interface` declarations:
+Newtype aliases add nominality to any type, and Destack thus also supports **nominal interfaces** using the `newtype` modifier on `interface` declarations:
 
 ```ds
 // structural interface (standard TypeScript behavior)
@@ -130,30 +159,13 @@ newtype interface Add<T, R = this> {
 }
 ```
 
-Nominal interfaces require **explicit `implements`** declarations.
-Structural compatibility alone doesn't satisfy the constraint.
+Nominal interfaces require **explicit `implements`** declarations - structural compatibility alone doesn't satisfy the constraint, unlike for regular `interface`.
 Nominal interfaces are used for operator interfaces like `Add` and `Compare`, and for capability traits like `Send`, `Sync`, `Copy`, and `Clone`.
-
-The `newtype` modifier on `interface` follows the same pattern as `newtype` on type aliases, making a `newtype interface` more like a nominal trait in other languages.
-
-```ds
-// structural interface: requirements only
-interface Drawable {
-    draw(): void;
-}
-
-// nominal interface: defaults allowed
-newtype interface Print<T> {
-    print() {
-        // do nothing by default
-    }
-}
-```
 
 ### Extensions
 
-It is sometimes very convenient to attach additional logic and data to the (nominal identity of) a type.
-Rust does this with `impl` blocks, and Destack introduces `extension`s to add methods and static constants for any _nominal_ type:
+It is sometimes convenient to attach additional logic and data to the (nominal identity of) a type.
+Rust supports this with `impl` blocks (and only `impl` blocks, actually), and Destack supports _additional_ `extension`s to add methods and static constants to any _nominal_ type:
 
 ```ds
 newtype Vector2 = {
@@ -170,8 +182,9 @@ extension of Vector2 {
 }
 ```
 
-Extensions can be added to any **nominal types**, so all types like `struct`, `class`, `enum`, `newtype`, whether defined locally or in a foreign / imported module; accordingly, type aliases (`type X = ...`) and structural types (`{ x: number }`) cannot receive extensions.
-Further, extensions can be named for explicit export / reference:
+Extensions can be added to any **nominal types**, so all types like `struct`, `class`, `enum`, `newtype`, whether defined locally or in a foreign / imported module.
+Accordingly, plain type aliases (`type X = ...`) and structural types (`{ x: number }`) cannot receive extensions (because it would be unclear when they should apply).
+Further, extensions can be named for explicit exports and subsequent imports:
 
 ```ds
 import { User } from "@/model/user";
@@ -228,7 +241,7 @@ let x: Point = Point { x, y };  // OK
 let x: Point = { x, y };        // ERROR: plain object is not Point
 ```
 
-For composition, structs use embedding instead of inheritance, similar to Go:
+For composition, structs support embedding other structs directly in line:
 
 ```ds
 struct Transform { 
@@ -310,8 +323,8 @@ function repeat<comptime N: uint>(value: string): string {
 
 ### Associated Types and Constants
 
-Associated types and constants contribute static members to a type, instead of forcing every API to carry more generic parameters.
-This is basically exactly like how it works in Rust, for example.
+Associated types and constants contribute static members to a type that can be reused within the type and implementors but does not need to be exposed to every single caller.
+Both associates types and constants also work in abstract types, in much the way we would expect.
 
 ```ds
 interface Iterator {
@@ -323,7 +336,7 @@ interface Iterator {
 function collect<I: Iterator>(iter: I): I.Item[] { ... }
 ```
 
-Associated types are type aliases scoped to some struct, class, or interface and can of course also reference the owner's generic parameters.
+Associated types are type aliases scoped to some struct, class, or interface and can also reference the owner's generic parameters.
 
 ```ds
 struct Cache<K, V> {
@@ -333,7 +346,7 @@ struct Cache<K, V> {
 }
 ```
 
-Associated types can have their own generic parameters with same generic parameter forms as ordinary declarations, including type parameters and `comptime` value parameters.
+Associated types can also∆ have their _own_ generic parameters with same generic parameter forms as ordinary declarations (including type parameters and `comptime` value parameters).
 
 ```ds
 interface Collection<T> {
@@ -346,7 +359,7 @@ struct Buffer<T> implements Collection<T> {
 ```
 
 In addition to associated types, nominal type declarations also support Associated constants as static compile-time values.
-Unlike `static` members, `comptime const`s have no instance storage and must be statically evaluable during compilation.
+Unlike `static` members, `comptime const`s require no instance storage and are statically evaluated during compilation.
 
 ```ds
 interface BlockCipher {
@@ -366,17 +379,11 @@ function merge<T: int, U>(): T where (
 ) { }
 ```
 
-### The `this` Type
-
-Destack supports TypeScript's polymorphic `this` type for instance members, and also allows it in static type positions.
-`this` is type-only and resolves to the surrounding receiver or containing type.
-
 ### Reflection
 
 TypeScript types are - by design - erased at runtime, which means we can't easily perform runtime type checks or any meaningful reflection.
-Destack supports `Type` as a first-class value so reflection has one typed path instead of ad hoc schema side channels.
-
-Every nominal type `T` in Destack has a corresponding descriptor value of type `Type<T>`:
+Destack supports type reflection both at runtime and at compile time with descriptor values of type `Type<T>`.
+A type expression can be turned into its descriptor with (implicit or explicit) casting to its `Type` representation:
 
 ```ds
 struct User {
@@ -384,18 +391,31 @@ struct User {
     age: uint;
 }
 
-// User in type position: the type
 let u: User = User { name: "Alice", age: 30 };
 
-// User in value position: the type descriptor
-const UserType = User;              // UserType: Type<User>
+const UserType: Type<User> = User;
+const UserType = Type.of<User>();
 UserType.name                       // "User"
 UserType.fields                     // [{ name: "name", type: string }, ...]
 ```
 
-For classes and structs, the constructor value can also serve as the descriptor.
-`typeOf(value)` returns a descriptor for the value's static type, unlike JavaScript's runtime `typeof`, which returns a coarse string.
-The type-level `typeof` operator still means TypeScript's value-type query.
+This also works for generic APIs that operate on types as static values:
+
+```ds
+function parse<comptime T: Type>(raw: string): T {
+    ...
+}
+
+const user = parse<User>("...");
+```
+
+Beyond type introspection, type reflection also supports classic layout queries like `sizeOf<T>()`, `alignOf<T>()`, `strideOf<T>()`, and `layoutOf<T>()`.
+
+```ds
+const userSize = comptime sizeOf<User>();
+const requestLayout = comptime layoutOf<Request<Body>>();
+type InlineBytes<T> = [uint8; sizeOf<T>()];
+```
 
 ## Expressions
 
@@ -484,9 +504,8 @@ When any arm has a guard, or when the compiler cannot prove the input is finite,
 
 ### Loops
 
-Infinite loops with `loop`.
-All TypeScript loop forms still work.
-`loop` is the explicit infinite loop form, and can produce a value through `break value`.
+For convenience and clearity Detack supports an explicit `loop` as the explicit infinite loop form.
+Like other loops, it can produce a value through `break <value>`.
 
 ```ds
 const line = loop {
@@ -675,21 +694,20 @@ Destack also reserves explicit wrapping and saturating forms for code that wants
 Real function and method overloading with distinct implementations:
 
 ```ds
-function parse(input: string): int32 { parseInt(input) }
-function parse(input: int32): int32 { input }
+function parse(input: string): int32 {
+    return parseInt(input);
+}
+function parse(input: int32): int32 {
+    return input;
+}
 ```
 
-Following TS, to avoid ambiguity, Destack uses **declaration order**, i.e., the first matching overload wins.
-Applicability includes generic argument inference and validation, including `comptime` generic value parameters.
-Overload order is defined at the declaring module and is forwarded unchanged across exports, reexports, and namespace imports.
+Following TypeScript, and to avoid ambiguity, Destack uses **declaration order** overloading: the first matching overload wins.
+The overload order is defined by the declaring module and is forwarded unchanged across exports and reexports (so the declaring module decides).
 
-The compiler should warn when an earlier overload shadows a later one completely.
-
-#### Dynamic Resolution
-
-When the receiver of a member access or method call is a union, Destack resolves the member for each union variant.
-If all variants resolve to the same symbol, the call is static.
-If the symbols differ, the compiler records a dynamic resolution and reifies it into `if (receiver is Type)` branches.
+When the receiver of a member access or method call is a union, Destack resolves the member for each union variant:
+- If all variants resolve to the same symbol, the call is static.
+- If the symbols differ, the compiler records a dynamic resolution and reifies it into `if (receiver is Type)` branches.
 
 Dynamic resolution only applies when every union variant exposes the member.
 Arguments must satisfy all candidate signatures, and the resulting type is the union of per-candidate return types after substitutions.
@@ -730,7 +748,7 @@ Lowercase unqualified tags resolve as intrinsic tags through the active `TreeTag
 Fragments route through the active builder's fragment type.
 Namespaced tags like `<svg:path />` are not XML namespace bindings; they are intrinsic string tag names.
 
-### Annotations And Decorators
+### Decorators
 
 Destack extends decorators (`@`) to work on many more language constructs than TypeScript supports: declarations, statements, members, parameters, types, match arms, etc..
 
@@ -784,7 +802,7 @@ At module level, that mostly means `import.meta` and profile constants.
 Inside a generic declaration, `@if` is evaluated after generic arguments are known, so it can also branch on those arguments, associated constants, and type algebra queries.
 Multiple `@if` annotations combine with logical AND.
 
-## Globals
+### Globals
 
 In addition to ambient global typings, Destack supports "real" `global { ... }` value declarations that contribute to the ambient environment without explicit qualification.
 That is, with `global { const registry: Registry }` in some (known) module `A` we can just do `registry.whatever` in module `B` without any direct imports.
@@ -1030,28 +1048,6 @@ These capabilities are separate from placement.
 `shared T` means `T` lives in shared space; it does not make `T` `Sync`.
 Library APIs such as channels, Worker pools, atomics, locks, and actors can require `Send` or `Sync` when they need those stronger guarantees.
 
-### Workers
-
-A `Runtime` is the normal deployment unit.
-It owns the shared heap used by `shared T`.
-
-A `Worker` is the unit of concurrent execution inside a Runtime.
-Each Worker owns its local heap and runs its own event loop.
-
-A `World` is the toolchain/runtime control plane around one or more Runtimes.
-It is used for topology, policy, tracing, replay, snapshots, simulation, and dev/test environments.
-It is not the ordinary shared-memory boundary.
-
-Most async code is Worker-local.
-`async`, `await`, timers, microtasks, and ordinary event-loop work do not require `Send`.
-
-`Send` appears when a value crosses a Worker boundary.
-Values captured by a spawned Worker, sent through a Worker channel, transferred to another Worker, or returned from Worker work must be `Send`.
-
-`Sync` appears when an API promises concurrent access through shared references.
-`shared T` only says that `T` lives in the Runtime shared heap.
-It does not imply locking, ordering, atomics, actor isolation, or `Sync`.
-
 ### Relations
 
 The rules for who can point into what mostly follow from the fact that references must always be valid, and shared memory should not point into a Worker-local heap.
@@ -1115,43 +1111,23 @@ Borrowed<T, "a">
 
 ## Modules
 
-Destack supports importing various file types beyond code modules, following Bun's approach to asset imports.
-Ordinary JavaScript and TypeScript module syntax works as you would expect.
+Like many JS/TS runtimes, Destack supports importing additional file types beyond code modules.
 
 ### Import Meta
 
 `import.meta` exposes module and profile metadata during static and comptime evaluation.
-The values are fixed for the active profile and are not runtime dependent.
 
-```ds
-const emit = import.meta.emit;
-emit satisfies "js" | "ts" | "html" | "wasm" | "native";
-```
-
-`native` means CPU/OS ABI output, such as an executable, object, or library for a concrete platform target.
-`wasm` remains its own emit format even when the runtime executes wasm directly.
-
-The important profile fields are:
-
-| Field | Meaning |
-|-------|---------|
-| `import.meta.url` | current module URL |
-| `import.meta.path` | current local file path, when available |
-| `import.meta.dir` | current local directory, when available |
-| `import.meta.emit` | output artifact format |
-| `import.meta.target` | target platform and ABI |
-| `import.meta.runtime` | runtime environment |
-| `import.meta.debug` | debug/development build flag |
-| `import.meta.test` | test build flag |
-| `import.meta.env` | configured build environment |
-
-### Inference Boundaries
-
-Destack inference is local.
-Within a module, inference can use local declarations and local expression context.
-Across modules, exported APIs must expose enough explicit type information for importing modules to analyze them without solving a module graph cycle.
-
-That keeps module analysis local and makes public surfaces explicit.
+| Field | Description | Type | Examples |
+|-------|-------------|------|----------|
+| `import.meta.url` | current module URL | `string` | `"file:///app/src/main.ds"`, `"https://example.com/mod.ds"` |
+| `import.meta.path` | current local file path, when available | `string | undefined` | `"/app/src/main.ds"`, `undefined` |
+| `import.meta.dir` | current local directory, when available | `string | undefined` | `"/app/src"`, `undefined` |
+| `import.meta.emit` | output artifact format | `string` | `"js"`, `"wasm"`, `"native"` |
+| `import.meta.target` | target platform and ABI | `Target` | `{ os: "linux", arch: "x64", abi: "gnu" }` |
+| `import.meta.runtime` | runtime environment | `RuntimeMeta` | `{ name: "destack", version: "0.1.0" }` |
+| `import.meta.debug` | debug/development build flag | `bool` | `true`, `false` |
+| `import.meta.test` | test build flag | `bool` | `true`, `false` |
+| `import.meta.env` | configured build environment | `{ readonly [key: string]: string | bool | number }` | `{ NODE_ENV: "production", FEATURE_X: true }` |
 
 ### Data Modules (JSON, TOML, YAML)
 
