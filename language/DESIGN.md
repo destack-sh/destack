@@ -17,10 +17,8 @@ Embracing TypeScript and "the web ecosystems" lets us build a new toolchain that
 
 ## Compatibility
 
-**Destack aims to accept modern strict TypeScript that already has static shape**.
-That is the useful subset anyway.
-If you want the full dynamic JavaScript object model, TSC and existing JS engines already exist.
-Destack is for TS-shaped code that can be type checked, optimized, and compiled ahead of time without pretending every value might turn into a different shape at runtime.
+**Destack is a superset of "modern strict" TypeScript**.
+The intended use case is for TS-shaped code that can be type checked, optimized, and compiled ahead of time without pretending every value might turn into a different shape at runtime; in other words, Destack is based on the sound subset of TypeScript.
 More specifically, Destack excludes legacy syntax and all sorts of dynamic shapes and protocols that are not statically fixed / knowable.
 
 ### Syntax
@@ -42,7 +40,7 @@ Some JS/TS syntax and legacy behavior is either ambiguous, obsolete, or just not
 
 ### Shapes
 
-Dynamic shapes and strict native compilation do not mix.
+Dynamic shapes and strict native compilation do not like to mix.
 In `.ds`, values have statically known shape, and classes have a fixed static object model instead of some mutable JS constructor object.
 
 - **Declaration expressions**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with proper AOT compilation.
@@ -70,20 +68,13 @@ Destack instead uses typed protocols, declared members, static members, and exte
 
 # Language
 
-"TypeScript++" is a superset of "strict modern" TypeScript, which essentially means that existing TypeScript _just works_ **if** it follows our strict TypeScript-based type system.
-Fortunately, strict TypeScript is already a best practice, and it's what you get when enabling the recommended soundness flags in TSC.
-TypeScript++ then adds new features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do for frontend-shaped softare, but for the entire software stack including "systems software".
+"TypeScript++" is a superset of "strict modern" TypeScript, which essentially means that existing TypeScript (and TSX!) _just works_ **if** it follows our strict TypeScript-based type system.
+Fortunately, strict TypeScript is already a best practice, and it's what you get when enabling the recommended soundness flags in TSC (mostly).
+TypeScript++ adds some new features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do for frontend-shaped softare, but for the entire software stack including "systems software".
 
 There are solid arguments that a language should be minimal (like Zig or Go or even C), but we do not believe "language minimalism" to be pragmatic for the universal language and toolchain we want.
 That said, TypeScript is already not a simple language, and any additional language features risk becoming unwieldy.
-We needed _some_ additions for serious systems programming, and we wanted to take the opportunity to round out the language with modern ergonomics like patterns, operator overloading, reflection, and comptime.
-
-| Feature | What | Why |
-|---------|-------------|-----|
-| [**Types**](#types) | Type system extensions: primitives, nominality, tuples, generic values, associated types, reflection | Soundness, memory, precision |
-| [**Expressions**](#expressions) | Expression extensions: blocks, patterns, trees, errors, operators, dispatch, decorators, comptime | Better ergonomics |
-| [**Memory**](#memory) | Ownership, borrowing, local/shared spaces, and memory type algebra | Systems programming |
-| [**Runtime**](#runtime) | Globals and typed imports for code, data, text, and binary assets | Program assembly |
+We embrace this tradeoff, and as needed _some_ additions for serious systems programming, we took the opportunity to round out the language with modern ergonomics like patterns, operator overloading, reflection, and comptime.
 
 ## Types
 
