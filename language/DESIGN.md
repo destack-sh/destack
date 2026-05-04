@@ -17,8 +17,10 @@ Embracing TypeScript and "the web ecosystems" lets us build a new toolchain that
 
 ## Compatibility
 
-**Destack aims for 100% compatibility with _modern_ strict TypeScript**.
-To be completely fair, "modern strict" is a little sneaky, because we get to decide what "modern" and "strict" mean - but really, it just means that all the dynamic JS stuff and most of the legacy TS stuff is out of scope.
+**Destack aims to accept modern strict TypeScript that already has static shape**.
+That is the useful subset anyway.
+If you want the full dynamic JavaScript object model, TSC and existing JS engines already exist.
+Destack is for TS-shaped code that can be type checked, optimized, and compiled ahead of time without pretending every value might turn into a different shape at runtime.
 More specifically, Destack excludes legacy syntax and all sorts of dynamic shapes and protocols that are not statically fixed / knowable.
 
 ### Syntax
@@ -32,6 +34,9 @@ Some JS/TS syntax and legacy behavior is either ambiguous, obsolete, or just not
   Where Flow and TS overlap we obviously support both, but we do no special JSDoc analysis.
 - **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript.
   Non-strict ("sloppy mode") behaviors like duplicate function declarations, `arguments` magic, `caller` / `callee`, or `yield` as an identifier are not supported.
+- **`any`**: Portable `.ds` uses `unknown` as the top type.
+  TypeScript `any` is rejected because it makes arbitrary property access, calls, and assignments appear valid without proof.
+  Existing TS code must narrow through `unknown`, use explicit casts at interop boundaries, or stay outside portable Destack.
 - **XML namespace resolution**: Destack does not implement XML `xmlns` namespace binding semantics.
   Namespaced tree tags like `<svg:path />` are treated as intrinsic string tag names (`"svg:path"`).
 
@@ -324,7 +329,7 @@ function repeat<comptime N: uint>(value: string): string {
 ### Associated Types and Constants
 
 Associated types and constants contribute static members to a type that can be reused within the type and implementors but does not need to be exposed to every single caller.
-Both associates types and constants also work in abstract types, in much the way we would expect.
+Both associated types and constants also work in abstract types, in much the way we would expect.
 
 ```ds
 interface Iterator {
@@ -339,33 +344,37 @@ function collect<I: Iterator>(iter: I): I.Item[] { ... }
 Associated types are type aliases scoped to some struct, class, or interface and can also reference the owner's generic parameters.
 
 ```ds
-struct Cache<K, V> {
-    type Entry = CacheEntry<K, V>;
+interface Allocator {
+    type Pointer<T>;
+    type Error;
 
-    entries: Entry[],
+    allocate<T>(count: usize): Result<this.Pointer<T>, this.Error>;
+    free<T>(ptr: this.Pointer<T>): void;
 }
 ```
 
-Associated types can also∆ have their _own_ generic parameters with same generic parameter forms as ordinary declarations (including type parameters and `comptime` value parameters).
+Associated types can have their _own_ generic parameters with the same generic parameter forms as ordinary declarations, including type parameters and `comptime` value parameters.
+That matters for APIs where the implementor chooses a whole type family, not just one output type.
 
 ```ds
-interface Collection<T> {
-    type View<U>;
+interface Storage {
+    type Handle<T>;
 }
 
-struct Buffer<T> implements Collection<T> {
-    type View<U> = BufferView<T, U>;
+struct SharedStorage implements Storage {
+    type Handle<T> = shared StorageHandle<T>;
 }
 ```
 
-In addition to associated types, nominal type declarations also support Associated constants as static compile-time values.
+In addition to associated types, nominal type declarations also support associated constants as static compile-time values.
 Unlike `static` members, `comptime const`s require no instance storage and are statically evaluated during compilation.
 
 ```ds
-interface BlockCipher {
-    comptime const BlockSize: uint;
+interface RegisterBlock {
+    comptime const Width: uint;
 
-    encrypt(block: &[uint8; this.BlockSize]): [uint8; this.BlockSize];
+    read(): [uint8; this.Width];
+    write(bytes: &[uint8; this.Width]): void;
 }
 ```
 
@@ -382,8 +391,8 @@ function merge<T: int, U>(): T where (
 ### Reflection
 
 TypeScript types are - by design - erased at runtime, which means we can't easily perform runtime type checks or any meaningful reflection.
-Destack supports type reflection both at runtime and at compile time with descriptor values of type `Type<T>`.
-A type expression can be turned into its descriptor with (implicit or explicit) casting to its `Type` representation:
+Destack supports type reflection both at runtime and at compile time with opaque handles of type `Type<T>`.
+A type expression can be turned into its handle with (implicit or explicit) casting to its `Type` representation:
 
 ```ds
 struct User {
@@ -395,8 +404,8 @@ let u: User = User { name: "Alice", age: 30 };
 
 const UserType: Type<User> = User;
 const UserType = Type.of<User>();
-UserType.name                       // "User"
-UserType.fields                     // [{ name: "name", type: string }, ...]
+displayNameOf(UserType) // "User"
+shapeOf(UserType) // ReferenceType or ObjectType, depending on the normalized type
 ```
 
 This also works for generic APIs that operate on types as static values:
@@ -409,7 +418,12 @@ function parse<comptime T: Type>(raw: string): T {
 const user = parse<User>("...");
 ```
 
-Beyond type introspection, type reflection also supports classic layout queries like `sizeOf<T>()`, `alignOf<T>()`, `strideOf<T>()`, and `layoutOf<T>()`.
+The reflection shape is a stable source-facing view of the normalized type, broadly aligned with DIR type families like literals, primitives, references, objects, functions, arrays, tuples, unions, intersections, conditionals, mapped types, and storage forms.
+It is not the compiler IR.
+Compiler plugins may eventually expose AST / DIR / MIR handles directly, but ordinary reflection stays small enough to use in programs.
+
+Beyond semantic shape queries, type reflection also supports classic layout queries like `sizeOf<T>()`, `alignOf<T>()`, `strideOf<T>()`, and `layoutOf<T>()`.
+Layout queries are target/profile-sensitive and are intentionally separate from `shapeOf`.
 
 ```ds
 const userSize = comptime sizeOf<User>();
@@ -456,7 +470,8 @@ if let (x, y) = point {
 
 ### Patterns
 
-Modern `match` with full pattern matching and exhaustiveness checking:
+TypeScript already has pattern based destructuring for arguments and assignment-like expressions, so match and richer pattern expressions fit in quite naturally.
+Destack supports `match` with full pattern matching and exhaustiveness checking:
 
 ```ds
 match (result /* Result<T, E> */) {
@@ -466,45 +481,37 @@ match (result /* Result<T, E> */) {
 }
 ```
 
-As you would expect, the type of a match expression is the union of its case body types.
-
-Patterns can appear in `match`, `if let`, `let ... else`, and destructuring bindings.
+As one would expect, the type of a match expression is the union of its case body types, and patterns can appear in `match`, `if let`, `let ... else`, and destructuring bindings.
 The core pattern families are wildcard, binding, literal, tuple, object/struct, array/slice, variant/newtype, union, and guarded patterns.
 
 ```ds
+declare point: Point;
 match (point) {
     Point { x: 0, y: 0 } => "origin"
-    Point { x, y } => `at ${x}, ${y}`
+    Point { x, y } => `at ${x}, ${y}` // irrefutable if point: Point
 }
 ```
 
-#### Fallibility
-
-Some patterns are irrefutable, meaning they always match.
-Plain binding patterns, `_`, and exact destructuring of already-known tuple shapes are irrefutable.
-
-Other patterns are refutable, meaning the match can fail.
-Variant patterns, literal patterns, guarded patterns, nullable unwrapping, and most structural tests are refutable.
-
-Refutable patterns require syntax that says what happens on failure: a `match` fallback arm, an `else` branch for `if let`, or an `else` continuation for `let ... else`.
+Some patterns are irrefutable, that is, they always match, and then we don't need any alternative branches, like with `_` or destructuring of known shapes.
+Refutable patterns require some fallback such that all branches are covered: a `match` fallback arm, an `else` branch for `if let`, or an `else` continuation for `let ... else`.
 
 ```ds
+declare point: Point;
+match (point) {
+    Point { x: 0, y } => "vertical"
+    Point { x, y: 0 } => "horizontal"
+    _ => "neither" // required fallback
+}
+
+declare maybe
 let Some(value) = maybe else {
     return Result.err("missing value");
 };
 ```
 
-#### Exhaustiveness
-
-`match` exhaustiveness is enforced when the compiler can prove the value set is finite.
-This includes enums, literal unions, discriminated unions, fixed-size tuples, and other fully-known finite shapes.
-
-Irrefutable fallback arms like `_` satisfy exhaustiveness.
-When any arm has a guard, or when the compiler cannot prove the input is finite, a fallback arm is required.
-
 ### Loops
 
-For convenience and clearity Detack supports an explicit `loop` as the explicit infinite loop form.
+For convenience and clarity, Destack supports `loop` as the explicit infinite loop form.
 Like other loops, it can produce a value through `break <value>`.
 
 ```ds
@@ -519,36 +526,39 @@ const line = loop {
 
 ### Using
 
-`using` is explicit scoped cleanup scheduling with TS-shaped surface syntax.
+The `using` (and `await using`) feature - officially known as explicit resource management - is a [stage 3 TC39 proposal](https://github.com/tc39/proposal-explicit-resource-management).
+We just follow that proposal with `using` / `await using` as explicit scoped cleanup, but of course using nominal interfaces instead of `Symbol`s:
+- `using` accepts `Dispose | null | undefined`.
+- `await using` accepts `AsyncDispose | Dispose | null | undefined`, and falls back to synchronous disposal when the resource only implements `Dispose`.
+- `null` and `undefined` are ignored, following the spec.
+
 Resources are cleaned up at lexical scope exit in LIFO order, and `await using` runs async cleanup when required.
-The same cleanup capabilities also power ownership based destruction.
-Affine owned values may therefore be cleaned up earlier, at their last proven use, even without `using`.
-`using` does not replace ownership.
-It chooses one cleanup scope explicitly.
+Cleanup - that is, the dispose function - runs when the scope exits for any reason: fallthrough, `return`, `break`, `continue`, `throw`, or `?`.
 
 ```ds
-using file = openFile(path);
-await using conn = openConnection();
+{
+    using input = openFile(inputPath),
+          output = openFile(outputPath);
+
+    copy(input, output);
+} // output is disposed, then input is disposed
+
+async function runQuery(sql: string): Result<Row[], DatabaseError> {
+    await using connection = await pool.connect();
+
+    return await connection.query(sql);
+} // connection is disposed and awaited
 ```
 
-Cleanup runs when the scope exits for any reason: fallthrough, `return`, `break`, `continue`, `throw`, or `?`.
-`using` requires `Disposable | null | undefined`.
-`await using` requires `AsyncDisposable | Disposable | null | undefined`.
-In loop initializers, a `using` resource is per-iteration and is disposed at the end of that iteration.
-At module top level, a `using` resource is disposed when module evaluation completes.
-
-Ownership and `using` are intentionally separate mechanisms.
-`^T` controls memory ownership and lifetime.
-`using` controls resource protocol disposal and pins cleanup to a lexical scope.
 
 ### Errors
 
-Destack strongly encourages **Result-first error handling** inspired by Rust: recoverable errors use `Result<T, E>`, while exceptions exist for compatibility, interop, and migration.
-`Result<T, E>` with `?` and `??` remains the preferred everyday style.
+Exceptions are deeply enmeshed into TypeScript, and therefore Destack supports them, too (alas).
+However, Destack also supports and strongly encourages **Result-first error handling** inspired by Rust: recoverable errors use `Result<T, E>`, nice try-catch integration, and even support for `T`, `?` and `??` coalescing.
 
-#### Result Types
+#### Result
 
-The standard library provides `Result<T, E>` as the primary error handling mechanism:
+Destack provides `Result<T, E>` as the primary error handling mechanism:
 
 ```ds
 function readConfig(path: string): Result<Config, IOError> {
@@ -748,39 +758,67 @@ Lowercase unqualified tags resolve as intrinsic tags through the active `TreeTag
 Fragments route through the active builder's fragment type.
 Namespaced tags like `<svg:path />` are not XML namespace bindings; they are intrinsic string tag names.
 
-### Decorators
+### Annotations And Decorators
 
-Destack extends decorators (`@`) to work on many more language constructs than TypeScript supports: declarations, statements, members, parameters, types, match arms, etc..
+Destack uses `@` for resolved annotations.
+The expression after `@` must resolve in the current static context.
+If it does not resolve, that is an error.
+There is no stringly metadata by spelling alone.
 
 ```ds
 @deprecated("use newAPI instead")
 function oldAPI() { }
 
-@memoize
-function expensive() { }
-
 @unroll
 for (let i = 0; i < 4; i++) { }
 
-// on struct members
+@derive(Clone, Serialize, Reflect)
 struct User {
-    @schema.validate(schema.minLength(1))
-    name: string,
+    id: UserId;
+    name: string;
 }
 
-// on function parameters
-function process(input: string) { }
-
-// on reference types
 function kernel(data: @space("shared") &Point) { }
 
-// on match arms
 match (result) {
     @cold
     Err(e) => handleError(e),
     Ok(v) => v,
 }
 ```
+
+The resolved expression decides the effect.
+
+`@derive(...)` is an intrinsic expansion annotation.
+It only applies to nominal type declarations.
+Each argument resolves to a nominal capability/interface.
+
+```ds
+@derive(Clone)
+struct User {
+    id: UserId;
+}
+```
+
+For `@derive(Clone)` on `User`, the compiler asks the active derive implementation for `Clone` and `User` to produce ordinary declarations, inserts those declarations, and then type checks the result normally.
+Derive output is additive and declaration-shaped, usually extensions or implementations.
+It does not rewrite the annotated type.
+The provider API is part of the compiler/plugin surface, not runtime type reflection.
+
+If `@expr` resolves to a supported rewrite function, it is a rewrite annotation.
+That gives plain `@memoize` and configured `@memoize({ maxEntries: 256 })` the same shape: both resolve to something the compiler can call during expansion.
+Rewrite annotations are narrow compiler-visible rewrites of the annotated target.
+They must preserve the public type contract and may only target declaration forms they explicitly support.
+Something like `@memoize` can be expressed this way, but it is not a JavaScript property-descriptor decorator and it does not mutate prototypes.
+
+If `@expr` resolves to any other statically known value, it is metadata.
+For example, `@validate(minLength(1))` may just construct a typed value that is attached to the field and later consumed by `@derive(Validate)`, a linter, reflection, or a framework.
+Metadata annotations do not generate code by themselves and do not intercept reads or writes.
+
+Annotations may be retained as reflection metadata.
+Documentation comments are also exposed as normalized documentation descriptors when retained.
+Full trivia belongs to AST/plugin APIs, not runtime type reflection.
+Portable `.ds` does not support legacy TypeScript decorators, parameter decorators, property descriptor mutation, prototype mutation, proxies, hidden dynamic members, or arbitrary expression macros.
 
 ### Static If
 
@@ -804,14 +842,11 @@ Multiple `@if` annotations combine with logical AND.
 
 ### Globals
 
-In addition to ambient global typings, Destack supports "real" `global { ... }` value declarations that contribute to the ambient environment without explicit qualification.
-That is, with `global { const registry: Registry }` in some (known) module `A` we can just do `registry.whatever` in module `B` without any direct imports.
-Used sparingly, this is incredibly convenient.
-
-Globals can be ambient declarations (for non-native targets) or implemented declarations (for native targets):
+TypeScript supports ambient global typings, which were designed for typing the "magic" global objects provided by embedders, but there is no way to contribute _value_ globals in userland, which is sometimes quite convenient.
+In addition to ambient global typings, Destack therefore supports "real" `global { ... }` value declarations that contribute to the ambient environment without explicit imports.
 
 ```ds
-global {
+global { // just omit the `declare`!
     const console: Console = runtime.console();
     const runtimeId = Runtime.current.id;
     shared const registry = new Registry();
@@ -819,12 +854,14 @@ global {
 ```
 
 A `global` block is active when its containing module is in the closure reached from the target's entrypoints, includes, configured global provider roots, or profile/prelude modules.
-Of course, because these globals are real values, duplicate global value names are errors unless the declarations.
+Of course, because these globals are real values, duplicate global value names are errors.
 
 ### Comptime
 
 Inspired by Zig, Destack supports compile-time evaluation via the `comptime` keyword.
-The `comptime` keyword requires that an expression must be evaluated at compile time (otherwise it is a compile error):
+The `comptime` keyword, as the name implies, requires that an expression must be evaluated at compile time (otherwise it is a compile error).
+Functions do not declare themselves as either "comptime" or "runtime".
+Evaluation time is defined by how the expression or value is used.
 
 ```ds
 const LOOKUP_TABLE: uint8[] = comptime {
@@ -838,88 +875,16 @@ const LOOKUP_TABLE: uint8[] = comptime {
 
 ```ds
 function factorial(n: int): int {
-    if (n <= 1) { 1 } else { n * factorial(n - 1) }
+    if (n <= 1) {
+        return 1;
+    } else {
+        return n * factorial(n - 1);
+    }
 }
 
-const FACT_10 = comptime factorial(10);    // compile time
-const dynamicValue = factorial(getUserInput()); // runtime (in this case, at module initialization time)
+const COMPTIME_CONST = comptime factorial(10);    // compile time
+const RUNTIME_CONST = factorial(getUserInput()); // runtime (in this case, at module initialization time)
 ```
-
-Functions are not marked explicitly as either "comptime" or "runtime" functions.
-The call site determines when a function runs.
-
-#### Static Evaluation
-
-Some compile-time questions come before comptime code can run at all.
-Destack has to know which declarations exist, what types mean, and what layout a generic instantiation has before it can lower that instantiation.
-That early path is **static evaluation**.
-
-Static evaluation is intentionally small and boring.
-It can fold literals, arithmetic and boolean logic on static values, `import.meta`, profile constants, substituted generic parameters, associated types and constants, type predicates like `T extends U`, and type algebra queries like `SpaceOf<T>`.
-Generic value parameters, associated constants in type positions, conditional types, `@if`, fixed array lengths, and layout decisions all go through this path.
-Runtime values do not, and neither does full comptime execution.
-
-#### Execution Model
-
-Static evaluation decides program shape during Analyze and generic instantiation.
-Full comptime execution is the more general path.
-It runs lowered MIR in the VM interpreter during Execute, writes the results back into the program as constants, and eliminates dead branches.
-
-The separation matters.
-Without it, generic solving, type normalization, layout, and comptime code can all end up waiting on each other.
-Full comptime evaluation happens after monomorphization and lowering, with full type information available.
-
-#### Generic Evaluation
-
-Generic parameters, associated types, associated constants, conditional types, mapped types, and ownership algebra are all resolved by static evaluation.
-Generic type parameters range over types.
-Generic `comptime` parameters range over statically known values.
-
-Associated projections normalize by substituting the owner's generic arguments first:
-
-```ds
-type Row = Matrix<4, 4>.Row;
-```
-
-Associated constants must be statically evaluable.
-Conditional and mapped types run over normalized type algebra.
-Ownership and placement are part of that algebra through `Form<T, O, S, R>`, so `BaseOf`, `OwnershipOf`, `SpaceOf`, and `RegionOf` are ordinary type-level queries.
-
-`@if` follows the same rule.
-Inside a generic declaration, it is held until generic arguments are substituted.
-That means different generic instantiations may have different member sets and layouts.
-
-```ds
-struct Buffer<T, S: Space> {
-    @if(S extends "shared")
-    lock: SharedLock;
-
-    @if(S extends "local")
-    lock: LocalLock;
-
-    data: T[];
-}
-```
-
-Here `S` is the aggregate's placement parameter.
-Because `data` is ambient, it follows the containing placement, so it does not need `WithSpace<T, S>`.
-
-The same mechanism can select different library representations for different spaces, as long as the abstraction still means the same thing:
-
-```ds
-type Rc<T, S: Space = "local"> =
-    S extends "shared" ? AtomicRc<T> : LocalRc<T>;
-
-type Lock<T, S: Space = "local"> =
-    S extends "shared" ? SharedLock<T> : LocalLock<T>;
-```
-
-`Rc<T, "local">` and `Rc<T, "shared">` can have different costs and different internal machinery, but both still mean reference-counted shared ownership.
-That is the line: placement-aware aliases may choose the cheapest representation that preserves the abstraction, but ordinary data should not silently become a different concurrency protocol.
-
-Inference is local.
-The compiler infers generic arguments at the call site and inside the current module, but exported APIs must expose enough explicit shape for importing modules.
-Destack does not solve API types through module cycles.
 
 Comptime conditions enable branch elimination and, for type relations like `T extends U`, type narrowing:
 
@@ -931,12 +896,7 @@ function process<T, Context: CacheContext<T>>(ctx: Context, key: T) {
 }
 ```
 
-Both branches of a comptime condition must type check unless the branch is removed by static `@if`.
-That keeps ordinary generic code stable under different profiles while still allowing profile-specific declarations when needed.
-
-#### Comptime Blocks
-
-Comptime blocks can also appear as struct/class members for compile-time assertions:
+Comptime blocks can also appear as members on object-like types for `comptime` associated logic, much like `static` blocks are runtime associated logic.
 
 ```ds
 struct Buffer<comptime size: uint> {
@@ -946,22 +906,6 @@ struct Buffer<comptime size: uint> {
     data: [uint8; size],
 }
 ```
-
-Member comptime blocks run once per type instantiation.
-Module-level comptime blocks run during module compilation.
-
-#### Compile-time Eval
-
-At comptime, `eval` and `new Function` mean compile-time code evaluation, not runtime string execution.
-The source string must be statically known.
-The code is parsed as Destack, type checked in the current module context, evaluated in the comptime VM, and cached like other comptime work.
-
-```ds
-const add = comptime new Function("a", "b", "return a + b") as (a: int, b: int) => int;
-const value = comptime eval("add(1, 2)");
-```
-
-Runtime `eval` and `new Function` are JS compatibility features, and portable Destack code should not depend on them.
 
 ## Memory
 
@@ -1129,7 +1073,7 @@ Like many JS/TS runtimes, Destack supports importing additional file types beyon
 | `import.meta.test` | test build flag | `bool` | `true`, `false` |
 | `import.meta.env` | configured build environment | `{ readonly [key: string]: string | bool | number }` | `{ NODE_ENV: "production", FEATURE_X: true }` |
 
-### Data Modules (JSON, TOML, YAML)
+### Data Modules
 
 Data files are parsed at compile time and typed structurally:
 
@@ -1188,4 +1132,3 @@ import dataBytes from "./file.txt" with { type: "binary" };  // import as uint8[
 ```
 
 Supported `type` loaders are `json`, `toml`, `yaml`, `text`, `binary`, and `base64`.
-(The same file with different loaders produces different modules, of course.)
