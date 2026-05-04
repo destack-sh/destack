@@ -1214,7 +1214,7 @@ fn test_dynamic_call_declared_target_is_inline() {
     );
 }
 
-/// Reject managed allocation instructions when noManaged is required.
+/// Reject heap allocation instructions when noManaged is required.
 #[test]
 fn test_reject_new_with_no_managed_mode() {
     let mut tree = Tree::new();
@@ -1260,7 +1260,7 @@ fn test_reject_new_with_no_managed_mode() {
         .expect_err("expected validation failure");
     assert_eq!(
         error.to_string(),
-        "metadata invariant violation: allocation mode violation: 'new' is invalid because noManaged forbids managed allocations"
+        "metadata invariant violation: allocation mode violation: 'new' is invalid because noManaged forbids heap allocations"
     );
 }
 
@@ -1362,19 +1362,19 @@ entry0(value0: float32):
     );
 }
 
-/// Reject pinning non-local or non-heap references.
+/// Reject pinning non-heap references.
 #[test]
 fn test_reject_pin_for_raw_reference() {
     let source = r#"function bad(value0: ref<int32, raw>): void {
 entry0(value0: ref<int32, raw>):
-    pin value0
+    value1: ref<int32, raw> = pin value0
     return
 }"#;
 
     let error = assert_validate_error(source);
     assert_eq!(
         error.message,
-        "metadata invariant violation: pin value must be one local heap reference"
+        "metadata invariant violation: pin value must be one local or shared heap reference"
     );
 }
 
@@ -1383,8 +1383,21 @@ entry0(value0: ref<int32, raw>):
 fn test_accept_pin_for_owned_reference() {
     let source = r#"function good(value0: ref<int32, owned>): void {
 entry0(value0: ref<int32, owned>):
-    pin value0
-    unpin value0
+    value1: ref<int32, owned> = pin value0
+    unpin value1
+    return
+}"#;
+
+    assert_validate_ok(source);
+}
+
+/// Accept pinning shared managed references.
+#[test]
+fn test_accept_pin_for_shared_reference() {
+    let source = r#"function good(value0: ref<int32, managed, space(shared)>): void {
+entry0(value0: ref<int32, managed, space(shared)>):
+    value1: ref<int32, managed, space(shared)> = pin value0
+    unpin value1
     return
 }"#;
 

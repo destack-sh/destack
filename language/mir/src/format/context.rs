@@ -1007,6 +1007,9 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
                 record_type_use(tree, *layout, &mut counts);
                 record_type_use(tree, *result_type, &mut counts);
             }
+            Instruction::Pin { result_type, .. } => {
+                record_type_use(tree, *result_type, &mut counts);
+            }
             Instruction::Const { .. }
             | Instruction::Binary { .. }
             | Instruction::Unary { .. }
@@ -1019,11 +1022,8 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
             | Instruction::ElementGet { .. }
             | Instruction::ElementSet { .. }
             | Instruction::RawFree { .. }
-            | Instruction::Dispose { .. }
-            | Instruction::AsyncDispose { .. }
-            | Instruction::Pin { .. }
-            | Instruction::Unpin { .. }
             | Instruction::Drop { .. }
+            | Instruction::Unpin { .. }
             | Instruction::Assume { .. }
             | Instruction::Intrinsic { .. } => {}
             _ => {}

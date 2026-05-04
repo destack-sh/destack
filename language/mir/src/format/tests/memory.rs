@@ -83,10 +83,8 @@ fn test_format_cleanup_and_pin_family() {
         r#"
 function cleanup(value0: ref<int32, managed>): void {
 entry0(value0: ref<int32, managed>):
-    dispose value0
-    dispose.async value0
-    pin value0
-    unpin value0
+    value1: ref<int32, managed> = pin value0
+    unpin value1
     drop value0
     return
 }

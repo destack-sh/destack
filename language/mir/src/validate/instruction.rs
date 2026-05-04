@@ -169,7 +169,7 @@ impl<'a> Validator<'a> {
                 instruction,
                 Instruction::New { .. } | Instruction::NewSlice { .. }
             )
-            .then_some("noManaged forbids managed allocations"),
+            .then_some("noManaged forbids heap allocations"),
             AllocationMode::StackOnly => matches!(
                 instruction,
                 Instruction::New { .. }
@@ -1538,11 +1538,30 @@ impl<'a> Validator<'a> {
                     anchor,
                 )?;
             }
-            Instruction::Pin { value } => {
-                self.validate_local_heap_reference_value(function, *value, anchor, "pin value")?;
+            Instruction::Pin {
+                destination,
+                value,
+                result_type,
+            } => {
+                let value_type =
+                    self.validate_heap_reference_value(function, *value, anchor, "pin value")?;
+                let destination_type =
+                    self.value_type_or_error(function, *destination, anchor, "pin result")?;
+                let result_type =
+                    self.require_type_reference(*result_type, anchor, "pin result type")?;
+                self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
+
+                if !self.types_equivalent(value_type, result_type)
+                    || !self.types_equivalent(destination_type, result_type)
+                {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "pin result type must match pinned value".to_string(),
+                        anchor,
+                    });
+                }
             }
             Instruction::Unpin { value } => {
-                self.validate_local_heap_reference_value(function, *value, anchor, "unpin value")?;
+                self.validate_heap_reference_value(function, *value, anchor, "unpin value")?;
             }
             Instruction::AtomicLoad {
                 destination,
@@ -2830,14 +2849,14 @@ impl<'a> Validator<'a> {
         Ok(())
     }
 
-    /// Validate one local heap reference value.
-    fn validate_local_heap_reference_value(
+    /// Validate one pin-compatible heap reference value.
+    fn validate_heap_reference_value(
         &self,
         function: &Function,
         value: ValueReference,
         anchor: ValidateAnchor,
         context: &'static str,
-    ) -> ValidateResult<()> {
+    ) -> ValidateResult<LocalNodeId<Type>> {
         let value_type = self.value_type_or_error(function, value, anchor, context)?;
         let (kind, _mutability, _pointee, _is_nullable) =
             self.reference_type(value_type, anchor, "expected a reference type")?;
@@ -2849,15 +2868,15 @@ impl<'a> Validator<'a> {
         };
 
         if !matches!(kind, ReferenceKind::Managed | ReferenceKind::Owned)
-            || !matches!(address_space, AddressSpace::Local)
+            || !matches!(address_space, AddressSpace::Local | AddressSpace::Shared)
         {
             return Err(ValidateError::MetadataInvariantViolation {
-                message: format!("{context} must be one local heap reference"),
+                message: format!("{context} must be one local or shared heap reference"),
                 anchor,
             });
         }
 
-        Ok(())
+        Ok(value_type)
     }
 
     /// Validate cast operator legality for canonical storage representations.

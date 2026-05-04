@@ -688,9 +688,10 @@ pub enum Instruction {
         call: Call<ArgumentSlice>,
     },
 
-    // allocation (heap, runtime tracks layout and tracing: new, new.slice)
-    /// Allocate heap storage (`new`).
-    /// Returns a managed or owned reference type.
+    // heap allocation
+    /// Allocate typed heap storage (`new`).
+    ///
+    /// The result type decides whether the returned reference is managed or owned.
     New {
         /// The SSA value to define with the allocated reference.
         destination: ValueReference,
@@ -699,8 +700,9 @@ pub enum Instruction {
         /// The result type of the allocation.
         result_type: TypeReference,
     },
-    /// Allocate repeated heap storage (`new.slice`).
-    /// Returns a slice value.
+    /// Allocate typed repeated heap storage (`new.slice`).
+    ///
+    /// The result type decides whether the returned slice is managed or owned.
     NewSlice {
         /// The SSA value to define with the allocated slice.
         destination: ValueReference,
@@ -712,9 +714,10 @@ pub enum Instruction {
         result_type: TypeReference,
     },
 
-    // allocation (raw, manual memory management: raw.alloc, raw.free)
-    /// Allocate raw memory on the heap (raw.alloc).
-    /// Returns a raw reference type. Caller must free with `raw.free`.
+    // raw allocation
+    /// Allocate raw heap storage (`raw.alloc`).
+    ///
+    /// The caller must release the result with `raw.free`.
     RawAlloc {
         /// The SSA value to define with the allocated pointer.
         destination: ValueReference,
@@ -723,16 +726,18 @@ pub enum Instruction {
         /// The result type of the allocation.
         result_type: TypeReference,
     },
-    /// Free raw heap memory previously allocated with `raw.alloc` (raw.free).
-    /// User-inserted for manual memory management (FFI, etc).
+    /// Release raw heap storage (`raw.free`).
+    ///
+    /// This is only valid for raw references produced by `raw.alloc`.
     RawFree {
         /// The pointer to free.
         pointer: ValueReference,
     },
 
-    // allocation (stack, automatic, scoped to function: stack.alloc)
-    /// Allocate on the stack (lives until function returns) (stack.alloc).
-    /// Returns a raw stack reference type. Freed automatically when frame exits.
+    // stack allocation
+    /// Allocate frame-scoped stack storage (`stack.alloc`).
+    ///
+    /// The storage is released when the frame exits.
     StackAlloc {
         /// The SSA value to define with the stack pointer.
         destination: ValueReference,
@@ -742,37 +747,34 @@ pub enum Instruction {
         result_type: TypeReference,
     },
 
-    // cleanup
-    /// Run explicit synchronous cleanup (`dispose`).
-    Dispose {
-        /// The value to dispose.
-        value: ValueReference,
-    },
-    /// Run explicit asynchronous cleanup (`dispose.async`).
-    AsyncDispose {
-        /// The value to dispose asynchronously.
-        value: ValueReference,
-    },
-    /// Stabilize one local heap value against movement (`pin`).
+    // ownership destruction
+    /// Destroy an owned value (`drop`).
     ///
-    /// While pinned, derived borrowed addresses remain valid across safepoints.
-    Pin {
-        /// The heap value to pin.
-        value: ValueReference,
-    },
-    /// Release one local heap pin (`unpin`).
-    Unpin {
-        /// The heap value to unpin.
-        value: ValueReference,
-    },
-    /// End ownership here (`drop`).
-    /// Compiler-inserted at ownership end to run drop glue and storage-specific cleanup.
+    /// Runs drop glue for the value and releases any owned storage.
     Drop {
         /// The value to drop.
         value: ValueReference,
     },
 
-    // managed heap
+    // address stability
+    /// Stabilize one heap value against movement (`pin`).
+    ///
+    /// While pinned, derived borrowed addresses remain valid across safepoints.
+    Pin {
+        /// The SSA value to define with the pinned reference.
+        destination: ValueReference,
+        /// The heap value to pin.
+        value: ValueReference,
+        /// The result type of the pinned reference.
+        result_type: TypeReference,
+    },
+    /// Release one heap pin (`unpin`).
+    Unpin {
+        /// The heap value to unpin.
+        value: ValueReference,
+    },
+
+    // collector protocol
     /// Record a managed reference write for the collector.
     BarrierWrite {
         /// The managed object whose reference range changed.
@@ -961,11 +963,9 @@ impl Instruction {
             Instruction::NewSlice { destination, .. } => Some(*destination),
             Instruction::RawAlloc { destination, .. } => Some(*destination),
             Instruction::RawFree { .. } => None,
-            Instruction::Dispose { .. } => None,
-            Instruction::AsyncDispose { .. } => None,
-            Instruction::Pin { .. } => None,
-            Instruction::Unpin { .. } => None,
             Instruction::Drop { .. } => None,
+            Instruction::Pin { destination, .. } => Some(*destination),
+            Instruction::Unpin { .. } => None,
             Instruction::BarrierWrite { .. } => None,
             Instruction::StackAlloc { destination, .. } => Some(*destination),
             Instruction::AtomicLoad { destination, .. } => Some(*destination),
@@ -1082,11 +1082,9 @@ impl Instruction {
             Instruction::NewSlice { length, .. } => smallvec![*length],
             Instruction::RawAlloc { .. } => smallvec![],
             Instruction::RawFree { pointer } => smallvec![*pointer],
-            Instruction::Dispose { value } => smallvec![*value],
-            Instruction::AsyncDispose { value } => smallvec![*value],
-            Instruction::Pin { value } => smallvec![*value],
-            Instruction::Unpin { value } => smallvec![*value],
             Instruction::Drop { value } => smallvec![*value],
+            Instruction::Pin { value, .. } => smallvec![*value],
+            Instruction::Unpin { value } => smallvec![*value],
             Instruction::BarrierWrite {
                 object,
                 offset,

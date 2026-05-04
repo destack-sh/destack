@@ -113,11 +113,11 @@ impl<'a> FunctionBuilder<'a> {
                     tensor: argument, ..
                 }
                 | Instruction::RawFree { pointer: argument }
-                | Instruction::Dispose { value: argument }
-                | Instruction::AsyncDispose { value: argument }
-                | Instruction::Pin { value: argument }
-                | Instruction::Unpin { value: argument }
                 | Instruction::Drop { value: argument }
+                | Instruction::Pin {
+                    value: argument, ..
+                }
+                | Instruction::Unpin { value: argument }
                 | Instruction::AtomicLoad {
                     pointer: argument, ..
                 } => {

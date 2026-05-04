@@ -91,7 +91,7 @@ Instructions perform "operations" and may produce SSA `Value`s.
 | Local variables | `local.get`, `local.set`, `local.address` |
 | Globals | `global.address` |
 | Functions | `function.address`, `callable.bind`, `callable.environment` |
-| Memory | `load`, `store`, `raw.free`, `dispose`, `dispose.async`, `pin`, `unpin`, `drop` |
+| Memory | `load`, `store`, `raw.free`, `pin`, `unpin`, `drop` |
 | Aggregates | `struct`, `tuple`, `array`, `field.get`, `field.set`, `field.address`, `element.get`, `element.set`, `element.address` |
 | Vector | `vector.*` (splat, extract, insert, shuffle, select, reduce, compare, convert) |
 | Tensor | `tensor.*` (splat, extract, load, store, fill, copy, reshape, broadcast, transpose, cast, view, slice, pad, concat, compare, select, reduce, dot, convolution, gather, scatter, convert) |
@@ -160,17 +160,16 @@ Borrowed `&T` is a dependent address into some other carrier.
 Borrowed values therefore require region proof.
 They do not keep the referent alive on their own.
 
-Pinning is a MIR responsibility for local moving heap storage.
-`pin` stabilizes one local heap value against movement.
+Pinning is a MIR responsibility for heap storage that may move.
+`pin` stabilizes one local or shared heap value against movement and returns the pinned reference carrier.
 `unpin` releases that stability.
-When a borrowed address into local heap storage must survive a safepoint or suspension, the surrounding MIR must insert `pin` and `unpin`.
-Shared heap, raw, stack, frame, and global storage need no such stabilization.
+When a borrowed address into heap storage must survive a safepoint or suspension, the surrounding MIR must use the pinned carrier until `unpin`.
+Raw, stack, frame, and global storage need no such stabilization.
 
 Cleanup placement is also a MIR responsibility.
-`dispose` and `dispose.async` are explicit deterministic cleanup hooks.
-`drop` ends ownership and runs drop glue.
+`drop` destroys an owned value and runs drop glue.
 `raw.free` releases raw storage directly.
-GC never calls `dispose`.
+`using` and `await using` are lowered before MIR optimization into ordinary cleanup calls and control flow.
 
 Field names are optional in MIR types and are only for readability:
 
