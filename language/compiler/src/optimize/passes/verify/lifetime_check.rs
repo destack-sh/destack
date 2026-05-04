@@ -1101,8 +1101,6 @@ fn apply_instruction_effects(
         // stores and drops do not change borrow origins
         Instruction::Store { .. }
         | Instruction::RawFree { .. }
-        | Instruction::Dispose { .. }
-        | Instruction::AsyncDispose { .. }
         | Instruction::Pin { .. }
         | Instruction::Unpin { .. }
         | Instruction::Drop { .. }

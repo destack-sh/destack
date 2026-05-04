@@ -552,9 +552,7 @@ fn process_block(
                 available.clear();
             }
 
-            mir::Instruction::Dispose { .. }
-            | mir::Instruction::AsyncDispose { .. }
-            | mir::Instruction::Pin { .. }
+            mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }
             | mir::Instruction::Drop { .. } => {
                 // clear across destructor boundaries

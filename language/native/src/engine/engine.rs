@@ -65,6 +65,10 @@ impl EngineTrait for Engine {
     type Error = Error;
     type Image = Image;
 
+    fn initialize(&mut self, _context: Context<'_>) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
     fn run(
         &mut self,
         _context: Context<'_>,

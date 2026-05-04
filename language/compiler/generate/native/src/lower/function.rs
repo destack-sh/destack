@@ -619,14 +619,11 @@ impl<'a> FunctionLowerer<'a> {
                     .store(cir::MemFlags::new(), store_value, ptr_value, 0);
             }
 
-            // dispose hooks are not lowered into native code yet
-            mir::Instruction::Dispose { value }
-            | mir::Instruction::AsyncDispose { value }
-            | mir::Instruction::Pin { value }
-            | mir::Instruction::Unpin { value } => {
-                let _ = self.lowered_value(*value, value_map, "cleanup value")?;
+            // pins need runtime safepoint support before native lowering
+            mir::Instruction::Pin { value, .. } | mir::Instruction::Unpin { value } => {
+                let _ = self.lowered_value(*value, value_map, "pin value")?;
                 return Err(CodegenCraneliftError::unsupported_instruction(
-                    "cleanup",
+                    "pin",
                     instruction_id.into_any(),
                 ));
             }

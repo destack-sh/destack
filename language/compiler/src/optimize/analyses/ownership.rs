@@ -484,11 +484,18 @@ impl OwnershipAnalysis {
                 panic!("recovered MIR instruction reached optimizer");
             }
 
-            // explicit dispose hooks do not end ownership on their own
-            Instruction::Dispose { .. }
-            | Instruction::AsyncDispose { .. }
-            | Instruction::Pin { .. }
-            | Instruction::Unpin { .. } => {}
+            // pin moves ownership into the pinned carrier
+            Instruction::Pin {
+                destination, value, ..
+            } => {
+                if !self.value_is_copy(*value, tree) {
+                    state.mark_moved_with_source(*value, at);
+                }
+                state.mark_owned(*destination);
+                let origin = state.origin_for_value(*value);
+                self.set_origin_for_destination(state, *destination, origin, tree);
+            }
+            Instruction::Unpin { .. } => {}
 
             // drop marks ownership end and raw.free consumes explicit raw storage
             Instruction::Drop { value } => {
@@ -1335,11 +1342,16 @@ fn process_instruction(
             panic!("recovered MIR instruction reached optimizer");
         }
 
-        // explicit dispose hooks do not end ownership on their own
-        Instruction::Dispose { .. }
-        | Instruction::AsyncDispose { .. }
-        | Instruction::Pin { .. }
-        | Instruction::Unpin { .. } => {}
+        // pin moves ownership into the pinned carrier
+        Instruction::Pin {
+            destination, value, ..
+        } => {
+            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types);
+            state.mark_owned(*destination);
+            let origin = state.origin_for_value(*value);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types);
+        }
+        Instruction::Unpin { .. } => {}
 
         // drop marks ownership end and raw.free consumes explicit raw storage
         Instruction::Drop { value } => {

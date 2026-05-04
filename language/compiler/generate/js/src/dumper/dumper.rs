@@ -662,12 +662,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
         }
     }
 
-    fn visit_block(
-        &mut self,
-        tree: &js::Tree,
-        id: js::LocalNodeId<js::Block>,
-        block: &js::Block,
-    ) {
+    fn visit_block(&mut self, tree: &js::Tree, id: js::LocalNodeId<js::Block>, block: &js::Block) {
         let statement_count = block.statements.len() as u32;
         self.node("js::Block", id.id)
             .field("statement_count", &statement_count)
