@@ -1,6 +1,6 @@
 # Comptime Slots
 
-Tests for using comptime results as fixed compile-time values.
+Using comptime results as fixed compile-time values.
 
 ## comptime values
 
@@ -31,14 +31,14 @@ values[count - 1] satisfies int32;
 
 ### comptime values can drive fixed array lengths
 
-> Comptime constants can be used as fixed array lengths with as comptime.
+> Comptime constants can be used as fixed array lengths.
 
 ```ds
 const width = comptime 4;
-type Lane = uint8[width as comptime];
+type Lane = [uint8; width];
 
 const lane: Lane = [1, 2, 3, 4];
-lane satisfies uint8[4];
+lane satisfies [uint8; 4];
 ```
 
 ### comptime values can drive conditional static slots
@@ -47,10 +47,10 @@ lane satisfies uint8[4];
 
 ```ds
 const width = comptime (if (true) { 8 } else { 4 });
-type Lane = uint8[width as comptime];
+type Lane = [uint8; width];
 
 const lane: Lane = [1, 2, 3, 4, 5, 6, 7, 8];
-lane satisfies uint8[8];
+lane satisfies [uint8; 8];
 ```
 
 ### comptime slots reject runtime-only dependencies

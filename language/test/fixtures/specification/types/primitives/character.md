@@ -1,6 +1,6 @@
 # Character
 
-## tests
+## values
 
 ### character literals satisfy character
 
@@ -40,7 +40,7 @@ let value: int32 = 'a';
 
 - contains: not assignable
 
-### character values can flow through character unions
+### character values satisfy character unions
 
 > Character values are assignable to unions that include character.
 

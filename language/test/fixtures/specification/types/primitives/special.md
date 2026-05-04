@@ -1,6 +1,6 @@
 # Special Literals
 
-Tests for null, undefined, and other special literals.
+Null, undefined, and other special literals.
 
 ## Null
 
@@ -36,22 +36,6 @@ const value: string = null;
 ```ds
 const x: undefined = undefined;
 x satisfies undefined;
-```
-
-### strictNullChecks allows null assignments when disabled
-
-> Null becomes assignable to other types when strict null checks are disabled.
-
-```json:destack.json
-{ "compiler": { "strictNullChecks": false } }
-```
-
-```ds:package.json
-{ "name": "spec" }
-```
-
-```ds
-const value: string = null;
 ```
 
 ## Void

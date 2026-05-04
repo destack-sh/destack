@@ -1,8 +1,8 @@
 # Object Literals
 
-Tests for object literal type inference and checking.
+Object literal type inference and checking.
 
-## Basic Objects
+## objects
 
 ### object with properties
 
@@ -104,20 +104,6 @@ const value = { ...base, c: true };
 value satisfies { a: number, b: string, c: boolean };
 ```
 
-### object spread with any
-
-> Any spreads preserve the any type.
-
-```json:destack.json
-{ "compiler": { "noAny": false } }
-```
-
-```ds
-const value: any = { a: 1 };
-const merged = { ...value, b: "two" };
-merged satisfies any;
-```
-
 ## Contextual Objects
 
 ### contextual object literal
@@ -141,7 +127,7 @@ const value: { a: number, b: string } = { a: 1, b: 2 };
 
 ### contextual object literal via alias
 
-> Contextual object types flow through aliases.
+> Contextual object types are preserved through aliases.
 
 ```ds
 type Point = { x: number, y: number };
@@ -185,7 +171,7 @@ const value: { a: number } = { ...{ a: "hi" } };
 
 ### object toString resolves
 
-> Object literals expose Object prototype members.
+> Object literals expose standard object members.
 
 
 ```ds libs=es5

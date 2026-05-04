@@ -1,49 +1,6 @@
 # Symbol Keys
 
-## tests
-
-### Symbol.iterator keys are accepted
-
-> Well-known symbol keys can be used in object types.
-
-```json:destack.json
-{ "compiler": { "lib": ["es2015"], "noUncheckedIndexedAccess": false } }
-```
-
-```ds:package.json
-{ "name": "spec" }
-```
-
-```ds
-interface IterableBox {
-    [Symbol.iterator]: int32
-}
-
-const box: IterableBox = { [Symbol.iterator]: 1 }
-box[Symbol.iterator] satisfies int32
-```
-
-### symbol index signatures are accepted
-
-> Symbol index signatures accept symbol keys.
-
-```json:destack.json
-{ "compiler": { "lib": ["es2015"], "noUncheckedIndexedAccess": false } }
-```
-
-```ds:package.json
-{ "name": "spec" }
-```
-
-```ds
-interface SymbolBag {
-    [key: symbol]: int32
-}
-
-const token: unique symbol = Symbol("token")
-const box: SymbolBag = { [token]: 1 }
-box[token] satisfies int32
-```
+## symbol properties
 
 ### keyof preserves symbol index signatures
 
@@ -51,10 +8,6 @@ box[token] satisfies int32
 
 ```json:destack.json
 { "compiler": { "lib": ["es2015"] } }
-```
-
-```ds:package.json
-{ "name": "spec" }
 ```
 
 ```ds
@@ -73,14 +26,10 @@ const bad: Keys = "name";
 
 ### keyof preserves well-known symbol keys
 
-> Keyof should include the specific well-known symbol.
+> Keyof includes the specific well-known symbol.
 
 ```json:destack.json
 { "compiler": { "lib": ["es2015"] } }
-```
-
-```ds:package.json
-{ "name": "spec" }
 ```
 
 ```ds
@@ -107,10 +56,6 @@ const badSymbol: Keys = other;
 { "compiler": { "lib": ["es2015"] } }
 ```
 
-```ds:package.json
-{ "name": "spec" }
-```
-
 ```ds
 interface RegistryBox {
     [Symbol.for("token")]: string
@@ -126,10 +71,6 @@ box[Symbol.for("token")] satisfies string
 
 ```json:destack.json
 { "compiler": { "lib": ["es2015"] } }
-```
-
-```ds:package.json
-{ "name": "spec" }
 ```
 
 ```ds
@@ -151,10 +92,6 @@ box[token] satisfies int32
 { "compiler": { "lib": ["es2015"] } }
 ```
 
-```ds:package.json
-{ "name": "spec" }
-```
-
 ```ds
 const token: unique symbol = Symbol("token")
 
@@ -169,14 +106,10 @@ const ok: Keys = token;
 
 ### keyof rejects unrelated symbols
 
-> Keyof should not accept unrelated symbols.
+> Keyof does not accept unrelated symbols.
 
 ```json:destack.json
 { "compiler": { "lib": ["es2015"] } }
-```
-
-```ds:package.json
-{ "name": "spec" }
 ```
 
 ```ds

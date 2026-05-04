@@ -4,7 +4,7 @@
 
 ### direct object literals preserve discriminant freshness for excess checks
 
-A direct object-literal argument should stay fresh so excess property checking still runs at the call boundary.
+A direct object-literal argument stays fresh so excess property checking still runs at the call boundary.
 
 ```ts
 type Ready = { kind: "ready", payload: string };
@@ -18,7 +18,7 @@ use_ready({ kind: "ready", payload: "ok", extra: true });
 
 ### variable indirection drops freshness for excess checks
 
-Once the same literal flows through a variable binding, freshness should be dropped and excess checks should relax.
+Once the same literal flows through a variable binding, freshness is dropped and excess checks relaxes.
 
 ```ts
 type Ready = { kind: "ready", payload: string };
@@ -31,7 +31,7 @@ use_ready(input);
 
 ### const assertions preserve nested literal members through wrappers
 
-`as const` wrappers should preserve nested literal member precision across generic wrapper calls.
+`as const` wrappers preserve nested literal member precision across generic wrapper calls.
 
 ```ts
 declare function pass<T>(value: T): T;
@@ -42,7 +42,7 @@ config.env.mode satisfies "dev";
 
 ### mutable wrappers widen nested literal members
 
-Mutable generic wrappers should commit nested literals to widened mutable member types.
+Mutable generic wrappers commit nested literals to widened mutable member types.
 
 ```ts
 declare function pass<T>(value: T): T;

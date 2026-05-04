@@ -1,6 +1,6 @@
 # Arbitrary width integers
 
-## tests
+## ranges
 
 ### intN accepts in-range literals
 

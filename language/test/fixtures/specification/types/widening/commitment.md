@@ -1,10 +1,10 @@
-# Widening Commitment Boundaries
+# Commitment
 
 ## literal retention
 
 ### const assertions keep nested literals through satisfies
 
-> `as const` values checked with `satisfies` should keep nested literal precision instead of widening.
+> `as const` values checked with `satisfies` keep nested literal precision instead of widening.
 
 ```ts
 const value = ({ env: { mode: "dev" } } as const) satisfies { env: { mode: string } };
@@ -14,7 +14,7 @@ value.env.mode satisfies "dev";
 
 ### generic const wrappers preserve literal precision
 
-> Generic wrappers over readonly inputs should preserve literal precision through commitment boundaries.
+> Generic wrappers over readonly inputs preserve literal precision when the value is assigned.
 
 ```ts
 declare function freeze<const T>(value: T): T;
@@ -28,7 +28,7 @@ value.level satisfies 1;
 
 ### mutable generic wrappers widen object literal members
 
-> Passing literals through mutable generic wrappers should commit members to widened mutable types.
+> Passing literals through mutable generic wrappers widens members to mutable types.
 
 ```ts
 declare function hold<T>(value: T): T;
@@ -41,7 +41,7 @@ value.kind satisfies "ready";
 
 ### mutable spread targets widen readonly source literals
 
-> Spreading readonly sources into mutable object targets should widen member literals at the target commitment site.
+> Spreading readonly sources into mutable object targets widens member literals at the assignment site.
 
 ```ts
 const base = { kind: "ready" } as const;
@@ -56,7 +56,7 @@ value.kind satisfies "ready";
 
 ### direct fresh literals reject excess fields at commitment
 
-> A fresh literal committed directly against a target type should still trigger excess property rejection.
+> A fresh literal passed directly to a target type still triggers excess property rejection.
 
 ```ts
 type Ready = { kind: "ready"; payload: string };
@@ -70,7 +70,7 @@ accept({ kind: "ready", payload: "ok", extra: true });
 
 ### stale values remain assignable after variable commitment
 
-> The same shape, once stale through variable commitment, should remain assignable despite extra properties.
+> The same shape, once held in a variable, remains assignable despite extra properties.
 
 ```ts
 type Ready = { kind: "ready"; payload: string };

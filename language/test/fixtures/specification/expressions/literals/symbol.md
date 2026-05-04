@@ -1,8 +1,8 @@
 # Symbol Literals
 
-Tests for symbol values and member access.
+Symbol values and member access.
 
-## Basic Symbols
+## symbols
 
 ### symbol constructor
 
@@ -17,7 +17,7 @@ const x: symbol = Symbol("id");
 
 ### symbol toString resolves
 
-> Symbols expose Symbol prototype members.
+> Symbols expose Symbol standard members.
 
 ```ds libs=es2015
 const value: symbol = Symbol("id");

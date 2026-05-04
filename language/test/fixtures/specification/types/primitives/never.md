@@ -1,6 +1,6 @@
 # Never Type
 
-Tests for the `never` type (bottom type).
+The `never` type (bottom type).
 
 ## Never is Assignable to Everything
 
@@ -46,7 +46,7 @@ const x: never = "no";
 
 ### union with never simplifies to the other member
 
-> Unions with never should simplify to the non-never member.
+> Unions with never simplifies to the non-never member.
 
 ```ds
 type Value = never | string;

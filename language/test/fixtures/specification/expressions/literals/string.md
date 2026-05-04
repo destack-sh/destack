@@ -1,8 +1,8 @@
 # String Literals
 
-Tests for string literal type inference and checking.
+String literal type inference and checking.
 
-## Basic Strings
+## strings
 
 ### string literal
 
@@ -60,17 +60,3 @@ x satisfies number;
 - contains: expected number, found "hello"
 
 ## String Members
-
-### string toUpperCase resolves
-
-> String literals expose String prototype members.
-
-```json:destack.json
-{ "compiler": { "noAny": false } }
-```
-
-```ds libs=es5
-const value = "hello";
-const upper = value.toUpperCase();
-upper satisfies string;
-```

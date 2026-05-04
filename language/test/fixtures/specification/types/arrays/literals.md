@@ -27,8 +27,8 @@ values satisfies int32[];
 > Fixed-size array annotations accept literals with matching lengths.
 
 ```ds
-const pair: int32[2] = [1, 2];
-pair satisfies int32[2];
+const pair: [int32; 2] = [1, 2];
+pair satisfies [int32; 2];
 ```
 
 ### fixed array annotations reject mismatched literal lengths
@@ -36,7 +36,7 @@ pair satisfies int32[2];
 > Fixed-size array annotations reject literals with mismatched lengths.
 
 ```ds
-const pair: int32[2] = [1, 2, 3];
+const pair: [int32; 2] = [1, 2, 3];
 ```
 
 - contains: not assignable
@@ -46,8 +46,8 @@ const pair: int32[2] = [1, 2, 3];
 > Nested fixed-size array annotations accept matching nested literal shapes.
 
 ```ds
-const matrix: int32[2][2] = [[1, 2], [3, 4]];
-matrix satisfies int32[2][2];
+const matrix: [[int32; 2]; 2] = [[1, 2], [3, 4]];
+matrix satisfies [[int32; 2]; 2];
 ```
 
 ### nested fixed array annotations reject mismatched nested lengths
@@ -55,7 +55,7 @@ matrix satisfies int32[2][2];
 > Nested fixed-size array annotations reject mismatched nested literal shapes.
 
 ```ds
-const matrix: int32[2][2] = [[1, 2], [3]];
+const matrix: [[int32; 2]; 2] = [[1, 2], [3]];
 ```
 
 - contains: not assignable

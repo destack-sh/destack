@@ -1,8 +1,8 @@
 # Boolean Literals
 
-Tests for boolean literal type inference and checking.
+Boolean literal type inference and checking.
 
-## Basic Booleans
+## booleans
 
 ### true literal
 
@@ -77,7 +77,7 @@ x satisfies string;
 
 ### boolean toString resolves
 
-> Boolean literals expose Boolean prototype members.
+> Boolean literals expose Boolean standard members.
 
 
 ```ds libs=es5

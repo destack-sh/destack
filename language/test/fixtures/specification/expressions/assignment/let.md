@@ -36,7 +36,7 @@ count satisfies number;
 
 ### let bindings reject incompatible assignment
 
-> Let bindings still enforce assignment compatibility.
+> Let bindings still enforce declared type rules.
 
 ```ds
 let value: number = 1;

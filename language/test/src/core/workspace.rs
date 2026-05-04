@@ -399,6 +399,6 @@ fn materialize_workspace_root(repository: Arc<Repository>, root: &Path) {
     .expect("failed to create workspace session");
 
     session
-        .import_from_fs(session.head())
+        .reload_from_fs(session.head())
         .unwrap_or_else(|error| panic!("failed to materialize workspace root: {error}"));
 }

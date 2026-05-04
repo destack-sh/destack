@@ -1,6 +1,6 @@
 # Literal Widening
 
-Tests for TypeScript-style literal widening, freshness, and const contexts.
+Literal widening, freshness, and const contexts.
 
 ## Local bindings
 
@@ -156,7 +156,7 @@ value satisfies 1;
 
 - contains: not assignable
 
-## Cross module surfaces
+## Imports
 
 ### exported const literals keep literal types across modules
 
@@ -234,7 +234,7 @@ config.version satisfies 1;
 
 ### renamed re-export const literals keep literal types across modules
 
-Renamed re-exports should preserve exported const literal precision.
+Renamed re-exports preserve exported const literal precision.
 
 ```ts:values.ts
 export const version = 1;
@@ -252,7 +252,7 @@ publicVersion satisfies 1;
 
 ### export-star forwarded let literals still widen across modules
 
-Export-star forwarding should preserve widened `let` literal behavior.
+Export-star forwarding preserves widened `let` literal behavior.
 
 ```ts:values.ts
 export let counter = 1;
@@ -270,7 +270,7 @@ counter satisfies number;
 
 ### namespace imports preserve const assertion literal members
 
-Namespace imports should preserve const assertion literal member precision.
+Namespace imports preserve const assertion literal member precision.
 
 ```ts:values.ts
 export const config = { version: 1 } as const;
@@ -319,7 +319,7 @@ const value = seed;
 value satisfies string;
 ```
 
-## inference interactions
+## generic inference
 
 ### const literal arguments keep literal precision through generic inference
 
@@ -360,7 +360,7 @@ result satisfies "users";
 
 ### constrained generic arguments keep literal precision
 
-Constrained generic inference regularizes literal arguments instead of widening at binding commitment.
+A constrained generic call can infer a literal type from an argument that would otherwise widen in a mutable binding.
 
 ```ds
 declare function as_lit<T extends string>(value: T): T;
@@ -369,9 +369,9 @@ let value = as_lit("users");
 value satisfies "users";
 ```
 
-### constrained generic regularization does not consume source freshness
+### constrained generic calls do not block later widening
 
-Constrained generic regularization should not mutate unrelated later commitment points.
+Using a const literal in a constrained call does not change a later mutable binding from the same source.
 
 ```ds
 declare function as_lit<T extends string>(value: T): T;
@@ -384,9 +384,9 @@ kept satisfies "users";
 widened satisfies string;
 ```
 
-### constrained generic regularization still allows later widening
+### constrained generic calls still widen later lets
 
-Later let commitments from the same source should still widen after constrained generic calls.
+A later `let` binding from the same const source still widens.
 
 ```ds
 declare function as_lit<T extends string>(value: T): T;
@@ -400,9 +400,9 @@ widened satisfies "users";
 
 - contains: not assignable
 
-### constrained generic regularization through alias chains keeps source widenability
+### alias chains do not block later widening
 
-Alias chains should not consume source freshness for later commitment points.
+Alias chains keep the later mutable binding behavior.
 
 ```ds
 declare function as_lit<T extends string>(value: T): T;
@@ -416,9 +416,9 @@ kept satisfies "users";
 widened satisfies string;
 ```
 
-### constrained generic regularization through alias chains still widens later lets
+### alias chains still widen later lets
 
-Alias chain calls should still allow widening at later let commitments.
+Alias chain calls still allow later `let` bindings to widen.
 
 ```ds
 declare function as_lit<T extends string>(value: T): T;
@@ -433,9 +433,9 @@ widened satisfies "users";
 
 - contains: not assignable
 
-### constrained generic regularization on tuple elements keeps source widenability
+### tuple element calls keep later binding behavior
 
-Tuple element constrained calls should not consume source freshness for later let commitments.
+Constrained calls from tuple elements do not change later bindings from the same element.
 
 ```ds
 declare function as_lit<T extends string>(value: T): T;
@@ -448,9 +448,9 @@ kept satisfies "users";
 widened satisfies "users";
 ```
 
-### constrained generic regularization on tuple elements rejects unrelated literals
+### tuple element calls reject unrelated literals
 
-Tuple element constrained calls should still reject unrelated literals.
+Tuple element constrained calls still reject unrelated literals.
 
 ```ds
 declare function as_lit<T extends string>(value: T): T;
@@ -464,9 +464,9 @@ widened satisfies "posts";
 
 - contains: not assignable
 
-### constrained template argument inference keeps source widenability
+### constrained template inference does not block later widening
 
-Template constrained calls should not consume source freshness for later let commitments.
+Template constrained calls do not change later `let` bindings from the same source.
 
 ```ds
 declare function identity_span<T extends string>(value: `${T}`): T;
@@ -481,7 +481,7 @@ widened satisfies string;
 
 ### constrained template argument inference still widens later lets
 
-Template constrained calls should still allow widening at later let commitments.
+Template constrained calls still allow later `let` bindings to widen.
 
 ```ds
 declare function identity_span<T extends string>(value: `${T}`): T;
@@ -495,9 +495,9 @@ widened satisfies "users";
 
 - contains: not assignable
 
-### constrained overload paths keep source widenability
+### constrained overloads do not block later widening
 
-Constrained overload resolution should not consume source freshness for later let commitments.
+Constrained overload resolution does not change later `let` bindings from the same source.
 
 ```ds
 declare function overload_lit<T extends string>(value: T): T;
@@ -513,7 +513,7 @@ widened satisfies string;
 
 ### constrained overload paths still widen later lets
 
-Constrained overload resolution should still allow widening at later let commitments.
+Constrained overload resolution still allows later `let` bindings to widen.
 
 ```ds
 declare function overload_lit<T extends string>(value: T): T;
@@ -528,9 +528,9 @@ widened satisfies "users";
 
 - contains: not assignable
 
-### repeated constrained calls keep source widenability
+### repeated constrained calls do not block later widening
 
-Multiple constrained calls from one source should not consume later let widening.
+Multiple constrained calls from one source do not consume later let widening.
 
 ```ds
 declare function as_lit<T extends string>(value: T): T;
@@ -547,7 +547,7 @@ widened satisfies string;
 
 ### repeated constrained calls still widen later lets
 
-Multiple constrained calls should still allow widening at later let commitments.
+Multiple constrained calls still allow later `let` bindings to widen.
 
 ```ds
 declare function as_lit<T extends string>(value: T): T;
@@ -562,9 +562,9 @@ widened satisfies "users";
 
 - contains: not assignable
 
-### cross module constrained generic calls keep source widenability
+### cross module constrained calls do not block later widening
 
-Constrained generic calls across module boundaries should not consume local source freshness.
+Constrained generic calls across module boundaries do not change later local widening.
 
 ```ds:lib.ds
 export function as_lit<T extends string>(value: T): T {
@@ -585,7 +585,7 @@ widened satisfies string;
 
 ### cross module constrained generic calls still widen later lets
 
-Cross module constrained generic calls should still allow widening at later let commitments.
+Cross-module constrained generic calls still allow later `let` bindings to widen.
 
 ```ds:lib.ds
 export function as_lit<T extends string>(value: T): T {
@@ -605,9 +605,9 @@ widened satisfies "users";
 
 - contains: not assignable
 
-### constrained generic member paths keep source widenability
+### constrained member paths do not block later widening
 
-Constrained calls through object member paths should not consume source freshness for later let commitments.
+Constrained calls through object member paths do not change later `let` bindings from the same source.
 
 ```ds
 declare function as_lit<T extends string>(value: T): T;
@@ -623,7 +623,7 @@ widened satisfies string;
 
 ### constrained generic member paths still widen later lets
 
-Constrained member-path calls should still allow widening at later let commitments.
+Constrained member-path calls still allow later `let` bindings to widen.
 
 ```ds
 declare function as_lit<T extends string>(value: T): T;
@@ -640,7 +640,7 @@ widened satisfies "users";
 
 ### constrained generic calls from parameter defaults keep widening behavior
 
-Parameter default commitment should remain widened even after constrained generic calls.
+Parameter default commitment remains widened even after constrained generic calls.
 
 ```ds
 declare function as_lit<T extends string>(value: T): T;
@@ -656,7 +656,7 @@ function read(mode = "users") {
 
 ### constrained generic calls from parameter defaults do not keep literals
 
-Parameter defaults should not keep narrow literals after constrained generic calls.
+Parameter defaults do not keep narrow literals after constrained generic calls.
 
 ```ds
 declare function as_lit<T extends string>(value: T): T;
@@ -673,7 +673,7 @@ function read(mode = "users") {
 
 ### satisfies boundary with constrained calls keeps later let widening
 
-Satisfies expressions should still widen later let commitments.
+Satisfies expressions still allow later `let` bindings to widen.
 
 ```ds
 declare function as_lit<T extends string>(value: T): T;
@@ -688,7 +688,7 @@ widened satisfies string;
 
 ### satisfies boundary with constrained calls does not keep literals
 
-Satisfies expressions should not keep narrow literals across later let commitments.
+Satisfies expressions do not keep narrow literals across later `let` bindings.
 
 ```ds
 declare function as_lit<T extends string>(value: T): T;
@@ -737,9 +737,9 @@ value satisfies "ready";
 
 - contains: not assignable
 
-### nested literal usage does not consume const source freshness
+### nested literal usage does not block later widening
 
-Using a const literal inside nested literal inference should not prevent later let commitment widening.
+Using a const literal inside nested literal inference does not prevent later let commitment widening.
 
 ```ds
 const seed = "ready";
@@ -805,7 +805,7 @@ mode satisfies "dev";
 
 ### nested function return inference widens literal returns
 
-Nested function declarations should widen unconstrained literal return values.
+Nested function declarations widen unconstrained literal return values.
 
 ```ts
 function outer() {
@@ -820,7 +820,7 @@ function outer() {
 
 ### nested function return inference does not keep literal returns
 
-Nested function declarations should not preserve literal return values by default.
+Nested function declarations do not preserve literal return values by default.
 
 ```ts
 function outer() {
@@ -837,7 +837,7 @@ function outer() {
 
 ### nested const to let commitment still widens after inner usage
 
-Using a const literal inside a nested function should not prevent later mutable widening.
+Using a const literal inside a nested function does not prevent later mutable widening.
 
 ```ds
 const seed = "ready";
@@ -852,7 +852,7 @@ widened satisfies string;
 
 ### nested const to let commitment does not keep literal after inner usage
 
-Nested reads should not keep mutable commitments pinned to the original literal.
+Nested reads do not keep mutable commitments pinned to the original literal.
 
 ```ds
 const seed = "ready";

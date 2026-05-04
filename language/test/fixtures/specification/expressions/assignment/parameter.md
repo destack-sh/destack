@@ -1,12 +1,10 @@
-# Parameter
+# Parameter Bindings
 
-Parameter binding mutability depends on the language.
+## reassignment
 
-## Destack
+### parameter bindings are mutable
 
-### parameter bindings default to mutable in destack
-
-> Destack parameters are mutable by default.
+> Parameters can be reassigned.
 
 ```ds
 function bump(x: number): void {
@@ -15,21 +13,9 @@ function bump(x: number): void {
 }
 ```
 
-## TypeScript
+### parameter assignments enforce declared types
 
-### parameter bindings default to mutable in typescript
-
-> TypeScript parameters are mutable by default.
-
-```ts:main.ts
-function bump(x: number): void {
-    x = 2;
-}
-```
-
-### parameter assignments still enforce parameter types in destack
-
-> Mutable parameter bindings still enforce declared parameter types.
+> Reassignment still checks the parameter type.
 
 ```ds
 function bump(x: number): void {
@@ -39,36 +25,13 @@ function bump(x: number): void {
 
 - contains: not assignable
 
-### parameter assignments still enforce parameter types in typescript
+### parameter bindings allow compound assignment
 
-> TypeScript mutable parameter bindings still enforce declared parameter types.
-
-```ts:main.ts
-function bump(x: number): void {
-    x = "no";
-}
-```
-
-- contains: not assignable
-
-### parameter bindings allow compound assignment in destack
-
-> Destack parameter bindings support compound assignment operators.
+> Parameter bindings support compound assignment operators.
 
 ```ds
 function bump(x: number): number {
     x += 2;
     x
-}
-```
-
-### parameter bindings allow compound assignment in typescript
-
-> TypeScript parameter bindings support compound assignment operators.
-
-```ts:main.ts
-function bump(x: number): number {
-    x += 2;
-    return x;
 }
 ```

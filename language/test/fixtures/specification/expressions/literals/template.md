@@ -2,14 +2,14 @@
 
 Template literal expressions are strings.
 
-## basic templates
+## templates
 
 ### template literal yields string
 
 > Template expressions evaluate to string values.
 
 ```ds
-let name = "Destack";
+let name = "Ada";
 let greeting = `hello ${name}`;
 ```
 

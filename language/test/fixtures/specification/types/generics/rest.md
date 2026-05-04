@@ -1,0 +1,71 @@
+# Rest Inference
+
+## partial application
+
+### partial application preserves tail tuple order
+
+> Variadic partial application infers the remaining tail tuple in original parameter order.
+
+```ts
+declare function partial<T extends readonly unknown[], U extends readonly unknown[], R>(
+    fn: (...args: [...T, ...U]) => R,
+    ...head: T
+): (...tail: U) => R;
+
+declare function join(a: "a", b: 1, c: true): "ok";
+
+const tail = partial(join, "a");
+const value = tail(1, true);
+value satisfies "ok";
+```
+
+### partial application rejects reordered tail arguments
+
+> A partially applied function rejects calls that provide the inferred tail arguments in the wrong order.
+
+```ts
+declare function partial<T extends readonly unknown[], U extends readonly unknown[], R>(
+    fn: (...args: [...T, ...U]) => R,
+    ...head: T
+): (...tail: U) => R;
+
+declare function join(a: "a", b: 1, c: true): "ok";
+
+const tail = partial(join, "a");
+tail(true, 1);
+```
+
+- type string is not assignable to type readonly unknown[]
+
+## rest inference
+
+### const rest inference preserves literal tuple elements
+
+> Rest inference from const tuple inputs keeps literal element types instead of widening to primitives.
+
+```ts
+declare function collect<const T extends readonly unknown[]>(...values: T): T;
+
+const value = collect("x", 1, true);
+value[0] satisfies "x";
+value[1] satisfies 1;
+value[2] satisfies true;
+```
+
+### mutable rest inference widens scalar tuple elements
+
+> Rest inference from mutable arrays widens scalar literals to their mutable primitive counterparts.
+
+```ts
+declare function collect<T extends readonly unknown[]>(...values: T): T;
+
+let first = "x";
+const value = collect(first, 1, true);
+value[0] satisfies "x";
+```
+
+- type string is not assignable to type readonly unknown[]
+
+```json:destack.json
+{ "compiler": { "allowTs": true, "checkTs": true } }
+```

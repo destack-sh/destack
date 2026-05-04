@@ -1,36 +1,36 @@
-# Arbitrary width floats
+# Float Types
 
-## tests
+## precision
 
-### floatN accepts literals
+### float32 accepts literals
 
-> Arbitrary width floats accept float literals.
+> `float32` accepts float literals.
 
 ```ds
-let value: float16 = 1.5;
+let value: float32 = 1.5;
 ```
 
-### floatN widens to larger floats
+### float32 widens to float64
 
-> Smaller floats widen to larger float widths.
+> `float32` widens to `float64`.
 
 ```ds
-let small: float16 = 1.5;
-let wide: float32 = small;
+let small: float32 = 1.5;
+let wide: float64 = small;
 ```
 
-### floatN does not narrow from larger floats
+### float64 does not narrow to float32
 
-> Larger floats do not narrow without an explicit conversion.
+> `float64` does not narrow to `float32` without an explicit conversion.
 
 ```ds
-let wide: float32 = 1.5;
-let narrow: float16 = wide;
+let wide: float64 = 1.5;
+let narrow: float32 = wide;
 ```
 
 - contains: not assignable
 
-### floatN does not implicitly convert to integers
+### floats do not implicitly convert to integers
 
 > Float values do not implicitly convert to integer types.
 
@@ -40,18 +40,7 @@ let value: int32 = 1.5;
 
 - contains: not assignable
 
-### floatN values can widen through multiple widths
-
-> Float values can widen transitively through increasing widths.
-
-```ds
-let small: float16 = 1.5;
-let medium: float32 = small;
-let large: float64 = medium;
-large satisfies float64;
-```
-
-### floatN arithmetic keeps float compatibility
+### float arithmetic stays float-typed
 
 > Float arithmetic results remain compatible with float targets.
 

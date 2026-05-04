@@ -1,6 +1,6 @@
 # Numeric Widening
 
-Tests for implicit numeric type widening.
+Implicit numeric type widening.
 
 ## Integer Widening
 
@@ -16,7 +16,7 @@ takeInt16(smallInteger);
 
 ### int32 to int64
 
-> int32 can widen to int64.
+> Int32 can widen to int64.
 
 ```ds
 function takeInt64(value: int64): void {}

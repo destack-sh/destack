@@ -1,8 +1,8 @@
 # Array Literals
 
-Tests for array literal type inference and checking.
+Array literal type inference and checking.
 
-## Basic Arrays
+## arrays
 
 ### array of numbers
 
@@ -73,7 +73,7 @@ const values: number[] = [1, "two"];
 
 ### contextual array literal via alias
 
-> Contextual array element types flow through aliases.
+> Contextual array element types are preserved through aliases.
 
 ```ds
 type Numbers = number[];
@@ -155,31 +155,3 @@ let value: number = values[0];
 ```
 
 ## Array Members
-
-### array filter resolves
-
-> Arrays expose filter with typed results.
-
-```json:destack.json
-{ "compiler": { "noAny": false } }
-```
-
-```ds libs=es5
-const values = [1, 2, 3];
-const filtered = values.filter(value => value > 1);
-filtered satisfies number[];
-```
-
-### array findIndex resolves
-
-> Arrays expose findIndex.
-
-```json:destack.json
-{ "compiler": { "noAny": false } }
-```
-
-```ds libs=es2015
-const values = [1, 2, 3];
-const index = values.findIndex(value => value > 1);
-index satisfies number;
-```

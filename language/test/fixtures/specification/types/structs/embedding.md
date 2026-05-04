@@ -44,7 +44,7 @@ transform.y satisfies int32;
 
 ### struct embedding chains through nested structs
 
-> Nested embeds surface fields from embedded parents.
+> Nested embeds expose fields from embedded parents.
 
 ```ds
 struct Base {
@@ -69,7 +69,7 @@ outer.active satisfies boolean;
 
 ### struct embedding supports deeper chains
 
-> Deep embed chains continue to surface embedded fields.
+> Deep embed chains continue to expose embedded fields.
 
 ```ds
 struct Root {
@@ -118,7 +118,7 @@ const entity = Entity {};
 
 ### struct embedding rejects duplicate field declarations
 
-> Embedding should reject conflicts when embedded and local fields share names.
+> Embedding rejects conflicts when embedded and local fields share names.
 
 ```ds
 struct Transform {
