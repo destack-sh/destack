@@ -102,12 +102,10 @@ impl Interpreter {
         }
 
         // load callee entry metadata
-        let (entry_block_ptr, frame_layout) = unsafe {
+        let (entry_block, frame_layout) = unsafe {
             let callee = callee.as_ref();
-            let entry = callee.entry;
-            let entry_block = &callee.blocks[entry as usize];
 
-            (NonNull::from(entry_block), callee.frame_layout)
+            (callee.entry, callee.frame_layout)
         };
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
@@ -119,13 +117,13 @@ impl Interpreter {
             .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        caller_frame.resume_pc = resume_pc;
+        caller_frame.pc = resume_pc;
         caller_frame.exceptional_call = exceptional_call;
 
         let mut new_frame = Frame::new(
             unsafe { callee.as_ref().frame_layout },
             callee,
-            entry_block_ptr,
+            entry_block,
             frame_layout,
             stack_offset,
             frame_base,
@@ -174,12 +172,10 @@ impl Interpreter {
         env: Option<Word>,
     ) -> RuntimeResult<()> {
         // load the callee entry metadata first
-        let (entry_block_ptr, frame_layout) = unsafe {
+        let (entry_block, frame_layout) = unsafe {
             let callee_function = callee.as_ref();
-            let entry = callee_function.entry;
-            let entry_block = &callee_function.blocks[entry as usize];
 
-            (NonNull::from(entry_block), callee_function.frame_layout)
+            (callee_function.entry, callee_function.frame_layout)
         };
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
@@ -202,8 +198,8 @@ impl Interpreter {
 
         frame.frame_layout = unsafe { callee.as_ref().frame_layout };
         frame.function_ptr = callee;
-        frame.block_ptr = entry_block_ptr;
-        frame.resume_pc = 0;
+        frame.block = entry_block;
+        frame.pc = 0;
         frame.exceptional_call = None;
         frame.replace_bytes(stack_offset, frame_layout.byte_len as usize, frame_base);
         frame.set_environment(frame_layout, env);
@@ -296,7 +292,7 @@ impl Interpreter {
             }
 
             // leave the caller positioned after the imported call
-            frame.resume_pc = resume_pc;
+            frame.pc = resume_pc;
             return Ok(());
         }
 
@@ -372,8 +368,10 @@ impl Interpreter {
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
         // resume after the terminator once the branch call completes
-        let current_block = unsafe { caller.block_ptr.as_ref() };
-        let resume_pc = current_block.instructions.len();
+        let function = unsafe { caller.function_ptr.as_ref() };
+        let resume_pc = function
+            .block_len(caller.block)
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let exceptional_call = ExceptionalCall {
             normal_state,
             unwind_state,
@@ -465,11 +463,7 @@ impl Interpreter {
                 .frames
                 .last_mut()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-            let point = program.point(
-                caller.function(),
-                caller.current_block(),
-                caller.resume_pc as u32,
-            );
+            let point = program.point(caller.function(), caller.current_block(), caller.pc as u32);
             if let Some(destination) = program.return_destination_at(point)? {
                 let frame_layout = program
                     .frame_layout_by_id(caller.frame_layout)

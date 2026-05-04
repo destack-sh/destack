@@ -32,5 +32,10 @@ clap = { workspace = true, features = ["derive"] }
 criterion = { workspace = true }
 pprof = { workspace = true }
 
+[[bench]]
+name = "dispatch"
+path = "benches/dispatch/bench.rs"
+harness = false
+
 [lints]
 workspace = true

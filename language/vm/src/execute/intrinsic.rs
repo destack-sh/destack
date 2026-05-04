@@ -10,7 +10,7 @@ use crate::program::{
 };
 use crate::{RawPointer, Word};
 
-use crate::interpreter::DispatchState;
+use crate::interpreter::Machine;
 
 /// Intrinsic arguments decoded from one pooled argument range.
 struct IntrinsicArguments {
@@ -23,15 +23,15 @@ struct IntrinsicArguments {
 /// Collect intrinsic arguments for one call.
 #[inline]
 fn load_intrinsic_arguments(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     arguments: ArgumentRange,
 ) -> IntrinsicArguments {
-    let argument_slice = state.argument_slice(arguments);
+    let argument_slice = machine.argument_slice(arguments);
     let mut values = SmallVec::with_capacity(argument_slice.len());
     let mut words = SmallVec::with_capacity(argument_slice.len());
 
     for argument in argument_slice {
-        let word = state.get(*argument);
+        let word = machine.get(*argument);
 
         values.push(*argument);
         words.push(word);
@@ -42,21 +42,21 @@ fn load_intrinsic_arguments(
 
 /// Execute intrinsic call.
 pub(crate) fn execute_intrinsic(
-    state: &mut DispatchState<'_, '_>,
+    machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    // decode instruction operands
+    // decode side records
     let Intrinsic {
         dest,
         intrinsic,
         arguments,
-    } = instruction.payload_as::<Intrinsic>();
+    } = machine.side::<Intrinsic>(instruction);
 
     // resolve arguments
-    let arguments = load_intrinsic_arguments(state, *arguments);
+    let arguments = load_intrinsic_arguments(machine, *arguments);
 
     // execute intrinsic
-    match state.evaluate_intrinsic(
+    match machine.evaluate_intrinsic(
         *dest,
         *intrinsic,
         arguments.values.as_slice(),
@@ -64,12 +64,12 @@ pub(crate) fn execute_intrinsic(
     ) {
         Ok(result) => {
             if let Some(dest) = *dest {
-                let is_word = match state.value_is_word(dest) {
+                let is_word = match machine.value_is_word(dest) {
                     Ok(is_word) => is_word,
                     Err(error) => return Transfer::Error(error),
                 };
                 if is_word {
-                    state.set_word(dest, result);
+                    machine.set_word(dest, result);
                 } else if result != Word::VOID {
                     return Transfer::Error(Error::TypeMismatch {
                         expected: "word intrinsic destination".to_string(),
@@ -84,7 +84,7 @@ pub(crate) fn execute_intrinsic(
     }
 }
 
-impl DispatchState<'_, '_> {
+impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     /// Store one 2-field result in field order.
     fn store_pair(
         &mut self,
@@ -92,7 +92,7 @@ impl DispatchState<'_, '_> {
         first: Word,
         second: Word,
     ) -> RuntimeResult<Word> {
-        super::frame::store_frame_fields(self, destination, |_state, index, _ty| match index {
+        super::frame::store_frame_fields(self, destination, |_machine, index, _ty| match index {
             0 => Ok(first),
             1 => Ok(second),
             _ => Err(Error::InvalidInstruction),
@@ -269,7 +269,7 @@ impl DispatchState<'_, '_> {
         })
     }
 
-    /// Evaluate one intrinsic against the current interpreter and heap state.
+    /// Evaluate one intrinsic against the current interpreter and heap machine.
     pub(crate) fn evaluate_intrinsic(
         &mut self,
         destination: Option<mir::Value>,
@@ -1136,7 +1136,7 @@ impl DispatchState<'_, '_> {
         Ok(Word::int(result as i64, 32))
     }
 
-    // memory opcode helpers
+    // memory op helpers
 
     /// Copy one raw byte range.
     fn copy_memory(
@@ -1706,11 +1706,11 @@ impl DispatchState<'_, '_> {
 
     /// Get the return address (synthetic).
     fn return_address(&self) -> RuntimeResult<Word> {
-        if self.engine.frames.len() < 2 {
+        if self.interpreter.frames.len() < 2 {
             return Ok(Word::uint(0, 64));
         }
 
-        let caller_frame = &self.engine.frames[self.engine.frames.len() - 2];
+        let caller_frame = &self.interpreter.frames[self.interpreter.frames.len() - 2];
         let func_id = caller_frame.function().id as u64;
         let block_id = caller_frame.current_block().id as u64;
 
@@ -1720,7 +1720,7 @@ impl DispatchState<'_, '_> {
 
     /// Get the frame address (synthetic).
     fn frame_address(&self) -> RuntimeResult<Word> {
-        let frame_idx = self.engine.frames.len() as u64;
+        let frame_idx = self.interpreter.frames.len() as u64;
         let synthetic_addr = 0x7FFF_0000_0000_0000u64 | frame_idx;
         Ok(Word::uint(synthetic_addr, 64))
     }

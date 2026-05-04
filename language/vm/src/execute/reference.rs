@@ -1,5 +1,5 @@
 use crate::diagnostic::Error;
-use crate::interpreter::DispatchState;
+use crate::interpreter::Machine;
 use crate::{ReferenceAddressSpace, ReferenceMeta};
 use destack_mir as mir;
 
@@ -42,11 +42,11 @@ fn immutable_reference_write(reference: ReferenceMeta) -> Error {
 /// Validate the declared reference address space.
 #[inline(always)]
 pub(crate) fn check_reference_address_space(
-    state: &DispatchState<'_, '_>,
+    machine: &Machine<'_, '_>,
     reference: ReferenceMeta,
 ) -> Result<(), Error> {
     // skip validation when the runtime checks are disabled
-    if !state.reference_kind_checks {
+    if !machine.reference_kind_checks {
         return Ok(());
     }
 
@@ -62,11 +62,11 @@ pub(crate) fn check_reference_address_space(
 /// Validate reference mutability for stores.
 #[inline(always)]
 pub(crate) fn check_reference_mutability(
-    state: &DispatchState<'_, '_>,
+    machine: &Machine<'_, '_>,
     reference: ReferenceMeta,
 ) -> Result<(), Error> {
     // skip validation when the runtime checks are disabled
-    if !state.reference_mutability_checks {
+    if !machine.reference_mutability_checks {
         return Ok(());
     }
 

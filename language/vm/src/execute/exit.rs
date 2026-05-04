@@ -69,11 +69,7 @@ impl Interpreter {
             .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let point = program.point(
-            caller.function(),
-            caller.current_block(),
-            caller.resume_pc as u32,
-        );
+        let point = program.point(caller.function(), caller.current_block(), caller.pc as u32);
         if let Some(destination) = program.return_destination_at(point)? {
             store_frame_value(program, caller, destination, returned).map_err(RuntimeError::new)?;
         }
@@ -88,7 +84,7 @@ impl Interpreter {
         value: Word,
     ) -> RuntimeResult<Option<Outcome>> {
         loop {
-            // discard one frame of live state first
+            // discard one frame of live machine first
             let frame = self
                 .frames
                 .pop()
