@@ -26,7 +26,7 @@ let value: number = while (true) {
 
 ### while allows continue in the loop body
 
-> Continue is valid in while loop bodies.
+> Continue is accepted in while loop bodies.
 
 ```ds
 let i = 0;
@@ -40,7 +40,7 @@ while (i < 3) {
 
 ### while allows break in the loop body
 
-> Break is valid in while loop bodies.
+> Break is accepted in while loop bodies.
 
 ```ds
 let i = 0;

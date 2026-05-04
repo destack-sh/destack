@@ -3,11 +3,11 @@
 Recursive type instantiation does not crash the compiler.
 Recursive instantiation produces a clear error when it does not converge.
 
-## Recursive aliases
+## recursive aliases
 
 ### direct recursive aliases are rejected
 
-> Direct recursive aliases is rejected with a recursion error.
+> Direct recursive aliases are rejected with a recursion error.
 
 ```ds
 type Loop<T> = Loop<T>;
@@ -15,9 +15,9 @@ type Loop<T> = Loop<T>;
 declare let value: Loop<number>;
 ```
 
-- recursive type instantiation
+- contains: recursive type instantiation
 
-## Recursive conditionals
+## recursive conditionals
 
 ### recursive conditionals report depth errors
 
@@ -29,7 +29,7 @@ type Recurse<T> = T extends string ? Recurse<T> : never;
 declare let value: Recurse<"x">;
 ```
 
-- recursive type instantiation
+- contains: recursive type instantiation
 
 ### mutually recursive aliases are rejected
 

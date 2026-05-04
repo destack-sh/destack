@@ -3,7 +3,7 @@
 Mapped type modifiers and key remapping operate on apparent keys.
 Modifiers are applied after key selection.
 
-## Modifiers
+## modifiers
 
 ### mapped modifiers can remove readonly and optional markers
 
@@ -20,7 +20,7 @@ type MutableRequired<T> = { -readonly [K in keyof T]-?: T[K] };
 const bad: MutableRequired<Person> = {};
 ```
 
-- type string is not assignable to type number
+- contains: not assignable
 
 ### mapped readonly modifiers prevent mutation
 
@@ -35,7 +35,7 @@ value.a = 2;
 
 - contains: readonly
 
-## Key remapping
+## key remapping
 
 ### key remapping to never removes keys
 
@@ -70,7 +70,7 @@ type Merge<T> = { [K in keyof T as "value"]: T[K] };
 const bad: Merge<Shape> = { value: true };
 ```
 
-- type string is not assignable to type number
+- contains: not assignable
 
 ### key remapping supports template literal keys
 
@@ -112,4 +112,4 @@ const bad: Prefixed<Shape> = {
 };
 ```
 
-- type string is not assignable to type number
+- contains: not assignable

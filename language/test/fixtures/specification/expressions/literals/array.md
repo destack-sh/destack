@@ -50,7 +50,7 @@ const x = [1, , 3];
 
 - contains: array literal holes
 
-## Contextual Arrays
+## contextual arrays
 
 ### contextual array literal
 
@@ -69,7 +69,7 @@ values satisfies number[];
 const values: number[] = [1, "two"];
 ```
 
-- type (number | string)[] is not assignable to type number[]
+- contains: not assignable
 
 ### contextual array literal via alias
 
@@ -92,7 +92,7 @@ type Numbers = number[];
 const values: Numbers = [1, "two"];
 ```
 
-- type (number | string)[] is not assignable to type Numbers
+- contains: not assignable
 
 ### contextual array spread literal
 
@@ -111,9 +111,9 @@ values satisfies number[];
 const values: number[] = [...[1, "two"]];
 ```
 
-- type (int32 | string)[] is not assignable to type number[]
+- contains: not assignable
 
-## Named Array Types
+## named array types
 
 ### Array<T> matches array syntax
 
@@ -131,7 +131,7 @@ const values: number[] = [1, 2, 3];
 values satisfies Array<number>;
 ```
 
-## Array Spreads
+## array spreads
 
 ### array spread preserves element types
 
@@ -154,4 +154,24 @@ const values = [1, 2, 3];
 let value: number = values[0];
 ```
 
-## Array Members
+## array members
+
+### array length resolves
+
+> Arrays expose length.
+
+```ds
+const values = [1, 2, 3];
+values.length satisfies int32;
+```
+
+### array push checks element types
+
+> Array mutation methods enforce element types.
+
+```ds libs=es5
+const values: number[] = [1, 2, 3];
+values.push("no");
+```
+
+- contains: not assignable

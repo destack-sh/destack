@@ -1,6 +1,6 @@
 # Multiply
 
-`*`, `*%`, and `*|` use numeric rules for builtin numbers and `Multiply` for receiver overloads.
+`*` supports receiver overloads, while `*%` and `*|` are builtin overflow-policy operators.
 
 ## numbers
 
@@ -12,7 +12,7 @@
 const value = 2 * 3;
 value satisfies 6;
 value satisfies int;
-value satisfies float;
+value satisfies float64;
 value satisfies number;
 ```
 
@@ -61,42 +61,26 @@ left * right;
 
 ## wrapping
 
-### wrapping multiply uses Multiply
+### wrapping multiply is builtin integer arithmetic
 
-> `*%` uses the same receiver contract as `*`.
+> `*%` wraps modulo the integer range.
 
 ```ds
-struct Scalar { value: int }
+const a: uint8 = 250;
+const b: uint8 = 10;
 
-extension of Scalar implements Multiply<Scalar> {
-    multiply(other: Scalar): Scalar { return this }
-}
-
-declare function getScalar(): Scalar;
-
-const left = getScalar();
-const right = getScalar();
-
-const value = left *% right;
-value satisfies Scalar;
+const value = a *% b;
+value satisfies uint8;
 ```
 
-### saturating multiply uses Multiply
+### saturating multiply is builtin integer arithmetic
 
-> `*|` uses the same receiver contract as `*`.
+> `*|` clamps to the integer range.
 
 ```ds
-struct Scalar { value: int }
+const a: uint8 = 250;
+const b: uint8 = 10;
 
-extension of Scalar implements Multiply<Scalar> {
-    multiply(other: Scalar): Scalar { return this }
-}
-
-declare function getScalar(): Scalar;
-
-const left = getScalar();
-const right = getScalar();
-
-const value = left *| right;
-value satisfies Scalar;
+const value = a *| b;
+value satisfies uint8;
 ```

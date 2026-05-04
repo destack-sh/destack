@@ -30,11 +30,11 @@ let bad4: Big = " 1";
 let bad5: Big = "+0x1";
 ```
 
-- type "+1" is not assignable to type big
-- type "01" is not assignable to type big
-- type "1.5" is not assignable to type big
-- type " 1" is not assignable to type big
-- type "+0x1" is not assignable to type big
+- contains: not assignable
+- contains: not assignable
+- contains: not assignable
+- contains: not assignable
+- contains: not assignable
 
 ### template literal type accepts int span strings
 
@@ -58,8 +58,8 @@ let bad: Small = "128";
 let bad2: Small = "-0x1";
 ```
 
-- type "128" is not assignable to type small
-- type "-0x1" is not assignable to type small
+- contains: not assignable
+- contains: not assignable
 
 ### template literal type accepts number string forms
 
@@ -101,12 +101,12 @@ let bad9: Numeric = "1 ";
 let bad10: Numeric = " 0x1";
 ```
 
-- type "-0x1" is not assignable to type numeric
-- type "-0b10" is not assignable to type numeric
-- type "-0o7" is not assignable to type numeric
-- type "+0x1" is not assignable to type numeric
-- type "nan" is not assignable to type numeric
-- type "infinity" is not assignable to type numeric
-- type " 1" is not assignable to type numeric
-- type "1 " is not assignable to type numeric
-- type " 0x1" is not assignable to type numeric
+- contains: not assignable
+- contains: not assignable
+- contains: not assignable
+- contains: not assignable
+- contains: not assignable
+- contains: not assignable
+- contains: not assignable
+- contains: not assignable
+- contains: not assignable

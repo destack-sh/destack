@@ -38,4 +38,4 @@ const value = -getSigned();
 value satisfies Signed;
 ```
 
-- no matching overload for type Signed
+- contains: no matching overload for type Signed

@@ -396,7 +396,7 @@ class Derived extends Base {
 
 - contains: readonly
 
-## invalid members
+## rejections
 
 ### abstract fields cannot have initializers
 
@@ -408,7 +408,7 @@ abstract class Counter {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
 ### readonly does not apply to methods
 
@@ -422,7 +422,7 @@ class Counter {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
 ### readonly fields reject assignment
 
@@ -450,9 +450,9 @@ class Counter {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
-### override constructors are invalid
+### constructors cannot be override
 
 > Constructors cannot use override modifiers.
 
@@ -464,7 +464,7 @@ class Counter extends Base {
 }
 ```
 
-- invalid constructor
+- contains: invalid constructor
 
 ### abstract methods cannot have bodies
 
@@ -476,9 +476,9 @@ abstract class Counter {
 }
 ```
 
-- invalid abstract method
+- contains: invalid abstract method
 
-### static abstract methods are invalid
+### static methods cannot be abstract
 
 > Static methods cannot be abstract.
 
@@ -488,7 +488,7 @@ abstract class Counter {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
 ### constructors cannot have generic parameters
 
@@ -500,7 +500,7 @@ class Counter {
 }
 ```
 
-- invalid constructor
+- contains: invalid constructor
 
 ### declare methods cannot have bodies
 
@@ -512,9 +512,9 @@ class Counter {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
-### declare accessors are invalid
+### declare cannot apply to accessors
 
 > Declared members cannot use accessors.
 
@@ -524,9 +524,9 @@ class Counter {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
-### declare override is invalid
+### declare cannot combine with override
 
 > Declared members cannot be overrides.
 
@@ -540,7 +540,7 @@ class Counter extends Base {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
 ### index signatures cannot use modifiers
 
@@ -552,7 +552,7 @@ class Counter {
 }
 ```
 
-- invalid member modifier
+- contains: invalid member modifier
 
 ### static blocks cannot use modifiers
 
@@ -567,4 +567,4 @@ class Counter {
 }
 ```
 
-- static class blocks cannot have any modifier
+- contains: static class blocks cannot have any modifier

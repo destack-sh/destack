@@ -2,7 +2,7 @@
 
 The `never` type (bottom type).
 
-## Never is Assignable to Everything
+## never is assignable to everything
 
 ### never to number
 
@@ -22,7 +22,7 @@ function fail(): never { throw "error" }
 const x: string = fail()
 ```
 
-## Values Are Not Assignable to Never
+## values are not assignable to never
 
 ### number to never is rejected
 
@@ -32,7 +32,7 @@ const x: string = fail()
 const x: never = 1;
 ```
 
-- type "ok" is not assignable to type Value
+- contains: not assignable
 
 ### string to never is rejected
 
@@ -42,7 +42,7 @@ const x: never = 1;
 const x: never = "no";
 ```
 
-- type "ok" is not assignable to type Value
+- contains: not assignable
 
 ### union with never simplifies to the other member
 
@@ -65,4 +65,4 @@ type Value = never & string;
 const x: Value = "ok";
 ```
 
-- type "ok" is not assignable to type Value
+- contains: not assignable

@@ -1,6 +1,6 @@
 # Plus
 
-`+`, `+%`, and `+|` use numeric rules for builtin numbers and receiver contracts for overloads.
+`+` supports receiver overloads, while `+%` and `+|` are builtin overflow-policy operators.
 
 ## numbers
 
@@ -12,7 +12,7 @@
 const value = 1 + 2;
 value satisfies 3;
 value satisfies int;
-value satisfies float;
+value satisfies float64;
 value satisfies number;
 ```
 
@@ -76,7 +76,7 @@ const value = +getSigned();
 value satisfies Signed;
 ```
 
-- no matching overload for type Signed
+- contains: no matching overload for type Signed
 
 ### plus dispatches to Add
 
@@ -218,11 +218,71 @@ const value = counter + 1;
 value satisfies "number";
 ```
 
+### overlapping imported operators are ambiguous
+
+> Distinct imported operator implementations cannot silently order overlapping candidates.
+
+```ds:counter.ds
+export struct Counter {}
+```
+
+```ds:first.ds
+import { Counter } from "./counter";
+
+export extension FirstAdd of Counter implements Add<number> {
+    add(other: number): "first" { return "first" }
+}
+```
+
+```ds:second.ds
+import { Counter } from "./counter";
+
+export extension SecondAdd of Counter implements Add<number> {
+    add(other: number): "second" { return "second" }
+}
+```
+
+```ds:main.ds
+import { Counter } from "./counter";
+import { FirstAdd } from "./first";
+import { SecondAdd } from "./second";
+
+declare let counter: Counter;
+
+counter + 1;
+```
+
+- contains: ambiguous
+
 ## wrapping
 
-### wrapping plus uses Add
+### wrapping plus is builtin integer arithmetic
 
-> `+%` uses the same receiver contract as `+`.
+> `+%` wraps modulo the integer range.
+
+```ds
+const a: uint8 = 250;
+const b: uint8 = 10;
+
+const wrapped = a +% b;
+wrapped satisfies uint8;
+```
+
+### saturating plus is builtin integer arithmetic
+
+> `+|` clamps to the integer range.
+
+```ds
+const a: uint8 = 250;
+const b: uint8 = 10;
+
+const saturated = a +| b;
+saturated satisfies uint8;
+```
+
+### wrapping plus rejects user types
+
+> `+%` is not an overloadable operator.
 
 ```ds
 struct Scalar { value: int }
@@ -236,26 +296,7 @@ declare function getScalar(): Scalar;
 const left = getScalar();
 const right = getScalar();
 
-const wrapped = left +% right;
-wrapped satisfies Scalar;
+left +% right;
 ```
 
-### saturating plus uses Add
-
-> `+|` uses the same receiver contract as `+`.
-
-```ds
-struct Scalar { value: int }
-
-extension of Scalar implements Add<Scalar> {
-    add(other: Scalar): Scalar { return this }
-}
-
-declare function getScalar(): Scalar;
-
-const left = getScalar();
-const right = getScalar();
-
-const saturated = left +| right;
-saturated satisfies Scalar;
-```
+- contains: no matching overload

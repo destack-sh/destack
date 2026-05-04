@@ -2,7 +2,7 @@
 
 Guard shapes beyond nullish checks.
 
-## Typeof Guards
+## typeof guards
 
 ### typeof guard narrows to string
 
@@ -48,7 +48,7 @@ if (typeof value == "function") {
 }
 ```
 
-## Instanceof Guards
+## instanceof guards
 
 ### instanceof guard narrows to class
 
@@ -77,9 +77,9 @@ const value = Point { x: 1, y: 2 };
 const ok = value instanceof Point;
 ```
 
-- instanceof requires a class type
+- contains: instanceof requires a class type
 
-## In Guards
+## in guards
 
 ### in guard narrows to required key
 
@@ -96,7 +96,7 @@ function narrow(value: WithName | WithId): void {
 }
 ```
 
-## Is Guards
+## is guards
 
 ### is guard narrows to target type
 
@@ -125,7 +125,7 @@ const ok = value is Admin;
 ok satisfies boolean;
 ```
 
-## Assertion Guards
+## assertion guards
 
 ### asserts guards narrow after call
 

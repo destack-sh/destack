@@ -1,8 +1,8 @@
-# Members
+# Member Access
 
-## union members
+## unions
 
-### union member access yields shared type
+### union member access yields common type
 
 > Member access on unions yields a single type when all variants agree.
 
@@ -42,9 +42,9 @@ const id = getPerson().id;
 id satisfies int32 | string;
 ```
 
-### union member access fails through aliases
+### union member access rejects missing aliased members
 
-> Member access on unions fails if any aliased variant is missing the member.
+> Member access on unions is rejected if any aliased variant is missing the member.
 
 ```ds
 struct User {
@@ -62,11 +62,11 @@ declare function getPerson(): Person;
 getPerson().name;
 ```
 
-- property 'displayName' does not exist on type { displayName: string } | { id: int32 }
+- contains: does not exist
 
-### union member access fails through nullable aliases
+### union member access rejects nullable aliased members
 
-> Member access on unions fails when an aliased variant lacks the member.
+> Member access on unions is rejected when an aliased variant lacks the member.
 
 ```ds
 struct User {
@@ -80,7 +80,7 @@ declare function getPerson(): Person;
 getPerson().name;
 ```
 
-- property 'displayName' does not exist on type { displayName: string } | { id: int32 }
+- contains: does not exist
 
 ### union member access preserves optional member types
 
@@ -119,4 +119,4 @@ declare function getPerson(): User | Guest;
 getPerson().profile.displayName;
 ```
 
-- property 'displayName' does not exist on type { displayName: string } | { id: int32 }
+- contains: property 'displayName' does not exist on type { displayName: string } | { id: int32 }

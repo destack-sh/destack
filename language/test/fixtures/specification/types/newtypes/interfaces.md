@@ -1,6 +1,6 @@
 # Newtype Interfaces
 
-`newtype interface` nominal behavior.
+`newtype interface` nominal conformance.
 
 ## assignment
 
@@ -25,7 +25,7 @@ struct Vec2 {
 const value: Add<Vec2> = Vec2 { x: 0, y: 0 };
 ```
 
-- type Vec2 is not assignable to type Add<Vec2>
+- contains: not assignable
 
 ### nominal interface satisfied via implements
 
@@ -53,7 +53,7 @@ value.add(Vec2 { x: 1, y: 1 }) satisfies Vec2;
 
 ### nominal interface conformance is preserved through type aliases
 
-> Nominal interface conformance remains valid when referenced through type aliases.
+> Nominal interface conformance remains available through type aliases.
 
 ```ds
 newtype interface Add<T> {

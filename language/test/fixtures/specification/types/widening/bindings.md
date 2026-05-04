@@ -1,6 +1,6 @@
-# Commitment
+# Bindings
 
-## literal retention
+## const bindings
 
 ### const assertions keep nested literals through satisfies
 
@@ -24,7 +24,7 @@ value.kind satisfies "ready";
 value.level satisfies 1;
 ```
 
-## widening through mutability
+## mutable bindings
 
 ### mutable generic wrappers widen object literal members
 
@@ -52,9 +52,9 @@ value.kind satisfies "ready";
 
 - contains: not assignable
 
-## freshness and excess
+## object freshness
 
-### direct fresh literals reject excess fields at commitment
+### direct fresh literals reject excess fields at typed calls
 
 > A fresh literal passed directly to a target type still triggers excess property rejection.
 
@@ -68,7 +68,7 @@ accept({ kind: "ready", payload: "ok", extra: true });
 
 - contains: excess property
 
-### stale values remain assignable after variable commitment
+### stale values remain assignable after variable binding
 
 > The same shape, once held in a variable, remains assignable despite extra properties.
 

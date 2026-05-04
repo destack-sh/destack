@@ -91,7 +91,7 @@ class User {}
 
 - contains: missing
 
-## validation
+## rejections
 
 ### conflicting member hints are rejected
 

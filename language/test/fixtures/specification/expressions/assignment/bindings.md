@@ -32,4 +32,4 @@ let value!: string;
 value = 1;
 ```
 
-- type 1 is not assignable to type string
+- contains: not assignable

@@ -2,7 +2,7 @@
 
 Function declarations and type checking.
 
-## Function Declarations
+## function declarations
 
 ### function with no parameters
 
@@ -52,7 +52,7 @@ declare async function load(): void
 declare function* ids(): void
 ```
 
-## invalid declarations
+## rejections
 
 ### declare functions cannot have bodies
 
@@ -64,7 +64,7 @@ declare function greet(): string {
 }
 ```
 
-- invalid function
+- contains: invalid function
 
 ### arrow functions cannot declare explicit this parameters
 
@@ -74,17 +74,13 @@ declare function greet(): string {
 let f = (this: string) => {}
 ```
 
-- invalid function
+- contains: invalid function
 
-## noImplicitReturns
+## returns
 
-### noImplicitReturns rejects missing return in block body
+### block bodies reject missing returns
 
-> Not all code paths return a value when implicit returns are disabled.
-
-```json:destack.json
-{ "compiler": { "noImplicitReturns": true } }
-```
+> Not all code paths return a value.
 
 ```ds
 function example(value: number): number {
@@ -94,16 +90,12 @@ function example(value: number): number {
 }
 ```
 
-- missing return
+- contains: missing return
 - contains: not assignable
 
-### noImplicitReturns allows implicit return expression
+### tail expressions satisfy return types
 
 > Implicit return expressions satisfy the return requirement.
-
-```json:destack.json
-{ "compiler": { "noImplicitReturns": true } }
-```
 
 ```ds
 function example(value: number): number {
@@ -114,30 +106,22 @@ function example(value: number): number {
 }
 ```
 
-## noImplicitAny
+## implicit types
 
-### noImplicitAny rejects implicit parameter types
+### parameters require types
 
-> Parameters without annotations or defaults are implicit any when strict checking is enabled.
-
-```json:destack.json
-{ "compiler": { "noImplicitAny": true } }
-```
+> Parameters without annotations or defaults are implicit any and are rejected.
 
 ```ds
 function handle(value) {
 }
 ```
 
-- implicit any type
+- contains: implicit any type
 
-### noImplicitAny allows defaulted parameters
+### parameter defaults infer parameter types
 
 > Defaults provide an inferred parameter type.
-
-```json:destack.json
-{ "compiler": { "noImplicitAny": true } }
-```
 
 ```ds
 function handle(value = 1) {
@@ -145,29 +129,21 @@ function handle(value = 1) {
 }
 ```
 
-### noImplicitAny rejects uninitialized bindings
+### uninitialized bindings require annotations
 
 > Bindings without annotations or initializers are implicit any.
-
-```json:destack.json
-{ "compiler": { "noImplicitAny": true } }
-```
 
 ```ds
 let pending;
 ```
 
-- implicit any type
+- contains: implicit any type
 
-## noImplicitThis
+## this
 
-### noImplicitThis rejects implicit this in functions
+### functions reject implicit this
 
-> `this` inside functions requires an explicit `this` parameter in strict mode.
-
-```json:destack.json
-{ "compiler": { "noImplicitThis": true } }
-```
+> `this` inside functions requires an explicit `this` parameter.
 
 ```ds
 function counter() {
@@ -175,15 +151,11 @@ function counter() {
 }
 ```
 
-- implicit this type
+- contains: implicit this type
 
-### noImplicitThis allows explicit this parameters
+### explicit this parameters provide receiver types
 
 > Explicit `this` parameters provide a concrete type.
-
-```json:destack.json
-{ "compiler": { "noImplicitThis": true } }
-```
 
 ```ds
 function counter(this: { value: number }) {
@@ -191,13 +163,9 @@ function counter(this: { value: number }) {
 }
 ```
 
-### noImplicitThis allows implicit this in methods
+### methods provide implicit this
 
-> Member methods have an implicit `this` binding even in strict mode.
-
-```json:destack.json
-{ "compiler": { "noImplicitThis": true } }
-```
+> Member methods have an implicit `this` binding.
 
 ```ds
 class Counter {
@@ -209,13 +177,9 @@ class Counter {
 }
 ```
 
-### noImplicitThis allows implicit this in method lambdas
+### method lambdas capture this
 
 > Lambdas inside methods capture the lexical `this`.
-
-```json:destack.json
-{ "compiler": { "noImplicitThis": true } }
-```
 
 ```ds
 class Counter {
@@ -227,13 +191,9 @@ class Counter {
 }
 ```
 
-### noImplicitThis rejects implicit this in non-member lambdas
+### non-member lambdas reject implicit this
 
 > Lambdas outside methods require an explicit `this` parameter to use `this`.
-
-```json:destack.json
-{ "compiler": { "noImplicitThis": true } }
-```
 
 ```ds
 function make() {
@@ -241,9 +201,9 @@ function make() {
 }
 ```
 
-- implicit this type
+- contains: implicit this type
 
-## Arrow Functions
+## arrow functions
 
 ### arrow with no parameters
 
@@ -263,9 +223,7 @@ const add = (a: number, b: number): number => a + b;
 add satisfies (a: number, b: number) => number;
 ```
 
-## Function Members
-
-## Function Assignability
+## function assignability
 
 ### function value satisfies callable interface
 
@@ -293,7 +251,7 @@ const parse = (value: string): string => value;
 parse satisfies Fn;
 ```
 
-- contains: expected
+- contains: not assignable
 
 ### call signature object type accepts function value
 
@@ -313,7 +271,7 @@ const fn = (): string => "no";
 fn satisfies { (): number };
 ```
 
-- contains: expected
+- contains: not assignable
 
 ### callable interface satisfies call signature object type
 
@@ -328,7 +286,7 @@ const fn: Fn = (): number => 1;
 fn satisfies { (): number };
 ```
 
-## Declaration Files
+## declaration files
 
 ### declaration file overloads merge
 
@@ -346,9 +304,9 @@ apply("ok") satisfies number;
 apply(42) satisfies string;
 ```
 
-## strictFunctionTypes
+## parameter variance
 
-### strictFunctionTypes rejects narrow parameters
+### function assignment rejects narrow parameters
 
 ```ds
 interface FnWide {
@@ -364,4 +322,3 @@ let wide: FnWide = narrow
 ```
 
 - contains: not assignable
-

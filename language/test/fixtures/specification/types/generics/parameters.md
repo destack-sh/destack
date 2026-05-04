@@ -10,7 +10,7 @@
 type Bad<const T> = T;
 ```
 
-- invalid type parameter modifier
+- contains: invalid type parameter modifier
 
 ### in modifiers are allowed on type aliases
 

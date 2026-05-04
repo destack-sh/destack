@@ -4,9 +4,9 @@ Associated types are type members on nominal types and interfaces.
 
 ## members
 
-### type members can use owner generics
+### type members can use enclosing type generics
 
-> A type member can refer to generic parameters from its owner.
+> A type member can refer to generic parameters from its enclosing type.
 
 ```ds
 struct Box<T> {
@@ -20,7 +20,7 @@ value satisfies string;
 
 ### type members can use other type members
 
-> `this` names other static members on the same owner.
+> `this` names other static members on the same type.
 
 ```ds
 class Pair<T> {

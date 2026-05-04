@@ -11,14 +11,14 @@ let value: string | int32 = "ok";
 
 try {
     value = "next";
-} catch error {
+} catch (error) {
     value = 1;
 }
 
 value satisfies string;
 ```
 
-- type null is not assignable to type string
+- contains: not assignable
 
 ### catch assignments remove variant-specific members
 
@@ -34,7 +34,7 @@ try {
     if (state.kind == "ready") {
         state.payload satisfies string;
     }
-} catch error {
+} catch (error) {
     state = { kind: "idle" };
 }
 
@@ -52,7 +52,7 @@ let value: string | number = "ok";
 
 try {
     value = "next";
-} catch error {
+} catch (error) {
     value = 1;
 }
 
@@ -81,7 +81,7 @@ if (value != null) {
 }
 ```
 
-- type null is not assignable to type string
+- contains: not assignable
 
 ### finally alias writes invalidate prior dotted narrows
 
@@ -102,7 +102,7 @@ if (box.inner.value !== undefined) {
 }
 ```
 
-- type null is not assignable to type string
+- contains: not assignable
 
 ### finally helper writes invalidate prior null checks
 
@@ -126,7 +126,7 @@ if (value !== null) {
 }
 ```
 
-- type null is not assignable to type string
+- contains: not assignable
 
 ## loop writes
 

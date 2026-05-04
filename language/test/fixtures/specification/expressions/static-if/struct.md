@@ -2,7 +2,7 @@
 
 Static if gating on struct members.
 
-## Gating
+## gating
 
 ### static if gates struct members
 
@@ -90,4 +90,4 @@ const point = Point { y: 2 };
 point.y satisfies int32;
 ```
 
-- type { y: int32 } is not assignable to type { x: int32, y: int32 }
+- contains: not assignable

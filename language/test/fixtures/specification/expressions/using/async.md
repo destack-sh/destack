@@ -33,3 +33,38 @@ async function run(): Promise<void> {
     file satisfies File;
 }
 ```
+
+### await using accepts nullish resources
+
+> `null` and `undefined` are ignored by async resource cleanup.
+
+```ds
+async function run(): Promise<void> {
+    await using missing = null;
+    await using absent = undefined;
+}
+```
+
+### await using rejects non disposable values
+
+> `await using` still requires a disposable resource.
+
+```ds
+async function run(): Promise<void> {
+    await using value = 1;
+}
+```
+
+- contains: Dispose
+
+### await using requires async scopes
+
+> `await using` can only appear where `await` is allowed.
+
+```ds
+function run(): void {
+    await using value = null;
+}
+```
+
+- contains: await

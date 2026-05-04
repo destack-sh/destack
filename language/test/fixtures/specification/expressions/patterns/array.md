@@ -20,7 +20,7 @@ second satisfies int32;
 let [value]: number[];
 ```
 
-- destructuring declarations require initializers
+- contains: destructuring declarations require initializers
 
 ### array patterns cannot use named fields in `.ts` sources
 
@@ -30,7 +30,7 @@ let [value]: number[];
 let [x: y] = [1, 2];
 ```
 
-- named fields are not allowed in array or tuple patterns
+- contains: named fields are not allowed in array or tuple patterns
 
 ### array patterns bind readonly named identifiers
 
@@ -50,7 +50,7 @@ setReadonly satisfies number;
 let [value] = 1;
 ```
 
-- not iterable
+- contains: not iterable
 
 ## defaults
 
@@ -83,6 +83,18 @@ let [value = "no"]: int32[] = [];
 let [head, ...tail] = [1, 2, 3];
 head satisfies int32;
 tail satisfies int32[];
+```
+
+### slice rest binds trailing elements
+
+> Slice rest patterns keep the tail as a slice.
+
+```ds
+declare const values: [int32];
+
+let [head, ...tail] = values;
+head satisfies int32;
+tail satisfies [int32];
 ```
 
 ### array rest must be last

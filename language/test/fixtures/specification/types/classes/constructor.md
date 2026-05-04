@@ -14,7 +14,7 @@ class Counter {
 }
 ```
 
-- property is not definitely assigned
+- contains: property is not definitely assigned
 
 ### constructor assigns all fields
 
@@ -59,11 +59,11 @@ class Counter {
     value: number;
 
     constructor(flag: boolean) {
-        if flag {
+        if (flag) {
             this.value = 1;
         }
     }
 }
 ```
 
-- property is not definitely assigned
+- contains: property is not definitely assigned

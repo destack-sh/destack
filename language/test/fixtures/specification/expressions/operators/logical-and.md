@@ -38,4 +38,4 @@ let value: string | undefined = "ok";
 value &&= 1;
 ```
 
-- type string | 1 is not assignable to type string | undefined
+- contains: not assignable

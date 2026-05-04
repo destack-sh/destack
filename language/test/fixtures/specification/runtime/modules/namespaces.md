@@ -61,7 +61,7 @@ import { Item } from "./index";
 Item;
 ```
 
-- type-only symbol cannot be used as a value
+- contains: type-only symbol cannot be used as a value
 
 ### namespace aliases keep type checks
 
@@ -88,7 +88,7 @@ segment satisfies "users";
 { "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
-## Namespace Imports
+## namespace imports
 
 ### namespace imports keep value shapes
 

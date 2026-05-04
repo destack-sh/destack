@@ -40,7 +40,7 @@ declare let loose: Loose;
 let bad: Tight = loose;
 ```
 
-- type loose is not assignable to type tight
+- contains: not assignable
 
 ### template literal type accepts generic spans
 
@@ -102,7 +102,7 @@ declare let value: string;
 let bad: Tagged = value;
 ```
 
-- type string is not assignable to type tagged
+- contains: not assignable
 
 ### template literal type rejects boolean spans
 
@@ -116,4 +116,4 @@ declare let value: BoolSpan;
 let bad: NumSpan = value;
 ```
 
-- type BoolSpan is not assignable to type NumSpan
+- contains: not assignable

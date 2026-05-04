@@ -2,7 +2,7 @@
 
 Static if gating on extension members.
 
-## Gating
+## gating
 
 ### static if gates extension members
 

@@ -120,7 +120,7 @@ clone({ copy() {} });
 
 ### where rejects inferred arguments
 
-> Inference fails when an inferred type does not satisfy a `where` constraint.
+> Inference rejects inferred types that do not satisfy a `where` constraint.
 
 ```ds
 interface Copy {

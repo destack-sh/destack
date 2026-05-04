@@ -3,11 +3,11 @@
 The satisfies operator applies contextual typing while preserving the expression type.
 It does not widen away useful literal information when a const context is present.
 
-## Contextual typing
+## contextual typing
 
 ### satisfies provides contextual typing for lambdas
 
-> Lambdas inside satisfies is contextually typed by the target type.
+> Lambdas inside `satisfies` are contextually typed by the target type.
 
 ```ds
 type Handler = { run: (value: number) => number };
@@ -35,7 +35,7 @@ handler.run("no");
 
 - contains: not assignable
 
-## Literal preservation
+## literal preservation
 
 ### satisfies preserves literal members under const bindings
 
@@ -116,7 +116,7 @@ const config = {
 config.next(1) satisfies number;
 ```
 
-## assignment target behavior
+## assignment targets
 
 ### satisfies expressions are not assignment targets
 
@@ -127,4 +127,4 @@ let value = 1;
 (value satisfies number) = 2;
 ```
 
-- invalid assignment target
+- contains: invalid assignment target

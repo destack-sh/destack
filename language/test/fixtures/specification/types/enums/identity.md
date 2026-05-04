@@ -27,4 +27,4 @@ import { Status as RightStatus } from "./right.ds";
 const value: LeftStatus = RightStatus.Active;
 ```
 
-- type Status is not assignable to type Status
+- contains: not assignable

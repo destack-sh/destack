@@ -35,7 +35,7 @@ const tail = partial(join, "a");
 tail(true, 1);
 ```
 
-- type string is not assignable to type readonly unknown[]
+- contains: not assignable
 
 ## rest inference
 
@@ -64,7 +64,7 @@ const value = collect(first, 1, true);
 value[0] satisfies "x";
 ```
 
-- type string is not assignable to type readonly unknown[]
+- contains: not assignable
 
 ```json:destack.json
 { "compiler": { "allowTs": true, "checkTs": true } }

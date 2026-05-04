@@ -34,3 +34,24 @@ const right = getBits();
 const value = left ^ right;
 value satisfies Bits;
 ```
+
+### bitwise xor requires Xor
+
+> `^` requires a matching `Xor` implementation.
+
+```ds
+struct Bits { value: int }
+
+extension of Bits implements And<Bits> {
+    and(other: Bits): Bits { return this }
+}
+
+declare function getBits(): Bits;
+
+const left = getBits();
+const right = getBits();
+
+left ^ right;
+```
+
+- contains: no matching overload

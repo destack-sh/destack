@@ -28,7 +28,7 @@ const bag = { a: 1, b: "two" };
 bag satisfies Bag;
 ```
 
-- expected Bag
+- contains: not assignable
 
 ### satisfies preserves literal type for index access
 
@@ -56,7 +56,7 @@ const bag = { a: 1 } satisfies Bag;
 let value = bag["missing"];
 ```
 
-- indexing non-indexable
+- contains: indexing non-indexable
 
 ## number index signatures
 
@@ -112,7 +112,7 @@ const bag: NumberBag = { 1: "one" };
 let value = bag["missing"];
 ```
 
-- indexing non-indexable
+- contains: indexing non-indexable
 
 ## record-like assignability
 
@@ -152,11 +152,11 @@ let bag: Bag = mixed;
 
 - contains: not assignable
 
-## noUncheckedIndexedAccess
+## indexed access
 
-### noUncheckedIndexedAccess adds undefined to index access
+### index signature reads include undefined
 
-> Index signature access includes undefined when noUncheckedIndexedAccess is true.
+> Index signature access includes undefined because the key may be absent.
 
 ```ds:main.ds
 interface Bag {
@@ -167,19 +167,11 @@ const bag: Bag = { a: 1 };
 let value: int32 = bag["a"];
 ```
 
-```json:destack.json
-{ "compiler": { "noUncheckedIndexedAccess": true } }
-```
-
 - contains: not assignable
 
 ## property access
 
-### noPropertyAccessFromIndexSignature forbids dot access
-
-```json:destack.json
-{ "compiler": { "noPropertyAccessFromIndexSignature": true } }
-```
+### index signatures reject dot access
 
 ```ds
 interface Bag {
@@ -191,14 +183,3 @@ let value = bag.missing
 ```
 
 - contains: only available via index signature
-
-### dot access from index signature is allowed by default
-
-```ts:main.ts
-interface Bag {
-    [key: string]: number
-}
-
-const bag: Bag = { a: 1 }
-let value = bag.missing
-```

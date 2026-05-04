@@ -2,7 +2,7 @@
 
 `as` asserts the expression type to the target type when the source and target overlap.
 
-## valid
+## assertions
 
 ### as preserves the asserted type
 
@@ -53,7 +53,7 @@ const narrowed = value as { x: number };
 narrowed satisfies { x: number };
 ```
 
-## invalid
+## rejections
 
 ### as rejects unrelated types
 
@@ -64,7 +64,7 @@ const value: string = "hello";
 const numberValue = value as number;
 ```
 
-- cannot cast type string to number
+- contains: cannot cast type string to number
 
 ### as rejects boolean to number
 
@@ -75,4 +75,4 @@ const value: boolean = true;
 const numberValue = value as number;
 ```
 
-- cannot cast type boolean to number
+- contains: cannot cast type boolean to number

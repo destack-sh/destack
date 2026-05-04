@@ -9,7 +9,7 @@
 ```ds
 try {
     throw "boom";
-} catch e {
+} catch (e) {
     e = "fix";
 }
 ```
@@ -21,7 +21,7 @@ try {
 ```ds
 try {
     throw "boom";
-} catch e {
+} catch (e) {
     if (typeof e === "string") {
         e = e.toUpperCase();
     }
@@ -54,4 +54,4 @@ try {
 }
 ```
 
-- catch type annotations must be unknown
+- contains: catch type annotations must be unknown

@@ -47,7 +47,7 @@ const status = 1 as Status;
 status satisfies Status;
 ```
 
-### integer to enum assignment is invalid
+### enums reject integer assignment
 
 > Integer values do not implicitly coerce to enums.
 
@@ -107,7 +107,7 @@ const flavor = "sweet" as Flavor;
 flavor satisfies Flavor;
 ```
 
-### mixed enum values are invalid
+### enums reject mixed values
 
 > Enum members must agree on backing type.
 

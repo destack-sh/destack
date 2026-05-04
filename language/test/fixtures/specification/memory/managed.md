@@ -17,7 +17,7 @@ function run(): void {
 }
 ```
 
-- managed memory is disabled
+- contains: managed memory is disabled
 
 ### noManaged allows owned values
 
@@ -50,7 +50,7 @@ function run(): void {
 }
 ```
 
-- managed memory is disabled
+- contains: managed memory is disabled
 
 ### noManaged rejects managed parameter types
 
@@ -66,7 +66,7 @@ function take(value: Box): void {
 }
 ```
 
-- managed memory is disabled
+- contains: managed memory is disabled
 
 ### noManaged rejects managed return types
 
@@ -83,4 +83,4 @@ function make(): Box {
 }
 ```
 
-- managed memory is disabled
+- contains: managed memory is disabled

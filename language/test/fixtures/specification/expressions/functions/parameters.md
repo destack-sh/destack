@@ -114,10 +114,10 @@ function spawnChild(...[src, { syncSnapshot = false } = {}]: SpawnArguments): bo
 }
 ```
 
-- named fields are not allowed in array or tuple patterns
+- contains: named fields are not allowed in array or tuple patterns
 
 
-## invalid parameter properties
+## parameter property rejections
 
 ### function parameters cannot be parameter properties
 
@@ -130,7 +130,7 @@ function build(public value: number) {
 
 - contains: parameter property
 
-## invalid optional parameters
+## optional parameter rejections
 
 ### optional pattern parameters are rejected in `.ts` sources
 
@@ -146,7 +146,7 @@ function handle({ value }?: Payload) {
 }
 ```
 
-- optional parameters cannot use binding patterns
+- contains: optional parameters cannot use binding patterns
 
 ### optional rest parameters are rejected in `.ts` sources
 
@@ -158,18 +158,4 @@ function collect(...items?: string[]) {
 }
 ```
 
-- optional rest parameters are not allowed
-
-## this parameters
-
-### this parameters shape call contexts
-
-> Explicit this parameters enforce call context types.
-
-```ds
-function log(this: { prefix: string }, value: string): string {
-    return this.prefix + value;
-}
-
-log.call({ prefix: ">" }, "ok") satisfies string;
-```
+- contains: optional rest parameters are not allowed

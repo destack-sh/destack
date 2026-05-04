@@ -1,8 +1,8 @@
 # If Let Patterns
 
-If let patterns supports tuple, fixed array, ownership, and union forms.
+If let patterns support tuple, fixed array, ownership, and union forms.
 
-## Tuple patterns
+## tuple patterns
 
 ### if let tuple patterns bind tuple elements
 
@@ -11,13 +11,13 @@ If let patterns supports tuple, fixed array, ownership, and union forms.
 ```ds
 declare const pair: (int32, int32);
 
-if let (left, right) = pair {
+if (let (left, right) = pair) {
     left satisfies int32;
     right satisfies int32;
 }
 ```
 
-## Fixed arrays
+## fixed arrays
 
 ### if let array patterns bind fixed array elements
 
@@ -26,13 +26,13 @@ if let (left, right) = pair {
 ```ds
 declare const pair: [int32; 2];
 
-if let [left, right] = pair {
+if (let [left, right] = pair) {
     left satisfies int32;
     right satisfies int32;
 }
 ```
 
-## Rest patterns
+## rest patterns
 
 ### if let rest tuple patterns bind remaining elements
 
@@ -41,7 +41,7 @@ if let [left, right] = pair {
 ```ds
 declare const values: (int32, int32, int32);
 
-if let (first, ...rest) = values {
+if (let (first, ...rest) = values) {
     first satisfies int32;
     rest satisfies (int32, int32);
 }
@@ -49,14 +49,14 @@ if let (first, ...rest) = values {
 
 ### if let rest array patterns bind remaining elements
 
-> Rest array patterns bind the remaining elements as an array.
+> Rest fixed-array patterns bind the remaining elements as a fixed array.
 
 ```ds
 declare const values: [int32; 3];
 
-if let [first, ...rest] = values {
+if (let [first, ...rest] = values) {
     first satisfies int32;
-    rest satisfies int32[];
+    rest satisfies [int32; 2];
 }
 ```
 
@@ -69,13 +69,13 @@ type Config = { enabled: boolean, retries: int32 };
 
 declare const config: Config;
 
-if let { enabled, ...rest } = config {
+if (let { enabled, ...rest } = config) {
     enabled satisfies boolean;
     rest satisfies { retries: int32 };
 }
 ```
 
-## Must patterns
+## must patterns
 
 ### if let must patterns unwrap non nullish values
 
@@ -84,14 +84,14 @@ if let { enabled, ...rest } = config {
 ```ds
 declare const value: int32 | null;
 
-if let x! = value {
+if (let x! = value) {
     x satisfies int32;
 } else {
-    value satisfies null | undefined;
+    value satisfies null;
 }
 ```
 
-## Ownership patterns
+## ownership patterns
 
 ### if let value patterns bind owned values
 
@@ -100,7 +100,7 @@ if let x! = value {
 ```ds
 declare const value: ^int32;
 
-if let ^x = value {
+if (let ^x = value) {
     x satisfies ^int32;
 }
 ```
@@ -112,12 +112,12 @@ if let ^x = value {
 ```ds
 declare const value: &int32;
 
-if let &x = value {
+if (let &x = value) {
     x satisfies &int32;
 }
 ```
 
-## Newtype patterns
+## newtype patterns
 
 ### if let scalar newtype patterns bind inner values
 
@@ -128,7 +128,7 @@ newtype UserId = int64;
 
 declare const id: UserId;
 
-if let UserId(value) = id {
+if (let UserId(value) = id) {
     value satisfies int64;
 }
 ```
@@ -142,7 +142,7 @@ newtype Point = (float32, float32);
 
 declare const point: Point;
 
-if let Point(x, y) = point {
+if (let Point(x, y) = point) {
     x satisfies float32;
     y satisfies float32;
 }
@@ -157,7 +157,7 @@ newtype UserId = int64;
 
 declare const id: UserId;
 
-if let UserId(value = 1) = id {
+if (let UserId(value = 1) = id) {
     value satisfies int64;
 }
 ```
@@ -171,7 +171,7 @@ newtype UserId = int64;
 
 declare const id: UserId;
 
-if let UserId(value = missing_default) = id {
+if (let UserId(value = missing_default) = id) {
     value;
 }
 ```
@@ -188,7 +188,7 @@ newtype Config = { debug: boolean };
 
 declare const config: Config;
 
-if let Config { debug } = config {
+if (let Config { debug } = config) {
     debug satisfies boolean;
 }
 ```
@@ -202,14 +202,14 @@ newtype Config = { debug: boolean };
 
 declare const config: Config;
 
-if let { debug } = config {
+if (let { debug } = config) {
     debug
 }
 ```
 
 - contains: not assignable
 
-## Struct patterns
+## struct patterns
 
 ### if let struct patterns require tags
 
@@ -223,7 +223,7 @@ struct Point {
 
 declare const point: Point;
 
-if let Point { x, y } = point {
+if (let Point { x, y } = point) {
     x satisfies int32;
     y satisfies int32;
 }
@@ -241,14 +241,14 @@ struct Point {
 
 declare const point: Point;
 
-if let { x, y } = point {
+if (let { x, y } = point) {
     x
 }
 ```
 
 - contains: not assignable
 
-## Enum patterns
+## enum patterns
 
 ### if let enum patterns narrow to variants
 
@@ -262,14 +262,14 @@ enum State {
 
 declare const state: State;
 
-if let State.Ready = state {
+if (let State.Ready = state) {
     state satisfies State.Ready;
 } else {
     state satisfies State.Failed;
 }
 ```
 
-## Union patterns
+## union patterns
 
 ### if let union patterns narrow to covered literals
 
@@ -278,7 +278,7 @@ if let State.Ready = state {
 ```ds
 declare const value: 1 | 2 | 3;
 
-if let 1 | 2 = value {
+if (let 1 | 2 = value) {
     value satisfies 1 | 2;
 } else {
     value satisfies 3;

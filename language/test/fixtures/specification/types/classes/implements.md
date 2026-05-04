@@ -4,7 +4,7 @@ Interface implementation using `implements`.
 
 ## implementation
 
-### implementor assignable to interface
+### implementation is assignable to interface
 
 > A class that implements an interface is assignable to the interface type.
 
@@ -22,7 +22,7 @@ declare function getDocument(): Document;
 const printable: Printable = getDocument();
 ```
 
-### implementor satisfies interface
+### implementation satisfies interface
 
 > A class that implements an interface satisfies the interface type.
 
@@ -40,9 +40,9 @@ declare function getDocument(): Document;
 getDocument() satisfies Printable;
 ```
 
-### interface not assignable to implementor
+### interface not assignable to implementation
 
-> An interface type is not assignable to a concrete implementor type.
+> An interface type is not assignable to a concrete implementation type.
 
 ```ds
 interface Printable {
@@ -58,11 +58,11 @@ declare function getPrintable(): Printable;
 const document: Document = getPrintable();
 ```
 
-- type Printable is not assignable to type Document
+- contains: not assignable
 
-## Function Parameters
+## function parameters
 
-### implementor passed to interface parameter
+### implementation passed to interface parameter
 
 > A class can be passed where its implemented interface is expected.
 
@@ -82,7 +82,7 @@ declare function getDocument(): Document;
 acceptPrintable(getDocument());
 ```
 
-## Multiple Interfaces
+## multiple interfaces
 
 ### multiple interfaces implemented
 
@@ -108,7 +108,7 @@ const printable: Printable = getDocument();
 const saveable: Saveable = getDocument();
 ```
 
-## Mixed Inheritance
+## mixed inheritance
 
 ### class extends and implements
 
@@ -171,7 +171,7 @@ declare function getDocument(): Document;
 const hasId: HasId = getDocument();
 ```
 
-- type Document is not assignable to type HasId
+- contains: not assignable
 
 ### struct without implements assignable to interface
 
@@ -212,7 +212,7 @@ declare function getUser(): User;
 const named: Named = getUser();
 ```
 
-## invalid implements
+## rejections
 
 ### classes cannot declare empty implements clauses
 
@@ -223,4 +223,4 @@ class Counter implements {
 }
 ```
 
-- invalid lineage
+- contains: invalid lineage

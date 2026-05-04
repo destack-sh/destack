@@ -49,4 +49,4 @@ const value = ~getBits();
 value satisfies Bits;
 ```
 
-- no matching overload for type Bits
+- contains: no matching overload for type Bits

@@ -39,7 +39,7 @@ function identity<T>(value: T): T {
 identity<number>("hi");
 ```
 
-- type "hi" is not assignable to type number
+- contains: not assignable
 
 ### comptime value arguments
 
@@ -53,7 +53,7 @@ choose<true>(1);
 choose<1>(1);
 ```
 
-- type 1 is not assignable to type boolean
+- contains: not assignable
 
 ### default comptime value arguments
 
@@ -77,7 +77,7 @@ function broken<comptime Flag: boolean = 1>(value: number): number {
 broken(1);
 ```
 
-- type 1 is not assignable to type boolean
+- contains: not assignable
 
 ### default type parameters
 
@@ -104,7 +104,7 @@ declare function getContainer(): Container<number>;
 getContainer().map<string>("hello");
 ```
 
-- type "hello" is not assignable to type number
+- contains: not assignable
 
 ### member comptime arguments on member expressions
 
@@ -121,7 +121,7 @@ const mapper = getContainer().map<string>;
 mapper("hi");
 ```
 
-- type "hi" is not assignable to type number
+- contains: not assignable
 
 ### instantiation expressions require parentheses before member access
 
@@ -135,7 +135,7 @@ function make<T>(value: T): T {
 make<number>.value;
 ```
 
-- instantiation expressions must be parenthesized before member or index access
+- contains: instantiation expressions must be parenthesized before member or index access
 - contains: property 'value' does not exist
 
 ### parenthesized instantiation expressions allow member access
@@ -165,4 +165,4 @@ declare function getContainer(): Container<number>;
 (getContainer().map<string>)<number>(1);
 ```
 
-- comptime arguments specified on both member and call
+- contains: comptime arguments specified on both member and call

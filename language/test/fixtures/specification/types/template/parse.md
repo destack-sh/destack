@@ -34,7 +34,7 @@ declare function parse<T extends bigint>(value: `${T}`): T;
 let bad = parse("+1");
 ```
 
-- type "+1" is not assignable to type `${bigint}`
+- contains: not assignable
 
 ### template literal infers constrained int literal
 
@@ -57,7 +57,7 @@ declare function parse<T extends int8>(value: `${T}`): T;
 let bad = parse("128");
 ```
 
-- type "128" is not assignable to type `${int8}`
+- contains: not assignable
 
 ### template literal rejects non numeric string for number span
 
@@ -69,7 +69,7 @@ declare function parse<T extends number>(value: `${T}`): T;
 let bad = parse("no");
 ```
 
-- type "no" is not assignable to type `${number}`
+- contains: not assignable
 
 ### template literal infers non canonical number span as number
 
@@ -141,8 +141,8 @@ let bad = parseBig("01");
 let bad2 = parseBig("+1");
 ```
 
-- type "01" is not assignable to type `${bigint}`
-- type "+1" is not assignable to type `${bigint}`
+- contains: not assignable
+- contains: not assignable
 
 ### template literal rejects invalid bigint string leading zeros
 
@@ -154,7 +154,7 @@ declare function parseBig<T extends bigint>(value: `${T}`): T;
 let bad = parseBig("01");
 ```
 
-- type "01" is not assignable to type `${bigint}`
+- contains: not assignable
 
 ### template literal rejects invalid bigint string plus sign
 
@@ -166,4 +166,4 @@ declare function parseBig<T extends bigint>(value: `${T}`): T;
 let bad = parseBig("+1");
 ```
 
-- type "+1" is not assignable to type `${bigint}`
+- contains: not assignable

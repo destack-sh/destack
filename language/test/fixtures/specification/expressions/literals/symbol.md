@@ -13,7 +13,7 @@ Symbol values and member access.
 const x: symbol = Symbol("id");
 ```
 
-## Symbol Members
+## symbol members
 
 ### symbol toString resolves
 
@@ -33,7 +33,7 @@ text satisfies string;
 const value: string = Symbol("id");
 ```
 
-- type symbol is not assignable to type number
+- contains: not assignable
 
 ### symbol values compose with symbol unions
 
@@ -52,4 +52,4 @@ value satisfies symbol | string;
 const value: number = Symbol("id");
 ```
 
-- type symbol is not assignable to type number
+- contains: not assignable

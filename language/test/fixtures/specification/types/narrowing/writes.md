@@ -19,7 +19,7 @@ if (value != null) {
 }
 ```
 
-- expected string, found string | null (not assignable)
+- contains: not assignable
 
 ### assignment invalidates discriminant member availability
 
@@ -62,7 +62,7 @@ while (true) {
 value satisfies "a";
 ```
 
-- expected string, found string | null (not assignable)
+- contains: not assignable
 
 ### branch joins preserve only intersection of branch guarantees
 

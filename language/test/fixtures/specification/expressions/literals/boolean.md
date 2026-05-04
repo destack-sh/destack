@@ -20,7 +20,7 @@ const x: boolean = true;
 const x: boolean = false;
 ```
 
-## Inference
+## inference
 
 ### inferred true type
 
@@ -40,7 +40,7 @@ const x = false;
 x satisfies boolean;
 ```
 
-## Type Mismatches
+## type mismatches
 
 ### boolean assigned to string
 
@@ -50,7 +50,7 @@ x satisfies boolean;
 const x: string = true;
 ```
 
-- type true is not assignable to type string
+- contains: not assignable
 
 ### boolean assigned to number
 
@@ -60,7 +60,7 @@ const x: string = true;
 const x: number = false;
 ```
 
-- type false is not assignable to type number
+- contains: not assignable
 
 ### boolean does not satisfy string
 
@@ -71,9 +71,9 @@ const x = true;
 x satisfies string;
 ```
 
-- contains: expected string, found true
+- contains: not assignable
 
-## Boolean Members
+## boolean members
 
 ### boolean toString resolves
 

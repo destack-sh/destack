@@ -1,6 +1,6 @@
-# Function Overloading
+# Function Dispatch
 
-Function overloads are selected from declared signatures in declaration order.
+Function dispatch selects overloads from declared signatures in declaration order.
 
 ## signatures
 
@@ -79,7 +79,7 @@ function parse(value: string): string {
 }
 ```
 
-- duplicate overload signature
+- contains: duplicate overload signature
 
 ## selection
 
@@ -118,7 +118,7 @@ selected satisfies string;
 selected satisfies "json";
 ```
 
-- expected "json", found string
+- contains: not assignable
 
 ### union arguments require a matching union overload
 
@@ -175,7 +175,7 @@ result satisfies string;
 result satisfies "ready";
 ```
 
-- expected "ready", found string
+- contains: not assignable
 
 ### narrow overloads can be placed before generic overloads
 

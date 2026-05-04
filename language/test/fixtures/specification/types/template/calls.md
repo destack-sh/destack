@@ -60,7 +60,7 @@ declare function take<T extends "a" | "b">(value: `prefix-${T}`): T;
 let bad = take("prefix-c");
 ```
 
-- type "prefix-c" is not assignable to type `prefix-${"a" | "b"}`
+- contains: not assignable
 
 ### template literal infers from template literal parameters
 
@@ -99,7 +99,7 @@ let ok = take("a");
 ok satisfies "";
 ```
 
-## literal precision behavior
+## literal precision
 
 ### template literal argument inference keeps const literal precision
 
@@ -114,7 +114,7 @@ const result = parse(value);
 result satisfies "users";
 ```
 
-## cross-module literal precision behavior
+## imports
 
 ### imported template parser keeps const literal precision
 
@@ -152,7 +152,7 @@ let value = "id:users";
 parse(value);
 ```
 
-- not assignable to type `id:${string}`
+- contains: not assignable to type `id:${string}`
 
 ### imported generic `${T}` parser keeps const scalar precision
 
@@ -197,7 +197,7 @@ let value = "id:users";
 parse(value);
 ```
 
-- not assignable to type `id:${string}`
+- contains: not assignable to type `id:${string}`
 
 ### template literal argument inference accepts widened let scalar inputs for `${T}`
 
@@ -282,7 +282,7 @@ let value = "id:users";
 parse(value);
 ```
 
-- not assignable to type `id:${string}`
+- contains: not assignable to type `id:${string}`
 
 ### namespace import generic `${T}` parser keeps const scalar precision
 
@@ -327,7 +327,7 @@ let value = true ? "id:users" : "id:posts";
 parse(value);
 ```
 
-- not assignable to type `id:${string}`
+- contains: not assignable to type `id:${string}`
 
 ### renamed re-export generic `${T}` parser keeps const precision
 
@@ -412,4 +412,4 @@ let config = { id: "id:users" };
 parse(config.id);
 ```
 
-- not assignable to type `id:${string}`
+- contains: not assignable to type `id:${string}`

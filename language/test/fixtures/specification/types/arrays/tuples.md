@@ -1,7 +1,7 @@
 # Tuple Types
 
 Tuple types use parenthesized syntax in `.ds`: `(T, U)`.
-Bracket tuple syntax remains valid in `.ts` files and is not the `.ds` tuple form.
+Bracket tuple syntax remains accepted in `.ts` files and is not the `.ds` tuple form.
 
 ## positional typing
 
@@ -21,7 +21,7 @@ const pair: (int32, string) = (1, "hello");
 const pair: (int32, string) = (1);
 ```
 
-- type int32[] is not assignable to type (int32, int32)
+- contains: not assignable
 
 ### parenthesized tuple positional element types are enforced
 
@@ -41,7 +41,7 @@ const pair: (int32, string) = ("one", 2);
 const pair: [int32, string] = [1, "hello"];
 ```
 
-- contains: expected
+- contains: tuple
 
 ### nested tuples preserve nested element types
 

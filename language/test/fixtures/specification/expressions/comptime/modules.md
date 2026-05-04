@@ -4,7 +4,7 @@
 
 ### module-level comptime block is allowed
 
-> Module-level comptime blocks are valid declarations.
+> Module-level comptime blocks are accepted declarations.
 
 ```ds
 comptime {

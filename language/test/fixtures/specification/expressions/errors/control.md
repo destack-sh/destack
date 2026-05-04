@@ -2,7 +2,7 @@
 
 ## expressions
 
-### try expression without catch is invalid
+### try expressions require catch or finally
 
 > A try expression requires a catch or finally block.
 
@@ -35,7 +35,7 @@ value satisfies int;
 ```ds
 const value = try {
     1
-} catch e {
+} catch (e) {
     e satisfies unknown;
     "fallback"
 };
@@ -66,7 +66,7 @@ value satisfies int;
 ```ds
 const value = try {
     1
-} catch e {
+} catch (e) {
     e satisfies unknown;
     "fallback"
 } finally {

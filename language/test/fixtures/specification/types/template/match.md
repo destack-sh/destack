@@ -32,7 +32,7 @@ type Id = `user-${number}`;
 let bad: Id = "user-abc";
 ```
 
-- type "user-abc" is not assignable to type id
+- contains: not assignable
 
 ### template literal type accepts string
 
@@ -90,7 +90,7 @@ type NeverString = `${never}`;
 let bad: NeverString = "value";
 ```
 
-- type "value" is not assignable to type neverstring
+- contains: not assignable
 
 ### template literal type collapses never spans
 
@@ -103,7 +103,7 @@ type Result = IsNever<`${never}`>;
 let ok: Result = true;
 ```
 
-### template literal type collapses never spans rejects false
+### collapsed never spans reject false
 
 > Normalized `never` rejects false.
 
@@ -114,7 +114,9 @@ type Result = IsNever<`${never}`>;
 let bad: Result = false;
 ```
 
-- type false is not assignable to type result
+- contains: not assignable
+
+- contains: not assignable
 
 ### template literal type accepts null literal strings
 
@@ -136,7 +138,7 @@ type NullString = `${null}`;
 let bad: NullString = "nil";
 ```
 
-- type "nil" is not assignable to type nullstring
+- contains: not assignable
 
 ### template literal type accepts undefined literal strings
 
@@ -158,7 +160,7 @@ type UndefinedString = `${undefined}`;
 let bad: UndefinedString = "defined";
 ```
 
-- type "defined" is not assignable to type undefinedstring
+- contains: not assignable
 
 ### template literal type accepts boolean literal strings
 
@@ -181,7 +183,7 @@ type Flag = `${boolean}`;
 let bad: Flag = "yes";
 ```
 
-- type "yes" is not assignable to type flag
+- contains: not assignable
 
 ### template literal type accepts union member strings
 
@@ -214,7 +216,7 @@ type Direction = `${"up" | "down"}`;
 let bad: Direction = "left";
 ```
 
-- type "left" is not assignable to type direction
+- contains: not assignable
 
 ### template literal type accepts nested templates
 
@@ -236,7 +238,7 @@ type Nested = `prefix-${`id-${number}`}`;
 let bad: Nested = "prefix-id-a";
 ```
 
-- type "prefix-id-a" is not assignable to type nested
+- contains: not assignable
 
 ### template literal type accepts union templates
 
@@ -258,4 +260,4 @@ type Combo = `foo-${string}` | `bar-${string}`;
 let bad: Combo = "baz-x";
 ```
 
-- type "baz-x" is not assignable to type combo
+- contains: not assignable

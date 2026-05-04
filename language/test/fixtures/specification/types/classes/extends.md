@@ -40,7 +40,7 @@ declare function getAnimal(): Animal;
 const dog: Dog = getAnimal();
 ```
 
-- type Animal is not assignable to type Dog
+- contains: not assignable
 
 ### child satisfies parent
 
@@ -78,9 +78,9 @@ declare function getAnimal(): Animal;
 getAnimal() satisfies Dog;
 ```
 
-- expected Dog, found Animal
+- contains: not assignable
 
-## Multi-level Inheritance
+## multi-level inheritance
 
 ### grandchild assignable to grandparent
 
@@ -148,9 +148,9 @@ declare function getAnimal(): Animal;
 const labrador: Labrador = getAnimal();
 ```
 
-- type Animal is not assignable to type Labrador
+- contains: not assignable
 
-## Function Parameters
+## function parameters
 
 ### child passed to parent parameter
 
@@ -192,9 +192,9 @@ declare function getAnimal(): Animal;
 acceptDog(getAnimal());
 ```
 
-- type Animal is not assignable to type Dog
+- contains: not assignable
 
-## Sibling Classes
+## sibling classes
 
 ### sibling not assignable
 
@@ -218,9 +218,9 @@ declare function getDog(): Dog;
 const cat: Cat = getDog();
 ```
 
-- type Dog is not assignable to type Cat
+- contains: not assignable
 
-## invalid extends
+## rejections
 
 ### classes cannot extend multiple parents
 
@@ -233,7 +233,7 @@ class Second {}
 class Combined extends First, Second {}
 ```
 
-- invalid lineage
+- contains: invalid lineage
 
 ### classes cannot declare empty extends clauses
 
@@ -244,7 +244,7 @@ class Counter extends {
 }
 ```
 
-- invalid lineage
+- contains: invalid lineage
 
 ### structs cannot use extends
 
@@ -256,4 +256,4 @@ struct Base {}
 struct Counter extends Base {}
 ```
 
-- invalid lineage
+- contains: invalid lineage

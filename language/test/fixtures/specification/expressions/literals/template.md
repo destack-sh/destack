@@ -29,7 +29,7 @@ let greeting: string = `hello`;
 let value: number = `hello`;
 ```
 
-- type int32 is not assignable to type string
+- contains: not assignable
 
 ## tagged templates
 
@@ -53,7 +53,7 @@ declare function tag(strings: TemplateStringsArray, value: string): string;
 let result = tag`value=${1}`;
 ```
 
-- type int32 is not assignable to type string
+- contains: not assignable
 
 ### tagged template return type is not widened
 
@@ -65,4 +65,4 @@ declare function tag(strings: TemplateStringsArray): int32;
 let result: string = tag`value`;
 ```
 
-- type int32 is not assignable to type string
+- contains: not assignable

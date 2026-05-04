@@ -1,6 +1,6 @@
-# Calls
+# Union Dispatch
 
-## union methods
+## methods
 
 ### union method call selects compatible overloads
 

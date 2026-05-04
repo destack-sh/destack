@@ -35,7 +35,7 @@ const value: Result<int, string> = Ok { value: 1 };
 ```ds
 const value: Result<int, string> = Result.ok(1);
 
-if (value.kind == "ok") {
+if (value.kind == "Ok") {
     value.value satisfies int;
 } else {
     value.error satisfies string;

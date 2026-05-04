@@ -1,6 +1,6 @@
 # Shift
 
-`<<`, `<<|`, `>>`, and `>>>` use numeric rules for builtin numbers and shift contracts for receiver overloads.
+`<<`, `>>`, and `>>>` use numeric rules for builtin numbers and shift contracts for receiver overloads.
 
 ## numbers
 
@@ -50,26 +50,6 @@ const left = getBits();
 const right = getBits();
 
 const value = left << right;
-value satisfies Bits;
-```
-
-### saturating shift left uses ShiftLeft
-
-> `<<|` uses the same receiver contract as `<<`.
-
-```ds
-struct Bits { value: int }
-
-extension of Bits implements ShiftLeft<Bits> {
-    shiftLeft(other: Bits): Bits { return this }
-}
-
-declare function getBits(): Bits;
-
-const left = getBits();
-const right = getBits();
-
-const value = left <<| right;
 value satisfies Bits;
 ```
 
@@ -134,4 +114,4 @@ const right = getOtherBits();
 left << right;
 ```
 
-- type OtherBits is not assignable to type Bits
+- contains: not assignable

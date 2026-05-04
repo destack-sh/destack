@@ -81,7 +81,7 @@ declare const value: { name: string } | undefined;
 value?.();
 ```
 
-- calling non-callable
+- contains: calling non-callable
 
 ## optional chain composition
 

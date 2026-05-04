@@ -34,7 +34,7 @@ add satisfies (a: number, b: number) => number;
 const add: (a: number, b: number) => number = (a, b) => "hi"
 ```
 
-- type "hi" is not assignable to type number
+- contains: not assignable
 
 ### contextual lambda from argument
 
@@ -58,7 +58,7 @@ function apply(transform: (value: number) => number) {
 apply((value) => "hi")
 ```
 
-- type "hi" is not assignable to type number
+- contains: not assignable
 
 ### contextual object argument
 
@@ -82,7 +82,7 @@ function use_point(point: { x: number, y: number }) {
 use_point({ x: 1, y: "hi" })
 ```
 
-- type { x: number, y: "hi" } is not assignable to type { x: number, y: number }
+- contains: not assignable
 
 ### contextual tuple argument
 
@@ -106,7 +106,7 @@ function sum(pair: (number, number)) {
 sum((1, "hi"))
 ```
 
-- type (number, "hi") is not assignable to type (number, number)
+- contains: not assignable
 
 ### contextual array argument
 
@@ -130,7 +130,7 @@ function total(values: number[]) {
 total([1, "hi"])
 ```
 
-- type (number | "hi")[] is not assignable to type number[]
+- contains: not assignable
 
 ## object literal callbacks
 
@@ -154,7 +154,7 @@ callIt({
 { "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
-### this-less methods do not infer from sibling members when flipped
+### object methods do not infer from sibling members when flipped
 
 > Method syntax does not infer parameter types from sibling members.
 
@@ -178,9 +178,9 @@ callIt({
 
 ## nested object callbacks
 
-### this-less arrows infer across sibling ordering with nested object literals
+### arrow properties infer across sibling ordering with nested object literals
 
-> Arrow properties contextuallies infer generic payloads regardless of sibling ordering.
+> Arrow properties contextually infer generic payloads regardless of sibling ordering.
 
 ```ts:main.ts
 declare function build<T>(spec: {
@@ -200,9 +200,9 @@ output satisfies string;
 { "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
-### this-less methods do not contextually infer sibling generic payloads
+### object methods do not contextually infer sibling generic payloads
 
-> Method syntax does not gain arrow-style sibling contextual inference in this-less object literals.
+> Method syntax does not gain arrow-style sibling contextual inference in object literals.
 
 ```ts:main.ts
 declare function build<T>(spec: {
@@ -222,9 +222,9 @@ build({
 
 - contains: unknown
 
-### this-less arrow callbacks preserve inference through renamed re-exports
+### arrow callbacks preserve inference through renamed re-exports
 
-> Renamed re-exports do not affect this-less arrow contextual inference.
+> Renamed re-exports do not affect arrow contextual inference.
 
 ```ts:api.ts
 export declare function build<T>(spec: {
@@ -371,9 +371,9 @@ withValue("ready", read => read().toFixed());
 
 - contains: tofixed
 
-### nested this-less arrows remain order-insensitive in contextual object inference
+### nested arrows remain order-insensitive in contextual object inference
 
-> Nested this-less arrow properties remain order-insensitive for contextual generic object inference.
+> Nested arrow properties remain order-insensitive for contextual generic object inference.
 
 ```ts:main.ts
 declare function wire<T>(spec: {
@@ -396,9 +396,9 @@ output satisfies string;
 { "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
-### nested this-less methods do not infer sibling payloads
+### nested methods do not infer sibling payloads
 
-> Nested this-less method syntax does not gain arrow-style sibling contextual inference.
+> Nested method syntax does not gain arrow-style sibling contextual inference.
 
 ```ts:main.ts
 declare function wire<T>(spec: {

@@ -1,6 +1,6 @@
-# Data Module Imports
+# Data
 
-## JSON Import
+## JSON import
 
 ### JSON object imports resolve
 
@@ -34,7 +34,7 @@ import numbers from "./numbers.json";
 numbers;
 ```
 
-## Import Attributes
+## import attributes
 
 ### override loader with type attribute
 
@@ -101,22 +101,6 @@ data;
 
 - contains: invalid import attribute type
 
-## Text Import
-
-### import text file as string
-
-> Text files import as strings.
-
-```text:readme.txt
-Hello, World!
-```
-
-```ds:main.ds
-import content from "./readme.txt";
-
-content;
-```
-
 ## typing
 
 ### property access on imported JSON is typed
@@ -165,20 +149,6 @@ config.debug satisfies boolean;
 import numbers from "./numbers.json";
 
 numbers[0] satisfies number;
-```
-
-### text import is typed as string
-
-> Text modules are always typed as string.
-
-```text:readme.txt
-Hello, World!
-```
-
-```ds:main.ds
-import content from "./readme.txt";
-
-content satisfies string;
 ```
 
 ### nonexistent property access is error

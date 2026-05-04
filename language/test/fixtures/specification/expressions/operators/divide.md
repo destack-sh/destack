@@ -12,7 +12,7 @@
 const value = 10 / 2;
 value satisfies 5;
 value satisfies int;
-value satisfies float;
+value satisfies float64;
 value satisfies number;
 ```
 

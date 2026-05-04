@@ -1,4 +1,4 @@
-# Method Overloading
+# Member Dispatch
 
 Method overloads follow the same declaration-order rules as free functions.
 Signature overloads share one implementation.
@@ -92,7 +92,7 @@ const selected = parser.parse(1);
 selected satisfies "narrow";
 ```
 
-- expected "narrow", found "broad" (not assignable)
+- contains: not assignable
 
 ### method overload order is preserved through class inheritance
 
@@ -118,7 +118,7 @@ selected satisfies "broad";
 
 ### method overload order through inheritance does not select later overloads
 
-> Inherited method overloads does not promote later declaration results.
+> Inherited method overloads do not promote later declaration results.
 
 ```ds
 class BaseParser {
@@ -138,4 +138,4 @@ const selected = parser.parse(1);
 selected satisfies "narrow";
 ```
 
-- expected "narrow", found "broad" (not assignable)
+- contains: not assignable

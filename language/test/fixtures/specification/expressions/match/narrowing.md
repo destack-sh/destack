@@ -1,13 +1,13 @@
 # Match Narrowing
 
 Match arms narrow the scrutinee based on the matched pattern.
-Match expression results still uses best common type rules.
+Match expression results still use best common type rules.
 
-## Discriminants
+## discriminants
 
 ### match narrows discriminated unions per arm
 
-> Patterns narrows discriminated unions inside each arm.
+> Patterns narrow discriminated unions inside each arm.
 
 ```ds
 type Shape =
@@ -28,7 +28,7 @@ match (shape) {
 }
 ```
 
-## Literal unions
+## literal unions
 
 ### match narrows literal unions per arm
 
@@ -150,7 +150,7 @@ match (envelope) {
 
 ### match object wildcard filters preserve non-discriminant unions
 
-> Wildcard object field filters does not over-narrow unrelated payload members.
+> Wildcard object field filters do not over-narrow unrelated payload members.
 
 ```ds
 type Envelope =
@@ -187,7 +187,7 @@ match (envelope) {
 }
 ```
 
-## Match results
+## match results
 
 ### match results use best common type
 

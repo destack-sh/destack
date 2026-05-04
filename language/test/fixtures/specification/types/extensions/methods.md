@@ -2,7 +2,7 @@
 
 Extension method signatures, parameters, and special members.
 
-## Return Types
+## return types
 
 ### extension method returns primitive
 
@@ -76,7 +76,7 @@ const point = getPoint();
 point.toString() satisfies string;
 ```
 
-## Parameters
+## parameters
 
 ### extension method with single parameter
 
@@ -151,7 +151,7 @@ let counter = Counter { value: 0 };
 counter.increment();
 ```
 
-## Method Chaining
+## method chaining
 
 ### extension methods can be chained
 
@@ -170,4 +170,27 @@ declare function getStringBuilder(): StringBuilder;
 
 const builder = getStringBuilder();
 builder.append("a").append("b").append("c") satisfies StringBuilder;
+```
+
+## shadowing
+
+### earlier extension methods win conflicts
+
+> When multiple extensions define the same method, the first matching extension method is used.
+
+```ds
+struct Vector2 { x: number; y: number }
+
+extension of Vector2 {
+    process(): number { return 1 }
+}
+
+extension of Vector2 {
+    process(): string { return "" }
+}
+
+declare function getVector(): Vector2;
+
+const vector = getVector();
+vector.process() satisfies number;
 ```

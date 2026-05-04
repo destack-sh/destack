@@ -37,7 +37,7 @@ const fn = () => {}
 const x: object = fn
 ```
 
-## Object Rejects Primitives
+## object rejects primitives
 
 ### number not assignable to object
 
@@ -47,7 +47,7 @@ const x: object = fn
 const x: object = 42
 ```
 
-- type undefined is not assignable to type object
+- contains: not assignable
 
 ### string not assignable to object
 
@@ -57,7 +57,7 @@ const x: object = 42
 const x: object = "hello"
 ```
 
-- type undefined is not assignable to type object
+- contains: not assignable
 
 ### boolean not assignable to object
 
@@ -67,7 +67,7 @@ const x: object = "hello"
 const x: object = true
 ```
 
-- type undefined is not assignable to type object
+- contains: not assignable
 
 ### null not assignable to object
 
@@ -77,7 +77,7 @@ const x: object = true
 const x: object = null
 ```
 
-- type undefined is not assignable to type object
+- contains: not assignable
 
 ### undefined not assignable to object
 
@@ -87,4 +87,4 @@ const x: object = null
 const x: object = undefined
 ```
 
-- type undefined is not assignable to type object
+- contains: not assignable

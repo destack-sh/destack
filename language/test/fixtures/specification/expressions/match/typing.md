@@ -1,6 +1,6 @@
-# Match Typing
+# Match Types
 
-## Result typing
+## result typing
 
 ### match unions case types
 
@@ -20,7 +20,7 @@ function matchUnion(value: int32): string {
 
 - contains: not assignable
 
-## Pattern typing
+## pattern typing
 
 ### match patterns must be compatible with the matched value
 

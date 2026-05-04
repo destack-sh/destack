@@ -2,7 +2,7 @@
 
 Null, undefined, and other special literals.
 
-## Null
+## null
 
 ### null literal
 
@@ -13,13 +13,9 @@ const x: null = null;
 x satisfies null;
 ```
 
-### strictNullChecks rejects null assignments
+### null rejects non-nullable targets
 
-> Null is not assignable to non-nullable types when strict null checks are enabled.
-
-```json:destack.json
-{ "compiler": { "strictNullChecks": true } }
-```
+> Null is not assignable to non-nullable types.
 
 ```ds
 const value: string = null;
@@ -27,7 +23,7 @@ const value: string = null;
 
 - contains: not assignable
 
-## Undefined
+## undefined
 
 ### undefined literal
 
@@ -38,7 +34,7 @@ const x: undefined = undefined;
 x satisfies undefined;
 ```
 
-## Void
+## void
 
 ### void type
 

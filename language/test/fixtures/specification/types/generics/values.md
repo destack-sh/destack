@@ -185,7 +185,7 @@ declare let value: Buffer<size>;
 
 ### comptime value parameters accept enum members
 
-> Enum members are valid value arguments for matching enum types.
+> Enum members are accepted value arguments for matching enum types.
 
 ```ds
 enum Mode {
@@ -201,7 +201,7 @@ value satisfies Run<Mode.Fast>;
 
 ### comptime value parameters accept imported enum members
 
-> Imported enum members are valid value arguments.
+> Imported enum members are accepted value arguments.
 
 ```ds:utils.ds
 export enum Mode {
@@ -429,7 +429,7 @@ value satisfies [uint8; 4];
 
 ### comptime value parameters accept imported constants
 
-> Imported constants with static initializers are valid comptime arguments.
+> Imported constants with static initializers are accepted comptime arguments.
 
 ```ds:utils.ds
 export const SIZE = 4;

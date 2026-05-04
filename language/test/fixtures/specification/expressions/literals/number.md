@@ -2,7 +2,7 @@
 
 Number literal type inference and checking.
 
-## Integer Literals
+## integer literals
 
 ### integer literal
 
@@ -14,7 +14,7 @@ const x: number = 42;
 
 ### negative integer
 
-> Negative integers are valid number literals.
+> Negative integers are accepted number literals.
 
 ```ds
 const x: number = -42;
@@ -22,7 +22,7 @@ const x: number = -42;
 
 ### zero
 
-> Zero is a valid number literal.
+> Zero is an accepted number literal.
 
 ```ds
 const x: number = 0;
@@ -30,7 +30,7 @@ const x: number = 0;
 
 ### hex literal
 
-> Hex literals are valid number literals.
+> Hex literals are accepted number literals.
 
 ```ds
 const x: number = 0xff;
@@ -38,7 +38,7 @@ const x: number = 0xff;
 
 ### octal literal
 
-> Octal literals are valid number literals.
+> Octal literals are accepted number literals.
 
 ```ds
 const x: number = 0o17;
@@ -46,13 +46,13 @@ const x: number = 0o17;
 
 ### binary literal
 
-> Binary literals are valid number literals.
+> Binary literals are accepted number literals.
 
 ```ds
 const x: number = 0b1010;
 ```
 
-## Float Literals
+## float literals
 
 ### float literal
 
@@ -64,13 +64,13 @@ const x: number = 3.14;
 
 ### negative float
 
-> Negative floats are valid number literals.
+> Negative floats are accepted number literals.
 
 ```ds
 const x: number = -3.14;
 ```
 
-## Inference
+## inference
 
 ### inferred integer type
 
@@ -99,9 +99,9 @@ const x = 123;
 x satisfies string;
 ```
 
-- contains: expected string, found 123
+- contains: not assignable
 
-## Number Members
+## number members
 
 ### number toFixed resolves
 

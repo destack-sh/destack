@@ -125,7 +125,7 @@ const shape = getShape();
 shape.describe() satisfies string;
 ```
 
-## Extension on Enum
+## extension on enum
 
 ### extension on enum
 

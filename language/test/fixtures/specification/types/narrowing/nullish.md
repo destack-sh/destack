@@ -2,7 +2,7 @@
 
 Nullish narrowing via equality guards.
 
-## Equality Guards
+## equality guards
 
 ### not equal null narrows to non nullish
 

@@ -2,7 +2,7 @@
 
 Static if gating on class members.
 
-## Gating
+## gating
 
 ### static if gates class members
 

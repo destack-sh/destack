@@ -26,7 +26,7 @@ let value: number = for (let i = 0; i < 1; i++) {
 
 ### for allows continue in the loop body
 
-> Continue is valid in for loop bodies.
+> Continue is accepted in for loop bodies.
 
 ```ds
 for (let i = 0; i < 3; i++) {
@@ -38,7 +38,7 @@ for (let i = 0; i < 3; i++) {
 
 ### for allows break in the loop body
 
-> Break is valid in for loop bodies.
+> Break is accepted in for loop bodies.
 
 ```ds
 for (let i = 0; i < 3; i++) {

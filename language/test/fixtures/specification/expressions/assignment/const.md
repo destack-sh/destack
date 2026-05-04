@@ -2,7 +2,7 @@
 
 Const bindings are immutable, but member assignment is allowed.
 
-## Bindings
+## bindings
 
 ### const bindings reject assignment
 
@@ -37,7 +37,7 @@ count = 1;
 
 - contains: immutable binding
 
-## Members
+## members
 
 ### const bindings allow member assignment
 
@@ -58,4 +58,4 @@ const state: { readonly count: number } = { count: 0 };
 state.count = 1;
 ```
 
-- cannot assign to readonly property 'count'
+- contains: cannot assign to readonly property 'count'

@@ -1,6 +1,6 @@
 # Power
 
-`**`, `**%`, and `**|` use numeric rules for builtin numbers and `Power` for receiver overloads.
+`**` uses numeric rules for builtin numbers and `Power` for receiver overloads.
 
 ## numbers
 
@@ -12,7 +12,7 @@
 const value = 2 ** 3;
 value satisfies 8;
 value satisfies int;
-value satisfies float;
+value satisfies float64;
 value satisfies number;
 ```
 
@@ -35,47 +35,5 @@ const left = getScalar();
 const right = getScalar();
 
 const value = left ** right;
-value satisfies Scalar;
-```
-
-## wrapping
-
-### wrapping power uses Power
-
-> `**%` uses the same receiver contract as `**`.
-
-```ds
-struct Scalar { value: int }
-
-extension of Scalar implements Power<Scalar> {
-    power(other: Scalar): Scalar { return this }
-}
-
-declare function getScalar(): Scalar;
-
-const left = getScalar();
-const right = getScalar();
-
-const value = left **% right;
-value satisfies Scalar;
-```
-
-### saturating power uses Power
-
-> `**|` uses the same receiver contract as `**`.
-
-```ds
-struct Scalar { value: int }
-
-extension of Scalar implements Power<Scalar> {
-    power(other: Scalar): Scalar { return this }
-}
-
-declare function getScalar(): Scalar;
-
-const left = getScalar();
-const right = getScalar();
-
-const value = left **| right;
 value satisfies Scalar;
 ```

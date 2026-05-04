@@ -164,4 +164,4 @@ const child = new Child();
 const out = child.value;
 ```
 
-- '<anonymous>' is protected
+- contains: '<anonymous>' is protected

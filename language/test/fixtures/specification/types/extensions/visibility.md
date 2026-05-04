@@ -9,7 +9,7 @@ Extension visibility depends on where the extension is defined relative to the t
 | **Local** | Different file from type, anonymous | Only in defining file |
 | **Named** | Different file from type, named | Must be imported |
 
-## Inherent Extensions
+## inherent extensions
 
 > Inherent extensions are defined in the same module as the type they extend.
 > They are automatically visible wherever the type is used.
@@ -137,7 +137,7 @@ const vector = getVector();
 vector.magnitude() satisfies number;
 ```
 
-## Local Extensions
+## local extensions
 
 > Local extensions extend a foreign type (from another file).
 > They are only visible in the file where they are declared.
@@ -169,7 +169,7 @@ const m = vector.magnitude();
 
 - contains: does not exist
 
-## Named Extensions
+## named extensions
 
 > Named extensions use the syntax `extension Name of Type { }`.
 > They can be exported and must be imported to use (not yet fully implemented).
@@ -244,7 +244,7 @@ point.distance();
 
 - contains: does not exist
 
-## Overlapping Extensions
+## overlapping extensions
 
 ### first extension wins of duplicates
 

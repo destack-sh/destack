@@ -80,7 +80,7 @@ struct User {
 
 - contains: missing
 
-## validation
+## rejections
 
 ### conflicting struct hints are rejected
 
