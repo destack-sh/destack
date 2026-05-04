@@ -1,9 +1,8 @@
 /// Interface for the `?` and `??` operators.
 ///
-/// Types implementing `Try` support both error propagation (`?`) and
-/// default values (`??`).
+/// Types implementing `Try` support error propagation with `?` and fallback values with `??`.
 ///
-/// The `Try` protocol is structural at the branch level.
+/// The branch value is structural.
 /// Implementations must return a `TryBranch<T, E>` shape from `branch()`.
 ///
 /// ## The `?` Operator (propagate)
@@ -11,8 +10,8 @@
 /// `x?` extracts the success value or returns early with the error:
 /// ```
 /// match (x.branch()) {
-///     { kind: "ok", value } => value
-///     { kind: "err", error } => return fromError(error)
+///     { kind: "continue", value } => value
+///     { kind: "failure", error } => return fromFailure(error)
 /// }
 /// ```
 ///
@@ -21,8 +20,8 @@
 /// `x ?? default` extracts the success value or uses the default:
 /// ```
 /// match (x.branch()) {
-///     { kind: "ok", value } => value
-///     { kind: "err", error: _ } => default
+///     { kind: "continue", value } => value
+///     { kind: "failure", error: _ } => default
 /// }
 /// ```
 ///
@@ -55,16 +54,28 @@
 /// const result = divide(10, 0) ?? 0;  // result = 0
 /// ```
 
+/// Successful `Try` branch.
+export type TryContinue<T> = { kind: "continue"; value: T };
+///
+/// Failed `Try` branch.
+export type TryFailure<E> = { kind: "failure"; error: E };
+
 /// Try branch result for the `?` and `??` operators.
 ///
 /// Implementations may return this shape directly or any compatible union.
-export type TryBranch<T, E> = { kind: "ok"; value: T } | { kind: "err"; error: E };
+export type TryBranch<T, E> = TryContinue<T> | TryFailure<E>;
 
-export newtype interface Try<T, E> {
+export newtype interface Try {
+    /// The success value produced by `?` and `??`.
+    type Value;
+
+    /// The failure value propagated by `?` or consumed by `??`.
+    type Error;
+
     /// Branch on success or failure.
-    /// Returns a TryBranch value to continue or break.
-    branch(): TryBranch<T, E>;
+    /// Returns a TryBranch value to continue or fail.
+    branch(): TryBranch<this.Value, this.Error>;
 
-    /// Construct the implementing type from an error (for early return with `?`).
-    static fromError(error: E): this;
+    /// Construct the implementing type from a failure value.
+    static fromFailure(error: this.Error): this;
 }

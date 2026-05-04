@@ -1,80 +1,197 @@
+import { intrinsic } from "../primitive/decorator.ds";
+import {
+    type AnnotationDescriptor,
+    type DocumentationDescriptor,
+} from "./annotation.ds";
 import { type Type } from "./type.ds";
-import { type DecoratorInfo } from "./decorator.ds";
 
-/// A property (field) in a struct, class, interface, or object type.
-///
-/// Properties describe data members, not methods. For functions/methods,
-/// see `FunctionType`.
-///
-/// # Example
-///
-/// ```
-/// struct User {
-///     @unique
-///     name: string,
-///     age?: int,
-/// }
-///
-/// User.properties[0]
-/// // => Property {
-/// //      name: "name",
-/// //      type: Type<string>,
-/// //      optional: false,
-/// //      readonly: false,
-/// //      decorators: [{ name: "unique", args: [] }],
-/// //    }
-/// ```
-export struct Property {
-    /// The name of this property.
+/// Static argument category for one reflected generic argument.
+export type GenericArgumentKind = "type" | "value";
+
+/// Function asynchrony for one reflected signature.
+export type SignatureAsynchrony = "sync" | "async";
+
+/// Function cardinality for one reflected signature.
+export type SignatureCardinality = "single" | "generator";
+
+/// Generic argument descriptor for one applied type.
+export struct GenericArgumentDescriptor {
+    /// The argument category.
+    kind: GenericArgumentKind;
+
+    /// The type argument when `kind` is `"type"`.
+    type?: Type<unknown>;
+
+    /// The static value argument when `kind` is `"value"`.
+    value?: unknown;
+}
+
+/// Field descriptor for one data member.
+export struct FieldDescriptor {
+    /// The field name.
     name: string;
 
-    /// The type of this property.
+    /// The field type.
     type: Type<unknown>;
 
-    /// Whether this property is optional (`?`).
+    /// Whether the field is optional.
     optional: boolean;
 
-    /// Whether this property is readonly.
+    /// Whether the field is readonly.
     readonly: boolean;
 
-    /// Decorators on this property.
-    decorators: readonly DecoratorInfo[];
+    /// Whether the field belongs to the static side.
+    isStatic: boolean;
 
-    /// Default value factory, if specified.
-    /// Called to produce the default when not provided.
-    default?: () => unknown;
+    /// Retained annotations on the field.
+    annotations: readonly AnnotationDescriptor[];
 
-    /// Documentation comment (block prefix), if present.
-    description?: string;
+    /// Normalized documentation when retained.
+    docs?: DocumentationDescriptor;
 }
 
-/// A variant in an enum type.
-///
-/// Variants can be:
-/// - Simple: just a name (auto-numbered)
-/// - Valued: name with explicit value
-/// - Data-carrying: name with associated data type
-///
-/// # Example
-///
-/// ```
-/// enum Status {
-///     Active,           // simple
-///     Inactive = 0,     // valued
-///     Pending = "wait", // string valued
-/// }
-///
-/// Status.variants[0]
-/// // => Variant { name: "Active", value: 0 }
-/// ```
-export struct Variant {
-    /// The name of this variant.
+/// Method descriptor for one callable member.
+export struct MethodDescriptor {
+    /// The method name.
     name: string;
 
-    /// The explicit value, if this is a valued enum.
-    /// For simple enums, this is the auto-assigned numeric value.
-    value: int | string;
+    /// The method signature.
+    signature: SignatureDescriptor;
 
-    /// Documentation comment (block prefix), if present.
-    description?: string;
+    /// Whether the method belongs to the static side.
+    isStatic: boolean;
+
+    /// Retained annotations on the method.
+    annotations: readonly AnnotationDescriptor[];
+
+    /// Normalized documentation when retained.
+    docs?: DocumentationDescriptor;
 }
+
+/// Parameter descriptor for one callable parameter.
+export struct ParameterDescriptor {
+    /// The parameter name when one is retained.
+    name?: string;
+
+    /// The parameter type.
+    type: Type<unknown>;
+
+    /// Whether the parameter is optional.
+    optional: boolean;
+
+    /// Whether the parameter is a rest parameter.
+    rest: boolean;
+
+    /// Retained annotations on the parameter.
+    annotations: readonly AnnotationDescriptor[];
+}
+
+/// Call or construct signature descriptor.
+export struct SignatureDescriptor {
+    /// Generic arguments already applied to this signature.
+    genericArguments: readonly GenericArgumentDescriptor[];
+
+    /// The explicit `this` type when present.
+    thisType?: Type<unknown>;
+
+    /// The signature parameters.
+    parameters: readonly ParameterDescriptor[];
+
+    /// The signature return type.
+    returnType: Type<unknown>;
+
+    /// Whether the signature is async.
+    asynchrony: SignatureAsynchrony;
+
+    /// Whether the signature is a generator.
+    cardinality: SignatureCardinality;
+}
+
+/// Tuple element descriptor.
+export struct TupleElementDescriptor {
+    /// The tuple label when one is retained.
+    label?: string;
+
+    /// The element type.
+    type: Type<unknown>;
+
+    /// Whether the element is optional.
+    optional: boolean;
+
+    /// Whether the element is readonly.
+    readonly: boolean;
+
+    /// Whether the element is a rest element.
+    rest: boolean;
+
+    /// Retained annotations on the element.
+    annotations: readonly AnnotationDescriptor[];
+}
+
+/// Index signature descriptor.
+export struct IndexSignatureDescriptor {
+    /// The index key type.
+    keyType: Type<unknown>;
+
+    /// The indexed value type.
+    valueType: Type<unknown>;
+
+    /// Whether indexed entries are optional.
+    optional: boolean;
+
+    /// Whether indexed entries are readonly.
+    readonly: boolean;
+
+    /// Retained annotations on the index signature.
+    annotations: readonly AnnotationDescriptor[];
+}
+
+/// Enum or union variant descriptor.
+export struct VariantDescriptor {
+    /// The variant name.
+    name: string;
+
+    /// The explicit variant value when one exists.
+    value?: unknown;
+
+    /// The payload type when the variant carries data.
+    payload?: Type<unknown>;
+
+    /// Retained annotations on the variant.
+    annotations: readonly AnnotationDescriptor[];
+
+    /// Normalized documentation when retained.
+    docs?: DocumentationDescriptor;
+}
+
+/// Return the applied generic arguments for `type`.
+@intrinsic("reflect.genericArguments")
+export declare function genericArgumentsOf<T>(type: Type<T>): readonly GenericArgumentDescriptor[];
+
+/// Return the data fields for `type`.
+@intrinsic("reflect.fields")
+export declare function fieldsOf<T>(type: Type<T>): readonly FieldDescriptor[];
+
+/// Return the methods for `type`.
+@intrinsic("reflect.methods")
+export declare function methodsOf<T>(type: Type<T>): readonly MethodDescriptor[];
+
+/// Return the call signatures for `type`.
+@intrinsic("reflect.callSignatures")
+export declare function callSignaturesOf<T>(type: Type<T>): readonly SignatureDescriptor[];
+
+/// Return the construct signatures for `type`.
+@intrinsic("reflect.constructSignatures")
+export declare function constructSignaturesOf<T>(type: Type<T>): readonly SignatureDescriptor[];
+
+/// Return the tuple elements for `type`.
+@intrinsic("reflect.elements")
+export declare function elementsOf<T>(type: Type<T>): readonly TupleElementDescriptor[];
+
+/// Return the index signatures for `type`.
+@intrinsic("reflect.indexSignatures")
+export declare function indexSignaturesOf<T>(type: Type<T>): readonly IndexSignatureDescriptor[];
+
+/// Return the variants for `type`.
+@intrinsic("reflect.variants")
+export declare function variantsOf<T>(type: Type<T>): readonly VariantDescriptor[];
