@@ -457,13 +457,13 @@ Building on statements-as-expressions, if-let expressions enable nice sugar for 
 Bindings from the pattern are then available in the positive branch, and this composes with TS flow typing as you would expect.
 
 ```ds
-const result = if let Some(value) = maybe {
+const result = if (let Some(value) = maybe) {
     value
 } else {
     0
 };
 
-if let (x, y) = point {
+if (let (x, y) = point) {
     print(x + y);
 }
 ```
@@ -754,9 +754,6 @@ Essentially, `TreeTag` generalises `jsxFactory` and `TreeTagBuilder` generalises
  - Uppercase or qualified tags resolve as value tags through normal value lookup and the `TreeTag` interface.
  - Lowercase unqualified tags resolve as intrinsic tags through the active `TreeTagBuilder`.
 
- Fragments route through the active builder's fragment type.
-Namespaced tags like `<svg:path />` are not XML namespace bindings; they are intrinsic string tag names.
-
 ### Annotations and Decorators
 
 Like TypeScript, Destack uses `@` for decorators. 
@@ -872,22 +869,21 @@ struct Buffer<comptime size: uint> {
 
 ## Memory
 
-TypeScript, like most managed high level languages, does not encode memory "ownership" in its type system: all reference types are implicitly GC-managed, and all value types are copied by default.
+TypeScript, like most managed high level languages, does not encode memory "ownership" in its type system: all reference types are implicitly GC-managed on some local heap, and all value types are copied by default.
 That is convenient, but sometimes we need to take direct control of memory, whether for better performance, or just to express invariants in the code.
+
 Destack adds explicit, optional modifiers for controlling memory ownership and placement, inspired by Rust and Mojo with `^T` as the "owned" signifier.
 Plain `T` keeps the base type's default representation: value types are values, object types are managed references.
-
-Memory in Destack lives on two independent axes:
-
-- **Ownership** - who is responsible for the value: managed (`T`), owned (`^T`), borrowed (`&T`), or raw (`*T`).
-- **Space** - where the value lives: ambient/local by default, `shared` across Workers, or some other target-defined space.
+Memory in Destack lives on two orthogonal axes:
+- **Ownership**: who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`), or raw (`*T`).
+- **Space**: where the value is located: ambient/local by default, `shared` across Workers, or some other target-defined space.
 
 The two axes compose freely, e.g. `^shared T` is an owned handle to a value in shared space, and `&shared T` is a borrow of a shared value.
 
 ### Ownership
 
-The ownership axis decides who keeps a value alive and who is allowed to mutate it.
-Each form has a corresponding normalized representation in the type algebra (see [Algebra](#algebra)).
+Ownership decides who keeps a value alive, who is allowed to mutate it, and when and how it is eventually freed.
+Each ownership form has a corresponding normalized representation in our little "type algebra" (see [Algebra](#algebra)).
 
 | Form | Ownership | Liveness | Meaning |
 |------|-----------|----------|---------|
@@ -911,12 +907,12 @@ Plain `T` is the default and matches what TypeScript already does: value types a
 
 ### Space
 
-Following web tradition, a `Worker` is Destack's unit of concurrent execution.
-The default *local* space is the current Worker's local heap.
-Ordinary managed objects, arrays, strings, functions, closures, and module bindings live in local space unless a type or binding says otherwise.
+Space defines where the memory is actually located in memory, and following web standards, Destack uses `Worker`-local heap as the main memory space.
+The default *local* memory space is the current Worker's local heap, and that's where ambient types land unless otherwise specified.
+Ordinary managed objects, arrays, strings, functions, closures, and module bindings live in local space, and user and library code can almost always just pretend spaces don't exist.
 
-Placement is contextual: an aggregate field with ambient placement is interpreted in the placement of the containing value, while an explicit placement on a field is preserved.
-The compiler may therefore lower one source aggregate into distinct concrete layouts depending on placement.
+Often, the "space" of a type and its corresponding memory region are a purely logical separation: most computers have unified main memory, and separating local and shared (and other..) heaps is much more about corectness (and somewhat about performance) than about physical constraint.
+For non-uniform memory targets, assigning specifi cmemory spaces in one unified programming language is however quite convenient.
 
 ```ds
 struct Request<T> {
@@ -928,22 +924,20 @@ let here: Request<Body>;          // header, body are local
 let there: shared Request<Body>;  // header, body are shared
 ```
 
-If a field is explicitly `WithSpace<T, "local">`, the enclosing aggregate cannot be placed in shared space unless that field is some explicitly permitted cross-space handle.
+Memory placement is contextual and types are ambient by default: an aggregate field with ambient placement is interpreted in the placement of the containing value, while an explicit placement on a field is preserved.
+Some incompatible combinations of explicit placements - like local inside shared - produce an error.
+More broadly, the compiler may lower one source aggregate into distinct concrete layouts depending on its space.
 
 #### Shared Space
 
-Shared space is runtime-shared memory visible to multiple Workers in the same Runtime.
+The "shared space" is shared memory visible to all `Worker`s in the same `Runtime`.
 Conceptually, `shared` is the typed, generalized version of the `SharedArrayBuffer` idea with the full type system and object graphs at our disposal:
 - Local values may point to shared values.
 - Shared values must not point directly into a local heap.
 
-Shared placement is **not** a synchronization primitive in itself, and does **not** imply atomic access, locking, actor isolation, `Sync`, or anything like it.
-It's just a name for a region of memory..
+It should be noted that shared placement - or any space placement - is **not** not a synchronization primitive in itself, and does **not** imply atomic access, locking, actor isolation, `Sync`, or anything like it.
+It's just a name for a region of memory, nothing more.
 Libraries and strict profiles may require capabilities like `Send` and `Sync` for APIs that transfer or publish values, but `shared` itself is only placement.
-
-Not every type can be placed in every space.
-Transparent values are checked structurally, and opaque or runtime-backed values are checked by the compiler and userland definitions for that space.
-`shared T` is only valid when `T` can be represented in shared space.
 
 ### Capabilities
 
