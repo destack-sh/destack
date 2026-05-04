@@ -1,12 +1,12 @@
-# Iterators Basics
+# Iterators
 
-Basic iteration constructs.
+Iteration over values and keys.
 
 ## for of
 
 ### for of loops over arrays
 
-> for-of loops iterate over array values.
+> For-of loops iterate over array values.
 
 ```ds
 for (const value of [1, 2, 3]) {
@@ -18,7 +18,7 @@ for (const value of [1, 2, 3]) {
 
 ### for in loops over object keys
 
-> for-in loops iterate over object keys.
+> For-in loops iterate over object keys.
 
 ```ds
 let target = { a: 1, b: 2 };
@@ -29,7 +29,7 @@ for (const key in target) {
 
 ### for of rejects non iterable values
 
-> for-of loops reject values without iteration semantics.
+> For-of loops reject values without iteration semantics.
 
 ```ds
 for (const value of 1) {
@@ -41,7 +41,7 @@ for (const value of 1) {
 
 ### for in keys are strings
 
-> for-in loop keys are typed as strings.
+> For-in loop keys are typed as strings.
 
 ```ds
 let target = { a: 1, b: 2 };
@@ -52,7 +52,7 @@ for (const key in target) {
 
 ### for of values preserve array element types
 
-> for-of loop values use the iterated array element type.
+> For-of loop values use the iterated array element type.
 
 ```ds
 for (const value of [1, 2, 3]) {
@@ -62,7 +62,7 @@ for (const value of [1, 2, 3]) {
 
 ### for in rejects non-object values
 
-> for-in loops reject primitives without enumerable key spaces.
+> For-in loops reject primitives without enumerable key spaces.
 
 ```ds
 for (const key in 1) {
@@ -74,7 +74,7 @@ for (const key in 1) {
 
 ### for in keys stay string typed across union object sources
 
-> for-in keys should remain string typed for union object sources.
+> For-in keys remain string typed for union object sources.
 
 ```ds
 let target: { a: int32 } | { b: int32 } = { a: 1 };
@@ -86,7 +86,7 @@ for (const key in target) {
 
 ### for of values preserve element types through renamed re-exports
 
-> for-of loops should preserve element types through renamed re-exported iterable producers.
+> For-of loops preserve element types through renamed re-exported iterable producers.
 
 ```ds:source.ds
 export function make_values(): int32[] {
@@ -108,7 +108,7 @@ for (const value of values()) {
 
 ### for of rejects unions containing non-iterable members
 
-> for-of loops should reject unions when any member is not iterable.
+> For-of loops reject unions when any member is not iterable.
 
 ```ds
 declare const value: int32[] | int32;

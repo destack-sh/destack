@@ -1,6 +1,6 @@
 # Number Literals
 
-Tests for number literal type inference and checking.
+Number literal type inference and checking.
 
 ## Integer Literals
 
@@ -105,7 +105,7 @@ x satisfies string;
 
 ### number toFixed resolves
 
-> Number literals expose Number prototype members.
+> Number literals expose Number standard members.
 
 
 ```ds libs=es5

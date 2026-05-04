@@ -1,4 +1,4 @@
-# Comptime Basics
+# Comptime
 
 ## comptime expressions
 

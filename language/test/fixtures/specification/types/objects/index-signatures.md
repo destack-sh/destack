@@ -167,36 +167,11 @@ const bag: Bag = { a: 1 };
 let value: int32 = bag["a"];
 ```
 
-```ds:package.json
-{ "name": "spec" }
-```
-
 ```json:destack.json
 { "compiler": { "noUncheckedIndexedAccess": true } }
 ```
 
 - contains: not assignable
-
-### noUncheckedIndexedAccess leaves index access unchanged when false
-
-> Index signature access keeps the value type when noUncheckedIndexedAccess is false.
-
-```ds:main.ds
-interface Bag {
-    [key: string]: int32;
-}
-
-const bag: Bag = { a: 1 };
-let value: int32 = bag["a"];
-```
-
-```ds:package.json
-{ "name": "spec" }
-```
-
-```json:destack.json
-{ "compiler": { "noUncheckedIndexedAccess": false } }
-```
 
 ## property access
 
@@ -204,10 +179,6 @@ let value: int32 = bag["a"];
 
 ```json:destack.json
 { "compiler": { "noPropertyAccessFromIndexSignature": true } }
-```
-
-```ds:package.json
-{ "name": "spec" }
 ```
 
 ```ds
@@ -220,25 +191,6 @@ let value = bag.missing
 ```
 
 - contains: only available via index signature
-
-### noPropertyAccessFromIndexSignature allows dot access when false
-
-```ds:main.ds
-interface Bag {
-    [key: string]: number
-}
-
-const bag: Bag = { a: 1 }
-let value = bag.missing
-```
-
-```ds:package.json
-{ "name": "spec" }
-```
-
-```json:destack.json
-{ "compiler": { "noPropertyAccessFromIndexSignature": false } }
-```
 
 ### dot access from index signature is allowed by default
 

@@ -1,0 +1,72 @@
+# Sync
+
+## using
+
+### using binding introduces a resource name
+
+> `using` introduces a scoped binding whose value implements `Dispose`.
+
+```ds
+class File implements Dispose {
+    dispose(): void {}
+}
+
+using file = new File();
+file satisfies File;
+```
+
+### using expression yields void
+
+> `using` expressions evaluate to `void`.
+
+```ds
+class File implements Dispose {
+    dispose(): void {}
+}
+
+let result: void = using file = new File();
+result satisfies void;
+```
+
+### using accepts nullish resources
+
+> `null` and `undefined` are ignored by resource cleanup.
+
+```ds
+using missing = null;
+using absent = undefined;
+```
+
+### using rejects non disposable values
+
+> Ordinary values are not resources.
+
+```ds
+using value = 1;
+```
+
+- contains: Dispose
+
+### using accepts symbol disposal
+
+> `.ts` sources use the symbol-shaped disposal protocol.
+
+```ts:main.ts
+class File {
+    [Symbol.dispose](): void {}
+}
+
+using file = new File();
+file satisfies File;
+```
+
+### declare using is invalid
+
+> Declare bindings cannot have initializers.
+
+```ts
+declare using value = null;
+```
+
+- declare bindings cannot have initializers
+

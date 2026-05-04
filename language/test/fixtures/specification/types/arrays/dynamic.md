@@ -49,7 +49,7 @@ const first: string = values[0];
 
 ## calls
 
-### dynamic arrays flow through compatible function parameters
+### dynamic arrays satisfy compatible function parameters
 
 > Dynamic arrays are accepted by parameters with the same element type.
 

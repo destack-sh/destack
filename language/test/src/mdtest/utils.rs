@@ -283,7 +283,7 @@ pub fn setup_test_environment_with_repository(
     )
     .expect("failed to create mdtest session");
     session
-        .import_from_fs(session.head())
+        .reload_from_fs(session.head())
         .expect("failed to materialize mdtest workspace");
     (repository, root, main_path)
 }

@@ -67,11 +67,11 @@ const point = Point { x: 1, y: 2, z: 3 };
 
 - contains: excess property
 
-## struct constructors
+## new expressions
 
-### new struct constructor uses positional fields
+### structs do not have positional constructors
 
-> Positional constructors follow field order.
+> Structs are constructed with tagged struct literals, not `new`.
 
 ```ds
 struct Point {
@@ -80,53 +80,9 @@ struct Point {
 }
 
 const point = new Point(1, 2);
-point satisfies Point;
 ```
 
-### new struct constructor rejects mismatched argument types
-
-> Positional constructors enforce field types.
-
-```ds
-struct Point {
-    x: int32
-    y: int32
-}
-
-const point = new Point("a", 2);
-```
-
-- contains: not assignable
-
-### new struct constructor rejects missing arguments
-
-> Positional constructors require all fields.
-
-```ds
-struct Point {
-    x: int32
-    y: int32
-}
-
-const point = new Point(1);
-```
-
-- contains: no matching overload
-
-### new struct constructor rejects extra arguments
-
-> Positional constructors reject extra arguments.
-
-```ds
-struct Point {
-    x: int32
-    y: int32
-}
-
-const point = new Point(1, 2, 3);
-```
-
-- contains: no matching overload
+- contains: construct
 
 ### struct methods can mutate this
 
@@ -142,7 +98,7 @@ struct Counter {
     }
 }
 
-const counter = Counter { value: 1 };
+let counter = Counter { value: 1 };
 const next = counter.increment();
 next satisfies int32;
 ```

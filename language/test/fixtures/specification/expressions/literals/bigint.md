@@ -1,8 +1,8 @@
 # BigInt Literals
 
-Tests for bigint literal type inference and checking.
+Bigint literal type inference and checking.
 
-## Basic BigInt
+## bigint
 
 ### bigint literal
 
@@ -17,7 +17,7 @@ const x: bigint = 42n;
 
 ### bigint toString resolves
 
-> Bigint literals expose BigInt prototype members.
+> Bigint literals expose BigInt standard members.
 
 
 ```ds libs=es2020

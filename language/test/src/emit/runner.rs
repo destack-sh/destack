@@ -166,7 +166,7 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     )
     .expect("failed to create emit session");
     session
-        .import_from_fs(session.head())
+        .reload_from_fs(session.head())
         .expect("failed to reload emit workspace");
     let revision = current_workspace_revision(&repository);
 

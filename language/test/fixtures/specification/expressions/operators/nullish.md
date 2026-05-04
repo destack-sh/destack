@@ -1,5 +1,7 @@
 # Nullish Coalescing
 
+`??` and `??=` select a fallback only for nullish values.
+
 ## nullish coalescing
 
 ### nullish coalescing selects fallback for null

@@ -1,104 +1,49 @@
-# Any Type
+# Any
 
-Tests for the `any` type.
+Portable `.ds` rejects `any`.
+Use `unknown` and narrow or cast explicitly at interop boundaries.
 
-## Any Accepts Everything
+## rejection
 
-### number to any
+### explicit any is rejected in ds
 
-> Any type accepts number values.
-
-```json:destack.json
-{ "compiler": { "noAny": false } }
-```
+> `any` is not a portable `.ds` type.
 
 ```ds
 const value: any = 42;
-value satisfies any;
 ```
 
-### string to any
+- contains: any
 
-> Any type accepts string values.
+### any does not enable member access in ds
 
-```json:destack.json
-{ "compiler": { "noAny": false } }
-```
+> Dynamic member access through `any` is not available in portable `.ds`.
 
 ```ds
-const value: any = "hello";
-value satisfies any;
+declare const value: any;
+const result = value.missing.member;
 ```
 
-### object to any
+- contains: any
 
-> Any type accepts object values.
+## unknown
 
-```json:destack.json
-{ "compiler": { "noAny": false } }
-```
+### unknown is the top type
+
+> Values can be assigned to `unknown`.
 
 ```ds
-const value: any = { a: 1 };
-value satisfies any;
+const value: unknown = 42;
+value satisfies unknown;
 ```
 
-## Any is Assignable to Everything
+### unknown requires narrowing before use
 
-### any to number
-
-> Any is assignable to number (unsafe but allowed).
-
-```json:destack.json
-{ "compiler": { "noAny": false } }
-```
+> `unknown` does not allow arbitrary member access.
 
 ```ds
-const anyValue: any = 42;
-const numberValue: number = anyValue;
-numberValue satisfies number;
+declare const value: unknown;
+const result = value.missing;
 ```
 
-### any to string
-
-> Any is assignable to string (unsafe but allowed).
-
-```json:destack.json
-{ "compiler": { "noAny": false } }
-```
-
-```ds
-const anyValue: any = "hello";
-const stringValue: string = anyValue;
-stringValue satisfies string;
-```
-
-## Any Member Access
-
-### member access yields any
-
-> Accessing a member on `any` produces `any`.
-
-```json:destack.json
-{ "compiler": { "noAny": false } }
-```
-
-```ds
-const value: any = { nested: { value: 1 } };
-const result = value.nested.value;
-result satisfies any;
-```
-
-### index access yields any
-
-> Indexing into `any` produces `any`.
-
-```json:destack.json
-{ "compiler": { "noAny": false } }
-```
-
-```ds
-const value: any = { a: 1 };
-const result = value["missing"];
-result satisfies any;
-```
+- contains: unknown

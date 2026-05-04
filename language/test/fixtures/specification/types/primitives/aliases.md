@@ -1,10 +1,10 @@
 # Primitive aliases
 
-## tests
+## aliases
 
 ### int uses the default signed integer width
 
-> int uses the default signed integer width.
+> Int uses the default signed integer width.
 
 ```ds
 declare const value: int32;
@@ -15,7 +15,7 @@ alias satisfies int32;
 
 ### uint uses the default unsigned integer width
 
-> uint uses the default unsigned integer width.
+> Uint uses the default unsigned integer width.
 
 ```ds
 declare const value: uint32;
@@ -26,7 +26,7 @@ alias satisfies uint32;
 
 ### float uses the default float width
 
-> float uses the default float width.
+> Float uses the default float width.
 
 ```ds
 declare const value: float64;
@@ -37,7 +37,7 @@ alias satisfies float64;
 
 ### number accepts precise numerics
 
-> number accepts precise numeric types but does not narrow back automatically.
+> Number accepts precise numeric types but does not narrow back automatically.
 
 ```ds
 declare const precise: float64;

@@ -71,3 +71,45 @@ let { readonly value } = { readonly: 1 };
 ```
 
 - parse error: unexpected Identifier in Expression
+
+## defaults
+
+### object defaults fill missing fields
+
+> Default values are used when the matched field is absent.
+
+```ds
+let { name = "Ada" } = {};
+name satisfies string;
+```
+
+### object defaults keep aliases
+
+> Defaults can be attached to aliased fields.
+
+```ds
+let { name: displayName = "Ada" } = {};
+displayName satisfies string;
+```
+
+## rest
+
+### object rest binds remaining fields
+
+> Rest patterns collect fields not named earlier in the pattern.
+
+```ds
+let { id, ...rest } = { id: 1, name: "Ada", active: true };
+id satisfies int32;
+rest satisfies { name: string, active: boolean };
+```
+
+### object rest must be last
+
+> Rest patterns cannot be followed by more fields.
+
+```ds
+let { ...rest, id } = { id: 1, name: "Ada" };
+```
+
+- contains: rest

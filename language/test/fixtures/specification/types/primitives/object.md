@@ -1,8 +1,8 @@
 # Object Type
 
-Tests for the `object` type, which represents any non-primitive value.
+The `object` type, which represents any non-primitive value.
 
-## Basic Object Type
+## object
 
 ### object to object
 

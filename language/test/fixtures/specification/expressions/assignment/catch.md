@@ -1,70 +1,50 @@
-# Catch
+# Catch Bindings
 
-Catch binding mutability depends on the language.
+## reassignment
 
-## Destack
+### catch bindings are mutable
 
-### catch bindings default to mutable in destack
-
-> Destack catch bindings are mutable by default.
+> Catch bindings can be reassigned.
 
 ```ds
-const value = try {
-    1
-} catch e {
-    e = 2;
-    0
-};
-value satisfies int;
-```
-
-## TypeScript
-
-### catch bindings default to mutable in typescript
-
-> TypeScript catch bindings are mutable by default.
-
-```ts:main.ts
 try {
     throw "boom";
-} catch (e) {
+} catch e {
     e = "fix";
 }
 ```
 
-### catch bindings remain mutable with useUnknownInCatchVariables
+### catch bindings remain mutable after narrowing
 
-> Catch binding mutability is independent from unknown catch variable typing.
+> Catch bindings can be reassigned after control-flow narrowing checks.
 
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true, "useUnknownInCatchVariables": true } }
-```
-
-```ts:main.ts
+```ds
 try {
     throw "boom";
-} catch (e) {
-    e = { message: "fix" };
-}
-```
-
-### catch bindings allow reassignment after narrowing checks
-
-> Catch bindings can still be reassigned after control-flow narrowing checks.
-
-```ts:main.ts
-try {
-    throw "boom";
-} catch (e) {
+} catch e {
     if (typeof e === "string") {
         e = e.toUpperCase();
     }
 }
 ```
 
-### catch annotations reject concrete types in typescript
+## annotations
 
-> TypeScript catch annotations only allow `any` or `unknown`.
+### catch annotations allow unknown
+
+> Catch annotations accept `unknown`.
+
+```ts:main.ts
+try {
+    throw "boom";
+} catch (e: unknown) {
+    e = "fix";
+}
+```
+
+### catch annotations reject concrete types
+
+> Catch annotations only allow `unknown`.
 
 ```ts:main.ts
 try {
@@ -74,16 +54,4 @@ try {
 }
 ```
 
-- catch type annotations must be 'any' or 'unknown'
-
-### catch annotations allow unknown in typescript
-
-> TypeScript catch annotations accept `unknown`.
-
-```ts:main.ts
-try {
-    throw "boom";
-} catch (e: unknown) {
-    e = "fix";
-}
-```
+- catch type annotations must be unknown

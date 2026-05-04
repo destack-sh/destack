@@ -1,8 +1,8 @@
 # Tuple Literals
 
-Tests for tuple literal type inference and checking.
+Tuple literal type inference and checking.
 
-## Basic Tuples
+## tuples
 
 ### tuple of literals
 
@@ -24,7 +24,7 @@ pair satisfies (number, number);
 
 ### tuple literals do not preserve literal elements
 
-> Tuple literals should not retain literal element types without const assertions.
+> Tuple literals do not retain literal element types without const assertions.
 
 ```ds
 let pair = (1, 2);
@@ -44,7 +44,7 @@ pair satisfies (number, number);
 
 ### const tuples do not preserve literal elements without const assertions
 
-> Const tuple bindings should not keep literal element types without const assertions.
+> Const tuple bindings do not keep literal element types without const assertions.
 
 ```ds
 const pair = (1, 2);
@@ -93,7 +93,7 @@ pair satisfies (number, string);
 
 ### contextual tuple literal unions
 
-> Contextual tuple unions should preserve their union shapes.
+> Contextual tuple unions preserve their union shapes.
 
 ```ds
 const pair: (1 | 2, "a" | "b") = (1, "a");
@@ -102,7 +102,7 @@ pair satisfies (1 | 2, "a" | "b");
 
 ### contextual tuple literal unions do not narrow to literals
 
-> Contextual tuple unions should not narrow to literal elements.
+> Contextual tuple unions do not narrow to literal elements.
 
 ```ds
 const pair: (1 | 2, "a" | "b") = (1, "a");
