@@ -1,21 +1,37 @@
 export {
     type Add,
-    type Subtract,
-    type Multiply,
-    type Divide,
-    type Remainder,
-    type Power,
     type Plus,
+} from "./plus.ds";
+export {
+    type Subtract,
     type Negate,
+} from "./minus.ds";
+export {
+    type Multiply,
+} from "./multiply.ds";
+export {
+    type Divide,
+} from "./divide.ds";
+export {
+    type Remainder,
+} from "./remainder.ds";
+export {
+    type Power,
+} from "./power.ds";
+export {
     type And,
     type Or,
     type Xor,
     type Not,
+} from "./bitwise.ds";
+export {
     type ShiftLeft,
     type ShiftRight,
     type ShiftRightUnsigned,
+} from "./shift.ds";
+export {
     type Concatenate,
-} from "./arithmetic.ds";
+} from "./concatenate.ds";
 export {
     type Equal,
     type PartialEqual,
@@ -23,5 +39,6 @@ export {
     type PartialCompare,
     Ordering,
 } from "./comparison.ds";
-export { type Index, type IndexSet, type Deref, type DerefSet } from "./subscript.ds";
+export { type Index, type IndexSet } from "./subscript.ds";
+export { type ReadonlyDereference, type Dereference } from "./dereference.ds";
 export { type Display, type Debug } from "./format.ds";

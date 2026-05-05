@@ -106,10 +106,10 @@ export newtype noManaged = ();
 /// ```
 export newtype stackOnly = ();
 
-/// Capture policy string for function environments.
-export type CapturePolicy = "byValue" | "byReference" | "byMove";
+/// Capture policy for function environments.
+export type CapturePolicy = "borrow" | "copy" | "move";
 
-/// Capture kind string for individual bindings.
+/// Capture policy for individual bindings.
 export type CaptureKind = CapturePolicy;
 
 /// Capture directive value for the capture decorator.
@@ -123,13 +123,13 @@ export type CaptureDirective =
 /// Configure closure capture policy for a lambda.
 ///
 /// ```
-/// @capture("byValue")
-/// const f = (x: int32) => x + 1;
+/// @capture("copy")
+/// const f = () => value;
 /// ```
 ///
 /// ```
-/// @capture("byMove")
-/// const f = (x: int32) => x + 1;
+/// @capture("move")
+/// const f = () => resource.use();
 /// ```
 export newtype capture = (CaptureDirective,) | ();
 

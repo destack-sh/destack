@@ -1,0 +1,21 @@
+/// Interface for readonly dereference `*a`.
+///
+/// `*a` becomes `a.dereference()` and yields the projected readonly access form.
+export newtype interface ReadonlyDereference {
+    /// The projected access form.
+    type Output;
+
+    /// Project the receiver into `Output`.
+    dereference(): this.Output;
+}
+
+/// Interface for mutable dereference `*a`.
+///
+/// Assignment through `*a` uses the projected mutable place.
+export newtype interface Dereference extends ReadonlyDereference {
+    /// The projected mutable access form.
+    type MutableOutput;
+
+    /// Project the receiver into `MutableOutput`.
+    dereferenceMutable(): this.MutableOutput;
+}

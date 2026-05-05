@@ -3,9 +3,12 @@
 /// `a[i]` becomes `a.index(i)`.
 ///
 /// The index type `I` can be any type (int, string, tuple, range, etc.).
-/// The output type `O` is what the indexing returns.
-export newtype interface Index<I, O> {
-    index(key: I): O;
+export newtype interface Index<I> {
+    /// The indexed output type.
+    type Output;
+
+    /// Return the value at `key`.
+    index(key: I): this.Output;
 }
 
 /// Interface for index assignment `a[i] = v`.
@@ -15,35 +18,4 @@ export newtype interface Index<I, O> {
 /// Types that implement `IndexSet` should typically also implement `Index`.
 export newtype interface IndexSet<I, V> {
     indexSet(key: I, value: V): void;
-}
-
-/// Interface for dereference `*a`.
-///
-/// `*a` becomes `a.deref()`.
-///
-/// Used for smart pointer types and other indirection wrappers.
-///
-/// # Example
-///
-/// ```
-/// struct Ref<T> {
-///     value: T,
-/// }
-///
-/// extension<T> of Ref<T> implements Deref<T> {
-///     deref(): T { this.value }
-/// }
-///
-/// const r = Ref { value: 42 };
-/// *r  // 42
-/// ```
-export newtype interface Deref<T> {
-    deref(): T;
-}
-
-/// Interface for mutable dereference assignment `*a = v`.
-///
-/// `*a = v` becomes `a.derefSet(v)`.
-export newtype interface DerefSet<T> {
-    derefSet(value: T): void;
 }

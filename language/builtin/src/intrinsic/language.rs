@@ -82,55 +82,55 @@ macro_rules! define_language_symbols {
 }
 
 define_language_symbols! {
-    /// Arithmetic operator interfaces.
+    /// Operator interfaces.
     arithmetic {
         /// `+` operator: `a + b` => `a.add(b)`
-        Add => (Interface, "operator/arithmetic", "Add"),
+        Add => (Interface, "operator/plus", "Add"),
 
         /// `-` operator: `a - b` => `a.subtract(b)`
-        Subtract => (Interface, "operator/arithmetic", "Subtract"),
+        Subtract => (Interface, "operator/minus", "Subtract"),
 
         /// `*` operator: `a * b` => `a.multiply(b)`
-        Multiply => (Interface, "operator/arithmetic", "Multiply"),
+        Multiply => (Interface, "operator/multiply", "Multiply"),
 
         /// `/` operator: `a / b` => `a.divide(b)`
-        Divide => (Interface, "operator/arithmetic", "Divide"),
+        Divide => (Interface, "operator/divide", "Divide"),
 
         /// `%` operator: `a % b` => `a.remainder(b)`
-        Remainder => (Interface, "operator/arithmetic", "Remainder"),
+        Remainder => (Interface, "operator/remainder", "Remainder"),
 
         /// `**` operator: `a ** b` => `a.power(b)`
-        Power => (Interface, "operator/arithmetic", "Power"),
+        Power => (Interface, "operator/power", "Power"),
 
         /// Unary `-`: `-a` => `a.negate()`
-        Negate => (Interface, "operator/arithmetic", "Negate"),
+        Negate => (Interface, "operator/minus", "Negate"),
 
         /// Unary `+`: `+a` => `a.plus()`
-        Plus => (Interface, "operator/arithmetic", "Plus"),
+        Plus => (Interface, "operator/plus", "Plus"),
 
         /// `&` operator: `a & b` => `a.and(b)`
-        And => (Interface, "operator/arithmetic", "And"),
+        And => (Interface, "operator/bitwise", "And"),
 
         /// `|` operator: `a | b` => `a.or(b)`
-        Or => (Interface, "operator/arithmetic", "Or"),
+        Or => (Interface, "operator/bitwise", "Or"),
 
         /// `^` operator: `a ^ b` => `a.xor(b)`
-        Xor => (Interface, "operator/arithmetic", "Xor"),
+        Xor => (Interface, "operator/bitwise", "Xor"),
 
         /// `~` operator: `~a` => `a.not()`
-        Not => (Interface, "operator/arithmetic", "Not"),
+        Not => (Interface, "operator/bitwise", "Not"),
 
         /// `<<` operator
-        ShiftLeft => (Interface, "operator/arithmetic", "ShiftLeft"),
+        ShiftLeft => (Interface, "operator/shift", "ShiftLeft"),
 
         /// `>>` operator
-        ShiftRight => (Interface, "operator/arithmetic", "ShiftRight"),
+        ShiftRight => (Interface, "operator/shift", "ShiftRight"),
 
         /// `>>>` operator
-        ShiftRightUnsigned => (Interface, "operator/arithmetic", "ShiftRightUnsigned"),
+        ShiftRightUnsigned => (Interface, "operator/shift", "ShiftRightUnsigned"),
 
         /// `++` or `+` for sequences
-        Concatenate => (Interface, "operator/arithmetic", "Concatenate"),
+        Concatenate => (Interface, "operator/concatenate", "Concatenate"),
     }
 
     /// Comparison operator interfaces.
@@ -160,19 +160,22 @@ define_language_symbols! {
         Debug => (Interface, "operator/format", "Debug"),
     }
 
-    /// Subscript and dereference operators.
+    /// Subscript operators.
     subscript {
         /// `a[i]` access
         Index => (Interface, "operator/subscript", "Index"),
 
         /// `a[i] = v` assignment
         IndexSet => (Interface, "operator/subscript", "IndexSet"),
+    }
 
-        /// `*a` dereference
-        Deref => (Interface, "operator/subscript", "Deref"),
+    /// Dereference operators.
+    dereference {
+        /// `*a` readonly dereference
+        ReadonlyDereference => (Interface, "operator/dereference", "ReadonlyDereference"),
 
-        /// `*a = v` dereference assignment
-        DerefSet => (Interface, "operator/subscript", "DerefSet"),
+        /// `*a = v` mutable dereference
+        Dereference => (Interface, "operator/dereference", "Dereference"),
     }
 
     /// Control flow types and interfaces.
@@ -611,7 +614,7 @@ mod tests {
 
     #[test]
     fn test_add_properties() {
-        assert_eq!(LanguageSymbol::Add.module(), "operator/arithmetic");
+        assert_eq!(LanguageSymbol::Add.module(), "operator/plus");
         assert_eq!(LanguageSymbol::Add.export_name(), "Add");
         assert_eq!(LanguageSymbol::Add.kind(), LanguageSymbolKind::Interface);
     }

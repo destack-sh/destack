@@ -137,25 +137,20 @@ export {
     type PlatformCapability,
 } from "./primitive/binding.ds";
 
-// arithmetic operators
+// operator interfaces
+export { type Add, type Plus } from "./operator/plus.ds";
+export { type Subtract, type Negate } from "./operator/minus.ds";
+export { type Multiply } from "./operator/multiply.ds";
+export { type Divide } from "./operator/divide.ds";
+export { type Remainder } from "./operator/remainder.ds";
+export { type Power } from "./operator/power.ds";
+export { type And, type Or, type Xor, type Not } from "./operator/bitwise.ds";
 export {
-    type Add,
-    type Subtract,
-    type Multiply,
-    type Divide,
-    type Remainder,
-    type Power,
-    type Plus,
-    type Negate,
-    type And,
-    type Or,
-    type Xor,
-    type Not,
     type ShiftLeft,
     type ShiftRight,
     type ShiftRightUnsigned,
-    type Concatenate,
-} from "./operator/arithmetic.ds";
+} from "./operator/shift.ds";
+export { type Concatenate } from "./operator/concatenate.ds";
 
 // comparison operators
 export {
@@ -170,4 +165,5 @@ export {
 export { type Display, type Debug } from "./operator/format.ds";
 
 // subscript operators
-export { type Index, type IndexSet, type Deref, type DerefSet } from "./operator/subscript.ds";
+export { type Index, type IndexSet } from "./operator/subscript.ds";
+export { type ReadonlyDereference, type Dereference } from "./operator/dereference.ds";
