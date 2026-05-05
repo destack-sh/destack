@@ -7,7 +7,7 @@ use crate::{HeapError, HeapResult, SizeClassTable};
 
 /// The allocation facts used to place one managed heap payload.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AllocationPlan<'a> {
+pub struct AllocationShape<'a> {
     /// The exact payload byte length.
     pub byte_len: usize,
     /// The required allocation base alignment in bytes.
@@ -20,8 +20,8 @@ pub struct AllocationPlan<'a> {
     pub has_shared_reference: bool,
 }
 
-impl<'a> AllocationPlan<'a> {
-    /// Create one allocation plan.
+impl<'a> AllocationShape<'a> {
+    /// Create one allocation shape.
     #[inline(always)]
     pub fn new(byte_len: usize, alignment: usize, reference_map: &'a ReferenceMap) -> Self {
         debug_assert!(alignment == 0 || alignment.is_power_of_two());
@@ -35,7 +35,7 @@ impl<'a> AllocationPlan<'a> {
         }
     }
 
-    /// Return whether this plan describes a valid non-empty heap allocation.
+    /// Return whether this shape describes a valid non-empty heap allocation.
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.byte_len == 0
@@ -143,20 +143,20 @@ impl SmallSpanClass {
     }
 }
 
-/// Resolve one allocation plan against a concrete small allocation table.
+/// Resolve one allocation shape against a concrete small allocation table.
 pub(crate) fn allocation_layout<'a>(
-    plan: AllocationPlan<'a>,
+    shape: AllocationShape<'a>,
     size_classes: &SizeClassTable,
     page_bytes: usize,
     span_bytes: usize,
 ) -> AllocationLayout<'a> {
-    let class = if plan.reference_map.has_tagged_reference() {
+    let class = if shape.reference_map.has_tagged_reference() {
         AllocationClass::Large
     } else {
         allocation_class(
-            plan.byte_len,
-            plan.alignment,
-            plan.is_noscan,
+            shape.byte_len,
+            shape.alignment,
+            shape.is_noscan,
             size_classes,
             page_bytes,
             span_bytes,
@@ -164,11 +164,11 @@ pub(crate) fn allocation_layout<'a>(
     };
 
     AllocationLayout {
-        byte_len: plan.byte_len,
-        alignment: plan.alignment,
-        reference_map: plan.reference_map,
-        is_noscan: plan.is_noscan,
-        has_shared_reference: plan.has_shared_reference,
+        byte_len: shape.byte_len,
+        alignment: shape.alignment,
+        reference_map: shape.reference_map,
+        is_noscan: shape.is_noscan,
+        has_shared_reference: shape.has_shared_reference,
         class,
     }
 }

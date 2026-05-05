@@ -6,8 +6,8 @@ use crate::allocator::Allocator;
 use crate::local::raw::RawSpace;
 use crate::local::space::HeapSpace;
 use crate::{
-    AllocationLayout, AllocationPlan, GcPacer, GcPressure, GcProgress, GcState, GcStats, HeapError,
-    HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RawPointer, RootSet,
+    AllocationLayout, AllocationShape, GcPacer, GcPressure, GcProgress, GcState, GcStats,
+    HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RawPointer, RootSet,
     SharedHeapReference, SmallAllocationLayout,
 };
 
@@ -412,10 +412,10 @@ impl Heap {
         Ok(reference)
     }
 
-    /// Resolve one allocation plan against this heap.
+    /// Resolve one allocation shape against this heap.
     #[inline(always)]
-    pub fn allocation_layout<'a>(&self, plan: AllocationPlan<'a>) -> AllocationLayout<'a> {
-        self.heap.allocation_layout(plan)
+    pub fn allocation_layout<'a>(&self, shape: AllocationShape<'a>) -> AllocationLayout<'a> {
+        self.heap.allocation_layout(shape)
     }
 
     /// Allocate one raw allocation.

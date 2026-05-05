@@ -10,7 +10,7 @@ use super::{
     SharedHeapSpace, SharedHeapSpaceImage, SharedHeapUsage, SharedRawSpace, SharedRawSpaceImage,
 };
 use crate::{
-    AllocationLayout, AllocationPlan, Allocator, AllocatorImage, GcPacer, GcPressure, GcProgress,
+    AllocationLayout, AllocationShape, Allocator, AllocatorImage, GcPacer, GcPressure, GcProgress,
     GcState, GcStats, HeapError, HeapOptions, HeapResult, PageId, PageRun, Payload,
     SharedHeapReference, SharedRawPointer, apply_byte_delta,
 };
@@ -575,10 +575,10 @@ impl SharedHeap {
         Ok(reference)
     }
 
-    /// Resolve one allocation plan against this shared heap.
+    /// Resolve one allocation shape against this shared heap.
     #[inline(always)]
-    pub fn allocation_layout<'a>(&self, plan: AllocationPlan<'a>) -> AllocationLayout<'a> {
-        self.heap.allocation_layout(plan)
+    pub fn allocation_layout<'a>(&self, shape: AllocationShape<'a>) -> AllocationLayout<'a> {
+        self.heap.allocation_layout(shape)
     }
 
     /// Return whether one shared heap reference currently refers to one live allocation.

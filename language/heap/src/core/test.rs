@@ -1,6 +1,6 @@
 use destack_mir::ReferenceMap;
 
-use crate::AllocationPlan;
+use crate::AllocationShape;
 
 /// One allocation layout used by tests.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,8 +15,8 @@ pub(crate) struct TestLayout {
 
 impl TestLayout {
     /// Return this test layout as resolved heap allocation facts.
-    pub(crate) fn allocation(&self) -> AllocationPlan<'_> {
-        AllocationPlan::new(self.byte_len, self.alignment, &self.reference_map)
+    pub(crate) fn allocation(&self) -> AllocationShape<'_> {
+        AllocationShape::new(self.byte_len, self.alignment, &self.reference_map)
     }
 }
 
