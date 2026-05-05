@@ -1099,9 +1099,7 @@ Of course, because these globals are real values, duplicate global value names a
 
 ### Comptime
 
-Inspired by Zig and Jai, Destack supports compile-time evaluation with `comptime`.
-The `comptime` expression form requires that an expression be evaluated at compile time (otherwise it is a compile error).
-This is the evaluation side of the static phase, not a separate class of functions.
+Inspired by modern languages like Zig and Jai, Destack supports compile-time evaluation with `comptime` expressions: ordinary code to be evaluated by the compiler, during compile time, and the results baked into the emitted artifact.
 
 ```ds
 const LOOKUP_TABLE: uint8[] = comptime {
@@ -1113,8 +1111,7 @@ const LOOKUP_TABLE: uint8[] = comptime {
 };
 ```
 
-Unlike in other languages, functions do not declare themselves as either "comptime" or "runtime"; instead, evaluation "time" is inferred from the usage site.
-Functions and "comptime" functions can therefore intermingle freely and call each other:
+It is important to note that functions do not declare themselves as either "comptime" or "runtime": the same function can run at compile time when all inputs are static, and at runtime when some input is only known at runtime:
 
 ```ds
 function factorial(n: int): int {
@@ -1129,9 +1126,8 @@ const COMPTIME_CONST = comptime factorial(10);    // compile time
 const RUNTIME_CONST = factorial(getUserInput()); // runtime (in this case, at module initialization time)
 ```
 
-Comptime expressions may only depend on static inputs or on ordinary code that can itself be evaluated from static inputs (or call other comptime expressions, as long as there is no circle).
-The evaluation scope for each comptime is isolated and cannot mutate module bindings, associated members, runtime objects, or anything outside the block.
-That is, the only way to get a value out of a comptime block is to use it as an expression.
+The evaluation scope for each comptime expression is isolated to its declaration site, and the only way to get a value "out" is to use comptime as an expression - no reaching into statics or globals allowed.
+(Locals _inside_ the expression may of course be mutated.)
 
 ```ds
 const WIDTH = comptime {
@@ -1146,29 +1142,8 @@ comptime {
 }
 ```
 
-Comptime conditions enable branch elimination and, for type relations like `T extends U`, type narrowing:
-
-```ds
-function process<T, Context: CacheContext<T>>(ctx: Context, key: T) {
-    if (comptime Context extends EvictableContext<T>) {
-        ctx.onEvict(key);  // context is narrowed; branch eliminated if not satisfied
-    }
-}
-```
-
-The same condition can also be written as a static guard when it controls declaration shape instead of expression flow:
-
-```ds
-struct CacheEntry<T, Context: CacheContext<T>> {
-    @if(Context extends EvictableContext<T>)
-    lastEvictedAt: Instant;
-
-    value: T;
-}
-```
-
-Comptime blocks can also appear as members on object-like types for static assertions and generated associated logic, much like `static` blocks are runtime associated logic.
-They run in the static environment of the declaration or instantiation where they appear post-inference.
+Comptime blocks can also appear as members on object-like types for static checks.
+They run in the static environment of the declaration or instantiation where they appear post-inference, and can access the same static terms as `@if`.
 
 ```ds
 struct Buffer<comptime size: uint> {
@@ -1178,6 +1153,37 @@ struct Buffer<comptime size: uint> {
     data: [uint8; size],
 }
 ```
+
+Because comptime expressions are just late-evaluated expressions executed before final lowering, comptime conditions can also be used for branch elimination when the condition is computed by ordinary code instead of the static-term algebra:
+
+```ds
+function isPowerOfTwo(value: uint): bool {
+    if (value == 0) {
+        return false;
+    }
+
+    let n = value;
+    while (n > 1) {
+        if (n % 2 != 0) {
+            return false;
+        }
+        n /= 2;
+    }
+
+    return true;
+}
+
+function blockCost<comptime Width: uint>(): int32 {
+    if (comptime isPowerOfTwo(Width)) {
+        return 1;
+    } else {
+        return 2;
+    }
+}
+```
+
+Of course, comptime results must also be lowerable into the target artifact.
+Plain data such as numbers, strings, arrays, tuples, objects, structs, and enums are all fine, but dynamic runtime resources like pointers and handles and such are not allowed.
 
 ## Memory
 
