@@ -35,6 +35,8 @@ Some JS/TS syntax and legacy behavior is either ambiguous, obsolete, or just not
 - **`any`**: Portable `.ds` uses `unknown` as the top type.
   TypeScript `any` is rejected because it makes arbitrary property access, calls, and assignments appear valid without proof.
   Existing TS code must narrow through `unknown`, use explicit casts at interop boundaries, or stay outside portable Destack.
+- **Definite assignment assertions**: `let x!: T` and `field!: T` are rejected in `.ds`.
+  Locals and fields must be actually initialized before use, either by an initializer or by ordinary definite assignment analysis.
 - **XML namespace resolution**: Destack does not implement XML `xmlns` namespace binding semantics.
   Namespaced tree tags like `<svg:path />` are treated as intrinsic string tag names (`"svg:path"`).
 
@@ -394,7 +396,8 @@ Static terms can include primitive inputs, imported facts, and expressions built
 | Static `const`s and imports | `N` imported from `./a.ds` |
 | Enum members and nominal constants | `OperatingSystem.Windows` |
 | Literal values | `4`, `"shared"`, `true` |
-| Static operators | `N * 2`, `Space == "shared"` |
+| Static operators | `N * 2`, `S == "shared"` |
+| Contextual type form | `PlaceOf<this>` inside a type declaration |
 | Module and profile metadata | `import.meta.target.os` |
 | Type operators and relations | `keyof T`, `T[K]`, `T extends string` |
 | Type/layout intrinsics | `sizeOf<T>()`, `alignOf<T>()` |
@@ -406,19 +409,30 @@ Type inference may flow _out_ of modules, but Destack does not support circular 
 type Block<comptime N: uint> = [uint8; N];
 type Payload<T> = T extends string ? Utf8Payload : BinaryPayload;
 
-struct Buffer<T, comptime Space: Space> {
-    @if(Space == "shared")
+struct Buffer<T, comptime S: Space> {
+    @if(S == "shared")
     lock: SharedLock;
 
-    @if(Space == "local")
+    @if(S == "local")
     lock: LocalLock;
 
     data: T[];
 }
 ```
 
-In the `Buffer` example, `Space` is carried as a generic value until `Buffer<T, "shared">` or `Buffer<T, "local">` is instantiated.
+In the `Buffer` example, `S` is carried as a generic value until `Buffer<T, "shared">` or `Buffer<T, "local">` is instantiated.
 At that point the `@if` guards become ordinary yes/no decisions and the concrete shape is known.
+The same idea applies to guarded statements: while a generic declaration is still open, a guarded statement is checked under its guard, and when the declaration is instantiated the statement is either present or gone.
+
+```ds
+function size<comptime Wide: bool>(): Wide extends true ? 8 : 4 {
+    @if(Wide)
+    return 8;
+
+    @if(Wide == false)
+    return 4;
+}
+```
 
 ### Associated Types and Constants
 
@@ -968,6 +982,8 @@ match (result) {
 
 There is another special decorator: `@if` gates the inclusion of certain nodes based on a static term.
 When the condition is false, the annotated item is removed from the instantiated shape.
+If the condition depends on generic static inputs, the compiler keeps the item guarded until the declaration is instantiated.
+That is still static inclusion, not runtime control flow.
 
 ```ds
 enum OperatingSystem {
@@ -978,19 +994,29 @@ enum OperatingSystem {
 }
 ```
 
-`@if` works on module declarations, class and struct members, interface members, enum fields, and other declaration-shaped nodes:
+`@if` works on module declarations, class and struct members, interface members, enum fields, and even statements:
 
 ```ds
-struct Buffer<T, comptime Space: Space> {
-    @if(Space == "shared")
+struct Buffer<T, comptime S: Space> {
+    @if(S == "shared")
     lock: SharedLock;
 
-    @if(Space == "local")
+    @if(S == "local")
     lock: LocalLock;
 
     data: T[];
 }
+
+function makeLock<comptime S: Space>(): S extends "shared" ? SharedLock : LocalLock {
+    @if(S == "shared")
+    return SharedLock {};
+
+    @if(S == "local")
+    return LocalLock {};
+}
 ```
+
+Guarded declarations and members contribute only when their guard is true, similarly, guarded statements are checked under their guard.
 
 ### Globals
 
@@ -1247,7 +1273,6 @@ newtype Form<
 ```
 
 All these `Form`s are based on the common static evaluation machinery, and code can be generic over `Form<T, O, P, R>`, `WithSpace<T, S>`, or `PlaceIn<T, S>` without choosing a final address space or ownership.
-Each qualified surface form maps to a `Form<...>` with its specific ownership tag and placement:
 
 ```ds
 User            // unqualified, interpreted as managed ambient
@@ -1258,8 +1283,8 @@ shared User     // Form<User, "managed", "shared">
 ^shared User    // Form<User, "owned", "shared">
 ```
 
-The operators are just the same few families applied to those axes.
-Constructors build a form from a base type while preserving any existing placement:
+The provided convenience memory algebra operators are just the those same families applied to those axes.
+Constructors build a form from a base type:
 
 ```ds
 Managed<User> satisfies Form<User, "managed", "ambient">;
@@ -1313,8 +1338,25 @@ WithPlace<shared User, "ambient"> satisfies Form<User, "managed", "ambient">;
 AsBorrowed<shared User, "a"> satisfies Form<User, "borrowed", "shared", "a">;
 ```
 
-It's important to emphasize that except for the intrinsic `Form`, all the rest is just regular TypeScript-shaped type algebra.
-That means memory qualification is just ordinary type-level computation: libraries and frameworks can introspect and rewrite ownership and placement using the same generic machinery they would use for any other type, which is quite useful (and neat).
+Except for the intrinsic `Form`, all the rest is just regular TypeScript-shaped type algebra.
+That makes memory qualification just ordinary type-level computation: userland code can introspect and rewrite ownership and placement using the same type system for any other type.
+Inside a type declaration, `this` in type or static position also carries the current instantiated form of that type to query against with the `*Of` and `Is*` family. 
+
+```ds
+struct Buffer<T> {
+    @if(PlaceOf<this> == "shared")
+    lock: SharedLock;
+
+    value: T;
+}
+
+declare const localBuffer: Buffer<string>;
+declare const sharedBuffer: shared Buffer<string>;
+
+sharedBuffer.lock satisfies SharedLock;
+PlaceOf<typeof localBuffer> satisfies "ambient";
+PlaceOf<typeof sharedBuffer> satisfies "shared";
+```
 
 # Runtime
 
