@@ -39,7 +39,7 @@ out satisfies Result<string, Error>;
 
 ## narrowing
 
-### Try and non-Try unions need narrowing
+### mixed Try unions need narrowing
 
 A union of Try and unrelated values must be narrowed first.
 
@@ -49,4 +49,4 @@ declare const value: Result<string, Error> | number | null;
 const out = value!;
 ```
 
-- contains: no matching overload
+- contains: narrow
