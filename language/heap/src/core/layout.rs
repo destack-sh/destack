@@ -143,6 +143,20 @@ impl SmallSpanClass {
     }
 }
 
+impl SmallAllocationLayout {
+    /// Return the reusable bucket index for this small allocation.
+    #[inline(always)]
+    pub const fn bucket_index(self) -> usize {
+        self.bucket_index
+    }
+
+    /// Return the slot payload size in bytes for this small allocation.
+    #[inline(always)]
+    pub const fn slot_bytes(self) -> usize {
+        self.class.size_class
+    }
+}
+
 /// Resolve one allocation shape against a concrete small allocation table.
 pub(crate) fn allocation_layout<'a>(
     shape: AllocationShape<'a>,

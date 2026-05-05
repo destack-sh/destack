@@ -93,13 +93,8 @@ impl HeapSpace {
 
     /// Reserve one reference from the active young run cursor.
     #[inline(always)]
-    pub(crate) fn reserve_young_run_cursor(
-        &mut self,
-        small: SmallAllocationLayout,
-    ) -> Option<HeapReference> {
-        self.young
-            .run_cursor
-            .reserve_matching_reference(small.class.size_class)
+    pub(crate) fn reserve_young_run_cursor(&mut self, slot_bytes: usize) -> Option<HeapReference> {
+        self.young.run_cursor.reserve_matching_reference(slot_bytes)
     }
 
     /// Try to allocate one byte-initialized allocation in young space.
