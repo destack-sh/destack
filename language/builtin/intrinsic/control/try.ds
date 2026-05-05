@@ -1,26 +1,35 @@
 /// Successful `Try` branch.
-export type TryContinue<T> = { kind: "continue"; value: T };
+export struct TryContinue<T> {
+    kind: "continue" = "continue";
+    value: T;
+}
 
 /// Failed `Try` branch.
-export type TryFailure<E> = { kind: "failure"; error: E };
+export struct TryFailure<F> {
+    kind: "failure" = "failure";
+    failure: F;
+}
 
 /// Branch result for the `?` and `??` operators.
-export type TryBranch<T, E> = TryContinue<T> | TryFailure<E>;
+export type TryBranch<T, F> = TryContinue<T> | TryFailure<F>;
 
-/// Source protocol for values that can be unwrapped or propagated with `?`.
+/// Protocol for values that can be unwrapped, propagated, or rebuilt.
 export newtype interface Try {
     /// The value produced when evaluation continues.
     type Value;
 
     /// The value produced when evaluation fails.
-    type Error;
+    type Failure;
+
+    /// Construct this type from a successful value.
+    static fromValue(value: this.Value): this;
 
     /// Branch into success or failure control flow.
-    branch(): TryBranch<this.Value, this.Error>;
+    branch(): TryBranch<this.Value, this.Failure>;
 }
 
 /// Target protocol for rebuilding a return type from a propagated failure.
-export newtype interface FromFailure<E> {
+export newtype interface FromFailure<F> {
     /// Construct this type from a failure value.
-    static fromFailure(error: E): this;
+    static fromFailure(failure: F): this;
 }
