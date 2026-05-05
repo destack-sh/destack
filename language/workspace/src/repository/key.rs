@@ -1,11 +1,10 @@
 use std::collections::HashSet;
 
 use destack_artifact::{Platform, ProfileKey, Runtime};
-use destack_builtin::{BuiltinLibraryKind, builtin_library};
 
 use crate::{
     CompilerOptions, HostEnvironment, ProfileEnvironment, ProfileOptions, Target, TsConfigOptions,
-    builtin_libs_for_type_entries, profile_flags_for_compiler_options, typescript_default_libs,
+    library_packages_for_type_entries, profile_flags_for_compiler_options, typescript_default_libs,
 };
 
 /// Collect type libraries for one target profile.
@@ -31,10 +30,10 @@ fn collect_types_for_target(
         type_entries.extend(profile_types.clone());
     }
 
-    builtin_libs_for_type_entries(&type_entries)
+    library_packages_for_type_entries(&type_entries)
 }
 
-/// Return the effective builtin library set for one target profile.
+/// Return the effective library package set for one target profile.
 fn effective_libs_for_target_profile(
     target: &Target,
     compiler_options: &CompilerOptions,
@@ -77,21 +76,9 @@ fn effective_libs_for_target_profile(
         }
     }
 
-    // prune/set native libraries
-    if runtime.is_native() {
-        libs.retain(|lib| {
-            let Some(builtin) = builtin_library(lib) else {
-                return true;
-            };
-
-            matches!(builtin.kind, BuiltinLibraryKind::Language)
-                || matches!(builtin.name, "native" | "platform" | "destack")
-        });
-
-        // add "native" if missing
-        if !libs.iter().any(|lib| lib == "native") {
-            libs.push("native".to_string());
-        }
+    // all targets need the language core
+    if !libs.iter().any(|lib| lib == "core") {
+        libs.insert(0, "core".to_string());
     }
 
     libs

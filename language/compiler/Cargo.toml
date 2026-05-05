@@ -16,7 +16,6 @@ doctest = false
 destack_artifact = { workspace = true }
 destack_artifact_macros = { workspace = true }
 destack_ast = { workspace = true }
-destack_builtin = { path = "../builtin", default-features = false }
 destack_codegen_js = { workspace = true }
 destack_codegen_native = { workspace = true, optional = true }
 destack_core = { workspace = true }
@@ -62,21 +61,10 @@ pprof = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 [features]
-default = ["full"]
-parallel = []
+default = ["native-codegen"]
 native-codegen = ["dep:destack_codegen_native"]
 deadlock-detection = ["parking_lot/deadlock_detection"]
-optimize = []
-builtin-full = ["destack_builtin/full", "destack_workspace/builtin-full"]
-builtin-core = ["destack_builtin/core", "destack_workspace/builtin-core"]
-full = [
-    "parallel",
-    "native-codegen",
-    "deadlock-detection",
-    "optimize",
-    "builtin-full",
-]
-core = ["builtin-core"]
+
 [[bench]]
 name = "destack_compile"
 harness = false

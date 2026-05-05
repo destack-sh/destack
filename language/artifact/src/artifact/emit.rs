@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use destack_builtin::BuiltinOutputFormat;
-
 /// Emitted artifact family for a build target.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
@@ -59,15 +57,5 @@ impl EmitFormat {
     /// Whether this family typically produces a single output file.
     pub fn is_single_file(&self) -> bool {
         matches!(self, Self::Html | Self::Wasm | Self::Native)
-    }
-
-    /// Convert this emit family to the builtin output family.
-    pub fn builtin_output_format(&self) -> BuiltinOutputFormat {
-        match self {
-            Self::Js | Self::Html => BuiltinOutputFormat::Js,
-            Self::Ts => BuiltinOutputFormat::Ts,
-            Self::Wasm => BuiltinOutputFormat::Wasm,
-            Self::Native => BuiltinOutputFormat::Native,
-        }
     }
 }

@@ -1,5 +1,5 @@
-use destack_builtin::LanguageSymbol;
 use destack_dir as dir;
+use destack_dir::LanguageSymbol;
 use destack_source::{FileType, ModuleId, PackageId, ProfileId, TargetId, Uri};
 
 use crate::{DiagnosticContext, DiagnosticDisplay, DiagnosticError};

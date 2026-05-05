@@ -2,8 +2,8 @@ set shell := ["bash", "-cu"]
 set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 
 # all language crates
-packages := "-p destack_ast -p destack_builtin -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_compiler_macros -p destack_core -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_json -p destack_linter -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_mir -p destack_native -p destack_parser -p destack_query -p destack_resolver -p destack_runtime -p destack_service -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_workspace"
-packages-no-linter := "-p destack_ast -p destack_builtin -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_compiler_macros -p destack_core -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_json -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_mir -p destack_native -p destack_parser -p destack_query -p destack_resolver -p destack_runtime -p destack_service -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_workspace"
+packages := "-p destack_ast -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_compiler_macros -p destack_core -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_json -p destack_linter -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_mir -p destack_native -p destack_parser -p destack_query -p destack_resolver -p destack_runtime -p destack_service -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_workspace"
+packages-no-linter := "-p destack_ast -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_compiler_macros -p destack_core -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_json -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_mir -p destack_native -p destack_parser -p destack_query -p destack_resolver -p destack_runtime -p destack_service -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_workspace"
 
 _default:
     @just --list --unsorted
@@ -250,20 +250,12 @@ generate-conformance-schema:
 generate-bindings *args:
     bash scripts/generate-bindings.sh {{args}}
 
-# --- builtin libs ---
+# --- language library ---
 
-# typescript lib version is pinned in builtin/fetch.py
-fetch-builtin-libs-version:
-    python3 ./builtin/fetch.py --print-versions
-
-# fetch typescript libs into builtin/lib
-fetch-builtin-libs:
-    python3 ./builtin/fetch.py
-
-# generate builtin lib registry
-generate-builtin-libs:
-    python3 ./builtin/generate.py
-    cargo fmt -p destack_builtin
+# generate language library registry
+generate-library:
+    python3 ./compiler/generate_library.py
+    cargo fmt -p destack_compiler
 
 # --- test ---
 
@@ -419,7 +411,7 @@ test-grammar-specification-sweep args="":
 
 # fail when specification positive cases produce parser errors
 test-grammar-specification-sweep-positive:
-    bun grammar/scripts/specification-parser-sweep.mjs --fail-on-positive
+    bun grammar/scripts/specification-parser-sweep.mjs --fail-on-positive --format-positive
 
 # profile tree sitter grammar state deltas
 profile-grammar-delta args="--target destack --baseline tsx --top 30":

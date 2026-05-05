@@ -27,10 +27,10 @@ pub enum ResolveWarning {
         target: String,
     },
 
-    /// Unprefixed builtin module import resolved through compatibility canonicalization.
+    /// Unprefixed library module import resolved through compatibility canonicalization.
     #[diagnostic(
         code = "WR104",
-        message = "unprefixed builtin module '{target}' resolved as '{suggested}'"
+        message = "unprefixed library module '{target}' resolved as '{suggested}'"
     )]
     UnprefixedBuiltinModule {
         anchor: DiagnosticAnchor,

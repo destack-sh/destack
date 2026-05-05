@@ -5,7 +5,6 @@ members = [
 	"language/ast",
 	"language/artifact",
 	"language/artifact/macros",
-	"language/builtin",
 	"language/compiler",
 	"language/compiler/generate/native",
 	"language/compiler/generate/native/cranelift/assembler-x64",
@@ -81,7 +80,6 @@ rust-version = "1.88.0"
 destack_artifact = { path = "language/artifact" }
 destack_artifact_macros = { path = "language/artifact/macros" }
 destack_ast = { path = "language/ast" }
-destack_builtin = { path = "language/builtin" }
 destack_codegen_js = { path = "language/compiler/generate/js" }
 destack_codegen_lib = { path = "language/compiler/generate/core" }
 destack_codegen_native = { path = "language/compiler/generate/native" }

@@ -1403,7 +1403,6 @@ dependencies = [
  "blake3",
  "dashmap 6.1.0",
  "destack_ast",
- "destack_builtin",
  "destack_core",
  "destack_css",
  "destack_dir",
@@ -1448,13 +1447,6 @@ dependencies = [
 [[package]]
 name = "destack_bridge_core"
 version = "0.55.4"
-
-[[package]]
-name = "destack_builtin"
-version = "0.55.4"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "destack_capi"
@@ -1576,7 +1568,6 @@ dependencies = [
  "destack_artifact",
  "destack_artifact_macros",
  "destack_ast",
- "destack_builtin",
  "destack_codegen_js",
  "destack_codegen_native",
  "destack_core",
@@ -1790,7 +1781,6 @@ dependencies = [
  "clap",
  "destack_artifact",
  "destack_ast",
- "destack_builtin",
  "destack_compiler",
  "destack_core",
  "destack_dir",
@@ -1987,7 +1977,6 @@ dependencies = [
  "core-foundation-sys",
  "destack_artifact",
  "destack_ast",
- "destack_builtin",
  "destack_compiler",
  "destack_core",
  "destack_dir",
@@ -2200,7 +2189,6 @@ dependencies = [
  "dashmap 6.1.0",
  "destack_artifact",
  "destack_ast",
- "destack_builtin",
  "destack_core",
  "destack_dir",
  "destack_heap",
