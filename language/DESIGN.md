@@ -396,7 +396,7 @@ Static terms can include primitive inputs, imported facts, and expressions built
 | Static `const`s and imports | `N` imported from `./a.ds` |
 | Enum members and nominal constants | `OperatingSystem.Windows` |
 | Literal values | `4`, `"shared"`, `true` |
-| Static operators | `N * 2`, `S == "shared"` |
+| Static operators | `N * 2`, `Mode == "inline"` |
 | Contextual type form | `PlaceOf<this>` inside a type declaration |
 | Module and profile metadata | `import.meta.target.os` |
 | Type operators and relations | `keyof T`, `T[K]`, `T extends string` |
@@ -409,18 +409,18 @@ Type inference may flow _out_ of modules, but Destack does not support circular 
 type Block<comptime N: uint> = [uint8; N];
 type Payload<T> = T extends string ? Utf8Payload : BinaryPayload;
 
-struct Buffer<T, comptime S: Space> {
-    @if(S == "shared")
-    lock: SharedLock;
+struct Buffer<T, comptime Mode: "inline" | "external"> {
+    @if(Mode == "inline")
+    index: InlineIndex;
 
-    @if(S == "local")
-    lock: LocalLock;
+    @if(Mode == "external")
+    index: ExternalIndex;
 
     data: T[];
 }
 ```
 
-In the `Buffer` example, `S` is carried as a generic value until `Buffer<T, "shared">` or `Buffer<T, "local">` is instantiated.
+In the `Buffer` example, `Mode` is carried as a generic value until `Buffer<T, "inline">` or `Buffer<T, "external">` is instantiated.
 At that point the `@if` guards become ordinary yes/no decisions and the concrete shape is known.
 The same idea applies to guarded statements: while a generic declaration is still open, a guarded statement is checked under its guard, and when the declaration is instantiated the statement is either present or gone.
 
@@ -589,10 +589,77 @@ if (let (x, y) = point) {
 }
 ```
 
+### Closures
+
+Closures generally work like TypeScript closures: capture the surrounding lexical environment and preserve lexical `this`.
+Destack supports an additional `@capture` annotation for controlling how the environment is captured (both as a broad policy and per binding):
+ - `"borrow"`: captures borrowed access to the original binding (same as `&expr`)
+ - `"copy"`: captures a copied value of the original binding (same as `expr.copy()` where `expr: Copy`)
+ - `"move"`: transfer the binding into the closure, original becomes unavailable afterwards (same as `^expr`)
+
+```ds
+let count = 0;
+
+@capture("borrow")
+const next = () => {
+    count += 1;
+    return count;
+};
+
+let name = "Ada";
+
+@capture("copy")
+const greet = () => `hello ${name}`;
+
+let socket = connect()?;
+
+@capture("move")
+const send = (message: string) => socket.write(message);
+```
+
+The short form sets the default for every captured binding.
+Object form can override individual bindings, including `this`:
+
+```ds
+class Client {
+    prefix: string;
+
+    make(socket: Socket, logger: Logger): (message: string) => Result<void, IOError> {
+        @capture({
+            default: "copy",
+            socket: "move",
+            logger: "borrow",
+            this: "borrow",
+        })
+        return (message) => {
+            logger.info("sending");
+            return socket.write(`${this.prefix}: ${message}`);
+        };
+    }
+}
+```
+
 ### Patterns
 
-TypeScript already has pattern based destructuring for arguments and assignment-like expressions, so match and richer pattern expressions fit in quite naturally.
-Destack supports `match` with full pattern matching and exhaustiveness checking:
+TypeScript already has pattern based destructuring for arguments and assignment-like expressions, so richer patterns fit in quite naturally.
+Destack extends that idea into `match`, `if (let ...)`, `let ... else`, and `catch match` with a full suite of patterns for every type family:
+
+| Family | Example | Meaning |
+|--------|---------|---------|
+| Wildcard | `_` | match and ignore the value |
+| Binding | `value` | bind the matched value |
+| Literal | `"ok"`, `0`, `true` | match one literal value |
+| Tuple | `(x, y)` | destructure a tuple value |
+| Sequence | `[head, ...tail]` | destructure indexed elements |
+| Object | `{ kind: "ok", value }` | destructure a structural object |
+| Struct | `Point { x, y }` | destructure a nominal struct |
+| Newtype | `UserId(value)` | unwrap a nominal newtype |
+| Union | `0 | 1 | 2` | accept any listed pattern |
+| Rest | `...tail` | collect the remaining elements or fields |
+| Default | `name = "guest"` | bind a fallback for missing destructured values |
+| Guard | `pattern if (condition)` | require an extra boolean condition |
+
+`match` is the full form and checks exhaustiveness:
 
 ```ds
 match (result /* Result<T, E> */) {
@@ -602,8 +669,7 @@ match (result /* Result<T, E> */) {
 }
 ```
 
-As one would expect, the type of a match expression is the union of its case body types, and patterns can appear in `match`, `if let`, `let ... else`, and destructuring bindings.
-The core pattern families are wildcard, binding, literal, tuple, object/struct, array/slice, variant/newtype, union, and guarded patterns.
+As one would expect, the type of a match expression is the union of its case body types.
 
 ```ds
 declare point: Point;
@@ -613,8 +679,8 @@ match (point) {
 }
 ```
 
-Some patterns are irrefutable, that is, they always match, and then we don't need any alternative branches, like with `_` or destructuring of known shapes.
-Refutable patterns require some fallback such that all branches are covered: a `match` fallback arm, an `else` branch for `if let`, or an `else` continuation for `let ... else`.
+Some patterns are irrefutable, which means they always match, and then we do not need any alternative branches, like with `_` or destructuring of known shapes.
+Refutable patterns require some fallback such that all branches are covered: a `match` fallback arm, an `else` branch for `if (let ...)`, or an `else` continuation for `let ... else`.
 
 ```ds
 declare point: Point;
@@ -624,7 +690,7 @@ match (point) {
     _ => "neither" // required fallback
 }
 
-declare maybe
+declare maybe: Option<int32>;
 let Some(value) = maybe else {
     return Result.err("missing value");
 };
@@ -829,8 +895,8 @@ function readConfig(path: string): Result<Config, IOError> {
 }
 ```
 
-When applied to `Result<T, E>`, `?` unwraps `Ok<T>` and propagates `Err<E>`.
-The `??` coalescing operator then also supports a convenient default value for the fallback case:
+For `Result<T, E>`, `?` takes the `Ok` value and lets `Err` leave the current expression.
+The same machinery also makes `??` useful for local fallback:
 
 ```ds
 const config = loadConfig() ?? defaultConfig;  // use default on error
@@ -881,11 +947,6 @@ newtype interface FromFailure<F> {
 Extending from TypeScript, `?` unwraps one success layer or propagates one failure layer.
 Outside a `try` block, propagation returns from the enclosing function using the return type's `FromFailure` implementation.
 Inside a `try` block with `catch`, propagation transfers the failure value to the catch instead.
-That means the source value needs `Try`, while the enclosing return type only needs `FromFailure` when the failure actually escapes.
-
-`??` keeps TypeScript's nullish behavior for ordinary nullable values.
-For `Try` values, it behaves like generalized coalescing: failure uses the fallback, success unwraps the value, and a nullish success value also uses the fallback.
-Mixed `Try | null | undefined` inputs are allowed, but arbitrary `Try | NonTry` unions must be narrowed first.
 
 #### Try, Catch and Finally
 
@@ -895,8 +956,8 @@ The `try`/`catch` syntax handles both exceptions and explicit `Try` propagation:
 try {
     const config = readConfig("config.json")?;
     process(config);
-} catch (e: IOError) {
-    log("Failed to read config:", e)
+} catch (e) {
+    log("failed to read config:", e)
 }
 ```
 
@@ -912,10 +973,9 @@ When just using known `Try`-implementor types, the full set of possible failures
 try {
     riskyOperationA()?; // -> Result<void, AError>
     riskyOperationB()?; // -> Result<void, BError>
-} catch match (e /* AError | BError */) {
-    NumericError(x) => Error(`bad number: ${x}`)
-    FormatError => Error(`bad format ${e}`)
-    _ => Error(`unknown error: ${e}`)
+} catch match (failure) {
+    NumericError(value) => Error(`bad number: ${value}`)
+    FormatError { message } => Error(`bad format: ${message}`)
 }
 ```
 
@@ -997,26 +1057,16 @@ enum OperatingSystem {
 `@if` works on module declarations, class and struct members, interface members, enum fields, and even statements:
 
 ```ds
-struct Buffer<T, comptime S: Space> {
-    @if(S == "shared")
-    lock: SharedLock;
+struct Buffer<T, comptime Mode: "inline" | "external"> {
+    @if(Mode == "inline")
+    index: InlineIndex;
 
-    @if(S == "local")
-    lock: LocalLock;
+    @if(Mode == "external")
+    index: ExternalIndex;
 
     data: T[];
 }
-
-function makeLock<comptime S: Space>(): S extends "shared" ? SharedLock : LocalLock {
-    @if(S == "shared")
-    return SharedLock {};
-
-    @if(S == "local")
-    return LocalLock {};
-}
 ```
-
-Guarded declarations and members contribute only when their guard is true, similarly, guarded statements are checked under their guard.
 
 ### Globals
 
