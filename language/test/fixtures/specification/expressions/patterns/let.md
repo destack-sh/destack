@@ -2,9 +2,9 @@
 
 ## literals
 
-### let else matches literals
+### let else matches literal patterns
 
-> Literal patterns can be used when the failure branch exits.
+> Literal patterns are valid when the else branch exits.
 
 ```ds
 function parse(value: "ok" | "bad"): int32 {
@@ -32,9 +32,9 @@ function parse(value: "ok" | "bad"): "ok" {
 
 ## newtypes
 
-### let else destructures newtypes
+### let else binds newtypes
 
-> Newtype patterns can bind their inner value.
+> Newtype patterns bind the wrapped value.
 
 ```ds
 newtype UserId = int64;
@@ -50,7 +50,7 @@ function read(id: UserId): int64 {
 
 ## structs
 
-### let else destructures structs
+### let else binds structs
 
 > Struct patterns use the nominal tag.
 
@@ -84,9 +84,9 @@ function parse(value: "ok" | "bad"): int32 {
 
 ## tuples
 
-### let else destructures tuples
+### let else binds tuples
 
-Tuple patterns bind after the pattern succeeds.
+Tuple fields bind after the pattern succeeds.
 
 ```ds
 function read(value: (int32, string) | null): int32 {
@@ -101,9 +101,9 @@ function read(value: (int32, string) | null): int32 {
 
 ## arrays
 
-### let else destructures fixed arrays
+### let else binds fixed arrays
 
-Array patterns bind after the pattern succeeds.
+Fixed array elements bind after the pattern succeeds.
 
 ```ds
 function read(values: [int32; 2] | null): int32 {
@@ -115,9 +115,9 @@ function read(values: [int32; 2] | null): int32 {
 }
 ```
 
-### let else destructures array rest
+### let else binds fixed array tails
 
-Rest patterns keep the remaining fixed array elements.
+Rest patterns bind the fixed array tail.
 
 ```ds
 function read(values: [int32; 3] | null): int32 {
@@ -132,9 +132,9 @@ function read(values: [int32; 3] | null): int32 {
 
 ## objects
 
-### let else destructures objects
+### let else binds objects
 
-Object patterns bind after the pattern succeeds.
+Object fields bind after the pattern succeeds.
 
 ```ds
 function read(value: { id: int32, name: string } | null): int32 {

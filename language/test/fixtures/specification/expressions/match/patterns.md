@@ -1,6 +1,6 @@
 # Match Patterns
 
-Match patterns handle tuple, fixed array, ownership, union, range, and rest forms.
+Match arms use the same pattern families as bindings and if let.
 
 ## tuple patterns
 
@@ -37,7 +37,7 @@ match (pair) {
 
 ## fixed arrays
 
-### match array patterns bind fixed array elements
+### match fixed array patterns bind elements
 
 > Fixed array patterns bind element types.
 
@@ -54,9 +54,9 @@ match (pair) {
 
 ## slices
 
-### match slice patterns bind elements
+### match slice patterns bind heads
 
-> Slice patterns bind known positions and keep the tail as a slice.
+> Slice patterns bind known positions and keep rest tails as slices.
 
 ```ds
 declare const values: [int32];
@@ -106,9 +106,9 @@ match (config) {
 }
 ```
 
-### match object wildcard filters bind requested fields
+### match wildcards ignore object fields
 
-> Object wildcard filters compose with named field bindings.
+> Wildcards ignore selected fields while other fields bind.
 
 ```ds
 type Config =
@@ -124,11 +124,50 @@ match (config) {
 }
 ```
 
+## struct patterns
+
+### match struct patterns bind fields
+
+> Struct patterns require the type name.
+
+```ds
+struct Point {
+    x: int32
+    y: int32
+}
+
+function sum(value: Point): int32 {
+    match (value) {
+        Point { x, y } => x + y
+    }
+}
+```
+
+### match struct patterns reject bare object patterns
+
+> Bare object patterns do not match nominal structs.
+
+```ds
+struct Point {
+    x: int32
+    y: int32
+}
+
+function sum(value: Point): int32 {
+    match (value) {
+        { x, y } => x + y
+        _ => 0
+    }
+}
+```
+
+- contains: not assignable
+
 ## rest patterns
 
-### match rest tuple patterns bind remaining elements
+### match tuple rest binds tails
 
-> Rest tuple patterns bind the remaining elements as a tuple.
+> Tuple rest patterns bind the tail as a tuple.
 
 ```ds
 declare const values: (int32, int32, int32);
@@ -141,9 +180,9 @@ match (values) {
 }
 ```
 
-### match rest array patterns bind remaining elements
+### match fixed array rest binds tails
 
-> Fixed array rest patterns bind the remaining elements as a fixed array.
+> Fixed array rest patterns bind the tail as a fixed array.
 
 ```ds
 declare const values: [int32; 3];
@@ -156,9 +195,9 @@ match (values) {
 }
 ```
 
-### match rest object patterns bind remaining properties
+### match object rest binds tails
 
-> Rest object patterns bind the remaining properties.
+> Object rest patterns bind the remaining fields.
 
 ```ds
 type Config = { enabled: boolean, retries: int32 };
@@ -175,9 +214,9 @@ match (config) {
 
 ## must patterns
 
-### match must patterns bind non nullish values
+### match must patterns bind non-nullish values
 
-> Must patterns bind non nullish values in match arms.
+> Must patterns bind the non-nullish value.
 
 ```ds
 declare const value: int32 | null;
@@ -194,7 +233,7 @@ match (value) {
 
 ### match value patterns bind owned values
 
-> Value patterns bind owned values without unwrapping.
+> Owned patterns bind an owned view.
 
 ```ds
 declare const value: ^int32;
@@ -208,7 +247,7 @@ match (value) {
 
 ### match reference patterns bind references
 
-> Reference patterns bind references without unwrapping.
+> Borrow patterns bind a borrowed view.
 
 ```ds
 declare const value: &int32;
@@ -234,3 +273,20 @@ match (value) {
     3 => "high"
 }
 ```
+
+## invalid patterns
+
+### literal patterns must fit the matched type
+
+> Literal patterns must be assignable to the matched type.
+
+```ds
+function invalidMatchPattern(value: int32): int32 {
+    match (value) {
+        "hi" => 1
+        _ => 2
+    }
+}
+```
+
+- contains: not assignable

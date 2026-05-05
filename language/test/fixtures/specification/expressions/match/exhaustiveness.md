@@ -2,9 +2,9 @@
 
 ## enums
 
-### match reports non-exhaustive enums
+### enum matches need full coverage
 
-> Match expressions must cover every enum field or use a fallback arm.
+> Enum matches must cover every field or use a fallback arm.
 
 ```ds
 enum State {
@@ -23,9 +23,9 @@ function label(state: State): string {
 
 - contains: non-exhaustive match
 
-### match accepts full enum coverage
+### enum matches cover every field
 
-> Full enum coverage makes the match exhaustive.
+> Covering every enum field is exhaustive.
 
 ```ds
 enum State {
@@ -43,9 +43,9 @@ function label(state: State): string {
 }
 ```
 
-### match accepts fallback arm
+### fallback arms cover enums
 
-> A fallback arm makes the match exhaustive.
+> A fallback arm covers the remaining enum fields.
 
 ```ds
 enum State {
@@ -65,9 +65,9 @@ function label(state: State): string {
 
 ## literal unions
 
-### match reports non-exhaustive literal unions
+### literal unions need full coverage
 
-> Literal unions must cover every literal.
+> Literal unions must cover every literal or use a fallback arm.
 
 ```ds
 type Status = "ready" | "loading" | "error";
@@ -82,9 +82,9 @@ function label(status: Status): string {
 
 - contains: non-exhaustive match
 
-### match accepts exhaustive boolean coverage
+### boolean matches cover true and false
 
-> Boolean matches are exhaustive when they cover `true` and `false`.
+> `true` and `false` cover `boolean`.
 
 ```ds
 function label(value: boolean): int32 {
@@ -95,9 +95,9 @@ function label(value: boolean): int32 {
 }
 ```
 
-### match accepts boolean unions with other literals
+### boolean unions keep other literals
 
-> Boolean unions remain exhaustive when `true` and `false` are covered.
+> Boolean literals and other literals must all be covered.
 
 ```ds
 type Status = boolean | "pending";
@@ -111,7 +111,7 @@ function label(status: Status): number {
 }
 ```
 
-### match accepts exhaustive string literal unions
+### string literal unions cover every member
 
 > String literal unions are exhaustive when every literal is covered.
 
@@ -126,7 +126,7 @@ function label(mode: Mode): string {
 }
 ```
 
-### match accepts exhaustive number literal unions
+### number literal unions cover every member
 
 > Number literal unions are exhaustive when every literal is covered.
 
@@ -142,7 +142,7 @@ function label(level: Level): string {
 }
 ```
 
-### match accepts exhaustive bigint literal unions
+### bigint literal unions cover every member
 
 > Bigint literal unions are exhaustive when every literal is covered.
 
@@ -157,9 +157,9 @@ function label(bits: Bits): int32 {
 }
 ```
 
-### match accepts exhaustive nullish literal unions
+### nullish unions cover null and undefined
 
-> Nullish literal unions are exhaustive when `null` and `undefined` are covered.
+> `null` and `undefined` both need coverage.
 
 ```ds
 type Maybe = null | undefined;
@@ -172,9 +172,9 @@ function label(value: Maybe): string {
 }
 ```
 
-### match accepts fallback arm for literal unions
+### fallback arms cover literal unions
 
-> A fallback arm makes literal unions exhaustive.
+> A fallback arm covers the remaining literal members.
 
 ```ds
 type Status = "ready" | "loading" | "error";
@@ -188,9 +188,9 @@ function label(status: Status): string {
 }
 ```
 
-### match accepts exhaustive union literal patterns
+### union patterns cover multiple literals
 
-> Union patterns count toward literal union exhaustiveness.
+> Union patterns cover each listed literal.
 
 ```ds
 type Status = 1 | 2 | 3;
@@ -203,9 +203,9 @@ function label(status: Status): int32 {
 }
 ```
 
-### match accepts exhaustive tuple unions with literal discriminants
+### tuple discriminants cover tuple unions
 
-> Tuple unions are exhaustive when a literal discriminant position is fully covered.
+> Literal tuple positions cover tuple union members.
 
 ```ds
 type Pair = (1, string) | (2, string);
@@ -224,9 +224,9 @@ function normalize(pair: Pair): int32 {
 }
 ```
 
-### match accepts tuple discriminant union patterns
+### tuple union patterns cover multiple discriminants
 
-> Tuple union patterns count toward tuple discriminant exhaustiveness.
+> Union patterns cover multiple tuple discriminants.
 
 ```ds
 type Pair = (1, string) | (2, string) | (3, string);
@@ -241,9 +241,9 @@ function normalize(pair: Pair): int32 {
 }
 ```
 
-### match requires fallback for non-literal unions
+### open unions need fallback arms
 
-> Unions with non-literal members require a fallback arm.
+> Unions with open members need a fallback arm.
 
 ```ds
 type Mixed = string | number;
@@ -258,7 +258,7 @@ function label(value: Mixed): string {
 
 - contains: non-exhaustive match
 
-### match reports non-exhaustive tuple unions with literal discriminants
+### missing tuple discriminants are non-exhaustive
 
 > Tuple unions are non-exhaustive when a discriminant literal is missing.
 
@@ -277,9 +277,9 @@ function normalize(pair: Pair): int32 {
 
 - contains: non-exhaustive match
 
-### match requires fallback for guarded tuple discriminants
+### guarded tuple arms need fallback arms
 
-> Guarded tuple discriminant arms require a fallback because coverage is not provable.
+> Guarded arms do not prove tuple coverage.
 
 ```ds
 type Pair = (1, string) | (2, string);
@@ -298,9 +298,9 @@ function normalize(pair: Pair): int32 {
 
 ## discriminated unions
 
-### match reports non-exhaustive discriminated unions
+### discriminated unions need full coverage
 
-> Discriminated unions must cover every discriminant value.
+> Discriminated unions must cover every tag or use a fallback arm.
 
 ```ds
 type Shape =
@@ -316,7 +316,7 @@ function area(shape: Shape): int32 {
 
 - contains: non-exhaustive match
 
-### match accepts exhaustive discriminated unions
+### discriminated unions cover every tag
 
 > Discriminated unions are exhaustive when every discriminant is covered.
 
@@ -333,9 +333,9 @@ function area(shape: Shape): int32 {
 }
 ```
 
-### match accepts exhaustive discriminated unions with union tag patterns
+### union tag patterns cover multiple variants
 
-> Union patterns on discriminant keys can cover multiple variants.
+> Union patterns on tag fields cover each listed variant.
 
 ```ds
 type Shape =
@@ -351,9 +351,9 @@ function area(shape: Shape): int32 {
 }
 ```
 
-### match accepts fallback arm for discriminated unions
+### fallback arms cover discriminated unions
 
-> A fallback arm makes discriminated unions exhaustive.
+> A fallback arm covers the remaining variants.
 
 ```ds
 type Shape =
@@ -368,7 +368,7 @@ function area(shape: Shape): int32 {
 }
 ```
 
-### match reports non-exhaustive nested discriminant object patterns
+### nested discriminants still need full coverage
 
 > Nested object discriminant matches must still cover every union variant.
 
@@ -386,9 +386,9 @@ function label(envelope: Envelope): int32 {
 
 - contains: non-exhaustive match
 
-### match accepts wildcard object filters as fallback coverage
+### wildcard tags cover remaining variants
 
-> Object wildcard filters can serve as explicit fallback coverage.
+> Wildcard tag fields cover the remaining variants.
 
 ```ds
 type Envelope =
@@ -405,7 +405,7 @@ function label(envelope: Envelope): int32 {
 
 ## irrefutable patterns
 
-### match allows irrefutable bindings without fallback
+### irrefutable bindings cover the value
 
 > Binding patterns are irrefutable and satisfy exhaustiveness.
 
@@ -417,9 +417,9 @@ function identity(value: number): number {
 }
 ```
 
-## fallback requirement
+## fallback arms
 
-### match requires fallback when guards are present
+### guarded arms need fallback arms
 
 > Guarded arms do not prove exhaustiveness.
 
@@ -433,7 +433,7 @@ function pick(value: int32): int32 {
 
 - contains: non-exhaustive match
 
-### match requires fallback for open array patterns
+### open array patterns need fallback arms
 
 > Array patterns over open arrays require a fallback.
 

@@ -2,9 +2,9 @@
 
 ## scalar newtypes
 
-### scalar newtype patterns bind inner values
+### scalar newtype patterns bind values
 
-> Scalar newtypes can be destructured by their constructor name.
+> Scalar newtype patterns bind the wrapped value.
 
 ```ds
 newtype UserId = int64;
@@ -15,9 +15,9 @@ value satisfies int64;
 
 ## tuple newtypes
 
-### tuple newtype patterns bind positional values
+### tuple newtype patterns bind fields
 
-> Tuple newtypes can be destructured positionally.
+> Tuple newtype patterns bind positional fields.
 
 ```ds
 newtype Point = (float32, float32);

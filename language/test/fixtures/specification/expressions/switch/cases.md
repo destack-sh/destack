@@ -1,6 +1,6 @@
-# Switch Statements
+# Switch
 
-## syntax
+## cases
 
 ### switch selects a matching case
 
@@ -63,7 +63,7 @@ function invalidBreak(day: int32): int32 {
 
 - contains: switch break cannot have a value
 
-### switch cases require expression patterns
+### switch cases use expressions
 
 > Switch cases do not accept structural patterns.
 
@@ -83,7 +83,7 @@ function invalidCase(value: int32): int32 {
 
 ### switch cases do not accept wildcards
 
-> Use `default` instead of a wildcard case.
+> `default` handles remaining values.
 
 ```ds
 function invalidWildcard(value: int32): int32 {
@@ -99,7 +99,7 @@ function invalidWildcard(value: int32): int32 {
 
 - contains: switch cases require expression patterns
 
-### switch cases must match the switch type
+### switch cases match the switch type
 
 > Case expressions must be assignable to the switch value.
 

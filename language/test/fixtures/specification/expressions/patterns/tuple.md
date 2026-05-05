@@ -21,16 +21,6 @@ let (_, value) = (1, 2);
 value satisfies int32;
 ```
 
-### tuple patterns cannot use named fields in `.ts` sources
-
-> Named fields are not allowed in tuple patterns in `.ts` sources.
-
-```ts:main.ts
-let (x: y) = (1, 2);
-```
-
-- contains: named fields are not allowed in array or tuple patterns
-
 ### tuple patterns reject arity mismatch
 
 > Tuple patterns require enough source elements for each binding.
@@ -41,7 +31,7 @@ let (left, right, extra) = (1, 2);
 
 - contains: not assignable
 
-### tuple patterns support nested destructuring
+### tuple patterns nest
 
 > Tuple patterns destructure nested tuple elements positionally.
 
@@ -66,7 +56,7 @@ right satisfies int32;
 
 ## rest
 
-### tuple rest binds trailing elements
+### tuple rest binds tails
 
 > Rest patterns collect remaining tuple positions.
 

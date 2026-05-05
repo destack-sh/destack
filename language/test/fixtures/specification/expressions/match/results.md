@@ -1,13 +1,13 @@
 # Match Results
 
-Match expressions use scrutinee types as contextual types for pattern bindings.
-Result precision is decided when values are bound or when match arm results are joined.
+Match expressions type their patterns from the matched value.
+Arm bodies then join like other expression branches.
 
 ## pattern bindings
 
-### match patterns inherit tuple literal precision from const assertions
+### const tuples keep literal elements
 
-> Pattern bindings in match arms reflect tuple precision from const assertions.
+> Const tuple patterns bind literal elements.
 
 ```ds
 const pair = [1, 2] as const;
@@ -20,10 +20,10 @@ match (pair) {
 }
 ```
 
-### match patterns widen array element types without const context
+### plain arrays widen elements
 
 > Array element bindings widen without a const context.
-> A fallback arm is required because non fixed arrays are not exhaustively covered by a single pattern.
+> Open arrays need a fallback arm.
 
 ```ds
 const pair = [1, 2];
@@ -37,9 +37,9 @@ match (pair) {
 }
 ```
 
-### match patterns are exhaustive for fixed arrays
+### fixed arrays are exhaustive by length
 
-> Fixed arrays can be exhaustively matched without a fallback arm.
+> Fixed array patterns cover every element position.
 
 ```ds
 declare const pair: [int32; 2];
@@ -52,9 +52,9 @@ match (pair) {
 }
 ```
 
-### match expression results widen in let bindings
+### let bindings widen match results
 
-> Let bindings widen match results when no contextual type exists.
+> Let bindings widen match results without an annotation.
 
 ```ds
 let value = match (1) {
@@ -65,7 +65,7 @@ let value = match (1) {
 value satisfies number;
 ```
 
-### match expression results widen without fallback for literal scrutinees
+### literal scrutinees still use binding widening
 
 > Exhaustive literal matches still widen at let bindings.
 
@@ -77,7 +77,7 @@ let value = match (1) {
 value satisfies number;
 ```
 
-### match expression results widen fresh literals in let bindings
+### fresh literal results widen in let bindings
 
 > Let bindings widen fresh literal results to their primitive types.
 
@@ -94,9 +94,25 @@ value satisfies 1;
 
 ## match results
 
-### match expression results keep literal unions in const bindings
+### result annotations check arms
 
-> Const bindings keep literal unions when no widening is required.
+> Each arm must satisfy the annotated result type.
+
+```ds
+function choose(value: int32): string {
+    const result: string = match (value) {
+        0 => "zero"
+        _ => 1
+    };
+    result
+}
+```
+
+- contains: not assignable
+
+### const bindings keep literal unions
+
+> Const bindings keep literal unions.
 
 ```ds
 const value = match (1) {
