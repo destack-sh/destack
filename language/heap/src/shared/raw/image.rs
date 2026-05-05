@@ -113,9 +113,11 @@ impl SharedRawSpace {
         let allocations = self.allocations.read();
         let state = self.state.lock();
         let mapping = self.mapping.write().fork()?;
+        let base_address = mapping.base_address();
 
         let forked = Self {
             allocator: self.allocator.clone(),
+            base_address,
             state: parking_lot::Mutex::new(super::space::SharedRawState {
                 page_run_cache: PageRunCache::new(self.allocator.pages_per_chunk()),
                 usage: state.usage,
@@ -158,6 +160,7 @@ impl SharedRawSpace {
         image: &SharedRawSpaceImage,
     ) -> HeapResult<Self> {
         let mapping = AddressSpace::reserve(image.space_bytes(), allocator.page_bytes())?;
+        let base_address = mapping.base_address();
 
         let allocations = image
             .allocations()
@@ -184,6 +187,7 @@ impl SharedRawSpace {
             .collect::<HeapResult<Vec<_>>>()?;
         let restored = Self {
             allocator: allocator.clone(),
+            base_address,
             state: parking_lot::Mutex::new(super::space::SharedRawState {
                 page_run_cache: PageRunCache::new(allocator.pages_per_chunk()),
                 usage: AllocationUsage::new(image.allocated_count(), image.allocated_bytes()),
