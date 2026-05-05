@@ -156,6 +156,8 @@ pub struct CompilerOptions {
     pub no_exceptions: DiagnosticPolicy,
     /// Borrow checking mode for `&T` and `&mut T`.
     pub borrow_mode: BorrowMode,
+    /// Default constructor naming policy for `@tagged` newtype unions.
+    pub tagged_case: TaggedCase,
 
     // emit
     /// Root directory of source files (controls output directory structure, not module resolution).
@@ -283,6 +285,7 @@ impl Default for CompilerOptions {
             no_implicit_dynamic_dispatch: DiagnosticPolicy::Allow,
             no_exceptions: DiagnosticPolicy::Allow,
             borrow_mode: BorrowMode::Hint,
+            tagged_case: TaggedCase::default(),
 
             // emit
             root_dir: None,
@@ -454,6 +457,63 @@ impl NodeLinker {
             "node-modules" | "node_modules" | "nodeModules" => Some(Self::NodeModules),
             "pnp" => Some(Self::Pnp),
             _ => None,
+        }
+    }
+}
+
+/// Constructor naming policy for `@tagged` newtype unions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TaggedCase {
+    /// Preserve discriminant spelling.
+    Preserve,
+    /// Convert discriminants to camelCase.
+    CamelCase,
+    /// Convert discriminants to UpperCamelCase.
+    #[default]
+    UpperCamelCase,
+    /// Convert discriminants to snake_case.
+    SnakeCase,
+    /// Convert discriminants to SCREAMING_SNAKE_CASE.
+    ScreamingSnakeCase,
+}
+
+impl TaggedCase {
+    /// Return the spelling used in configuration and `@tagged`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Preserve => "preserve",
+            Self::CamelCase => "camelCase",
+            Self::UpperCamelCase => "UpperCamelCase",
+            Self::SnakeCase => "snake_case",
+            Self::ScreamingSnakeCase => "SCREAMING_SNAKE_CASE",
+        }
+    }
+}
+
+/// Constructor naming policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub enum TaggedCaseJson {
+    #[serde(rename = "preserve")]
+    Preserve,
+    #[serde(rename = "camelCase")]
+    CamelCase,
+    #[serde(rename = "UpperCamelCase")]
+    UpperCamelCase,
+    #[serde(rename = "snake_case")]
+    SnakeCase,
+    #[serde(rename = "SCREAMING_SNAKE_CASE")]
+    ScreamingSnakeCase,
+}
+
+impl From<TaggedCaseJson> for TaggedCase {
+    fn from(value: TaggedCaseJson) -> Self {
+        match value {
+            TaggedCaseJson::Preserve => Self::Preserve,
+            TaggedCaseJson::CamelCase => Self::CamelCase,
+            TaggedCaseJson::UpperCamelCase => Self::UpperCamelCase,
+            TaggedCaseJson::SnakeCase => Self::SnakeCase,
+            TaggedCaseJson::ScreamingSnakeCase => Self::ScreamingSnakeCase,
         }
     }
 }
@@ -768,6 +828,8 @@ pub struct CompilerOptionsJson {
     pub no_exceptions: Option<DiagnosticPolicyJson>,
     /// Borrow checking mode for `&T` and `&mut T`.
     pub borrow_mode: Option<BorrowModeJson>,
+    /// Default constructor naming policy for `@tagged` newtype unions.
+    pub tagged_case: Option<TaggedCaseJson>,
 
     // emit
     /// Root directory of source files (controls output directory structure, not module resolution).
@@ -1038,6 +1100,7 @@ impl From<&CompilerOptionsJson> for CompilerOptions {
                 .borrow_mode
                 .map(BorrowMode::from)
                 .unwrap_or(BorrowMode::Hint),
+            tagged_case: json.tagged_case.map(TaggedCase::from).unwrap_or_default(),
 
             // emit
             root_dir: json.root_dir.as_ref().map(PathBuf::from),
