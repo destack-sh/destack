@@ -2,11 +2,7 @@
 
 `ReturnType` extracts a function return type.
 
-## cases
-
-### returntype extracts return values
-
-> Function return types are preserved.
+### ReturnType extracts return values
 
 ```ts libs=es5
 type Value = ReturnType<() => string>;
@@ -15,9 +11,7 @@ const ok: Value = "ready";
 ok satisfies string;
 ```
 
-### returntype rejects wrong values
-
-> Extracted return types reject unrelated values.
+### ReturnType rejects wrong values
 
 ```ts libs=es5
 type Value = ReturnType<() => string>;
@@ -27,9 +21,7 @@ const bad: Value = 1;
 
 - contains: not assignable
 
-### returntype keeps unions
-
-> Union return types stay unions.
+### ReturnType keeps unions
 
 ```ts libs=es5
 type Value = ReturnType<() => "a" | "b">;

@@ -2,11 +2,7 @@
 
 `ThisType` marks the contextual `this` type of an object literal.
 
-## cases
-
-### thistype provides object literal this
-
-> Object literal methods receive the contextual `this` type.
+### ThisType provides object literal this
 
 ```ts libs=es5
 type Descriptor = {
@@ -24,9 +20,7 @@ const descriptor: Descriptor = {
 descriptor.method() satisfies string;
 ```
 
-### thistype rejects missing contextual members
-
-> Contextual `this` rejects members outside the marker type.
+### ThisType rejects missing contextual members
 
 ```ts libs=es5
 type Descriptor = {

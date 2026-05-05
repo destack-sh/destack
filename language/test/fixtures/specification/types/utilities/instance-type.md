@@ -2,11 +2,7 @@
 
 `InstanceType` extracts the instance type created by a constructor.
 
-## cases
-
-### instancetype extracts class instances
-
-> Class constructors resolve to their instance type.
+### InstanceType extracts class instances
 
 ```ts libs=es5
 class User {
@@ -19,9 +15,7 @@ const ok: Value = new User();
 ok.name satisfies string;
 ```
 
-### instancetype rejects unrelated instances
-
-> Extracted instance types keep the class identity.
+### InstanceType rejects unrelated instances
 
 ```ts libs=es5
 class User {

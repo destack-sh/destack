@@ -2,11 +2,7 @@
 
 `Readonly` is a standard TypeScript utility type.
 
-## cases
-
 ### readonly keeps field types
-
-> `Readonly` preserves the field types.
 
 ```ds libs=es5
 interface Person {
@@ -22,8 +18,6 @@ ok satisfies Frozen;
 
 ### readonly preserves optional fields
 
-> `Readonly` keeps optional fields optional.
-
 ```ds libs=es5
 interface Person {
     name?: string
@@ -36,8 +30,6 @@ ok satisfies Frozen;
 ```
 
 ### readonly rejects property writes
-
-> Readonly fields cannot be assigned through the readonly type.
 
 ```ds libs=es5
 interface Person {
@@ -54,8 +46,6 @@ frozen.name = "Grace";
 - contains: read-only
 
 ### readonly is shallow
-
-> `Readonly<T>` only marks the outer fields readonly.
 
 ```ds libs=es5
 interface Person {

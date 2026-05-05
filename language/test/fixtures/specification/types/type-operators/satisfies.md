@@ -7,8 +7,6 @@ It does not widen away useful literal information when a const context is presen
 
 ### satisfies provides contextual typing for lambdas
 
-> Lambdas inside `satisfies` are contextually typed by the target type.
-
 ```ds
 type Handler = { run: (value: number) => number };
 
@@ -20,8 +18,6 @@ handler.run(1) satisfies number;
 ```
 
 ### satisfies rejects incompatible lambda calls
-
-> Contextual typing still rejects incompatible calls.
 
 ```ds
 type Handler = { run: (value: number) => number };
@@ -39,8 +35,6 @@ handler.run("no");
 
 ### satisfies preserves literal members under const bindings
 
-> Const bindings preserve literal members when satisfies provides the context.
-
 ```ds
 type Mode = "dev" | "prod";
 
@@ -50,8 +44,6 @@ config.mode satisfies "dev";
 ```
 
 ### satisfies enforces excess property checks
-
-> Object literals still undergo excess property checks under satisfies.
 
 ```ts
 type Shape = { a: number };
@@ -63,8 +55,6 @@ const value = { a: 1, b: 2 } satisfies Shape;
 
 ### satisfies does not widen without const context
 
-> Satisfies provides contextual typing without forcing const contexts.
-
 ```ts
 type Shape = { mode: "dev" | "prod" };
 
@@ -73,8 +63,6 @@ config.mode satisfies "dev";
 ```
 
 ### satisfies contextual members reject unrelated literals
-
-> Contextual member inference rejects unrelated literals.
 
 ```ts
 type Shape = { mode: "dev" | "prod" };
@@ -89,8 +77,6 @@ config.mode satisfies "prod";
 
 ### satisfies keeps source members after validation
 
-> Satisfies validates against the target while keeping source member access.
-
 ```ts
 type Target = { mode: "dev" | "prod"; retries: number };
 
@@ -100,8 +86,6 @@ config.retries satisfies number;
 ```
 
 ### satisfies keeps source method signatures
-
-> Satisfies does not erase source method signatures after target validation.
 
 ```ts
 type Target = { mode: "dev" | "prod" };
@@ -119,8 +103,6 @@ config.next(1) satisfies number;
 ## assignment targets
 
 ### satisfies expressions are not assignment targets
-
-> Satisfies expressions are not legal assignment targets.
 
 ```ts
 let value = 1;

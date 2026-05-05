@@ -7,8 +7,6 @@ Fixed arrays use `[T; N]`.
 
 ### indexed access reads property types
 
-> Indexed access returns the property type for known keys.
-
 ```ts
 type User = { name: string; age: number };
 type Name = User["name"];
@@ -19,8 +17,6 @@ value satisfies string;
 
 ### indexed access rejects missing properties
 
-> Missing properties in indexed access are rejected.
-
 ```ts
 type User = { name: string; age: number };
 type Missing = User["missing"];
@@ -28,9 +24,7 @@ type Missing = User["missing"];
 
 - contains: does not exist
 
-### numeric keys on object types stay indexed access in ds
-
-> Numeric type indexes are property indexes, not fixed-array syntax.
+### numeric keys on object types stay indexed access
 
 ```ds
 type Pair = { 0: string, 1: int32 };
@@ -41,8 +35,6 @@ value satisfies int32;
 ```
 
 ### missing numeric object keys are rejected
-
-> Missing numeric keys do not reinterpret as fixed arrays.
 
 ```ds
 type ObjectLike = { label: string };
@@ -55,8 +47,6 @@ type Missing = ObjectLike[5];
 
 ### indexed access distributes across unions
 
-> Indexed access distributes across union members.
-
 ```ts
 type A = { kind: "a"; value: number };
 type B = { kind: "b"; value: string };
@@ -68,8 +58,6 @@ const second: Value = "hi";
 
 ### indexed access with key unions yields unioned values
 
-> Indexed access with key unions returns the union of selected property values.
-
 ```ts
 type User = { name: string; age: number };
 type Value = User["name" | "age"];
@@ -79,8 +67,6 @@ const second: Value = 42;
 ```
 
 ### indexed access rejects values outside selected members
-
-> Indexed access rejects values outside the selected member value union.
 
 ```ts
 type User = { name: string; age: number };
@@ -95,8 +81,6 @@ const bad: Value = true;
 
 ### generic indexed access requires a key constraint
 
-> Generic indexed access needs a key that can index the receiver.
-
 ```ds
 type ValueAt<T, K: keyof T> = T[K];
 type User = { name: string, age: int32 };
@@ -106,8 +90,6 @@ value satisfies string;
 ```
 
 ### unconstrained generic indexed access is rejected
-
-> `T[K]` does not become a fixed array when `K` is unconstrained.
 
 ```ds
 type ValueAt<T, K> = T[K];
@@ -119,8 +101,6 @@ type ValueAt<T, K> = T[K];
 
 ### tuple indexing keeps indexed access semantics
 
-> Tuple indexing with numeric literals returns the selected position type.
-
 ```ds
 type Pair = (string, int32);
 type First = Pair[0];
@@ -131,8 +111,6 @@ first satisfies string;
 
 ### dynamic array indexing yields element types
 
-> Array indexed access returns the element type.
-
 ```ts
 type Element<T extends string[]> = T[number];
 
@@ -141,8 +119,6 @@ value satisfies string;
 ```
 
 ### fixed array syntax is separate
-
-> `[T; N]` is fixed-array syntax, not type-index syntax.
 
 ```ds
 type Lane<comptime N: uint> = [uint8; N];

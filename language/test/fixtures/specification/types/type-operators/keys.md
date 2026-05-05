@@ -1,78 +1,188 @@
-# Key Queries
+# Keys
 
-Key queries such as `keyof` and mapped types use the actual instantiated type.
-They do not shrink an argument back to its constraint.
+`keyof` and static `in` work over the apparent keys of a type.
 
-## constraint shapes
+## keyof
 
-### keyof does not collapse to constraint keys
+### keyof builds literal key unions
 
-> `keyof` reflects the instantiated type rather than the constraint shape.
+```ds
+interface Person {
+    name: string;
+    age: number;
+}
+
+type Keys = keyof Person;
+
+const name: Keys = "name";
+const age: Keys = "age";
+```
+
+### keyof rejects unknown keys
+
+```ds
+interface Person {
+    name: string;
+    age: number;
+}
+
+type Keys = keyof Person;
+
+const bad: Keys = "title";
+```
+
+- contains: not assignable
+
+### keyof unions keep shared keys
+
+```ds
+type Left = { shared: string, left: int32 };
+type Right = { shared: string, right: int32 };
+
+type Keys = keyof (Left | Right);
+
+const ok: Keys = "shared";
+```
+
+### keyof unions reject missing keys
+
+```ds
+type Left = { shared: string, left: int32 };
+type Right = { shared: string, right: int32 };
+
+type Keys = keyof (Left | Right);
+
+const bad: Keys = "left";
+```
+
+- contains: not assignable
+
+### keyof intersections include all keys
+
+```ds
+type Left = { shared: string, left: int32 };
+type Right = { shared: string, right: int32 };
+
+type Keys = keyof (Left & Right);
+
+const shared: Keys = "shared";
+const left: Keys = "left";
+const right: Keys = "right";
+```
+
+### keyof uses instantiated keys
 
 ```ds
 type Keys<T extends { a: number }> = keyof T;
-
 type Actual = Keys<{ a: number, b: string }>;
 
 const key: Actual = "b";
 key satisfies "a" | "b";
 ```
 
-### mapped keys do not collapse to constraint keys
+## index signatures
 
-> Mapped types iterate over the keys of the instantiated type.
+### string indexes contribute string and number keys
 
 ```ds
-type Flags<T extends { a: number }> = { [K in keyof T]: boolean };
+interface Bag {
+    [key: string]: number;
+}
 
-type Actual = Flags<{ a: number, b: string }>;
+type Keys = keyof Bag;
 
-const ok: Actual = { a: true, b: false };
-ok satisfies Actual;
+const okString: Keys = "a";
+const okNumber: Keys = 1;
 ```
 
-## union keys
-
-### keyof over unions uses shared apparent keys
-
-> `keyof (A | B)` is the intersection of keys on all members.
+### string indexes reject boolean keys
 
 ```ds
-type A = { a: number, shared: string };
-type B = { b: number, shared: string };
+interface Bag {
+    [key: string]: number;
+}
 
-type Keys = keyof (A | B);
+type Keys = keyof Bag;
 
-const ok: Keys = "shared";
-ok satisfies Keys;
-```
-
-### keyof over unions rejects non shared keys
-
-> Non shared keys do not appear in `keyof (A | B)`.
-
-```ds
-type A = { a: number, shared: string };
-type B = { b: number, shared: string };
-
-type Keys = keyof (A | B);
-
-const bad: Keys = "a";
+const bad: Keys = true;
 ```
 
 - contains: not assignable
 
-## utility types
+### number indexes contribute number keys
 
-### constrained pick honors instantiated keys
+```ds
+interface NumberBag {
+    [key: number]: string;
+}
 
-> Constrained generics still see keys from the instantiated type.
+type Keys = keyof NumberBag;
 
-```ds libs=es5
-type PickFrom<T extends { a: number }, K extends keyof T> = Pick<T, K>;
+const ok: Keys = 1;
+```
 
-type Result = PickFrom<{ a: number, b: string }, "b">;
+### number indexes reject string keys
 
-const ok: Result = { b: "x" };
-ok satisfies Result;
+```ds
+interface NumberBag {
+    [key: number]: string;
+}
+
+type Keys = keyof NumberBag;
+
+const bad: Keys = "name";
+```
+
+- contains: not assignable
+
+## in
+
+### in returns true for existing keys
+
+```ds
+interface Person {
+    name: string;
+    age: number;
+}
+
+type HasName = "name" in Person;
+
+const ok: HasName = true;
+```
+
+### in returns false for missing keys
+
+```ds
+interface Person {
+    name: string;
+    age: number;
+}
+
+type HasTitle = "title" in Person;
+
+const ok: HasTitle = false;
+```
+
+### in uses shared union keys
+
+```ds
+type Left = { shared: string, left: int32 };
+type Right = { shared: string, right: int32 };
+
+type HasLeft = "left" in (Left | Right);
+type HasShared = "shared" in (Left | Right);
+
+const left: HasLeft = false;
+const shared: HasShared = true;
+```
+
+### in uses intersection keys
+
+```ds
+type Left = { shared: string, left: int32 };
+type Right = { shared: string, right: int32 };
+
+type HasLeft = "left" in (Left & Right);
+
+const ok: HasLeft = true;
 ```

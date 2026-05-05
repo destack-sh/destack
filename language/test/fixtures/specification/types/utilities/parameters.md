@@ -2,11 +2,7 @@
 
 `Parameters` extracts a function parameter tuple.
 
-## cases
-
 ### parameters extracts argument types
-
-> Function parameters are returned as a tuple.
 
 ```ts libs=es5
 type Args = Parameters<(name: string, count: number) => boolean>;
@@ -16,8 +12,6 @@ ok satisfies [string, number];
 ```
 
 ### parameters rejects wrong argument types
-
-> Extracted parameter tuples keep each parameter type.
 
 ```ts libs=es5
 type Args = Parameters<(name: string, count: number) => boolean>;
@@ -29,8 +23,6 @@ const bad: Args = ["Ada", "one"];
 
 ### parameters preserves optional parameters
 
-> Optional parameters stay optional in the tuple.
-
 ```ts libs=es5
 type Args = Parameters<(name: string, count?: number) => boolean>;
 
@@ -39,8 +31,6 @@ const ok2: Args = ["Ada", 1];
 ```
 
 ### parameters preserves rest parameters
-
-> Rest parameters stay rest-like in the tuple.
 
 ```ts libs=es5
 type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
