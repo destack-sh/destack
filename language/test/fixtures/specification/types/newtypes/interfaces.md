@@ -1,12 +1,10 @@
 # Newtype Interfaces
 
-`newtype interface` nominal conformance.
+Newtype interfaces are nominal interfaces.
 
-## assignment
+## implements
 
-### nominal interface requires explicit implements
-
-> Structural matches do not satisfy nominal interfaces.
+### structural matches do not satisfy nominal interfaces
 
 ```ds
 newtype interface Add<T> {
@@ -29,9 +27,7 @@ const value: Add<Vec2> = Vec2 { x: 0, y: 0 };
 
 - contains: not assignable
 
-### nominal interface satisfied via implements
-
-> Explicit implements provides nominal conformance.
+### explicit implements satisfies nominal interfaces
 
 ```ds
 newtype interface Add<T> {
@@ -57,9 +53,7 @@ const value: Add<Vec2> = Vec2 { x: 0, y: 0 };
 value.add(Vec2 { x: 1, y: 1 }) satisfies Vec2;
 ```
 
-### nominal interface conformance is preserved through type aliases
-
-> Nominal interface conformance remains available through type aliases.
+### aliases preserve nominal interface identity
 
 ```ds
 newtype interface Add<T> {
@@ -68,12 +62,12 @@ newtype interface Add<T> {
     add(other: T): this.Output;
 }
 
-type AddVec2 = Add<Vec2>;
-
 struct Vec2 {
     x: int32;
     y: int32;
 }
+
+type AddVec2 = Add<Vec2>;
 
 extension of Vec2 implements Add<Vec2> {
     type Output = Vec2;
@@ -87,9 +81,7 @@ const value: AddVec2 = Vec2 { x: 0, y: 0 };
 value.add(Vec2 { x: 1, y: 1 }) satisfies Vec2;
 ```
 
-### nominal interfaces remain nominal across module boundaries
-
-> Imported nominal interfaces are not satisfied by structural matches without explicit implements.
+### imported interfaces stay nominal
 
 ```ds:contract.ds
 export newtype interface Add<T> {
@@ -100,7 +92,7 @@ export newtype interface Add<T> {
 ```
 
 ```ds:main.ds
-import { Add } from "./contract";
+import { Add } from "./contract.ds";
 
 struct Vec2 {
     x: int32;
@@ -116,9 +108,7 @@ const value: Add<Vec2> = Vec2 { x: 0, y: 0 };
 
 - contains: not assignable
 
-### nominal interfaces can be satisfied across module boundaries via implements
-
-> Imported nominal interfaces are satisfied when explicit implements is provided.
+### imported interfaces accept imported implements
 
 ```ds:contract.ds
 export newtype interface Add<T> {
@@ -129,7 +119,7 @@ export newtype interface Add<T> {
 ```
 
 ```ds:main.ds
-import { Add } from "./contract";
+import { Add } from "./contract.ds";
 
 struct Vec2 {
     x: int32;
