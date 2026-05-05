@@ -13,7 +13,9 @@ struct Left {}
 struct Right {}
 
 extension of Right implements Add<Left> {
-    add(other: Left): Right { return Right {} }
+    type Output = Right;
+
+    add(other: Left): this.Output { return Right {} }
 }
 
 declare let left: Left;
@@ -33,11 +35,15 @@ struct Vector2 { x: int32; y: int32 }
 struct Scalar { value: int32 }
 
 extension of Vector2 implements Add<Scalar> {
-    add(other: Scalar): Vector2 { return this }
+    type Output = Vector2;
+
+    add(other: Scalar): this.Output { return this }
 }
 
-extension of Scalar implements Add<Vector2, Vector2> {
-    add(other: Vector2): Vector2 { return other }
+extension of Scalar implements Add<Vector2> {
+    type Output = Vector2;
+
+    add(other: Vector2): this.Output { return other }
 }
 
 declare let vector: Vector2;
@@ -58,11 +64,15 @@ scaled satisfies Vector2;
 struct Counter {}
 
 extension of Counter implements Add<number> {
-    add(other: number): "number" { return "number" }
+    type Output = "number";
+
+    add(other: number): this.Output { return "number" }
 }
 
 extension of Counter implements Add<int32> {
-    add(other: int32): "int32" { return "int32" }
+    type Output = "int32";
+
+    add(other: int32): this.Output { return "int32" }
 }
 
 declare let counter: Counter;
@@ -85,11 +95,15 @@ export struct Counter {}
 import { Counter } from "./counter";
 
 export extension CounterNumberAdd of Counter implements Add<number> {
-    add(other: number): "number" { return "number" }
+    type Output = "number";
+
+    add(other: number): this.Output { return "number" }
 }
 
 export extension CounterIntAdd of Counter implements Add<int32> {
-    add(other: int32): "int32" { return "int32" }
+    type Output = "int32";
+
+    add(other: int32): this.Output { return "int32" }
 }
 ```
 
@@ -115,7 +129,9 @@ export struct Counter {}
 import { Counter } from "./counter";
 
 export extension FirstAdd of Counter implements Add<number> {
-    add(other: number): "first" { return "first" }
+    type Output = "first";
+
+    add(other: number): this.Output { return "first" }
 }
 ```
 
@@ -123,7 +139,9 @@ export extension FirstAdd of Counter implements Add<number> {
 import { Counter } from "./counter";
 
 export extension SecondAdd of Counter implements Add<number> {
-    add(other: number): "second" { return "second" }
+    type Output = "second";
+
+    add(other: number): this.Output { return "second" }
 }
 ```
 

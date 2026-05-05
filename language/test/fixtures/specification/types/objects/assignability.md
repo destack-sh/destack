@@ -221,7 +221,9 @@ person satisfies Named;
 
 ```ds
 newtype interface Add<T> {
-    add(other: T): T
+    type Output;
+
+    add(other: T): this.Output
 }
 
 struct Vec2 {
@@ -244,7 +246,9 @@ const value: Add<Vec2> = Vec2 { x: 1, y: 2 };
 
 ```ds
 newtype interface Add<T> {
-    add(other: T): T
+    type Output;
+
+    add(other: T): this.Output
 }
 
 struct Vec2 {
@@ -253,7 +257,9 @@ struct Vec2 {
 }
 
 extension of Vec2 implements Add<Vec2> {
-    add(other: Vec2): Vec2 {
+    type Output = Vec2;
+
+    add(other: Vec2): this.Output {
         Vec2 { x: this.x + other.x, y: this.y + other.y }
     }
 }

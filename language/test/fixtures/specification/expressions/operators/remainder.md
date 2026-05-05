@@ -26,7 +26,9 @@ value satisfies number;
 struct Scalar { value: int }
 
 extension of Scalar implements Remainder<Scalar> {
-    remainder(other: Scalar): Scalar { return this }
+    type Output = Scalar;
+
+    remainder(other: Scalar): this.Output { return this }
 }
 
 declare function getScalar(): Scalar;
@@ -46,7 +48,9 @@ value satisfies Scalar;
 struct Scalar { value: int }
 
 extension of Scalar implements Add<Scalar> {
-    add(other: Scalar): Scalar { return this }
+    type Output = Scalar;
+
+    add(other: Scalar): this.Output { return this }
 }
 
 declare function getScalar(): Scalar;
