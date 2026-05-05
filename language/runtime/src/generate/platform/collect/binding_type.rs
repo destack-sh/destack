@@ -8,7 +8,7 @@ use super::domain::module_platform_domain;
 use crate::context::GeneratorContext;
 use crate::platform::model::{BindingType, BindingTypeContext, binding_type_symbols};
 
-/// Collect exported platform type declarations from builtin modules.
+/// Collect exported platform type declarations from library modules.
 pub(crate) fn collect_platform_types(
     compiler: &Compiler,
     context: &GeneratorContext,

@@ -18,7 +18,7 @@ Runtime behaviour is modelled along the three basic dimensions of engine ("where
 
 The runtime is organized around core `runtime`, `platform` bindings, and the underlying `host` integration:
  - `runtime/`: all the core runtime scaffolding and orchestration (world, topology, poller, scheduler/loop, etc.)
- - `platform/`: host implementations for the modules defined in the builtin ["platform"](language/builtin/library/platform) library
+ - `platform/`: host implementations for the modules defined in the language [`platform`](../library/platform) library
  - `host/`: host adapters, host ingress bridges, host FFI entrypoints, and host state integration
 
 ## World
@@ -36,7 +36,7 @@ Each host has its own capabilities, lifecycle constraints, framework ownership r
 
 ## Platform
 
-The `platform` implements the "platform" bindings defined in `language/builtin/library/platform`, and the corresponding bindings and ABI surface are auto-generated in `language/runtime/src/generate` (into the not-to-be-edited `*.generated.rs` files).
+The `platform` implements the bindings defined in `language/library/platform`, and the corresponding bindings and ABI surface are auto-generated in `language/runtime/src/generate` (into the not-to-be-edited `*.generated.rs` files).
 The runtime generator wires as much of the native / VM data integration as possible, but unfortunately we still need to manually normalize and serialise / deserialise sometimes where no reliable automatic mapping exists.
 
 ### "ABI"
@@ -102,7 +102,7 @@ That native integration should normally attach one Destack-rendered host surface
 | [`process`](./src/platform/process) | Process lifecycle, environment, identity, scheduling, limits, signals, and wait operations. |
 | [`random`](./src/platform/random) | Secure entropy and deterministic random stream generation. |
 | [`resource`](./src/platform/resource) | Runtime resource identifiers and handle lifecycle operations. |
-| [`runtime`](../builtin/library/platform/runtime) | Low-level world control, lineage, pinned views, causal trace, observation streams, and snapshot export or restore. |
+| [`runtime`](../library/platform/runtime) | Low-level world control, lineage, pinned views, causal trace, observation streams, and snapshot export or restore. |
 | [`security`](./src/platform/security) | Capability checks, policy state, sandbox controls, and enforcement hooks. |
 | [`thread`](./src/platform/thread) | Thread creation, synchronization, local storage, affinity, and priority controls. |
 | [`time`](./src/platform/time) | Clock reads, sleep primitives, and timer scheduling operations. |

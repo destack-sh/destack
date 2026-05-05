@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 /// Prefix used by the intrinsic platform-capability declaration.
 const PLATFORM_CAPABILITY_TYPE_PREFIX: &str = "export type PlatformCapability =";
 
-/// Generate runtime capability kinds from the builtin intrinsic capability union.
+/// Generate runtime capability kinds from the primitive binding union.
 pub(crate) fn generate_platform_capability_kind() {
     let intrinsic_binding_path = intrinsic_binding_path();
     let source = fs::read_to_string(&intrinsic_binding_path).unwrap_or_else(|error| {
@@ -27,9 +27,9 @@ fn language_root() -> PathBuf {
         .to_path_buf()
 }
 
-/// Resolve the intrinsic binding declaration path.
+/// Resolve the primitive binding declaration path.
 fn intrinsic_binding_path() -> PathBuf {
-    language_root().join("builtin/intrinsic/primitive/binding.ds")
+    language_root().join("library/core/primitive/binding.ds")
 }
 
 /// Resolve the generated runtime capability kind output path.

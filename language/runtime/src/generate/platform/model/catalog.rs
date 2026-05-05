@@ -102,12 +102,12 @@ pub(crate) enum CatalogEffectClass {
     },
 }
 
-/// Binding metadata extracted from builtin sources.
+/// Binding metadata extracted from library sources.
 #[derive(Debug, Clone)]
 pub(crate) struct BindingEntry {
     /// Declaration name used by runtime implementation functions.
     pub implementation_name: String,
-    /// Declaration documentation extracted from builtin sources.
+    /// Declaration documentation extracted from library sources.
     pub documentation: Option<String>,
     /// Canonical signature string for stability checks.
     pub signature: String,
@@ -168,7 +168,7 @@ pub(crate) struct BindingParameter {
 pub(crate) struct BindingField {
     /// Field name as declared in the source type.
     pub name: String,
-    /// Field documentation extracted from builtin sources.
+    /// Field documentation extracted from library sources.
     pub documentation: Option<String>,
     /// Field binding type for generated wrappers.
     pub binding_type: BindingType,
@@ -280,12 +280,12 @@ impl BindingType {
     }
 }
 
-/// Constant declaration metadata extracted from builtin sources.
+/// Constant declaration metadata extracted from library sources.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ConstantEntry {
-    /// Constant name as declared in builtin sources.
+    /// Constant name as declared in library sources.
     pub name: String,
-    /// Constant documentation extracted from builtin sources.
+    /// Constant documentation extracted from library sources.
     pub documentation: Option<String>,
     /// Constant binding type for generated ABI rendering.
     pub binding_type: BindingType,
