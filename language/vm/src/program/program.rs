@@ -7,8 +7,8 @@ use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
 use super::layout::{Layout, LayoutIndex, build_layouts, callable_object_layout};
 use super::{
-    CallTarget, FrameBinding, FrameEntry, FrameState, FrameStateTable, Function, FunctionTable,
-    ProgramPoint, SideTable, SideTableBuilder,
+    CallTarget, CallableObjectLayout, FrameBinding, FrameEntry, FrameState, FrameStateTable,
+    Function, FunctionTable, ProgramPoint, SideTable, SideTableBuilder,
 };
 use crate::lower::{ValueType, analyze_value_types, lower_function};
 use crate::{Error, FunctionPointer, Result, StaticPointer, Word};
@@ -29,6 +29,10 @@ pub struct Program {
     layout_index: LayoutIndex,
     /// Immutable program static data.
     pub(crate) statics: engine::StaticSpace,
+    /// Callable heap object field layout.
+    pub(crate) callable_object_layout: CallableObjectLayout,
+    /// Interface method targets by itab id and method index.
+    interface_method_by_id: Vec<Box<[Option<mir::LocalNodeId<mir::Function>>]>>,
 
     /// Logical frame layouts by dense layout id.
     pub(crate) frame_layouts: Vec<engine::FrameLayout>,
@@ -196,6 +200,19 @@ impl Program {
     /// Return whether one static byte range belongs to program static space.
     pub(crate) fn owns_static_range(&self, pointer: StaticPointer, byte_len: usize) -> bool {
         self.statics.owns_pointer_range(pointer, byte_len)
+    }
+
+    /// Return the interface method target for one itab method index.
+    pub(crate) fn interface_method(
+        &self,
+        table: mir::ItabId,
+        method_index: u32,
+    ) -> Option<mir::LocalNodeId<mir::Function>> {
+        self.interface_method_by_id
+            .get(table.index())
+            .and_then(|methods| methods.get(method_index as usize))
+            .copied()
+            .flatten()
     }
 
     /// Return one MIR type by display name.
@@ -525,6 +542,27 @@ fn initializer_ranges(
     Ok(ranges)
 }
 
+/// Build interface dispatch targets by itab id.
+fn interface_methods(tree: &mir::Tree) -> Vec<Box<[Option<mir::LocalNodeId<mir::Function>>]>> {
+    let mut methods = Vec::with_capacity(tree.metadata.dispatch.itabs.len());
+
+    for (_, table) in tree.metadata.dispatch.iter_itabs() {
+        let entries = table
+            .entries
+            .iter()
+            .map(|entry| match entry {
+                mir::ItabEntry::Method { target_method, .. } => Some(*target_method),
+                mir::ItabEntry::TypeDescriptor | mir::ItabEntry::FieldOffset { .. } => None,
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+
+        methods.push(entries);
+    }
+
+    methods
+}
+
 /// Build one program from one MIR tree and immutable string pool.
 struct ProgramBuilder {
     heap_options: heap::HeapOptions,
@@ -560,6 +598,8 @@ impl ProgramBuilder {
         let type_layouts = build_layouts(&self.tree)?;
         let layout_id_by_type = self.build_layout_id_map(&type_layouts)?;
         let layouts = self.build_layout_table(&type_layouts, &layout_id_by_type)?;
+        let callable_object_layout = callable_object_layout(self.tree.pointer_bytes() as usize);
+        let interface_method_by_id = interface_methods(&self.tree);
         let layout_index = LayoutIndex::new(layouts, type_layouts, layout_id_by_type);
         let statics = self.build_statics(layout_index.type_layouts())?;
         let mut side_table = SideTableBuilder::default();
@@ -567,16 +607,19 @@ impl ProgramBuilder {
             &function_ids,
             &target_by_id,
             layout_index.type_layouts(),
+            layout_index.layout_ids(),
             &mut side_table,
         )?;
         let side_table = side_table.finish();
-        let functions = FunctionTable::new(functions, target_by_id);
+        let functions = FunctionTable::new(&self.tree, functions, target_by_id);
 
         Ok(Program {
             tree: self.tree,
             strings: self.strings,
             function_id_by_name,
             statics,
+            callable_object_layout,
+            interface_method_by_id,
             layout_index,
             frame_layouts: self.frame_layouts,
             frame_states: self.frame_states,
@@ -829,6 +872,7 @@ impl ProgramBuilder {
         function_ids: &[mir::LocalNodeId<mir::Function>],
         target_by_id: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+        layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
         side_table: &mut SideTableBuilder,
     ) -> Result<Vec<Function>> {
         let call_targets = target_by_id.clone();
@@ -837,7 +881,13 @@ impl ProgramBuilder {
 
         // build one lowered function at a time
         for function_id in function_ids {
-            let function = self.build_function(*function_id, &call_targets, layouts, side_table)?;
+            let function = self.build_function(
+                *function_id,
+                &call_targets,
+                layouts,
+                layout_id_by_type,
+                side_table,
+            )?;
             functions.push(function);
         }
 
@@ -850,6 +900,7 @@ impl ProgramBuilder {
         function_id: mir::LocalNodeId<mir::Function>,
         call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+        layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
         side_table: &mut SideTableBuilder,
     ) -> Result<Function> {
         let function = self.tree.get(function_id);
@@ -870,6 +921,7 @@ impl ProgramBuilder {
             &exceptional_call_frame_states,
             call_targets,
             layouts,
+            layout_id_by_type,
             &self.heap_options,
             &self.shared_heap_options,
             &value_types,

@@ -142,6 +142,12 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         unsafe { T::get(&*self.side_table, instruction.a) }
     }
 
+    /// Borrow one pooled side record by id.
+    #[inline(always)]
+    pub(crate) fn side_with_id<T: SideRecord>(&self, id: u32) -> &'iso T {
+        unsafe { T::get(&*self.side_table, id) }
+    }
+
     /// Return the compiled layout for one MIR type.
     #[inline]
     pub(crate) fn layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Result<&Layout, Error> {

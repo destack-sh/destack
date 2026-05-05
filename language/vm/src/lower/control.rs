@@ -1,13 +1,133 @@
 use destack_mir as mir;
 
-use crate::program::{Instruction, Op};
+use crate::program::{
+    BoundsCheck, Check, Instruction, NarrowCheck, Op, OverflowCheck, ShiftRangeCheck, UnionCheck,
+    ValueLayout, repr_type,
+};
 use crate::{Error, Result};
 
+use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
 use super::op::{select_switch_op, select_switch_table_op};
 use super::pool::Pool;
-
 impl<'a> BlockLowerer<'a> {
+    /// Lower one MIR check into VM data.
+    fn lower_check(&self, constraint: &mir::CheckConstraint) -> Result<Check> {
+        match constraint {
+            mir::CheckConstraint::Bounds {
+                index,
+                length,
+                is_signed,
+                ..
+            } => {
+                let index = check_value(*index, "bounds check index")?;
+                let length = check_value(*length, "bounds check length")?;
+                let (_, length_signed) = checked_integer(self, length)?;
+                let check = BoundsCheck {
+                    index: word_offset(self, index)?,
+                    length: word_offset(self, length)?,
+                };
+
+                Ok(bounds_check(*is_signed, length_signed, check))
+            }
+            mir::CheckConstraint::Null { value } => {
+                let value = check_value(*value, "null check value")?;
+
+                Ok(Check::Null {
+                    value: word_offset(self, value)?,
+                })
+            }
+            mir::CheckConstraint::DivZero { divisor } => {
+                let divisor = check_value(*divisor, "divzero divisor")?;
+                let (_, is_signed) = checked_integer(self, divisor)?;
+                let divisor = word_offset(self, divisor)?;
+
+                Ok(div_zero_check(is_signed, divisor))
+            }
+            mir::CheckConstraint::ShiftRange {
+                value,
+                bit_width,
+                is_signed,
+            } => {
+                let value = check_value(*value, "shift range value")?;
+                if *bit_width == 0 {
+                    return Err(Error::InvalidInstruction);
+                }
+                let check = ShiftRangeCheck {
+                    value: word_offset(self, value)?,
+                    bit_width: *bit_width,
+                };
+
+                Ok(shift_range_check(*is_signed, check))
+            }
+            mir::CheckConstraint::Narrow {
+                value,
+                to_width,
+                is_signed,
+            } => {
+                let value = check_value(*value, "narrow value")?;
+                if *to_width == 0 {
+                    return Err(Error::InvalidInstruction);
+                }
+                let check = NarrowCheck {
+                    value: word_offset(self, value)?,
+                    to_width: *to_width,
+                };
+
+                Ok(narrow_check(*is_signed, check))
+            }
+            mir::CheckConstraint::Overflow {
+                operator,
+                left,
+                right,
+                is_signed,
+            } => {
+                let left = check_value(*left, "overflow left")?;
+                let right = check_value(*right, "overflow right")?;
+                let (width, _) = checked_integer(self, left)?;
+                let (right_width, _) = checked_integer(self, right)?;
+                if width != right_width {
+                    return Err(Error::InvalidInstruction);
+                }
+
+                let check = OverflowCheck {
+                    left: word_offset(self, left)?,
+                    right: word_offset(self, right)?,
+                    width,
+                };
+
+                overflow_check(*operator, *is_signed, check)
+            }
+            mir::CheckConstraint::Type { value, expected } => {
+                let value = check_value(*value, "type check value")?;
+                let expected = expected.ty().ok_or_else(|| Error::MissingRepresentation {
+                    context: "type check expected".to_string(),
+                })?;
+
+                Ok(Check::Type {
+                    value: word_offset(self, value)?,
+                    expected: expected.id,
+                })
+            }
+            mir::CheckConstraint::Union { value, expected } => {
+                let value = check_value(*value, "union check value")?;
+                let (_, is_signed) = checked_integer(self, value)?;
+                let check = UnionCheck {
+                    value: word_offset(self, value)?,
+                    expected: *expected,
+                };
+
+                Ok(union_check(is_signed, check))
+            }
+            mir::CheckConstraint::ReceiverType { .. } => Err(Error::UnsupportedInstruction {
+                name: "receiverType check".to_string(),
+            }),
+            mir::CheckConstraint::Implements { .. } => Err(Error::UnsupportedInstruction {
+                name: "interfaceConformance check".to_string(),
+            }),
+        }
+    }
+
     /// Convert a MIR terminator to lowered interpreter form.
     pub(super) fn lower_terminator(
         &self,
@@ -28,7 +148,16 @@ impl<'a> BlockLowerer<'a> {
                     context: "return value".to_string(),
                 })?;
 
-                Instruction::new(Op::Return, value.id(), 0, 0, 0)
+                let value_type = self.value_type_for_value(value)?;
+                let is_word = self.layout_for_type(value_type)?.is_word();
+
+                let op = if is_word {
+                    Op::ReturnWord
+                } else {
+                    Op::ReturnAddress
+                };
+
+                Instruction::new(op, value_offset(self, value)?, 0, 0, 0)
             }
 
             mir::Terminator::Jump { target } => {
@@ -50,12 +179,8 @@ impl<'a> BlockLowerer<'a> {
                     })
                     .collect::<Result<Vec<_>>>()?;
                 let target_index = self.block_index_by_id[&target_block];
-                let target_parameters = self
-                    .block_parameter
-                    .get(target_index)
-                    .map(|params| params.as_slice())
-                    .unwrap_or_default();
-                let moves = pool.edge_move_plan(target_parameters, &arguments)?;
+                let target_parameters = self.block_parameter[target_index].as_slice();
+                let moves = pool.edge_moves(target_parameters, &arguments)?;
 
                 Instruction::new(Op::Jump, target_index as u32, moves.start, moves.len, 0)
             }
@@ -107,22 +232,20 @@ impl<'a> BlockLowerer<'a> {
                     .collect::<Result<Vec<_>>>()?;
                 let then_index = self.block_index_by_id[&then_target_block];
                 let else_index = self.block_index_by_id[&else_target_block];
-                let then_parameters = self
-                    .block_parameter
-                    .get(then_index)
-                    .map(|params| params.as_slice())
-                    .unwrap_or_default();
-                let else_parameters = self
-                    .block_parameter
-                    .get(else_index)
-                    .map(|params| params.as_slice())
-                    .unwrap_or_default();
-                let then_moves = pool.edge_move_plan(then_parameters, &then_arguments)?;
-                let else_moves = pool.edge_move_plan(else_parameters, &else_arguments)?;
+                let then_parameters = self.block_parameter[then_index].as_slice();
+                let else_parameters = self.block_parameter[else_index].as_slice();
+                let then_moves = pool.edge_moves(then_parameters, &then_arguments)?;
+                let else_moves = pool.edge_moves(else_parameters, &else_arguments)?;
                 let then_edge = pool.edge(then_index as u32, then_moves);
                 let else_edge = pool.edge(else_index as u32, else_moves);
 
-                Instruction::new(Op::BranchBool, condition.id(), then_edge.0, else_edge.0, 0)
+                Instruction::new(
+                    Op::BranchBool,
+                    word_offset(self, condition)?,
+                    then_edge.0,
+                    else_edge.0,
+                    0,
+                )
             }
 
             mir::Terminator::Check {
@@ -166,19 +289,11 @@ impl<'a> BlockLowerer<'a> {
                     .collect::<Result<Vec<_>>>()?;
                 let success_index = self.block_index_by_id[&success_block];
                 let failure_index = self.block_index_by_id[&failure_block];
-                let success_parameters = self
-                    .block_parameter
-                    .get(success_index)
-                    .map(|params| params.as_slice())
-                    .unwrap_or_default();
-                let failure_parameters = self
-                    .block_parameter
-                    .get(failure_index)
-                    .map(|params| params.as_slice())
-                    .unwrap_or_default();
-                let success_moves = pool.edge_move_plan(success_parameters, &success_arguments)?;
-                let failure_moves = pool.edge_move_plan(failure_parameters, &failure_arguments)?;
-                let constraint = pool.check(constraint.clone());
+                let success_parameters = self.block_parameter[success_index].as_slice();
+                let failure_parameters = self.block_parameter[failure_index].as_slice();
+                let success_moves = pool.edge_moves(success_parameters, &success_arguments)?;
+                let failure_moves = pool.edge_moves(failure_parameters, &failure_arguments)?;
+                let constraint = pool.check(self.lower_check(constraint)?);
                 let success_edge = pool.edge(success_index as u32, success_moves);
                 let failure_edge = pool.edge(failure_index as u32, failure_moves);
 
@@ -213,19 +328,12 @@ impl<'a> BlockLowerer<'a> {
                     })
                     .collect::<Result<Vec<_>>>()?;
                 let default_index = self.block_index_by_id[&default_block];
-                let default_parameters = self
-                    .block_parameter
-                    .get(default_index)
-                    .map(|params| params.as_slice())
-                    .unwrap_or_default();
-                let default_moves = pool.edge_move_plan(default_parameters, &default_arguments)?;
+                let default_parameters = self.block_parameter[default_index].as_slice();
+                let default_moves = pool.edge_moves(default_parameters, &default_arguments)?;
                 let default_edge = pool.edge(default_index as u32, default_moves);
 
-                let is_word = self
-                    .value_type_for_value(value)
-                    .ok()
-                    .and_then(|ty| self.layout_for_type(ty).ok())
-                    .is_some_and(|layout| layout.is_word());
+                let (is_word, width) = switch_layout(self.value_layout_map().get(value));
+                let switch_layout = switch_layout_field(width);
                 if is_word
                     && let Some(table) = pool.switch_table_range(
                         &self.block_index_by_id,
@@ -237,10 +345,10 @@ impl<'a> BlockLowerer<'a> {
                 {
                     Instruction::new(
                         select_switch_table_op(self.value_layout_map(), value),
-                        value.id(),
+                        word_offset(self, value)?,
                         table.0,
                         default_edge.0,
-                        0,
+                        switch_layout,
                     )
                 } else {
                     let cases = pool.switch_case_range(
@@ -248,12 +356,18 @@ impl<'a> BlockLowerer<'a> {
                         &self.block_parameter,
                         cases,
                     )?;
+                    let value_offset = if is_word {
+                        word_offset(self, value)?
+                    } else {
+                        value_offset(self, value)?
+                    };
+
                     Instruction::new(
                         select_switch_op(self.value_layout_map(), value),
-                        value.id(),
+                        value_offset,
                         cases.0,
                         default_edge.0,
-                        0,
+                        switch_layout,
                     )
                 }
             }
@@ -267,7 +381,7 @@ impl<'a> BlockLowerer<'a> {
                         }
                     })?;
 
-                    Instruction::new(Op::Panic, payload.id(), 0, 0, 0)
+                    Instruction::new(Op::Panic, word_offset(self, payload)?, 0, 0, 0)
                 }
             },
 
@@ -290,7 +404,22 @@ impl<'a> BlockLowerer<'a> {
                         ),
                     })?;
 
-                Instruction::new(Op::Yield, value.id(), value.id(), frame_state.0, 0)
+                let value_type = self.value_type_for_value(value)?;
+                let is_word = self.layout_for_type(value_type)?.is_word();
+
+                let op = if is_word {
+                    Op::YieldWord
+                } else {
+                    Op::YieldAddress
+                };
+
+                Instruction::new(
+                    op,
+                    value_offset(self, value)?,
+                    value_type.id,
+                    frame_state.0,
+                    0,
+                )
             }
 
             mir::Terminator::Throw { value } => {
@@ -300,7 +429,16 @@ impl<'a> BlockLowerer<'a> {
                         context: "throw value".to_string(),
                     })?;
 
-                Instruction::new(Op::Throw, value.id(), 0, 0, 0)
+                let value_type = self.value_type_for_value(value)?;
+                let is_word = self.layout_for_type(value_type)?.is_word();
+
+                let op = if is_word {
+                    Op::ThrowWord
+                } else {
+                    Op::ThrowAddress
+                };
+
+                Instruction::new(op, value_offset(self, value)?, 0, 0, 0)
             }
 
             mir::Terminator::Invoke { .. }
@@ -315,4 +453,111 @@ impl<'a> BlockLowerer<'a> {
             }
         })
     }
+}
+
+/// Return the word integer shape for one checked value.
+fn switch_layout(layout: Option<ValueLayout>) -> (bool, u16) {
+    match layout {
+        Some(ValueLayout::Int { width, .. }) if width <= u64::BITS as u16 => (true, width),
+        Some(ValueLayout::Int { width, .. }) => (false, width),
+        _ => (false, 0),
+    }
+}
+
+/// Resolve one value reference used by a runtime check.
+fn switch_layout_field(width: u16) -> u32 {
+    u32::from(width)
+}
+
+/// Select one concrete overflow check.
+fn checked_integer(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Result<(u8, bool)> {
+    let value_type = lowerer.value_type_for_value(value)?;
+    let value_type = repr_type(lowerer.tree, value_type);
+
+    match lowerer.tree.get(value_type) {
+        mir::Type::Int { width, is_signed } if *width > 0 && *width <= u64::BITS as u16 => {
+            Ok((*width as u8, *is_signed))
+        }
+        mir::Type::Usize => Ok((lowerer.tree.pointer_bytes() * 8, false)),
+        _ => Err(Error::TypeMismatch {
+            expected: "word integer".to_string(),
+            actual: format!("{value_type:?}"),
+        }),
+    }
+}
+
+/// Select one concrete bounds check.
+fn check_value(value: mir::ValueReference, context: &'static str) -> Result<mir::Value> {
+    value.value().ok_or_else(|| Error::MissingRepresentation {
+        context: context.to_string(),
+    })
+}
+
+/// Select one concrete div-zero check.
+fn overflow_check(
+    operator: mir::BinaryOperator,
+    is_signed: bool,
+    check: OverflowCheck,
+) -> Result<Check> {
+    match (operator, is_signed) {
+        (mir::BinaryOperator::Add, true) => Ok(Check::OverflowAddInt(check)),
+        (mir::BinaryOperator::Add, false) => Ok(Check::OverflowAddUint(check)),
+        (mir::BinaryOperator::Subtract, true) => Ok(Check::OverflowSubInt(check)),
+        (mir::BinaryOperator::Subtract, false) => Ok(Check::OverflowSubUint(check)),
+        (mir::BinaryOperator::Multiply, true) => Ok(Check::OverflowMulInt(check)),
+        (mir::BinaryOperator::Multiply, false) => Ok(Check::OverflowMulUint(check)),
+        (mir::BinaryOperator::SignedDivide | mir::BinaryOperator::SignedRemainder, true) => {
+            Ok(Check::OverflowDivInt(check))
+        }
+        (mir::BinaryOperator::UnsignedDivide | mir::BinaryOperator::UnsignedRemainder, false) => {
+            Ok(Check::OverflowDivUint(check))
+        }
+        _ => Err(Error::InvalidInstruction),
+    }
+}
+
+/// Select one concrete shift range check.
+fn bounds_check(index_signed: bool, length_signed: bool, check: BoundsCheck) -> Check {
+    match (index_signed, length_signed) {
+        (true, true) => Check::BoundsIntInt(check),
+        (true, false) => Check::BoundsIntUint(check),
+        (false, true) => Check::BoundsUintInt(check),
+        (false, false) => Check::BoundsUintUint(check),
+    }
+}
+
+/// Select one concrete narrow check.
+fn div_zero_check(is_signed: bool, divisor: u32) -> Check {
+    if is_signed {
+        return Check::DivZeroInt { divisor };
+    }
+
+    Check::DivZeroUint { divisor }
+}
+
+/// Select one concrete union check.
+fn shift_range_check(is_signed: bool, check: ShiftRangeCheck) -> Check {
+    if is_signed {
+        return Check::ShiftRangeInt(check);
+    }
+
+    Check::ShiftRangeUint(check)
+}
+
+/// Return one lowered switch value layout.
+fn narrow_check(is_signed: bool, check: NarrowCheck) -> Check {
+    if is_signed {
+        return Check::NarrowInt(check);
+    }
+
+    Check::NarrowUint(check)
+}
+
+/// Pack one switch integer layout into an instruction field.
+fn union_check(is_signed: bool, check: UnionCheck) -> Check {
+    if is_signed {
+        return Check::UnionInt(check);
+    }
+
+    Check::UnionUint(check)
 }

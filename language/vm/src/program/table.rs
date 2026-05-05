@@ -3,13 +3,14 @@ use {destack_heap as heap, destack_mir as mir};
 use super::{
     AllocationLayout, AtomicCompareExchange, AtomicFence, AtomicLoad, AtomicRmw, AtomicStore, Call,
     CallBranch, CallIndirect, CallIndirectBranch, CallInterface, CallInterfaceBranch, CallVirtual,
-    CallVirtualBranch, ConstValue, ElementAccess, FieldAccess, FrameAccess, FrameSelect, Intrinsic,
-    MoveRange, PointeeAccess, SliceElementAccess, SwitchCase, TailCall, TailCallIndirect,
-    TailCallInterface, TailCallVirtual, TensorBinary, TensorBroadcast, TensorConcat, TensorConvert,
-    TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather, TensorLoad,
-    TensorPad, TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore,
-    TensorTranspose, TensorUnary, TensorView, VectorBinary, VectorConvert, VectorExtract,
-    VectorInsert, VectorReduce, VectorSelect, VectorShuffle, VectorSplat, VectorUnary,
+    CallVirtualBranch, CallableBind, ConstValue, ElementAccess, FieldAccess, FrameAccess,
+    FrameSelect, Intrinsic, MoveRange, PointeeAccess, SliceElementAccess, SwitchCase, TailCall,
+    TailCallIndirect, TailCallInterface, TailCallVirtual, TensorBinary, TensorBroadcast,
+    TensorConcat, TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract,
+    TensorFill, TensorGather, TensorLayout, TensorLoad, TensorPad, TensorReduce, TensorReshape,
+    TensorScatter, TensorSelect, TensorSlice, TensorStore, TensorTranspose, TensorUnary,
+    TensorView, VectorBinary, VectorConvert, VectorExtract, VectorInsert, VectorReduce,
+    VectorSelect, VectorShuffle, VectorSplat, VectorUnary,
 };
 
 /// Identifier for one pooled check constraint.
@@ -19,47 +20,31 @@ pub(crate) struct CheckId(pub(crate) u32);
 /// One lowered runtime check.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Check {
-    /// Bounds check over word index and length values.
-    Bounds {
-        /// The index word offset.
-        index: u32,
-        /// The length word offset.
-        length: u32,
-        /// Whether the index is signed.
-        index_signed: bool,
-        /// Whether the length is signed.
-        length_signed: bool,
-    },
+    /// Bounds check over signed index and signed length words.
+    BoundsIntInt(BoundsCheck),
+    /// Bounds check over signed index and unsigned length words.
+    BoundsIntUint(BoundsCheck),
+    /// Bounds check over unsigned index and signed length words.
+    BoundsUintInt(BoundsCheck),
+    /// Bounds check over unsigned index and unsigned length words.
+    BoundsUintUint(BoundsCheck),
     /// Non-null check over one word.
     Null {
         /// The value word offset.
         value: u32,
     },
-    /// Division-by-zero check over one word.
-    DivZero {
-        /// The divisor word offset.
-        divisor: u32,
-        /// Whether the divisor is signed.
-        is_signed: bool,
-    },
-    /// Shift range check over one word.
-    ShiftRange {
-        /// The shift amount word offset.
-        value: u32,
-        /// The shifted type bit width.
-        bit_width: u8,
-        /// Whether the shift amount is signed.
-        is_signed: bool,
-    },
-    /// Integer narrowing check over one word.
-    Narrow {
-        /// The value word offset.
-        value: u32,
-        /// The target bit width.
-        to_width: u8,
-        /// Whether the value is signed.
-        is_signed: bool,
-    },
+    /// Division-by-zero check over one signed word.
+    DivZeroInt { divisor: u32 },
+    /// Division-by-zero check over one unsigned word.
+    DivZeroUint { divisor: u32 },
+    /// Shift range check over one signed shift amount word.
+    ShiftRangeInt(ShiftRangeCheck),
+    /// Shift range check over one unsigned shift amount word.
+    ShiftRangeUint(ShiftRangeCheck),
+    /// Signed integer narrowing check over one word.
+    NarrowInt(NarrowCheck),
+    /// Unsigned integer narrowing check over one word.
+    NarrowUint(NarrowCheck),
     /// Signed add overflow check over two words.
     OverflowAddInt(OverflowCheck),
     /// Unsigned add overflow check over two words.
@@ -83,25 +68,56 @@ pub(crate) enum Check {
         /// The expected type id.
         expected: u32,
     },
-    /// Union tag check.
-    Union {
-        /// The tag word offset.
-        value: u32,
-        /// The expected tag.
-        expected: u64,
-        /// Whether the tag is signed.
-        is_signed: bool,
-    },
+    /// Signed union tag check.
+    UnionInt(UnionCheck),
+    /// Unsigned union tag check.
+    UnionUint(UnionCheck),
 }
 
-/// Two word operands for one overflow check.
+/// Bounds check over index and length words.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct BoundsCheck {
+    /// The index word offset.
+    pub(crate) index: u32,
+    /// The length word offset.
+    pub(crate) length: u32,
+}
+
+/// Shift amount range check over one word.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ShiftRangeCheck {
+    /// The shift amount word offset.
+    pub(crate) value: u32,
+    /// The shifted type bit width.
+    pub(crate) bit_width: u8,
+}
+
+/// Integer narrowing check over one word.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct NarrowCheck {
+    /// The value word offset.
+    pub(crate) value: u32,
+    /// The target bit width.
+    pub(crate) to_width: u8,
+}
+
+/// Union tag check over one word.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct UnionCheck {
+    /// The tag word offset.
+    pub(crate) value: u32,
+    /// The expected tag.
+    pub(crate) expected: u64,
+}
+
+/// Two word inputs for one overflow check.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct OverflowCheck {
-    /// The left operand word offset.
+    /// The left input word offset.
     pub(crate) left: u32,
-    /// The right operand word offset.
+    /// The right input word offset.
     pub(crate) right: u32,
-    /// The operand bit width.
+    /// The input bit width.
     pub(crate) width: u8,
 }
 
@@ -179,10 +195,6 @@ pub(crate) struct PointeeAccessId(pub(crate) u32);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct U32RangeId(pub(crate) u32);
 
-/// Identifier for one pooled MIR type slice.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct TypeRangeId(pub(crate) u32);
-
 /// Identifier for one pooled tensor dot descriptor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct TensorDotId(pub(crate) u32);
@@ -202,6 +214,10 @@ pub(crate) struct TensorGatherId(pub(crate) u32);
 /// Identifier for one pooled tensor scatter descriptor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct TensorScatterId(pub(crate) u32);
+
+/// Identifier for one pooled tensor layout.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct TensorLayoutId(pub(crate) u32);
 
 /// Record stored outside the fixed instruction words.
 pub(crate) trait SideRecord: Copy {
@@ -276,6 +292,7 @@ side_record_table! {
     vector_select: VectorSelect,
     vector_reduce: VectorReduce,
     vector_convert: VectorConvert,
+    callable_bind: CallableBind,
     call: Call,
     call_branch: CallBranch,
     call_virtual: CallVirtual,
@@ -347,8 +364,6 @@ pub(crate) struct SideTable {
     edge: Box<[Edge]>,
     /// Pooled u32 slices.
     u32_ranges: Box<[Box<[u32]>]>,
-    /// Pooled MIR type slices.
-    type_ranges: Box<[Box<[mir::LocalNodeId<mir::Type>]>]>,
     /// Pooled tensor dot descriptors.
     tensor_dot: Box<[mir::TensorDotDimensionNumbers]>,
     /// Pooled tensor convolution dimension descriptors.
@@ -359,6 +374,8 @@ pub(crate) struct SideTable {
     tensor_gather: Box<[mir::TensorGatherDimensionNumbers]>,
     /// Pooled tensor scatter descriptors.
     tensor_scatter: Box<[mir::TensorScatterDimensionNumbers]>,
+    /// Pooled tensor layouts.
+    tensor_layout: Box<[TensorLayout]>,
 }
 
 /// Mutable side table used while lowering one program.
@@ -396,8 +413,6 @@ pub(crate) struct SideTableBuilder {
     pointee_access: Vec<PointeeAccess>,
     /// Pooled u32 slices.
     u32_ranges: Vec<Box<[u32]>>,
-    /// Pooled MIR type slices.
-    type_ranges: Vec<Box<[mir::LocalNodeId<mir::Type>]>>,
     /// Pooled tensor dot descriptors.
     tensor_dot: Vec<mir::TensorDotDimensionNumbers>,
     /// Pooled tensor convolution dimension descriptors.
@@ -408,6 +423,8 @@ pub(crate) struct SideTableBuilder {
     tensor_gather: Vec<mir::TensorGatherDimensionNumbers>,
     /// Pooled tensor scatter descriptors.
     tensor_scatter: Vec<mir::TensorScatterDimensionNumbers>,
+    /// Pooled tensor layouts.
+    tensor_layout: Vec<TensorLayout>,
 }
 
 impl SideTableBuilder {
@@ -430,12 +447,12 @@ impl SideTableBuilder {
             slice_element_access,
             pointee_access,
             u32_ranges,
-            type_ranges,
             tensor_dot,
             tensor_convolution,
             tensor_window,
             tensor_gather,
             tensor_scatter,
+            tensor_layout,
         } = self;
 
         SideTable {
@@ -455,12 +472,12 @@ impl SideTableBuilder {
             switch_table: switch_table.into_boxed_slice(),
             edge: edge.into_boxed_slice(),
             u32_ranges: u32_ranges.into_boxed_slice(),
-            type_ranges: type_ranges.into_boxed_slice(),
             tensor_dot: tensor_dot.into_boxed_slice(),
             tensor_convolution: tensor_convolution.into_boxed_slice(),
             tensor_window: tensor_window.into_boxed_slice(),
             tensor_gather: tensor_gather.into_boxed_slice(),
             tensor_scatter: tensor_scatter.into_boxed_slice(),
+            tensor_layout: tensor_layout.into_boxed_slice(),
         }
     }
 
@@ -623,17 +640,6 @@ impl SideTableBuilder {
         U32RangeId(id)
     }
 
-    /// Add one MIR type slice to the side table.
-    pub(crate) fn push_type_range(
-        &mut self,
-        values: &[mir::LocalNodeId<mir::Type>],
-    ) -> TypeRangeId {
-        let id = self.type_ranges.len() as u32;
-        self.type_ranges.push(values.into());
-
-        TypeRangeId(id)
-    }
-
     /// Add one tensor dot descriptor to the side table.
     pub(crate) fn push_tensor_dot(
         &mut self,
@@ -688,6 +694,22 @@ impl SideTableBuilder {
 
         TensorScatterId(id)
     }
+
+    /// Add one tensor layout to the side table.
+    pub(crate) fn push_tensor_layout(&mut self, layout: TensorLayout) -> TensorLayoutId {
+        if let Some(id) = self
+            .tensor_layout
+            .iter()
+            .position(|existing| *existing == layout)
+        {
+            return TensorLayoutId(id as u32);
+        }
+
+        let id = self.tensor_layout.len() as u32;
+        self.tensor_layout.push(layout);
+
+        TensorLayoutId(id)
+    }
 }
 
 impl SideTable {
@@ -695,12 +717,6 @@ impl SideTable {
     #[inline(always)]
     pub(crate) fn u32_range(&self, id: U32RangeId) -> &[u32] {
         &self.u32_ranges[id.0 as usize]
-    }
-
-    /// Borrow one pooled MIR type slice.
-    #[inline(always)]
-    pub(crate) fn type_range(&self, id: TypeRangeId) -> &[mir::LocalNodeId<mir::Type>] {
-        &self.type_ranges[id.0 as usize]
     }
 
     /// Borrow one tensor dot descriptor.
@@ -737,6 +753,12 @@ impl SideTable {
         id: TensorScatterId,
     ) -> &mir::TensorScatterDimensionNumbers {
         &self.tensor_scatter[id.0 as usize]
+    }
+
+    /// Borrow one pooled tensor layout.
+    #[inline(always)]
+    pub(crate) fn tensor_layout(&self, id: TensorLayoutId) -> &TensorLayout {
+        &self.tensor_layout[id.0 as usize]
     }
 
     /// Borrow one pooled allocation layout.

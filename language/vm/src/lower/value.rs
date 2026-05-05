@@ -542,9 +542,9 @@ fn infer_instruction_layout(
 
             let left_layout = value_layout_map.get(left);
             let right_layout = value_layout_map.get(right);
-            let operand_layout = left_layout.or(right_layout);
+            let input_layout = left_layout.or(right_layout);
 
-            match (operator.is_float(), operand_layout) {
+            match (operator.is_float(), input_layout) {
                 (true, Some(ValueLayout::Float { width })) => Some(ValueLayout::Float { width }),
                 (false, Some(ValueLayout::Bool))
                     if matches!(

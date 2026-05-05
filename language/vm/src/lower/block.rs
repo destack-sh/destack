@@ -176,6 +176,8 @@ pub(super) struct FunctionContext<'a> {
     pub(super) value_type: Vec<mir::LocalNodeId<mir::Type>>,
     /// The lowered VM layout by MIR type id.
     pub(super) layouts: &'a HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    /// The MIR layout id by MIR type id.
+    pub(super) layout_id_by_type: &'a HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
     /// The worker-local heap allocation geometry.
     pub(super) heap_options: &'a heap::HeapOptions,
     /// The runtime-shared heap allocation geometry.

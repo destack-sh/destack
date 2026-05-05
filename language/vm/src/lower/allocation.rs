@@ -7,98 +7,11 @@ use crate::program::{
 };
 use crate::{Error, Result};
 
+use super::access::slice_element_access;
+use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
 use super::pool::Pool;
 use super::value::pointer_class_for_value;
-
-/// Encode one power-of-two alignment into an instruction operand.
-fn encode_alignment(alignment: usize) -> u32 {
-    alignment.trailing_zeros()
-}
-
-/// Return the heap class for one slice backing allocation.
-fn slice_backing_pointer_class(
-    tree: &mir::Tree,
-    result_type: mir::LocalNodeId<mir::Type>,
-) -> Result<PointerClass> {
-    let mir::Type::Slice {
-        kind,
-        address_space,
-        ..
-    } = tree.get(result_type)
-    else {
-        return Err(Error::TypeMismatch {
-            expected: "slice result type".to_string(),
-            actual: format!("{result_type:?}"),
-        });
-    };
-
-    let pointer_class = pointer_class_from_reference(address_space.clone(), *kind);
-    match pointer_class {
-        PointerClass::Heap | PointerClass::SharedHeap => Ok(pointer_class),
-        _ => Err(Error::InvalidPointerType {
-            actual: format!("{pointer_class:?}"),
-        }),
-    }
-}
-
-/// Build one allocation layout for a concrete MIR type.
-fn allocation_layout(
-    pool: &mut Pool<'_>,
-    pointer_class: PointerClass,
-    layout: &Layout,
-    heap_options: &HeapOptions,
-    shared_heap_options: &HeapOptions,
-) -> Result<(AllocationLayout, Option<SmallAllocationLayout>)> {
-    // resolve the allocation class from the destination space
-    let is_noscan = !layout.reference_map.has_reference();
-    let has_shared_reference = layout.reference_map.has_shared_reference();
-    let class = match pointer_class {
-        PointerClass::Heap => {
-            heap_options.allocation_class(layout.byte_len, layout.alignment(), is_noscan)
-        }
-        PointerClass::SharedHeap => {
-            shared_heap_options.allocation_class(layout.byte_len, layout.alignment(), is_noscan)
-        }
-        _ => {
-            return Err(Error::InvalidPointerType {
-                actual: format!("{pointer_class:?}"),
-            });
-        }
-    };
-
-    // intern layout side channels once during lowering
-    let reference_map = pool.reference_map(layout.reference_map.clone());
-    let small = match class {
-        AllocationClass::Small(small) if is_noscan => Some(small),
-        _ => None,
-    };
-    let class = pool.allocation_class(class);
-
-    let allocation = AllocationLayout {
-        byte_len: layout.byte_len,
-        alignment: layout.alignment(),
-        reference_map,
-        is_noscan,
-        has_shared_reference,
-        class,
-    };
-
-    Ok((allocation, small))
-}
-
-/// Select one heap allocation operation from lowered allocation facts.
-fn allocation_op(pointer_class: PointerClass, small: Option<SmallAllocationLayout>) -> Result<Op> {
-    match (pointer_class, small.is_some()) {
-        (PointerClass::Heap, true) => Ok(Op::AllocateHeapSmallNoscan),
-        (PointerClass::Heap, false) => Ok(Op::AllocateHeap),
-        (PointerClass::SharedHeap, true) => Ok(Op::AllocateSharedHeapSmallNoscan),
-        (PointerClass::SharedHeap, false) => Ok(Op::AllocateSharedHeap),
-        _ => Err(Error::InvalidPointerType {
-            actual: format!("{pointer_class:?}"),
-        }),
-    }
-}
 
 impl<'a> BlockLowerer<'a> {
     /// Lower one heap allocation.
@@ -120,7 +33,7 @@ impl<'a> BlockLowerer<'a> {
         let layout = self.layout_for_type(allocation_type)?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), destination);
 
-        // precompute the heap allocation plan
+        // precompute the heap allocation shape
         let (allocation, small) = allocation_layout(
             pool,
             pointer_class,
@@ -137,7 +50,7 @@ impl<'a> BlockLowerer<'a> {
 
         Ok(Instruction::new(
             op,
-            destination.id(),
+            word_offset(self, destination)?,
             allocation.0,
             small,
             0,
@@ -171,9 +84,8 @@ impl<'a> BlockLowerer<'a> {
             context: "new.slice length".to_string(),
         })?;
 
-        // compile the backing element plan
+        // compile the backing element shape
         let element_layout = self.layout_for_type(element_type)?;
-        let element_alignment = element_layout.alignment();
         let pointer_class = slice_backing_pointer_class(self.tree, result_type)?;
         let (element, _) = allocation_layout(
             pool,
@@ -182,7 +94,11 @@ impl<'a> BlockLowerer<'a> {
             self.heap_options,
             self.shared_heap_options,
         )?;
+        let access =
+            slice_element_access(self.tree, self.layouts(), result_type, PointerClass::Frame)
+                .ok_or(Error::InvalidInstruction)?;
         let element = pool.allocation_layout(element);
+        let access = pool.slice_element_access(access);
 
         let op = match pointer_class {
             PointerClass::Heap => Op::AllocateSlice,
@@ -193,14 +109,12 @@ impl<'a> BlockLowerer<'a> {
                 });
             }
         };
-        let descriptor = encode_alignment(element_alignment);
-
         Ok(Instruction::new(
             op,
-            destination.id(),
-            length.id(),
+            value_offset(self, destination)?,
+            word_offset(self, length)?,
             element.0,
-            descriptor,
+            access.0,
         ))
     }
 
@@ -224,7 +138,7 @@ impl<'a> BlockLowerer<'a> {
 
         Ok(Instruction::new(
             Op::AllocateRaw,
-            destination.id(),
+            word_offset(self, destination)?,
             byte_len as u32,
             (byte_len >> 32) as u32,
             0,
@@ -248,7 +162,7 @@ impl<'a> BlockLowerer<'a> {
             }
         };
 
-        Ok(Instruction::new(op, pointer.id(), 0, 0, 0))
+        Ok(Instruction::new(op, word_offset(self, pointer)?, 0, 0, 0))
     }
 
     /// Lower one stack allocation.
@@ -278,11 +192,11 @@ impl<'a> BlockLowerer<'a> {
         // encode the exact layout into the instruction
         let layout = self.layout_for_type(allocation_type)?;
         let byte_len = layout.byte_len as u64;
-        let alignment = encode_alignment(layout.alignment());
+        let alignment = encode_alignment_log2(layout.alignment());
 
         Ok(Instruction::new(
             Op::AllocateStack,
-            destination.id(),
+            word_offset(self, destination)?,
             byte_len as u32,
             (byte_len >> 32) as u32,
             alignment,
@@ -316,7 +230,13 @@ impl<'a> BlockLowerer<'a> {
             }
         };
 
-        Ok(Instruction::new(op, destination.id(), value.id(), 0, 0))
+        Ok(Instruction::new(
+            op,
+            word_offset(self, destination)?,
+            word_offset(self, value)?,
+            0,
+            0,
+        ))
     }
 
     /// Lower one heap unpin.
@@ -337,7 +257,7 @@ impl<'a> BlockLowerer<'a> {
             }
         };
 
-        Ok(Instruction::new(op, value.id(), 0, 0, 0))
+        Ok(Instruction::new(op, word_offset(self, value)?, 0, 0, 0))
     }
 
     /// Lower one owned-value drop.
@@ -388,10 +308,10 @@ impl<'a> BlockLowerer<'a> {
         // owned and stack references have concrete release operations
         let instruction = match (kind, address_space) {
             (mir::ReferenceKind::Owned, mir::AddressSpace::Local) => {
-                Instruction::new(Op::DropHeap, value.id(), 0, 0, 0)
+                Instruction::new(Op::DropHeap, word_offset(self, value)?, 0, 0, 0)
             }
             (mir::ReferenceKind::Owned, mir::AddressSpace::Shared) => {
-                Instruction::new(Op::DropSharedHeap, value.id(), 0, 0, 0)
+                Instruction::new(Op::DropSharedHeap, word_offset(self, value)?, 0, 0, 0)
             }
             (mir::ReferenceKind::Raw, mir::AddressSpace::Stack) => {
                 let pointee = pointee.ty().ok_or_else(|| Error::MissingRepresentation {
@@ -401,7 +321,7 @@ impl<'a> BlockLowerer<'a> {
 
                 Instruction::new(
                     Op::DropStack,
-                    value.id(),
+                    word_offset(self, value)?,
                     byte_len as u32,
                     (byte_len >> 32) as u32,
                     0,
@@ -454,6 +374,101 @@ impl<'a> BlockLowerer<'a> {
         };
         let access = pool.pointee_access(access);
 
-        Ok(vec![Instruction::new(op, value.id(), access.0, 0, 0)])
+        Ok(vec![Instruction::new(
+            op,
+            value_offset(self, value)?,
+            access.0,
+            0,
+            0,
+        )])
+    }
+}
+
+/// Encode one power-of-two alignment into an instruction field.
+fn encode_alignment_log2(alignment: usize) -> u32 {
+    alignment.trailing_zeros()
+}
+
+/// Return the pointer class for one slice backing allocation.
+fn slice_backing_pointer_class(
+    tree: &mir::Tree,
+    result_type: mir::LocalNodeId<mir::Type>,
+) -> Result<PointerClass> {
+    let mir::Type::Slice {
+        kind,
+        address_space,
+        ..
+    } = tree.get(result_type)
+    else {
+        return Err(Error::TypeMismatch {
+            expected: "slice result type".to_string(),
+            actual: format!("{result_type:?}"),
+        });
+    };
+
+    let pointer_class = pointer_class_from_reference(address_space.clone(), *kind);
+    match pointer_class {
+        PointerClass::Heap | PointerClass::SharedHeap => Ok(pointer_class),
+        _ => Err(Error::InvalidPointerType {
+            actual: format!("{pointer_class:?}"),
+        }),
+    }
+}
+
+/// Build one allocation layout for a concrete MIR type.
+fn allocation_layout(
+    pool: &mut Pool<'_>,
+    pointer_class: PointerClass,
+    layout: &Layout,
+    heap_options: &HeapOptions,
+    shared_heap_options: &HeapOptions,
+) -> Result<(AllocationLayout, Option<SmallAllocationLayout>)> {
+    // resolve the allocation class from the destination space
+    let is_noscan = !layout.reference_map.has_reference();
+    let has_shared_reference = layout.reference_map.has_shared_reference();
+    let class = match pointer_class {
+        PointerClass::Heap => {
+            heap_options.allocation_class(layout.byte_len, layout.alignment(), is_noscan)
+        }
+        PointerClass::SharedHeap => {
+            shared_heap_options.allocation_class(layout.byte_len, layout.alignment(), is_noscan)
+        }
+        _ => {
+            return Err(Error::InvalidPointerType {
+                actual: format!("{pointer_class:?}"),
+            });
+        }
+    };
+
+    // intern allocation metadata once during lowering
+    let reference_map = pool.reference_map(layout.reference_map.clone());
+    let small = match class {
+        AllocationClass::Small(small) if is_noscan => Some(small),
+        _ => None,
+    };
+    let class = pool.allocation_class(class);
+
+    let allocation = AllocationLayout {
+        byte_len: layout.byte_len,
+        alignment: layout.alignment(),
+        reference_map,
+        is_noscan,
+        has_shared_reference,
+        class,
+    };
+
+    Ok((allocation, small))
+}
+
+/// Select one heap allocation operation from destination and size class.
+fn allocation_op(pointer_class: PointerClass, small: Option<SmallAllocationLayout>) -> Result<Op> {
+    match (pointer_class, small.is_some()) {
+        (PointerClass::Heap, true) => Ok(Op::AllocateHeapSmallNoscan),
+        (PointerClass::Heap, false) => Ok(Op::AllocateHeap),
+        (PointerClass::SharedHeap, true) => Ok(Op::AllocateSharedHeapSmallNoscan),
+        (PointerClass::SharedHeap, false) => Ok(Op::AllocateSharedHeap),
+        _ => Err(Error::InvalidPointerType {
+            actual: format!("{pointer_class:?}"),
+        }),
     }
 }

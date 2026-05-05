@@ -199,6 +199,11 @@ impl LayoutIndex {
         &self.type_layout
     }
 
+    /// Return the MIR layout ids keyed by MIR type.
+    pub(crate) fn layout_ids(&self) -> &HashMap<mir::LocalNodeId<mir::Type>, LayoutId> {
+        &self.layout_id_by_type
+    }
+
     /// Return one compiled type layout.
     pub(crate) fn layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<&Layout> {
         self.type_layout.get(&ty)

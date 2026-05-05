@@ -3,23 +3,15 @@ use std::collections::HashMap;
 use destack_mir as mir;
 
 use crate::program::{
-    AllocationClassId, AllocationLayout, AllocationLayoutId, ArgumentRange, CallTarget, CheckId,
-    ConstValue, ConstValueId, Edge, EdgeId, ElementAccess, ElementAccessId, FieldAccess,
+    AllocationClassId, AllocationLayout, AllocationLayoutId, ArgumentRange, CallTarget, Check,
+    CheckId, ConstValue, ConstValueId, Edge, EdgeId, ElementAccess, ElementAccessId, FieldAccess,
     FieldAccessId, FrameAccess, FrameAccessId, Instruction, MovePair, MoveRange, MoveSource, Op,
     PointeeAccess, PointeeAccessId, ReferenceMapId, SideRecord, SideTableBuilder,
     SliceElementAccess, SliceElementAccessId, SmallAllocationLayoutId, SwitchCase, SwitchCasesId,
-    SwitchTable, SwitchTableId, TensorConvolutionId, TensorDotId, TensorGatherId, TensorScatterId,
-    TensorWindowId, TypeRangeId, U32RangeId,
+    SwitchTable, SwitchTableId, TensorConvolutionId, TensorDotId, TensorGatherId, TensorLayout,
+    TensorLayoutId, TensorScatterId, TensorWindowId, U32RangeId,
 };
 use crate::{Error, Result};
-
-/// Return the lowered move source for one argument index.
-fn move_source(arguments: &[mir::Value], index: usize) -> MoveSource {
-    match arguments.get(index) {
-        Some(value) => MoveSource::Value(*value),
-        None => MoveSource::Void,
-    }
-}
 
 /// One lowering pool for shared variable-length lowering data.
 pub(super) struct Pool<'a> {
@@ -41,13 +33,18 @@ impl<'a> Pool<'a> {
         }
     }
 
-    /// Return one lowered instruction with a pooled side record.
-    pub(super) fn instruction_with_side<T: SideRecord>(
+    /// Return one pooled side record id.
+    pub(super) fn side_record<T: SideRecord>(&mut self, record: T) -> u32 {
+        T::push(self.side_table, record)
+    }
+
+    /// Return one lowered instruction backed entirely by a pooled side record.
+    pub(super) fn instruction_with_side_record<T: SideRecord>(
         &mut self,
         op: Op,
         record: T,
     ) -> Instruction {
-        let record = T::push(self.side_table, record);
+        let record = self.side_record(record);
 
         Instruction::new(op, record, 0, 0, 0)
     }
@@ -159,8 +156,8 @@ impl<'a> Pool<'a> {
         parameter_move_range(&mut self.move_pair, parameters, arguments)
     }
 
-    /// Return one block edge move plan from the pool.
-    pub(super) fn edge_move_plan(
+    /// Return one block edge move range from the pool.
+    pub(super) fn edge_moves(
         &mut self,
         parameters: &[mir::Value],
         arguments: &[mir::Value],
@@ -211,18 +208,13 @@ impl<'a> Pool<'a> {
     }
 
     /// Return one pooled check constraint id.
-    pub(super) fn check(&mut self, constraint: mir::CheckConstraint) -> CheckId {
+    pub(super) fn check(&mut self, constraint: Check) -> CheckId {
         self.side_table.push_check(constraint)
     }
 
     /// Return one pooled u32 slice id.
     pub(super) fn u32_range(&mut self, values: &[u32]) -> U32RangeId {
         self.side_table.push_u32_range(values)
-    }
-
-    /// Return one pooled MIR type slice id.
-    pub(super) fn type_range(&mut self, values: &[mir::LocalNodeId<mir::Type>]) -> TypeRangeId {
-        self.side_table.push_type_range(values)
     }
 
     /// Return one pooled tensor dot descriptor id.
@@ -257,6 +249,11 @@ impl<'a> Pool<'a> {
         dimensions: mir::TensorScatterDimensionNumbers,
     ) -> TensorScatterId {
         self.side_table.push_tensor_scatter(dimensions)
+    }
+
+    /// Return one pooled tensor layout id.
+    pub(super) fn tensor_layout(&mut self, layout: TensorLayout) -> TensorLayoutId {
+        self.side_table.push_tensor_layout(layout)
     }
 }
 
@@ -388,10 +385,7 @@ fn switch_case_range(
                 context: "switch case target".to_string(),
             })?;
         let target_index = block_index_map[&target];
-        let target_parameters = block_parameters
-            .get(target_index)
-            .map(|params| params.as_slice())
-            .unwrap_or_default();
+        let target_parameters = block_parameters[target_index].as_slice();
         let arguments = case
             .target
             .arguments
@@ -461,7 +455,7 @@ fn switch_table_range(
 
     // require at least one explicit case for every hole
     let range_len = range_len as usize;
-    let max_range_len = cases.len().saturating_mul(2);
+    let max_range_len = cases.len() * 2;
     if range_len > max_range_len {
         return Ok(None);
     }
@@ -491,10 +485,7 @@ fn switch_table_range(
                 context: "switch table target".to_string(),
             })?;
         let target_index = block_index_map[&target];
-        let target_parameters = block_parameters
-            .get(target_index)
-            .map(|params| params.as_slice())
-            .unwrap_or_default();
+        let target_parameters = block_parameters[target_index].as_slice();
         let arguments = case
             .target
             .arguments
@@ -517,4 +508,12 @@ fn switch_table_range(
 
     // return table range
     Ok(Some((min_value, table.into_boxed_slice())))
+}
+
+/// Return the lowered move source for one argument index.
+fn move_source(arguments: &[mir::Value], index: usize) -> MoveSource {
+    match arguments.get(index) {
+        Some(value) => MoveSource::Value(*value),
+        None => MoveSource::Void,
+    }
 }
