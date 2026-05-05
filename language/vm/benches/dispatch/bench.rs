@@ -146,6 +146,58 @@ fn bench_integer_arithmetic(criterion: &mut Criterion) {
     group.finish();
 }
 
+/// Benchmark VM dispatch over packed vector operations.
+fn bench_vector(criterion: &mut Criterion) {
+    // group vector-shaped dispatch programs
+    let mut group = dispatch_group(criterion, "vm_dispatch_vector");
+
+    // measure packed i32x4 addition
+    bench_program(
+        &mut group,
+        ProgramBench {
+            name: "vector_i32x4_add_body_loop",
+            entry: "vectorI32x4AddBodyLoop",
+        },
+    );
+
+    // measure packed i32x4 addition with loop-carried vector state
+    bench_program(
+        &mut group,
+        ProgramBench {
+            name: "vector_i32x4_add_loop",
+            entry: "vectorI32x4AddLoop",
+        },
+    );
+
+    group.finish();
+}
+
+/// Benchmark VM dispatch over dense tensor operations.
+fn bench_tensor(criterion: &mut Criterion) {
+    // group tensor-shaped dispatch programs
+    let mut group = dispatch_group(criterion, "vm_dispatch_tensor");
+
+    // measure dense tensor addition
+    bench_program(
+        &mut group,
+        ProgramBench {
+            name: "tensor_dense_add_body_loop",
+            entry: "tensorDenseAddBodyLoop",
+        },
+    );
+
+    // measure dense tensor addition with loop-carried tensor state
+    bench_program(
+        &mut group,
+        ProgramBench {
+            name: "tensor_dense_add_loop",
+            entry: "tensorDenseAddLoop",
+        },
+    );
+
+    group.finish();
+}
+
 /// Benchmark VM dispatch over memory operations.
 fn bench_memory(criterion: &mut Criterion) {
     // group memory-shaped dispatch programs
@@ -224,5 +276,11 @@ fn shared_heap() -> SharedHeap {
         .expect("benchmark shared heap should build")
 }
 
-criterion_group!(benches, bench_integer_arithmetic, bench_memory);
+criterion_group!(
+    benches,
+    bench_integer_arithmetic,
+    bench_vector,
+    bench_tensor,
+    bench_memory
+);
 criterion_main!(benches);
