@@ -4,18 +4,14 @@ Union type assignability.
 
 ## unions
 
-### string or number
-
-> Union types accept any of their member types.
+### unions accept any member
 
 ```ds
 let x: string | number = "hello"
 x = 42
 ```
 
-### assign to union member
-
-> Any union member can be assigned to the union.
+### members assign to unions
 
 ```ds
 const x: string | number = "hello"
@@ -23,9 +19,7 @@ const x: string | number = "hello"
 
 ## union assignability
 
-### union element assignable to union
-
-> A value of a member type is assignable to the union.
+### declared members assign to unions
 
 ```ds
 const x: string = "hello"
@@ -36,8 +30,6 @@ const y: string | number = x
 
 ### union flattening through aliases
 
-> Nested aliases flatten into a single union.
-
 ```ds
 type A = { a: number } | { b: string };
 type B = A | { c: boolean };
@@ -47,11 +39,8 @@ value satisfies { a: number } | { b: string } | { c: boolean };
 
 ### union removes never
 
-> Never members are removed from unions.
-
 ```ds
 type A = never | string;
 const value: A = "hello";
 value satisfies string;
 ```
-

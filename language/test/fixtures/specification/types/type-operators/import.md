@@ -4,8 +4,6 @@
 
 ### import type accesses exported types
 
-> Import types can reference exported type aliases.
-
 ```ts:main.ts
 type Alias = import("./mod").User;
 
@@ -18,8 +16,6 @@ export type User = { name: string };
 ```
 
 ### import type accesses default exports
-
-> Import types can access default exports via `.default`.
 
 ```ts:main.ts
 type Default = import("./mod").default;
@@ -35,8 +31,6 @@ export default interface User {
 ```
 
 ### import type accesses re-exported type aliases
-
-> Import types can resolve type aliases through re-export modules.
 
 ```ts:main.ts
 type Alias = import("./index").User;
@@ -55,8 +49,6 @@ export type { User } from "./user";
 
 ### import type accesses exported generic aliases
 
-> Import types can instantiate generic aliases from imported modules.
-
 ```ts:main.ts
 type Alias = import("./mod").Box<string>;
 
@@ -68,11 +60,7 @@ value.value satisfies string;
 export type Box<T> = { value: T };
 ```
 
-### import type handles mixed local and re-exported members from one target
-
-> Import type member lookups are order independent when one target mixes local exports and re-exported exports.
-> Reusing the same import target must still resolve transitive re-export members.
-
+### import type resolves local and re-exported members
 ```ts:main.ts
 type LocalAlias = import("./index").Local;
 type UserAlias = import("./index").User;
@@ -94,8 +82,6 @@ export type { User } from "./user";
 ```
 
 ### import type rejects missing members
-
-> Missing members in import types are rejected.
 
 ```ts:main.ts
 type Alias = import("./mod").Missing;

@@ -2,11 +2,7 @@
 
 `Required` is a standard TypeScript utility type.
 
-## cases
-
 ### required removes optionality
-
-> `Required` removes optional modifiers.
 
 ```ds libs=es5
 interface Person {
@@ -21,8 +17,6 @@ ok satisfies FullPerson;
 ```
 
 ### required rejects missing fields
-
-> Missing fields are rejected.
 
 ```ds libs=es5
 interface Person {
@@ -39,8 +33,6 @@ const bad: FullPerson = { name: "Ada" };
 
 ### required keeps undefined in property types
 
-> `Required` removes optionality without removing explicit undefined.
-
 ```ds libs=es5
 interface Person {
     name?: string | undefined
@@ -53,8 +45,6 @@ ok satisfies FullPerson;
 ```
 
 ### required preserves readonly fields
-
-> `Required` keeps readonly modifiers from the source type.
 
 ```ds libs=es5
 interface Person {

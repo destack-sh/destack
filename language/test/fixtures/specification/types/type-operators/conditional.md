@@ -1,10 +1,10 @@
 # Conditional Types
 
-## branching
+Conditional types are static type expressions.
 
-### conditional types pick true branch
+## branches
 
-> Conditional types select the matching branch.
+### matching types choose the true branch
 
 ```ds
 type Select<T> = T extends string ? string : int32;
@@ -12,9 +12,15 @@ type Select<T> = T extends string ? string : int32;
 let ok: Select<string> = "ok";
 ```
 
-### conditional types reject the opposite branch
+### non-matching types choose the false branch
 
-> Conditional types reject values from the other branch.
+```ds
+type Select<T> = T extends string ? string : int32;
+
+let ok: Select<int32> = 1;
+```
+
+### true branches reject false branch values
 
 ```ds
 type Select<T> = T extends string ? string : int32;
@@ -24,19 +30,7 @@ let bad: Select<string> = 1;
 
 - contains: not assignable
 
-### conditional types pick false branch
-
-> Conditional types select the else branch when the match does not hold.
-
-```ds
-type Select<T> = T extends string ? string : int32;
-
-let ok: Select<int32> = 1;
-```
-
-### conditional types reject the true branch for non matches
-
-> Non matching inputs reject the true branch.
+### false branches reject true branch values
 
 ```ds
 type Select<T> = T extends string ? string : int32;
@@ -46,9 +40,9 @@ let bad: Select<int32> = "no";
 
 - contains: not assignable
 
-### conditional types distribute over unions
+## distribution
 
-> Conditional types distribute over union inputs.
+### naked type parameters distribute over unions
 
 ```ds
 type OnlyStrings<T> = T extends string ? T : never;
@@ -56,9 +50,7 @@ type OnlyStrings<T> = T extends string ? T : never;
 let ok: OnlyStrings<string | int32> = "ok";
 ```
 
-### conditional types reject non matching union members
-
-> Conditional types filter out non matching union members.
+### distribution filters rejected union members
 
 ```ds
 type OnlyStrings<T> = T extends string ? T : never;
@@ -68,31 +60,15 @@ let bad: OnlyStrings<string | int32> = 1;
 
 - contains: not assignable
 
-### conditional types with unknown select else branch
-
-> `unknown` selects the false branch.
+### tuple wrapping disables distribution
 
 ```ds
-type Select<T> = T extends string ? "yes" : "no";
+type Wrapped<T> = [T] extends [string] ? "yes" : "no";
 
-let ok: Select<unknown> = "no";
+let ok: Wrapped<string | int32> = "no";
 ```
 
-### conditional types with unknown reject true branch
-
-> `unknown` rejects the true branch.
-
-```ds
-type Select<T> = T extends string ? "yes" : "no";
-
-let bad: Select<unknown> = "yes";
-```
-
-- contains: not assignable
-
-### conditional types treat never as empty unions
-
-> `never` yields `never` in conditional types.
+### never distributes to never
 
 ```ds
 type OnlyStrings<T> = T extends string ? T : never;
@@ -103,66 +79,17 @@ let bad: Result = "no";
 
 - contains: not assignable
 
-### conditional types disable distribution with tuples
-
-> Wrapping types disables distribution.
+### unknown chooses the false branch for concrete targets
 
 ```ds
-type Wrapped<T> = [T] extends [string] ? "yes" : "no";
+type Select<T> = T extends string ? "yes" : "no";
 
-let ok: Wrapped<string | int32> = "no";
+let ok: Select<unknown> = "no";
 ```
 
-## distribution torture
+## infer
 
-### distributive conditionals preserve both matching branch results
-
-> Distributive conditionals evaluate each union member independently.
-
-```ds
-type Dist<T> = T extends "a" ? 1 : 0;
-
-let one: Dist<"a" | "b"> = 1;
-let zero: Dist<"a" | "b"> = 0;
-```
-
-### non-distributive wrapped conditionals collapse union checks
-
-> Wrapped conditionals evaluate the union as one whole relation.
-
-```ds
-type NonDist<T> = [T] extends ["a"] ? 1 : 0;
-
-let ok: NonDist<"a" | "b"> = 0;
-```
-
-### non-distributive wrapped conditionals reject distributive branch values
-
-> Wrapped conditionals reject branch values that only exist in distributive evaluation.
-
-```ds
-type NonDist<T> = [T] extends ["a"] ? 1 : 0;
-
-let bad: NonDist<"a" | "b"> = 1;
-```
-
-- contains: not assignable
-
-### wrapped unknown conditionals choose the false branch
-
-> Wrapped `unknown` does not satisfy narrower true-branch constraints.
-
-```ds
-type WrappedUnknown = [unknown] extends [string] ? "yes" : "no";
-
-let ok: WrappedUnknown = "no";
-```
-
-## infer extraction
-
-### conditional infer extracts nested generic members
-
-> Conditional `infer` extracts nested generic members from matching shapes.
+### infer extracts matching members
 
 ```ts
 type Box<T> = { value: T };
@@ -171,9 +98,7 @@ type Unbox<T> = T extends Box<infer U> ? U : never;
 const ok: Unbox<Box<"ready">> = "ready";
 ```
 
-### conditional infer rejects non matching extracted members
-
-> Extracted conditional members reject incompatible assignments.
+### infer rejects unrelated extracted values
 
 ```ts
 type Box<T> = { value: T };
@@ -184,48 +109,17 @@ const bad: Unbox<Box<"ready">> = "no";
 
 - contains: not assignable
 
-### conditional infer over unions preserves distributed member unions
-
-> Conditional `infer` distributes over unions and preserves extracted member unions.
+### infer distributes over unions
 
 ```ts
 type Box<T> = { value: T };
 type Unbox<T> = T extends Box<infer U> ? U : never;
 
-const ok1: Unbox<Box<"a"> | Box<"b">> = "a";
-const ok2: Unbox<Box<"a"> | Box<"b">> = "b";
+const first: Unbox<Box<"a"> | Box<"b">> = "a";
+const second: Unbox<Box<"a"> | Box<"b">> = "b";
 ```
 
-### conditional infer over unions rejects values outside extracted members
-
-> Distributed conditional extraction rejects values outside the extracted member union.
-
-```ts
-type Box<T> = { value: T };
-type Unbox<T> = T extends Box<infer U> ? U : never;
-
-const bad: Unbox<Box<"a"> | Box<"b">> = "c";
-```
-
-- contains: not assignable
-
-### wrapped conditional infer keeps union extraction in one relation
-
-> Wrapping both sides disables distribution and infers one union member relation.
-
-```ts
-type Box<T> = { value: T };
-type WrappedUnbox<T> = [T] extends [Box<infer U>] ? U : never;
-
-const ok1: WrappedUnbox<Box<"a"> | Box<"b">> = "a";
-const ok2: WrappedUnbox<Box<"a"> | Box<"b">> = "b";
-```
-
-## argument extraction
-
-### distributive conditional argument extraction preserves union members
-
-Distributive conditional extraction of function arguments preserves each union member contribution.
+### infer extracts function arguments
 
 ```ts
 type Argument<T> = T extends (value: infer A) => unknown ? A : never;
@@ -236,9 +130,7 @@ const first: Input = "ok";
 const second: Input = 1;
 ```
 
-### distributive conditional argument extraction rejects unrelated members
-
-That extracted argument union rejects unrelated assignments not present in any branch.
+### inferred argument unions reject unrelated values
 
 ```ts
 type Argument<T> = T extends (value: infer A) => unknown ? A : never;

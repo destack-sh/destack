@@ -2,11 +2,7 @@
 
 `ConstructorParameters` extracts a constructor parameter tuple.
 
-## cases
-
-### constructorparameters extracts constructor arguments
-
-> Constructor parameters are returned as a tuple.
+### ConstructorParameters extracts constructor arguments
 
 ```ts libs=es5
 class User {
@@ -19,9 +15,7 @@ const ok: Args = ["Ada", 42];
 ok satisfies [string, number];
 ```
 
-### constructorparameters rejects wrong argument types
-
-> Extracted constructor parameters keep each parameter type.
+### ConstructorParameters rejects wrong argument types
 
 ```ts libs=es5
 class User {

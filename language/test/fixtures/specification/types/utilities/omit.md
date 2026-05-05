@@ -2,11 +2,7 @@
 
 `Omit` is a standard TypeScript utility type.
 
-## cases
-
 ### omit removes selected keys
-
-> `Omit` removes keys before assignment checks.
 
 ```ds libs=es5
 interface Person {
@@ -21,8 +17,6 @@ ok satisfies WithoutAge;
 ```
 
 ### omit rejects removed keys
-
-> Omitted keys are not assignable on literals.
 
 ```ds libs=es5
 interface Person {
@@ -39,8 +33,6 @@ const bad: WithoutAge = { name: "Ada", age: 42 };
 
 ### omit with union keys removes all
 
-> Omit removes every listed key.
-
 ```ds libs=es5
 interface Person {
     name: string
@@ -53,8 +45,6 @@ const ok: WithoutAll = {};
 ```
 
 ### omit with union keys rejects removed fields
-
-> Omitted keys are rejected.
 
 ```ds libs=es5
 interface Person {
@@ -71,8 +61,6 @@ const bad: WithoutAll = { name: "Ada" };
 
 ### omit ignores unknown keys
 
-> Omit does not require keys to exist and ignores missing keys.
-
 ```ds libs=es5
 interface Person {
     name: string
@@ -86,8 +74,6 @@ ok satisfies Person;
 ```
 
 ### omit preserves readonly properties
-
-> Properties that remain after omission keep readonly modifiers.
 
 ```ds libs=es5
 interface Person {

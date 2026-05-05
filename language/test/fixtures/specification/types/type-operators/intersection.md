@@ -6,8 +6,6 @@ Intersection types combine multiple shapes.
 
 ### intersection type combines object fields
 
-> Intersection types require all fields.
-
 ```ds
 type A = { a: number };
 type B = { b: string };
@@ -17,8 +15,6 @@ let value: C = { a: 1, b: "ok" };
 ```
 
 ### intersection type rejects missing fields
-
-> Missing fields in intersections are rejected.
 
 ```ds
 type A = { a: number };
@@ -32,8 +28,6 @@ let value: C = { a: 1 };
 
 ### intersection type requires overlapping keys to satisfy both sides
 
-> Overlapping keys in intersections must satisfy both member constraints.
-
 ```ds
 type A = { value: number };
 type B = { value: string };
@@ -45,8 +39,6 @@ let value: C = { value: "ok" };
 - contains: not assignable
 
 ### intersection type preserves all overlapping-compatible keys
-
-> Compatible overlapping keys are preserved in the intersection result.
 
 ```ds
 type A = { value: number };
@@ -60,8 +52,6 @@ value.extra satisfies string;
 
 ### primitive intersections collapse to never
 
-> Incompatible primitive intersections reject concrete values.
-
 ```ds
 type Both = string & int32;
 
@@ -71,8 +61,6 @@ let value: Both = "ok";
 - contains: not assignable
 
 ### intersections keep stricter overlapping member constraints
-
-> Overlapping intersection members keep the stricter shared constraint.
 
 ```ds
 type A = { value: string | int32 };

@@ -4,8 +4,6 @@
 
 ### typeof returns value types for locals
 
-> `typeof` returns the value type of a local binding.
-
 ```ds
 const value = 42;
 
@@ -15,8 +13,6 @@ let ok: ValueType = 42;
 ```
 
 ### typeof rejects incompatible locals
-
-> `typeof` preserves the local binding type.
 
 ```ds
 const value = 42;
@@ -29,8 +25,6 @@ let bad: ValueType = "no";
 - contains: not assignable
 
 ### typeof returns constructor types for classes
-
-> `typeof` on a class returns the constructor value type with static members.
 
 ```ds
 class Counter {
@@ -53,8 +47,6 @@ let okVersion: CounterCtor["version"] = 1;
 
 ### typeof rejects incompatible static fields
 
-> `typeof` preserves static field types.
-
 ```ds
 class Counter {
     static version: int32
@@ -74,8 +66,6 @@ let badVersion: CounterCtor["version"] = "no";
 
 ### typeof includes static methods
 
-> `typeof` exposes static methods on the constructor value type.
-
 ```ds
 class Counter {
     static next(value: int32): int32 { return value + 1 }
@@ -91,8 +81,6 @@ let okFn: CounterNext = Counter.next;
 ```
 
 ### typeof rejects static method call assignability
-
-> `typeof` static method results must match the expected type.
 
 ```ds
 class Counter {
