@@ -8,7 +8,7 @@ use crate::local::space::HeapSpace;
 use crate::{
     AllocationLayout, AllocationShape, GcPacer, GcPressure, GcProgress, GcState, GcStats,
     HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RawPointer, RootSet,
-    SharedHeapReference, SmallAllocationLayout,
+    SharedHeapReference,
 };
 
 /// One pending local GC request.
@@ -371,7 +371,7 @@ impl Heap {
         // no-scan small allocations use the young run cursor directly
         if layout.is_noscan
             && let Some(small) = layout.class.small()
-            && let Some(reference) = self.heap.reserve_young_run_cursor(small)
+            && let Some(reference) = self.heap.reserve_young_run_cursor(small.slot_bytes())
         {
             return Ok(reference);
         }
@@ -381,8 +381,8 @@ impl Heap {
 
     /// Reserve one zeroed no-scan allocation from the active young run.
     #[inline(always)]
-    pub fn reserve_young(&mut self, small: SmallAllocationLayout) -> Option<HeapReference> {
-        self.heap.reserve_young_run_cursor(small)
+    pub fn reserve_young(&mut self, slot_bytes: usize) -> Option<HeapReference> {
+        self.heap.reserve_young_run_cursor(slot_bytes)
     }
 
     /// Refill zeroed allocation state or allocate from mature space.

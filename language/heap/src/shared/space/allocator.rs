@@ -116,10 +116,27 @@ impl SharedAllocator {
         &mut self,
         small: SmallAllocationLayout,
     ) -> Option<SharedHeapReference> {
+        // forward the resolved layout facts to the trusted hot path
+        unsafe { self.reserve_zeroed_run_slot_unchecked(small.bucket_index(), small.slot_bytes()) }
+    }
+
+    /// Reserve one zeroed allocation from trusted instruction fields.
+    ///
+    /// The caller must pass a bucket index and slot byte width from the same resolved small allocation.
+    ///
+    /// # Safety
+    ///
+    /// `bucket_index` must identify the bucket that owns `slot_bytes`.
+    #[inline(always)]
+    pub unsafe fn reserve_zeroed_run_slot_unchecked(
+        &mut self,
+        bucket_index: usize,
+        slot_bytes: usize,
+    ) -> Option<SharedHeapReference> {
         // trusted resolved class indexes directly into worker arrays
-        let run = unsafe { self.runs.get_unchecked_mut(small.bucket_index) };
-        let bucket = unsafe { self.small.get_unchecked_mut(small.bucket_index) };
-        let reference = run.reserve_reference(small.class.size_class)?;
+        let run = unsafe { self.runs.get_unchecked_mut(bucket_index) };
+        let bucket = unsafe { self.small.get_unchecked_mut(bucket_index) };
+        let reference = run.reserve_reference(slot_bytes)?;
 
         // publish the bump before returning to the mutator
         bucket.publish_run(run);
