@@ -1,0 +1,632 @@
+import type { PlatformError } from "../error/index.ds";
+import {
+    WorkerDescriptor,
+    WorkerFilter,
+    WorkerId,
+    EngineDescriptor,
+    EventLoopDescriptor,
+    HeapDescriptor,
+    ImageDescriptor,
+    ResourceDescriptor,
+    ResourceFilter,
+    RuntimeFilter,
+    RevisionDescriptor,
+    RuntimeDescriptor,
+    RuntimeId,
+    TopologyEdge,
+    TopologyEdgeFilter,
+    TopologyEdgeId,
+    TopologyEntity,
+    TopologyEntityFilter,
+    TopologyEntityId,
+    TraceDescriptor,
+    WorldDescriptor,
+    WorldHandle,
+    WorldResourceId,
+    WorldViewHandle,
+    WorldViewOptions,
+} from "./types.ds";
+
+/// Low-level pinned world-view bindings.
+/// Open one pinned world view.
+///
+/// Create one read-consistent world view over the current world head or one explicit pinned revision.
+/// Views provide stable reads across lineage, state, and trace metadata without racing live mutation.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime inspection and revision pinning logic.
+///
+/// # Errors
+/// Returns invalidArgument, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.worldViewOpen", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "sometimes",
+    affinity: "owner",
+})
+export declare function worldViewOpen(
+    world: WorldHandle,
+    options?: WorldViewOptions,
+): Result<WorldViewHandle, PlatformError>;
+
+/// Close one pinned world view.
+///
+/// Release one previously opened world view and its pinned state.
+/// Closing one view does not affect the underlying world, trace, or lineage objects.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime inspection teardown logic.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.worldViewClose", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function worldViewClose(view: WorldViewHandle): Result<void, PlatformError>;
+
+/// Describe the world visible through one pinned world view.
+///
+/// Return one world descriptor as observed through one pinned world view.
+/// Descriptor values are stable for the lifetime of the view.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned inspection state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.worldView", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function worldView(view: WorldViewHandle): Result<WorldDescriptor, PlatformError>;
+
+/// Describe the pinned revision for one world view.
+///
+/// Return one revision descriptor for the exact revision pinned by one world view.
+/// Descriptor values are stable for the lifetime of the view.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned lineage and image state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.revisionView", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function revisionView(view: WorldViewHandle): Result<RevisionDescriptor, PlatformError>;
+
+/// Describe the pinned image for one world view.
+///
+/// Return one image descriptor for the image backing the pinned revision in one world view.
+/// Descriptor values are stable for the lifetime of the view.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned lineage and image state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.imageView", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function imageView(view: WorldViewHandle): Result<ImageDescriptor, PlatformError>;
+
+/// Describe the pinned trace state for one world view.
+///
+/// Return one trace descriptor for the exact trace position captured by one world view.
+/// Descriptor values are stable for the lifetime of the view.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned lineage and trace state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.traceView", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function traceView(view: WorldViewHandle): Result<TraceDescriptor, PlatformError>;
+
+/// List runtimes visible through one pinned world view.
+///
+/// Enumerate runtime descriptors from the image backing one pinned world view.
+/// Descriptor values are stable for the lifetime of the view.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned image and topology state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.runtimeList", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function runtimeList(
+    view: WorldViewHandle,
+    filter?: RuntimeFilter,
+    after?: RuntimeId,
+    limit?: uint32,
+): Result<Array<RuntimeDescriptor>, PlatformError>;
+
+/// Describe one runtime visible through one pinned world view.
+///
+/// Return one runtime descriptor from the image backing one pinned world view.
+/// Descriptor values are stable for the lifetime of the view.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned image and topology state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.runtimeView", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function runtimeView(
+    view: WorldViewHandle,
+    runtimeId: RuntimeId,
+): Result<RuntimeDescriptor, PlatformError>;
+
+/// List workers visible through one pinned world view.
+///
+/// Enumerate worker descriptors from the image backing one pinned world view.
+/// When one runtime identifier is provided, only workers owned by that runtime are returned.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned image and topology state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.workerList", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function workerList(
+    view: WorldViewHandle,
+    filter?: WorkerFilter,
+    after?: WorkerId,
+    limit?: uint32,
+): Result<Array<WorkerDescriptor>, PlatformError>;
+
+/// Describe one worker visible through one pinned world view.
+///
+/// Return one worker descriptor from the image backing one pinned world view.
+/// Descriptor values are stable for the lifetime of the view.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned image and topology state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.workerView", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function workerView(
+    view: WorldViewHandle,
+    workerId: WorkerId,
+): Result<WorkerDescriptor, PlatformError>;
+
+/// List logical world resources visible through one pinned world view.
+///
+/// Enumerate logical resource descriptors from the image and topology backing one pinned world view.
+/// Descriptor values are stable for the lifetime of the view.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned image and topology state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.resourceList", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function resourceList(
+    view: WorldViewHandle,
+    filter?: ResourceFilter,
+    after?: WorldResourceId,
+    limit?: uint32,
+): Result<Array<ResourceDescriptor>, PlatformError>;
+
+/// Describe one logical world resource visible through one pinned world view.
+///
+/// Return one resource descriptor from the image and topology backing one pinned world view.
+/// Descriptor values are stable for the lifetime of the view.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned image and topology state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.resourceView", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function resourceView(
+    view: WorldViewHandle,
+    resourceId: WorldResourceId,
+): Result<ResourceDescriptor, PlatformError>;
+
+/// List topology entities visible through one pinned world view.
+///
+/// Enumerate topology entities from the image backing one pinned world view.
+/// Descriptor values are stable for the lifetime of the view.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned topology state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.entityList", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function entityList(
+    view: WorldViewHandle,
+    filter?: TopologyEntityFilter,
+    after?: TopologyEntityId,
+    limit?: uint32,
+): Result<Array<TopologyEntity>, PlatformError>;
+
+/// Describe one topology entity visible through one pinned world view.
+///
+/// Return one topology entity from the image backing one pinned world view.
+/// Descriptor values are stable for the lifetime of the view.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned topology state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.entityView", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function entityView(
+    view: WorldViewHandle,
+    entityId: TopologyEntityId,
+): Result<TopologyEntity, PlatformError>;
+
+/// List topology edges visible through one pinned world view.
+///
+/// Enumerate topology edges from the image backing one pinned world view.
+/// Descriptor values are stable for the lifetime of the view.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned topology state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.edgeList", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function edgeList(
+    view: WorldViewHandle,
+    filter?: TopologyEdgeFilter,
+    after?: TopologyEdgeId,
+    limit?: uint32,
+): Result<Array<TopologyEdge>, PlatformError>;
+
+/// Describe one topology edge visible through one pinned world view.
+///
+/// Return one topology edge from the image backing one pinned world view.
+/// Descriptor values are stable for the lifetime of the view.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned topology state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.edgeView", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function edgeView(
+    view: WorldViewHandle,
+    edgeId: TopologyEdgeId,
+): Result<TopologyEdge, PlatformError>;
+
+/// Describe the event loop for one worker visible through one pinned world view.
+///
+/// Return one event-loop summary from the image backing one pinned world view.
+/// Descriptor values are stable for the lifetime of the view.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned image state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.eventLoopView", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function eventLoopView(
+    view: WorldViewHandle,
+    workerId: WorkerId,
+): Result<EventLoopDescriptor, PlatformError>;
+
+/// Describe the heap for one worker visible through one pinned world view.
+///
+/// Return one heap summary from the image backing one pinned world view.
+/// Descriptor values are stable for the lifetime of the view.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned image state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.heapView", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function heapView(
+    view: WorldViewHandle,
+    workerId: WorkerId,
+): Result<HeapDescriptor, PlatformError>;
+
+/// Describe the execution engine for one worker visible through one pinned world view.
+///
+/// Return one engine summary from the image backing one pinned world view.
+/// Descriptor values are stable for the lifetime of the view.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses pinned image state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.inspect.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.inspect.engineView", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.inspect.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function engineView(
+    view: WorldViewHandle,
+    workerId: WorkerId,
+): Result<EngineDescriptor, PlatformError>;

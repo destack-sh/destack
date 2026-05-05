@@ -1,0 +1,411 @@
+import { Slice } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { FileHandle, ProcessFdHandle, SignalFdHandle } from "../resource/index.ds";
+import { ProcessId } from "./ids.ds";
+import { Signal, SignalEvent } from "./signals.ds";
+import { ProcessWaitStatus } from "./wait.ds";
+
+/// Process file descriptor flags.
+export newtype ProcessFdFlags = uint32;
+
+/// Process file descriptor signal flags.
+export newtype ProcessFdSignalFlags = uint32;
+
+/// Signal file descriptor flags.
+export newtype SignalFdFlags = uint32;
+
+/// Process descriptor bindings.
+/// Open one standard input stream handle.
+///
+/// Open one handle for the current process standard input stream.
+/// The returned handle can be used with file-handle read and close operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 0 on Unix and DuplicateHandle from GetStdHandle(STD_INPUT_HANDLE) on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.stdio`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.fd.stdioStdin", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.stdio"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function stdioStdin(): Result<FileHandle, PlatformError>;
+
+/// Open one standard output stream handle.
+///
+/// Open one handle for the current process standard output stream.
+/// The returned handle can be used with file-handle write, sync, and close operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 1 on Unix and DuplicateHandle from GetStdHandle(STD_OUTPUT_HANDLE) on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.stdio`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.fd.stdioStdout", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.stdio"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function stdioStdout(): Result<FileHandle, PlatformError>;
+
+/// Open one standard error stream handle.
+///
+/// Open one handle for the current process standard error stream.
+/// The returned handle can be used with file-handle write, sync, and close operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 2 on Unix and DuplicateHandle from GetStdHandle(STD_ERROR_HANDLE) on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.stdio`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.fd.stdioStderr", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.stdio"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function stdioStderr(): Result<FileHandle, PlatformError>;
+
+/// Open one process descriptor for the target process id.
+///
+/// Open one host process descriptor that can be used for wait and signal operations without pid reuse races.
+/// Descriptor semantics follow pidfd on Linux and host-equivalent process-handle semantics on other targets.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses pidfd_open(2) on Linux and process handle duplication on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.handle`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.fd.processFdOpen", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.handle"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function processFdOpen(
+    pid: ProcessId,
+    flags: ProcessFdFlags,
+): Result<ProcessFdHandle, PlatformError>;
+
+/// Close one process descriptor.
+///
+/// Close one host process descriptor and release the kernel object reference.
+/// Closing semantics follow host descriptor teardown behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses close(2) on Unix and CloseHandle on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.handle`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.fd.processFdClose", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.handle"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function processFdClose(handle: ProcessFdHandle): Result<void, PlatformError>;
+
+/// Send one signal through a process descriptor.
+///
+/// Deliver one signal using a stable process descriptor rather than a numeric pid.
+/// Delivery semantics follow pidfd_send_signal on Linux and host-equivalent process-signal APIs on other targets.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses pidfd_send_signal(2) on Linux and process-handle control APIs on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.signal.send`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.fd.processFdSendSignal", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.signal.send"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function processFdSendSignal(
+    handle: ProcessFdHandle,
+    signal: Signal,
+    flags: ProcessFdSignalFlags,
+): Result<void, PlatformError>;
+
+/// Wait for one process descriptor state transition.
+///
+/// Wait for one child-state transition associated with the process descriptor.
+/// Wait semantics follow pollable pidfd readiness on Linux and host process wait APIs on other targets.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses poll or waitid over pidfd on Linux and WaitForSingleObject plus status queries on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.wait`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.fd.processFdWait", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.wait"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function processFdWait(
+    handle: ProcessFdHandle,
+    timeoutNs: uint64,
+): Result<ProcessWaitStatus, PlatformError>;
+
+/// Poll one process descriptor state transition without blocking.
+///
+/// Poll one process descriptor for state transition readiness and return immediately when no transition is pending.
+/// Non-ready state is reported through ioWouldBlock.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking poll over pidfd on Linux and zero-timeout process wait on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.wait`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.fd.processFdTryWait", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.wait"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function processFdTryWait(
+    handle: ProcessFdHandle,
+): Result<ProcessWaitStatus, PlatformError>;
+
+/// Open one signal descriptor for the provided signal mask.
+///
+/// Open one descriptor-backed signal queue that can be polled and read like other fd resources.
+/// Signal mask semantics follow signalfd on Linux and host-equivalent runtime adapters on other targets.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses signalfd(2) on Linux and host-equivalent process-signal descriptor adapters elsewhere.
+///
+/// # Errors
+/// Returns invalidArgument, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.fd.signalFdOpen", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.signal.receive"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function signalFdOpen(
+    signals: Slice<Signal>,
+    flags: SignalFdFlags,
+): Result<SignalFdHandle, PlatformError>;
+
+/// Close one signal descriptor.
+///
+/// Close one descriptor-backed signal queue and release host resources.
+/// Close semantics follow host descriptor teardown behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses close(2) on Unix and CloseHandle on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.fd.signalFdClose", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.signal.receive"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function signalFdClose(handle: SignalFdHandle): Result<void, PlatformError>;
+
+/// Read one queued signal event from a signal descriptor.
+///
+/// Read the next queued signal payload from one descriptor-backed signal queue.
+/// Queue ordering and coalescing behavior follow host signal queue semantics.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses read(2) over signalfd on Linux and host-equivalent signal descriptor reads on other targets.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.fd.signalFdRead", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.signal.receive"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function signalFdRead(handle: SignalFdHandle): Result<SignalEvent, PlatformError>;
+
+/// Poll one queued signal event from a signal descriptor without blocking.
+///
+/// Poll one descriptor-backed signal queue for one signal event and return immediately when empty.
+/// Empty queue state is reported through ioWouldBlock.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking reads over signalfd on Linux and host-equivalent signal descriptor polling elsewhere.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.fd.signalFdTryRead", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.signal.receive"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function signalFdTryRead(handle: SignalFdHandle): Result<SignalEvent, PlatformError>;
+
+/// Replace the active signal mask for one signal descriptor.
+///
+/// Replace the descriptor signal mask with one explicit signal-set value.
+/// Mask transitions are atomic under host signal-descriptor APIs.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses signalfd mask update semantics on Linux and host-equivalent signal descriptor mask updates elsewhere.
+///
+/// # Errors
+/// Returns invalidArgument, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.fd.signalFdSetMask", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.signal.receive"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function signalFdSetMask(
+    handle: SignalFdHandle,
+    signals: Slice<Signal>,
+): Result<void, PlatformError>;

@@ -1,0 +1,108 @@
+import { Slice } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { WindowHandle } from "../resource/index.ds";
+import { AccessibilityNode } from "./node.ds";
+import { AccessibilityNodeId } from "./role.ds";
+
+/// One tree update payload.
+export struct AccessibilityTreeUpdate {
+    /// Root node identifier for this window, or void to clear the tree.
+    rootNodeId: AccessibilityNodeId | void;
+    /// Focused node identifier for this window, or void when nothing is focused.
+    focusedNodeId: AccessibilityNodeId | void;
+    /// Added or replaced node descriptors.
+    /// Each listed node replaces the previously published descriptor for the same `id`.
+    nodes: Slice<AccessibilityNode>;
+    /// Removed node identifiers.
+    removedNodeIds: Slice<AccessibilityNodeId>;
+}
+
+/// Accessibility tree bindings.
+/// Apply one accessibility-tree update for one window.
+///
+/// Publish one accessibility-tree diff for the window's current semantic root.
+/// Listed nodes replace the current descriptor for the same identifier, and removed identifiers are detached from the published tree.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `accessibility.publish`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.accessibility.tree.apply", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["accessibility.publish"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function treeApply(
+    window: WindowHandle,
+    update: AccessibilityTreeUpdate,
+): Result<void, PlatformError>;
+
+/// Clear the published accessibility tree for one window.
+///
+/// Remove the current semantic root and all published nodes for the window.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `accessibility.publish`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.accessibility.tree.clear", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["accessibility.publish"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function treeClear(window: WindowHandle): Result<void, PlatformError>;
+
+/// Resolve one accessibility node at one window-local point.
+///
+/// Return the deepest published node that currently owns the given window-local logical point.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `accessibility.publish`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.accessibility.tree.hitTest", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["accessibility.publish"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function treeHitTest(
+    window: WindowHandle,
+    x: float64,
+    y: float64,
+): Result<AccessibilityNodeId | void, PlatformError>;

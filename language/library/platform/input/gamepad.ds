@@ -1,0 +1,301 @@
+import { Array } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { InputDeviceHandle } from "../resource/index.ds";
+
+/// Gamepad mapping type.
+export enum InputGamepadMappingType {
+    /// No canonical mapping is available.
+    None = 0,
+    /// Standard gamepad mapping.
+    Standard = 1,
+    /// XR standard gamepad mapping.
+    XrStandard = 2,
+}
+
+/// Gamepad connection type.
+export enum InputGamepadConnectionType {
+    /// Connection type is unknown.
+    Unknown = 0,
+    /// Wired transport.
+    Wired = 1,
+    /// Wireless transport.
+    Wireless = 2,
+    /// Virtual or emulated transport.
+    Virtual = 3,
+}
+
+/// Gamepad battery state.
+export enum InputGamepadBatteryState {
+    /// Battery state is unknown.
+    Unknown = 0,
+    /// Battery is charging.
+    Charging = 1,
+    /// Battery is discharging.
+    Discharging = 2,
+    /// Battery is full.
+    Full = 3,
+    /// Battery is not present.
+    NotPresent = 4,
+}
+
+/// Gamepad battery information.
+export struct InputGamepadBatteryStatus {
+    /// Battery state.
+    state: InputGamepadBatteryState;
+    /// Battery level in the range [0, 1] when available.
+    level: float64;
+}
+
+/// Gamepad button state.
+export struct InputGamepadButtonState {
+    /// Whether the button is currently pressed.
+    pressed: boolean;
+    /// Whether the button is currently touched.
+    touched: boolean;
+    /// Analog button value in the normalized range [0, 1].
+    value: float64;
+}
+
+/// Gamepad touch contact state.
+export struct InputGamepadTouchState {
+    /// Touch identifier in backend contact space.
+    touchId: uint32;
+    /// Touch surface identifier.
+    surfaceId: uint32;
+    /// Normalized x coordinate in the range [-1, 1] when reported by backend.
+    x: float64;
+    /// Normalized y coordinate in the range [-1, 1] when reported by backend.
+    y: float64;
+    /// Normalized pressure in the range [0, 1] when reported by backend.
+    pressure: float64;
+}
+
+/// Gamepad motion state snapshot.
+export struct InputGamepadMotionState {
+    /// Monotonic update timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Linear acceleration x component in meters per second squared.
+    accelerationX: float64;
+    /// Linear acceleration y component in meters per second squared.
+    accelerationY: float64;
+    /// Linear acceleration z component in meters per second squared.
+    accelerationZ: float64;
+    /// Gravity x component in meters per second squared when available.
+    gravityX: float64;
+    /// Gravity y component in meters per second squared when available.
+    gravityY: float64;
+    /// Gravity z component in meters per second squared when available.
+    gravityZ: float64;
+    /// Rotation rate around x in radians per second.
+    gyroscopeX: float64;
+    /// Rotation rate around y in radians per second.
+    gyroscopeY: float64;
+    /// Rotation rate around z in radians per second.
+    gyroscopeZ: float64;
+}
+
+/// Gamepad state snapshot.
+export struct InputGamepadState {
+    /// Monotonic update timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Whether the gamepad is currently connected.
+    connected: boolean;
+    /// Stable source device identifier.
+    deviceId: string;
+    /// Stable instance identifier when available.
+    instanceId: string | void;
+    /// Stable gamepad guid when available.
+    guid: string | void;
+    /// Raw backend device name when available.
+    rawName: string | void;
+    /// Active mapping display name when available.
+    mappingName: string | void;
+    /// Active gamepad mapping type.
+    mapping: InputGamepadMappingType;
+    /// Connection type when available.
+    connectionType: InputGamepadConnectionType;
+    /// Player index in the range [0, 15] when available.
+    playerIndex: uint8 | void;
+    /// Stable web-style slot index when the backend or runtime assigns one.
+    slotIndex: uint8 | void;
+    /// Battery information snapshot.
+    battery: InputGamepadBatteryStatus;
+    /// Whether this device supports whole-device rumble.
+    supportsRumble: boolean;
+    /// Whether this device supports trigger rumble.
+    supportsTriggerRumble: boolean;
+    /// Whether this device exposes motion sensors.
+    supportsMotionSensors: boolean;
+    /// Whether this device exposes touch surfaces.
+    supportsTouch: boolean;
+    /// Whether this device supports light control.
+    supportsLight: boolean;
+    /// Whether motion sensors are currently enabled.
+    motionSensorsEnabled: boolean;
+    /// Effective motion sensor sample rate in hertz when available.
+    motionSampleRateHz: float64 | void;
+    /// Axis values in normalized backend order.
+    axes: Array<float64>;
+    /// Button values in normalized backend order.
+    buttons: Array<InputGamepadButtonState>;
+    /// Touch contacts when the device exposes touch surfaces.
+    touches: Array<InputGamepadTouchState>;
+    /// Motion state when sensors are enabled and data is available.
+    motion: InputGamepadMotionState | void;
+}
+
+/// Input gamepad bindings.
+/// Read one gamepad state snapshot.
+///
+/// Return one full gamepad state snapshot for one opened gamepad-capable device.
+/// Snapshot fields mirror backend-standardized gamepad semantics for axes, buttons, touches, battery, and motion metadata.
+///
+/// # Platform
+/// Unix and Windows, with operation-level `notSupported` where gamepad snapshots are unavailable.
+/// Uses backend-specific gamepad state APIs with normalized axes, buttons, touch contacts, battery metadata, and motion sensors when available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `input.read`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.input.gamepad.state", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["input.read"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function gamepadState(
+    handle: InputDeviceHandle,
+): Result<InputGamepadState, PlatformError>;
+
+/// Set one gamepad player index.
+///
+/// Apply one player index hint for one opened gamepad-capable device.
+///
+/// # Platform
+/// Unix and Windows, with operation-level `notSupported` where player-index assignment is unavailable.
+/// Uses backend-specific gamepad player-index assignment APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `input.control`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.input.gamepad.setPlayerIndex", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["input.control"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function gamepadSetPlayerIndex(
+    handle: InputDeviceHandle,
+    playerIndex: uint8,
+): Result<void, PlatformError>;
+
+/// Set one gamepad light color.
+///
+/// Apply one rgb light color for one opened gamepad-capable device when supported.
+///
+/// # Platform
+/// Unix and Windows, with operation-level `notSupported` where gamepad light control is unavailable.
+/// Uses backend-specific gamepad light-control APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `input.control`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.input.gamepad.setLight", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["input.control"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function gamepadSetLight(
+    handle: InputDeviceHandle,
+    red: uint8,
+    green: uint8,
+    blue: uint8,
+): Result<void, PlatformError>;
+
+/// Enable or disable gamepad motion sensors.
+///
+/// Toggle motion sensor delivery for one opened gamepad-capable device when supported.
+///
+/// # Platform
+/// Unix and Windows, with operation-level `notSupported` where motion sensors are unavailable.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `input.control`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.input.gamepad.setMotionSensorsEnabled", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["input.control"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function gamepadSetMotionSensorsEnabled(
+    handle: InputDeviceHandle,
+    enabled: boolean,
+): Result<void, PlatformError>;
+
+/// Set the gamepad motion sensor sample rate.
+///
+/// Apply one motion sensor sample rate hint in hertz for one opened gamepad-capable device when supported.
+///
+/// # Platform
+/// Unix and Windows, with operation-level `notSupported` where configurable motion sensors are unavailable.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `input.control`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.input.gamepad.setMotionSensorSampleRate", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["input.control"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function gamepadSetMotionSensorSampleRate(
+    handle: InputDeviceHandle,
+    sampleRateHz: float64,
+): Result<void, PlatformError>;

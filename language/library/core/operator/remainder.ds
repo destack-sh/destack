@@ -1,0 +1,10 @@
+/// Interface for the `%` operator.
+///
+/// `a % b` becomes `a.remainder(b)`.
+export newtype interface Remainder<T = this> {
+    /// The result type.
+    type Output;
+
+    /// Return the remainder after dividing this value by `other`.
+    remainder(other: T): this.Output;
+}

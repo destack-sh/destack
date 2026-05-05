@@ -1,0 +1,109 @@
+import { Array } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { SocketAddress } from "./address.ds";
+
+/// Network interface flags.
+export newtype NetInterfaceFlags = uint64;
+
+/// Network interface descriptor.
+export struct NetInterface {
+    /// Interface name.
+    name: string;
+    /// Interface index.
+    index: uint32;
+    /// Interface flags.
+    flags: NetInterfaceFlags;
+    /// Interface mtu in bytes.
+    mtu: uint32;
+    /// Interface hardware address.
+    macAddress: uint8[];
+    /// Interface addresses.
+    addresses: Array<SocketAddress>;
+}
+
+/// List network interfaces with addresses and flags.
+///
+/// Enumerates host interfaces and returns their current address records.
+/// Results are snapshots and may become stale immediately after the call.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses getifaddrs on Unix and iphlpapi adapter enumeration on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netTimedOut, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `net.interface`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.interface.listInterfaces", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.interface"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function listInterfaces(): Result<Array<NetInterface>, PlatformError>;
+
+/// Resolve an interface name to an index.
+///
+/// Maps a host interface name to its numeric index for route and multicast operations.
+/// The mapping follows host network namespace rules.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses if_nametoindex on Unix and ConvertInterfaceAliasToLuid plus ConvertInterfaceLuidToIndex on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `net.interface`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.interface.interfaceIndex", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.interface"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function interfaceIndex(name: string): Result<uint32, PlatformError>;
+
+/// Resolve an interface index to a name.
+///
+/// Maps a numeric host interface index to its canonical interface name.
+/// The mapping follows host network namespace rules.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses if_indextoname on Unix and ConvertInterfaceIndexToLuid plus ConvertInterfaceLuidToAlias on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `net.interface`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.interface.interfaceName", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.interface"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function interfaceName(index: uint32): Result<string, PlatformError>;

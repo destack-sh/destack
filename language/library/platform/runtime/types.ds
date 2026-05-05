@@ -1,0 +1,517 @@
+import { ResourceId } from "../resource/index.ds";
+
+/// Handle for one live world control object.
+export newtype WorldHandle = ResourceId;
+
+/// Handle for one live runtime control object.
+export newtype RuntimeHandle = ResourceId;
+
+/// Handle for one live worker control object.
+export newtype WorkerHandle = ResourceId;
+
+/// Stable runtime identifier in one world.
+export newtype RuntimeId = uint64;
+
+/// Stable worker identifier in one world.
+export newtype WorkerId = uint64;
+
+/// Stable world resource identifier.
+export struct WorldResourceId {
+    /// Owning worker identifier.
+    workerId: WorkerId;
+    /// Resource identifier in the owning local resource table.
+    resourceId: ResourceId;
+}
+
+/// Handle for one pinned world view.
+export newtype WorldViewHandle = ResourceId;
+
+/// Handle for one runtime trace cursor.
+export newtype TraceCursorHandle = ResourceId;
+
+/// Handle for one runtime observation subscription.
+export newtype ObservationHandle = ResourceId;
+
+/// Stable branch identifier in one world lineage.
+export newtype BranchId = uint64;
+
+/// Stable revision identifier in one world lineage.
+export newtype RevisionId = uint64;
+
+/// Stable checkpoint identifier in one world lineage.
+export newtype CheckpointId = uint64;
+
+/// Stable image identifier in one world lineage.
+export newtype ImageId = uint64;
+
+/// Stable snapshot identifier in one world lineage.
+export newtype SnapshotId = uint64;
+
+/// Monotonic trace sequence number.
+export newtype TraceSequence = uint64;
+
+/// Stable topology entity identifier.
+export newtype TopologyEntityId = string;
+
+/// Stable topology edge identifier.
+export newtype TopologyEdgeId = string;
+
+/// Stable topology entity kind identifier.
+export newtype TopologyEntityKind = string;
+
+/// Stable topology edge kind identifier.
+export newtype TopologyEdgeKind = string;
+
+/// Runtime label key-value pair.
+export struct RuntimeLabel {
+    /// Label key.
+    key: string;
+    /// Label value.
+    value: string;
+}
+
+/// Runtime label selector clause.
+export struct RuntimeLabelSelector {
+    /// Label key to match.
+    key: string;
+    /// Optional exact value match.
+    value: string | void;
+}
+
+/// Engine selection for one world.
+export enum RuntimeEngineKind {
+    /// VM-backed execution.
+    Vm = 1,
+    /// Native-backed execution.
+    Native = 2,
+}
+
+/// Execution selection for one world.
+export enum RuntimeExecutionMode {
+    /// Fast execution with minimal deterministic constraints.
+    Fast = 1,
+    /// Deterministic execution without external replay recording.
+    Deterministic = 2,
+    /// Record execution for later replay.
+    Record = 3,
+    /// Replay one previously recorded trace.
+    Replay = 4,
+}
+
+/// World backend selection.
+export enum RuntimeWorldKind {
+    /// Host-backed world.
+    Host = 1,
+    /// Simulation-backed world.
+    Simulation = 2,
+}
+
+/// Tick result for one world advance.
+export enum RuntimeTickOutcome {
+    /// No progress was possible.
+    Idle = 1,
+    /// One or more tasks or events progressed.
+    Progressed = 2,
+    /// Time advanced without dispatching work.
+    AdvancedTime = 3,
+}
+
+/// Snapshot export format.
+export enum SnapshotFormat {
+    /// Fast local image export with runtime-specific backing.
+    Fast = 1,
+    /// Portable export intended for cross-machine or cross-runtime transport.
+    Portable = 2,
+}
+
+/// Trace event class.
+export enum TraceEventKind {
+    /// Runtime entropy or nondeterministic decision.
+    Entropy = 1,
+    /// Recorded binding call.
+    BindingCall = 2,
+    /// Runtime or world control mutation.
+    Control = 3,
+    /// Explicit marker event.
+    Marker = 4,
+}
+
+/// Observation event class.
+export enum ObservationEventKind {
+    /// Trace-adjacent event.
+    Trace = 1,
+    /// Topology change event.
+    Topology = 2,
+    /// Resource lifecycle event.
+    Resource = 3,
+    /// Scheduler or execution event.
+    Scheduler = 4,
+    /// Diagnostic or policy event.
+    Diagnostic = 5,
+    /// Profiler event.
+    Profile = 6,
+}
+
+/// Create options for one world.
+export struct WorldCreateOptions {
+    /// Optional engine preference.
+    engine?: RuntimeEngineKind;
+    /// Optional execution preference.
+    execution?: RuntimeExecutionMode;
+    /// Optional world backend preference.
+    world?: RuntimeWorldKind;
+    /// Optional world labels.
+    labels?: Array<RuntimeLabel>;
+}
+
+/// Create options for one runtime.
+export struct RuntimeCreateOptions {
+    /// Optional runtime name.
+    name?: string;
+    /// Optional runtime labels.
+    labels?: Array<RuntimeLabel>;
+}
+
+/// Create options for one worker.
+export struct WorkerCreateOptions {
+    /// Optional worker name.
+    name?: string;
+    /// Optional worker labels.
+    labels?: Array<RuntimeLabel>;
+}
+
+/// Descriptor for one live world.
+export struct WorldDescriptor {
+    /// World handle.
+    handle: WorldHandle;
+    /// Active branch identifier.
+    branchId: BranchId;
+    /// Active revision identifier.
+    revisionId: RevisionId;
+    /// Current wall-clock time in nanoseconds.
+    wallNs: uint64;
+    /// Current monotonic time in nanoseconds.
+    monoNs: uint64;
+    /// Current virtual time in nanoseconds.
+    virtualNs: uint64;
+    /// Runtime count in this world.
+    runtimeCount: uint32;
+    /// World labels.
+    labels?: Array<RuntimeLabel>;
+}
+
+/// Descriptor for one live runtime.
+export struct RuntimeDescriptor {
+    /// Runtime identifier.
+    id: RuntimeId;
+    /// Primary worker identifier.
+    primaryWorkerId: WorkerId;
+    /// Optional runtime name.
+    name?: string;
+    /// Worker count in this runtime.
+    workerCount: uint32;
+    /// Runtime labels.
+    labels?: Array<RuntimeLabel>;
+}
+
+/// Descriptor for one live worker.
+export struct WorkerDescriptor {
+    /// Worker identifier.
+    id: WorkerId;
+    /// Owning runtime identifier.
+    runtimeId: RuntimeId;
+    /// Optional worker name.
+    name?: string;
+    /// Whether the worker has pending work.
+    hasPendingWork: boolean;
+    /// Resource count owned by this worker.
+    resourceCount: uint32;
+    /// Worker labels.
+    labels?: Array<RuntimeLabel>;
+}
+
+/// Descriptor for one branch.
+export struct BranchDescriptor {
+    /// Branch identifier.
+    id: BranchId;
+    /// Head revision identifier.
+    headRevision: RevisionId;
+    /// Optional branch name.
+    name?: string;
+    /// Branch labels.
+    labels?: Array<RuntimeLabel>;
+}
+
+/// Descriptor for one revision.
+export struct RevisionDescriptor {
+    /// Revision identifier.
+    id: RevisionId;
+    /// Owning branch identifier.
+    branchId: BranchId;
+    /// Parent revision when present.
+    parentRevision?: RevisionId;
+    /// Trace sequence captured by this revision.
+    sequence: TraceSequence;
+    /// Wall-clock time in nanoseconds.
+    wallNs: uint64;
+    /// Monotonic time in nanoseconds.
+    monoNs: uint64;
+    /// Virtual time in nanoseconds.
+    virtualNs: uint64;
+    /// Materialized image reference.
+    imageId: ImageId;
+}
+
+/// Descriptor for one checkpoint.
+export struct CheckpointDescriptor {
+    /// Checkpoint identifier.
+    id: CheckpointId;
+    /// Revision anchored by this checkpoint.
+    revisionId: RevisionId;
+    /// Optional checkpoint name.
+    name?: string;
+    /// Checkpoint labels.
+    labels?: Array<RuntimeLabel>;
+}
+
+/// Descriptor for one image.
+export struct ImageDescriptor {
+    /// Image identifier.
+    id: ImageId;
+    /// Revision materialized by this image.
+    revisionId: RevisionId;
+    /// Optional shared backing size in bytes.
+    sharedBytes?: uint64;
+}
+
+/// Descriptor for one snapshot.
+export struct SnapshotDescriptor {
+    /// Snapshot identifier.
+    id: SnapshotId;
+    /// Backing image identifier.
+    imageId: ImageId;
+    /// Snapshot export format.
+    format: SnapshotFormat;
+    /// Optional serialized size in bytes.
+    sizeBytes?: uint64;
+}
+
+/// Open options for one pinned world view.
+export struct WorldViewOptions {
+    /// Explicit revision to pin when present.
+    revisionId?: RevisionId;
+}
+
+/// Filter for runtime lists.
+export struct RuntimeFilter {
+    /// Optional exact runtime name.
+    name?: string;
+    /// Optional label selector clauses.
+    labels?: Array<RuntimeLabelSelector>;
+}
+
+/// Filter for worker lists.
+export struct WorkerFilter {
+    /// Optional owning runtime selector.
+    runtimeId?: RuntimeId;
+    /// Optional exact worker name.
+    name?: string;
+    /// Optional pending-work selector.
+    hasPendingWork?: boolean;
+    /// Optional label selector clauses.
+    labels?: Array<RuntimeLabelSelector>;
+}
+
+/// Filter for branch lists.
+export struct BranchFilter {
+    /// Optional exact branch name.
+    name?: string;
+    /// Optional label selector clauses.
+    labels?: Array<RuntimeLabelSelector>;
+}
+
+/// Filter for revision lists.
+export struct RevisionFilter {
+    /// Optional owning branch selector.
+    branchId?: BranchId;
+}
+
+/// Filter for checkpoint lists.
+export struct CheckpointFilter {
+    /// Optional anchored revision selector.
+    revisionId?: RevisionId;
+    /// Optional exact checkpoint name.
+    name?: string;
+    /// Optional label selector clauses.
+    labels?: Array<RuntimeLabelSelector>;
+}
+
+/// Filter for image lists.
+export struct ImageFilter {
+    /// Optional owning revision selector.
+    revisionId?: RevisionId;
+}
+
+/// Filter for topology entities.
+export struct TopologyEntityFilter {
+    /// Optional entity kind selector.
+    kind?: TopologyEntityKind;
+    /// Optional label selector clauses.
+    labels?: Array<RuntimeLabelSelector>;
+}
+
+/// Filter for topology edges.
+export struct TopologyEdgeFilter {
+    /// Optional edge kind selector.
+    kind?: TopologyEdgeKind;
+    /// Optional source entity selector.
+    from?: TopologyEntityId;
+    /// Optional destination entity selector.
+    to?: TopologyEntityId;
+    /// Optional label selector clauses.
+    labels?: Array<RuntimeLabelSelector>;
+}
+
+/// Filter for runtime resources.
+export struct ResourceFilter {
+    /// Optional owning runtime selector.
+    runtimeId?: RuntimeId;
+    /// Optional owning worker selector.
+    workerId?: WorkerId;
+    /// Optional resource kind selector.
+    kind?: string;
+    /// Optional exact resource label selector.
+    label?: string;
+}
+
+/// Topology entity summary.
+export struct TopologyEntity {
+    /// Stable entity identifier.
+    id: TopologyEntityId;
+    /// Entity kind identifier.
+    kind: TopologyEntityKind;
+    /// Entity labels.
+    labels?: Array<RuntimeLabel>;
+}
+
+/// Topology edge summary.
+export struct TopologyEdge {
+    /// Stable edge identifier.
+    id: TopologyEdgeId;
+    /// Edge kind identifier.
+    kind: TopologyEdgeKind;
+    /// Source entity identifier.
+    from: TopologyEntityId;
+    /// Destination entity identifier.
+    to: TopologyEntityId;
+    /// Edge labels.
+    labels?: Array<RuntimeLabel>;
+}
+
+/// Runtime resource summary.
+export struct ResourceDescriptor {
+    /// Resource identifier.
+    id: WorldResourceId;
+    /// Logical world entity identifier for this resource.
+    entityId: TopologyEntityId;
+    /// Resource kind label.
+    kind: string;
+    /// Optional resource label.
+    label?: string;
+}
+
+/// Event-loop summary for one worker.
+export struct EventLoopDescriptor {
+    /// Ready task count.
+    taskCount: uint32;
+    /// Pending microtask count.
+    microtaskCount: uint32;
+    /// Timer count.
+    timerCount: uint32;
+    /// Watch count.
+    watchCount: uint32;
+    /// Whether pending work exists.
+    hasPendingWork: boolean;
+}
+
+/// Heap summary for one worker.
+export struct HeapDescriptor {
+    /// Total heap bytes.
+    heapBytes: uint64;
+    /// Total captured page count.
+    pageCount: uint32;
+    /// Completed GC cycle count.
+    gcCycles: uint64;
+}
+
+/// Engine view kind for one worker.
+export enum EngineDescriptorKind {
+    /// VM isolate-backed execution.
+    Isolate = 1,
+    /// Native engine-backed execution.
+    Native = 2,
+}
+
+/// Engine summary for one worker.
+export struct EngineDescriptor {
+    /// Engine implementation kind.
+    kind: EngineDescriptorKind;
+    /// Call stack depth.
+    callStackDepth?: uint32;
+    /// Value stack length.
+    valueStackDepth?: uint32;
+    /// Local stack length.
+    localStackDepth?: uint32;
+    /// Image backing size in bytes.
+    imageBytes?: uint64;
+}
+
+/// Trace descriptor for one world.
+export struct TraceDescriptor {
+    /// Active branch identifier.
+    branchId: BranchId;
+    /// Current trace sequence boundary.
+    sequence: TraceSequence;
+}
+
+/// Open options for one trace cursor.
+export struct TraceCursorOptions {
+    /// Optional starting sequence.
+    startSequence?: TraceSequence;
+}
+
+/// One trace record.
+export struct TraceRecord {
+    /// Event sequence number.
+    sequence: TraceSequence;
+    /// Event class.
+    kind: TraceEventKind;
+    /// Optional encoded payload.
+    payload?: Array<uint8>;
+}
+
+/// Open options for one observation subscription.
+export struct ObservationOptions {
+    /// Include trace-adjacent events.
+    trace?: boolean;
+    /// Include topology change events.
+    topology?: boolean;
+    /// Include resource lifecycle events.
+    resources?: boolean;
+    /// Include scheduler events.
+    scheduler?: boolean;
+    /// Include diagnostics and policy events.
+    diagnostics?: boolean;
+    /// Include profiler events.
+    profiles?: boolean;
+}
+
+/// One observation record.
+export struct ObservationRecord {
+    /// Observation class.
+    kind: ObservationEventKind;
+    /// Optional associated trace sequence.
+    sequence?: TraceSequence;
+    /// Optional encoded payload.
+    payload?: Array<uint8>;
+}

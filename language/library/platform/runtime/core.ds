@@ -1,0 +1,312 @@
+import type { PlatformError } from "../error/index.ds";
+import {
+    WorkerCreateOptions,
+    WorkerDescriptor,
+    WorkerHandle,
+    RuntimeCreateOptions,
+    RuntimeDescriptor,
+    RuntimeHandle,
+    RuntimeTickOutcome,
+    WorldCreateOptions,
+    WorldDescriptor,
+    WorldHandle,
+} from "./types.ds";
+
+/// Low-level world, runtime, and worker control bindings.
+/// Create one world.
+///
+/// Allocate one new low-level world control object with explicit runtime options.
+/// World creation initializes clocks, lineage, topology, simulation, trace, and other world-owned state.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime world construction rather than host syscalls.
+///
+/// # Errors
+/// Returns invalidArgument, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `runtime.world.create`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.core.worldCreate", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.world.create"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "sometimes",
+    affinity: "owner",
+})
+export declare function worldCreate(options?: WorldCreateOptions): Result<WorldHandle, PlatformError>;
+
+/// Close one world.
+///
+/// Tear down one low-level world control object and release its owned runtime state.
+/// Active runtimes, workers, and attached runtime resources are closed according to runtime shutdown policy.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime world teardown logic.
+///
+/// # Errors
+/// Returns invalidArgument, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `runtime.world.control`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.core.worldClose", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.world.control"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "sometimes",
+    affinity: "owner",
+})
+export declare function worldClose(world: WorldHandle): Result<void, PlatformError>;
+
+/// Describe one world.
+///
+/// Return one structured world descriptor for one live world handle.
+/// Descriptor fields reflect the current active branch, revision, time state, and runtime counts.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime world state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.world.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.core.worldDescribe", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.world.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function worldDescribe(world: WorldHandle): Result<WorldDescriptor, PlatformError>;
+
+/// Advance one world by one scheduler step.
+///
+/// Execute one world-level deterministic advance step across runtimes, workers, clocks, and simulation.
+/// The returned outcome distinguishes idle, progressed, and time-advance results.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses world scheduler and simulation coordination.
+///
+/// # Errors
+/// Returns invalidArgument, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `runtime.world.control`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.core.worldTick", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.world.control"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "sometimes",
+    affinity: "owner",
+})
+export declare function worldTick(world: WorldHandle): Result<RuntimeTickOutcome, PlatformError>;
+
+/// Spawn one runtime in one world.
+///
+/// Create one process-like runtime container inside one world with explicit metadata options.
+/// The new runtime is attached to the world's active branch and trace state.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime world ownership and runtime construction logic.
+///
+/// # Errors
+/// Returns invalidArgument, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `runtime.runtime.create`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.core.runtimeCreate", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.runtime.create"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "sometimes",
+    affinity: "owner",
+})
+export declare function runtimeCreate(
+    world: WorldHandle,
+    options?: RuntimeCreateOptions,
+): Result<RuntimeHandle, PlatformError>;
+
+/// Close one runtime.
+///
+/// Remove one runtime container from its owning world and release its live execution state.
+/// Worker teardown follows runtime shutdown policy.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime teardown logic.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `runtime.runtime.control`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.core.runtimeClose", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.runtime.control"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "sometimes",
+    affinity: "owner",
+})
+export declare function runtimeClose(runtimeHandle: RuntimeHandle): Result<void, PlatformError>;
+
+/// Describe one runtime.
+///
+/// Return one structured runtime descriptor for one live runtime handle.
+/// Descriptor fields summarize runtime ownership, primary worker, labels, and worker counts.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.runtime.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.core.runtimeDescribe", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.runtime.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function runtimeDescribe(
+    runtimeHandle: RuntimeHandle,
+): Result<RuntimeDescriptor, PlatformError>;
+
+/// Spawn one worker in one runtime.
+///
+/// Create one execution lane inside one runtime with explicit metadata options.
+/// The worker is attached to the runtime's current world and trace context.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime worker construction logic.
+///
+/// # Errors
+/// Returns invalidArgument, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `runtime.worker.create`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.core.workerCreate", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.worker.create"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "sometimes",
+    affinity: "owner",
+})
+export declare function workerCreate(
+    runtimeHandle: RuntimeHandle,
+    options?: WorkerCreateOptions,
+): Result<WorkerHandle, PlatformError>;
+
+/// Close one worker.
+///
+/// Remove one execution lane from its owning runtime and release its lane-local state.
+/// Resource teardown follows runtime and resource policy.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime worker teardown logic.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `runtime.worker.control`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.core.workerClose", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.worker.control"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "sometimes",
+    affinity: "owner",
+})
+export declare function workerClose(worker: WorkerHandle): Result<void, PlatformError>;
+
+/// Describe one worker.
+///
+/// Return one structured worker descriptor for one live worker handle.
+/// Descriptor fields summarize ownership, labels, pending-work state, and resource counts.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime worker state only.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `runtime.worker.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.runtime.core.workerDescribe", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["runtime.worker.read"],
+    platforms: ["windows", "unix", "wasi"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "owner",
+})
+export declare function workerDescribe(worker: WorkerHandle): Result<WorkerDescriptor, PlatformError>;

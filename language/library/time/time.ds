@@ -1,0 +1,17 @@
+import * as platform from "library/platform/index.ds";
+import type { PlatformError } from "../error/index.ds";
+
+/// Return wall clock time in nanoseconds since the runtime epoch.
+export function wallNs(): Result<uint64, PlatformError> {
+    platform.time.wallNs();
+}
+
+/// Return monotonic time in nanoseconds since process start.
+export function monoNs(): Result<uint64, PlatformError> {
+    platform.time.monoNs();
+}
+
+/// Sleep for at least the given duration in nanoseconds.
+export function sleepNs(duration: uint64): Result<void, PlatformError> {
+    platform.time.sleepNs(duration);
+}

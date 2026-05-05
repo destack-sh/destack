@@ -1,0 +1,89 @@
+import type { PlatformError } from "../error/index.ds";
+import { ProcessId } from "./ids.ds";
+
+/// Create a new session and return the new session leader id.
+///
+/// Create a new session boundary and make the caller its session leader.
+/// Session and controlling-terminal semantics follow host job-control rules.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses setsid(2) on Unix and runtime emulation or `notSupported` on Windows.
+///
+/// # Errors
+/// Returns processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.session`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.session.setsid", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.session"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function setsid(): Result<ProcessId, PlatformError>;
+
+/// Set a process group id for a process.
+///
+/// Move the target process into the requested process group identifier.
+/// Cross-session moves and permission checks follow host kernel job-control rules.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses setpgid(2) on Unix and runtime emulation or `notSupported` on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.session`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.session.setpgid", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.session"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function setpgid(pid: ProcessId, pgid: ProcessId): Result<void, PlatformError>;
+
+/// Read a process group id.
+///
+/// Read the process-group identifier currently assigned to the target process.
+/// Visibility and lookup behavior follow host process table rules.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses getpgid(2) on Unix and runtime emulation or `notSupported` on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.session`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.session.getpgid", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.session"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function getpgid(pid: ProcessId): Result<ProcessId, PlatformError>;

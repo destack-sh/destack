@@ -1,0 +1,1282 @@
+import { Array, Slice } from "core";
+import type { PlatformError } from "../error/index.ds";
+import {
+    BluetoothAdapterWatchHandle,
+    BluetoothDeviceHandle,
+    BluetoothScanHandle,
+    BluetoothSubscriptionHandle,
+} from "../resource/index.ds";
+
+/// Bluetooth adapter descriptor.
+export struct BluetoothAdapterDescriptor {
+    /// Stable adapter identifier.
+    id: string;
+    /// Host-visible adapter name.
+    name: string;
+    /// Whether the adapter is powered.
+    powered: boolean;
+    /// Whether the adapter is currently scanning or discovering when known.
+    discovering?: boolean;
+    /// Whether the adapter supports extended advertising when known.
+    extendedAdvertising?: boolean;
+}
+
+/// Shared metadata for Bluetooth adapter events.
+export struct BluetoothAdapterEventMetadata {
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this adapter-watch stream.
+    sequence: uint64;
+    /// Adapter descriptor payload for this event.
+    adapter: BluetoothAdapterDescriptor;
+}
+
+/// Bluetooth adapter attached event.
+export struct BluetoothAdapterAttachedEvent {
+    /// Discriminator for this Bluetooth adapter event variant.
+    kind: "attached";
+    /// Shared event metadata.
+    metadata: BluetoothAdapterEventMetadata;
+}
+
+/// Bluetooth adapter changed event.
+export struct BluetoothAdapterChangedEvent {
+    /// Discriminator for this Bluetooth adapter event variant.
+    kind: "changed";
+    /// Shared event metadata.
+    metadata: BluetoothAdapterEventMetadata;
+}
+
+/// Bluetooth adapter detached event.
+export struct BluetoothAdapterDetachedEvent {
+    /// Discriminator for this Bluetooth adapter event variant.
+    kind: "detached";
+    /// Shared event metadata.
+    metadata: BluetoothAdapterEventMetadata;
+}
+
+/// Bluetooth adapter event payload.
+export newtype BluetoothAdapterEvent =
+    | BluetoothAdapterAttachedEvent
+    | BluetoothAdapterChangedEvent
+    | BluetoothAdapterDetachedEvent;
+
+/// Bluetooth scan mode.
+export enum BluetoothScanMode {
+    /// Passive scan mode.
+    Passive = 1,
+    /// Active scan mode.
+    Active = 2,
+}
+
+/// Bluetooth LE transport classification.
+export enum BluetoothLeTransport {
+    /// Host did not provide a stronger transport classification.
+    Unknown = 1,
+    /// LE-only device or session.
+    LowEnergy = 2,
+    /// Dual-mode device that also exposes LE transport.
+    DualMode = 3,
+}
+
+/// Bluetooth LE PHY selector.
+export enum BluetoothPhy {
+    /// LE 1M PHY.
+    Le1M = 1,
+    /// LE 2M PHY.
+    Le2M = 2,
+    /// LE coded PHY.
+    LeCoded = 3,
+    /// Host default PHY policy.
+    Any = 4,
+}
+
+/// Bluetooth advertisement data filter.
+export struct BluetoothDataFilter {
+    /// Required leading bytes in the payload.
+    dataPrefix: Slice<uint8>;
+    /// Optional bit mask applied to `dataPrefix`.
+    mask?: Slice<uint8>;
+}
+
+/// Bluetooth advertisement manufacturer-data filter.
+export struct BluetoothManufacturerDataFilter {
+    /// Bluetooth company identifier.
+    companyId: uint16;
+    /// Optional manufacturer payload filter.
+    data?: BluetoothDataFilter;
+}
+
+/// Bluetooth advertisement service-data filter.
+export struct BluetoothServiceDataFilter {
+    /// Service UUID.
+    serviceUuid: string;
+    /// Optional service payload filter.
+    data?: BluetoothDataFilter;
+}
+
+/// Bluetooth GATT write mode.
+export enum BluetoothGattWriteMode {
+    /// Write with an ATT response.
+    WithResponse = 1,
+    /// Write without an ATT response.
+    WithoutResponse = 2,
+}
+
+/// Bluetooth advertisement manufacturer payload.
+export struct BluetoothAdvertisementManufacturerData {
+    /// Bluetooth company identifier.
+    companyId: uint16;
+    /// Manufacturer payload bytes.
+    data: Slice<uint8>;
+}
+
+/// Bluetooth advertisement service payload.
+export struct BluetoothAdvertisementServiceData {
+    /// Service UUID.
+    serviceUuid: string;
+    /// Service payload bytes.
+    data: Slice<uint8>;
+}
+
+/// Bluetooth advertisement payload.
+export struct BluetoothAdvertisementData {
+    /// Advertised local name when available.
+    localName?: string;
+    /// Advertised transmit power in dBm when available.
+    txPower?: int16;
+    /// Service UUID list.
+    serviceUuids: Array<string>;
+    /// Manufacturer payload entries.
+    manufacturerData: Array<BluetoothAdvertisementManufacturerData>;
+    /// Service payload entries.
+    serviceData: Array<BluetoothAdvertisementServiceData>;
+}
+
+/// Bluetooth pairing state.
+export enum BluetoothPairState {
+    /// Pairing state is unknown.
+    Unknown = 1,
+    /// Device is not paired.
+    Unpaired = 2,
+    /// Pairing is in progress.
+    Pairing = 3,
+    /// Device is paired.
+    Paired = 4,
+}
+
+/// Bluetooth device descriptor.
+export struct BluetoothDeviceDescriptor {
+    /// Stable device identifier.
+    id: string;
+    /// Device address string when the host exposes one.
+    address?: string;
+    /// Host-visible device name when available.
+    name?: string;
+    /// Signal strength in dBm when available.
+    rssi?: int32;
+    /// Pairing state when reported by host.
+    pairState?: BluetoothPairState;
+    /// Whether the device is currently connected.
+    connected: boolean;
+    /// Whether this advertisement indicates connectable state when known.
+    connectable?: boolean;
+    /// Host-reported transport classification when available.
+    transport?: BluetoothLeTransport;
+    /// Advertisement payload.
+    advertisement: BluetoothAdvertisementData;
+}
+
+/// Bluetooth scan filter.
+export struct BluetoothScanFilter {
+    /// Service UUID filters.
+    serviceUuids: Array<string>;
+    /// Exact device name filter.
+    name?: string;
+    /// Device name prefix filter.
+    namePrefix?: string;
+    /// Manufacturer-data filters.
+    manufacturerData: Array<BluetoothManufacturerDataFilter>;
+    /// Service-data filters.
+    serviceData: Array<BluetoothServiceDataFilter>;
+    /// Whether to retain repeated advertisements.
+    keepRepeatedDevices: boolean;
+    /// Minimum RSSI filter in dBm.
+    minimumRssi?: int32;
+    /// Preferred scan mode.
+    scanMode?: BluetoothScanMode;
+    /// Preferred primary PHY.
+    primaryPhy?: BluetoothPhy;
+    /// Preferred secondary PHY.
+    secondaryPhy?: BluetoothPhy;
+}
+
+/// GATT characteristic property set.
+export struct BluetoothGattCharacteristicProperties {
+    /// Whether broadcast writes are supported.
+    broadcast: boolean;
+    /// Whether characteristic reads are supported.
+    read: boolean;
+    /// Whether writes without response are supported.
+    writeWithoutResponse: boolean;
+    /// Whether writes with response are supported.
+    write: boolean;
+    /// Whether notifications are supported.
+    notify: boolean;
+    /// Whether indications are supported.
+    indicate: boolean;
+    /// Whether signed writes are supported.
+    authenticatedSignedWrites: boolean;
+    /// Whether reliable writes are supported.
+    reliableWrite: boolean;
+    /// Whether writable auxiliaries are supported.
+    writableAuxiliaries: boolean;
+}
+
+/// GATT value notification event.
+export struct BluetoothGattValueEvent {
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Stable service identifier within this device session.
+    serviceId: string;
+    /// Stable characteristic identifier within this device session.
+    characteristicId: string;
+    /// Service UUID.
+    serviceUuid: string;
+    /// Characteristic UUID.
+    characteristicUuid: string;
+    /// Characteristic value bytes.
+    value: Slice<uint8>;
+}
+
+/// Shared metadata for Bluetooth scan events.
+export struct BluetoothScanEventMetadata {
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this scan stream.
+    sequence: uint64;
+    /// Device descriptor payload for this event.
+    device: BluetoothDeviceDescriptor;
+}
+
+/// Bluetooth scan discovered event.
+export struct BluetoothScanDiscoveredEvent {
+    /// Discriminator for this Bluetooth scan event variant.
+    kind: "discovered";
+    /// Shared event metadata.
+    metadata: BluetoothScanEventMetadata;
+}
+
+/// Bluetooth scan updated event.
+export struct BluetoothScanUpdatedEvent {
+    /// Discriminator for this Bluetooth scan event variant.
+    kind: "updated";
+    /// Shared event metadata.
+    metadata: BluetoothScanEventMetadata;
+}
+
+/// Bluetooth scan lost event.
+export struct BluetoothScanLostEvent {
+    /// Discriminator for this Bluetooth scan event variant.
+    kind: "lost";
+    /// Shared event metadata.
+    metadata: BluetoothScanEventMetadata;
+}
+
+/// Bluetooth scan event payload.
+export newtype BluetoothScanEvent =
+    | BluetoothScanDiscoveredEvent
+    | BluetoothScanUpdatedEvent
+    | BluetoothScanLostEvent;
+
+/// Shared metadata for Bluetooth session events.
+export struct BluetoothSessionEventMetadata {
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this session event stream.
+    sequence: uint64;
+}
+
+/// Bluetooth session disconnected event.
+export struct BluetoothSessionDisconnectedEvent {
+    /// Discriminator for this Bluetooth session event variant.
+    kind: "disconnected";
+    /// Shared event metadata.
+    metadata: BluetoothSessionEventMetadata;
+}
+
+/// Bluetooth session pair-state-changed event.
+export struct BluetoothSessionPairStateChangedEvent {
+    /// Discriminator for this Bluetooth session event variant.
+    kind: "pairStateChanged";
+    /// Shared event metadata.
+    metadata: BluetoothSessionEventMetadata;
+    /// Current pairing state.
+    pairState: BluetoothPairState;
+}
+
+/// Bluetooth session GATT-database-changed event.
+export struct BluetoothSessionGattDatabaseChangedEvent {
+    /// Discriminator for this Bluetooth session event variant.
+    kind: "gattDatabaseChanged";
+    /// Shared event metadata.
+    metadata: BluetoothSessionEventMetadata;
+}
+
+/// Bluetooth session event payload.
+export newtype BluetoothSessionEvent =
+    | BluetoothSessionDisconnectedEvent
+    | BluetoothSessionPairStateChangedEvent
+    | BluetoothSessionGattDatabaseChangedEvent;
+
+/// GATT service metadata.
+export struct BluetoothGattService {
+    /// Stable service identifier within this device session.
+    id: string;
+    /// Service UUID.
+    uuid: string;
+    /// Whether this service is primary.
+    primary: boolean;
+    /// Included service identifiers.
+    includedServiceIds: Array<string>;
+}
+
+/// GATT characteristic metadata.
+export struct BluetoothGattCharacteristic {
+    /// Stable characteristic identifier within this device session.
+    id: string;
+    /// Parent service identifier.
+    serviceId: string;
+    /// Characteristic UUID.
+    uuid: string;
+    /// Characteristic property set.
+    properties: BluetoothGattCharacteristicProperties;
+}
+
+/// GATT descriptor metadata.
+export struct BluetoothGattDescriptor {
+    /// Stable descriptor identifier within this device session.
+    id: string;
+    /// Parent service identifier.
+    serviceId: string;
+    /// Parent characteristic identifier.
+    characteristicId: string;
+    /// Descriptor UUID.
+    uuid: string;
+}
+
+/// Bluetooth bindings.
+/// List Bluetooth adapters.
+///
+/// Enumerate Bluetooth adapters that can perform BLE scan or session work and return stable descriptor snapshots for them.
+/// Adapter identity is topology based so callers can correlate scan and session operations across process lifetimes.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothAdapter discovery, one logical CoreBluetooth central adapter on iOS and macOS, BlueZ adapter objects on Linux-class Unix, and BluetoothAdapter plus Radio class topology on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.adapterList", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.scan"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothAdapterList(): Result<
+    Slice<BluetoothAdapterDescriptor>,
+    PlatformError
+>;
+
+/// Open a Bluetooth adapter watch stream.
+///
+/// Open a watch stream for Bluetooth adapter attach, detach, and state-change events.
+/// The stream reports adapter topology and state transitions independently from device scan and session work.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android Bluetooth adapter broadcasts, CoreBluetooth central-manager state callbacks on iOS and macOS, BlueZ adapter-manager signals on Linux-class Unix, and adapter device notifications on Windows.
+///
+/// # Errors
+/// Returns ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.adapterWatchOpen", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.scan"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothAdapterWatchOpen(): Result<BluetoothAdapterWatchHandle, PlatformError>;
+
+/// Close a Bluetooth adapter watch stream.
+///
+/// Close one opened Bluetooth adapter watch stream and release its host subscription state.
+/// Closing an adapter watch does not affect active scans or device sessions.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android broadcast unregistration, CoreBluetooth central-manager callback teardown on iOS and macOS, BlueZ adapter signal unsubscription on Linux-class Unix, and notification teardown on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.adapterWatchClose", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.scan"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothAdapterWatchClose(
+    handle: BluetoothAdapterWatchHandle,
+): Result<void, PlatformError>;
+
+/// Read one Bluetooth adapter event.
+///
+/// Wait for the next typed Bluetooth adapter event from one opened adapter watch stream.
+/// The event carries a full adapter descriptor snapshot so callers can react without racing a separate list call.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses adapter event queues fed by Android adapter broadcasts, CoreBluetooth central-manager state callbacks on iOS and macOS, BlueZ adapter signals on Linux-class Unix, and adapter notifications on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.adapterWatchRead", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.scan"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothAdapterWatchRead(
+    handle: BluetoothAdapterWatchHandle,
+    timeoutNs: uint64,
+): Result<BluetoothAdapterEvent, PlatformError>;
+
+/// Poll one Bluetooth adapter event without blocking.
+///
+/// Read the next typed Bluetooth adapter event from one opened adapter watch stream without waiting.
+/// This operation only consumes already published adapter events.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses adapter event queues fed by Android adapter broadcasts, CoreBluetooth central-manager state callbacks on iOS and macOS, BlueZ adapter signals on Linux-class Unix, and adapter notifications on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.adapterWatchTryRead", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.scan"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function bluetoothAdapterWatchTryRead(
+    handle: BluetoothAdapterWatchHandle,
+): Result<BluetoothAdapterEvent, PlatformError>;
+
+/// Open a Bluetooth scan session.
+///
+/// Open one BLE scan session on one adapter with one optional advertisement filter.
+/// Scan state is session local so repeated callers can apply independent filters without conflating their event streams.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothLeScanner, CoreBluetooth scanForPeripherals on iOS and macOS, BlueZ discovery filters and signal subscriptions on Linux-class Unix, and BluetoothLEAdvertisementWatcher on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.scan.open", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.scan"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothScanOpen(
+    adapterId: string,
+    filter?: BluetoothScanFilter,
+): Result<BluetoothScanHandle, PlatformError>;
+
+/// Close a Bluetooth scan session.
+///
+/// Close one scan session and release its host discovery state.
+/// Closing a scan session never closes or mutates any separately opened device session.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothLeScanner stopScan, CoreBluetooth stopScan on iOS and macOS, discovery-subscription release on Linux-class Unix, and scan watcher teardown on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.scan.close", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.scan"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothScanClose(handle: BluetoothScanHandle): Result<void, PlatformError>;
+
+/// Read one Bluetooth scan event.
+///
+/// Wait for the next typed scan event from one opened scan session.
+/// The event carries a full device descriptor snapshot so callers can react without racing a separate descriptor read.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses scan event queues fed by Android scan callbacks, CoreBluetooth discovery callbacks on iOS and macOS, BlueZ discovery signals on Linux-class Unix, and advertisement watcher callbacks on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.scan.readEvent", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.scan"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothScanReadEvent(
+    handle: BluetoothScanHandle,
+    timeoutNs: uint64,
+): Result<BluetoothScanEvent, PlatformError>;
+
+/// Poll one Bluetooth scan event without blocking.
+///
+/// Read the next typed scan event from one opened scan session without waiting.
+/// This operation only consumes already published scan events.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses scan event queues fed by Android scan callbacks, CoreBluetooth discovery callbacks on iOS and macOS, BlueZ discovery signals on Linux-class Unix, and advertisement watcher callbacks on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.scan.tryReadEvent", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.scan"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function bluetoothScanTryReadEvent(
+    handle: BluetoothScanHandle,
+): Result<BluetoothScanEvent, PlatformError>;
+
+/// Open a Bluetooth device session.
+///
+/// Open one BLE device session for link, pairing, and GATT operations.
+/// Session identity is separate from scan identity so a device can continue streaming GATT state after advertisement visibility changes.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothDevice and BluetoothGatt sessions, CoreBluetooth peripheral sessions on iOS and macOS, BlueZ device objects and GATT sessions on Linux-class Unix, and BluetoothLEDevice plus GattSession on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.connect`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.session.open", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.connect"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothOpen(
+    adapterId: string,
+    deviceId: string,
+): Result<BluetoothDeviceHandle, PlatformError>;
+
+/// Close a Bluetooth device session.
+///
+/// Close one opened Bluetooth device session and release its host resources.
+/// Closing a session also terminates its session event stream and any GATT subscriptions derived from it.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android GATT session close, CoreBluetooth peripheral-session teardown on iOS and macOS, BlueZ device-session teardown on Linux-class Unix, and BluetoothLEDevice or GattSession release on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.connect`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.session.close", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.connect"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothClose(handle: BluetoothDeviceHandle): Result<void, PlatformError>;
+
+/// Read the current Bluetooth device descriptor.
+///
+/// Read the current device descriptor snapshot for one opened Bluetooth device session.
+/// The snapshot may change across reads as pairing, signal strength, or advertisement-backed metadata evolves.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothDevice and scan-cache properties, CoreBluetooth peripheral state plus advertisement cache on iOS and macOS, BlueZ device properties on Linux-class Unix, and BluetoothLEDevice properties plus cached advertisement metadata on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.connect`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.session.descriptor", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.connect"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothDescriptor(
+    handle: BluetoothDeviceHandle,
+): Result<BluetoothDeviceDescriptor, PlatformError>;
+
+/// Read one Bluetooth session event.
+///
+/// Wait for the next typed session event from one opened Bluetooth device session.
+/// Session events report connection, bond, and GATT database transitions without requiring polling of descriptor state.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses session event queues fed by Android GATT callbacks, CoreBluetooth delegate callbacks on iOS and macOS, BlueZ device and GATT callbacks on Linux-class Unix, and WinRT device and GATT callbacks on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.connect`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.session.readEvent", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.connect"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothSessionReadEvent(
+    handle: BluetoothDeviceHandle,
+    timeoutNs: uint64,
+): Result<BluetoothSessionEvent, PlatformError>;
+
+/// Poll one Bluetooth session event without blocking.
+///
+/// Read the next typed session event from one opened Bluetooth device session without waiting.
+/// This operation only consumes already published session events.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses session event queues fed by Android GATT callbacks, CoreBluetooth delegate callbacks on iOS and macOS, BlueZ device and GATT callbacks on Linux-class Unix, and WinRT device and GATT callbacks on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.connect`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.session.tryReadEvent", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.connect"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function bluetoothSessionTryReadEvent(
+    handle: BluetoothDeviceHandle,
+): Result<BluetoothSessionEvent, PlatformError>;
+
+/// Pair one Bluetooth device.
+///
+/// Pair one opened Bluetooth device session with the host bonding mechanism.
+/// Pairing is explicit because it mutates external trust state and may trigger user mediated authentication flows.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android Bluetooth bond flows, returns `notSupported` on CoreBluetooth where explicit bonding is not exposed, BlueZ device pairing flows on Linux-class Unix, and DeviceInformation pairing APIs on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.connect`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.device.bluetooth.session.pair", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["device.bluetooth.connect"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothPair(
+    handle: BluetoothDeviceHandle,
+    timeoutNs: uint64,
+): Result<void, PlatformError>;
+
+/// Remove one Bluetooth device bond.
+///
+/// Remove persistent host bond state for one Bluetooth device on one adapter.
+/// Unpairing is explicit because it mutates external trust state and may invalidate future encrypted sessions.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android bond removal, returns `notSupported` on CoreBluetooth where explicit unpairing is not exposed, BlueZ bond removal on Linux-class Unix, and DeviceInformation unpairing APIs on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.connect`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.device.bluetooth.session.unpair", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["device.bluetooth.connect"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothUnpair(
+    adapterId: string,
+    deviceId: string,
+): Result<void, PlatformError>;
+
+/// Read link RSSI for one Bluetooth device session.
+///
+/// Read the current RSSI for one Bluetooth device session when the host exposes live link strength.
+/// This is a point-in-time signal sample and does not consume the session event stream.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android RSSI reads or callback state, CoreBluetooth readRSSI on iOS and macOS, BlueZ device property reads on Linux-class Unix, and live BluetoothLEDevice signal queries on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.connect`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.session.rssi", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.connect"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothReadRssi(
+    handle: BluetoothDeviceHandle,
+    timeoutNs: uint64,
+): Result<int32, PlatformError>;
+
+/// List discovered GATT services.
+///
+/// Enumerate the current GATT service graph for one connected device session.
+/// Service identifiers are session stable so later characteristic and descriptor lookups can be routed without rediscovery churn.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothGatt service discovery, CoreBluetooth service discovery on iOS and macOS, BlueZ GATT object discovery on Linux-class Unix, and WinRT GATT service enumeration on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.gatt`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.gatt.serviceList", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.gatt"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothGattServiceList(
+    handle: BluetoothDeviceHandle,
+): Result<Slice<BluetoothGattService>, PlatformError>;
+
+/// List discovered GATT characteristics for one service.
+///
+/// Enumerate the GATT characteristics in one selected service.
+/// Characteristic identifiers are session stable so reads, writes, and subscriptions can address them directly afterward.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothGatt characteristic discovery, CoreBluetooth characteristic discovery on iOS and macOS, BlueZ GATT object discovery on Linux-class Unix, and WinRT characteristic enumeration on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.gatt`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.gatt.characteristicList", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.gatt"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothGattCharacteristicList(
+    handle: BluetoothDeviceHandle,
+    serviceId: string,
+): Result<Slice<BluetoothGattCharacteristic>, PlatformError>;
+
+/// List discovered GATT descriptors for one characteristic.
+///
+/// Enumerate the GATT descriptors in one selected characteristic.
+/// Descriptor identifiers are session stable so later descriptor reads and writes can address them directly.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothGatt descriptor discovery, CoreBluetooth descriptor discovery on iOS and macOS, BlueZ GATT object discovery on Linux-class Unix, and WinRT descriptor enumeration on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.gatt`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.gatt.descriptorList", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.gatt"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothGattDescriptorList(
+    handle: BluetoothDeviceHandle,
+    characteristicId: string,
+): Result<Slice<BluetoothGattDescriptor>, PlatformError>;
+
+/// Read one GATT descriptor value.
+///
+/// Read one descriptor value from one connected Bluetooth device session.
+/// Value bytes are returned exactly as reported by the ATT layer with no profile specific reinterpretation.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothGatt descriptor reads, CoreBluetooth descriptor reads on iOS and macOS, BlueZ GATT descriptor value reads on Linux-class Unix, and WinRT GATT descriptor reads on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.gatt`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.gatt.readDescriptor", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.gatt"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothGattReadDescriptor(
+    handle: BluetoothDeviceHandle,
+    descriptorId: string,
+    timeoutNs: uint64,
+): Result<Slice<uint8>, PlatformError>;
+
+/// Write one GATT descriptor value.
+///
+/// Write one descriptor value on one connected Bluetooth device session.
+/// Value bytes are passed through exactly so CCCD and vendor descriptor policy remains explicit to the caller.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothGatt descriptor writes, CoreBluetooth descriptor writes on iOS and macOS, BlueZ GATT descriptor value writes on Linux-class Unix, and WinRT GATT descriptor writes on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.gatt`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.gatt.writeDescriptor", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.gatt"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothGattWriteDescriptor(
+    handle: BluetoothDeviceHandle,
+    descriptorId: string,
+    value: Slice<uint8>,
+    timeoutNs: uint64,
+): Result<void, PlatformError>;
+
+/// Read current ATT MTU.
+///
+/// Read the current negotiated ATT MTU for one connected device session.
+/// This reports live transport state and does not force a rediscovery of the GATT graph.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses live GATT session transport metadata on Android, returns `notSupported` on CoreBluetooth where ATT MTU is not exposed, BlueZ on Linux-class Unix, and WinRT on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.gatt`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.gatt.mtu", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.gatt"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function bluetoothGattMtu(handle: BluetoothDeviceHandle): Result<uint16, PlatformError>;
+
+/// Read one GATT characteristic value.
+///
+/// Read one characteristic value from one connected Bluetooth device session.
+/// Value bytes are returned exactly as reported by the ATT layer with no profile specific reinterpretation.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothGatt characteristic reads, CoreBluetooth characteristic reads on iOS and macOS, BlueZ GATT characteristic value reads on Linux-class Unix, and WinRT GATT characteristic reads on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.gatt`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.gatt.read", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.gatt"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothGattRead(
+    handle: BluetoothDeviceHandle,
+    characteristicId: string,
+    timeoutNs: uint64,
+): Result<Slice<uint8>, PlatformError>;
+
+/// Write one GATT characteristic value.
+///
+/// Write one characteristic value on one connected Bluetooth device session with one explicit ATT write mode.
+/// The write mode is caller controlled so response semantics remain explicit rather than inferred from characteristic properties.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothGatt characteristic writes, CoreBluetooth characteristic writes on iOS and macOS, BlueZ GATT characteristic value writes on Linux-class Unix, and WinRT GATT characteristic writes on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.gatt`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.gatt.write", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.gatt"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothGattWrite(
+    handle: BluetoothDeviceHandle,
+    characteristicId: string,
+    value: Slice<uint8>,
+    mode: BluetoothGattWriteMode,
+    timeoutNs: uint64,
+): Result<void, PlatformError>;
+
+/// Subscribe one GATT characteristic.
+///
+/// Open one subscription for characteristic value notifications or indications.
+/// The returned subscription owns its own event queue and remains separate from direct characteristic reads.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android notification registration, CoreBluetooth notification registration on iOS and macOS, BlueZ notification registration on Linux-class Unix, and WinRT characteristic value subscriptions on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.gatt`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.gatt.subscribe", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.gatt"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothGattSubscribe(
+    handle: BluetoothDeviceHandle,
+    characteristicId: string,
+): Result<BluetoothSubscriptionHandle, PlatformError>;
+
+/// Unsubscribe one GATT characteristic.
+///
+/// Close one characteristic value subscription.
+/// Closing a subscription disables its host callback path when no remaining subscription requires that source.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android notification disablement, CoreBluetooth notification disablement on iOS and macOS, BlueZ subscription teardown on Linux-class Unix, and WinRT subscription teardown on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.gatt`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.gatt.unsubscribe", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.gatt"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothGattUnsubscribe(
+    handle: BluetoothSubscriptionHandle,
+): Result<void, PlatformError>;
+
+/// Read one GATT value event.
+///
+/// Wait for the next characteristic value event from one subscription.
+/// Event payloads preserve the originating service and characteristic identity so multiplexed callers can route updates precisely.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses subscription event queues fed by Android characteristic callbacks, CoreBluetooth characteristic callbacks on iOS and macOS, BlueZ characteristic callbacks on Linux-class Unix, and WinRT value-changed callbacks on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.gatt`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.gatt.readEvent", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.gatt"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bluetoothGattReadEvent(
+    handle: BluetoothSubscriptionHandle,
+    timeoutNs: uint64,
+): Result<BluetoothGattValueEvent, PlatformError>;
+
+/// Poll one GATT value event without blocking.
+///
+/// Read the next characteristic value event from one subscription without waiting.
+/// This operation only consumes already published notification or indication events.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses subscription event queues fed by Android characteristic callbacks, CoreBluetooth characteristic callbacks on iOS and macOS, BlueZ characteristic callbacks on Linux-class Unix, and WinRT value-changed callbacks on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.gatt`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.bluetooth.gatt.tryReadEvent", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.bluetooth.gatt"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function bluetoothGattTryReadEvent(
+    handle: BluetoothSubscriptionHandle,
+): Result<BluetoothGattValueEvent, PlatformError>;

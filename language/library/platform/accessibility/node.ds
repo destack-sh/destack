@@ -1,0 +1,61 @@
+import { Slice } from "core";
+import { AccessibilityNodeRelations } from "./relation.ds";
+import { AccessibilityNodeId, AccessibilityRole } from "./role.ds";
+import { AccessibilityNodeState } from "./state.ds";
+import { AccessibilityTextState } from "./text.ds";
+
+/// Window-local logical bounds for one accessibility node.
+export struct AccessibilityNodeBounds {
+    /// Logical x coordinate in window coordinates.
+    x: int32;
+    /// Logical y coordinate in window coordinates.
+    y: int32;
+    /// Logical width in window coordinates.
+    width: uint32;
+    /// Logical height in window coordinates.
+    height: uint32;
+}
+
+/// One custom accessibility action.
+export struct AccessibilityCustomAction {
+    /// Stable custom action identifier.
+    id: string;
+    /// User-facing action label.
+    label: string;
+}
+
+/// One accessibility node descriptor.
+export struct AccessibilityNode {
+    /// Stable node identifier.
+    id: AccessibilityNodeId;
+    /// WAI-ARIA role selector.
+    role: AccessibilityRole;
+    /// Accessibility-tree child order for this node.
+    childIds: Slice<AccessibilityNodeId>;
+    /// Window-local bounds in logical points.
+    bounds: AccessibilityNodeBounds | void;
+    /// Accessible name.
+    name: string | void;
+    /// Accessible description.
+    description: string | void;
+    /// User-visible help or tooltip text.
+    help: string | void;
+    /// Accessible value when the node exposes one nontext current value.
+    value: string | void;
+    /// `aria-roledescription`.
+    roleDescription: string | void;
+    /// `aria-keyshortcuts`.
+    keyShortcuts: string | void;
+    /// BCP 47 language tag for the node's content when available.
+    languageTag: string | void;
+    /// Canonical URL for link and document nodes when available.
+    url: string | void;
+    /// Shared state for this node.
+    state: AccessibilityNodeState;
+    /// Text state for text and editable nodes.
+    text: AccessibilityTextState | void;
+    /// ARIA relation state.
+    relations: AccessibilityNodeRelations;
+    /// Backend-visible custom actions.
+    customActions: Slice<AccessibilityCustomAction>;
+}

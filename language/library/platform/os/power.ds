@@ -1,0 +1,74 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Host power state.
+export enum PowerState {
+    /// Host is on AC line power.
+    AC = 1,
+    /// Host is on battery power.
+    Battery = 2,
+    /// Host power source is unknown.
+    Unknown = 3,
+}
+
+/// Power-management bindings.
+/// Read current host power state.
+///
+/// Return one normalized host power-state classification.
+/// State mapping follows runtime normalization over host power APIs.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host power-management APIs where supported by the active backend.
+/// Unsupported Unix hosts may return `notSupported` until a host integration exists.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.power`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.os.power.state", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["os.power"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function powerState(): Result<PowerState, PlatformError>;
+
+/// Request host suspend.
+///
+/// Request one host suspend transition through platform power APIs.
+/// Request acceptance and timing are host-policy and privilege dependent.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host power-management APIs where supported.
+/// macOS and Windows desktop hosts support suspend.
+/// Linux hosts may support suspend through the kernel power-state interface when available.
+/// Android and other Unix hosts may return `notSupported` where no suspend integration exists.
+///
+/// # Errors
+/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.power`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.power.suspend", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.power"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function suspend(): Result<void, PlatformError>;

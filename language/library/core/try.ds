@@ -1,0 +1,35 @@
+/// Successful `Try` branch.
+export struct TryContinue<T> {
+    kind: "continue" = "continue";
+    value: T;
+}
+
+/// Failed `Try` branch.
+export struct TryFailure<F> {
+    kind: "failure" = "failure";
+    failure: F;
+}
+
+/// Result of branching a `Try` value.
+export type TryBranch<T, F> = TryContinue<T> | TryFailure<F>;
+
+/// Protocol for values that work with `?`, `??`, and postfix `!`.
+export newtype interface Try {
+    /// The value produced when evaluation continues.
+    type Value;
+
+    /// The value produced when evaluation fails.
+    type Failure;
+
+    /// Construct this type from a successful value.
+    static fromValue(value: this.Value): this;
+
+    /// Branch into success or failure control flow.
+    branch(): TryBranch<this.Value, this.Failure>;
+}
+
+/// Target protocol for rebuilding a return type from a propagated failure.
+export newtype interface FromFailure<F> {
+    /// Construct this type from a failure value.
+    static fromFailure(failure: F): this;
+}

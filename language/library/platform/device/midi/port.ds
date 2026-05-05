@@ -1,0 +1,157 @@
+import { MidiBackend, MidiBackendSelectionPolicy } from "./backend.ds";
+import {
+    MidiDataFormat,
+    MidiDataFormatFlags,
+    MidiProtocol,
+    MidiProtocolFlags,
+} from "./protocol.ds";
+
+/// MIDI endpoint direction.
+export enum MidiPortDirection {
+    /// Endpoint receives MIDI transport records into the runtime.
+    Input = 1,
+    /// Endpoint sends MIDI transport records from the runtime.
+    Output = 2,
+}
+
+/// MIDI endpoint direction flags.
+export newtype MidiPortDirectionFlags = uint32;
+
+/// MIDI port list flags.
+export newtype MidiPortListFlags = uint32;
+
+/// MIDI endpoint descriptor.
+export struct MidiPortDescriptor {
+    /// Resolved backend for this endpoint.
+    backend: MidiBackend;
+    /// Stable runtime endpoint identifier.
+    id: string;
+    /// Stable runtime group identifier for the owning device or aggregate.
+    groupId: string | void;
+    /// Backend-native endpoint identifier when available.
+    backendId: string | void;
+    /// Host-visible endpoint name.
+    name: string;
+    /// Host-visible group or device name when available.
+    groupName: string | void;
+    /// Host-visible endpoint manufacturer name when available.
+    manufacturer: string | void;
+    /// Host-visible endpoint model name when available.
+    model: string | void;
+    /// Host-visible endpoint version string when available.
+    version: string | void;
+    /// Supported transport data formats for this endpoint.
+    supportedDataFormats: MidiDataFormatFlags;
+    /// Default transport data format for this endpoint when the backend reports one.
+    /// This must be included in `supportedDataFormats` when present.
+    defaultDataFormat: MidiDataFormat | void;
+    /// Supported protocol semantics for this endpoint.
+    supportedProtocols: MidiProtocolFlags;
+    /// Default protocol semantics for this endpoint when the backend reports one.
+    /// This must be included in `supportedProtocols` when present.
+    defaultProtocol: MidiProtocol | void;
+    /// Whether the endpoint is virtual.
+    isVirtual: boolean;
+    /// Whether the endpoint is currently connected and routable.
+    isConnected: boolean;
+}
+
+/// MIDI port list options.
+export struct MidiPortListOptions {
+    /// Backend selector for enumeration.
+    backend: MidiBackend;
+    /// Backend selection policy.
+    backendPolicy: MidiBackendSelectionPolicy;
+    /// Enumeration behavior flags.
+    flags: MidiPortListFlags;
+}
+
+/// MIDI input-port open options.
+export struct MidiInputPortOpenOptions {
+    /// Backend selector for this session.
+    backend: MidiBackend;
+    /// Backend selection policy.
+    backendPolicy: MidiBackendSelectionPolicy;
+    /// Requested transport data format when one exact format is required.
+    dataFormat: MidiDataFormat | void;
+    /// Requested protocol semantics when one exact protocol is required.
+    /// `Midi2` requires `Ump`.
+    protocol: MidiProtocol | void;
+    /// Requested queue capacity, or zero for backend default.
+    queueCapacity: uint32;
+}
+
+/// MIDI output-port open options.
+export struct MidiOutputPortOpenOptions {
+    /// Backend selector for this session.
+    backend: MidiBackend;
+    /// Backend selection policy.
+    backendPolicy: MidiBackendSelectionPolicy;
+    /// Requested transport data format when one exact format is required.
+    dataFormat: MidiDataFormat | void;
+    /// Requested protocol semantics when one exact protocol is required.
+    /// `Midi2` requires `Ump`.
+    protocol: MidiProtocol | void;
+}
+
+/// Virtual MIDI input creation options.
+export struct MidiVirtualInputCreateOptions {
+    /// Backend selector for the virtual endpoint.
+    backend: MidiBackend;
+    /// Backend selection policy.
+    backendPolicy: MidiBackendSelectionPolicy;
+    /// Host-visible endpoint name.
+    name: string;
+    /// Host-visible manufacturer name when available.
+    manufacturer: string | void;
+    /// Host-visible model name when available.
+    model: string | void;
+    /// Host-visible version string when available.
+    version: string | void;
+    /// Transport data format exposed by this endpoint.
+    dataFormat: MidiDataFormat;
+    /// Protocol semantics exposed by this endpoint.
+    /// `Midi2` requires `Ump`.
+    protocol: MidiProtocol;
+    /// Requested queue capacity for received records, or zero for backend default.
+    queueCapacity: uint32;
+}
+
+/// Virtual MIDI output creation options.
+export struct MidiVirtualOutputCreateOptions {
+    /// Backend selector for the virtual endpoint.
+    backend: MidiBackend;
+    /// Backend selection policy.
+    backendPolicy: MidiBackendSelectionPolicy;
+    /// Host-visible endpoint name.
+    name: string;
+    /// Host-visible manufacturer name when available.
+    manufacturer: string | void;
+    /// Host-visible model name when available.
+    model: string | void;
+    /// Host-visible version string when available.
+    version: string | void;
+    /// Transport data format exposed by this endpoint.
+    dataFormat: MidiDataFormat;
+    /// Protocol semantics exposed by this endpoint.
+    /// `Midi2` requires `Ump`.
+    protocol: MidiProtocol;
+}
+
+/// Include virtual endpoints during enumeration.
+export const MIDI_PORT_LIST_INCLUDE_VIRTUAL: MidiPortListFlags = MidiPortListFlags(0x1);
+
+/// Include currently disconnected endpoints during enumeration when the backend can report them.
+export const MIDI_PORT_LIST_INCLUDE_DISCONNECTED: MidiPortListFlags = MidiPortListFlags(0x2);
+
+/// No MIDI endpoint directions.
+export const MIDI_PORT_DIRECTION_FLAG_NONE: MidiPortDirectionFlags = MidiPortDirectionFlags(0x0);
+
+/// MIDI input endpoints.
+export const MIDI_PORT_DIRECTION_FLAG_INPUT: MidiPortDirectionFlags = MidiPortDirectionFlags(0x1);
+
+/// MIDI output endpoints.
+export const MIDI_PORT_DIRECTION_FLAG_OUTPUT: MidiPortDirectionFlags = MidiPortDirectionFlags(0x2);
+
+/// All MIDI endpoint directions.
+export const MIDI_PORT_DIRECTION_FLAG_ALL: MidiPortDirectionFlags = MidiPortDirectionFlags(0x3);

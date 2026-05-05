@@ -1,0 +1,32 @@
+/// Interface for the `<<` operator.
+///
+/// `a << b` becomes `a.shiftLeft(b)`.
+export newtype interface ShiftLeft<T = this> {
+    /// The result type.
+    type Output;
+
+    /// Shift this value left by `other`.
+    shiftLeft(other: T): this.Output;
+}
+
+/// Interface for the `>>` operator.
+///
+/// `a >> b` becomes `a.shiftRight(b)`.
+export newtype interface ShiftRight<T = this> {
+    /// The result type.
+    type Output;
+
+    /// Shift this value right by `other`.
+    shiftRight(other: T): this.Output;
+}
+
+/// Interface for the `>>>` operator.
+///
+/// `a >>> b` becomes `a.shiftRightUnsigned(b)`.
+export newtype interface ShiftRightUnsigned<T = this> {
+    /// The result type.
+    type Output;
+
+    /// Shift this value right by `other`, shifting zeros in from the left.
+    shiftRightUnsigned(other: T): this.Output;
+}

@@ -1,0 +1,7 @@
+// NOTE #Incomplete: define proper Bytes/Buffer types
+
+/// Immutable byte sequence.
+export newtype Bytes = uint8[];
+
+/// Mutable byte buffer.
+export newtype Buffer = uint8[];

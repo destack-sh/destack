@@ -1,0 +1,698 @@
+import { Slice } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { SocketAddress, SocketFamily } from "./address.ds";
+import { SocketHandle } from "../resource/index.ds";
+
+/// Message flags for UDP send and receive operations.
+export newtype UdpMessageFlags = uint32;
+
+/// UDP receive metadata with a raw socket address payload.
+export struct UdpReceive {
+    /// Remote socket address.
+    address: SocketAddress;
+    /// Number of bytes read.
+    bytes: uint64;
+    /// Flags returned by recvfrom-style calls.
+    recvFlags: UdpMessageFlags;
+}
+
+/// IPv4 source-specific multicast membership tuple.
+export struct UdpSourceMembershipV4 {
+    /// Multicast group address.
+    group: string;
+    /// Source address.
+    source: string;
+    /// Local interface address.
+    interfaceAddress: string;
+}
+
+/// IPv6 source-specific multicast membership tuple.
+export struct UdpSourceMembershipV6 {
+    /// Multicast group address.
+    group: string;
+    /// Source address.
+    source: string;
+    /// Local interface index.
+    interfaceIndex: uint32;
+}
+
+/// Create a UDP socket.
+///
+/// Allocate a UDP datagram socket for the requested address family.
+/// Datagram behavior and protocol defaults follow host UDP stack semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses socket(AF_INET/AF_INET6, SOCK_DGRAM) on Unix and WSASocketW on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.udp`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.socket", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.udp"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function udpSocket(family: SocketFamily): Result<SocketHandle, PlatformError>;
+
+/// Bind a UDP socket to a raw local address.
+///
+/// Bind the socket to a local address and port.
+/// Address ownership and port conflict checks are enforced by the host kernel.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses bind(2) on Unix and bind on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.udp`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.bind", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.udp"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function udpBind(
+    handle: SocketHandle,
+    address: SocketAddress,
+): Result<void, PlatformError>;
+
+/// Connect a UDP socket to a raw remote address.
+///
+/// Set a default peer for datagrams sent on this socket.
+/// Peer filtering and async error delivery follow host connected-UDP semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses connect(2) on Unix and connect on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.udp`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.connect", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.udp"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function udpConnect(
+    handle: SocketHandle,
+    address: SocketAddress,
+): Result<void, PlatformError>;
+
+/// Send a datagram to a raw remote address.
+///
+/// Send one UDP datagram to the supplied destination address.
+/// Packet truncation, MTU checks, and route lookup follow host kernel UDP semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses sendto(2) on Unix and sendto on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.udp`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.sendTo", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.udp"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function udpSendTo(
+    handle: SocketHandle,
+    address: SocketAddress,
+    buffer: Slice<uint8>,
+    sendFlags: UdpMessageFlags,
+): Result<uint64, PlatformError>;
+
+/// Receive a datagram from a remote address with raw address output.
+///
+/// Receive one UDP datagram and return source address plus recv flags.
+/// Datagrams larger than the destination buffer follow host truncation semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses recvfrom(2) on Unix and recvfrom on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.udp`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.recvFrom", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.udp"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function udpRecvFrom(
+    handle: SocketHandle,
+    buffer: Slice<uint8>,
+    recvFlags: UdpMessageFlags,
+): Result<UdpReceive, PlatformError>;
+
+/// Join an IPv4 multicast group.
+///
+/// Join an IPv4 multicast membership on the selected interface.
+/// Group membership tracking and validation follow host IGMP implementation rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IP_ADD_MEMBERSHIP) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.joinMulticastV4", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.multicast"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function joinMulticastV4(
+    handle: SocketHandle,
+    group: string,
+    interfaceAddress: string,
+): Result<void, PlatformError>;
+
+/// Leave an IPv4 multicast group.
+///
+/// Leave an IPv4 multicast membership on the selected interface.
+/// Group membership tracking and validation follow host IGMP implementation rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IP_DROP_MEMBERSHIP) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.leaveMulticastV4", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.multicast"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function leaveMulticastV4(
+    handle: SocketHandle,
+    group: string,
+    interfaceAddress: string,
+): Result<void, PlatformError>;
+
+/// Join an IPv6 multicast group.
+///
+/// Join an IPv6 multicast membership on the selected interface index.
+/// Group membership tracking and validation follow host MLD implementation rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IPV6_JOIN_GROUP) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.joinMulticastV6", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.multicast"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function joinMulticastV6(
+    handle: SocketHandle,
+    group: string,
+    interfaceIndex: uint32,
+): Result<void, PlatformError>;
+
+/// Leave an IPv6 multicast group.
+///
+/// Leave an IPv6 multicast membership on the selected interface index.
+/// Group membership tracking and validation follow host MLD implementation rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IPV6_LEAVE_GROUP) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.leaveMulticastV6", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.multicast"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function leaveMulticastV6(
+    handle: SocketHandle,
+    group: string,
+    interfaceIndex: uint32,
+): Result<void, PlatformError>;
+
+/// Enable or disable multicast loopback.
+///
+/// Enable or disable local loopback delivery for outgoing multicast packets.
+/// Loopback behavior follows host multicast socket-option semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IP_MULTICAST_LOOP/IPV6_MULTICAST_LOOP) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.setMulticastLoop", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.multicast"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function setMulticastLoop(
+    handle: SocketHandle,
+    enabled: boolean,
+): Result<void, PlatformError>;
+
+/// Read multicast loopback mode.
+///
+/// Read whether outgoing multicast packets are looped back to local receivers.
+/// Returned state reflects host socket-option state at call time.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(IP_MULTICAST_LOOP/IPV6_MULTICAST_LOOP) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.getMulticastLoop", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.multicast"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function getMulticastLoop(handle: SocketHandle): Result<boolean, PlatformError>;
+
+/// Set multicast TTL.
+///
+/// Set multicast TTL or hop-limit for outgoing datagrams.
+/// Hop-limit interpretation follows host IP stack option semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IP_MULTICAST_TTL/IPV6_MULTICAST_HOPS) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.setMulticastTtl", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.multicast"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function setMulticastTtl(handle: SocketHandle, ttl: uint32): Result<void, PlatformError>;
+
+/// Read multicast TTL or hop-limit.
+///
+/// Read the active multicast TTL or IPv6 hop-limit used for outgoing datagrams.
+/// Returned value follows host socket-option interpretation for the active family.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(IP_MULTICAST_TTL/IPV6_MULTICAST_HOPS) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.getMulticastTtl", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.multicast"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function getMulticastTtl(handle: SocketHandle): Result<uint32, PlatformError>;
+
+/// Join one IPv4 source-specific multicast membership.
+///
+/// Join one IGMPv3 source-specific membership for the given group and source.
+/// Membership installation is host scoped and can be rejected by kernel policy.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IP_ADD_SOURCE_MEMBERSHIP) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.joinMulticastSourceV4", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.multicast"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function joinMulticastSourceV4(
+    handle: SocketHandle,
+    membership: UdpSourceMembershipV4,
+): Result<void, PlatformError>;
+
+/// Leave one IPv4 source-specific multicast membership.
+///
+/// Leave one IGMPv3 source-specific membership for the given group and source.
+/// Membership removal is host scoped and can be rejected by kernel policy.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IP_DROP_SOURCE_MEMBERSHIP) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.leaveMulticastSourceV4", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.multicast"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function leaveMulticastSourceV4(
+    handle: SocketHandle,
+    membership: UdpSourceMembershipV4,
+): Result<void, PlatformError>;
+
+/// Join one IPv6 source-specific multicast membership.
+///
+/// Join one source-filtered IPv6 multicast membership for the given group and source.
+/// Membership installation is host scoped and can be rejected by kernel policy.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses MCAST_JOIN_SOURCE_GROUP family socket options on Unix and equivalent host APIs on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.joinMulticastSourceV6", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.multicast"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function joinMulticastSourceV6(
+    handle: SocketHandle,
+    membership: UdpSourceMembershipV6,
+): Result<void, PlatformError>;
+
+/// Leave one IPv6 source-specific multicast membership.
+///
+/// Leave one source-filtered IPv6 multicast membership for the given group and source.
+/// Membership removal is host scoped and can be rejected by kernel policy.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses MCAST_LEAVE_SOURCE_GROUP family socket options on Unix and equivalent host APIs on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.leaveMulticastSourceV6", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.multicast"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function leaveMulticastSourceV6(
+    handle: SocketHandle,
+    membership: UdpSourceMembershipV6,
+): Result<void, PlatformError>;
+
+/// Select the default IPv4 multicast interface for one socket.
+///
+/// Set the local interface used for outgoing IPv4 multicast datagrams.
+/// Interface selection follows host route and socket option semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IP_MULTICAST_IF) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.setMulticastInterfaceV4", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.multicast"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function setMulticastInterfaceV4(
+    handle: SocketHandle,
+    interfaceAddress: string,
+): Result<void, PlatformError>;
+
+/// Read the default IPv4 multicast interface for one socket.
+///
+/// Read the local interface address used for outgoing IPv4 multicast datagrams.
+/// Returned address follows host socket option encoding rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(IP_MULTICAST_IF) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.getMulticastInterfaceV4", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.multicast"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function getMulticastInterfaceV4(handle: SocketHandle): Result<string, PlatformError>;
+
+/// Select the default IPv6 multicast interface for one socket.
+///
+/// Set the local interface index used for outgoing IPv6 multicast datagrams.
+/// Interface selection follows host route and socket option semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IPV6_MULTICAST_IF) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.setMulticastInterfaceV6", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.multicast"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function setMulticastInterfaceV6(
+    handle: SocketHandle,
+    interfaceIndex: uint32,
+): Result<void, PlatformError>;
+
+/// Read the default IPv6 multicast interface for one socket.
+///
+/// Read the local interface index used for outgoing IPv6 multicast datagrams.
+/// Returned index follows host socket option encoding rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(IPV6_MULTICAST_IF) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.udp.getMulticastInterfaceV6", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.multicast"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function getMulticastInterfaceV6(handle: SocketHandle): Result<uint32, PlatformError>;

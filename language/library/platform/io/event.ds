@@ -1,0 +1,127 @@
+import type { PlatformError } from "../error/index.ds";
+import { ResourceId } from "../resource/index.ds";
+
+/// Event token handle.
+export newtype EventToken = uint64;
+
+/// User-event bindings.
+/// Create a user-event token.
+///
+/// Create one runtime user-event token for explicit wakeups and cross-task signaling.
+/// Token semantics are stable across runtime backends.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses eventfd on Linux, pipe-backed events on other Unix hosts, and event objects on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.event`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.io.event.open", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["io.event"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function eventOpen(initial: uint64): Result<EventToken, PlatformError>;
+
+/// Close a user-event token.
+///
+/// Close one user-event token and release host resources.
+/// Closing behavior for waiters follows host wakeup semantics.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses close semantics for eventfd, pipe-backed events, or event objects.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.event`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.io.event.close", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["io.event"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function eventClose(token: EventToken): Result<void, PlatformError>;
+
+/// Signal a user-event token.
+///
+/// Increment one user-event token and wake waiters.
+/// Value must be greater than zero.
+/// Counter saturation and coalescing are host-backend defined.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses eventfd writes on Linux, pipe writes on other Unix hosts, and SetEvent on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.event`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.io.event.signal", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["io.event"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function eventSignal(token: EventToken, value: uint64): Result<void, PlatformError>;
+
+/// Attach an event token to a poll target key.
+///
+/// Associate one event token with one runtime resource for explicit wakeup wiring.
+/// Association behavior is backend-specific and intended for runtime internals.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses runtime event routing over host poll infrastructure.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.event`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.io.event.attach", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["io.event"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function eventAttach(
+    token: EventToken,
+    target: ResourceId,
+    key: uint64,
+): Result<void, PlatformError>;

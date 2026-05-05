@@ -1,0 +1,96 @@
+import { Slice } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { ResourceId } from "../resource/index.ds";
+
+/// Generic descriptor control command selector.
+export newtype DescriptorControlCommand = uint32;
+
+/// Generic descriptor control flag mask.
+export newtype DescriptorControlFlags = uint32;
+
+/// Generic descriptor request payload.
+export struct DescriptorRequest {
+    /// Request code.
+    code: uint64;
+    /// Opaque input payload forwarded to the host.
+    input: Slice<uint8>;
+    /// Maximum output payload size requested from the host.
+    outputSize: uint32;
+    /// Request flags.
+    flags: uint32;
+}
+
+/// Generic descriptor response payload.
+export struct DescriptorResult {
+    /// Host return value for the request.
+    returnValue: int64;
+    /// Opaque output payload returned by the host.
+    output: Slice<uint8>;
+}
+
+/// Descriptor control bindings.
+/// Execute one fcntl-style descriptor command.
+///
+/// Forward one descriptor control command to the host kernel for the target resource.
+/// Command semantics and valid arguments follow the active host ABI.
+///
+/// # Platform
+/// Unix and Windows, with operation-level `notSupported` when host mapping is unavailable.
+/// Uses fcntl(2) style controls on Unix and host descriptor control adapters on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `io.control`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.io.control.fcntl", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["io.control"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function controlFcntl(
+    handle: ResourceId,
+    command: DescriptorControlCommand,
+    argument: uint64,
+    flags: DescriptorControlFlags,
+): Result<int64, PlatformError>;
+
+/// Execute one ioctl-style descriptor request.
+///
+/// Forward one ioctl request with opaque payload bytes to the host kernel for the target resource.
+/// Request code semantics and payload layout follow the active host ABI.
+///
+/// # Platform
+/// Unix and Windows, with operation-level `notSupported` when host mapping is unavailable.
+/// Uses ioctl(2) style controls on Unix and DeviceIoControl or ioctlsocket adapters on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.control`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.io.control.ioctl", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["io.control"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function controlIoctl(
+    handle: ResourceId,
+    request: DescriptorRequest,
+): Result<DescriptorResult, PlatformError>;

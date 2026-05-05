@@ -1,0 +1,84 @@
+import type { PlatformError } from "../error/index.ds";
+import { WindowHandle } from "../resource/index.ds";
+import { AccessibilityLiveRegionPoliteness } from "./state.ds";
+import { AccessibilityNodeId } from "./role.ds";
+import { AccessibilityTextRange } from "./text.ds";
+
+/// Accessibility notification kind.
+export enum AccessibilityNotificationKind {
+    /// One announcement should be spoken.
+    Announcement = 1,
+    /// One focused node changed.
+    FocusChanged = 2,
+    /// One live region changed.
+    LiveRegionChanged = 3,
+    /// One screen or top-level semantic context changed.
+    ScreenChanged = 4,
+    /// One layout subtree changed.
+    LayoutChanged = 5,
+    /// One node child list changed.
+    ChildrenChanged = 6,
+    /// One value changed.
+    ValueChanged = 7,
+    /// One text value changed.
+    TextChanged = 8,
+    /// One selection changed.
+    SelectionChanged = 9,
+    /// One text selection changed.
+    TextSelectionChanged = 10,
+    /// One title or accessible name changed.
+    TitleChanged = 11,
+    /// Selected child elements changed for one container.
+    SelectedChildrenChanged = 12,
+    /// Selected rows changed for one table or grid.
+    SelectedRowsChanged = 13,
+    /// Selected columns changed for one table or grid.
+    SelectedColumnsChanged = 14,
+    /// One collection row count changed.
+    RowCountChanged = 15,
+}
+
+/// One accessibility notification payload.
+export struct AccessibilityNotification {
+    /// Notification kind.
+    kind: AccessibilityNotificationKind;
+    /// Target node when the notification applies to one node.
+    nodeId: AccessibilityNodeId | void;
+    /// Announcement or replacement text payload.
+    text: string | void;
+    /// Live-region politeness when the backend distinguishes it.
+    politeness: AccessibilityLiveRegionPoliteness | void;
+    /// Text range for notifications that target one text span.
+    textRange: AccessibilityTextRange | void;
+}
+
+/// Accessibility notification bindings.
+/// Post one accessibility notification for one window.
+///
+/// Deliver one semantic notification that is not fully implied by the published tree update alone.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `accessibility.notify`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.accessibility.notification.post", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["accessibility.notify"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function notificationPost(
+    window: WindowHandle,
+    notification: AccessibilityNotification,
+): Result<void, PlatformError>;

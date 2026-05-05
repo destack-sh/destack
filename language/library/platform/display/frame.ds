@@ -1,0 +1,241 @@
+import { Array } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { DisplayBeginFrameHandle, WindowHandle } from "../resource/index.ds";
+import {
+    DisplayBackend,
+    DisplayBackendSelectionPolicy,
+    DisplayEventQueueOptions,
+} from "./backend.ds";
+
+/// Begin-frame event payload.
+export struct DisplayBeginFrameEvent {
+    /// Resolved backend that produced this begin-frame event.
+    backend: DisplayBackend;
+    /// Window handle associated with this begin-frame event.
+    window: WindowHandle;
+    /// Monotonic begin-frame identifier for this window.
+    beginFrameId: uint64;
+    /// Host scheduling timestamp in nanoseconds.
+    scheduledAtNs: uint64;
+    /// Earliest wakeup hint in nanoseconds when the host provides one.
+    targetWakeupTimestampNs: uint64 | void;
+    /// Predicted presentation timestamp in nanoseconds when the host provides one.
+    /// This is a hint, not the actual presentation timestamp.
+    predictedPresentationTimestampNs: uint64 | void;
+    /// Predicted render deadline in nanoseconds when the host provides one.
+    deadlineNs: uint64 | void;
+    /// Predicted begin-frame interval in nanoseconds when the host provides one.
+    intervalNs: uint64 | void;
+    /// Delivery timestamp in nanoseconds.
+    deliveredAtNs: uint64;
+    /// Monotonic event sequence number.
+    sequence: uint64;
+    /// Number of events dropped by this stream before this event.
+    droppedCount: uint64;
+}
+
+/// Begin-frame stream filter options.
+export struct DisplayBeginFrameFilter {
+    /// Restrict events to one window when set.
+    window: WindowHandle | void;
+}
+
+/// Begin-frame stream open options.
+export struct DisplayBeginFrameOpenOptions {
+    /// Preferred backend selector from the declared display backend set.
+    /// Runtime host builds can implement one subset of these backend kinds.
+    backend: DisplayBackend;
+    /// Backend selection policy.
+    backendPolicy: DisplayBackendSelectionPolicy;
+    /// Event queue configuration.
+    queue: DisplayEventQueueOptions;
+    /// Optional filter for narrowing delivered events.
+    filter: DisplayBeginFrameFilter | void;
+}
+
+/// Display begin-frame bindings.
+/// Open a global begin-frame stream.
+///
+/// Open the host begin-frame stream for windows in this runtime.
+/// Events are delivered after `windowInvalidate(...)` or host invalidations that schedule another frame.
+/// Window-state changes are reported separately through `display.window_event`.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses Wayland frame callbacks, X11 expose and invalidate delivery, and Win32 paint and redraw message delivery.
+///
+/// # Errors
+/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `display.window`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.display.frame.beginOpen", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["display.window"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "eventLoop",
+})
+export declare function beginFrameOpen(
+    options: DisplayBeginFrameOpenOptions,
+): Result<DisplayBeginFrameHandle, PlatformError>;
+
+/// Close a begin-frame stream.
+///
+/// Close a begin-frame stream and release host routing resources.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses Wayland frame-callback deregistration, X11 redraw queue cleanup, and Win32 paint-routing teardown.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `display.window`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.display.frame.beginClose", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["display.window"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "eventLoop",
+})
+export declare function beginFrameClose(handle: DisplayBeginFrameHandle): Result<void, PlatformError>;
+
+/// Wait for a begin-frame event.
+///
+/// Wait for the next event from a begin-frame stream.
+/// Hidden, occluded, suspended, and zero-sized windows can suppress delivery until the window becomes renderable again.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses Wayland frame-callback dispatch, X11 expose queue waits, and Win32 paint and redraw message waits.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `display.window`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.display.frame.beginRead", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["display.window"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "eventLoop",
+})
+export declare function beginFrameRead(
+    handle: DisplayBeginFrameHandle,
+    timeoutNs: uint64,
+): Result<DisplayBeginFrameEvent, PlatformError>;
+
+/// Poll a begin-frame event without blocking.
+///
+/// Poll a pending event from a begin-frame stream without waiting.
+/// Empty queue state is reported through ioWouldBlock.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking Wayland frame-callback dispatch, X11 expose polling, and Win32 paint and redraw polling.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `display.window`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.display.frame.beginTryRead", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["display.window"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "eventLoop",
+})
+export declare function beginFrameTryRead(
+    handle: DisplayBeginFrameHandle,
+): Result<DisplayBeginFrameEvent, PlatformError>;
+
+/// Wait for a batch of begin-frame events.
+///
+/// Wait for pending events from a begin-frame stream and return up to `maxEvents` events.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses Wayland frame-callback batch dispatch, X11 expose queue waits, and Win32 paint and redraw batch waits.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `display.window`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.display.frame.beginReadBatch", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["display.window"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "eventLoop",
+})
+export declare function beginFrameReadBatch(
+    handle: DisplayBeginFrameHandle,
+    maxEvents: uint32,
+    timeoutNs: uint64,
+): Result<Array<DisplayBeginFrameEvent>, PlatformError>;
+
+/// Poll a batch of begin-frame events without blocking.
+///
+/// Poll pending events from a begin-frame stream and return up to `maxEvents` events.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking Wayland frame-callback batch dispatch, X11 expose polling, and Win32 paint and redraw batch polling.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `display.window`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.display.frame.beginTryReadBatch", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["display.window"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "eventLoop",
+})
+export declare function beginFrameTryReadBatch(
+    handle: DisplayBeginFrameHandle,
+    maxEvents: uint32,
+): Result<Array<DisplayBeginFrameEvent>, PlatformError>;

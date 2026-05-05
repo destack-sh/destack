@@ -1,0 +1,8 @@
+import { Slice } from "core";
+import * as platform from "library/platform/index.ds";
+import type { PlatformError } from "../error/index.ds";
+
+/// Return the process arguments.
+export function args(): Result<Slice<string>, PlatformError> {
+    platform.process.args();
+}

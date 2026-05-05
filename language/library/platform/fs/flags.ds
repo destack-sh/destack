@@ -1,0 +1,148 @@
+/// File offset in bytes.
+export newtype FileOffset = int64;
+
+/// File size in bytes.
+export newtype FileSize = uint64;
+
+/// Open flags for file descriptors.
+export newtype OpenFlags = uint32;
+
+/// Copy flags for copyfile-style operations.
+export newtype CopyFlags = uint32;
+/// Fail when the destination already exists during copyfile.
+export const COPYFILE_FAIL_IF_EXISTS: CopyFlags = CopyFlags(0x1);
+
+/// Allocation flags for fallocate-style operations.
+export newtype AllocFlags = uint32;
+/// Allocate blocks without extending apparent file size.
+export const FALLOC_KEEP_SIZE: AllocFlags = AllocFlags(0x01);
+/// Deallocate blocks in the requested range.
+export const FALLOC_PUNCH_HOLE: AllocFlags = AllocFlags(0x02);
+/// Do not hide stale data when the host supports that mode.
+export const FALLOC_NO_HIDE_STALE: AllocFlags = AllocFlags(0x04);
+/// Remove the requested range and collapse later data downward.
+export const FALLOC_COLLAPSE_RANGE: AllocFlags = AllocFlags(0x08);
+/// Convert the requested range into explicit zeroed blocks.
+export const FALLOC_ZERO_RANGE: AllocFlags = AllocFlags(0x10);
+/// Insert a hole and push later data upward.
+export const FALLOC_INSERT_RANGE: AllocFlags = AllocFlags(0x20);
+/// Break shared extents before future writes.
+export const FALLOC_UNSHARE_RANGE: AllocFlags = AllocFlags(0x40);
+
+/// Sync flags for sync_file_range-style operations.
+export newtype SyncFlags = uint32;
+/// Wait for earlier writeback in the requested range.
+export const SYNC_FILE_RANGE_WAIT_BEFORE: SyncFlags = SyncFlags(0x1);
+/// Start writeback for the requested range.
+export const SYNC_FILE_RANGE_WRITE: SyncFlags = SyncFlags(0x2);
+/// Wait for writeback completion in the requested range.
+export const SYNC_FILE_RANGE_WAIT_AFTER: SyncFlags = SyncFlags(0x4);
+
+/// Read and write modifier flags for positioned and vectored I/O.
+export newtype ReadWriteFlags = uint32;
+/// Prefer high-priority polling I/O when the host supports it.
+export const RWF_HIPRI: ReadWriteFlags = ReadWriteFlags(0x1);
+/// Apply data-only sync semantics to the write.
+export const RWF_DSYNC: ReadWriteFlags = ReadWriteFlags(0x2);
+/// Apply full sync semantics to the write.
+export const RWF_SYNC: ReadWriteFlags = ReadWriteFlags(0x4);
+/// Request nonblocking cache miss behavior when supported.
+export const RWF_NOWAIT: ReadWriteFlags = ReadWriteFlags(0x8);
+/// Force append semantics for the write.
+export const RWF_APPEND: ReadWriteFlags = ReadWriteFlags(0x10);
+
+/// File permission mode bits.
+export newtype FileMode = uint32;
+
+/// Access mode bitmask for access checks.
+export newtype AccessMode = uint32;
+/// Check only for the existence of the path.
+export const ACCESS_EXISTS: AccessMode = AccessMode(0);
+/// Check for execute permission.
+export const ACCESS_EXECUTE: AccessMode = AccessMode(0x1);
+/// Check for write permission.
+export const ACCESS_WRITE: AccessMode = AccessMode(0x2);
+/// Check for read permission.
+export const ACCESS_READ: AccessMode = AccessMode(0x4);
+
+/// Flags for *at-style operations.
+export newtype AtFlags = uint32;
+/// Do not follow a final symlink component.
+export const AT_SYMLINK_NOFOLLOW: AtFlags = AtFlags(0x100);
+/// Treat the path target as a directory for removal lanes.
+export const AT_REMOVEDIR: AtFlags = AtFlags(0x200);
+/// Follow a source symlink where the host operation supports it.
+export const AT_SYMLINK_FOLLOW: AtFlags = AtFlags(0x400);
+
+/// Flags for file locking operations.
+export newtype FileLockFlags = uint32;
+/// Acquire a shared file lock.
+export const LOCK_SHARED: FileLockFlags = FileLockFlags(0x1);
+/// Acquire an exclusive file lock.
+export const LOCK_EXCLUSIVE: FileLockFlags = FileLockFlags(0x2);
+/// Fail instead of blocking for the lock.
+export const LOCK_NONBLOCK: FileLockFlags = FileLockFlags(0x4);
+/// Release an existing file lock.
+export const LOCK_UNLOCK: FileLockFlags = FileLockFlags(0x8);
+
+/// Resolve flags for openat2.
+export newtype OpenResolveFlags = uint64;
+/// Reject traversal that crosses into a different mount.
+export const RESOLVE_NO_XDEV: OpenResolveFlags = OpenResolveFlags(0x01);
+/// Reject magic-link traversal.
+export const RESOLVE_NO_MAGICLINKS: OpenResolveFlags = OpenResolveFlags(0x02);
+/// Reject symlink traversal.
+export const RESOLVE_NO_SYMLINKS: OpenResolveFlags = OpenResolveFlags(0x04);
+/// Require the result to stay beneath the starting directory.
+export const RESOLVE_BENEATH: OpenResolveFlags = OpenResolveFlags(0x08);
+/// Treat the starting directory as the logical root.
+export const RESOLVE_IN_ROOT: OpenResolveFlags = OpenResolveFlags(0x10);
+/// Use only already-cached resolution state.
+export const RESOLVE_CACHED: OpenResolveFlags = OpenResolveFlags(0x20);
+
+/// Flags for renameat2.
+export newtype RenameFlags = uint32;
+/// Reject replacing an existing destination.
+export const RENAME_NOREPLACE: RenameFlags = RenameFlags(0x1);
+/// Exchange the source and destination names atomically when supported.
+export const RENAME_EXCHANGE: RenameFlags = RenameFlags(0x2);
+/// Create a whiteout entry as part of the rename when supported.
+export const RENAME_WHITEOUT: RenameFlags = RenameFlags(0x4);
+
+/// File descriptor flags for fcntl(F_GETFD/F_SETFD).
+export newtype FdFlags = uint32;
+
+/// File status flags for fcntl(F_GETFL/F_SETFL).
+export newtype StatusFlags = uint32;
+
+/// Device identifier for mknod-style calls.
+export newtype NodeDevice = uint64;
+
+/// Pipe and descriptor splice flags.
+export newtype SpliceFlags = uint32;
+
+/// Seek origin for seek operations.
+export enum SeekWhence {
+    /// Seek from the start of the file.
+    Set = 0,
+    /// Seek from the current offset.
+    Cur = 1,
+    /// Seek from the end of the file.
+    End = 2,
+}
+
+/// File access pattern advice.
+export enum FileAdvice {
+    /// No special behavior.
+    Normal = 0,
+    /// File will be accessed sequentially.
+    Sequential = 1,
+    /// File will be accessed randomly.
+    Random = 2,
+    /// File data will be needed soon.
+    WillNeed = 3,
+    /// File data will not be needed soon.
+    DontNeed = 4,
+    /// File data will be used once.
+    NoReuse = 5,
+}

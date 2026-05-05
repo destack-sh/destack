@@ -1,0 +1,28 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Fail because platform console bindings are unavailable.
+function unavailable(): never {
+    throw new Error(
+        "destack.console is currently unavailable: use process stdio handles directly",
+    );
+}
+
+/// Write a line to stdout.
+export function log(..._values: unknown[]): Result<void, PlatformError> {
+    unavailable();
+}
+
+/// Write an info line to stdout.
+export function info(..._values: unknown[]): Result<void, PlatformError> {
+    unavailable();
+}
+
+/// Write a warning line to stderr.
+export function warn(..._values: unknown[]): Result<void, PlatformError> {
+    unavailable();
+}
+
+/// Write an error line to stderr.
+export function error(..._values: unknown[]): Result<void, PlatformError> {
+    unavailable();
+}

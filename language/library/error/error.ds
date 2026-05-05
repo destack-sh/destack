@@ -1,0 +1,4 @@
+import type { PlatformError as HostPlatformError } from "library/platform/error/index.ds";
+
+/// Error type returned by Destack platform operations.
+export type PlatformError = HostPlatformError;

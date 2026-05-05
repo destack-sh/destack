@@ -1,0 +1,68 @@
+import { Slice } from "core";
+import type { PlatformCapability as NativePlatformCapability } from "core";
+import type { PlatformError } from "../error/index.ds";
+
+/// Platform capability selector.
+///
+/// Capability names are validated by runtime policy and binding metadata.
+/// The canonical list is defined by binding metadata declarations.
+export type PlatformCapability = NativePlatformCapability;
+
+/// Security capability bindings.
+/// List active capabilities.
+///
+/// Return the currently active runtime capability set for the executing context.
+/// Capabilities are normalized to the canonical intrinsic capability string space.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime security policy state.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `security.policy.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.security.capability.list", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["security.policy.read"],
+    platforms: ["windows", "unix"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function capabilityList(): Result<Slice<PlatformCapability>, PlatformError>;
+
+/// Check one capability.
+///
+/// Evaluate whether one capability is active in the current runtime context.
+/// Capability checks use runtime policy rules and sandbox scope inheritance.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime security policy state.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `security.policy.read`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.security.capability.has", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["security.policy.read"],
+    platforms: ["windows", "unix"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function capabilityHas(capability: PlatformCapability): Result<boolean, PlatformError>;

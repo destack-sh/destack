@@ -1,0 +1,89 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Host memory-layout query bindings.
+/// Read the host virtual-memory page size.
+///
+/// Read one page-size value used for page-aligned memory operations.
+/// This is the minimum mapping and protection granularity on the host.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses sysconf(_SC_PAGESIZE) on Unix and GetSystemInfo on Windows.
+///
+/// # Errors
+/// Returns ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `memory.query`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.memory.query.pageSize", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["memory.query"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function pageSize(): Result<uint64, PlatformError>;
+
+/// Read the host allocation granularity.
+///
+/// Read one allocation-granularity value used for reserve and map base alignment.
+/// On Unix this usually equals page size, while Windows commonly reports larger granularity.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses page-size queries on Unix and GetSystemInfo on Windows.
+///
+/// # Errors
+/// Returns ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `memory.query`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.memory.query.allocationGranularity", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["memory.query"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function allocationGranularity(): Result<uint64, PlatformError>;
+
+/// Read the host huge-page allocation size when available.
+///
+/// Read one huge-page size if the host exposes this value.
+/// Returns `void` when huge pages are unavailable or not queryable on this platform.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host large-page query APIs where available.
+///
+/// # Errors
+/// Returns ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `memory.query`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.memory.query.hugePageSize", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["memory.query"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function hugePageSize(): Result<uint64 | void, PlatformError>;

@@ -1,0 +1,127 @@
+import { Array } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { InputDeviceHandle } from "../resource/index.ds";
+
+/// Haptic effect type.
+export enum InputHapticEffectType {
+    /// Whole-device dual-rumble effect.
+    DualRumble = 1,
+    /// Trigger-localized rumble effect.
+    TriggerRumble = 2,
+}
+
+/// Haptic playback result.
+export enum InputHapticsResult {
+    /// Playback request completed.
+    Complete = 1,
+    /// Playback request was preempted by one newer request.
+    Preempted = 2,
+}
+
+/// Haptic effect parameters.
+export struct InputHapticEffectParameters {
+    /// Effect duration in milliseconds.
+    durationMs: uint64;
+    /// Effect start delay in milliseconds.
+    startDelayMs: uint64;
+    /// Low-frequency or strong-motor magnitude in the range [0, 1].
+    strongMagnitude: float64;
+    /// High-frequency or weak-motor magnitude in the range [0, 1].
+    weakMagnitude: float64;
+    /// Left trigger rumble magnitude in the range [0, 1].
+    leftTrigger: float64;
+    /// Right trigger rumble magnitude in the range [0, 1].
+    rightTrigger: float64;
+}
+
+/// Input haptics bindings.
+/// List supported haptic effects.
+///
+/// Return supported haptic effect kinds for one opened haptics-capable device.
+///
+/// # Platform
+/// Unix and Windows, with operation-level `notSupported` where haptics is unavailable.
+/// Uses backend-specific haptic capability queries for controller and endpoint actuators.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `input.haptics`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.input.haptics.effects", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["input.haptics"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function hapticsEffects(
+    handle: InputDeviceHandle,
+): Result<Array<InputHapticEffectType>, PlatformError>;
+
+/// Play one haptic effect.
+///
+/// Schedule one haptic effect on one opened haptics-capable device.
+/// Effect playback timing and motor resolution follow backend capabilities.
+///
+/// # Platform
+/// Unix and Windows, with operation-level `notSupported` where one effect type is unavailable.
+/// Uses backend-specific rumble and haptics APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `input.haptics`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.input.haptics.play", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["input.haptics"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function hapticsPlay(
+    handle: InputDeviceHandle,
+    effect: InputHapticEffectType,
+    parameters: InputHapticEffectParameters,
+): Result<InputHapticsResult, PlatformError>;
+
+/// Stop active haptic effects.
+///
+/// Stop active haptic playback on one opened haptics-capable device.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend-specific haptic stop operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `input.haptics`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.input.haptics.stop", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["input.haptics"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function hapticsStop(handle: InputDeviceHandle): Result<void, PlatformError>;

@@ -1,0 +1,63 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Opaque foreign pointer.
+export newtype FfiPointer = uint64;
+
+/// Pointer marshalling bindings.
+/// Create a pointer from a raw address.
+///
+/// Wrap one raw machine address as an opaque foreign pointer value.
+/// Pointer validity and lifetime are controlled by caller and host ABI contracts.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host-process pointer wrapper logic.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `ffi.pointer`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.ffi.pointer.fromAddress", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["ffi.pointer"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function fromAddress(address: uint64): Result<FfiPointer, PlatformError>;
+
+/// Return the raw address for an opaque pointer.
+///
+/// Unwrap one foreign pointer into a raw machine address.
+/// Address interpretation depends on caller ABI and target architecture.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host-process pointer wrapper logic.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `ffi.pointer`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.ffi.pointer.address", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["ffi.pointer"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function address(pointer: FfiPointer): Result<uint64, PlatformError>;

@@ -1,0 +1,10 @@
+/// Interface for the `*` operator.
+///
+/// `a * b` becomes `a.multiply(b)`.
+export newtype interface Multiply<T = this> {
+    /// The result type.
+    type Output;
+
+    /// Multiply this value by `other`.
+    multiply(other: T): this.Output;
+}

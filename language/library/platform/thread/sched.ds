@@ -1,0 +1,139 @@
+import type { PlatformError } from "../error/index.ds";
+import { ThreadHandle } from "../resource/index.ds";
+
+/// Logical processor identifier for thread affinity.
+export struct ThreadCpu {
+    /// Processor group on hosts that partition logical processors.
+    /// Unix targets always use `0`.
+    group: uint16;
+    /// Logical processor index within the processor group.
+    cpu: uint16;
+}
+
+/// CPU affinity set for one thread.
+export struct ThreadCpuSet {
+    /// Logical processors in the affinity set.
+    cpus: ThreadCpu[];
+}
+
+/// Thread scheduling bindings.
+/// Set thread priority.
+///
+/// Set one thread priority value using host scheduler controls.
+/// Priority range and interpretation are host-specific.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses pthread scheduling APIs on Unix and SetThreadPriority on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `thread.sched`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.thread.sched.setPriority", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["thread.sched"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function setPriority(handle: ThreadHandle, priority: int32): Result<void, PlatformError>;
+
+/// Read thread priority.
+///
+/// Read one thread priority value from host scheduler state.
+/// Priority value normalization is runtime-defined per host.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses pthread scheduling APIs on Unix and GetThreadPriority on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `thread.sched`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.thread.sched.getPriority", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["thread.sched"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function getPriority(handle: ThreadHandle): Result<int32, PlatformError>;
+
+/// Set thread CPU affinity.
+///
+/// Bind one thread to one set of logical processors.
+/// Unix targets interpret every entry with group `0`.
+/// Windows maps entries to processor groups and group-local logical processors.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses pthread affinity APIs on Unix and SetThreadGroupAffinity on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `thread.sched`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.thread.sched.setAffinity", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["thread.sched"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function setAffinity(
+    handle: ThreadHandle,
+    cpus: ThreadCpuSet,
+): Result<void, PlatformError>;
+
+/// Read thread CPU affinity.
+///
+/// Read one thread logical-processor affinity set.
+/// Unix targets always report group `0`.
+/// Windows reports group-local logical processors for the active thread affinity.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses pthread affinity APIs on Unix and GetThreadGroupAffinity on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `thread.sched`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.thread.sched.getAffinity", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["thread.sched"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function getAffinity(handle: ThreadHandle): Result<ThreadCpuSet, PlatformError>;

@@ -1,0 +1,213 @@
+import { Array } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { InputDeviceHandle } from "../resource/index.ds";
+
+/// Input sensor kind.
+export enum InputSensorKind {
+    /// Acceleration including gravity in meters per second squared.
+    Accelerometer = 1,
+    /// Angular velocity in radians per second.
+    Gyroscope = 2,
+    /// Magnetic field in microtesla.
+    Magnetometer = 3,
+    /// Gravity vector in meters per second squared.
+    Gravity = 4,
+    /// Linear acceleration without gravity in meters per second squared.
+    LinearAcceleration = 5,
+    /// Orientation quaternion.
+    Orientation = 6,
+    /// Barometric pressure in hectopascal.
+    Barometer = 7,
+    /// Ambient light level in lux.
+    AmbientLight = 8,
+    /// Proximity distance in centimeters.
+    Proximity = 9,
+    /// Step count since backend-defined epoch.
+    StepCounter = 10,
+}
+
+/// Sensor capability metadata.
+export struct InputSensorDescriptor {
+    /// Sensor kind.
+    kind: InputSensorKind;
+    /// Minimum supported sample rate in hertz.
+    minSampleRateHz: float64;
+    /// Maximum supported sample rate in hertz.
+    maxSampleRateHz: float64;
+    /// Nominal sensor resolution.
+    resolution: float64;
+    /// Whether this sensor can wake one suspended backend queue.
+    supportsWake: boolean;
+}
+
+/// Sensor sample snapshot.
+export struct InputSensorSample {
+    /// Sensor kind.
+    kind: InputSensorKind;
+    /// Monotonic sample timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Vector or quaternion x component.
+    x: float64;
+    /// Vector or quaternion y component.
+    y: float64;
+    /// Vector or quaternion z component.
+    z: float64;
+    /// Quaternion w component for orientation samples, zero for vector samples.
+    w: float64;
+    /// Backend-specific sample status bits.
+    flags: uint32;
+}
+
+/// Sensor stream configuration.
+export struct InputSensorConfig {
+    /// Whether the sensor stream is enabled.
+    enabled: boolean;
+    /// Requested sample rate in hertz.
+    sampleRateHz: float64;
+    /// Requested maximum batching latency in milliseconds.
+    batchLatencyMs: uint32;
+    /// Sensor option flags.
+    flags: uint32;
+}
+
+/// Effective sensor stream configuration.
+export struct InputSensorEffectiveConfig {
+    /// Whether the sensor stream is enabled.
+    enabled: boolean;
+    /// Effective sample rate in hertz.
+    sampleRateHz: float64;
+    /// Effective batching latency in milliseconds.
+    batchLatencyMs: uint32;
+    /// Effective sensor option flags.
+    flags: uint32;
+}
+
+/// Input sensor bindings.
+/// List supported sensors for one opened input device.
+///
+/// Return sensor capability metadata for one opened sensor-capable device.
+///
+/// # Platform
+/// Unix and Windows, with operation-level `notSupported` where sensor streams are unavailable.
+/// Uses backend-specific sensor capability tables from evdev and hidraw class stacks on Unix.
+/// Uses HID sensor or controller APIs on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `input.read`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.input.sensor.list", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["input.read"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function sensorList(
+    handle: InputDeviceHandle,
+): Result<Array<InputSensorDescriptor>, PlatformError>;
+
+/// Configure one sensor stream.
+///
+/// Apply one enable and sample-rate configuration for one sensor stream on one opened input device.
+/// Backends can negotiate one effective sample rate and one effective batching latency.
+/// When host sensor stacks expose only fixed-rate delivery, this lane tracks the effective runtime stream configuration.
+///
+/// # Platform
+/// Unix and Windows, with operation-level `notSupported` where sensor stream configuration is unavailable.
+/// Uses backend-specific sensor configuration APIs where available.
+/// Falls back to runtime-managed effective stream configuration when the host stream is fixed-rate.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `input.control`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.input.sensor.configure", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["input.control"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function sensorConfigure(
+    handle: InputDeviceHandle,
+    kind: InputSensorKind,
+    config: InputSensorConfig,
+): Result<InputSensorEffectiveConfig, PlatformError>;
+
+/// Read one sensor sample.
+///
+/// Read one pending sample from one configured sensor stream.
+/// Timeout and blocking behavior follow backend stream semantics.
+///
+/// # Platform
+/// Unix and Windows, with operation-level `notSupported` where sensor streams are unavailable.
+/// Uses backend-specific blocking sensor queue reads on Unix and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `input.read`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.input.sensor.read", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["input.read"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function sensorRead(
+    handle: InputDeviceHandle,
+    kind: InputSensorKind,
+): Result<InputSensorSample, PlatformError>;
+
+/// Poll one sensor sample without blocking.
+///
+/// Poll one pending sample from one configured sensor stream and return immediately when none is available.
+///
+/// # Platform
+/// Unix and Windows, with operation-level `notSupported` where sensor streams are unavailable.
+/// Uses backend-specific nonblocking sensor queue reads on Unix and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `input.read`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.input.sensor.tryRead", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["input.read"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function sensorTryRead(
+    handle: InputDeviceHandle,
+    kind: InputSensorKind,
+): Result<InputSensorSample, PlatformError>;

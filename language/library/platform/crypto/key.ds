@@ -1,0 +1,1205 @@
+import { Slice } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { CryptoKeyHandle, CryptoStoreHandle } from "../resource/index.ds";
+import {
+    CryptoAsymmetricEncryptionAlgorithm,
+    CryptoDigestAlgorithm,
+    CryptoKeyFormat,
+    CryptoKeyKind,
+    CryptoKeyResidency,
+    CryptoKeyUsageMask,
+    CryptoKeyWrapAlgorithm,
+    CryptoNamedCurve,
+    CryptoSignatureAlgorithm,
+} from "./algorithm.ds";
+import { CryptoStoreProvenance } from "./store.ds";
+
+/// RSA key-generation request.
+export struct CryptoKeyGenerationRequestRsa {
+    /// Discriminator for this key-generation request variant.
+    algorithm: "rsa";
+    /// RSA modulus size in bits.
+    modulusBits: uint32;
+    /// RSA public exponent.
+    publicExponent: uint32;
+    /// Digest algorithm for RSA-PSS and RSA-OAEP defaults.
+    digest?: CryptoDigestAlgorithm;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Whether host hardware-backed storage is required.
+    hardwareBacked: boolean;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// EC key-generation request.
+export struct CryptoKeyGenerationRequestEc {
+    /// Discriminator for this key-generation request variant.
+    algorithm: "ec";
+    /// Named curve.
+    namedCurve: CryptoNamedCurve;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Whether host hardware-backed storage is required.
+    hardwareBacked: boolean;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// Ed25519 key-generation request.
+export struct CryptoKeyGenerationRequestEd25519 {
+    /// Discriminator for this key-generation request variant.
+    algorithm: "ed25519";
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Whether host hardware-backed storage is required.
+    hardwareBacked: boolean;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// Ed448 key-generation request.
+export struct CryptoKeyGenerationRequestEd448 {
+    /// Discriminator for this key-generation request variant.
+    algorithm: "ed448";
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Whether host hardware-backed storage is required.
+    hardwareBacked: boolean;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// X25519 key-generation request.
+export struct CryptoKeyGenerationRequestX25519 {
+    /// Discriminator for this key-generation request variant.
+    algorithm: "x25519";
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Whether host hardware-backed storage is required.
+    hardwareBacked: boolean;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// X448 key-generation request.
+export struct CryptoKeyGenerationRequestX448 {
+    /// Discriminator for this key-generation request variant.
+    algorithm: "x448";
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Whether host hardware-backed storage is required.
+    hardwareBacked: boolean;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// AES key-generation request.
+export struct CryptoKeyGenerationRequestAes {
+    /// Discriminator for this key-generation request variant.
+    algorithm: "aes";
+    /// Key size in bits.
+    sizeBits: uint32;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Whether host hardware-backed storage is required.
+    hardwareBacked: boolean;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// ChaCha20 key-generation request.
+export struct CryptoKeyGenerationRequestChaCha20 {
+    /// Discriminator for this key-generation request variant.
+    algorithm: "chacha20";
+    /// Key size in bits.
+    sizeBits: uint32;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Whether host hardware-backed storage is required.
+    hardwareBacked: boolean;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// HMAC key-generation request.
+export struct CryptoKeyGenerationRequestHmac {
+    /// Discriminator for this key-generation request variant.
+    algorithm: "hmac";
+    /// HMAC key size in bits.
+    sizeBits: uint32;
+    /// Digest algorithm for this HMAC key.
+    digest: CryptoDigestAlgorithm;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Whether host hardware-backed storage is required.
+    hardwareBacked: boolean;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// Key-generation request.
+export newtype CryptoKeyGenerationRequest =
+    | CryptoKeyGenerationRequestRsa
+    | CryptoKeyGenerationRequestEc
+    | CryptoKeyGenerationRequestEd25519
+    | CryptoKeyGenerationRequestEd448
+    | CryptoKeyGenerationRequestX25519
+    | CryptoKeyGenerationRequestX448
+    | CryptoKeyGenerationRequestAes
+    | CryptoKeyGenerationRequestChaCha20
+    | CryptoKeyGenerationRequestHmac;
+
+/// RSA key import request.
+export struct CryptoKeyImportRequestRsa {
+    /// Discriminator for this key-import request variant.
+    algorithm: "rsa";
+    /// Key material format.
+    format: CryptoKeyFormat;
+    /// Encoded key bytes.
+    bytes: Slice<uint8>;
+    /// Digest algorithm for RSA-PSS and RSA-OAEP defaults.
+    digest?: CryptoDigestAlgorithm;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Passphrase bytes for encrypted private-key formats.
+    ///
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
+    passphrase?: Slice<uint8>;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// EC key import request.
+export struct CryptoKeyImportRequestEc {
+    /// Discriminator for this key-import request variant.
+    algorithm: "ec";
+    /// Key material format.
+    format: CryptoKeyFormat;
+    /// Encoded key bytes.
+    bytes: Slice<uint8>;
+    /// Named curve when format metadata does not encode it.
+    namedCurve?: CryptoNamedCurve;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Passphrase bytes for encrypted private-key formats.
+    ///
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
+    passphrase?: Slice<uint8>;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// Ed25519 key import request.
+export struct CryptoKeyImportRequestEd25519 {
+    /// Discriminator for this key-import request variant.
+    algorithm: "ed25519";
+    /// Key material format.
+    format: CryptoKeyFormat;
+    /// Encoded key bytes.
+    bytes: Slice<uint8>;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Passphrase bytes for encrypted private-key formats.
+    ///
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
+    passphrase?: Slice<uint8>;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// Ed448 key import request.
+export struct CryptoKeyImportRequestEd448 {
+    /// Discriminator for this key-import request variant.
+    algorithm: "ed448";
+    /// Key material format.
+    format: CryptoKeyFormat;
+    /// Encoded key bytes.
+    bytes: Slice<uint8>;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Passphrase bytes for encrypted private-key formats.
+    ///
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
+    passphrase?: Slice<uint8>;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// X25519 key import request.
+export struct CryptoKeyImportRequestX25519 {
+    /// Discriminator for this key-import request variant.
+    algorithm: "x25519";
+    /// Key material format.
+    format: CryptoKeyFormat;
+    /// Encoded key bytes.
+    bytes: Slice<uint8>;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Passphrase bytes for encrypted private-key formats.
+    ///
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
+    passphrase?: Slice<uint8>;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// X448 key import request.
+export struct CryptoKeyImportRequestX448 {
+    /// Discriminator for this key-import request variant.
+    algorithm: "x448";
+    /// Key material format.
+    format: CryptoKeyFormat;
+    /// Encoded key bytes.
+    bytes: Slice<uint8>;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Passphrase bytes for encrypted private-key formats.
+    ///
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
+    passphrase?: Slice<uint8>;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// AES key import request.
+export struct CryptoKeyImportRequestAes {
+    /// Discriminator for this key-import request variant.
+    algorithm: "aes";
+    /// Key material format.
+    format: CryptoKeyFormat;
+    /// Encoded key bytes.
+    bytes: Slice<uint8>;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Passphrase bytes for encrypted private-key formats.
+    ///
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
+    passphrase?: Slice<uint8>;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// ChaCha20 key import request.
+export struct CryptoKeyImportRequestChaCha20 {
+    /// Discriminator for this key-import request variant.
+    algorithm: "chacha20";
+    /// Key material format.
+    format: CryptoKeyFormat;
+    /// Encoded key bytes.
+    bytes: Slice<uint8>;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Passphrase bytes for encrypted private-key formats.
+    ///
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
+    passphrase?: Slice<uint8>;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// HMAC key import request.
+export struct CryptoKeyImportRequestHmac {
+    /// Discriminator for this key-import request variant.
+    algorithm: "hmac";
+    /// Key material format.
+    format: CryptoKeyFormat;
+    /// Encoded key bytes.
+    bytes: Slice<uint8>;
+    /// Digest algorithm for this HMAC key.
+    digest: CryptoDigestAlgorithm;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Passphrase bytes for encrypted private-key formats.
+    ///
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
+    passphrase?: Slice<uint8>;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
+}
+
+/// Key import request.
+export newtype CryptoKeyImportRequest =
+    | CryptoKeyImportRequestRsa
+    | CryptoKeyImportRequestEc
+    | CryptoKeyImportRequestEd25519
+    | CryptoKeyImportRequestEd448
+    | CryptoKeyImportRequestX25519
+    | CryptoKeyImportRequestX448
+    | CryptoKeyImportRequestAes
+    | CryptoKeyImportRequestChaCha20
+    | CryptoKeyImportRequestHmac;
+
+/// Generated key pair.
+export struct CryptoKeyPair {
+    /// Public key handle.
+    publicKey: CryptoKeyHandle;
+    /// Private key handle.
+    privateKey: CryptoKeyHandle;
+}
+
+/// RSA key descriptor.
+export struct CryptoKeyDescriptorRsa {
+    /// Discriminator for this key-descriptor variant.
+    algorithm: "rsa";
+    /// Key object kind.
+    keyKind: CryptoKeyKind;
+    /// RSA modulus size in bits when available.
+    modulusBits?: uint32;
+    /// RSA public exponent when available.
+    publicExponent?: uint32;
+    /// Digest algorithm for RSA-PSS and RSA-OAEP defaults.
+    digest?: CryptoDigestAlgorithm;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Effective key residency policy.
+    residency: CryptoKeyResidency;
+    /// Whether key storage is hardware-backed.
+    hardwareBacked: boolean;
+    /// Whether key material persists beyond process lifetime.
+    persistent: boolean;
+    /// Effective key store provenance.
+    storeProvenance: CryptoStoreProvenance;
+}
+
+/// EC key descriptor.
+export struct CryptoKeyDescriptorEc {
+    /// Discriminator for this key-descriptor variant.
+    algorithm: "ec";
+    /// Key object kind.
+    keyKind: CryptoKeyKind;
+    /// Named curve when available.
+    namedCurve?: CryptoNamedCurve;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Effective key residency policy.
+    residency: CryptoKeyResidency;
+    /// Whether key storage is hardware-backed.
+    hardwareBacked: boolean;
+    /// Whether key material persists beyond process lifetime.
+    persistent: boolean;
+    /// Effective key store provenance.
+    storeProvenance: CryptoStoreProvenance;
+}
+
+/// Ed25519 key descriptor.
+export struct CryptoKeyDescriptorEd25519 {
+    /// Discriminator for this key-descriptor variant.
+    algorithm: "ed25519";
+    /// Key object kind.
+    keyKind: CryptoKeyKind;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Effective key residency policy.
+    residency: CryptoKeyResidency;
+    /// Whether key storage is hardware-backed.
+    hardwareBacked: boolean;
+    /// Whether key material persists beyond process lifetime.
+    persistent: boolean;
+    /// Effective key store provenance.
+    storeProvenance: CryptoStoreProvenance;
+}
+
+/// Ed448 key descriptor.
+export struct CryptoKeyDescriptorEd448 {
+    /// Discriminator for this key-descriptor variant.
+    algorithm: "ed448";
+    /// Key object kind.
+    keyKind: CryptoKeyKind;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Effective key residency policy.
+    residency: CryptoKeyResidency;
+    /// Whether key storage is hardware-backed.
+    hardwareBacked: boolean;
+    /// Whether key material persists beyond process lifetime.
+    persistent: boolean;
+    /// Effective key store provenance.
+    storeProvenance: CryptoStoreProvenance;
+}
+
+/// X25519 key descriptor.
+export struct CryptoKeyDescriptorX25519 {
+    /// Discriminator for this key-descriptor variant.
+    algorithm: "x25519";
+    /// Key object kind.
+    keyKind: CryptoKeyKind;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Effective key residency policy.
+    residency: CryptoKeyResidency;
+    /// Whether key storage is hardware-backed.
+    hardwareBacked: boolean;
+    /// Whether key material persists beyond process lifetime.
+    persistent: boolean;
+    /// Effective key store provenance.
+    storeProvenance: CryptoStoreProvenance;
+}
+
+/// X448 key descriptor.
+export struct CryptoKeyDescriptorX448 {
+    /// Discriminator for this key-descriptor variant.
+    algorithm: "x448";
+    /// Key object kind.
+    keyKind: CryptoKeyKind;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Effective key residency policy.
+    residency: CryptoKeyResidency;
+    /// Whether key storage is hardware-backed.
+    hardwareBacked: boolean;
+    /// Whether key material persists beyond process lifetime.
+    persistent: boolean;
+    /// Effective key store provenance.
+    storeProvenance: CryptoStoreProvenance;
+}
+
+/// AES key descriptor.
+export struct CryptoKeyDescriptorAes {
+    /// Discriminator for this key-descriptor variant.
+    algorithm: "aes";
+    /// Key object kind.
+    keyKind: CryptoKeyKind;
+    /// Effective key size in bits when available.
+    sizeBits?: uint32;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Effective key residency policy.
+    residency: CryptoKeyResidency;
+    /// Whether key storage is hardware-backed.
+    hardwareBacked: boolean;
+    /// Whether key material persists beyond process lifetime.
+    persistent: boolean;
+    /// Effective key store provenance.
+    storeProvenance: CryptoStoreProvenance;
+}
+
+/// ChaCha20 key descriptor.
+export struct CryptoKeyDescriptorChaCha20 {
+    /// Discriminator for this key-descriptor variant.
+    algorithm: "chacha20";
+    /// Key object kind.
+    keyKind: CryptoKeyKind;
+    /// Effective key size in bits when available.
+    sizeBits?: uint32;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Effective key residency policy.
+    residency: CryptoKeyResidency;
+    /// Whether key storage is hardware-backed.
+    hardwareBacked: boolean;
+    /// Whether key material persists beyond process lifetime.
+    persistent: boolean;
+    /// Effective key store provenance.
+    storeProvenance: CryptoStoreProvenance;
+}
+
+/// HMAC key descriptor.
+export struct CryptoKeyDescriptorHmac {
+    /// Discriminator for this key-descriptor variant.
+    algorithm: "hmac";
+    /// Key object kind.
+    keyKind: CryptoKeyKind;
+    /// Effective key size in bits when available.
+    sizeBits?: uint32;
+    /// Digest algorithm when available.
+    digest?: CryptoDigestAlgorithm;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Effective key residency policy.
+    residency: CryptoKeyResidency;
+    /// Whether key storage is hardware-backed.
+    hardwareBacked: boolean;
+    /// Whether key material persists beyond process lifetime.
+    persistent: boolean;
+    /// Effective key store provenance.
+    storeProvenance: CryptoStoreProvenance;
+}
+
+/// Key descriptor.
+export newtype CryptoKeyDescriptor =
+    | CryptoKeyDescriptorRsa
+    | CryptoKeyDescriptorEc
+    | CryptoKeyDescriptorEd25519
+    | CryptoKeyDescriptorEd448
+    | CryptoKeyDescriptorX25519
+    | CryptoKeyDescriptorX448
+    | CryptoKeyDescriptorAes
+    | CryptoKeyDescriptorChaCha20
+    | CryptoKeyDescriptorHmac;
+
+/// Signature parameters.
+export struct CryptoSignatureParameters {
+    /// Signature algorithm.
+    algorithm: CryptoSignatureAlgorithm;
+    /// Digest algorithm.
+    digest?: CryptoDigestAlgorithm;
+    /// RSA-PSS salt length in bytes.
+    ///
+    /// Set to zero to use backend default salt behavior.
+    saltLengthBytes?: uint32;
+}
+
+/// Asymmetric encryption parameters.
+export struct CryptoAsymmetricEncryptionParameters {
+    /// Asymmetric encryption algorithm.
+    algorithm: CryptoAsymmetricEncryptionAlgorithm;
+    /// Digest algorithm.
+    digest?: CryptoDigestAlgorithm;
+    /// OAEP label bytes.
+    ///
+    /// Use one empty slice for no label.
+    label: Slice<uint8>;
+}
+
+/// Private-key export request.
+export struct CryptoPrivateKeyExportRequest {
+    /// Requested output format.
+    format: CryptoKeyFormat;
+    /// Passphrase bytes for encrypted private-key formats.
+    ///
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
+    /// Use one empty slice for unencrypted private-key formats.
+    passphrase: Slice<uint8>;
+}
+
+/// Key-wrap parameters.
+export struct CryptoKeyWrapParameters {
+    /// Key-wrap algorithm.
+    algorithm: CryptoKeyWrapAlgorithm;
+    /// Digest algorithm for RSA-OAEP wrapping.
+    digest?: CryptoDigestAlgorithm;
+    /// OAEP label for RSA-OAEP wrapping.
+    ///
+    /// Use one empty slice for no label.
+    label: Slice<uint8>;
+}
+
+/// Key bindings for runtime store key objects.
+/// Generate one symmetric key.
+///
+/// Create one store-backed secret key object.
+/// Generation policy and persistence semantics follow runtime store behavior.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+/// Hardware-backed secret-key generation is available when the selected host store exposes symmetric hardware-key callbacks.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.key.generate`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.key.generateSecret", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.key.generate"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function keyGenerateSecret(
+    store: CryptoStoreHandle,
+    request: CryptoKeyGenerationRequest,
+): Result<CryptoKeyHandle, PlatformError>;
+
+/// Generate one asymmetric key pair.
+///
+/// Create one store-backed asymmetric key pair and return public and private handles.
+/// Generation policy and persistence semantics follow runtime store behavior.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.key.generate`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.key.generatePair", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.key.generate"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function keyGeneratePair(
+    store: CryptoStoreHandle,
+    request: CryptoKeyGenerationRequest,
+): Result<CryptoKeyPair, PlatformError>;
+
+/// Import one key object.
+///
+/// Parse and import one key blob into one store.
+/// Key visibility and persistence follow runtime store policies.
+/// Encrypted PKCS#8 inputs require one non-empty `request.passphrase`.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.store.write`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.key.import", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.store.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function keyImport(
+    store: CryptoStoreHandle,
+    request: CryptoKeyImportRequest,
+): Result<CryptoKeyHandle, PlatformError>;
+
+/// Export one public key.
+///
+/// Export one public key representation in the requested encoding format.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.store.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.key.exportPublic", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.store.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function keyExportPublic(
+    handle: CryptoKeyHandle,
+    format: CryptoKeyFormat,
+): Result<Slice<uint8>, PlatformError>;
+
+/// Export one private key.
+///
+/// Export one private key representation in the requested encoding format.
+/// Output format and passphrase are provided by `CryptoPrivateKeyExportRequest`.
+/// Encrypted PKCS#8 output requires one non-empty passphrase.
+/// The operation fails when store policy marks this key as non-exportable.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.store.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.key.exportPrivate", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.store.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function keyExportPrivate(
+    handle: CryptoKeyHandle,
+    request: CryptoPrivateKeyExportRequest,
+): Result<Slice<uint8>, PlatformError>;
+
+/// Export one secret key.
+///
+/// Export one symmetric or raw-secret key representation in the requested encoding format.
+/// The operation fails when store policy marks this key as non-exportable.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.store.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.key.exportSecret", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.store.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function keyExportSecret(
+    handle: CryptoKeyHandle,
+    format: CryptoKeyFormat,
+): Result<Slice<uint8>, PlatformError>;
+
+/// Return one key descriptor.
+///
+/// Query one key object and return normalized metadata fields.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.store.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.key.descriptor", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.store.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function keyDescriptor(
+    handle: CryptoKeyHandle,
+): Result<CryptoKeyDescriptor, PlatformError>;
+
+/// Sign one payload.
+///
+/// Produce one signature over one payload using one store-backed private key.
+/// Payload hashing behavior is controlled by signature parameters.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.key.sign`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.key.sign", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.key.sign"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function keySign(
+    handle: CryptoKeyHandle,
+    parameters: CryptoSignatureParameters,
+    payload: Slice<uint8>,
+): Result<Slice<uint8>, PlatformError>;
+
+/// Verify one signature.
+///
+/// Verify one signature over one payload using one store-backed public key.
+/// Payload hashing behavior is controlled by signature parameters.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.key.verify`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.key.verify", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.key.verify"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function keyVerify(
+    handle: CryptoKeyHandle,
+    parameters: CryptoSignatureParameters,
+    payload: Slice<uint8>,
+    signature: Slice<uint8>,
+): Result<boolean, PlatformError>;
+
+/// Encrypt one payload with one asymmetric key.
+///
+/// Encrypt one payload using one store-backed public key.
+/// Padding and label semantics are controlled by encryption parameters.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.key.encrypt`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.key.encrypt", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.key.encrypt"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function keyEncrypt(
+    handle: CryptoKeyHandle,
+    parameters: CryptoAsymmetricEncryptionParameters,
+    payload: Slice<uint8>,
+): Result<Slice<uint8>, PlatformError>;
+
+/// Decrypt one payload with one asymmetric key.
+///
+/// Decrypt one payload using one store-backed private key.
+/// Padding and label semantics are controlled by encryption parameters.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.key.decrypt`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.key.decrypt", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.key.decrypt"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function keyDecrypt(
+    handle: CryptoKeyHandle,
+    parameters: CryptoAsymmetricEncryptionParameters,
+    payload: Slice<uint8>,
+): Result<Slice<uint8>, PlatformError>;
+
+/// Wrap one key.
+///
+/// Export and encrypt one key object under one wrapping key.
+/// Wrapping semantics are selected by `CryptoKeyWrapParameters`.
+/// `RsaOaep` uses asymmetric OAEP wrapping and `AesKw` or `AesKwp` use RFC 3394 or RFC 5649 key-wrap semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.key.wrap`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.key.wrap", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.key.wrap"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function keyWrap(
+    wrappingKey: CryptoKeyHandle,
+    keyToWrap: CryptoKeyHandle,
+    format: CryptoKeyFormat,
+    parameters: CryptoKeyWrapParameters,
+): Result<Slice<uint8>, PlatformError>;
+
+/// Unwrap one key.
+///
+/// Decrypt and import one wrapped key object into one store.
+/// Import semantics follow runtime store policy and the import request.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.key.unwrap`, `crypto.store.write`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.key.unwrap", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.key.unwrap", "crypto.store.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function keyUnwrap(
+    store: CryptoStoreHandle,
+    wrappingKey: CryptoKeyHandle,
+    wrappedKey: Slice<uint8>,
+    parameters: CryptoKeyWrapParameters,
+    request: CryptoKeyImportRequest,
+): Result<CryptoKeyHandle, PlatformError>;
+
+/// Delete one key object.
+///
+/// Delete one store-backed key object and invalidate this handle.
+/// Deletion permissions and persistence policies are enforced by runtime store policy.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.store.write`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.key.delete", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.store.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function keyDelete(handle: CryptoKeyHandle): Result<void, PlatformError>;

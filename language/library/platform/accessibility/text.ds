@@ -1,0 +1,45 @@
+import { Slice } from "core";
+
+/// Text offset range in UTF-16 code units.
+export struct AccessibilityTextRange {
+    /// Inclusive start offset.
+    startOffset: uint32;
+    /// Exclusive end offset.
+    endOffset: uint32;
+}
+
+/// Editable text selection in UTF-16 code units.
+export struct AccessibilityTextSelection {
+    /// Selection anchor offset.
+    anchorOffset: uint32;
+    /// Selection focus offset.
+    focusOffset: uint32;
+}
+
+/// Text state for editable or readable text nodes.
+export struct AccessibilityTextState {
+    /// Full node text when the backend needs it.
+    value: string | void;
+    /// Current caret offset when the backend exposes it separately.
+    caretOffset: uint32 | void;
+    /// Current primary text selection.
+    selection: AccessibilityTextSelection | void;
+    /// Current selected ranges in source order.
+    selectedRanges: Slice<AccessibilityTextRange>;
+    /// Visible text range when the backend can expose it.
+    visibleRange: AccessibilityTextRange | void;
+    /// Character count in UTF-16 code units.
+    characterCount: uint32 | void;
+    /// Line count when the backend can expose it.
+    lineCount: uint32 | void;
+    /// Placeholder text for editable controls.
+    placeholder: string | void;
+    /// Whether the text node is multiline.
+    isMultiline: boolean;
+    /// Whether the text node masks its contents.
+    isPassword: boolean;
+    /// Whether the text node accepts text edits.
+    isEditable: boolean;
+    /// Whether the text node supports selection.
+    isSelectable: boolean;
+}

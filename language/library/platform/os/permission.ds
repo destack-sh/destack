@@ -1,0 +1,295 @@
+import { Array } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { PermissionRequestHandle } from "../resource/index.ds";
+
+/// Permission state.
+export enum PermissionState {
+    /// Access is granted.
+    Granted = 1,
+    /// Access is denied.
+    Denied = 2,
+    /// Access can be requested.
+    Prompt = 3,
+    /// Access is restricted by host policy.
+    Restricted = 4,
+    /// Access is granted with limited scope.
+    Limited = 5,
+}
+
+/// Permission selector.
+export enum Permission {
+    /// Foreground location access.
+    Location = 1,
+    /// Background location access.
+    LocationBackground = 2,
+    /// Camera access.
+    Camera = 3,
+    /// Microphone access.
+    Microphone = 4,
+    /// Bluetooth access.
+    Bluetooth = 5,
+    /// Notification delivery permission.
+    Notifications = 6,
+    /// Contacts read access.
+    ContactsRead = 7,
+    /// Contacts write access.
+    ContactsWrite = 8,
+    /// Media-library read access.
+    MediaRead = 9,
+    /// Media-library write access.
+    MediaWrite = 10,
+    /// Motion or activity sensor access.
+    Motion = 11,
+    /// Clipboard read access.
+    ClipboardRead = 12,
+    /// Calendar read access.
+    CalendarRead = 13,
+    /// Calendar write access.
+    CalendarWrite = 14,
+}
+
+/// Permission-state entry.
+export struct PermissionEntry {
+    /// Permission selector.
+    permission: Permission;
+    /// Permission state for this selector.
+    state: PermissionState;
+}
+
+/// Permission bindings.
+/// Read one permission state.
+///
+/// Read the current host permission state for one permission selector.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host permission-state APIs on Android and Apple platforms, and host policy bridges on desktop platforms.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.permission.read`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.os.permission.state", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["os.permission.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function permissionState(permission: Permission): Result<PermissionState, PlatformError>;
+
+/// Read permission states.
+///
+/// Read current host permission states for one selector list.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host permission-state APIs and policy bridges.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.permission.read`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.os.permission.stateMany", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["os.permission.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function permissionStateMany(
+    permissions: Array<Permission>,
+): Result<Array<PermissionEntry>, PlatformError>;
+
+/// Open one permission-request transaction.
+///
+/// Start one host authorization request for one permission selector and return one transaction handle.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host permission-request dialogs and policy APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.permission.request`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.permission.requestOpen", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.permission.request"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function permissionRequestOpen(
+    permission: Permission,
+): Result<PermissionRequestHandle, PlatformError>;
+
+/// Open one multi-permission request transaction.
+///
+/// Start one host authorization request for one permission selector list and return one transaction handle.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host permission-request dialogs and policy APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.permission.request`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.permission.requestManyOpen", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.permission.request"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function permissionRequestManyOpen(
+    permissions: Array<Permission>,
+): Result<PermissionRequestHandle, PlatformError>;
+
+/// Close one permission-request transaction.
+///
+/// Close one permission-request transaction handle and release host routing state.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host permission callback unregistration and runtime resource cleanup.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.permission.request`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.permission.requestClose", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.permission.request"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function permissionRequestClose(
+    handle: PermissionRequestHandle,
+): Result<void, PlatformError>;
+
+/// Wait for one permission-request result.
+///
+/// Wait for the completion of one earlier permission-request transaction.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host permission completion queues and runtime transaction state.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.permission.request`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.permission.requestRead", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.permission.request"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function permissionRequestRead(
+    handle: PermissionRequestHandle,
+    timeoutNs: uint64,
+): Result<Array<PermissionEntry>, PlatformError>;
+
+/// Poll one permission-request result without blocking.
+///
+/// Poll the completion of one earlier permission-request transaction without waiting.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking host permission completion queue reads.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.permission.request`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.permission.requestTryRead", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.permission.request"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function permissionRequestTryRead(
+    handle: PermissionRequestHandle,
+): Result<Array<PermissionEntry>, PlatformError>;
+
+/// Open host settings for runtime permissions.
+///
+/// Request host navigation to the runtime permission settings page.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host settings-intent APIs when available.
+///
+/// # Errors
+/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.permission.request`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.permission.openSettings", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.permission.request"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function permissionOpenSettings(): Result<void, PlatformError>;

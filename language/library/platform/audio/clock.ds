@@ -1,0 +1,131 @@
+import type { PlatformError } from "../error/index.ds";
+import { AudioStreamHandle } from "../resource/index.ds";
+
+/// Audio clock domain selector.
+export enum AudioClockDomain {
+    /// Runtime monotonic clock domain.
+    Monotonic = 1,
+    /// Host wall clock domain.
+    Wall = 2,
+}
+
+/// Stream clock domain selector.
+export enum AudioStreamClockDomain {
+    /// Runtime monotonic clock domain.
+    Monotonic = 1,
+    /// Host wall clock domain.
+    Wall = 2,
+    /// Host audio device clock domain.
+    Device = 3,
+    /// Stream callback clock domain.
+    Callback = 4,
+    /// Input ADC capture clock domain.
+    InputAdc = 5,
+    /// Output DAC presentation clock domain.
+    OutputDac = 6,
+}
+
+/// Clock sample quality selector.
+export enum AudioClockQuality {
+    /// No clock sample was available.
+    None = 0,
+    /// Clock sample was estimated from software timing.
+    Estimated = 1,
+    /// Clock sample came from one hardware-correlated timeline.
+    Hardware = 2,
+}
+
+/// Audio clock snapshot.
+export struct AudioClockSnapshot {
+    /// Stream position in frames.
+    streamFrames: uint64;
+    /// Selected clock timestamp in nanoseconds.
+    clockNs: uint64;
+    /// Selected clock sample quality.
+    clockQuality: AudioClockQuality;
+    /// Callback timestamp in nanoseconds when available.
+    callbackNs: uint64 | void;
+    /// Callback timestamp quality.
+    callbackQuality: AudioClockQuality;
+    /// ADC capture timestamp in nanoseconds when available.
+    inputAdcNs: uint64 | void;
+    /// ADC capture timestamp quality.
+    inputAdcQuality: AudioClockQuality;
+    /// DAC presentation timestamp in nanoseconds when available.
+    outputDacNs: uint64 | void;
+    /// DAC presentation timestamp quality.
+    outputDacQuality: AudioClockQuality;
+    /// Device timeline timestamp in nanoseconds when available.
+    deviceNs: uint64 | void;
+    /// Device timeline timestamp quality.
+    deviceQuality: AudioClockQuality;
+    /// Runtime monotonic timestamp in nanoseconds.
+    monotonicNs: uint64;
+}
+
+/// Audio clock bindings.
+/// Read one timestamp in one selected clock domain.
+///
+/// Read one clock timestamp for one process-wide domain.
+/// Domain availability and precision follow host platform behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Mirrors host monotonic and wall clock query semantics.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `audio.control`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.audio.clock.now", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["audio.control"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function clockNow(domain: AudioClockDomain): Result<uint64, PlatformError>;
+
+/// Read one stream clock snapshot.
+///
+/// Read one synchronized stream-position and selected clock-domain timestamp snapshot.
+/// Snapshot values are advisory and can change immediately after read.
+/// This is the strict lane-select API.
+/// For one full best-effort snapshot without lane-specific errors use `audio.stream.timing`.
+/// Domain-specific lanes like `InputAdc`, `OutputDac`, and `Device` can return `notSupported` when the opened stream does not expose them.
+///
+/// # Platform
+/// Unix and Windows.
+/// Mirrors PortAudio `PaStreamCallbackTimeInfo` input and output timestamp correlation.
+/// Mirrors ASIO `bufferSwitchTimeInfo` and time-info correlation semantics.
+/// Mirrors cubeb `cubeb_stream_get_position` plus latency-correlation snapshots.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `audio.control`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.audio.clock.stream", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["audio.control"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function streamClock(
+    handle: AudioStreamHandle,
+    domain: AudioStreamClockDomain,
+): Result<AudioClockSnapshot, PlatformError>;

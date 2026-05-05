@@ -1,0 +1,11 @@
+/// Shared host backend support state.
+export enum BackendSupport {
+    /// The backend integration is available on the current host.
+    Available = 0,
+    /// The backend is not supported on the active target platform.
+    UnsupportedTarget = 1,
+    /// The backend was disabled in this runtime build.
+    DisabledByBuild = 2,
+    /// The backend exists for this target, but the host prerequisite is unavailable.
+    HostUnavailable = 3,
+}

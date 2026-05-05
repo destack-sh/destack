@@ -1,0 +1,1523 @@
+import { Slice } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { OsPath } from "../fs/path.ds";
+import { CameraDeviceHandle, CameraStreamHandle, CameraWatchHandle } from "../resource/index.ds";
+
+/// Camera endpoint descriptor.
+export struct CameraDeviceDescriptor {
+    /// Stable camera endpoint identifier.
+    id: string;
+    /// Shared physical-device group identifier when available.
+    groupId?: string;
+    /// Host-visible endpoint name.
+    name: string;
+    /// Host-visible endpoint manufacturer string when available.
+    manufacturer?: string;
+    /// Host-reported facing mode.
+    facingMode: CameraFacingMode;
+    /// Whether the endpoint is depth-capable.
+    depthCapable: boolean;
+}
+
+/// Camera facing mode.
+export enum CameraFacingMode {
+    /// Host did not provide a stronger facing-mode classification.
+    Unknown = 1,
+    /// User-facing camera.
+    User = 2,
+    /// Environment-facing camera.
+    Environment = 3,
+    /// Left-facing camera.
+    Left = 4,
+    /// Right-facing camera.
+    Right = 5,
+    /// External or detached camera.
+    External = 6,
+}
+
+/// Camera pixel format.
+export enum CameraPixelFormat {
+    /// Packed 8-bit BGRA.
+    Bgra8 = 1,
+    /// Packed 8-bit RGBA.
+    Rgba8 = 2,
+    /// Planar YUV 4:2:0.
+    Yuv420 = 3,
+    /// JPEG encoded frame bytes.
+    Jpeg = 4,
+}
+
+/// Camera pixel-format family.
+export enum CameraPixelFormatFamily {
+    /// Packed RGB-family pixel data.
+    PackedRgb = 1,
+    /// Planar YUV-family pixel data.
+    PlanarYuv = 2,
+    /// Encoded or compressed pixel data.
+    Encoded = 3,
+}
+
+/// Camera pixel-format descriptor.
+export struct CameraPixelFormatDescriptor {
+    /// Specific pixel format selector.
+    format: CameraPixelFormat;
+    /// Higher-level pixel-format family.
+    family: CameraPixelFormatFamily;
+    /// Whether the pixel payload is compressed or encoded.
+    compressed: boolean;
+}
+
+/// Camera stream configuration.
+export struct CameraStreamConfig {
+    /// Frame width in pixels.
+    width: uint32;
+    /// Frame height in pixels.
+    height: uint32;
+    /// Frame rate in milli-frames-per-second.
+    frameRateMilliHz: uint32;
+    /// Pixel format descriptor.
+    pixelFormat: CameraPixelFormatDescriptor;
+    /// Preferred output color space when selectable.
+    colorSpace?: CameraColorSpace;
+    /// Preferred dynamic-range mode when selectable.
+    dynamicRange?: CameraDynamicRange;
+}
+
+/// Camera color space selector.
+export enum CameraColorSpace {
+    /// Backend did not provide color-space metadata.
+    Unknown = 1,
+    /// sRGB color space.
+    Srgb = 2,
+    /// ITU-R BT.601 color space.
+    Bt601 = 3,
+    /// ITU-R BT.709 color space.
+    Bt709 = 4,
+    /// ITU-R BT.2020 color space.
+    Bt2020 = 5,
+}
+
+/// Camera dynamic-range mode.
+export enum CameraDynamicRange {
+    /// Standard dynamic range.
+    Standard = 1,
+    /// HDR10 dynamic range.
+    Hdr10 = 2,
+    /// Hybrid log-gamma dynamic range.
+    Hlg = 3,
+}
+
+/// Camera stabilization mode.
+export enum CameraStabilizationMode {
+    /// Stabilization disabled.
+    Off = 1,
+    /// Standard stabilization mode.
+    Standard = 2,
+    /// High quality stabilization mode.
+    HighQuality = 3,
+}
+
+/// Camera torch mode.
+export enum CameraTorchMode {
+    /// Torch disabled.
+    Off = 1,
+    /// Torch enabled.
+    On = 2,
+    /// Host auto torch policy.
+    Auto = 3,
+}
+
+/// Camera exposure mode.
+export enum CameraExposureMode {
+    /// Automatic exposure mode.
+    Auto = 1,
+    /// Continuous automatic exposure mode.
+    ContinuousAuto = 2,
+    /// Manual exposure mode.
+    Manual = 3,
+}
+
+/// Camera white-balance mode.
+export enum CameraWhiteBalanceMode {
+    /// Automatic white-balance mode.
+    Auto = 1,
+    /// Continuous automatic white-balance mode.
+    ContinuousAuto = 2,
+    /// Manual white-balance mode.
+    Manual = 3,
+}
+
+/// Camera focus mode.
+export enum CameraFocusMode {
+    /// Automatic focus mode.
+    Auto = 1,
+    /// Continuous automatic focus mode.
+    ContinuousAuto = 2,
+    /// Manual focus mode.
+    Manual = 3,
+}
+
+/// Camera frame plane layout descriptor.
+export struct CameraPlaneLayout {
+    /// Plane byte offset in `CameraFrame.bytes`.
+    offsetBytes: uint32;
+    /// Plane byte length in `CameraFrame.bytes`.
+    lengthBytes: uint32;
+    /// Plane row stride in bytes.
+    rowStrideBytes: uint32;
+    /// Plane pixel stride in bytes.
+    pixelStrideBytes: uint32;
+}
+
+/// Camera frame metadata payload.
+export struct CameraFrameMetadata {
+    /// Exposure time in nanoseconds when available.
+    exposureTimeNs?: uint64;
+    /// Sensor sensitivity ISO value when available.
+    sensorIso?: uint32;
+    /// White-balance color temperature in kelvin when available.
+    whiteBalanceKelvin?: uint32;
+    /// Lens focus distance in diopters when available.
+    focusDistanceDiopters?: float64;
+    /// Applied zoom ratio when available.
+    zoomRatio?: float64;
+}
+
+/// Camera stream frame payload.
+export struct CameraFrame {
+    /// Frame timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this stream.
+    sequence: uint64;
+    /// Frame width in pixels.
+    width: uint32;
+    /// Frame height in pixels.
+    height: uint32;
+    /// Frame pixel-format descriptor.
+    pixelFormat: CameraPixelFormatDescriptor;
+    /// Frame color-space metadata.
+    colorSpace: CameraColorSpace;
+    /// Frame dynamic-range metadata.
+    dynamicRange: CameraDynamicRange;
+    /// Plane layout descriptors for this frame.
+    planes: Slice<CameraPlaneLayout>;
+    /// Frame metadata payload when available.
+    metadata: CameraFrameMetadata;
+    /// Frame byte payload.
+    bytes: Slice<uint8>;
+}
+
+/// Camera floating-point control range descriptor.
+export struct CameraFloatControlRange {
+    /// Minimum supported value.
+    minimum: float64;
+    /// Maximum supported value.
+    maximum: float64;
+    /// Default value.
+    default: float64;
+    /// Step size, zero for continuous controls.
+    step: float64;
+}
+
+/// Camera exposure-compensation range descriptor.
+export struct CameraExposureCompensationRange {
+    /// Minimum supported compensation in EV units.
+    minimumEv: float64;
+    /// Maximum supported compensation in EV units.
+    maximumEv: float64;
+    /// Default compensation in EV units.
+    defaultEv: float64;
+    /// Step size in EV units, zero for continuous controls.
+    stepEv: float64;
+    /// Whether host auto exposure is supported.
+    autoSupported: boolean;
+}
+
+/// Camera exposure-time range descriptor.
+export struct CameraExposureTimeRange {
+    /// Minimum supported exposure time in nanoseconds.
+    minimumNs: uint64;
+    /// Maximum supported exposure time in nanoseconds.
+    maximumNs: uint64;
+    /// Default exposure time in nanoseconds.
+    defaultNs: uint64;
+    /// Step size in nanoseconds, zero for continuous controls.
+    stepNs: uint64;
+    /// Whether host automatic exposure is supported.
+    autoSupported: boolean;
+}
+
+/// Camera sensor-ISO range descriptor.
+export struct CameraSensorIsoRange {
+    /// Minimum supported ISO value.
+    minimum: uint32;
+    /// Maximum supported ISO value.
+    maximum: uint32;
+    /// Default ISO value.
+    default: uint32;
+    /// Step size, zero for continuous controls.
+    step: uint32;
+    /// Whether host automatic exposure is supported.
+    autoSupported: boolean;
+}
+
+/// Camera white-balance range descriptor.
+export struct CameraWhiteBalanceRange {
+    /// Minimum supported white-balance value in kelvin.
+    minimumKelvin: uint32;
+    /// Maximum supported white-balance value in kelvin.
+    maximumKelvin: uint32;
+    /// Default white-balance value in kelvin.
+    defaultKelvin: uint32;
+    /// Step size in kelvin, zero for continuous controls.
+    stepKelvin: uint32;
+    /// Whether host auto white-balance is supported.
+    autoSupported: boolean;
+}
+
+/// Camera focus-distance range descriptor.
+export struct CameraFocusDistanceRange {
+    /// Minimum supported focus distance in diopters.
+    minimumDiopters: float64;
+    /// Maximum supported focus distance in diopters.
+    maximumDiopters: float64;
+    /// Default focus distance in diopters.
+    defaultDiopters: float64;
+    /// Step size in diopters, zero for continuous controls.
+    stepDiopters: float64;
+    /// Whether host auto focus is supported.
+    autoSupported: boolean;
+}
+
+/// Camera zoom-ratio range descriptor.
+export struct CameraZoomRatioRange {
+    /// Minimum supported zoom ratio.
+    minimumRatio: float64;
+    /// Maximum supported zoom ratio.
+    maximumRatio: float64;
+    /// Default zoom ratio.
+    defaultRatio: float64;
+    /// Step size for discrete zoom ratios, zero for continuous controls.
+    stepRatio: float64;
+}
+
+/// Camera pan-angle range descriptor.
+export struct CameraPanAngleRange {
+    /// Minimum supported pan angle in degrees.
+    minimumDegrees: float64;
+    /// Maximum supported pan angle in degrees.
+    maximumDegrees: float64;
+    /// Default pan angle in degrees.
+    defaultDegrees: float64;
+    /// Step size in degrees, zero for continuous controls.
+    stepDegrees: float64;
+}
+
+/// Camera tilt-angle range descriptor.
+export struct CameraTiltAngleRange {
+    /// Minimum supported tilt angle in degrees.
+    minimumDegrees: float64;
+    /// Maximum supported tilt angle in degrees.
+    maximumDegrees: float64;
+    /// Default tilt angle in degrees.
+    defaultDegrees: float64;
+    /// Step size in degrees, zero for continuous controls.
+    stepDegrees: float64;
+}
+
+/// Camera control state snapshot.
+export struct CameraControlState {
+    /// Current exposure mode when readable.
+    exposureMode?: CameraExposureMode;
+    /// Current exposure compensation in EV units when readable.
+    exposureCompensationEv?: float64;
+    /// Current exposure time in nanoseconds when readable.
+    exposureTimeNs?: uint64;
+    /// Current sensor ISO when readable.
+    sensorIso?: uint32;
+    /// Current white-balance mode when readable.
+    whiteBalanceMode?: CameraWhiteBalanceMode;
+    /// Current white-balance value in kelvin when readable.
+    whiteBalanceKelvin?: uint32;
+    /// Current focus mode when readable.
+    focusMode?: CameraFocusMode;
+    /// Current focus distance in diopters when readable.
+    focusDistanceDiopters?: float64;
+    /// Current brightness adjustment when readable.
+    brightness?: float64;
+    /// Current contrast adjustment when readable.
+    contrast?: float64;
+    /// Current saturation adjustment when readable.
+    saturation?: float64;
+    /// Current sharpness adjustment when readable.
+    sharpness?: float64;
+    /// Current pan angle in degrees when readable.
+    panDegrees?: float64;
+    /// Current tilt angle in degrees when readable.
+    tiltDegrees?: float64;
+    /// Current zoom ratio when readable.
+    zoomRatio?: float64;
+    /// Current stabilization mode when readable.
+    stabilizationMode?: CameraStabilizationMode;
+    /// Current torch mode when readable.
+    torchMode?: CameraTorchMode;
+}
+
+/// Camera control capability descriptor.
+export struct CameraControlCapabilities {
+    /// Supported exposure modes when exposed by the host.
+    exposureModes?: Slice<CameraExposureMode>;
+    /// Supported white-balance modes when exposed by the host.
+    whiteBalanceModes?: Slice<CameraWhiteBalanceMode>;
+    /// Supported focus modes when exposed by the host.
+    focusModes?: Slice<CameraFocusMode>;
+    /// Supported stabilization modes when exposed by the host.
+    stabilizationModes?: Slice<CameraStabilizationMode>;
+    /// Supported torch modes when exposed by the host.
+    torchModes?: Slice<CameraTorchMode>;
+    /// Exposure-compensation range when supported.
+    exposureCompensationRange?: CameraExposureCompensationRange;
+    /// Exposure-time range when supported.
+    exposureTimeRange?: CameraExposureTimeRange;
+    /// Sensor-ISO range when supported.
+    sensorIsoRange?: CameraSensorIsoRange;
+    /// White-balance range when supported.
+    whiteBalanceRange?: CameraWhiteBalanceRange;
+    /// Focus-distance range when supported.
+    focusDistanceRange?: CameraFocusDistanceRange;
+    /// Brightness range when supported.
+    brightnessRange?: CameraFloatControlRange;
+    /// Contrast range when supported.
+    contrastRange?: CameraFloatControlRange;
+    /// Saturation range when supported.
+    saturationRange?: CameraFloatControlRange;
+    /// Sharpness range when supported.
+    sharpnessRange?: CameraFloatControlRange;
+    /// Pan-angle range when supported.
+    panRange?: CameraPanAngleRange;
+    /// Tilt-angle range when supported.
+    tiltRange?: CameraTiltAngleRange;
+    /// Zoom-ratio range when supported.
+    zoomRatioRange?: CameraZoomRatioRange;
+}
+
+/// Camera control update payload.
+export struct CameraControlPatch {
+    /// Exposure mode to apply when updated.
+    exposureMode?: CameraExposureMode;
+    /// Exposure compensation to apply in EV units when updated.
+    exposureCompensationEv?: float64;
+    /// Exposure time to apply in nanoseconds when updated.
+    exposureTimeNs?: uint64;
+    /// Sensor ISO to apply when updated.
+    sensorIso?: uint32;
+    /// White-balance mode to apply when updated.
+    whiteBalanceMode?: CameraWhiteBalanceMode;
+    /// White-balance value to apply in kelvin when updated.
+    whiteBalanceKelvin?: uint32;
+    /// Focus mode to apply when updated.
+    focusMode?: CameraFocusMode;
+    /// Focus distance to apply in diopters when updated.
+    focusDistanceDiopters?: float64;
+    /// Brightness adjustment to apply when updated.
+    brightness?: float64;
+    /// Contrast adjustment to apply when updated.
+    contrast?: float64;
+    /// Saturation adjustment to apply when updated.
+    saturation?: float64;
+    /// Sharpness adjustment to apply when updated.
+    sharpness?: float64;
+    /// Pan angle to apply in degrees when updated.
+    panDegrees?: float64;
+    /// Tilt angle to apply in degrees when updated.
+    tiltDegrees?: float64;
+    /// Zoom ratio to apply when updated.
+    zoomRatio?: float64;
+    /// Stabilization mode to apply when updated.
+    stabilizationMode?: CameraStabilizationMode;
+    /// Torch mode to apply when updated.
+    torchMode?: CameraTorchMode;
+}
+
+/// Camera stream capability descriptor.
+export struct CameraStreamCapability {
+    /// Stream configuration payload.
+    config: CameraStreamConfig;
+    /// Minimum supported frame rate in milli-frames-per-second.
+    minimumFrameRateMilliHz: uint32;
+    /// Maximum supported frame rate in milli-frames-per-second.
+    maximumFrameRateMilliHz: uint32;
+    /// Supported color spaces for this stream configuration family.
+    colorSpaces: Slice<CameraColorSpace>;
+    /// Supported dynamic-range modes for this stream configuration family.
+    dynamicRanges: Slice<CameraDynamicRange>;
+    /// Control capability descriptor for this stream configuration.
+    controls: CameraControlCapabilities;
+}
+
+/// Camera still-photo flash mode.
+export enum CameraPhotoFlashMode {
+    /// Flash disabled.
+    Off = 1,
+    /// Fire flash for the current still capture.
+    Flash = 2,
+    /// Let the host choose whether flash should fire.
+    Auto = 3,
+}
+
+/// Camera red-eye-reduction support mode.
+export enum CameraRedEyeReduction {
+    /// Red-eye reduction is not available.
+    Never = 1,
+    /// Red-eye reduction is always enabled when flash capture occurs.
+    Always = 2,
+    /// Red-eye reduction can be toggled by the caller.
+    Controllable = 3,
+}
+
+/// Camera still-photo options.
+export struct CameraPhotoOptions {
+    /// Photo width in pixels.
+    width: uint32;
+    /// Photo height in pixels.
+    height: uint32;
+    /// Photo pixel format descriptor.
+    pixelFormat: CameraPixelFormatDescriptor;
+    /// Preferred output color space when selectable.
+    colorSpace?: CameraColorSpace;
+    /// Preferred dynamic-range mode when selectable.
+    dynamicRange?: CameraDynamicRange;
+}
+
+/// Camera still-photo capability descriptor.
+export struct CameraPhotoCapabilities {
+    /// Supported still-photo options.
+    options: Slice<CameraPhotoOptions>;
+    /// JPEG or encoded quality range when the host exposes one.
+    qualityRange?: CameraFloatControlRange;
+    /// Supported flash modes when exposed by the host.
+    flashModes?: Slice<CameraPhotoFlashMode>;
+    /// Red-eye-reduction support mode.
+    redEyeReduction?: CameraRedEyeReduction;
+}
+
+/// Camera still-photo settings.
+export struct CameraPhotoSettings {
+    /// Photo options override when requested.
+    options?: CameraPhotoOptions;
+    /// Preferred encoded quality from zero to one when supported.
+    quality?: float64;
+    /// Flash mode to apply for this still capture when supported.
+    flashMode?: CameraPhotoFlashMode;
+    /// Whether to enable red-eye reduction when controllable.
+    redEyeReductionEnabled?: boolean;
+}
+
+/// Camera still-photo state snapshot.
+export struct CameraPhotoState {
+    /// Current still-photo options when readable.
+    options?: CameraPhotoOptions;
+    /// Current encoded quality from zero to one when readable.
+    quality?: float64;
+    /// Current flash mode when readable.
+    flashMode?: CameraPhotoFlashMode;
+    /// Whether red-eye reduction is currently enabled when readable.
+    redEyeReductionEnabled?: boolean;
+}
+
+/// Camera still-photo payload.
+export struct CameraPhoto {
+    /// Photo timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Photo width in pixels.
+    width: uint32;
+    /// Photo height in pixels.
+    height: uint32;
+    /// Photo pixel-format descriptor.
+    pixelFormat: CameraPixelFormatDescriptor;
+    /// Photo color-space metadata.
+    colorSpace: CameraColorSpace;
+    /// Photo dynamic-range metadata.
+    dynamicRange: CameraDynamicRange;
+    /// Plane layout descriptors for this photo.
+    planes: Slice<CameraPlaneLayout>;
+    /// Photo metadata payload when available.
+    metadata: CameraFrameMetadata;
+    /// Photo byte payload.
+    bytes: Slice<uint8>;
+}
+
+/// Camera recording container format.
+export enum CameraRecordingContainer {
+    /// MPEG-4 container.
+    Mp4 = 1,
+    /// QuickTime movie container.
+    Mov = 2,
+    /// WebM container.
+    Webm = 3,
+    /// Matroska container.
+    Mkv = 4,
+}
+
+/// Camera recording video codec.
+export enum CameraVideoCodec {
+    /// H.264 or AVC video codec.
+    H264 = 1,
+    /// H.265 or HEVC video codec.
+    H265 = 2,
+    /// VP8 video codec.
+    Vp8 = 3,
+    /// VP9 video codec.
+    Vp9 = 4,
+    /// AV1 video codec.
+    Av1 = 5,
+}
+
+/// Camera recording audio codec.
+export enum CameraAudioCodec {
+    /// AAC audio codec.
+    Aac = 1,
+    /// Opus audio codec.
+    Opus = 2,
+    /// Linear PCM audio codec.
+    Pcm = 3,
+    /// Adaptive multi-rate narrowband audio codec.
+    AmrNb = 4,
+    /// Adaptive multi-rate wideband audio codec.
+    AmrWb = 5,
+}
+
+/// Camera recording options.
+export struct CameraRecordingOptions {
+    /// Destination file path when the caller wants an explicit sink.
+    outputPath?: OsPath;
+    /// Preferred recording container format.
+    container?: CameraRecordingContainer;
+    /// Preferred video codec.
+    videoCodec?: CameraVideoCodec;
+    /// Whether audio capture should be muxed into the recording when supported.
+    audioEnabled?: boolean;
+    /// Preferred audio codec when audio capture is enabled.
+    audioCodec?: CameraAudioCodec;
+    /// Preferred encoded video bit rate in bits per second.
+    videoBitRate?: uint32;
+    /// Preferred encoded audio bit rate in bits per second.
+    audioBitRate?: uint32;
+    /// Preferred key-frame interval in frames.
+    keyFrameIntervalFrames?: uint32;
+    /// Maximum recording duration in nanoseconds before automatic stop.
+    maximumDurationNs?: uint64;
+    /// Maximum output size in bytes before automatic stop.
+    maximumBytes?: uint64;
+}
+
+/// Camera recording capability descriptor.
+export struct CameraRecordingCapabilities {
+    /// Supported recording container formats.
+    containers: Slice<CameraRecordingContainer>;
+    /// Supported video codecs.
+    videoCodecs: Slice<CameraVideoCodec>;
+    /// Whether the backend can mux audio with video.
+    audioSupported: boolean;
+    /// Supported audio codecs when audio recording is available.
+    audioCodecs?: Slice<CameraAudioCodec>;
+    /// Whether active recording can be paused and resumed.
+    pauseSupported: boolean;
+    /// Maximum supported encoded video bit rate in bits per second when known.
+    maximumVideoBitRate?: uint32;
+    /// Maximum supported encoded audio bit rate in bits per second when known.
+    maximumAudioBitRate?: uint32;
+}
+
+/// Camera recording state snapshot.
+export struct CameraRecordingState {
+    /// Whether recording is currently active.
+    active: boolean;
+    /// Whether the active recording is currently paused.
+    paused: boolean;
+    /// Recording options in effect for the current session when active.
+    options?: CameraRecordingOptions;
+    /// Recording start timestamp in nanoseconds when active.
+    startedTimestampNs?: uint64;
+}
+
+/// Camera recording result payload.
+export struct CameraRecording {
+    /// Output file path.
+    path: OsPath;
+    /// Recording container format.
+    container: CameraRecordingContainer;
+    /// Encoded video codec when known.
+    videoCodec?: CameraVideoCodec;
+    /// Encoded audio codec when present and known.
+    audioCodec?: CameraAudioCodec;
+    /// Recorded width in pixels.
+    width: uint32;
+    /// Recorded height in pixels.
+    height: uint32;
+    /// Recorded frame rate in milli-frames-per-second when known.
+    frameRateMilliHz?: uint32;
+    /// Recording duration in nanoseconds when known.
+    durationNs?: uint64;
+    /// Output size in bytes when known.
+    sizeBytes?: uint64;
+}
+
+/// Shared metadata for camera topology events.
+export struct CameraWatchEventMetadata {
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this watch stream.
+    sequence: uint64;
+    /// Camera device descriptor payload.
+    device: CameraDeviceDescriptor;
+}
+
+/// Camera-attached event.
+export struct CameraAttachedEvent {
+    /// Discriminator for this camera watch event variant.
+    kind: "attached";
+    /// Shared event metadata.
+    metadata: CameraWatchEventMetadata;
+}
+
+/// Camera-detached event.
+export struct CameraDetachedEvent {
+    /// Discriminator for this camera watch event variant.
+    kind: "detached";
+    /// Shared event metadata.
+    metadata: CameraWatchEventMetadata;
+}
+
+/// Camera topology event.
+export newtype CameraWatchEvent = CameraAttachedEvent | CameraDetachedEvent;
+
+/// Camera bindings.
+/// List camera endpoints.
+///
+/// Enumerate camera endpoints that are currently reachable from the host media stack and return stable descriptor snapshots for them.
+/// Descriptor identity is topology based so callers can correlate enumeration, watch, and open results across stream lifetimes.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android CameraManager discovery, AVFoundation device discovery on iOS and macOS, V4L2 class camera discovery on Linux-class Unix, and Media Foundation device discovery on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.device`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.device.list", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.device"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraDeviceList(): Result<Slice<CameraDeviceDescriptor>, PlatformError>;
+
+/// Open a camera topology watch stream.
+///
+/// Open a watch stream for camera endpoint attach and detach events.
+/// The stream reports device topology changes independently from any opened device or stream session.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android camera availability callbacks, media-device topology notifications on iOS, macOS, and Windows, and device monitor subscriptions on Linux-class Unix.
+///
+/// # Errors
+/// Returns ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.device`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.device.watchOpen", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.device"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraDeviceWatchOpen(): Result<CameraWatchHandle, PlatformError>;
+
+/// Close a camera topology watch stream.
+///
+/// Close one opened camera topology watch stream and release its host subscription state.
+/// Closing a watch does not affect any separately opened camera device or camera stream.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android camera-availability callback teardown, topology notification teardown on iOS, macOS, and Windows, and monitor teardown on Linux-class Unix.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.device`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.device.watchClose", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.device"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraDeviceWatchClose(handle: CameraWatchHandle): Result<void, PlatformError>;
+
+/// Read one camera topology event.
+///
+/// Wait for the next queued camera topology event from one opened watch stream.
+/// The returned event carries a full descriptor snapshot so attach consumers do not need a separate enumeration race.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses watch queues fed by Android camera availability callbacks, media-device topology callbacks on iOS, macOS, and Windows, and monitor events on Linux-class Unix.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `device.camera.device`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.device.watchRead", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.device"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraDeviceWatchRead(
+    handle: CameraWatchHandle,
+    timeoutNs: uint64,
+): Result<CameraWatchEvent, PlatformError>;
+
+/// Poll one camera topology event without blocking.
+///
+/// Read the next queued camera topology event from one opened watch stream without waiting.
+/// This operation only consumes already published attach or detach events.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses watch queues fed by Android camera availability callbacks, media-device topology callbacks on iOS, macOS, and Windows, and monitor events on Linux-class Unix.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.device`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.device.watchTryRead", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.device"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function cameraDeviceWatchTryRead(
+    handle: CameraWatchHandle,
+): Result<CameraWatchEvent, PlatformError>;
+
+/// Open a camera endpoint.
+///
+/// Open one camera endpoint for capability discovery and stream creation.
+/// Opening a device establishes a control authority boundary that can outlive any individual stream session created from it.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android CameraDevice sessions, AVFoundation capture-device sessions on iOS and macOS, V4L2 style device nodes on Linux-class Unix, and Media Foundation capture sources on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.device`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.device.open", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.device"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraDeviceOpen(id: string): Result<CameraDeviceHandle, PlatformError>;
+
+/// List stream capabilities for one opened camera endpoint.
+///
+/// Enumerate stream capability descriptors for one opened camera endpoint.
+/// Each capability combines the stream configuration envelope with the control capability snapshot for that negotiated format family.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android CameraCharacteristics stream and control discovery, AVFoundation format negotiation on iOS and macOS, V4L2 format and control discovery on Linux-class Unix, and Media Foundation stream capability discovery on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.device`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.device.streamCapabilityList", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.device"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraDeviceStreamCapabilityList(
+    handle: CameraDeviceHandle,
+): Result<Slice<CameraStreamCapability>, PlatformError>;
+
+/// Close a camera endpoint.
+///
+/// Close one opened camera endpoint and release its host resources.
+/// Closing a device also invalidates any stream handles that were created from that device session.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android CameraDevice close, AVFoundation capture-device session teardown on iOS and macOS, V4L2 device handle release on Linux-class Unix, and Media Foundation source teardown on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.device`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.device.close", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.device"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraDeviceClose(handle: CameraDeviceHandle): Result<void, PlatformError>;
+
+/// Open a camera stream.
+///
+/// Open one camera stream with an explicit stream configuration.
+/// The stream owns frame delivery state independently from device enumeration and topology watching.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android CameraCaptureSession plus ImageReader configuration, AVFoundation capture-output configuration on iOS and macOS, negotiated streaming queues on Linux-class Unix, and Media Foundation stream sinks on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.stream.open", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.capture"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamOpen(
+    device: CameraDeviceHandle,
+    config: CameraStreamConfig,
+): Result<CameraStreamHandle, PlatformError>;
+
+/// Close a camera stream.
+///
+/// Close one opened camera stream and release its host resources.
+/// Closing a stream also terminates its frame queue and any pending frame waits owned by that stream session.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android capture-session teardown, AVFoundation stream-session teardown on iOS and macOS, queue teardown on Linux-class Unix, and Media Foundation stream teardown on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.stream.close", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.capture"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamClose(handle: CameraStreamHandle): Result<void, PlatformError>;
+
+/// Start a camera stream.
+///
+/// Start one opened camera stream.
+/// Starting transitions the stream into active frame production without changing its negotiated format or control contract.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android repeating-request start, AVFoundation capture-session start on iOS and macOS, queue streaming start on Linux-class Unix, and Media Foundation source start on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.stream.start", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.capture"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamStart(handle: CameraStreamHandle): Result<void, PlatformError>;
+
+/// Stop a camera stream.
+///
+/// Stop one running camera stream.
+/// Stopping halts frame production while preserving the stream handle for later restart or control queries.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android repeating-request stop, AVFoundation capture-session stop on iOS and macOS, queue streaming stop on Linux-class Unix, and Media Foundation source stop on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.stream.stop", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.capture"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamStop(handle: CameraStreamHandle): Result<void, PlatformError>;
+
+/// Read one camera frame.
+///
+/// Wait for the next camera frame from one running stream.
+/// Frame payloads preserve timestamp, plane layout, and metadata exactly so higher layers can implement their own buffering and color policy.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses frame queues fed by Android ImageReader callbacks, AVFoundation sample-buffer callbacks on iOS and macOS, streaming buffer completion on Linux-class Unix, and Media Foundation sample delivery on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.stream.read", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.capture"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamRead(
+    handle: CameraStreamHandle,
+    timeoutNs: uint64,
+): Result<CameraFrame, PlatformError>;
+
+/// Poll one camera frame without blocking.
+///
+/// Read the next queued camera frame from one running stream without waiting for new capture work.
+/// This operation only consumes frames that have already been published into the stream queue.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses frame queues fed by Android ImageReader callbacks, AVFoundation sample-buffer callbacks on iOS and macOS, streaming buffer completion on Linux-class Unix, and Media Foundation sample delivery on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.stream.tryRead", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.capture"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function cameraStreamTryRead(
+    handle: CameraStreamHandle,
+): Result<CameraFrame, PlatformError>;
+
+/// Read the active camera stream configuration.
+///
+/// Read the active stream configuration for one opened camera stream.
+/// The returned snapshot reflects the negotiated running format rather than only the originally requested configuration.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android capture-session format state, AVFoundation live stream-format queries on iOS and macOS, negotiated queue state on Linux-class Unix, and Media Foundation stream descriptors on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.stream.config", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.capture"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamConfig(
+    handle: CameraStreamHandle,
+): Result<CameraStreamConfig, PlatformError>;
+
+/// Read camera control state.
+///
+/// Read the current control-state snapshot for one opened camera stream.
+/// State is grouped into one snapshot so callers can reason about interacting controls coherently rather than field by field.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android Camera2 capture-request state, AVFoundation live device-control reads on iOS and macOS, V4L2 class controls on Linux-class Unix, and Media Foundation camera controls on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.stream.controlState", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.control"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamControlState(
+    handle: CameraStreamHandle,
+): Result<CameraControlState, PlatformError>;
+
+/// Read camera control capabilities.
+///
+/// Read the control-capability descriptor for one opened camera stream.
+/// Capability reporting groups modes and ranges into one structure so callers can validate patches before issuing them.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android CameraCharacteristics control discovery, AVFoundation control capability queries on iOS and macOS, V4L2 class control enumeration on Linux-class Unix, and Media Foundation camera control discovery on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.stream.controlCapabilities", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.control"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamControlCapabilities(
+    handle: CameraStreamHandle,
+): Result<CameraControlCapabilities, PlatformError>;
+
+/// Apply camera control updates.
+///
+/// Apply one partial control patch to one opened camera stream.
+/// Fields that are omitted leave the corresponding control unchanged so callers can update related settings incrementally.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android Camera2 request updates, AVFoundation grouped control updates on iOS and macOS, V4L2 class controls on Linux-class Unix, and Media Foundation camera controls on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.stream.configureControls", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.control"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamConfigureControls(
+    handle: CameraStreamHandle,
+    controls: CameraControlPatch,
+): Result<void, PlatformError>;
+
+/// Read recording capabilities for one opened camera stream.
+///
+/// Read the recording capability descriptor for one opened camera stream.
+/// Recording capabilities stay separate from still-photo and live-frame capabilities because container, codec, audio, and pause support follow a different backend pipeline.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android Recorder or MediaCodec capture capability discovery, AVFoundation movie-output capability queries on iOS and macOS, V4L2 plus codec pipeline discovery on Linux-class Unix, and Media Foundation sink-writer capability discovery on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.stream.recordingCapabilities", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.capture"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamRecordingCapabilities(
+    handle: CameraStreamHandle,
+): Result<CameraRecordingCapabilities, PlatformError>;
+
+/// Read recording state for one opened camera stream.
+///
+/// Read the current recording state snapshot for one opened camera stream.
+/// Recording state remains separate from stream control and still-photo state because recording has its own lifecycle and sink policy.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android recorder state, AVFoundation movie-output state on iOS and macOS, V4L2 plus codec recording state on Linux-class Unix, and Media Foundation recording state on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.stream.recordingState", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.capture"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamRecordingState(
+    handle: CameraStreamHandle,
+): Result<CameraRecordingState, PlatformError>;
+
+/// Start recording from one opened camera stream.
+///
+/// Start one video recording using one recording options object.
+/// Recording is separate from frame reads because encoded capture has its own sink, codec, duration, and audio policy.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android recorder start with camera-session surfaces, AVFoundation movie-file or asset-writer start on iOS and macOS, V4L2 plus codec recording pipelines on Linux-class Unix, and Media Foundation sink-writer start on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`, `audio.capture`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.device.camera.stream.startRecording", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["device.camera.capture", "audio.capture"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamStartRecording(
+    handle: CameraStreamHandle,
+    options: CameraRecordingOptions,
+): Result<void, PlatformError>;
+
+/// Pause recording for one opened camera stream.
+///
+/// Pause one active recording on one opened camera stream.
+/// Backends that cannot pause recording report `notSupported` instead of synthesizing segmented output.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android recorder pause, AVFoundation movie-output pause or asset-writer pause on iOS and macOS where available, pipeline pause on Linux-class Unix when supported, and Media Foundation recording pause on Windows when supported.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.device.camera.stream.pauseRecording", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["device.camera.capture"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamPauseRecording(
+    handle: CameraStreamHandle,
+): Result<void, PlatformError>;
+
+/// Resume recording for one opened camera stream.
+///
+/// Resume one paused recording on one opened camera stream.
+/// Resuming continues the active recording session rather than starting a new output file.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android recorder resume, AVFoundation movie-output resume or asset-writer resume on iOS and macOS where available, pipeline resume on Linux-class Unix when supported, and Media Foundation recording resume on Windows when supported.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.device.camera.stream.resumeRecording", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["device.camera.capture"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamResumeRecording(
+    handle: CameraStreamHandle,
+): Result<void, PlatformError>;
+
+/// Stop recording for one opened camera stream.
+///
+/// Stop one active recording on one opened camera stream and return the finalized recording descriptor.
+/// Stop finalizes encoded output and preserves the produced file path and encoded format metadata.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android recorder stop with finalized output metadata, AVFoundation movie-output or asset-writer finalize on iOS and macOS, V4L2 plus codec pipeline finalize on Linux-class Unix, and Media Foundation sink-writer finalize on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.device.camera.stream.stopRecording", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["device.camera.capture"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamStopRecording(
+    handle: CameraStreamHandle,
+    timeoutNs: uint64,
+): Result<CameraRecording, PlatformError>;
+
+/// Read still-photo state for one opened camera stream.
+///
+/// Read the current still-photo state snapshot for one opened camera stream.
+/// Still-photo state remains separate from stream control state because photo output commonly uses different size, flash, and encoding policy than the live stream itself.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android still-capture template state, AVFoundation live photo-output state on iOS and macOS, V4L2 plus codec still-image state on Linux-class Unix, and Media Foundation still-image state on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.stream.photoState", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.capture"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamPhotoState(
+    handle: CameraStreamHandle,
+): Result<CameraPhotoState, PlatformError>;
+
+/// Read still-photo capabilities for one opened camera stream.
+///
+/// Read the still-photo capability descriptor for one opened camera stream.
+/// Photo capabilities are separated from stream capabilities because still capture commonly supports different formats, sizes, and flash policy than the video stream itself.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android CameraCharacteristics still-capture discovery, AVFoundation still-photo capability queries on iOS and macOS, V4L2 plus codec capability discovery on Linux-class Unix, and Media Foundation still-image capability discovery on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.stream.photoCapabilities", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.capture"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamPhotoCapabilities(
+    handle: CameraStreamHandle,
+): Result<CameraPhotoCapabilities, PlatformError>;
+
+/// Capture one still photo from one opened camera stream.
+///
+/// Capture one still photo using one still-photo settings object.
+/// Fields omitted from the settings object leave photo policy at host defaults, and still capture stays separate from streaming frame reads because photo output often uses different exposure, flash, resolution, and encoding policy than the live stream.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android still-capture requests with ImageReader outputs, AVFoundation photo capture on iOS and macOS, V4L2 plus codec capture pipelines on Linux-class Unix, and Media Foundation still-image capture on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.camera.stream.takePhoto", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.camera.capture"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cameraStreamTakePhoto(
+    handle: CameraStreamHandle,
+    settings: CameraPhotoSettings,
+    timeoutNs: uint64,
+): Result<CameraPhoto, PlatformError>;
