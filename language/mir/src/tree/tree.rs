@@ -768,16 +768,22 @@ impl Tree {
     where
         T: Node,
     {
-        let provenance_id = if let Some(provenance_id) = self.get_provenance(id.id) {
+        self.set_span_by_id(id.id, span);
+    }
+
+    /// Set the span for a node by raw id.
+    #[inline]
+    pub fn set_span_by_id(&mut self, id: u32, span: Span) {
+        let provenance_id = if let Some(provenance_id) = self.get_provenance(id) {
             provenance_id
         } else {
             let provenance_id = self.create_synthetic_provenance(None, Vec::new());
-            self.set_provenance(id.id, provenance_id);
+            self.set_provenance(id, provenance_id);
             provenance_id
         };
 
         self.metadata.provenance.set_span(provenance_id, span);
-        self.source_map.set(id.id, span);
+        self.source_map.set(id, span);
     }
 
     /// Set the span for one parsed MIR node and anchor it to the parsed text.

@@ -20,7 +20,8 @@ impl Parser {
         while !self.peek_token(TokenType::End) {
             let recovery_pos = self.pos;
             if let Err(error) = self.parse_module_item() {
-                self.diagnostics.insert(error.to_diagnostic(self.file_id));
+                self.diagnostics
+                    .insert(error.to_diagnostic(self.content_id, self.file_id));
                 self.try_recover_to_item(recovery_pos);
             }
         }

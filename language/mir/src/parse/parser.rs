@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use destack_core::{ImmutableStringPool, StringPool};
 use destack_source::{
-    DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, FileId, NodeSpanList,
-    NodeSpanType, Span,
+    DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, FileContentId, FileId,
+    NodeSpanList, NodeSpanType, Span,
 };
 
 use crate::validate::Validator;
@@ -43,9 +43,9 @@ impl ParsedMir {
 
         // fail strictly when parse diagnostics were emitted
         if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
-            let diagnostics = diagnostics.iter();
             let diagnostic = diagnostics
-                .first()
+                .iter()
+                .next()
                 .expect("error diagnostics must contain at least one entry");
             return Err(ParseError::from_diagnostic(diagnostic));
         }
@@ -90,6 +90,8 @@ pub struct Parser {
     pub(super) strings: StringPool,
     /// The source file id for spans.
     pub(super) file_id: FileId,
+    /// The exact source content id for diagnostics.
+    pub(super) content_id: FileContentId,
     /// The diagnostics produced while parsing.
     pub(super) diagnostics: DiagnosticCollector,
     /// Map from function names to their ids (for forward references).
@@ -124,6 +126,7 @@ pub struct Parser {
 impl Parser {
     /// Create a new parser for a specific file.
     pub fn new(file_id: FileId, source: &str, options: ParseOptions) -> Self {
+        let content_id = FileContentId::for_text(source);
         let mut tree = Tree::with_parsed_source(source.to_string(), Lexer::lex(file_id, source));
         tree.set_pointer_bytes(options.pointer_bytes);
 
@@ -132,6 +135,7 @@ impl Parser {
             tree,
             strings: StringPool::new(),
             file_id,
+            content_id,
             diagnostics: DiagnosticCollector::new(),
             function_map: HashMap::new(),
             global_map: HashMap::new(),

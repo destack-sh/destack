@@ -198,7 +198,8 @@ impl Parser {
             match self.parse_local() {
                 Ok(local) => locals.push(local),
                 Err(error) => {
-                    self.diagnostics.insert(error.to_diagnostic(self.file_id));
+                    self.diagnostics
+                        .insert(error.to_diagnostic(self.content_id, self.file_id));
                     self.try_recover_to_block(recovery_pos);
                     break;
                 }
@@ -219,7 +220,8 @@ impl Parser {
 
             // stray body tokens
             let error = ParseError::new("expected block label", self.pos());
-            self.diagnostics.insert(error.to_diagnostic(self.file_id));
+            self.diagnostics
+                .insert(error.to_diagnostic(self.content_id, self.file_id));
             self.try_recover_to_block(self.pos());
         }
 
@@ -471,7 +473,8 @@ impl Parser {
                         terminator = Some(parsed_terminator);
                     }
                     Err(error) => {
-                        self.diagnostics.insert(error.to_diagnostic(self.file_id));
+                        self.diagnostics
+                            .insert(error.to_diagnostic(self.content_id, self.file_id));
                         self.try_recover_to_block(recovery_pos);
                         terminator_span = Some(
                             self.span_at(error.position, self.pos().saturating_sub(error.position)),
@@ -489,7 +492,8 @@ impl Parser {
             match self.eat_instruction() {
                 Ok(inst) => instructions.push(inst),
                 Err(error) => {
-                    self.diagnostics.insert(error.to_diagnostic(self.file_id));
+                    self.diagnostics
+                        .insert(error.to_diagnostic(self.content_id, self.file_id));
                     let error_start = error.position;
                     let continue_block = self.try_recover_in_block(recovery_pos);
                     let error_end = self.pos();
@@ -547,7 +551,8 @@ impl Parser {
         let parsed_block = match self.parse_block() {
             Ok(block_id) => block_id,
             Err(error) => {
-                self.diagnostics.insert(error.to_diagnostic(self.file_id));
+                self.diagnostics
+                    .insert(error.to_diagnostic(self.content_id, self.file_id));
                 self.try_recover_to_block(recovery_pos);
 
                 let error_start = error.position;
