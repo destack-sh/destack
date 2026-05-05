@@ -189,8 +189,8 @@ fn resolve_single_file_path(workspace_root: &Path) -> PathBuf {
         return PathBuf::from(path);
     }
 
-    // fall back to a representative builtin file
-    workspace_root.join("language/builtin/lib/dom/index.d.ts")
+    // fall back to a representative library file
+    workspace_root.join("language/library/platform/fs/file.ds")
 }
 
 /// Load a single source file for benchmarking.
