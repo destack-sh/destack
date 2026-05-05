@@ -1,6 +1,6 @@
 use std::fmt;
 
-use destack_source::{Diagnostic, DiagnosticSeverity, FileId, LabeledSpan, Span};
+use destack_source::{Diagnostic, DiagnosticLabel, FileContentId, FileId, Span};
 
 use super::token::{Token, TokenType};
 
@@ -66,36 +66,27 @@ impl ParseError {
     }
 
     /// Convert this parse error into one shared source diagnostic.
-    pub fn to_diagnostic(&self, file_id: FileId) -> Diagnostic {
+    pub fn to_diagnostic(&self, content: FileContentId, file_id: FileId) -> Diagnostic {
         let start = u32::try_from(self.position).unwrap_or(u32::MAX);
         let length = u32::try_from(self.length).unwrap_or(u32::MAX);
         let span = Span::at(file_id, start, length);
         let label = self.message.clone();
 
-        Diagnostic {
-            code: MIR_PARSE_DIAGNOSTIC_CODE.to_string(),
-            original_code: None,
-            severity: DiagnosticSeverity::Error,
-            original_severity: None,
-            message: format!("parse error: {}", self.message),
-            file_id,
-            primary_span: LabeledSpan::new(span, label),
-            primary_highlight_spans: None,
-            secondary_spans: None,
-            suggestions: None,
-        }
+        Diagnostic::error(
+            MIR_PARSE_DIAGNOSTIC_CODE,
+            format!("parse error: {}", self.message),
+            DiagnosticLabel::message(content, span, label),
+        )
     }
 
     /// Rebuild one parse error from a shared diagnostic.
     pub fn from_diagnostic(diagnostic: &Diagnostic) -> Self {
+        let primary = diagnostic.primary_label();
+
         Self::new_with_length(
-            diagnostic.primary_span.label.clone(),
-            diagnostic.primary_span.span.start as usize,
-            diagnostic
-                .primary_span
-                .span
-                .end
-                .saturating_sub(diagnostic.primary_span.span.start) as usize,
+            primary.message.clone().unwrap_or_default(),
+            primary.span.start as usize,
+            primary.span.end.saturating_sub(primary.span.start) as usize,
         )
     }
 }

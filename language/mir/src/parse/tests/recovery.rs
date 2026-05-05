@@ -28,13 +28,9 @@ b0:
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
 
     // int32
-    let diagnostics = diagnostics.iter();
-    let diagnostic = diagnostics.first().unwrap();
-    let length = diagnostic
-        .primary_span
-        .span
-        .end
-        .saturating_sub(diagnostic.primary_span.span.start);
+    let diagnostic = diagnostics.iter().next().unwrap();
+    let primary_span = diagnostic.primary_label().span;
+    let length = primary_span.end.saturating_sub(primary_span.start);
 
     assert_eq!(length, "int32".len() as u32);
     assert_eq!(tree.iter_nodes::<Function>().count(), 2);
