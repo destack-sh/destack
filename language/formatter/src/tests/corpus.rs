@@ -16,10 +16,10 @@ const CORPUS_FIRST_PASS: &str = "first pass";
 const CORPUS_SECOND_PASS: &str = "second pass";
 const CORPUS_IDEMPOTENCE_PASS: &str = "idempotence";
 
-/// One builtin corpus failure summary.
+/// One library corpus failure summary.
 #[derive(Debug)]
 struct CorpusFailure {
-    /// The builtin-relative path.
+    /// The library-relative path.
     path: String,
     /// The failed formatter pass.
     pass: &'static str,
@@ -45,8 +45,8 @@ impl CorpusFailure {
     }
 }
 
-/// Return whether one source file belongs to the builtin formatter corpus.
-fn is_builtin_formatter_source(file_type: FileType) -> bool {
+/// Return whether one source file belongs to the library formatter corpus.
+fn is_library_formatter_source(file_type: FileType) -> bool {
     matches!(
         file_type,
         FileType::Destack
@@ -59,8 +59,8 @@ fn is_builtin_formatter_source(file_type: FileType) -> bool {
     )
 }
 
-/// Collect builtin source files accepted by the formatter.
-fn collect_builtin_formatter_sources(root: &Path, files: &mut Vec<PathBuf>) {
+/// Collect library source files accepted by the formatter.
+fn collect_library_formatter_sources(root: &Path, files: &mut Vec<PathBuf>) {
     let entries = fs::read_dir(root).unwrap();
 
     // recurse in lexical order for stable failure lists
@@ -72,7 +72,7 @@ fn collect_builtin_formatter_sources(root: &Path, files: &mut Vec<PathBuf>) {
     for path in entries {
         // nested directories
         if path.is_dir() {
-            collect_builtin_formatter_sources(&path, files);
+            collect_library_formatter_sources(&path, files);
             continue;
         }
 
@@ -80,25 +80,25 @@ fn collect_builtin_formatter_sources(root: &Path, files: &mut Vec<PathBuf>) {
             continue;
         };
 
-        if is_builtin_formatter_source(file_type) {
+        if is_library_formatter_source(file_type) {
             files.push(path);
         }
     }
 }
 
-/// Get the builtin corpus root path.
-fn builtin_corpus_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../builtin")
+/// Get the library corpus root path.
+fn library_corpus_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../library")
 }
 
-/// Return one path relative to the builtin corpus root.
-fn relative_builtin_path<'a>(root: &Path, path: &'a Path) -> &'a Path {
+/// Return one path relative to the library corpus root.
+fn relative_library_path<'a>(root: &Path, path: &'a Path) -> &'a Path {
     path.strip_prefix(root).unwrap()
 }
 
 /// Format one path once.
-fn format_builtin_source(path: &Path, source: &str) -> Result<String, String> {
-    let file = build_builtin_file(path, source);
+fn format_library_source(path: &Path, source: &str) -> Result<String, String> {
+    let file = build_library_file(path, source);
 
     format_file_source(&file, source, FormatterOptions::default()).map_err(|error| error.message)
 }
@@ -123,7 +123,7 @@ fn count_corpus_failures(failures: &[CorpusFailure], pass: &str) -> usize {
 
 /// Print one corpus failure summary.
 fn print_corpus_summary(checked_file_count: usize, failures: &[CorpusFailure]) {
-    print_corpus_section("builtin formatter corpus: summary", Path::new("."));
+    print_corpus_section("library formatter corpus: summary", Path::new("."));
 
     let first_pass_failures = count_corpus_failures(failures, CORPUS_FIRST_PASS);
     let second_pass_failures = count_corpus_failures(failures, CORPUS_SECOND_PASS);
@@ -143,8 +143,8 @@ fn print_corpus_summary(checked_file_count: usize, failures: &[CorpusFailure]) {
     }
 }
 
-/// Build a source file for one builtin path.
-fn build_builtin_file(path: &Path, source: &str) -> File {
+/// Build a source file for one library path.
+fn build_library_file(path: &Path, source: &str) -> File {
     let file_name = path.file_name().unwrap().to_string_lossy().to_string();
     let path_text = path.to_string_lossy();
     File::from_text(
@@ -157,9 +157,9 @@ fn build_builtin_file(path: &Path, source: &str) -> File {
     )
 }
 
-/// Print parser diagnostics for one builtin source.
-fn print_builtin_parse_diagnostics(path: &Path, source: &str) {
-    let file = Arc::new(build_builtin_file(path, source));
+/// Print parser diagnostics for one library source.
+fn print_library_parse_diagnostics(path: &Path, source: &str) {
+    let file = Arc::new(build_library_file(path, source));
     let file_id = file.id;
     let file_for_id = |current_file_id| {
         if current_file_id == file_id {
@@ -188,51 +188,51 @@ fn print_builtin_parse_diagnostics(path: &Path, source: &str) {
     print_diagnostics(&file_for_id, &diagnostics, options);
 }
 
-/// Assert parser and formatter idempotence over the checked-in builtin corpus.
+/// Assert parser and formatter idempotence over the checked-in library corpus.
 #[test]
 #[ignore]
-fn test_format_builtin_corpus_is_idempotent() -> Result<(), String> {
-    let root = builtin_corpus_root();
+fn test_format_library_corpus_is_idempotent() -> Result<(), String> {
+    let root = library_corpus_root();
     let mut paths = Vec::new();
-    collect_builtin_formatter_sources(&root, &mut paths);
+    collect_library_formatter_sources(&root, &mut paths);
 
     let checked_file_count = paths.len();
     let mut failures = Vec::new();
 
     for path in paths {
         let source = fs::read_to_string(&path).unwrap();
-        let relative_path = relative_builtin_path(&root, &path);
+        let relative_path = relative_library_path(&root, &path);
 
         // first pass must parse and format
-        let first = match format_builtin_source(&path, &source) {
+        let first = match format_library_source(&path, &source) {
             Ok(first) => first,
             Err(error) => {
                 print_corpus_section(
-                    "builtin formatter corpus: first pass parse failure",
+                    "library formatter corpus: first pass parse failure",
                     relative_path,
                 );
-                print_builtin_parse_diagnostics(&path, &source);
+                print_library_parse_diagnostics(&path, &source);
                 failures.push(CorpusFailure::new(relative_path, CORPUS_FIRST_PASS, error));
                 continue;
             }
         };
 
         // second pass must parse and reach a fixed point
-        let second = match format_builtin_source(&path, &first) {
+        let second = match format_library_source(&path, &first) {
             Ok(second) => second,
             Err(error) => {
                 print_corpus_section(
-                    "builtin formatter corpus: second pass parse failure",
+                    "library formatter corpus: second pass parse failure",
                     relative_path,
                 );
-                print_builtin_parse_diagnostics(&path, &first);
+                print_library_parse_diagnostics(&path, &first);
                 failures.push(CorpusFailure::new(relative_path, CORPUS_SECOND_PASS, error));
                 continue;
             }
         };
 
         if first != second {
-            print_corpus_section("builtin formatter corpus: idempotence diff", relative_path);
+            print_corpus_section("library formatter corpus: idempotence diff", relative_path);
             let diff_options = DiffOptions::new().with_path(relative_path.display().to_string());
             print_diff(&first, &second, &diff_options);
             failures.push(CorpusFailure::new(
@@ -247,7 +247,7 @@ fn test_format_builtin_corpus_is_idempotent() -> Result<(), String> {
         print_corpus_summary(checked_file_count, &failures);
 
         return Err(format!(
-            "builtin formatter corpus failed: {} of {checked_file_count} files",
+            "library formatter corpus failed: {} of {checked_file_count} files",
             failures.len()
         ));
     }
