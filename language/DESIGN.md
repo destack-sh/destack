@@ -187,7 +187,7 @@ extension of Vector2 {
 ```
 
 Extensions can be added to any **nominal type**, so all types like `struct`, `class`, `enum`, `newtype`, whether defined locally or in a foreign / imported module.
-Note that lain type aliases (`type X = ...`) and structural types (`{ x: number }`) cannot receive extensions (because it would be unclear when they should apply).
+Plain type aliases (`type X = ...`) and structural types (`{ x: number }`) cannot receive extensions because it would be unclear when they should apply.
 
 Extensions can also be named for explicit exports and imports:
 
@@ -359,7 +359,7 @@ To distinguish static value parameter from static type parameters, we use the `c
 type Buffer<comptime N: uint> = [uint8; N];
 ```
 
-Note that generic bounds in Destack can use the cleaner `<T: Constraint>` form, just like dynamic parameters.
+Generic bounds can use the cleaner `<T: Constraint>` form, just like dynamic parameters.
 Unlike with `comptime <expr>` (discussed later), the `comptime` modifier merely means that `N` is a generic value parameter that has to be evaluatable during inference.
 
 ```ds
@@ -580,8 +580,8 @@ type InlineBytes<T> = [uint8; sizeOf<T>()];
 
 ### Values
 
-In TypeScript, control flow expressions like `if` are a statement, and you need a ternary or temporary to get a value out.
-That's fine but makes match-like patterns more complex to express, so Destack also supports statements as expressions ("everything is an expression").
+In TypeScript, control flow forms like `if` are statements, and you need a ternary or temporary to get a value out.
+That's fine but makes match-like patterns more complex to express, so Destack lets block forms like `if` and `match` produce values.
 The last expression (no trailing `;`) becomes the value of the overall expression.
 
 ```ds
@@ -612,6 +612,9 @@ if (let (x, y) = point) {
     print(x + y);
 }
 ```
+
+`switch` remains the TypeScript statement form with fallthrough, `case`, `default`, and ordinary `break`.
+Use `match` when you want patterns, exhaustiveness, guards, or a value.
 
 ### Closures
 
@@ -674,26 +677,29 @@ Destack extends that idea into `match`, `if (let ...)`, `let ... else`, and `cat
 | Binding | `value` | bind the matched value |
 | Literal | `"ok"`, `0`, `true` | match one literal value |
 | Tuple | `(x, y)` | destructure a tuple value |
-| Sequence | `[head, ...tail]` | destructure indexed elements |
+| Array, slice, fixed array | `[head, ...tail]` | destructure indexed elements |
 | Object | `{ kind: "ok", value }` | destructure a structural object |
 | Struct | `Point { x, y }` | destructure a nominal struct |
 | Newtype | `UserId(value)` | unwrap a nominal newtype |
+| Enum | `State.Ready` | match a nominal enum variant |
 | Union | `0 | 1 | 2` | accept any listed pattern |
 | Rest | `...tail` | collect the remaining elements or fields |
 | Default | `name = "guest"` | bind a fallback for missing destructured values |
+| Must | `value!` | bind the non-nullish value |
+| Ownership | `^value`, `&value` | bind an owned or borrowed view |
 | Guard | `pattern if (condition)` | require an extra boolean condition |
 
 `match` is the full form and checks exhaustiveness:
 
 ```ds
 match (result /* Result<T, E> */) {
-    { kind: 'ok', value } => process(value)
-    { kind: 'err', error } if (isRetryable(error)) => retry()
-    { kind: 'err', error } => fail(error)
+    Ok { value } => process(value)
+    Err { error } if (isRetryable(error)) => retry()
+    Err { error } => fail(error)
 }
 ```
 
-As one would expect, the type of a match expression is the union of its case body types.
+The type of a match expression is the joined type of its arm bodies.
 
 ```ds
 declare point: Point;
@@ -718,6 +724,43 @@ declare maybe: Option<int32>;
 let Some(value) = maybe else {
     return Result.err("missing value");
 };
+```
+
+### Guards
+
+Guards are boolean expressions that can refine types in the branch where they are known.
+That includes the familiar TypeScript forms whose meaning the compiler can check directly: `typeof value == "string"`, `"name" in value`, and `instanceof`.
+(Predicate functions like `function isUser(user: any): asserts value is T` are not supported since they are not definitively sound.)
+Destack also adds an additional `value is T`, which asks whether the current runtime representation of `value` carries the case or identity for `T`:
+
+```ds
+struct User {
+    name: string;
+}
+
+function label(value: User | string): string {
+    if (value is User) {
+        return value.name;
+    } else {
+        return value;
+    }
+}
+```
+
+Like other type predicates, `value is T` returns `boolean` and narrows the branch: 
+ - When `true`: narrows to the part of its current type that can be `T`.
+ - When `false`: narrows away the covered part when that can be represented.
+
+For union values, the test checks the union representation:
+
+```ds
+const value: string | int32 = 1;
+
+if (value is string) {
+    value satisfies string;
+} else {
+    value satisfies int32;
+}
 ```
 
 ### Loops
@@ -1062,20 +1105,20 @@ try {
 ```
 
 The example uses `Result`, but any type implementing `Try` behaves the same:
-- Note that `try` does not implicitly unwrap `Result` values
+- `try` does not implicitly unwrap `Result` values
 - Use `?` inside the block to propagate `Try` failures into the catch
 - Use `??` inside the block when the failure should be handled locally with a fallback
 - When a `?` is inside a `try` with a catch, `FromFailure` is not required
 
-When just using known `Try`-implementor types, the full set of possible failures is known, and we can use a syntax sugare form called `catch match` to branch on them directly:
+When the propagated failures are statically known, `catch match` can branch on them directly:
 
 ```ds
 try {
-    riskyOperationA()?; // -> Result<void, AError>
-    riskyOperationB()?; // -> Result<void, BError>
+    readConfig()?; // -> Result<void, MissingError>
+    parseConfig()?; // -> Result<void, FormatError>
 } catch match (failure) {
-    NumericError(value) => Error(`bad number: ${value}`)
-    FormatError { message } => Error(`bad format: ${message}`)
+    MissingError { path } => Error(`missing config: ${path}`)
+    FormatError { line } => Error(`bad format on line ${line}`)
 }
 ```
 
