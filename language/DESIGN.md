@@ -820,9 +820,11 @@ For user-defined numeric types, use ordinary named methods when wrapping or satu
 
 "Dispatch" is how calls, member accesses, and overloadable operators select an implementation to invoke.
 The selection rule is TS-derived: build the candidate set, keep candidates compatible with the arguments as written, then pick the first one in declaration order:
- - Declaring module owns the overload order.
- - Overloads are truly distinct implementations.
- - Union arguments do not distribute across overloads (one selected overload must accept the union)
+
+#### Overloads
+
+As said above, overloads and overload resolution follow the same source order.
+Unlike in TypeScript, there may be multiple overloaded _implementations_ for the same name, but the selection rule is the same as in TypeScript.
 
 ```ds
 function parse(input: string): int32 {
@@ -830,13 +832,17 @@ function parse(input: string): int32 {
 }
 
 function parse(input: int32): int32 {
-    // legal, actually different implementation
+    // legal, actually different implementation!
     return input;
 }
 ```
 
 Members work the same way (after receiver lookup): inherent members first, then visible extension members in declaration order.
-For overloadable operators, the token chooses the protocol, the left operand is the receiver (matching how it is written in the interface implementation).
+
+#### Operators
+
+For overloadable operators, the operator decides the interface to check, and the left operand is the receiver (matching how it is written in the interface implementation).
+Binary operators do not fall back to the right operand, so operator overload implementations are _not_ symmetrical.
 
 ```ds
 newtype interface Add<T, R = this> {
@@ -864,8 +870,68 @@ padded satisfies Vector2;
 1.0 + position; // requires Add<Vector2> on float32
 ```
 
+#### Interfaces
+
+As discussed in Types, structural interfaces keep normal TypeScript shape checking and mostly work exactly as expected: exact fields use offsets, methods use function targets, and adapted properties use generated accessors.
+The internal "itab" table that maps this (commonly also called a "witness table") is generated automatically, and because it's a structural interface, writing `implements` on a structural interface is just an explicit check.
+
+```ds
+interface PointLike {
+    x: int32;
+    y: int32;
+}
+
+struct Point implements PointLike {
+    y: int32;
+    x: int32;
+}
+
+function lengthSquared(point: PointLike): int32 {
+    point.x * point.x + point.y * point.y
+}
+```
+
+One point of difference to TypeScript is mutability through interfaces, because we need to actually compile the code into something with a fixed shape.
+Interface fields are still read-write by default, but concrete fields satisfy mutable structural fields only when their types match exactly (after normal alias and newtype normalization).
+
+```ds
+interface PointLike {
+    readonly x: int32 | float32;
+}
+
+struct Point {
+    x: int32;
+}
+
+const point: PointLike = Point { x: 1 };
+point.x satisfies int32 | float32;
+```
+
+Readonly fields only need, well, reads, so they can widen through ordinary implicit casts and nested structural views.
+However, if `PointLike.x` were mutable, this conversion of `Point` to `PointLike` would be rejected because writing through `PointLike` would no longer be correct (it would have to implicitly widen, but it doesn't and cannot know that!).
+
+Index signatures also work, and dispatch through the `Index` / `IndexSet` operator interfaces.
+`Record<string, T>` can satisfy this with map lookup, and custom types can satisfy it by implementing the corresponding index protocols (trivially satisfiable by including a builtin map-able type).
+
+```ds
+interface Bag<T> {
+    [key: string]: T | undefined;
+}
+
+const counts: Bag<int32> = { apples: 3, oranges: 2 };
+
+function read<T>(bag: Bag<T>, key: string): T | undefined {
+    bag[key]
+}
+
+read(counts, "apples") satisfies int32 | undefined;
+```
+
+#### Unions
+
 Union receivers are resolved per variant.
-Every variant must expose the member; if all variants resolve to the same symbol the call is static, otherwise the compiler records a dynamic dispatch and the result type is the union of the selected return types.
+Every variant must expose the member.
+If all variants resolve to the same symbol the call is static; otherwise the result type is the union of the selected return types.
 
 ```ds
 struct TcpStream {
@@ -1154,7 +1220,9 @@ struct Buffer<comptime size: uint> {
 }
 ```
 
-Because comptime expressions are just late-evaluated expressions executed before final lowering, comptime conditions can also be used for branch elimination when the condition is computed by ordinary code instead of the static-term algebra:
+Because comptime expressions are late-evaluated expressions, comptime conditions type check like ordinary conditions.
+Both branches are analyzed, and the expression type is still the joined branch type.
+The compiler may eliminate the untaken branch before final lowering when the condition is computed from static inputs:
 
 ```ds
 function isPowerOfTwo(value: uint): bool {
