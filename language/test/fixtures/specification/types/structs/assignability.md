@@ -1,10 +1,10 @@
 # Struct Assignability
 
-## nominal types
+Structs are nominal value types.
 
-### struct is not assignable to class with same fields
+## nominality
 
-> Structs remain nominal even when their fields match a class.
+### structs do not satisfy classes by shape
 
 ```ds
 struct Point {
@@ -21,9 +21,7 @@ const value: PointClass = point;
 
 - contains: is not assignable
 
-### class is not assignable to struct with same fields
-
-> Classes remain nominal even when their fields match a struct.
+### classes do not satisfy structs by shape
 
 ```ds
 struct Point {
@@ -40,9 +38,9 @@ const value: Point = point;
 
 - contains: is not assignable
 
-### struct satisfies interface with same fields
+## interfaces
 
-> Structs can satisfy structural interfaces.
+### structs satisfy structural interfaces
 
 ```ds
 interface HasX {
@@ -58,9 +56,7 @@ const value: HasX = point;
 value satisfies HasX;
 ```
 
-### struct satisfies interface with optional fields
-
-> Structs satisfy optional fields structurally.
+### structs satisfy optional interface fields
 
 ```ds
 interface HasName {
@@ -75,9 +71,7 @@ const person: HasName = Person { name: "Ada" };
 person satisfies HasName;
 ```
 
-### struct is assignable to object
-
-> Struct values satisfy the top-level object type.
+### structs satisfy object
 
 ```ds
 struct Point {
@@ -89,11 +83,7 @@ const value: object = point;
 value satisfies object;
 ```
 
-## interfaces
-
-### struct implements interface
-
-> Structs can implement interfaces and satisfy them structurally.
+### implements checks interface shape
 
 ```ds
 interface Drawable {
@@ -110,9 +100,7 @@ const point: Drawable = Point { x: 1 };
 point satisfies Drawable;
 ```
 
-### struct rejects interface when members are missing
-
-> Structs must structurally satisfy interface members.
+### interfaces require declared members
 
 ```ds
 interface Drawable {
@@ -128,9 +116,7 @@ const point: Drawable = Point { x: 1 };
 
 - contains: is not assignable
 
-### struct rejects interface when field types mismatch
-
-> Structs must satisfy interface field types.
+### interfaces require matching field types
 
 ```ds
 interface HasX {
@@ -148,9 +134,7 @@ const point: HasX = Point { x: 1.5 };
 
 ## inheritance
 
-### struct rejects extends
-
-> Structs cannot extend other types.
+### structs reject extends
 
 ```ds
 struct Base {

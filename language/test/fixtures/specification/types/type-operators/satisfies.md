@@ -45,7 +45,7 @@ config.mode satisfies "dev";
 
 ### satisfies enforces excess property checks
 
-```ts
+```ds
 type Shape = { a: number };
 
 const value = { a: 1, b: 2 } satisfies Shape;
@@ -55,7 +55,7 @@ const value = { a: 1, b: 2 } satisfies Shape;
 
 ### satisfies does not widen without const context
 
-```ts
+```ds
 type Shape = { mode: "dev" | "prod" };
 
 let config = { mode: "dev" } satisfies Shape;
@@ -64,7 +64,7 @@ config.mode satisfies "dev";
 
 ### satisfies contextual members reject unrelated literals
 
-```ts
+```ds
 type Shape = { mode: "dev" | "prod" };
 
 let config = { mode: "dev" } satisfies Shape;
@@ -77,7 +77,7 @@ config.mode satisfies "prod";
 
 ### satisfies keeps source members after validation
 
-```ts
+```ds
 type Target = { mode: "dev" | "prod"; retries: number };
 
 const config = { mode: "dev", retries: 3 } satisfies Target;
@@ -87,7 +87,7 @@ config.retries satisfies number;
 
 ### satisfies keeps source method signatures
 
-```ts
+```ds
 type Target = { mode: "dev" | "prod" };
 
 const config = {
@@ -104,7 +104,7 @@ config.next(1) satisfies number;
 
 ### satisfies expressions are not assignment targets
 
-```ts
+```ds
 let value = 1;
 (value satisfies number) = 2;
 ```

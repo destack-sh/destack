@@ -1,7 +1,6 @@
 # Tuple Types
 
 Tuple types use parenthesized syntax in `.ds`: `(T, U)`.
-Bracket tuple syntax remains accepted in `.ts` files and is not the `.ds` tuple form.
 
 ## positional typing
 

@@ -57,7 +57,7 @@ interface Config {
 
 > Interfaces can declare callable signatures.
 
-```ts
+```ds
 interface Fn {
     (value: string): number;
 }
@@ -70,7 +70,7 @@ fn("ok") satisfies number;
 
 > Interfaces can declare constructor signatures.
 
-```ts
+```ds
 interface Factory {
     new (value: string): object;
 }

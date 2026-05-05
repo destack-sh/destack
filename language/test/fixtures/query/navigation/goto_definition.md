@@ -426,9 +426,9 @@ def:parse_string
 
 ### Goto definition for import aliases
 
-Goto definition should resolve TypeScript import alias bindings.
+Goto definition should resolve Destack import alias bindings.
 
-```ts:main.ts
+```ds:main.ds
 namespace bar {
     export const baz = 1;
 //                 ^^^ def:import_alias_target

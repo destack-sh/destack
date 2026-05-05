@@ -6,7 +6,7 @@
 
 > `as const` values checked with `satisfies` keep nested literal precision instead of widening.
 
-```ts
+```ds
 const value = ({ env: { mode: "dev" } } as const) satisfies { env: { mode: string } };
 
 value.env.mode satisfies "dev";
@@ -16,7 +16,7 @@ value.env.mode satisfies "dev";
 
 > Generic wrappers over readonly inputs preserve literal precision when the value is assigned.
 
-```ts
+```ds
 declare function freeze<const T>(value: T): T;
 
 const value = freeze({ kind: "ready", level: 1 });
@@ -30,7 +30,7 @@ value.level satisfies 1;
 
 > Passing literals through mutable generic wrappers widens members to mutable types.
 
-```ts
+```ds
 declare function hold<T>(value: T): T;
 
 let value = hold({ kind: "ready" });
@@ -43,7 +43,7 @@ value.kind satisfies "ready";
 
 > Spreading readonly sources into mutable object targets widens member literals at the assignment site.
 
-```ts
+```ds
 const base = { kind: "ready" } as const;
 let value = { ...base };
 
@@ -58,7 +58,7 @@ value.kind satisfies "ready";
 
 > A fresh literal passed directly to a target type still triggers excess property rejection.
 
-```ts
+```ds
 type Ready = { kind: "ready"; payload: string };
 
 declare function accept(value: Ready): void;
@@ -72,15 +72,11 @@ accept({ kind: "ready", payload: "ok", extra: true });
 
 > The same shape, once held in a variable, remains assignable despite extra properties.
 
-```ts
+```ds
 type Ready = { kind: "ready"; payload: string };
 
 declare function accept(value: Ready): void;
 
 const value = { kind: "ready" as const, payload: "ok", extra: true };
 accept(value);
-```
-
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
 ```

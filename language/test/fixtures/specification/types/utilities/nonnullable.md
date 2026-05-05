@@ -1,10 +1,10 @@
 # NonNullable
 
-`NonNullable` is a standard TypeScript utility type.
+`NonNullable` is a standard utility type.
 
 ### NonNullable removes nullish
 
-```ds libs=es5
+```ds
 type MaybeName = string | null | undefined;
 type Name = NonNullable<MaybeName>;
 
@@ -14,7 +14,7 @@ ok satisfies Name;
 
 ### NonNullable rejects nullish values
 
-```ds libs=es5
+```ds
 type MaybeName = string | null | undefined;
 type Name = NonNullable<MaybeName>;
 
@@ -25,7 +25,7 @@ const bad: Name = null;
 
 ### NonNullable with never yields never
 
-```ds libs=es5
+```ds
 type NeverValue = NonNullable<never>;
 
 let bad: NeverValue = "no";

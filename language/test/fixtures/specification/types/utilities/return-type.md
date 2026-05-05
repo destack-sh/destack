@@ -4,7 +4,7 @@
 
 ### ReturnType extracts return values
 
-```ts libs=es5
+```ds
 type Value = ReturnType<() => string>;
 
 const ok: Value = "ready";
@@ -13,7 +13,7 @@ ok satisfies string;
 
 ### ReturnType rejects wrong values
 
-```ts libs=es5
+```ds
 type Value = ReturnType<() => string>;
 
 const bad: Value = 1;
@@ -23,7 +23,7 @@ const bad: Value = 1;
 
 ### ReturnType keeps unions
 
-```ts libs=es5
+```ds
 type Value = ReturnType<() => "a" | "b">;
 
 const ok: Value = "a";

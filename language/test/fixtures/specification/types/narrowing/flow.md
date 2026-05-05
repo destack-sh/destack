@@ -6,7 +6,7 @@
 
 Calling a nested function that mutates a captured local invalidates the caller's previous local narrowing.
 
-```ts
+```ds
 let value: string | null = "ok";
 
 if (value !== null) {
@@ -25,7 +25,7 @@ if (value !== null) {
 
 A mutation through an object alias invalidates discriminant-based member availability on the original binding.
 
-```ts
+```ds
 type Ready = { kind: "ready", payload: string };
 type Idle = { kind: "idle" };
 
@@ -47,7 +47,7 @@ if (box.state.kind === "ready") {
 
 Mutations performed by returned helper closures invalidate previously narrowed discriminant members.
 
-```ts
+```ds
 type Ready = { kind: "ready", payload: string };
 type Idle = { kind: "idle" };
 
@@ -72,7 +72,7 @@ if (box.state.kind === "ready") {
 
 Closures created before a loop mutation observe the joined post-loop type, not the pre-loop narrow.
 
-```ts
+```ds
 let value: string | number = "ok";
 const read = () => value;
 
@@ -91,7 +91,7 @@ current satisfies string;
 
 After control-flow joins that assign different variants, only members shared by all variants remain accessible.
 
-```ts
+```ds
 type A = { kind: "a", payload: string };
 type B = { kind: "b" };
 
@@ -113,7 +113,7 @@ value.payload;
 
 A loop iteration that writes a captured local invalidates narrows established earlier in that branch.
 
-```ts
+```ds
 let value: "a" | "b" = "a";
 
 while (true) {
@@ -136,7 +136,7 @@ value satisfies "a";
 
 Destructured aliases to the same object cannot preserve stale property narrows after any alias writes.
 
-```ts
+```ds
 let state: { value: string | number } = { value: "ok" };
 const alias = state;
 
@@ -152,7 +152,7 @@ if (typeof state.value === "string") {
 
 Once an optional property is reassigned, previous `!== undefined` narrowing for that property is no longer valid.
 
-```ts
+```ds
 let box: { value?: string } = { value: "ok" };
 
 if (box.value !== undefined) {
@@ -168,7 +168,7 @@ if (box.value !== undefined) {
 
 Nested helper writes to dotted properties invalidate earlier dotted-name narrowing at the call site.
 
-```ts
+```ds
 let box: { inner: { value?: string } } = { inner: { value: "ok" } };
 
 if (box.inner.value !== undefined) {
@@ -182,7 +182,3 @@ if (box.inner.value !== undefined) {
 ```
 
 - contains: not assignable
-
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
-```

@@ -16,7 +16,7 @@ second satisfies int32;
 
 > Destructuring declarations require an initializer.
 
-```ts
+```ds
 let [value]: number[];
 ```
 

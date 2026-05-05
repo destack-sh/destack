@@ -67,7 +67,7 @@ using connection = new Connection();
 
 > `.ts` sources use the symbol-shaped disposal protocol.
 
-```ts:main.ts
+```ds:main.ds
 class File {
     [Symbol.dispose](): void {}
 }
@@ -80,7 +80,7 @@ file satisfies File;
 
 > Declare bindings cannot have initializers.
 
-```ts
+```ds
 declare using value = null;
 ```
 

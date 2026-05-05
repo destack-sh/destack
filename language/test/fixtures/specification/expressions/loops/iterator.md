@@ -95,11 +95,11 @@ export function make_values(): int32[] {
 ```
 
 ```ds:index.ds
-export { make_values as values } from "./source";
+export { make_values as values } from "./source.ds";
 ```
 
 ```ds:main.ds
-import { values } from "./index";
+import { values } from "./index.ds";
 
 for (const value of values()) {
     value satisfies int32;

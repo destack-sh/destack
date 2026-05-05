@@ -1,12 +1,10 @@
-# Class Inheritance (extends)
+# Class Inheritance
 
-Class inheritance using `extends`.
+Classes support single inheritance with `extends`.
 
 ## inheritance
 
-### child assignable to parent
-
-> A child class instance is assignable to a parent class type.
+### children assign to parents
 
 ```ds
 class Animal {
@@ -22,9 +20,7 @@ declare function getDog(): Dog;
 const animal: Animal = getDog();
 ```
 
-### parent not assignable to child
-
-> A parent class instance is not assignable to a child class type.
+### parents do not assign to children
 
 ```ds
 class Animal {
@@ -42,9 +38,7 @@ const dog: Dog = getAnimal();
 
 - contains: not assignable
 
-### child satisfies parent
-
-> A child class satisfies the parent class type.
+### children satisfy parents
 
 ```ds
 class Animal {
@@ -60,9 +54,7 @@ declare function getDog(): Dog;
 getDog() satisfies Animal;
 ```
 
-### parent does not satisfy child
-
-> A parent class does not satisfy a child class type.
+### parents do not satisfy children
 
 ```ds
 class Animal {
@@ -82,9 +74,7 @@ getAnimal() satisfies Dog;
 
 ## multi-level inheritance
 
-### grandchild assignable to grandparent
-
-> A grandchild class is assignable to a grandparent class.
+### grandchildren assign to grandparents
 
 ```ds
 class Animal {
@@ -104,9 +94,7 @@ declare function getLabrador(): Labrador;
 const animal: Animal = getLabrador();
 ```
 
-### grandchild assignable to parent
-
-> A grandchild class is assignable to its direct parent.
+### grandchildren assign to parents
 
 ```ds
 class Animal {
@@ -126,9 +114,7 @@ declare function getLabrador(): Labrador;
 const dog: Dog = getLabrador();
 ```
 
-### grandparent not assignable to grandchild
-
-> A grandparent class is not assignable to a grandchild class.
+### grandparents do not assign to grandchildren
 
 ```ds
 class Animal {
@@ -152,9 +138,7 @@ const labrador: Labrador = getAnimal();
 
 ## function parameters
 
-### child passed to parent parameter
-
-> A child class can be passed where a parent class is expected.
+### children pass to parent parameters
 
 ```ds
 class Animal {
@@ -172,9 +156,7 @@ declare function getDog(): Dog;
 acceptAnimal(getDog());
 ```
 
-### parent rejected for child parameter
-
-> A parent class cannot be passed where a child class is expected.
+### child parameters reject parents
 
 ```ds
 class Animal {
@@ -196,9 +178,7 @@ acceptDog(getAnimal());
 
 ## sibling classes
 
-### sibling not assignable
-
-> Sibling classes (same parent) are not assignable to each other.
+### siblings do not assign to each other
 
 ```ds
 class Animal {
@@ -222,9 +202,7 @@ const cat: Cat = getDog();
 
 ## rejections
 
-### classes cannot extend multiple parents
-
-> Classes can only extend one class.
+### classes reject multiple parents
 
 ```ds
 class First {}
@@ -235,9 +213,7 @@ class Combined extends First, Second {}
 
 - contains: invalid lineage
 
-### classes cannot declare empty extends clauses
-
-> Classes cannot declare empty extends clauses.
+### classes reject empty extends clauses
 
 ```ds
 class Counter extends {
@@ -246,9 +222,7 @@ class Counter extends {
 
 - contains: invalid lineage
 
-### structs cannot use extends
-
-> Structs cannot declare extends clauses.
+### structs reject extends
 
 ```ds
 struct Base {}

@@ -1,10 +1,10 @@
 # Exclude
 
-`Exclude` is a standard TypeScript utility type.
+`Exclude` is a standard utility type.
 
 ### exclude distributes over unions
 
-```ds libs=es5
+```ds
 type Letters = "a" | "b" | "c";
 type Only = Exclude<Letters, "b">;
 
@@ -14,7 +14,7 @@ ok satisfies Only;
 
 ### exclude rejects removed members
 
-```ds libs=es5
+```ds
 type Letters = "a" | "b" | "c";
 type Only = Exclude<Letters, "b">;
 
@@ -25,7 +25,7 @@ const bad: Only = "b";
 
 ### exclude with never yields never
 
-```ds libs=es5
+```ds
 type NeverLetters = Exclude<never, "b">;
 
 let bad: NeverLetters = "b";

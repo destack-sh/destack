@@ -127,7 +127,7 @@ export function parse<T extends string>(value: `id:${T}`): T {
 ```
 
 ```ds:main.ds
-import { parse } from "./helper";
+import { parse } from "./helper.ds";
 
 const value = "id:users";
 const result = parse(value);
@@ -146,7 +146,7 @@ export function parse<T extends string>(value: `id:${T}`): T {
 ```
 
 ```ds:main.ds
-import { parse } from "./helper";
+import { parse } from "./helper.ds";
 
 let value = "id:users";
 parse(value);
@@ -165,7 +165,7 @@ export function identitySpan<T extends string>(value: `${T}`): T {
 ```
 
 ```ds:main.ds
-import { identitySpan } from "./helper";
+import { identitySpan } from "./helper.ds";
 
 const value = "users";
 const result = identitySpan(value);
@@ -249,11 +249,11 @@ export function parse<T extends string>(value: `id:${T}`): T {
 ```
 
 ```ds:index.ds
-export { parse as parseId } from "./helper";
+export { parse as parseId } from "./helper.ds";
 ```
 
 ```ds:main.ds
-import { parseId } from "./index";
+import { parseId } from "./index.ds";
 
 const value = "id:users";
 const result = parseId(value);
@@ -272,11 +272,11 @@ export function parse<T extends string>(value: `id:${T}`): T {
 ```
 
 ```ds:index.ds
-export * from "./helper";
+export * from "./helper.ds";
 ```
 
 ```ds:main.ds
-import { parse } from "./index";
+import { parse } from "./index.ds";
 
 let value = "id:users";
 parse(value);
@@ -295,7 +295,7 @@ export function identitySpan<T extends string>(value: `${T}`): T {
 ```
 
 ```ds:main.ds
-import * as api from "./helper";
+import * as api from "./helper.ds";
 
 const value = "users";
 const result = api.identitySpan(value);
@@ -340,11 +340,11 @@ export function identitySpan<T extends string>(value: `${T}`): T {
 ```
 
 ```ds:index.ds
-export { identitySpan as span } from "./helper";
+export { identitySpan as span } from "./helper.ds";
 ```
 
 ```ds:main.ds
-import { span } from "./index";
+import { span } from "./index.ds";
 
 const value = "users";
 const result = span(value);
@@ -363,11 +363,11 @@ export function identitySpan<T extends string>(value: `${T}`): T {
 ```
 
 ```ds:index.ds
-export * from "./helper";
+export * from "./helper.ds";
 ```
 
 ```ds:main.ds
-import { identitySpan } from "./index";
+import { identitySpan } from "./index.ds";
 
 let value = "users";
 const result = identitySpan(value);

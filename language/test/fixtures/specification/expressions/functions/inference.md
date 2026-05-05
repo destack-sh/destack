@@ -138,7 +138,7 @@ total([1, "hi"])
 
 > Arrow properties infer contextual callback types regardless of sibling order.
 
-```ts:main.ts
+```ds:main.ds
 declare function callIt<T>(obj: {
     produce: (x: number) => T,
     consume: (y: T) => void,
@@ -150,15 +150,11 @@ callIt({
 });
 ```
 
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
-```
-
 ### object methods do not infer from sibling members when flipped
 
 > Method syntax does not infer parameter types from sibling members.
 
-```ts:main.ts
+```ds:main.ds
 declare function callIt<T>(obj: {
     produce: (x: number) => T,
     consume: (y: T) => void,
@@ -170,10 +166,6 @@ callIt({
 });
 ```
 
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
-```
-
 - contains: unknown
 
 ## nested object callbacks
@@ -182,7 +174,7 @@ callIt({
 
 > Arrow properties contextually infer generic payloads regardless of sibling ordering.
 
-```ts:main.ts
+```ds:main.ds
 declare function build<T>(spec: {
     payload: () => T,
     consume: (value: T) => string,
@@ -196,15 +188,11 @@ const output = build({
 output satisfies string;
 ```
 
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
-```
-
 ### object methods do not contextually infer sibling generic payloads
 
 > Method syntax does not gain arrow-style sibling contextual inference in object literals.
 
-```ts:main.ts
+```ds:main.ds
 declare function build<T>(spec: {
     payload: () => T,
     consume: (value: T) => string,
@@ -216,29 +204,25 @@ build({
 });
 ```
 
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
-```
-
 - contains: unknown
 
 ### arrow callbacks preserve inference through renamed re-exports
 
 > Renamed re-exports do not affect arrow contextual inference.
 
-```ts:api.ts
+```ds:api.ds
 export declare function build<T>(spec: {
     payload: () => T,
     consume: (value: T) => string,
 }): string;
 ```
 
-```ts:index.ts
-export { build as make } from "./api";
+```ds:index.ds
+export { build as make } from "./api.ds";
 ```
 
-```ts:main.ts
-import { make } from "./index";
+```ds:main.ds
+import { make } from "./index.ds";
 
 const output = make({
     consume: value => value.toUpperCase(),
@@ -248,17 +232,13 @@ const output = make({
 output satisfies string;
 ```
 
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
-```
-
 ## generic callback precision
 
 ### generic callback inference preserves const tuple literal element types
 
 > Generic callback inference preserves tuple literal precision from const tuple arguments.
 
-```ts:main.ts
+```ds:main.ds
 declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
 
 const tuple = [1, 2] as const;
@@ -267,15 +247,11 @@ const head = mapOne(tuple, input => input[0]);
 head satisfies 1;
 ```
 
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
-```
-
 ### generic callback inference widens mutable array element types
 
 > Generic callback inference widens mutable array element reads to their primitive element type.
 
-```ts:main.ts
+```ds:main.ds
 declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
 
 let values = [1, 2];
@@ -284,15 +260,11 @@ const head = mapOne(values, input => input[0]);
 head satisfies number;
 ```
 
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
-```
-
 ### generic callback inference does not keep mutable array literal elements
 
 > Generic callback inference does not preserve mutable array element literal types.
 
-```ts:main.ts
+```ds:main.ds
 declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
 
 let values = [1, 2];
@@ -301,35 +273,27 @@ const head = mapOne(values, input => input[0]);
 head satisfies 1;
 ```
 
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
-```
-
 - contains: not assignable
 
 ### generic callback inference stays precise through renamed re-exports
 
 > Generic callback inference preserves const tuple precision across renamed re-export paths.
 
-```ts:api.ts
+```ds:api.ds
 export declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
 ```
 
-```ts:index.ts
-export { mapOne as runOne } from "./api";
+```ds:index.ds
+export { mapOne as runOne } from "./api.ds";
 ```
 
-```ts:main.ts
-import { runOne } from "./index";
+```ds:main.ds
+import { runOne } from "./index.ds";
 
 const tuple = [1, 2] as const;
 const head = runOne(tuple, input => input[0]);
 
 head satisfies 1;
-```
-
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 ## nested contextual inference
@@ -338,7 +302,7 @@ head satisfies 1;
 
 > Nested callbacks preserve contextual generic payload types through outer callback positions.
 
-```ts:main.ts
+```ds:main.ds
 declare function withValue<T>(
     value: T,
     callback: (read: () => T) => string,
@@ -348,15 +312,11 @@ const output = withValue("ready", read => read());
 output satisfies string;
 ```
 
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
-```
-
 ### nested callback inference rejects mismatched payload usage
 
 > Nested callbacks reject payload usage that is incompatible with the inferred contextual generic type.
 
-```ts:main.ts
+```ds:main.ds
 declare function withValue<T>(
     value: T,
     callback: (read: () => T) => string,
@@ -365,17 +325,13 @@ declare function withValue<T>(
 withValue("ready", read => read().toFixed());
 ```
 
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
-```
-
 - contains: tofixed
 
 ### nested arrows remain order-insensitive in contextual object inference
 
 > Nested arrow properties remain order-insensitive for contextual generic object inference.
 
-```ts:main.ts
+```ds:main.ds
 declare function wire<T>(spec: {
     make: () => { value: T },
     use: (input: { value: T }) => string,
@@ -392,15 +348,11 @@ const output = wire({
 output satisfies string;
 ```
 
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
-```
-
 ### nested methods do not infer sibling payloads
 
 > Nested method syntax does not gain arrow-style sibling contextual inference.
 
-```ts:main.ts
+```ds:main.ds
 declare function wire<T>(spec: {
     make: () => { value: T },
     use: (input: { value: T }) => string,
@@ -410,10 +362,6 @@ wire({
     use(input) { return input.value.toUpperCase(); },
     make() { return { value: "ready" }; },
 });
-```
-
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 - contains: unknown

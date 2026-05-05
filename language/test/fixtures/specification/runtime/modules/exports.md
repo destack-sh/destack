@@ -9,20 +9,20 @@ Other modules use those types without cross-module inference cycles.
 
 Exported declarations keep their declared return types across modules.
 
-```ts:api.ts
+```ds:api.ds
 export type Api = { do: () => string };
 
 export declare function foo(): Api;
 ```
 
-```ts:module-b.ts
-import { foo } from "./api";
+```ds:module-b.ds
+import { foo } from "./api.ds";
 
 export const service = { api: foo() };
 ```
 
-```ts:main.ts
-import { service } from "./module-b";
+```ds:main.ds
+import { service } from "./module-b.ds";
 
 service.api.do() satisfies string;
 ```
@@ -31,14 +31,14 @@ service.api.do() satisfies string;
 
 Exported functions keep return types inferred from their bodies.
 
-```ts:factory.ts
+```ds:factory.ds
 export function make() {
     return { ok: true };
 }
 ```
 
-```ts:main.ts
-import { make } from "./factory";
+```ds:main.ds
+import { make } from "./factory.ds";
 
 make().ok satisfies boolean;
 ```
@@ -48,16 +48,16 @@ make().ok satisfies boolean;
 
 Exported values keep the types inferred in their declaring module.
 
-```ts:config.ts
+```ds:config.ds
 export const config = { port: 8080, label: "dev" };
 export let counter = 0;
 export const pinned = 0;
 ```
 
-```ts:main.ts
-import { config } from "./config";
-import { counter } from "./config";
-import { pinned } from "./config";
+```ds:main.ds
+import { config } from "./config.ds";
+import { counter } from "./config.ds";
+import { pinned } from "./config.ds";
 
 config.port satisfies number;
 config.label satisfies string;
@@ -73,7 +73,7 @@ pinned satisfies 0;
 
 > Exported values keep the type produced by a local generic chain.
 
-```ts:registry-chain.ts
+```ds:registry-chain.ds
 export interface Registry<R> {
     get<K extends keyof R>(key: K): R[K];
 }
@@ -90,8 +90,8 @@ export interface RegistryChain<R> {
 export declare function createRegistry(): RegistryChain<{}>;
 ```
 
-```ts:registry.ts
-import { createRegistry } from "./registry-chain";
+```ds:registry.ds
+import { createRegistry } from "./registry-chain.ds";
 
 export const registry = createRegistry()
     .entry("user", { id: 1, name: "Ada" })
@@ -99,8 +99,8 @@ export const registry = createRegistry()
     .build();
 ```
 
-```ts:main.ts
-import { registry } from "./registry";
+```ds:main.ds
+import { registry } from "./registry.ds";
 
 registry.get("user") satisfies { id: number, name: string };
 registry.get("count") satisfies number;
@@ -110,7 +110,7 @@ registry.get("count") satisfies number;
 
 > Exported values keep key constraints produced by a local generic chain.
 
-```ts:registry-chain.ts
+```ds:registry-chain.ds
 export interface Registry<R> {
     get<K extends keyof R>(key: K): R[K];
 }
@@ -127,16 +127,16 @@ export interface RegistryChain<R> {
 export declare function createRegistry(): RegistryChain<{}>;
 ```
 
-```ts:registry.ts
-import { createRegistry } from "./registry-chain";
+```ds:registry.ds
+import { createRegistry } from "./registry-chain.ds";
 
 export const registry = createRegistry()
     .entry("user", { id: 1, name: "Ada" })
     .build();
 ```
 
-```ts:main.ts
-import { registry } from "./registry";
+```ds:main.ds
+import { registry } from "./registry.ds";
 
 registry.get("missing");
 ```
@@ -150,14 +150,14 @@ registry.get("missing");
 
 Default exports keep inferred return types across modules.
 
-```ts:defaults.ts
+```ds:defaults.ds
 export default function make() {
     return { ok: true };
 }
 ```
 
-```ts:main.ts
-import make from "./defaults";
+```ds:main.ds
+import make from "./defaults.ds";
 
 make().ok satisfies boolean;
 ```
@@ -169,20 +169,20 @@ make().ok satisfies boolean;
 
 Exported values may depend on declared import signatures.
 
-```ts:builder.ts
+```ds:builder.ds
 export declare const createCounter: () => {
     count: (value: string) => number
 };
 ```
 
-```ts:counter.ts
-import { createCounter } from "./builder";
+```ds:counter.ds
+import { createCounter } from "./builder.ds";
 
 export const count = createCounter().count("user");
 ```
 
-```ts:main.ts
-import { count } from "./counter";
+```ds:main.ds
+import { count } from "./counter.ds";
 
 count satisfies number;
 ```
@@ -194,20 +194,20 @@ count satisfies number;
 
 Exported values may depend on inferred exports from another module.
 
-```ts:builder.ts libs=es5
+```ds:builder.ds
 export const createCounter = () => ({
     count: (value: string) => value.length,
 });
 ```
 
-```ts:counter.ts
-import { createCounter } from "./builder";
+```ds:counter.ds
+import { createCounter } from "./builder.ds";
 
 export const count = createCounter().count("user");
 ```
 
-```ts:main.ts
-import { count } from "./counter";
+```ds:main.ds
+import { count } from "./counter.ds";
 
 count satisfies number;
 ```
@@ -216,18 +216,18 @@ count satisfies number;
 
 Exported aliases keep imported value shapes.
 
-```ts:values.ts
+```ds:values.ds
 export const config = { nested: { ok: true } };
 ```
 
-```ts:module-b.ts
-import { config } from "./values";
+```ds:module-b.ds
+import { config } from "./values.ds";
 
 export const shared = config;
 ```
 
-```ts:main.ts
-import { shared } from "./module-b";
+```ds:main.ds
+import { shared } from "./module-b.ds";
 
 shared.nested.ok satisfies boolean;
 ```
@@ -236,18 +236,18 @@ shared.nested.ok satisfies boolean;
 
 Exported wrappers keep imported value shapes.
 
-```ts:values.ts
+```ds:values.ds
 export const config = { nested: { ok: true } };
 ```
 
-```ts:module-b.ts
-import { config } from "./values";
+```ds:module-b.ds
+import { config } from "./values.ds";
 
 export const shared = { config, extra: true };
 ```
 
-```ts:main.ts
-import { shared } from "./module-b";
+```ds:main.ds
+import { shared } from "./module-b.ds";
 
 shared.config.nested.ok satisfies boolean;
 shared.extra satisfies boolean;

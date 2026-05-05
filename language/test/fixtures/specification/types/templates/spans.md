@@ -189,11 +189,11 @@ export declare function parse_repeat<T extends string>(value: `${T}-${T}`): T;
 ```
 
 ```ds:index.ds
-export { parse_repeat as parseRepeat } from "./helper";
+export { parse_repeat as parseRepeat } from "./helper.ds";
 ```
 
 ```ds:main.ds
-import { parseRepeat } from "./index";
+import { parseRepeat } from "./index.ds";
 
 const segment = parseRepeat("col-col");
 segment satisfies "col";
@@ -208,11 +208,11 @@ export declare function parse_repeat<T extends string>(value: `${T}-${T}`): T;
 ```
 
 ```ds:index.ds
-export { parse_repeat as parseRepeat } from "./helper";
+export { parse_repeat as parseRepeat } from "./helper.ds";
 ```
 
 ```ds:main.ds
-import { parseRepeat } from "./index";
+import { parseRepeat } from "./index.ds";
 
 parseRepeat("col-row");
 ```

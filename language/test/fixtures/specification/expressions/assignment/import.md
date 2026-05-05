@@ -13,7 +13,7 @@ export let counter: number = 0;
 ```
 
 ```ds:main.ds
-import { counter } from "./counter";
+import { counter } from "./counter.ds";
 
 counter = 1;
 ```
@@ -29,7 +29,7 @@ export let counter: number = 0;
 ```
 
 ```ds:main.ds
-import { counter as localCounter } from "./counter";
+import { counter as localCounter } from "./counter.ds";
 
 localCounter = 1;
 ```
@@ -45,7 +45,7 @@ export let counter: number = 0;
 ```
 
 ```ds:main.ds
-import * as counter from "./counter";
+import * as counter from "./counter.ds";
 
 counter = { counter: 1 };
 ```
@@ -61,7 +61,7 @@ export let counter: number = 0;
 ```
 
 ```ds:main.ds
-import * as namespaceCounter from "./counter";
+import * as namespaceCounter from "./counter.ds";
 
 namespaceCounter.counter = 1;
 ```
@@ -77,7 +77,7 @@ export let counter: number = 0;
 ```
 
 ```ds:main.ds
-import { counter } from "./counter";
+import { counter } from "./counter.ds";
 
 counter++;
 ```

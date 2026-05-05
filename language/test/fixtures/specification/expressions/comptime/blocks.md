@@ -27,7 +27,7 @@ export const size = comptime 4;
 ```
 
 ```ds:main.ds
-import { size } from "./config";
+import { size } from "./config.ds";
 
 comptime {
     assert(size == 4);

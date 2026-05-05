@@ -1,10 +1,10 @@
 # Extract
 
-`Extract` is a standard TypeScript utility type.
+`Extract` is a standard utility type.
 
 ### extract keeps matching members
 
-```ds libs=es5
+```ds
 type Letters = "a" | "b" | "c";
 type OnlyAorB = Extract<Letters, "a" | "b">;
 
@@ -16,7 +16,7 @@ ok2 satisfies OnlyAorB;
 
 ### extract rejects non members
 
-```ds libs=es5
+```ds
 type Letters = "a" | "b" | "c";
 type OnlyAorB = Extract<Letters, "a" | "b">;
 
@@ -27,7 +27,7 @@ const bad: OnlyAorB = "c";
 
 ### extract with never yields never
 
-```ds libs=es5
+```ds
 type NeverLetters = Extract<never, "a">;
 
 let bad: NeverLetters = "a";

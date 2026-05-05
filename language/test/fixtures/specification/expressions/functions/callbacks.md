@@ -8,7 +8,7 @@ Callbacks receive contextual parameter types from their call site.
 
 > Callback parameters use the declared parameter type.
 
-```ts
+```ds
 declare function drive(callback: (value: string) => void): void;
 
 drive(value => {
@@ -20,7 +20,7 @@ drive(value => {
 
 > Nested callback calls keep contextual parameter types.
 
-```ts
+```ds
 declare function drive<T>(value: T, callback: (value: T) => void): void;
 declare function wrap(callback: (value: string) => string): string;
 
@@ -41,7 +41,7 @@ result satisfies string;
 
 > Contextual callback typing uses overload declaration order.
 
-```ts
+```ds
 declare function choose(value: string): "string";
 declare function choose(value: number): "number";
 declare function drive(callback: (value: string) => "string"): "ok";
@@ -54,7 +54,7 @@ result satisfies "ok";
 
 > Later overload branches do not replace an earlier contextual match.
 
-```ts
+```ds
 declare function choose(value: string): "string";
 declare function choose(value: number): "number";
 declare function drive(callback: (value: string) => "string"): "ok";
@@ -71,7 +71,7 @@ result satisfies "number";
 
 > Mutable callback inputs do not retain literal precision.
 
-```ts
+```ds
 declare function drive<T>(value: T, callback: (value: T) => void): void;
 
 let input = "ready";
@@ -82,7 +82,3 @@ drive(input, value => {
 ```
 
 - contains: not assignable
-
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
-```

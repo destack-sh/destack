@@ -4,7 +4,7 @@
 
 ### intrinsic types cannot be indexed
 
-```ts:main.ts
+```ds:main.ds
 type Bad = intrinsic["foo"];
 ```
 
@@ -12,7 +12,7 @@ type Bad = intrinsic["foo"];
 
 ### intrinsic types cannot appear in value annotations
 
-```ts:main.ts
+```ds:main.ds
 const value: intrinsic = "x";
 ```
 
@@ -20,7 +20,7 @@ const value: intrinsic = "x";
 
 ### intrinsic types cannot be used in conditional operators
 
-```ts:main.ts
+```ds:main.ds
 type Select<T> = intrinsic extends T ? true : false;
 ```
 
@@ -28,7 +28,7 @@ type Select<T> = intrinsic extends T ? true : false;
 
 ### intrinsic types cannot be passed as generic arguments
 
-```ts:main.ts
+```ds:main.ds
 type Box<T> = T;
 type Bad = Box<intrinsic>;
 ```
@@ -37,7 +37,7 @@ type Bad = Box<intrinsic>;
 
 ### intrinsic types cannot appear in union members
 
-```ts:main.ts
+```ds:main.ds
 type Bad = intrinsic | string;
 ```
 

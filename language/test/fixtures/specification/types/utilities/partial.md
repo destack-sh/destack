@@ -1,10 +1,10 @@
 # Partial
 
-`Partial` is a standard TypeScript utility type.
+`Partial` is a standard utility type.
 
 ### partial allows missing fields
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -20,7 +20,7 @@ ok2 satisfies OptionalPerson;
 
 ### partial rejects extra fields
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -35,7 +35,7 @@ const bad: OptionalPerson = { name: "Ada", extra: true };
 
 ### partial rejects incompatible field types
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -50,7 +50,7 @@ const bad: OptionalPerson = { name: "Ada", age: "no" };
 
 ### partial preserves readonly fields
 
-```ds libs=es5
+```ds
 interface Person {
     readonly name: string
     age: number

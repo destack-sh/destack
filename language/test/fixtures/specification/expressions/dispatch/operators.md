@@ -92,7 +92,7 @@ export struct Counter {}
 ```
 
 ```ds:extensions.ds
-import { Counter } from "./counter";
+import { Counter } from "./counter.ds";
 
 export extension CounterNumberAdd of Counter implements Add<number> {
     type Output = "number";
@@ -108,8 +108,8 @@ export extension CounterIntAdd of Counter implements Add<int32> {
 ```
 
 ```ds:main.ds
-import { Counter } from "./counter";
-import { CounterNumberAdd, CounterIntAdd } from "./extensions";
+import { Counter } from "./counter.ds";
+import { CounterNumberAdd, CounterIntAdd } from "./extensions.ds";
 
 declare let counter: Counter;
 
@@ -126,7 +126,7 @@ export struct Counter {}
 ```
 
 ```ds:first.ds
-import { Counter } from "./counter";
+import { Counter } from "./counter.ds";
 
 export extension FirstAdd of Counter implements Add<number> {
     type Output = "first";
@@ -136,7 +136,7 @@ export extension FirstAdd of Counter implements Add<number> {
 ```
 
 ```ds:second.ds
-import { Counter } from "./counter";
+import { Counter } from "./counter.ds";
 
 export extension SecondAdd of Counter implements Add<number> {
     type Output = "second";
@@ -146,9 +146,9 @@ export extension SecondAdd of Counter implements Add<number> {
 ```
 
 ```ds:main.ds
-import { Counter } from "./counter";
-import { FirstAdd } from "./first";
-import { SecondAdd } from "./second";
+import { Counter } from "./counter.ds";
+import { FirstAdd } from "./first.ds";
+import { SecondAdd } from "./second.ds";
 
 declare let counter: Counter;
 

@@ -192,7 +192,7 @@ GlobalWidget.tag satisfies string;
 
 > Global `Array<T>` augmentations add members without removing ambient library members.
 
-```ds:main.ds libs=es5
+```ds:main.ds
 declare global {
     interface Array<T> {
         first(): T | undefined;
@@ -208,7 +208,7 @@ values.first() satisfies number | undefined;
 
 > Global declarations live in a separate scope from module declarations.
 
-```ds:globals.d.ds
+```ds:globals.ds
 export {};
 
 declare class Iterator<T> {
@@ -225,14 +225,14 @@ declare global {
 ```
 
 ```ds:main.ds
-import "./globals.d.ds";
+import "./globals.ds";
 ```
 
 ### global augmentations do not conflict with module declarations
 
 > Declaration files keep global augmentations separate from module-local declarations.
 
-```ts:globals.d.ts
+```ds:globals.ds
 export {};
 
 declare abstract class Iterator<T> {
@@ -246,15 +246,15 @@ declare global {
 }
 ```
 
-```ts:main.ts
-import "./globals.d.ts";
+```ds:main.ds
+import "./globals.ds";
 ```
 
 ### global declarations in module bindings can use module scope
 
 > Global augmentations declared inside module bindings can reference names from that module binding.
 
-```ds:bindings.d.ds
+```ds:bindings.ds
 export {};
 
 declare module "foo" {
@@ -269,7 +269,7 @@ declare module "foo" {
 ```
 
 ```ds:main.ds
-import "./bindings.d.ds";
+import "./bindings.ds";
 
 type Alias = GlobalThing;
 const value: Alias = { value: 1 };

@@ -76,7 +76,7 @@ const bad: Merge<Shape> = { value: true };
 
 > Remapped keys can be produced by template literal expressions.
 
-```ts
+```ds
 interface Shape {
     a: number
     b: string
@@ -96,7 +96,7 @@ const ok: Prefixed<Shape> = {
 
 > Template literal remapped keys still enforce value types.
 
-```ts
+```ds
 interface Shape {
     a: number
     b: string

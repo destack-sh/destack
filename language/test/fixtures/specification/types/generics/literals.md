@@ -56,7 +56,7 @@ export function id<T>(value: T): T {
 ```
 
 ```ds:main.ds
-import { id } from "./helper";
+import { id } from "./helper.ds";
 
 const value = "ready";
 const result = id(value);
@@ -75,7 +75,7 @@ export function id<T>(value: T): T {
 ```
 
 ```ds:main.ds
-import { id } from "./helper";
+import { id } from "./helper.ds";
 
 let value = "ready";
 let result = id(value);
@@ -94,7 +94,7 @@ export function id<T>(value: T): T {
 ```
 
 ```ds:main.ds
-import { id } from "./helper";
+import { id } from "./helper.ds";
 
 let value = "ready";
 let result = id(value);
@@ -115,11 +115,11 @@ export function id<T>(value: T): T {
 ```
 
 ```ds:index.ds
-export { id as identity } from "./helper";
+export { id as identity } from "./helper.ds";
 ```
 
 ```ds:main.ds
-import { identity } from "./index";
+import { identity } from "./index.ds";
 
 const value = "ready";
 const result = identity(value);
@@ -138,11 +138,11 @@ export function id<T>(value: T): T {
 ```
 
 ```ds:index.ds
-export * from "./helper";
+export * from "./helper.ds";
 ```
 
 ```ds:main.ds
-import { id } from "./index";
+import { id } from "./index.ds";
 
 let value = "ready";
 const result = id(value);
@@ -161,7 +161,7 @@ export function id<T>(value: T): T {
 ```
 
 ```ds:main.ds
-import * as api from "./helper";
+import * as api from "./helper.ds";
 
 const value = true ? "api" : "admin";
 const result = api.id(value);
@@ -180,7 +180,7 @@ export function id<T>(value: T): T {
 ```
 
 ```ds:main.ds
-import * as api from "./helper";
+import * as api from "./helper.ds";
 
 let value = true ? "api" : "admin";
 const result = api.id(value);
@@ -235,7 +235,7 @@ result satisfies "api" | "admin";
 
 Const literals satisfy constrained generic parameters with literal precision.
 
-```ts
+```ds
 declare function choose<T extends "dev" | "prod">(value: T): T;
 
 const mode = "dev";
@@ -248,7 +248,7 @@ result satisfies "dev";
 
 Widened mutable literals do not satisfy constrained literal generic parameters.
 
-```ts
+```ds
 declare function choose<T extends "dev" | "prod">(value: T): T;
 
 let mode = "dev";
@@ -261,7 +261,7 @@ choose(mode);
 
 Const ternary unions remain precise when inferring constrained generic parameters.
 
-```ts
+```ds
 declare function choose<T extends "dev" | "prod">(value: T): T;
 
 const mode = true ? "dev" : "prod";
@@ -274,7 +274,7 @@ result satisfies "dev" | "prod";
 
 Mutable ternary literals widen and fail constrained literal generic inference.
 
-```ts
+```ds
 declare function choose<T extends "dev" | "prod">(value: T): T;
 
 let mode = true ? "dev" : "prod";
@@ -289,7 +289,7 @@ choose(mode);
 
 Const object literals preserve discriminants through constrained generic inference.
 
-```ts
+```ds
 declare function select<T extends { kind: "a" | "b" }>(value: T): T;
 
 const value = { kind: "a" as const, payload: 1 };
@@ -302,7 +302,7 @@ result.kind satisfies "a";
 
 Widened object discriminants do not satisfy constrained literal generic inference.
 
-```ts
+```ds
 declare function select<T extends { kind: "a" | "b" }>(value: T): T;
 
 let value = { kind: "a", payload: 1 };
@@ -315,7 +315,7 @@ select(value);
 
 Template span inference keeps const span literals under constrained generics.
 
-```ts
+```ds
 declare function parse<T extends "users" | "posts">(value: `id:${T}`): T;
 
 const value = "id:users";
@@ -328,7 +328,7 @@ result satisfies "users";
 
 Widened mutable strings do not satisfy constrained template span generics.
 
-```ts
+```ds
 declare function parse<T extends "users" | "posts">(value: `id:${T}`): T;
 
 let value = "id:users";
@@ -381,7 +381,7 @@ export function as_lit<T extends string>(value: T): T {
 ```
 
 ```ds:main.ds
-import { as_lit } from "./lib";
+import { as_lit } from "./lib.ds";
 
 const seed = "users";
 const kept = as_lit(seed);

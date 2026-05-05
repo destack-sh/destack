@@ -6,10 +6,6 @@
 
 > Keyof on a symbol index signature yields symbol.
 
-```json:destack.json
-{ "compiler": { "lib": ["es2015"] } }
-```
-
 ```ds
 interface SymbolBag {
     [key: symbol]: int32
@@ -27,10 +23,6 @@ const bad: Keys = "name";
 ### keyof preserves well-known symbol keys
 
 > Keyof includes the specific well-known symbol.
-
-```json:destack.json
-{ "compiler": { "lib": ["es2015"] } }
-```
 
 ```ds
 interface IterableBox {
@@ -52,10 +44,6 @@ const badSymbol: Keys = other;
 
 > Registry symbol keys can be used in object types.
 
-```json:destack.json
-{ "compiler": { "lib": ["es2015"] } }
-```
-
 ```ds
 interface RegistryBox {
     [Symbol.for("token")]: string
@@ -68,10 +56,6 @@ box[Symbol.for("token")] satisfies string
 ### unique symbol keys are accepted
 
 > Unique symbols can be used as object keys.
-
-```json:destack.json
-{ "compiler": { "lib": ["es2015"] } }
-```
 
 ```ds
 const token: unique symbol = Symbol("token")
@@ -88,10 +72,6 @@ box[token] satisfies int32
 
 > Keyof preserves the unique symbol key.
 
-```json:destack.json
-{ "compiler": { "lib": ["es2015"] } }
-```
-
 ```ds
 const token: unique symbol = Symbol("token")
 
@@ -107,10 +87,6 @@ const ok: Keys = token;
 ### keyof rejects unrelated symbols
 
 > Keyof does not accept unrelated symbols.
-
-```json:destack.json
-{ "compiler": { "lib": ["es2015"] } }
-```
 
 ```ds
 const token: unique symbol = Symbol("token")

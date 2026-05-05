@@ -159,9 +159,9 @@ const target: Target = source;
 
 ### interface declarations merge in declaration files
 
-> Declarations in .d.ds merge into a single interface.
+> Declarations in .ds merge into a single interface.
 
-```ds:types.d.ds
+```ds:types.ds
 export interface Widget {
     value: number
 }
@@ -174,7 +174,7 @@ export const widget: Widget;
 ```
 
 ```ds:main.ds
-import { widget } from "./types.d.ds";
+import { widget } from "./types.ds";
 
 widget.label satisfies string;
 widget.value satisfies number;

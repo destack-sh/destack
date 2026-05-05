@@ -8,14 +8,14 @@ Module cycles must not require cross-module inference.
 
 > Exported bindings do not infer through module cycles.
 
-```ts:a.ts
-import { y } from "./b";
+```ds:a.ds
+import { y } from "./b.ds";
 
 export const x = y;
 ```
 
-```ts:b.ts
-import { x } from "./a";
+```ds:b.ds
+import { x } from "./a.ds";
 
 export const y = x;
 ```
@@ -26,14 +26,14 @@ export const y = x;
 
 > One annotation does not infer the rest of a module cycle.
 
-```ts:a.ts
-import { y } from "./b";
+```ds:a.ds
+import { y } from "./b.ds";
 
 export const x: number = y;
 ```
 
-```ts:b.ts
-import { x } from "./a";
+```ds:b.ds
+import { x } from "./a.ds";
 
 export const y = x;
 ```
@@ -44,14 +44,14 @@ export const y = x;
 
 > Fully annotated exports do not require cycle inference.
 
-```ts:a.ts
-import { y } from "./b";
+```ds:a.ds
+import { y } from "./b.ds";
 
 export const x: number = y;
 ```
 
-```ts:b.ts
-import { x } from "./a";
+```ds:b.ds
+import { x } from "./a.ds";
 
 export const y: number = x;
 ```
@@ -60,20 +60,20 @@ export const y: number = x;
 
 > Longer cycles follow the same local inference rule.
 
-```ts:a.ts
-import { y } from "./b";
+```ds:a.ds
+import { y } from "./b.ds";
 
 export const x = y;
 ```
 
-```ts:b.ts
-import { z } from "./c";
+```ds:b.ds
+import { z } from "./c.ds";
 
 export const y = z;
 ```
 
-```ts:c.ts
-import { x } from "./a";
+```ds:c.ds
+import { x } from "./a.ds";
 
 export const z = x;
 ```
@@ -84,20 +84,20 @@ export const z = x;
 
 > A single annotation does not solve downstream exports in the cycle.
 
-```ts:a.ts
-import { y } from "./b";
+```ds:a.ds
+import { y } from "./b.ds";
 
 export const x: number = y;
 ```
 
-```ts:b.ts
-import { z } from "./c";
+```ds:b.ds
+import { z } from "./c.ds";
 
 export const y = z;
 ```
 
-```ts:c.ts
-import { x } from "./a";
+```ds:c.ds
+import { x } from "./a.ds";
 
 export const z = x;
 ```
@@ -108,14 +108,14 @@ export const z = x;
 
 > Namespace-based export cycles still require local annotations.
 
-```ts:a.ts
-import * as b from "./b";
+```ds:a.ds
+import * as b from "./b.ds";
 
 export const x = b.y;
 ```
 
-```ts:b.ts
-import * as a from "./a";
+```ds:b.ds
+import * as a from "./a.ds";
 
 export const y = a.x;
 ```
@@ -126,14 +126,14 @@ export const y = a.x;
 
 > One annotation does not infer namespace-imported cycle members.
 
-```ts:a.ts
-import * as b from "./b";
+```ds:a.ds
+import * as b from "./b.ds";
 
 export const x: number = b.y;
 ```
 
-```ts:b.ts
-import * as a from "./a";
+```ds:b.ds
+import * as a from "./a.ds";
 
 export const y = a.x;
 ```
@@ -144,18 +144,18 @@ export const y = a.x;
 
 > Reexport chains inside a cycle still require local annotations.
 
-```ts:a.ts
-import { y } from "./forward";
+```ds:a.ds
+import { y } from "./forward.ds";
 
 export const x = y;
 ```
 
-```ts:forward.ts
-export { y } from "./b";
+```ds:forward.ds
+export { y } from "./b.ds";
 ```
 
-```ts:b.ts
-import { x } from "./a";
+```ds:b.ds
+import { x } from "./a.ds";
 
 export const y = x;
 ```
@@ -166,18 +166,18 @@ export const y = x;
 
 > One annotation does not solve an inferred export behind a reexport.
 
-```ts:a.ts
-import { y } from "./forward";
+```ds:a.ds
+import { y } from "./forward.ds";
 
 export const x: number = y;
 ```
 
-```ts:forward.ts
-export { y } from "./b";
+```ds:forward.ds
+export { y } from "./b.ds";
 ```
 
-```ts:b.ts
-import { x } from "./a";
+```ds:b.ds
+import { x } from "./a.ds";
 
 export const y = x;
 ```

@@ -148,25 +148,21 @@ value satisfies (number, string);
 
 > Tuple static arguments stay grouped across imported aliases.
 
-```ts:utils.d.ts
+```ds:utils.ds
 export type And<Types extends boolean[]> = Types[number] extends true ? true : false;
 ```
 
-```ts:branding.d.ts
-import type { And } from "./utils.d.ts";
+```ds:branding.ds
+import type { And } from "./utils.ds";
 
 export type Alias = And<[true, true]>;
 ```
 
 ```ds:main.ds
-import type { Alias } from "./branding.d.ts";
+import type { Alias } from "./branding.ds";
 
 declare let value: Alias;
 value satisfies true;
-```
-
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 ### imported tuple types stay grouped
@@ -202,7 +198,7 @@ value satisfies true;
 
 > Type alias references preserve tuple static arguments across imports.
 
-```ts:utils.d.ts
+```ds:utils.ds
 export type And<Types extends boolean[]> = Types[number] extends true ? true : false;
 
 export type MutuallyExtends<Left, Right> = And<
@@ -210,21 +206,17 @@ export type MutuallyExtends<Left, Right> = And<
 >;
 ```
 
-```ts:branding.d.ts
-import type { MutuallyExtends } from "./utils.d.ts";
+```ds:branding.ds
+import type { MutuallyExtends } from "./utils.ds";
 
 export type StrictEqualUsingBranding<Left, Right> = MutuallyExtends<Left, Right>;
 ```
 
 ```ds:main.ds
-import type { StrictEqualUsingBranding } from "./branding.d.ts";
+import type { StrictEqualUsingBranding } from "./branding.ds";
 
 type Result = StrictEqualUsingBranding<number, number>;
 
 declare let value: Result;
 value satisfies true;
-```
-
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
 ```

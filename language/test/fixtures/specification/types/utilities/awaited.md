@@ -4,7 +4,7 @@
 
 ### awaited keeps non promises
 
-```ts libs=es5
+```ds
 type Value = Awaited<string>;
 
 const ok: Value = "ready";
@@ -13,7 +13,7 @@ ok satisfies string;
 
 ### awaited unwraps promise-like values
 
-```ts libs=es5
+```ds
 type Value = Awaited<PromiseLike<string>>;
 
 const ok: Value = "ready";
@@ -22,7 +22,7 @@ ok satisfies string;
 
 ### awaited unwraps nested promise-like values
 
-```ts libs=es5
+```ds
 type Value = Awaited<PromiseLike<PromiseLike<string>>>;
 
 const ok: Value = "ready";
@@ -31,7 +31,7 @@ ok satisfies string;
 
 ### awaited rejects unresolved promise values
 
-```ts libs=es5
+```ds
 type Value = Awaited<PromiseLike<string>>;
 
 const bad: Value = Promise.resolve("ready");
@@ -41,7 +41,7 @@ const bad: Value = Promise.resolve("ready");
 
 ### awaited preserves nullish values
 
-```ts libs=es5
+```ds
 type Value = Awaited<null | undefined>;
 
 const ok: Value = null;

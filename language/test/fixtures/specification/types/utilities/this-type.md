@@ -4,7 +4,7 @@
 
 ### ThisType provides object literal this
 
-```ts libs=es5
+```ds
 type Descriptor = {
     value: string;
     method(): string;
@@ -22,7 +22,7 @@ descriptor.method() satisfies string;
 
 ### ThisType rejects missing contextual members
 
-```ts libs=es5
+```ds
 type Descriptor = {
     value: string;
     method(): string;

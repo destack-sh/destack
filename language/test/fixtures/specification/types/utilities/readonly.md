@@ -1,10 +1,10 @@
 # Readonly
 
-`Readonly` is a standard TypeScript utility type.
+`Readonly` is a standard utility type.
 
 ### readonly keeps field types
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -18,7 +18,7 @@ ok satisfies Frozen;
 
 ### readonly preserves optional fields
 
-```ds libs=es5
+```ds
 interface Person {
     name?: string
 }
@@ -31,7 +31,7 @@ ok satisfies Frozen;
 
 ### readonly rejects property writes
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -47,7 +47,7 @@ frozen.name = "Grace";
 
 ### readonly is shallow
 
-```ds libs=es5
+```ds
 interface Person {
     profile: {
         name: string

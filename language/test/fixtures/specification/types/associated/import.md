@@ -16,7 +16,7 @@ export struct Box<T> {
 ```
 
 ```ds:main.ds
-import { Box } from "./layout";
+import { Box } from "./layout.ds";
 
 declare const value: Box<string>.Item;
 value satisfies string;
@@ -34,7 +34,7 @@ export class FrameLayout {
 ```
 
 ```ds:main.ds
-import { FrameLayout } from "./layout";
+import { FrameLayout } from "./layout.ds";
 
 declare const segment: FrameLayout.Segment;
 segment satisfies [uint8; 4096];
@@ -55,13 +55,13 @@ export interface RegisterBlock {
 ```
 
 ```ds:layout.ds
-import { RegisterBlock } from "./profile";
+import { RegisterBlock } from "./profile.ds";
 
 export struct Status implements RegisterBlock {}
 ```
 
 ```ds:main.ds
-import { Status } from "./layout";
+import { Status } from "./layout.ds";
 
 declare const bytes: Status.Bytes;
 bytes satisfies [uint8; 4];
@@ -81,7 +81,7 @@ export class Segment<Row> {
 ```
 
 ```ds:main.ds
-import * as layout from "./layout";
+import * as layout from "./layout.ds";
 
 declare const lane: layout.Segment<string>.Lane;
 lane satisfies [uint8; 8];

@@ -118,7 +118,7 @@ const values: number[] = [...[1, "two"]];
 ### Array<T> matches array syntax
 
 
-```ds libs=es5
+```ds
 const values: Array<number> = [1, 2, 3];
 values satisfies number[];
 ```
@@ -126,7 +126,7 @@ values satisfies number[];
 ### array syntax matches Array<T>
 
 
-```ds libs=es5
+```ds
 const values: number[] = [1, 2, 3];
 values satisfies Array<number>;
 ```
@@ -169,7 +169,7 @@ values.length satisfies int32;
 
 > Array mutation methods enforce element types.
 
-```ds libs=es5
+```ds
 const values: number[] = [1, 2, 3];
 values.push("no");
 ```

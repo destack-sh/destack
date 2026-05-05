@@ -174,7 +174,7 @@ const value: { a: number } = { ...{ a: "hi" } };
 > Object literals expose standard object members.
 
 
-```ds libs=es5
+```ds
 const value = { a: 1, b: "two" };
 const text = value.toString();
 text satisfies string;
@@ -185,7 +185,7 @@ text satisfies string;
 > Object literals expose hasOwnProperty.
 
 
-```ds libs=es5
+```ds
 const value = { a: 1 };
 const result = value.hasOwnProperty("a");
 result satisfies boolean;

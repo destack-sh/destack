@@ -47,7 +47,7 @@ let { x, y } = point;
 
 > Destructuring declarations require an initializer.
 
-```ts
+```ds
 const { x }: { x: number };
 ```
 

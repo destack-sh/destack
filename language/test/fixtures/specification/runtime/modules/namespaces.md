@@ -6,16 +6,16 @@
 
 A namespace produced by `export * as` exposes exported type aliases.
 
-```ts:types.ts
+```ds:types.ds
 export type Segment<T extends string> = T extends `id:${infer U}` ? U : never;
 ```
 
-```ts:namespace.ts
-export * as api from "./types";
+```ds:namespace.ds
+export * as api from "./types.ds";
 ```
 
-```ts:main.ts
-import { api } from "./namespace";
+```ds:main.ds
+import { api } from "./namespace.ds";
 
 declare const segment: api.Segment<"id:users">;
 segment satisfies "users";
@@ -25,20 +25,20 @@ segment satisfies "users";
 
 Renaming an exported namespace keeps its value exports available.
 
-```ts:values.ts
+```ds:values.ds
 export const version = 1 as const;
 ```
 
-```ts:namespace.ts
-export * as api from "./values";
+```ds:namespace.ds
+export * as api from "./values.ds";
 ```
 
-```ts:index.ts
-export { api as renamed } from "./namespace";
+```ds:index.ds
+export { api as renamed } from "./namespace.ds";
 ```
 
-```ts:main.ts
-import { renamed } from "./index";
+```ds:main.ds
+import { renamed } from "./index.ds";
 
 renamed.version satisfies 1;
 ```
@@ -47,16 +47,16 @@ renamed.version satisfies 1;
 
 A `type` re-export must stay type-only and must not synthesize runtime namespace values.
 
-```ts:types.ts
+```ds:types.ds
 export type Item = { id: string };
 ```
 
-```ts:index.ts
-export type { Item } from "./types";
+```ds:index.ds
+export type { Item } from "./types.ds";
 ```
 
-```ts:main.ts
-import { Item } from "./index";
+```ds:main.ds
+import { Item } from "./index.ds";
 
 Item;
 ```
@@ -67,16 +67,16 @@ Item;
 
 Template-literal constraints still reject non-matching inputs through namespace imports.
 
-```ts:types.ts
+```ds:types.ds
 export type Segment<T extends string> = T extends `id:${infer U}` ? U : never;
 ```
 
-```ts:namespace.ts
-export * as api from "./types";
+```ds:namespace.ds
+export * as api from "./types.ds";
 ```
 
-```ts:main.ts
-import { api } from "./namespace";
+```ds:main.ds
+import { api } from "./namespace.ds";
 
 declare const segment: api.Segment<"users">;
 segment satisfies "users";
@@ -84,28 +84,24 @@ segment satisfies "users";
 
 - contains: not assignable
 
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
-```
-
 ## namespace imports
 
 ### namespace imports keep value shapes
 
 Namespace imports keep imported value shapes.
 
-```ts:exports.ts
+```ds:exports.ds
 export const value = { ok: true };
 ```
 
-```ts:module-b.ts
-import * as mod from "./exports";
+```ds:module-b.ds
+import * as mod from "./exports.ds";
 
 export const forwarded = mod.value;
 ```
 
-```ts:main.ts
-import { forwarded } from "./module-b";
+```ds:main.ds
+import { forwarded } from "./module-b.ds";
 
 forwarded.ok satisfies boolean;
 ```

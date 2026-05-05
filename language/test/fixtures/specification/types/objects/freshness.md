@@ -6,7 +6,7 @@
 
 A direct object-literal argument stays fresh so excess property checking still runs at the call boundary.
 
-```ts
+```ds
 type Ready = { kind: "ready", payload: string };
 
 declare const use_ready: (value: Ready) => void;
@@ -20,7 +20,7 @@ use_ready({ kind: "ready", payload: "ok", extra: true });
 
 Once the same literal flows through a variable binding, freshness is dropped and excess checks relax.
 
-```ts
+```ds
 type Ready = { kind: "ready", payload: string };
 
 declare const use_ready: (value: Ready) => void;
@@ -33,7 +33,7 @@ use_ready(input);
 
 `as const` wrappers preserve nested literal member precision across generic wrapper calls.
 
-```ts
+```ds
 declare function pass<T>(value: T): T;
 
 const config = pass({ env: { mode: "dev" } } as const);
@@ -44,7 +44,7 @@ config.env.mode satisfies "dev";
 
 Mutable generic wrappers widen nested literals to mutable member types.
 
-```ts
+```ds
 declare function pass<T>(value: T): T;
 
 let config = pass({ env: { mode: "dev" } });
@@ -52,7 +52,3 @@ config.env.mode satisfies "dev";
 ```
 
 - contains: not assignable
-
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
-```

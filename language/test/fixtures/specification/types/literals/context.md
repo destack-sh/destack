@@ -254,7 +254,7 @@ make().mode satisfies "dev";
 
 > Fresh object literals enforce excess property checks at annotated binding sites.
 
-```ts
+```ds
 type Named = { name: string };
 
 const value: Named = { name: "Ada", extra: true };
@@ -266,7 +266,7 @@ const value: Named = { name: "Ada", extra: true };
 
 > Non-fresh object values do not re-run excess checks at later assignment points.
 
-```ts
+```ds
 type Named = { name: string };
 
 const source = { name: "Ada", extra: true };
