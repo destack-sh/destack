@@ -444,6 +444,12 @@ impl Heap {
         self.heap.base_address()
     }
 
+    /// Return the base native address for direct raw heap access.
+    #[inline(always)]
+    pub fn raw_base_address(&self) -> usize {
+        self.raw.base_address()
+    }
+
     /// Return the heap scan metadata for one heap allocation.
     pub fn scan(&self, reference: HeapReference) -> HeapResult<ReferenceMap> {
         self.heap.scan(reference)

@@ -60,6 +60,12 @@ pub struct RawSpace {
 }
 
 impl RawSpace {
+    /// Return the base native address for direct raw access.
+    #[inline(always)]
+    pub fn base_address(&self) -> usize {
+        self.mapping.base_address()
+    }
+
     /// Create one raw space with explicit options.
     pub fn with_options(
         allocator: Arc<Allocator>,

@@ -597,6 +597,12 @@ impl SharedHeap {
         self.heap.base_address()
     }
 
+    /// Return the base native address for direct shared raw heap access.
+    #[inline(always)]
+    pub fn raw_base_address(&self) -> usize {
+        self.raw.base_address()
+    }
+
     /// Return the scan metadata for one shared heap reference.
     pub fn scan(&self, reference: SharedHeapReference) -> HeapResult<ReferenceMap> {
         self.heap.scan(reference)

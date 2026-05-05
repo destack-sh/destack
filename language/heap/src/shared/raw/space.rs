@@ -25,6 +25,8 @@ pub(crate) struct SharedRawState {
 pub struct SharedRawSpace {
     /// The shared raw-space allocator for every allocation.
     pub(crate) allocator: Arc<Allocator>,
+    /// The fixed base native address for direct raw access.
+    pub(crate) base_address: usize,
     /// The shared raw-space state.
     pub(crate) state: Mutex<SharedRawState>,
     /// The owning allocation location for each visible allocator page.
@@ -36,6 +38,12 @@ pub struct SharedRawSpace {
 }
 
 impl SharedRawSpace {
+    /// Return the base native address for direct shared raw access.
+    #[inline(always)]
+    pub fn base_address(&self) -> usize {
+        self.base_address
+    }
+
     /// Create a new empty shared raw space over one shared allocator.
     pub fn with_allocator(allocator: Arc<Allocator>) -> HeapResult<Self> {
         let options = HeapOptions {
@@ -55,9 +63,11 @@ impl SharedRawSpace {
         let page_run_cache = PageRunCache::new(allocator.pages_per_chunk());
         let next_offset = allocator.page_bytes();
         let mapping = AddressSpace::reserve(options.raw_space_bytes, options.page_bytes)?;
+        let base_address = mapping.base_address();
 
         Ok(Self {
             allocator,
+            base_address,
             state: Mutex::new(SharedRawState {
                 page_run_cache,
                 usage: AllocationUsage::default(),
