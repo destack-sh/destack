@@ -192,6 +192,9 @@ impl DestackDeclaration {
         if compiler.comptime_env.is_none() {
             compiler.comptime_env = parent_compiler.comptime_env.clone();
         }
+        if self.json.compiler.tagged_case.is_none() {
+            compiler.tagged_case = parent_compiler.tagged_case;
+        }
 
         compiler.strict = compiler.strict || parent_compiler.strict;
         compiler.always_strict = compiler.always_strict || parent_compiler.always_strict;

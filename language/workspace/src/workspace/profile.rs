@@ -1,8 +1,8 @@
-use destack_artifact::{HostEnvironmentKey, ProfileFlags};
+use destack_artifact::{HostEnvironmentKey, ProfileFlags, ProfileTaggedCase};
 use serde::{Deserialize, Serialize};
 
 use crate::HostEnvironment;
-use crate::config::CompilerOptions;
+use crate::config::{CompilerOptions, TaggedCase};
 
 /// The stable profile id.
 pub use destack_source::ProfileId;
@@ -114,5 +114,17 @@ pub fn profile_flags_for_compiler_options(options: &CompilerOptions) -> ProfileF
         no_implicit_dynamic_dispatch: !options.no_implicit_dynamic_dispatch.is_allow(),
         no_exceptions: !options.no_exceptions.is_allow(),
         strict_builtin_iterator_return: options.strict_builtin_iterator_return,
+        tagged_case: profile_tagged_case(options.tagged_case),
+    }
+}
+
+/// Convert one compiler tagged case to profile identity.
+fn profile_tagged_case(value: TaggedCase) -> ProfileTaggedCase {
+    match value {
+        TaggedCase::Preserve => ProfileTaggedCase::Preserve,
+        TaggedCase::CamelCase => ProfileTaggedCase::CamelCase,
+        TaggedCase::UpperCamelCase => ProfileTaggedCase::UpperCamelCase,
+        TaggedCase::SnakeCase => ProfileTaggedCase::SnakeCase,
+        TaggedCase::ScreamingSnakeCase => ProfileTaggedCase::ScreamingSnakeCase,
     }
 }

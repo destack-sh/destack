@@ -483,6 +483,17 @@
             "null"
           ]
         },
+        "taggedCase": {
+          "description": "Default constructor naming policy for `@tagged` newtype unions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TaggedCaseJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "strict": {
           "description": "Enable all strict type checking options. Default: true for .ds files.",
           "type": [
@@ -1088,6 +1099,17 @@
           ]
         }
       }
+    },
+    "TaggedCaseJson": {
+      "description": "Constructor naming policy for JSON deserialization.",
+      "type": "string",
+      "enum": [
+        "preserve",
+        "camelCase",
+        "UpperCamelCase",
+        "snake_case",
+        "SCREAMING_SNAKE_CASE"
+      ]
     },
     "DiagnosticPolicyJson": {
       "description": "Diagnostic policy for JSON deserialization.",
@@ -5454,7 +5476,7 @@
           }
         },
         "globals": {
-          "description": "Global provider modules added as discovery roots.",
+          "description": "Global modules added as discovery roots.",
           "type": [
             "array",
             "null"
