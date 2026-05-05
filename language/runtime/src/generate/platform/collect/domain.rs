@@ -2,19 +2,19 @@ use std::path::Path;
 
 use destack_workspace::{Module, Repository};
 
-/// Return the relative path for one module inside the builtin platform library.
+/// Return the relative path for one module inside the platform package.
 fn platform_relative_path(repository: &Repository, module: &Module) -> Option<String> {
-    let builtins = repository.builtins();
-    let library_name = builtins.library_name_for_module(module.id)?;
+    let libraries = repository.builtins();
+    let library_name = libraries.library_name_for_module(module.id)?;
 
     if library_name != "platform" {
         return None;
     }
 
-    builtins.library_relative_path_for_module(module.id)
+    libraries.library_relative_path_for_module(module.id)
 }
 
-/// Resolve one platform domain name from one builtin platform module.
+/// Resolve one platform domain name from one platform module.
 pub(crate) fn module_platform_domain(repository: &Repository, module: &Module) -> Option<String> {
     let relative_path = platform_relative_path(repository, module)?;
     let domain = relative_path.split('/').next().unwrap_or_default().trim();
@@ -52,7 +52,7 @@ pub(crate) fn qualify_platform_implementation_name(
     format!("{prefix}.{implementation_name}")
 }
 
-/// Return the nested implementation prefix for one builtin platform module path.
+/// Return the nested implementation prefix for one platform module path.
 fn module_platform_implementation_prefix(relative_path: &str) -> Option<String> {
     let mut parts = relative_path.split('/');
 
@@ -79,11 +79,11 @@ fn module_platform_implementation_prefix(relative_path: &str) -> Option<String> 
     Some(prefix_parts.join("."))
 }
 
-/// Return the nested implementation prefix for one builtin platform module path.
+/// Return the nested implementation prefix for one platform module path.
 fn module_platform_implementation_prefix_from_path(module_path: &Path) -> Option<String> {
     let mut components = module_path.components().peekable();
 
-    // find the platform directory in the builtin source tree
+    // find the platform directory in the library tree
     while let Some(component) = components.next() {
         let component = component.as_os_str().to_str()?;
         if component == "platform" {

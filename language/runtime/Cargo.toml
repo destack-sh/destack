@@ -36,7 +36,6 @@ audio-jack = []
 audio-aaudio = []
 audio-opensles = []
 generator = [
-    "dep:destack_builtin",
     "dep:destack_compiler",
     "dep:destack_linter",
     "dep:destack_session",
@@ -56,7 +55,6 @@ harness = false
 # language
 destack_artifact = { workspace = true }
 destack_ast = { workspace = true }
-destack_builtin = { workspace = true, optional = true }
 destack_compiler = { workspace = true, optional = true }
 destack_core = { workspace = true }
 destack_dir = { workspace = true }

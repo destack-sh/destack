@@ -148,12 +148,12 @@ impl RuntimeGenerator {
         }
     }
 
-    /// Load platform modules from builtin libraries.
+    /// Load platform modules from library packages.
     fn load_platform_modules(&self, profile_key: &ProfileKey) -> Vec<destack_source::ModuleId> {
-        // load the builtin platform library modules
+        // load the platform library modules
         self.repository
             .load_builtin_library("platform", profile_key)
-            .expect("platform builtin lib is missing")
+            .expect("platform library package is missing")
     }
 
     /// Analyze platform modules for one profile.
@@ -186,7 +186,7 @@ impl RuntimeGenerator {
         Ok(())
     }
 
-    /// Format one platform analysis failure with the current builtin diagnostics.
+    /// Format one platform analysis failure with the current library diagnostics.
     fn format_platform_analysis_failure(
         &self,
         profile_id: ProfileId,
@@ -325,7 +325,7 @@ impl RuntimeGenerator {
             None,
             None,
             None,
-            vec!["native".to_string(), "platform".to_string()],
+            vec!["core".to_string(), "platform".to_string()],
             Vec::new(),
             false,
             false,

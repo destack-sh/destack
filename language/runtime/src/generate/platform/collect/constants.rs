@@ -16,7 +16,7 @@ use crate::platform::model::{
     binding_type_symbols,
 };
 
-/// Collect exported platform constants from builtin modules.
+/// Collect exported platform constants from library modules.
 pub(crate) fn collect_platform_constants(
     compiler: &Compiler,
     context: &GeneratorContext,

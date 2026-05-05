@@ -1,11 +1,10 @@
 use std::collections::BTreeMap;
 
-use destack_builtin::LanguageSymbol;
 use destack_compiler::Compiler;
 use destack_core::{StringPool, stable_hash_text};
 use destack_dir::{
-    self as dir, Argument, Declaration, DependencyItem, Expression, GlobalSymbolId, PrimitiveType,
-    StaticArgument, StaticExpression, TypeLiteral, WellKnownSymbol,
+    self as dir, Argument, Declaration, DependencyItem, Expression, GlobalSymbolId, LanguageSymbol,
+    PrimitiveType, StaticArgument, StaticExpression, TypeLiteral, WellKnownSymbol,
 };
 use destack_query::format::{format_local_type, format_type_literal};
 use destack_source::ModuleId;

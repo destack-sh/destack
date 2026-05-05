@@ -2,11 +2,11 @@ use std::collections::{BTreeSet, HashSet};
 use std::str::FromStr;
 
 use destack_artifact::Platform;
-use destack_builtin::LanguageSymbol;
 use destack_compiler::Compiler;
 use destack_core::StringPool;
 use destack_dir::{
-    self as dir, Annotation, Argument, Declaration, Expression, GlobalSymbolId, ScalarLiteral,
+    self as dir, Annotation, Argument, Declaration, Expression, GlobalSymbolId, LanguageSymbol,
+    ScalarLiteral,
 };
 use destack_source::ModuleId;
 use destack_workspace::ProfileId;
@@ -26,7 +26,7 @@ use crate::platform::model::{
 struct BindingRecord {
     /// Declaration name used by runtime implementation functions.
     implementation_name: String,
-    /// Declaration documentation extracted from builtin sources.
+    /// Declaration documentation extracted from library sources.
     documentation: Option<String>,
     /// Fully qualified extern binding name.
     extern_name: String,
@@ -104,7 +104,7 @@ fn binding_replay_kind_for_name(name: &str) -> CatalogBindingReplayKind {
     }
 }
 
-/// Collect platform bindings from builtin modules.
+/// Collect platform bindings from library modules.
 pub(crate) fn collect_platform_bindings(
     compiler: &Compiler,
     context: &GeneratorContext,
@@ -122,7 +122,7 @@ pub(crate) fn collect_platform_bindings(
     // collect bindings by domain
     let mut domains: BindingCatalog = BindingCatalog::default();
 
-    // visit builtin modules and extract binding annotations
+    // visit library modules and extract binding annotations
     for module_id in platform_modules {
         // load module metadata
         let module = context.get(*module_id);
@@ -1011,48 +1011,48 @@ mod tests {
         module_platform_implementation_prefix_from_path, qualify_platform_implementation_name,
     };
 
-    /// Parse platform domain names from builtin platform module uris.
+    /// Parse platform domain names from platform module uris.
     #[test]
-    fn test_module_platform_domain_parses_builtin_uri() {
+    fn test_module_platform_domain_parses_library_uri() {
         assert_eq!(
-            module_platform_domain("builtin://platform/display/window.ds"),
+            module_platform_domain("library://platform/display/window.ds"),
             Some("display".to_string())
         );
         assert_eq!(
-            module_platform_domain("builtin://platform/crypto/key.ds"),
+            module_platform_domain("library://platform/crypto/key.ds"),
             Some("crypto".to_string())
         );
         assert_eq!(
-            module_platform_domain("builtin://library/other/window.ds"),
+            module_platform_domain("library://library/other/window.ds"),
             None
         );
     }
 
-    /// Preserve nested builtin platform paths for implementation naming.
+    /// Preserve nested platform paths for implementation naming.
     #[test]
     fn test_module_platform_implementation_prefix_parses_nested_paths() {
         assert_eq!(
-            module_platform_implementation_prefix("builtin://platform/device/midi/backend.ds"),
+            module_platform_implementation_prefix("library://platform/device/midi/backend.ds"),
             Some("midi".to_string())
         );
         assert_eq!(
-            module_platform_implementation_prefix("builtin://platform/display/window.ds"),
+            module_platform_implementation_prefix("library://platform/display/window.ds"),
             None
         );
     }
 
-    /// Preserve nested builtin platform paths from filesystem locations.
+    /// Preserve nested platform paths from filesystem locations.
     #[test]
     fn test_module_platform_implementation_prefix_from_path_parses_nested_paths() {
         assert_eq!(
             module_platform_implementation_prefix_from_path(Path::new(
-                "/tmp/destack/language/builtin/library/platform/device/midi/backend.ds"
+                "/tmp/destack/language/library/platform/device/midi/backend.ds"
             )),
             Some("midi".to_string())
         );
         assert_eq!(
             module_platform_implementation_prefix_from_path(Path::new(
-                "/tmp/destack/language/builtin/library/platform/display/window.ds"
+                "/tmp/destack/language/library/platform/display/window.ds"
             )),
             None
         );
@@ -1064,9 +1064,9 @@ mod tests {
         assert_eq!(
             qualify_platform_implementation_name(
                 Some(Path::new(
-                    "/tmp/destack/language/builtin/library/platform/device/midi/backend.ds"
+                    "/tmp/destack/language/library/platform/device/midi/backend.ds"
                 )),
-                "builtin://platform/device/midi/backend.ds",
+                "library://platform/device/midi/backend.ds",
                 "backend.list"
             ),
             "midi.backend.list".to_string()
@@ -1074,9 +1074,9 @@ mod tests {
         assert_eq!(
             qualify_platform_implementation_name(
                 Some(Path::new(
-                    "/tmp/destack/language/builtin/library/platform/device/midi/backend.ds"
+                    "/tmp/destack/language/library/platform/device/midi/backend.ds"
                 )),
-                "builtin://platform/device/midi/backend.ds",
+                "library://platform/device/midi/backend.ds",
                 "midi.backend.list"
             ),
             "midi.backend.list".to_string()
@@ -1084,9 +1084,9 @@ mod tests {
         assert_eq!(
             qualify_platform_implementation_name(
                 Some(Path::new(
-                    "/tmp/destack/language/builtin/library/platform/device/bluetooth.ds"
+                    "/tmp/destack/language/library/platform/device/bluetooth.ds"
                 )),
-                "builtin://platform/device/bluetooth.ds",
+                "library://platform/device/bluetooth.ds",
                 "bluetooth.session.open"
             ),
             "bluetooth.session.open".to_string()
