@@ -1,10 +1,10 @@
-# Guard Narrowing
+# Guards
 
-Guard shapes beyond nullish checks.
+Guard expressions refine values in control flow.
 
-## typeof guards
+## Familiar guards
 
-### typeof guard narrows to string
+### typeof narrows primitives
 
 ```ds
 const value: string | number = 0;
@@ -15,7 +15,7 @@ if (typeof value == "string") {
 }
 ```
 
-### typeof guard narrows to object
+### typeof preserves null objects
 
 ```ds
 const value: { name: string } | null | string = "hello";
@@ -26,18 +26,7 @@ if (typeof value == "object") {
 }
 ```
 
-### typeof guard narrows to function
-
-```ds
-const value: { (): void } | string = "hello";
-if (typeof value == "function") {
-    value satisfies { (): void };
-} else {
-    value satisfies string;
-}
-```
-
-### typeof guard narrows to lambda type
+### typeof recognizes callable values
 
 ```ds
 const value: (() => void) | string = "hello";
@@ -48,13 +37,11 @@ if (typeof value == "function") {
 }
 ```
 
-## instanceof guards
-
-### instanceof guard narrows to class
+### instanceof narrows classes
 
 ```ds
 class User {
-    name: string = ""
+    name: string = "";
 }
 
 const value: User | string = "hello";
@@ -65,7 +52,7 @@ if (value instanceof User) {
 }
 ```
 
-### instanceof rejects non-class targets
+### instanceof requires classes
 
 ```ds
 struct Point {
@@ -79,9 +66,7 @@ const ok = value instanceof Point;
 
 - contains: instanceof requires a class type
 
-## in guards
-
-### in guard narrows to required key
+### in narrows required keys
 
 ```ds
 interface WithName { name: string }
@@ -96,49 +81,88 @@ function narrow(value: WithName | WithId): void {
 }
 ```
 
-## is guards
+## Runtime type guards
 
-### is guard narrows to target type
+### is narrows primitive unions
+
+```ds
+const value: string | int32 = 1;
+if (value is string) {
+    value satisfies string;
+} else {
+    value satisfies int32;
+}
+```
+
+### is narrows nominal unions
+
+```ds
+struct Rectangle {
+    width: int32;
+    height: int32;
+}
+
+struct Circle {
+    radius: int32;
+}
+
+type Shape = Rectangle | Circle;
+
+declare const shape: Shape;
+if (shape is Rectangle) {
+    shape.width satisfies int32;
+} else {
+    shape.radius satisfies int32;
+}
+```
+
+### is narrows classes
 
 ```ds
 class Admin {
-    name: string = ""
+    name: string = "";
 }
 
 const value: Admin | string = "root";
 if (value is Admin) {
-    value satisfies Admin;
+    value.name satisfies string;
 } else {
     value satisfies string;
 }
 ```
 
-### is guard yields boolean
+### newtype identity stays visible
+
+```ds
+newtype UserId = string;
+
+const value: UserId | string = UserId("root");
+if (value is UserId) {
+    value satisfies UserId;
+} else {
+    value satisfies string;
+}
+```
+
+### is expressions return boolean
 
 ```ds
 class Admin {
-    name: string = ""
+    name: string = "";
 }
 
-const value: unknown = new Admin();
+const value: Admin | string = "root";
 const ok = value is Admin;
 ok satisfies boolean;
 ```
 
-## assertion guards
+### is rejects structural types
 
-### asserts guards narrow after call
-
-> Assertion functions narrow the asserted value.
-
-```ts
-function assertString(value: unknown): asserts value is string {
-    if (typeof value != "string") {
-        throw 1;
-    }
+```ds
+const value: unknown = { name: "Ada" };
+if (value is { name: string }) {
+    value.name;
 }
-
-let value: string | number = 1;
-assertString(value);
-value satisfies string;
 ```
+
+- contains: is cannot test structural object types
