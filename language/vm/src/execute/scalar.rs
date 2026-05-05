@@ -1,92 +1,692 @@
 use std::cmp::Ordering;
 use std::mem;
 
-use super::operator;
 use crate::Word;
 use crate::diagnostic::Error;
-use destack_mir as mir;
+use crate::program::ScalarLayout;
 
-/// Reduction operators for vector or tensor reductions.
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum ReduceOperator {
-    /// Add values.
-    Add,
-    /// Multiply values.
-    Multiply,
-    /// Select the minimum value.
-    Min,
-    /// Select the maximum value.
-    Max,
-    /// Apply bitwise or logical and.
-    And,
-    /// Apply bitwise or logical or.
-    Or,
-    /// Apply bitwise or logical xor.
-    Xor,
+/// Return one integer scalar layout.
+#[inline(always)]
+fn int_layout(ty: ScalarLayout) -> Result<(u16, bool), Error> {
+    let ScalarLayout::Int { width, is_signed } = ty else {
+        return Err(Error::TypeMismatch {
+            expected: "integer scalar".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    };
+
+    Ok((width, is_signed))
 }
 
-impl From<mir::VectorReduceOperator> for ReduceOperator {
-    fn from(value: mir::VectorReduceOperator) -> Self {
-        match value {
-            mir::VectorReduceOperator::Add => ReduceOperator::Add,
-            mir::VectorReduceOperator::Multiply => ReduceOperator::Multiply,
-            mir::VectorReduceOperator::Min => ReduceOperator::Min,
-            mir::VectorReduceOperator::Max => ReduceOperator::Max,
-            mir::VectorReduceOperator::And => ReduceOperator::And,
-            mir::VectorReduceOperator::Or => ReduceOperator::Or,
-            mir::VectorReduceOperator::Xor => ReduceOperator::Xor,
-        }
+/// Return one signed integer scalar layout.
+#[inline(always)]
+fn signed_int_layout(ty: ScalarLayout) -> Result<u16, Error> {
+    let ScalarLayout::Int {
+        width,
+        is_signed: true,
+    } = ty
+    else {
+        return Err(Error::TypeMismatch {
+            expected: "signed integer scalar".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    };
+
+    Ok(width)
+}
+
+/// Return one float scalar layout with the expected width.
+#[inline(always)]
+fn expect_float_width(ty: ScalarLayout, expected_width: u16) -> Result<(), Error> {
+    if let ScalarLayout::Float { width } = ty
+        && width == expected_width
+    {
+        return Ok(());
+    }
+
+    Err(Error::TypeMismatch {
+        expected: format!("float{expected_width} scalar"),
+        actual: format!("{ty:?}"),
+    })
+}
+
+/// Return one boolean scalar layout.
+#[inline(always)]
+fn expect_bool(ty: ScalarLayout) -> Result<(), Error> {
+    if matches!(ty, ScalarLayout::Bool) {
+        return Ok(());
+    }
+
+    Err(Error::TypeMismatch {
+        expected: "boolean scalar".to_string(),
+        actual: format!("{ty:?}"),
+    })
+}
+
+/// Build one integer word.
+#[inline(always)]
+fn scalar_integer_word(value: u64, width: u16, is_signed: bool) -> Result<Word, Error> {
+    let width = width_u8(width)?;
+
+    Ok(if is_signed {
+        Word::int(value as i64, width)
+    } else {
+        Word::uint(value, width)
+    })
+}
+
+/// And two boolean values.
+#[inline(always)]
+pub(crate) fn and_bool(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_bool(ty)?;
+
+    Ok(Word::bool(left.as_bool() && right.as_bool()))
+}
+
+/// Or two boolean values.
+#[inline(always)]
+pub(crate) fn or_bool(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_bool(ty)?;
+
+    Ok(Word::bool(left.as_bool() || right.as_bool()))
+}
+
+/// Xor two boolean values.
+#[inline(always)]
+pub(crate) fn xor_bool(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_bool(ty)?;
+
+    Ok(Word::bool(left.as_bool() ^ right.as_bool()))
+}
+
+/// Add two integer values.
+#[inline(always)]
+pub(crate) fn add_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    let (width, is_signed) = int_layout(ty)?;
+
+    scalar_integer_word(left.as_u64().wrapping_add(right.as_u64()), width, is_signed)
+}
+
+/// Subtract two integer values.
+#[inline(always)]
+pub(crate) fn sub_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    let (width, is_signed) = int_layout(ty)?;
+
+    scalar_integer_word(left.as_u64().wrapping_sub(right.as_u64()), width, is_signed)
+}
+
+/// Multiply two integer values.
+#[inline(always)]
+pub(crate) fn mul_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    let (width, is_signed) = int_layout(ty)?;
+
+    scalar_integer_word(left.as_u64().wrapping_mul(right.as_u64()), width, is_signed)
+}
+
+/// Divide two signed integer values.
+#[inline(always)]
+pub(crate) fn div_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    let width = signed_int_layout(ty)?;
+    if right.as_i64() == 0 {
+        return Err(Error::DivisionByZero);
+    }
+
+    Ok(Word::int(
+        left.as_i64().wrapping_div(right.as_i64()),
+        width_u8(width)?,
+    ))
+}
+
+/// Divide two unsigned integer values.
+#[inline(always)]
+pub(crate) fn div_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    let (width, _) = int_layout(ty)?;
+    if right.as_u64() == 0 {
+        return Err(Error::DivisionByZero);
+    }
+
+    Ok(Word::uint(
+        left.as_u64().wrapping_div(right.as_u64()),
+        width_u8(width)?,
+    ))
+}
+
+/// Remainder two signed integer values.
+#[inline(always)]
+pub(crate) fn rem_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    let width = signed_int_layout(ty)?;
+    if right.as_i64() == 0 {
+        return Err(Error::DivisionByZero);
+    }
+
+    Ok(Word::int(
+        left.as_i64().wrapping_rem(right.as_i64()),
+        width_u8(width)?,
+    ))
+}
+
+/// Remainder two unsigned integer values.
+#[inline(always)]
+pub(crate) fn rem_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    let (width, _) = int_layout(ty)?;
+    if right.as_u64() == 0 {
+        return Err(Error::DivisionByZero);
+    }
+
+    Ok(Word::uint(
+        left.as_u64().wrapping_rem(right.as_u64()),
+        width_u8(width)?,
+    ))
+}
+
+/// And two integer values.
+#[inline(always)]
+pub(crate) fn and_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    let (width, is_signed) = int_layout(ty)?;
+
+    scalar_integer_word(left.as_u64() & right.as_u64(), width, is_signed)
+}
+
+/// Or two integer values.
+#[inline(always)]
+pub(crate) fn or_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    let (width, is_signed) = int_layout(ty)?;
+
+    scalar_integer_word(left.as_u64() | right.as_u64(), width, is_signed)
+}
+
+/// Xor two integer values.
+#[inline(always)]
+pub(crate) fn xor_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    let (width, is_signed) = int_layout(ty)?;
+
+    scalar_integer_word(left.as_u64() ^ right.as_u64(), width, is_signed)
+}
+
+/// Shift one integer value left.
+#[inline(always)]
+pub(crate) fn shl_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    let (width, is_signed) = int_layout(ty)?;
+
+    scalar_integer_word(
+        left.as_u64().wrapping_shl(right.as_u64() as u32),
+        width,
+        is_signed,
+    )
+}
+
+/// Arithmetically shift one integer value right.
+#[inline(always)]
+pub(crate) fn shr_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    let width = signed_int_layout(ty)?;
+
+    Ok(Word::int(
+        left.as_i64().wrapping_shr(right.as_u64() as u32),
+        width_u8(width)?,
+    ))
+}
+
+/// Logically shift one integer value right.
+#[inline(always)]
+pub(crate) fn shr_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    let (width, _) = int_layout(ty)?;
+
+    Ok(Word::uint(
+        left.as_u64().wrapping_shr(right.as_u64() as u32),
+        width_u8(width)?,
+    ))
+}
+
+/// Add two float32 values.
+#[inline(always)]
+pub(crate) fn add_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 32)?;
+
+    Ok(Word::float32(left.as_f32() + right.as_f32()))
+}
+
+/// Add two float64 values.
+#[inline(always)]
+pub(crate) fn add_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 64)?;
+
+    Ok(Word::float64(left.as_f64() + right.as_f64()))
+}
+
+/// Subtract two float32 values.
+#[inline(always)]
+pub(crate) fn sub_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 32)?;
+
+    Ok(Word::float32(left.as_f32() - right.as_f32()))
+}
+
+/// Subtract two float64 values.
+#[inline(always)]
+pub(crate) fn sub_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 64)?;
+
+    Ok(Word::float64(left.as_f64() - right.as_f64()))
+}
+
+/// Multiply two float32 values.
+#[inline(always)]
+pub(crate) fn mul_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 32)?;
+
+    Ok(Word::float32(left.as_f32() * right.as_f32()))
+}
+
+/// Multiply two float64 values.
+#[inline(always)]
+pub(crate) fn mul_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 64)?;
+
+    Ok(Word::float64(left.as_f64() * right.as_f64()))
+}
+
+/// Divide two float32 values.
+#[inline(always)]
+pub(crate) fn div_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 32)?;
+
+    Ok(Word::float32(left.as_f32() / right.as_f32()))
+}
+
+/// Divide two float64 values.
+#[inline(always)]
+pub(crate) fn div_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 64)?;
+
+    Ok(Word::float64(left.as_f64() / right.as_f64()))
+}
+
+/// Compare two integer values for equality.
+#[inline(always)]
+pub(crate) fn eq_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    int_layout(ty)?;
+
+    Ok(Word::bool(left.as_u64() == right.as_u64()))
+}
+
+/// Compare two boolean values for equality.
+#[inline(always)]
+pub(crate) fn eq_bool(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_bool(ty)?;
+
+    Ok(Word::bool(left.as_bool() == right.as_bool()))
+}
+
+/// Compare two integer values for inequality.
+#[inline(always)]
+pub(crate) fn ne_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    int_layout(ty)?;
+
+    Ok(Word::bool(left.as_u64() != right.as_u64()))
+}
+
+/// Compare two boolean values for inequality.
+#[inline(always)]
+pub(crate) fn ne_bool(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_bool(ty)?;
+
+    Ok(Word::bool(left.as_bool() != right.as_bool()))
+}
+
+/// Compare signed integers with less than.
+#[inline(always)]
+pub(crate) fn lt_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    signed_int_layout(ty)?;
+
+    Ok(Word::bool(left.as_i64() < right.as_i64()))
+}
+
+/// Compare unsigned integers with less than.
+#[inline(always)]
+pub(crate) fn lt_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    int_layout(ty)?;
+
+    Ok(Word::bool(left.as_u64() < right.as_u64()))
+}
+
+/// Compare signed integers with less than or equal.
+#[inline(always)]
+pub(crate) fn le_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    signed_int_layout(ty)?;
+
+    Ok(Word::bool(left.as_i64() <= right.as_i64()))
+}
+
+/// Compare unsigned integers with less than or equal.
+#[inline(always)]
+pub(crate) fn le_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    int_layout(ty)?;
+
+    Ok(Word::bool(left.as_u64() <= right.as_u64()))
+}
+
+/// Compare signed integers with greater than.
+#[inline(always)]
+pub(crate) fn gt_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    signed_int_layout(ty)?;
+
+    Ok(Word::bool(left.as_i64() > right.as_i64()))
+}
+
+/// Compare unsigned integers with greater than.
+#[inline(always)]
+pub(crate) fn gt_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    int_layout(ty)?;
+
+    Ok(Word::bool(left.as_u64() > right.as_u64()))
+}
+
+/// Compare signed integers with greater than or equal.
+#[inline(always)]
+pub(crate) fn ge_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    signed_int_layout(ty)?;
+
+    Ok(Word::bool(left.as_i64() >= right.as_i64()))
+}
+
+/// Compare unsigned integers with greater than or equal.
+#[inline(always)]
+pub(crate) fn ge_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    int_layout(ty)?;
+
+    Ok(Word::bool(left.as_u64() >= right.as_u64()))
+}
+
+/// Compare float32 values for equality.
+#[inline(always)]
+pub(crate) fn eq_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 32)?;
+
+    Ok(Word::bool(left.as_f32() == right.as_f32()))
+}
+
+/// Compare float64 values for equality.
+#[inline(always)]
+pub(crate) fn eq_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 64)?;
+
+    Ok(Word::bool(left.as_f64() == right.as_f64()))
+}
+
+/// Compare float32 values for inequality.
+#[inline(always)]
+pub(crate) fn ne_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 32)?;
+
+    Ok(Word::bool(left.as_f32() != right.as_f32()))
+}
+
+/// Compare float64 values for inequality.
+#[inline(always)]
+pub(crate) fn ne_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 64)?;
+
+    Ok(Word::bool(left.as_f64() != right.as_f64()))
+}
+
+/// Compare float32 values with less than.
+#[inline(always)]
+pub(crate) fn lt_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 32)?;
+
+    Ok(Word::bool(left.as_f32() < right.as_f32()))
+}
+
+/// Compare float64 values with less than.
+#[inline(always)]
+pub(crate) fn lt_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 64)?;
+
+    Ok(Word::bool(left.as_f64() < right.as_f64()))
+}
+
+/// Compare float32 values with less than or equal.
+#[inline(always)]
+pub(crate) fn le_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 32)?;
+
+    Ok(Word::bool(left.as_f32() <= right.as_f32()))
+}
+
+/// Compare float64 values with less than or equal.
+#[inline(always)]
+pub(crate) fn le_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 64)?;
+
+    Ok(Word::bool(left.as_f64() <= right.as_f64()))
+}
+
+/// Compare float32 values with greater than.
+#[inline(always)]
+pub(crate) fn gt_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 32)?;
+
+    Ok(Word::bool(left.as_f32() > right.as_f32()))
+}
+
+/// Compare float64 values with greater than.
+#[inline(always)]
+pub(crate) fn gt_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 64)?;
+
+    Ok(Word::bool(left.as_f64() > right.as_f64()))
+}
+
+/// Compare float32 values with greater than or equal.
+#[inline(always)]
+pub(crate) fn ge_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 32)?;
+
+    Ok(Word::bool(left.as_f32() >= right.as_f32()))
+}
+
+/// Compare float64 values with greater than or equal.
+#[inline(always)]
+pub(crate) fn ge_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 64)?;
+
+    Ok(Word::bool(left.as_f64() >= right.as_f64()))
+}
+
+/// Negate one float32 value.
+#[inline(always)]
+pub(crate) fn neg_f32(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 32)?;
+
+    Ok(Word::float32(-value.as_f32()))
+}
+
+/// Negate one float64 value.
+#[inline(always)]
+pub(crate) fn neg_f64(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
+    expect_float_width(ty, 64)?;
+
+    Ok(Word::float64(-value.as_f64()))
+}
+
+/// Invert one boolean value.
+#[inline(always)]
+pub(crate) fn not_bool(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
+    expect_bool(ty)?;
+
+    Ok(Word::bool(!value.as_bool()))
+}
+
+/// Negate one signed integer value.
+#[inline(always)]
+pub(crate) fn neg_int(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
+    let ScalarLayout::Int {
+        width,
+        is_signed: true,
+    } = ty
+    else {
+        return Err(Error::TypeMismatch {
+            expected: "signed integer".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    };
+    let width = width_u8(width)?;
+
+    Ok(Word::int(value.as_i64().wrapping_neg(), width))
+}
+
+/// Invert one integer value.
+#[inline(always)]
+pub(crate) fn not_int(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
+    let ScalarLayout::Int { width, is_signed } = ty else {
+        return Err(Error::TypeMismatch {
+            expected: "integer".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    };
+    let width = width_u8(width)?;
+
+    Ok(if is_signed {
+        Word::int(!value.as_i64(), width)
+    } else {
+        Word::uint(!value.as_u64(), width)
+    })
+}
+
+/// Compile-time scalar conversion behavior.
+trait ScalarConversion {
+    /// Whether integer to float conversion must round-trip exactly.
+    const CHECK_INT_TO_FLOAT: bool = false;
+
+    /// Whether float narrowing must round-trip exactly.
+    const CHECK_FLOAT_NARROWING: bool = false;
+
+    /// Return whether non-finite floats are accepted.
+    fn accepts_non_finite() -> bool {
+        false
+    }
+
+    /// Round one float before converting it to an integer.
+    fn round_float_to_int(value: f64) -> Result<f64, Error>;
+
+    /// Round one float before converting it to another float.
+    fn round_float_to_float(value: f64) -> f64;
+
+    /// Convert one out-of-range signed integer conversion.
+    fn clamp_signed(value: i128, min: i64, max: i64) -> Result<i64, Error> {
+        Err(Error::TypeMismatch {
+            expected: format!("signed range {min}..={max}"),
+            actual: value.to_string(),
+        })
+    }
+
+    /// Convert one out-of-range unsigned integer conversion.
+    fn clamp_unsigned(value: i128, max: u64) -> Result<u64, Error> {
+        Err(Error::TypeMismatch {
+            expected: format!("unsigned range 0..={max}"),
+            actual: value.to_string(),
+        })
     }
 }
 
-impl From<mir::TensorReduceOperator> for ReduceOperator {
-    fn from(value: mir::TensorReduceOperator) -> Self {
-        match value {
-            mir::TensorReduceOperator::Add => ReduceOperator::Add,
-            mir::TensorReduceOperator::Multiply => ReduceOperator::Multiply,
-            mir::TensorReduceOperator::Min => ReduceOperator::Min,
-            mir::TensorReduceOperator::Max => ReduceOperator::Max,
-            mir::TensorReduceOperator::And => ReduceOperator::And,
-            mir::TensorReduceOperator::Or => ReduceOperator::Or,
-            mir::TensorReduceOperator::Xor => ReduceOperator::Xor,
+/// Exact scalar conversion.
+struct ExactConversion;
+
+impl ScalarConversion for ExactConversion {
+    const CHECK_INT_TO_FLOAT: bool = true;
+    const CHECK_FLOAT_NARROWING: bool = true;
+
+    fn round_float_to_int(value: f64) -> Result<f64, Error> {
+        if value.fract() != 0.0 {
+            return Err(Error::TypeMismatch {
+                expected: "integral float".to_string(),
+                actual: value.to_string(),
+            });
         }
+
+        Ok(value)
+    }
+
+    fn round_float_to_float(value: f64) -> f64 {
+        value
     }
 }
 
-/// Scalar value layout for typed arithmetic.
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum ScalarLayout {
-    /// Signed or unsigned integers with a bit width.
-    Int {
-        /// The bit width.
-        width: u16,
-        /// Whether the integer is signed.
-        is_signed: bool,
-    },
-    /// Floating-point values with a bit width.
-    Float {
-        /// The bit width.
-        width: u16,
-    },
-    /// Boolean values.
-    Bool,
+/// Round-to-nearest-even scalar conversion.
+struct RoundTiesEvenConversion;
+
+impl ScalarConversion for RoundTiesEvenConversion {
+    fn round_float_to_int(value: f64) -> Result<f64, Error> {
+        Ok(value.round_ties_even())
+    }
+
+    fn round_float_to_float(value: f64) -> f64 {
+        value.round_ties_even()
+    }
 }
 
-/// Conversion modes for vector or tensor element conversions.
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum ScalarConvertMode {
-    /// Require an exact conversion without rounding or saturation.
-    Exact,
-    /// Round to nearest, ties to even.
-    RoundTiesEven,
-    /// Round toward zero.
-    RoundTowardZero,
-    /// Round toward negative infinity.
-    RoundFloor,
-    /// Round toward positive infinity.
-    RoundCeil,
-    /// Clamp overflow to the destination range.
-    Saturate,
+/// Round-toward-zero scalar conversion.
+struct RoundTowardZeroConversion;
+
+impl ScalarConversion for RoundTowardZeroConversion {
+    fn round_float_to_int(value: f64) -> Result<f64, Error> {
+        Ok(value.trunc())
+    }
+
+    fn round_float_to_float(value: f64) -> f64 {
+        value.trunc()
+    }
+}
+
+/// Round-toward-negative-infinity scalar conversion.
+struct RoundFloorConversion;
+
+impl ScalarConversion for RoundFloorConversion {
+    fn round_float_to_int(value: f64) -> Result<f64, Error> {
+        Ok(value.floor())
+    }
+
+    fn round_float_to_float(value: f64) -> f64 {
+        value.floor()
+    }
+}
+
+/// Round-toward-positive-infinity scalar conversion.
+struct RoundCeilConversion;
+
+impl ScalarConversion for RoundCeilConversion {
+    fn round_float_to_int(value: f64) -> Result<f64, Error> {
+        Ok(value.ceil())
+    }
+
+    fn round_float_to_float(value: f64) -> f64 {
+        value.ceil()
+    }
+}
+
+/// Saturating scalar conversion.
+struct SaturatingConversion;
+
+impl ScalarConversion for SaturatingConversion {
+    fn accepts_non_finite() -> bool {
+        true
+    }
+
+    fn round_float_to_int(value: f64) -> Result<f64, Error> {
+        Ok(value.trunc())
+    }
+
+    fn round_float_to_float(value: f64) -> f64 {
+        value
+    }
+
+    fn clamp_signed(value: i128, min: i64, max: i64) -> Result<i64, Error> {
+        Ok(if value < i128::from(min) { min } else { max })
+    }
+
+    fn clamp_unsigned(value: i128, max: u64) -> Result<u64, Error> {
+        Ok(if value < 0 { 0 } else { max })
+    }
 }
 
 /// Result of evaluating scalar arithmetic.
@@ -98,131 +698,397 @@ pub(crate) enum ScalarResult {
     Bytes(Vec<u8>),
 }
 
-/// Evaluate a binary operator over one fixed-width scalar byte value.
-pub(crate) fn binary_bytes(
-    ty: ScalarLayout,
-    op: mir::BinaryOperator,
-    left: &[u8],
-    right: &[u8],
-) -> Result<ScalarResult, Error> {
+/// Return one integer byte scalar layout.
+fn byte_integer_layout(ty: ScalarLayout, expected: &'static str) -> Result<(u16, bool), Error> {
     let ScalarLayout::Int { width, is_signed } = ty else {
         return Err(Error::TypeMismatch {
-            expected: "integer byte scalar".to_string(),
+            expected: expected.to_string(),
             actual: format!("{ty:?}"),
         });
     };
 
-    let mut left = normalized_integer_bytes(left, width);
+    Ok((width, is_signed))
+}
+
+/// Return two normalized byte inputs.
+fn normalized_byte_inputs(left: &[u8], right: &[u8], width: u16) -> (Vec<u8>, Vec<u8>) {
+    let left = normalized_integer_bytes(left, width);
     let right = normalized_integer_bytes(right, width);
 
-    use mir::BinaryOperator::*;
-    let result = match op {
-        Add => ScalarResult::Bytes(add_bytes(&left, &right, width)),
-        Subtract => ScalarResult::Bytes(subtract_bytes(&left, &right, width)),
-        Multiply => ScalarResult::Bytes(multiply_bytes(&left, &right, width)),
-        SignedDivide if is_signed => {
-            ScalarResult::Bytes(divide_signed_bytes(&left, &right, width)?.0)
-        }
-        SignedRemainder if is_signed => {
-            ScalarResult::Bytes(divide_signed_bytes(&left, &right, width)?.1)
-        }
-        UnsignedDivide => ScalarResult::Bytes(divide_unsigned_bytes(&left, &right, width)?.0),
-        UnsignedRemainder => ScalarResult::Bytes(divide_unsigned_bytes(&left, &right, width)?.1),
-        Equal => ScalarResult::Word(Word::bool(compare_unsigned_bytes(&left, &right).is_eq())),
-        NotEqual => ScalarResult::Word(Word::bool(!compare_unsigned_bytes(&left, &right).is_eq())),
-        SignedLessThan if is_signed => ScalarResult::Word(Word::bool(
-            compare_signed_bytes(&left, &right, width).is_lt(),
-        )),
-        SignedLessEqual if is_signed => ScalarResult::Word(Word::bool(
-            !compare_signed_bytes(&left, &right, width).is_gt(),
-        )),
-        SignedGreaterThan if is_signed => ScalarResult::Word(Word::bool(
-            compare_signed_bytes(&left, &right, width).is_gt(),
-        )),
-        SignedGreaterEqual if is_signed => ScalarResult::Word(Word::bool(
-            !compare_signed_bytes(&left, &right, width).is_lt(),
-        )),
-        UnsignedLessThan => {
-            ScalarResult::Word(Word::bool(compare_unsigned_bytes(&left, &right).is_lt()))
-        }
-        UnsignedLessEqual => {
-            ScalarResult::Word(Word::bool(!compare_unsigned_bytes(&left, &right).is_gt()))
-        }
-        UnsignedGreaterThan => {
-            ScalarResult::Word(Word::bool(compare_unsigned_bytes(&left, &right).is_gt()))
-        }
-        UnsignedGreaterEqual => {
-            ScalarResult::Word(Word::bool(!compare_unsigned_bytes(&left, &right).is_lt()))
-        }
-        And => ScalarResult::Bytes(bitwise_bytes(
-            &left,
-            &right,
-            |left, right| left & right,
-            width,
-        )),
-        Or => ScalarResult::Bytes(bitwise_bytes(
-            &left,
-            &right,
-            |left, right| left | right,
-            width,
-        )),
-        Xor => ScalarResult::Bytes(bitwise_bytes(
-            &left,
-            &right,
-            |left, right| left ^ right,
-            width,
-        )),
-        ShiftLeft => ScalarResult::Bytes(shift_left_bytes(&left, shift_amount(&right), width)),
-        ArithmeticShiftRight if is_signed => {
-            let fill = integer_is_negative(&left, width);
+    (left, right)
+}
 
-            ScalarResult::Bytes(shift_right_bytes(&left, shift_amount(&right), fill, width))
-        }
-        LogicalShiftRight => {
-            left = shift_right_bytes(&left, shift_amount(&right), false, width);
+/// Add two fixed-width integer byte values.
+pub(crate) fn add_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, _) = byte_integer_layout(ty, "integer byte scalar")?;
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = add_bytes(&left, &right, width);
 
-            ScalarResult::Bytes(left)
-        }
-        _ => {
-            return Err(Error::TypeMismatch {
-                expected: format!("wide integer operator for {op:?}"),
-                actual: format!("{left:?}, {right:?}"),
-            });
-        }
-    };
+    Ok(ScalarResult::Bytes(result))
+}
+
+/// Subtract two fixed-width integer byte values.
+pub(crate) fn subtract_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, _) = byte_integer_layout(ty, "integer byte scalar")?;
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = subtract_bytes(&left, &right, width);
+
+    Ok(ScalarResult::Bytes(result))
+}
+
+/// Multiply two fixed-width integer byte values.
+pub(crate) fn multiply_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, _) = byte_integer_layout(ty, "integer byte scalar")?;
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = multiply_bytes(&left, &right, width);
+
+    Ok(ScalarResult::Bytes(result))
+}
+
+/// Divide two signed fixed-width integer byte values.
+pub(crate) fn divide_signed_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, is_signed) = byte_integer_layout(ty, "signed integer byte scalar")?;
+    if !is_signed {
+        return Err(Error::TypeMismatch {
+            expected: "signed integer byte scalar".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    }
+
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let (quotient, _) = divide_signed_bytes(&left, &right, width)?;
+
+    Ok(ScalarResult::Bytes(quotient))
+}
+
+/// Divide two unsigned fixed-width integer byte values.
+pub(crate) fn divide_unsigned_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, _) = byte_integer_layout(ty, "unsigned integer byte scalar")?;
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let (quotient, _) = divide_unsigned_bytes(&left, &right, width)?;
+
+    Ok(ScalarResult::Bytes(quotient))
+}
+
+/// Remainder two signed fixed-width integer byte values.
+pub(crate) fn remainder_signed_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, is_signed) = byte_integer_layout(ty, "signed integer byte scalar")?;
+    if !is_signed {
+        return Err(Error::TypeMismatch {
+            expected: "signed integer byte scalar".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    }
+
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let (_, remainder) = divide_signed_bytes(&left, &right, width)?;
+
+    Ok(ScalarResult::Bytes(remainder))
+}
+
+/// Remainder two unsigned fixed-width integer byte values.
+pub(crate) fn remainder_unsigned_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, _) = byte_integer_layout(ty, "unsigned integer byte scalar")?;
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let (_, remainder) = divide_unsigned_bytes(&left, &right, width)?;
+
+    Ok(ScalarResult::Bytes(remainder))
+}
+
+/// Compare two fixed-width integer byte values for equality.
+pub(crate) fn equal_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, _) = byte_integer_layout(ty, "integer byte scalar")?;
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = compare_unsigned_bytes(&left, &right).is_eq();
+
+    Ok(ScalarResult::Word(Word::bool(result)))
+}
+
+/// Compare two fixed-width integer byte values for inequality.
+pub(crate) fn not_equal_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, _) = byte_integer_layout(ty, "integer byte scalar")?;
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = !compare_unsigned_bytes(&left, &right).is_eq();
+
+    Ok(ScalarResult::Word(Word::bool(result)))
+}
+
+/// Compare two signed fixed-width integer byte values with less than.
+pub(crate) fn less_signed_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, is_signed) = byte_integer_layout(ty, "signed integer byte scalar")?;
+    if !is_signed {
+        return Err(Error::TypeMismatch {
+            expected: "signed integer byte scalar".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    }
+
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = compare_signed_bytes(&left, &right, width).is_lt();
+
+    Ok(ScalarResult::Word(Word::bool(result)))
+}
+
+/// Compare two unsigned fixed-width integer byte values with less than.
+pub(crate) fn less_unsigned_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, _) = byte_integer_layout(ty, "unsigned integer byte scalar")?;
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = compare_unsigned_bytes(&left, &right).is_lt();
+
+    Ok(ScalarResult::Word(Word::bool(result)))
+}
+
+/// Compare two signed fixed-width integer byte values with less or equal.
+pub(crate) fn less_equal_signed_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, is_signed) = byte_integer_layout(ty, "signed integer byte scalar")?;
+    if !is_signed {
+        return Err(Error::TypeMismatch {
+            expected: "signed integer byte scalar".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    }
+
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = !compare_signed_bytes(&left, &right, width).is_gt();
+
+    Ok(ScalarResult::Word(Word::bool(result)))
+}
+
+/// Compare two unsigned fixed-width integer byte values with less or equal.
+pub(crate) fn less_equal_unsigned_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, _) = byte_integer_layout(ty, "unsigned integer byte scalar")?;
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = !compare_unsigned_bytes(&left, &right).is_gt();
+
+    Ok(ScalarResult::Word(Word::bool(result)))
+}
+
+/// Compare two signed fixed-width integer byte values with greater than.
+pub(crate) fn greater_signed_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, is_signed) = byte_integer_layout(ty, "signed integer byte scalar")?;
+    if !is_signed {
+        return Err(Error::TypeMismatch {
+            expected: "signed integer byte scalar".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    }
+
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = compare_signed_bytes(&left, &right, width).is_gt();
+
+    Ok(ScalarResult::Word(Word::bool(result)))
+}
+
+/// Compare two unsigned fixed-width integer byte values with greater than.
+pub(crate) fn greater_unsigned_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, _) = byte_integer_layout(ty, "unsigned integer byte scalar")?;
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = compare_unsigned_bytes(&left, &right).is_gt();
+
+    Ok(ScalarResult::Word(Word::bool(result)))
+}
+
+/// Compare two signed fixed-width integer byte values with greater or equal.
+pub(crate) fn greater_equal_signed_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, is_signed) = byte_integer_layout(ty, "signed integer byte scalar")?;
+    if !is_signed {
+        return Err(Error::TypeMismatch {
+            expected: "signed integer byte scalar".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    }
+
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = !compare_signed_bytes(&left, &right, width).is_lt();
+
+    Ok(ScalarResult::Word(Word::bool(result)))
+}
+
+/// Compare two unsigned fixed-width integer byte values with greater or equal.
+pub(crate) fn greater_equal_unsigned_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, _) = byte_integer_layout(ty, "unsigned integer byte scalar")?;
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = !compare_unsigned_bytes(&left, &right).is_lt();
+
+    Ok(ScalarResult::Word(Word::bool(result)))
+}
+
+/// And two fixed-width integer byte values.
+pub(crate) fn and_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, _) = byte_integer_layout(ty, "integer byte scalar")?;
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = bitwise_bytes(&left, &right, |left, right| left & right, width);
+
+    Ok(ScalarResult::Bytes(result))
+}
+
+/// Or two fixed-width integer byte values.
+pub(crate) fn or_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, _) = byte_integer_layout(ty, "integer byte scalar")?;
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = bitwise_bytes(&left, &right, |left, right| left | right, width);
+
+    Ok(ScalarResult::Bytes(result))
+}
+
+/// Xor two fixed-width integer byte values.
+pub(crate) fn xor_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, _) = byte_integer_layout(ty, "integer byte scalar")?;
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = bitwise_bytes(&left, &right, |left, right| left ^ right, width);
+
+    Ok(ScalarResult::Bytes(result))
+}
+
+/// Shift one fixed-width integer byte value left.
+pub(crate) fn shift_left_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, _) = byte_integer_layout(ty, "integer byte scalar")?;
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = shift_left_bytes(&left, shift_amount(&right), width);
+
+    Ok(ScalarResult::Bytes(result))
+}
+
+/// Arithmetically shift one fixed-width integer byte value right.
+pub(crate) fn shift_right_signed_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, is_signed) = byte_integer_layout(ty, "signed integer byte scalar")?;
+    if !is_signed {
+        return Err(Error::TypeMismatch {
+            expected: "signed integer byte scalar".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    }
+
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let fill = integer_is_negative(&left, width);
+    let result = shift_right_bytes(&left, shift_amount(&right), fill, width);
+
+    Ok(ScalarResult::Bytes(result))
+}
+
+/// Logically shift one fixed-width integer byte value right.
+pub(crate) fn shift_right_unsigned_bytes_value(
+    ty: ScalarLayout,
+    left: &[u8],
+    right: &[u8],
+) -> Result<ScalarResult, Error> {
+    let (width, _) = byte_integer_layout(ty, "unsigned integer byte scalar")?;
+    let (left, right) = normalized_byte_inputs(left, right, width);
+    let result = shift_right_bytes(&left, shift_amount(&right), false, width);
+
+    Ok(ScalarResult::Bytes(result))
+}
+
+/// Negate one fixed-width integer byte value.
+pub(crate) fn negate_bytes_value(ty: ScalarLayout, value: &[u8]) -> Result<Vec<u8>, Error> {
+    let (width, is_signed) = byte_integer_layout(ty, "signed integer byte scalar")?;
+    if !is_signed {
+        return Err(Error::TypeMismatch {
+            expected: "signed integer byte scalar".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    }
+
+    let value = normalized_integer_bytes(value, width);
+    let result = negate_bytes(&value, width);
 
     Ok(result)
 }
 
-/// Evaluate a unary operator over one fixed-width scalar byte value.
-pub(crate) fn unary_bytes(
-    ty: ScalarLayout,
-    op: mir::UnaryOperator,
-    value: &[u8],
-) -> Result<Vec<u8>, Error> {
-    let ScalarLayout::Int { width, is_signed } = ty else {
-        return Err(Error::TypeMismatch {
-            expected: "integer byte scalar".to_string(),
-            actual: format!("{ty:?}"),
-        });
-    };
-
+/// Invert one fixed-width integer byte value.
+pub(crate) fn not_bytes_value(ty: ScalarLayout, value: &[u8]) -> Result<Vec<u8>, Error> {
+    let (width, _) = byte_integer_layout(ty, "integer byte scalar")?;
     let value = normalized_integer_bytes(value, width);
-    let result = match op {
-        mir::UnaryOperator::Negate if is_signed => negate_bytes(&value, width),
-        mir::UnaryOperator::Not => {
-            let mut result = value.into_iter().map(|byte| !byte).collect::<Vec<_>>();
-            mask_unused_integer_bits(&mut result, width);
-
-            result
-        }
-        _ => {
-            return Err(Error::TypeMismatch {
-                expected: format!("wide integer operator for {op:?}"),
-                actual: format!("{value:?}"),
-            });
-        }
-    };
+    let mut result = value.into_iter().map(|byte| !byte).collect::<Vec<_>>();
+    mask_unused_integer_bits(&mut result, width);
 
     Ok(result)
 }
@@ -568,54 +1434,69 @@ fn clear_bit(value: &mut [u8], bit: usize) {
     }
 }
 
-impl From<mir::TensorConvertMode> for ScalarConvertMode {
-    fn from(value: mir::TensorConvertMode) -> Self {
-        match value {
-            mir::TensorConvertMode::Exact => ScalarConvertMode::Exact,
-            mir::TensorConvertMode::RoundTiesEven => ScalarConvertMode::RoundTiesEven,
-            mir::TensorConvertMode::RoundTowardZero => ScalarConvertMode::RoundTowardZero,
-            mir::TensorConvertMode::RoundFloor => ScalarConvertMode::RoundFloor,
-            mir::TensorConvertMode::RoundCeil => ScalarConvertMode::RoundCeil,
-            mir::TensorConvertMode::Saturate => ScalarConvertMode::Saturate,
-        }
-    }
-}
-
-/// Return the scalar value layout for a MIR type.
-pub(crate) fn scalar_layout(
-    tree: &mir::Tree,
-    ty: mir::LocalNodeId<mir::Type>,
-) -> Result<ScalarLayout, Error> {
-    // resolve scalar types
-    match tree.get(ty) {
-        mir::Type::Int { width, is_signed } => Ok(ScalarLayout::Int {
-            width: *width,
-            is_signed: *is_signed,
-        }),
-        mir::Type::Isize => Ok(ScalarLayout::Int {
-            width: usize::BITS as u16,
-            is_signed: true,
-        }),
-        mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => Ok(ScalarLayout::Int {
-            width: usize::BITS as u16,
-            is_signed: false,
-        }),
-        mir::Type::Float { width } => Ok(ScalarLayout::Float { width: *width }),
-        mir::Type::Boolean => Ok(ScalarLayout::Bool),
-        _ => Err(Error::TypeMismatch {
-            expected: "scalar type".to_string(),
-            actual: format!("{ty:?}"),
-        }),
-    }
-}
-
-/// Convert a scalar value between numeric types.
-pub(crate) fn convert_scalar_value(
+/// Convert a scalar value exactly.
+pub(crate) fn convert_scalar_exact(
     value: Word,
     source: ScalarLayout,
     dest: ScalarLayout,
-    mode: ScalarConvertMode,
 ) -> Result<Word, Error> {
+    convert_scalar_value::<ExactConversion>(value, source, dest)
+}
+
+/// Convert a scalar value by rounding to nearest even.
+pub(crate) fn convert_scalar_round_ties_even(
+    value: Word,
+    source: ScalarLayout,
+    dest: ScalarLayout,
+) -> Result<Word, Error> {
+    convert_scalar_value::<RoundTiesEvenConversion>(value, source, dest)
+}
+
+/// Convert a scalar value by rounding toward zero.
+pub(crate) fn convert_scalar_round_toward_zero(
+    value: Word,
+    source: ScalarLayout,
+    dest: ScalarLayout,
+) -> Result<Word, Error> {
+    convert_scalar_value::<RoundTowardZeroConversion>(value, source, dest)
+}
+
+/// Convert a scalar value by rounding toward negative infinity.
+pub(crate) fn convert_scalar_round_floor(
+    value: Word,
+    source: ScalarLayout,
+    dest: ScalarLayout,
+) -> Result<Word, Error> {
+    convert_scalar_value::<RoundFloorConversion>(value, source, dest)
+}
+
+/// Convert a scalar value by rounding toward positive infinity.
+pub(crate) fn convert_scalar_round_ceil(
+    value: Word,
+    source: ScalarLayout,
+    dest: ScalarLayout,
+) -> Result<Word, Error> {
+    convert_scalar_value::<RoundCeilConversion>(value, source, dest)
+}
+
+/// Convert a scalar value with saturation.
+pub(crate) fn convert_scalar_saturate(
+    value: Word,
+    source: ScalarLayout,
+    dest: ScalarLayout,
+) -> Result<Word, Error> {
+    convert_scalar_value::<SaturatingConversion>(value, source, dest)
+}
+
+/// Convert a scalar value between numeric types.
+fn convert_scalar_value<C>(
+    value: Word,
+    source: ScalarLayout,
+    dest: ScalarLayout,
+) -> Result<Word, Error>
+where
+    C: ScalarConversion,
+{
     // short-circuit identical scalar kinds
     if matches!((source, dest), (ScalarLayout::Bool, ScalarLayout::Bool)) {
         return Ok(value);
@@ -637,9 +1518,9 @@ pub(crate) fn convert_scalar_value(
                 width: dest_width,
                 is_signed: dest_signed,
             },
-        ) => convert_int_to_int(value, width, is_signed, dest_width, dest_signed, mode),
+        ) => convert_int_to_int::<C>(value, width, is_signed, dest_width, dest_signed),
         (ScalarLayout::Int { width, is_signed }, ScalarLayout::Float { width: dest_width }) => {
-            convert_int_to_float(value, width, is_signed, dest_width, mode)
+            convert_int_to_float::<C>(value, width, is_signed, dest_width)
         }
         (
             ScalarLayout::Float { width },
@@ -647,9 +1528,9 @@ pub(crate) fn convert_scalar_value(
                 width: dest_width,
                 is_signed,
             },
-        ) => convert_float_to_int(value, width, dest_width, is_signed, mode),
+        ) => convert_float_to_int::<C>(value, width, dest_width, is_signed),
         (ScalarLayout::Float { width }, ScalarLayout::Float { width: dest_width }) => {
-            convert_float_to_float(value, width, dest_width, mode)
+            convert_float_to_float::<C>(value, width, dest_width)
         }
         _ => Err(Error::TypeMismatch {
             expected: "numeric conversion".to_string(),
@@ -659,14 +1540,16 @@ pub(crate) fn convert_scalar_value(
 }
 
 /// Convert an integer value to another integer type.
-pub(crate) fn convert_int_to_int(
+fn convert_int_to_int<C>(
     value: Word,
     source_width: u16,
     source_signed: bool,
     dest_width: u16,
     dest_signed: bool,
-    mode: ScalarConvertMode,
-) -> Result<Word, Error> {
+) -> Result<Word, Error>
+where
+    C: ScalarConversion,
+{
     // resolve width information
     let source_width_u8 = width_u8(source_width)?;
     let dest_width_u8 = width_u8(dest_width)?;
@@ -691,14 +1574,14 @@ pub(crate) fn convert_int_to_int(
             IntValue::Unsigned(value) => {
                 let value = i128::from(value);
                 if value > i128::from(i64::MAX) {
-                    let clamped = clamp_or_error_signed(value, min, max, mode)?;
+                    let clamped = clamp_or_error_signed::<C>(value, min, max)?;
                     return Ok(Word::int(clamped, dest_width_u8));
                 }
 
                 value as i64
             }
         };
-        let clamped = clamp_or_error_signed(i128::from(value), min, max, mode)?;
+        let clamped = clamp_or_error_signed::<C>(i128::from(value), min, max)?;
 
         Ok(Word::int(clamped, dest_width_u8))
     } else {
@@ -707,7 +1590,7 @@ pub(crate) fn convert_int_to_int(
         let value = match source_value {
             IntValue::Signed(value) => {
                 if value < 0 {
-                    let clamped = clamp_or_error_unsigned(-1, max, mode)?;
+                    let clamped = clamp_or_error_unsigned::<C>(-1, max)?;
                     return Ok(Word::uint(clamped, dest_width_u8));
                 }
 
@@ -715,20 +1598,22 @@ pub(crate) fn convert_int_to_int(
             }
             IntValue::Unsigned(value) => i128::from(value),
         };
-        let clamped = clamp_or_error_unsigned(value, max, mode)?;
+        let clamped = clamp_or_error_unsigned::<C>(value, max)?;
 
         Ok(Word::uint(clamped, dest_width_u8))
     }
 }
 
 /// Convert an integer value to a float.
-pub(crate) fn convert_int_to_float(
+fn convert_int_to_float<C>(
     value: Word,
     source_width: u16,
     source_signed: bool,
     dest_width: u16,
-    mode: ScalarConvertMode,
-) -> Result<Word, Error> {
+) -> Result<Word, Error>
+where
+    C: ScalarConversion,
+{
     // resolve width information
     let source_width_u8 = width_u8(source_width)?;
 
@@ -750,7 +1635,7 @@ pub(crate) fn convert_int_to_float(
     };
 
     // enforce exactness if requested
-    if matches!(mode, ScalarConvertMode::Exact) {
+    if C::CHECK_INT_TO_FLOAT {
         let round_trip = if dest_width == 32 {
             (float_value as f32) as f64
         } else {
@@ -773,13 +1658,15 @@ pub(crate) fn convert_int_to_float(
 }
 
 /// Convert a float value to an integer.
-pub(crate) fn convert_float_to_int(
+fn convert_float_to_int<C>(
     value: Word,
     source_width: u16,
     dest_width: u16,
     dest_signed: bool,
-    mode: ScalarConvertMode,
-) -> Result<Word, Error> {
+) -> Result<Word, Error>
+where
+    C: ScalarConversion,
+{
     // resolve width information
     let dest_width_u8 = width_u8(dest_width)?;
 
@@ -796,7 +1683,7 @@ pub(crate) fn convert_float_to_int(
     };
 
     // require finite values for exact conversions
-    if !float_value.is_finite() && !matches!(mode, ScalarConvertMode::Saturate) {
+    if !float_value.is_finite() && !C::accepts_non_finite() {
         return Err(Error::TypeMismatch {
             expected: "finite float".to_string(),
             actual: float_value.to_string(),
@@ -804,23 +1691,7 @@ pub(crate) fn convert_float_to_int(
     }
 
     // round according to the requested mode
-    let rounded = match mode {
-        ScalarConvertMode::Exact => {
-            if float_value.fract() != 0.0 {
-                return Err(Error::TypeMismatch {
-                    expected: "integral float".to_string(),
-                    actual: float_value.to_string(),
-                });
-            }
-
-            float_value
-        }
-        ScalarConvertMode::RoundTiesEven => float_value.round_ties_even(),
-        ScalarConvertMode::RoundTowardZero => float_value.trunc(),
-        ScalarConvertMode::RoundFloor => float_value.floor(),
-        ScalarConvertMode::RoundCeil => float_value.ceil(),
-        ScalarConvertMode::Saturate => float_value.trunc(),
-    };
+    let rounded = C::round_float_to_int(float_value)?;
 
     // convert to destination integer
     if dest_signed {
@@ -831,7 +1702,7 @@ pub(crate) fn convert_float_to_int(
         } else {
             0
         };
-        let clamped = clamp_or_error_signed(value, min, max, mode)?;
+        let clamped = clamp_or_error_signed::<C>(value, min, max)?;
 
         Ok(Word::int(clamped, dest_width_u8))
     } else {
@@ -842,19 +1713,17 @@ pub(crate) fn convert_float_to_int(
         } else {
             0
         };
-        let clamped = clamp_or_error_unsigned(value, max, mode)?;
+        let clamped = clamp_or_error_unsigned::<C>(value, max)?;
 
         Ok(Word::uint(clamped, dest_width_u8))
     }
 }
 
 /// Convert a float value to another float type.
-pub(crate) fn convert_float_to_float(
-    value: Word,
-    source_width: u16,
-    dest_width: u16,
-    mode: ScalarConvertMode,
-) -> Result<Word, Error> {
+fn convert_float_to_float<C>(value: Word, source_width: u16, dest_width: u16) -> Result<Word, Error>
+where
+    C: ScalarConversion,
+{
     // resolve float value
     let float_value = match source_width {
         32 => value.as_float32() as f64,
@@ -868,17 +1737,10 @@ pub(crate) fn convert_float_to_float(
     };
 
     // apply rounding mode for narrowing conversions
-    let rounded = match mode {
-        ScalarConvertMode::Exact => float_value,
-        ScalarConvertMode::RoundTiesEven => float_value.round_ties_even(),
-        ScalarConvertMode::RoundTowardZero => float_value.trunc(),
-        ScalarConvertMode::RoundFloor => float_value.floor(),
-        ScalarConvertMode::RoundCeil => float_value.ceil(),
-        ScalarConvertMode::Saturate => float_value,
-    };
+    let rounded = C::round_float_to_float(float_value);
 
     // enforce exactness if requested
-    if matches!(mode, ScalarConvertMode::Exact) && dest_width == 32 {
+    if C::CHECK_FLOAT_NARROWING && dest_width == 32 {
         let round_trip = (rounded as f32) as f64;
         if round_trip != rounded {
             return Err(Error::TypeMismatch {
@@ -911,8 +1773,11 @@ pub(crate) fn signed_bounds(width: u16) -> (i64, i64) {
         return (i64::MIN, i64::MAX);
     }
 
+    // require lowered integer widths
+    debug_assert!(width > 0);
+
     // compute min and max
-    let shift = (width as u32).saturating_sub(1);
+    let shift = width as u32 - 1;
     let max = (1i64 << shift) - 1;
     let min = -(1i64 << shift);
 
@@ -968,116 +1833,33 @@ pub(crate) fn truncate_unsigned(value: u64, width: u8) -> u64 {
 }
 
 /// Apply saturating or exact behavior for signed conversions.
-pub(crate) fn clamp_or_error_signed(
-    value: i128,
-    min: i64,
-    max: i64,
-    mode: ScalarConvertMode,
-) -> Result<i64, Error> {
+fn clamp_or_error_signed<C>(value: i128, min: i64, max: i64) -> Result<i64, Error>
+where
+    C: ScalarConversion,
+{
     // accept values in range
     if value >= i128::from(min) && value <= i128::from(max) {
         return Ok(value as i64);
     }
 
-    // saturate or error
-    if matches!(mode, ScalarConvertMode::Saturate) {
-        return Ok(if value < i128::from(min) { min } else { max });
-    }
-
-    Err(Error::TypeMismatch {
-        expected: format!("signed range {min}..={max}"),
-        actual: value.to_string(),
-    })
+    C::clamp_signed(value, min, max)
 }
 
 /// Apply saturating or exact behavior for unsigned conversions.
-pub(crate) fn clamp_or_error_unsigned(
-    value: i128,
-    max: u64,
-    mode: ScalarConvertMode,
-) -> Result<u64, Error> {
+fn clamp_or_error_unsigned<C>(value: i128, max: u64) -> Result<u64, Error>
+where
+    C: ScalarConversion,
+{
     // accept values in range
     if value >= 0 && value <= i128::from(max) {
         return Ok(value as u64);
     }
 
-    // saturate or error
-    if matches!(mode, ScalarConvertMode::Saturate) {
-        return Ok(if value < 0 { 0 } else { max });
-    }
-
-    Err(Error::TypeMismatch {
-        expected: format!("unsigned range 0..={max}"),
-        actual: value.to_string(),
-    })
-}
-
-/// Evaluate one reduction operator over two values.
-pub(crate) fn reduce_operator(
-    ty: ScalarLayout,
-    op: ReduceOperator,
-    a: Word,
-    b: Word,
-) -> Result<Word, Error> {
-    match op {
-        ReduceOperator::Add => reduce_add(ty, a, b),
-        ReduceOperator::Multiply => reduce_multiply(ty, a, b),
-        ReduceOperator::Min => reduce_min(ty, a, b),
-        ReduceOperator::Max => reduce_max(ty, a, b),
-        ReduceOperator::And => reduce_and(ty, a, b),
-        ReduceOperator::Or => reduce_or(ty, a, b),
-        ReduceOperator::Xor => reduce_xor(ty, a, b),
-    }
-}
-
-/// Evaluate one typed binary operator over two scalar values.
-pub(crate) fn binary_operator(
-    ty: ScalarLayout,
-    op: mir::BinaryOperator,
-    a: Word,
-    b: Word,
-) -> Result<Word, Error> {
-    match ty {
-        ScalarLayout::Int {
-            is_signed: true, ..
-        } => operator::evaluate_binary_int(op, a, b),
-        ScalarLayout::Int {
-            is_signed: false, ..
-        } => match op {
-            mir::BinaryOperator::Equal => Ok(Word::bool(a.as_u64() == b.as_u64())),
-            mir::BinaryOperator::NotEqual => Ok(Word::bool(a.as_u64() != b.as_u64())),
-            _ => operator::evaluate_binary_uint(op, a, b),
-        },
-        ScalarLayout::Float { width: 32 } => operator::evaluate_binary_float32(op, a, b),
-        ScalarLayout::Float { width: 64 } => operator::evaluate_binary_float64(op, a, b),
-        ScalarLayout::Bool => match op {
-            mir::BinaryOperator::Equal => Ok(Word::bool(a.as_bool() == b.as_bool())),
-            mir::BinaryOperator::NotEqual => Ok(Word::bool(a.as_bool() != b.as_bool())),
-            _ => operator::evaluate_binary_bool(op, a, b),
-        },
-        _ => Err(reduce_type_error("binary", a, b)),
-    }
-}
-
-/// Evaluate one typed unary operator over one scalar value.
-pub(crate) fn unary_operator(
-    ty: ScalarLayout,
-    op: mir::UnaryOperator,
-    value: Word,
-) -> Result<Word, Error> {
-    match ty {
-        ScalarLayout::Float { width: 32 } => operator::evaluate_unary_float32(op, value),
-        ScalarLayout::Float { width: 64 } => operator::evaluate_unary_float64(op, value),
-        ScalarLayout::Bool => operator::evaluate_unary_bool(op, value),
-        _ => Err(Error::TypeMismatch {
-            expected: format!("typed unary operator for {op:?}"),
-            actual: format!("{value:?}"),
-        }),
-    }
+    C::clamp_unsigned(value, max)
 }
 
 /// Add two scalar values using the supplied type.
-fn reduce_add(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+pub(crate) fn reduce_add(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
     match ty {
         ScalarLayout::Int { width, is_signed } if is_signed => {
             let width = width_u8(width)?;
@@ -1096,7 +1878,7 @@ fn reduce_add(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
 }
 
 /// Multiply two scalar values using the supplied type.
-fn reduce_multiply(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+pub(crate) fn reduce_multiply(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
     match ty {
         ScalarLayout::Int { width, is_signed } if is_signed => {
             let width = width_u8(width)?;
@@ -1115,7 +1897,7 @@ fn reduce_multiply(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
 }
 
 /// Select the minimum of two scalar values using the supplied type.
-fn reduce_min(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+pub(crate) fn reduce_min(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
     match ty {
         ScalarLayout::Int { width, is_signed } if is_signed => {
             let width = width_u8(width)?;
@@ -1134,7 +1916,7 @@ fn reduce_min(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
 }
 
 /// Select the maximum of two scalar values using the supplied type.
-fn reduce_max(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+pub(crate) fn reduce_max(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
     match ty {
         ScalarLayout::Int { width, is_signed } if is_signed => {
             let width = width_u8(width)?;
@@ -1153,7 +1935,7 @@ fn reduce_max(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
 }
 
 /// Apply bitwise or logical and to two scalar values.
-fn reduce_and(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+pub(crate) fn reduce_and(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
     match ty {
         ScalarLayout::Int { width, is_signed } if is_signed => {
             let width = width_u8(width)?;
@@ -1171,7 +1953,7 @@ fn reduce_and(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
 }
 
 /// Apply bitwise or logical or to two scalar values.
-fn reduce_or(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+pub(crate) fn reduce_or(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
     match ty {
         ScalarLayout::Int { width, is_signed } if is_signed => {
             let width = width_u8(width)?;
@@ -1189,7 +1971,7 @@ fn reduce_or(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
 }
 
 /// Apply bitwise or logical xor to two scalar values.
-fn reduce_xor(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+pub(crate) fn reduce_xor(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
     match ty {
         ScalarLayout::Int { width, is_signed } if is_signed => {
             let width = width_u8(width)?;
@@ -1209,7 +1991,7 @@ fn reduce_xor(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
 /// Build one scalar reduction type error.
 fn reduce_type_error(op: &str, a: Word, b: Word) -> Error {
     Error::TypeMismatch {
-        expected: format!("scalar {op} operands"),
+        expected: format!("scalar {op} inputs"),
         actual: format!("{a:?}, {b:?}"),
     }
 }

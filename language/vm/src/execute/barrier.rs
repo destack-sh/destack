@@ -1,21 +1,20 @@
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
 use crate::program::{Instruction, Transfer};
-use destack_mir as mir;
 
 /// Execute a local heap barrier write.
 pub(crate) fn execute_barrier_write_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let object = mir::Value::new(instruction.a);
-    let offset = mir::Value::new(instruction.b);
-    let byte_len = mir::Value::new(instruction.c);
+    let object = instruction.a;
+    let offset = instruction.b;
+    let byte_len = instruction.c;
 
     // load barrier range
-    let object = machine.get(object);
-    let offset = machine.get(offset).as_uint() as usize;
-    let byte_len = machine.get(byte_len).as_uint() as usize;
+    let object = machine.get_word_at(object);
+    let offset = machine.get_word_at(offset).as_uint() as usize;
+    let byte_len = machine.get_word_at(byte_len).as_uint() as usize;
 
     // publish to the local collector
     let result = machine
@@ -35,14 +34,14 @@ pub(crate) fn execute_barrier_write_shared_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let object = mir::Value::new(instruction.a);
-    let offset = mir::Value::new(instruction.b);
-    let byte_len = mir::Value::new(instruction.c);
+    let object = instruction.a;
+    let offset = instruction.b;
+    let byte_len = instruction.c;
 
     // load barrier range
-    let object = machine.get(object);
-    let offset = machine.get(offset).as_uint() as usize;
-    let byte_len = machine.get(byte_len).as_uint() as usize;
+    let object = machine.get_word_at(object);
+    let offset = machine.get_word_at(offset).as_uint() as usize;
+    let byte_len = machine.get_word_at(byte_len).as_uint() as usize;
 
     // publish to the shared collector
     let result =

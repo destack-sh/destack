@@ -1,9 +1,9 @@
-use super::scalar::{ScalarLayout, scalar_layout};
 use crate::Word;
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
 use crate::program::{
-    CheckId, Edge, EdgeId, Instruction, MoveRange, SwitchCasesId, SwitchTableId, Transfer,
+    BoundsCheck, Check, CheckId, Edge, EdgeId, Instruction, MoveRange, NarrowCheck, OverflowCheck,
+    ShiftRangeCheck, SwitchCasesId, SwitchTableId, Transfer, UnionCheck,
 };
 use {destack_engine as engine, destack_mir as mir};
 
@@ -32,8 +32,8 @@ fn compare_branch_words<'a>(
     machine: &Machine<'_, 'a>,
     instruction: &'a Instruction,
 ) -> (Word, Word, Edge, Edge) {
-    let left = machine.get_word(mir::Value::new(instruction.a));
-    let right = machine.get_word(mir::Value::new(instruction.b));
+    let left = machine.get_word_at(instruction.a);
+    let right = machine.get_word_at(instruction.b);
     let then_edge = control_edge(machine, instruction.c);
     let else_edge = control_edge(machine, instruction.d);
 
@@ -46,6 +46,26 @@ fn compare_branch_transfer(then_edge: Edge, else_edge: Edge, is_truthy: bool) ->
     branch_transfer(is_truthy, then_edge, else_edge)
 }
 
+macro_rules! fixed_compare_branch_executor {
+    ($(#[$doc:meta] $name:ident => $ty:ty, $operation:tt,)+) => {
+        $(
+            #[$doc]
+            #[inline(always)]
+            pub(crate) fn $name(
+                machine: &mut Machine<'_, '_>,
+                instruction: &Instruction,
+            ) -> Transfer {
+                let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+                let left = left.bits() as $ty;
+                let right = right.bits() as $ty;
+                let is_truthy = left $operation right;
+
+                compare_branch_transfer(then_edge, else_edge, is_truthy)
+            }
+        )+
+    };
+}
+
 /// Return one default switch jump.
 #[inline(always)]
 fn default_switch_transfer(edge: Edge) -> Transfer {
@@ -55,26 +75,37 @@ fn default_switch_transfer(edge: Edge) -> Transfer {
     }
 }
 
-/// Load one switch operand as an integer case value.
+/// Load one wide switch value as an integer case value.
 #[inline(always)]
-fn load_switch_value(machine: &Machine<'_, '_>, value: mir::Value) -> Result<Option<i128>, Error> {
-    let value_type = machine.value_type(value)?;
-    let layout = scalar_layout(machine.tree(), value_type)?;
-    let ScalarLayout::Int { width, is_signed } = layout else {
-        return Err(Error::TypeMismatch {
-            expected: "integer switch value".to_string(),
-            actual: format!("{layout:?}"),
-        });
-    };
+fn load_wide_switch_value<const IS_SIGNED: bool>(
+    machine: &Machine<'_, '_>,
+    offset: u32,
+    width: u32,
+) -> Result<Option<i128>, Error> {
+    let width = width as u16;
+    let byte_len = width.div_ceil(8) as usize;
+    let address = machine.frame_pointer_at(offset).address() as *const u8;
+    let bytes = unsafe { std::slice::from_raw_parts(address, byte_len) };
 
-    integer_bytes_to_case_value(machine.value_bytes(value)?, width, is_signed)
+    integer_bytes_to_case_value::<IS_SIGNED>(bytes, width)
+}
+
+/// Load one word switch value as an integer case value.
+#[inline(always)]
+fn load_word_switch_value<const IS_SIGNED: bool>(machine: &Machine<'_, '_>, offset: u32) -> i128 {
+    let value = machine.get_word_at(offset);
+
+    if IS_SIGNED {
+        return value.as_i64() as i128;
+    }
+
+    value.as_u64() as i128
 }
 
 /// Decode integer bytes into the switch case domain.
-fn integer_bytes_to_case_value(
+fn integer_bytes_to_case_value<const IS_SIGNED: bool>(
     bytes: &[u8],
     width: u16,
-    is_signed: bool,
 ) -> Result<Option<i128>, Error> {
     let byte_len = usize::from(width.div_ceil(8));
     let copied = byte_len.min(bytes.len()).min(16);
@@ -88,7 +119,7 @@ fn integer_bytes_to_case_value(
 
     let sign_bit = 1u8 << ((width - 1) % 8);
     let sign_byte = usize::from((width - 1) / 8);
-    let is_negative = is_signed && sign_byte < value.len() && value[sign_byte] & sign_bit != 0;
+    let is_negative = IS_SIGNED && sign_byte < value.len() && value[sign_byte] & sign_bit != 0;
 
     if is_negative {
         value[copied..].fill(0xff);
@@ -103,7 +134,7 @@ fn integer_bytes_to_case_value(
         }
     }
 
-    if is_signed {
+    if IS_SIGNED {
         return Ok(Some(i128::from_le_bytes(value)));
     }
 
@@ -112,352 +143,267 @@ fn integer_bytes_to_case_value(
     Ok(i128::try_from(value).ok())
 }
 
-/// Load one value as a signed integer.
+/// Load one word as a signed integer.
 #[inline(always)]
-fn load_signed_value(machine: &Machine<'_, '_>, value: mir::Value) -> Result<(i64, u8), Error> {
-    let ty = machine.value_type(value)?;
-    let ty = scalar_layout(machine.tree(), ty)?;
-    let ScalarLayout::Int {
-        width,
-        is_signed: true,
-    } = ty
-    else {
-        return Err(Error::TypeMismatch {
-            expected: "signed integer".to_string(),
-            actual: format!("{ty:?}"),
-        });
-    };
-    let width = u8::try_from(width).map_err(|_| Error::TypeMismatch {
-        expected: "integer width <= 64".to_string(),
-        actual: width.to_string(),
-    })?;
-    let value = machine.get(value);
-
-    Ok((value.as_i64(), width))
+fn load_signed_word(machine: &Machine<'_, '_>, offset: u32) -> i64 {
+    machine.get_word_at(offset).as_i64()
 }
 
-/// Load one value as an unsigned integer.
+/// Load one word as an unsigned integer.
 #[inline(always)]
-fn load_unsigned_value(machine: &Machine<'_, '_>, value: mir::Value) -> Result<(u64, u8), Error> {
-    let ty = machine.value_type(value)?;
-    let ty = scalar_layout(machine.tree(), ty)?;
-    let ScalarLayout::Int {
-        width,
-        is_signed: false,
-    } = ty
-    else {
-        return Err(Error::TypeMismatch {
-            expected: "unsigned integer".to_string(),
-            actual: format!("{ty:?}"),
-        });
-    };
-    let width = u8::try_from(width).map_err(|_| Error::TypeMismatch {
-        expected: "integer width <= 64".to_string(),
-        actual: width.to_string(),
-    })?;
-    let value = machine.get(value);
-
-    Ok((value.as_u64(), width))
+fn load_unsigned_word(machine: &Machine<'_, '_>, offset: u32) -> u64 {
+    machine.get_word_at(offset).as_u64()
 }
 
-/// Load one value as a non-negative length.
+/// Load one unsigned word as a non-negative length.
 #[inline(always)]
-fn load_length_value(machine: &Machine<'_, '_>, value: mir::Value) -> Result<u64, Error> {
-    let ty = machine.value_type(value)?;
-    let ty = scalar_layout(machine.tree(), ty)?;
-    let value = machine.get(value);
+fn load_unsigned_length_word(machine: &Machine<'_, '_>, offset: u32) -> u64 {
+    load_unsigned_word(machine, offset)
+}
 
-    match ty {
-        ScalarLayout::Int {
-            is_signed: false, ..
-        } => Ok(value.as_u64()),
-        ScalarLayout::Int {
-            is_signed: true, ..
-        } if value.as_i64() >= 0 => Ok(value.as_i64() as u64),
-        _ => Err(Error::TypeMismatch {
+/// Load one signed word as a non-negative length.
+#[inline(always)]
+fn load_signed_length_word(machine: &Machine<'_, '_>, offset: u32) -> Result<u64, Error> {
+    let value = load_signed_word(machine, offset);
+    if value < 0 {
+        return Err(Error::TypeMismatch {
             expected: "non negative integer".to_string(),
             actual: format!("{value:?}"),
-        }),
+        });
     }
+
+    Ok(value as u64)
 }
 
-/// Evaluate one overflow guard.
-fn evaluate_overflow_check(
+/// Evaluate one bounds check.
+#[inline(always)]
+fn bounds_check<const INDEX_SIGNED: bool, const LENGTH_SIGNED: bool>(
     machine: &Machine<'_, '_>,
-    operator: mir::BinaryOperator,
-    left: mir::Value,
-    right: mir::Value,
-    is_signed: bool,
+    check: BoundsCheck,
 ) -> Result<bool, Error> {
-    if is_signed {
-        let (left, width) = load_signed_value(machine, left)?;
-        let (right, right_width) = load_signed_value(machine, right)?;
-        if width != right_width {
-            return Err(Error::InvalidInstruction);
-        }
+    let length = if LENGTH_SIGNED {
+        load_signed_length_word(machine, check.length)?
+    } else {
+        load_unsigned_length_word(machine, check.length)
+    };
 
-        let min_value = -(1_i128 << (u32::from(width).saturating_sub(1)));
-        let max_value = (1_i128 << (u32::from(width).saturating_sub(1))) - 1;
-        let left = left as i128;
-        let right = right as i128;
+    if INDEX_SIGNED {
+        let index = load_signed_word(machine, check.index);
 
-        let overflows = match operator {
-            mir::BinaryOperator::Add => {
-                let result = left + right;
-                result < min_value || result > max_value
-            }
-            mir::BinaryOperator::Subtract => {
-                let result = left - right;
-                result < min_value || result > max_value
-            }
-            mir::BinaryOperator::Multiply => {
-                let result = left * right;
-                result < min_value || result > max_value
-            }
-            mir::BinaryOperator::SignedDivide | mir::BinaryOperator::SignedRemainder => {
-                if right == 0 {
-                    return Err(Error::DivisionByZero);
-                }
-
-                left == min_value && right == -1
-            }
-            _ => return Err(Error::InvalidInstruction),
-        };
-
-        return Ok(overflows);
+        return Ok(index >= 0 && (index as u64) < length);
     }
 
-    let (left, width) = load_unsigned_value(machine, left)?;
-    let (right, right_width) = load_unsigned_value(machine, right)?;
-    if width != right_width {
-        return Err(Error::InvalidInstruction);
+    let index = load_unsigned_word(machine, check.index);
+
+    Ok(index < length)
+}
+
+/// Evaluate one shift range check.
+#[inline(always)]
+fn shift_range_check<const IS_SIGNED: bool>(
+    machine: &Machine<'_, '_>,
+    check: ShiftRangeCheck,
+) -> bool {
+    let bit_width = u64::from(check.bit_width);
+
+    if IS_SIGNED {
+        let value = load_signed_word(machine, check.value);
+
+        return value >= 0 && (value as u64) < bit_width;
     }
 
-    let max_value = if width >= 64 {
+    let value = load_unsigned_word(machine, check.value);
+
+    value < bit_width
+}
+
+/// Evaluate one narrow check.
+#[inline(always)]
+fn narrow_check<const IS_SIGNED: bool>(machine: &Machine<'_, '_>, check: NarrowCheck) -> bool {
+    let target_width = u32::from(check.to_width);
+
+    if IS_SIGNED {
+        let value = load_signed_word(machine, check.value);
+        let shift = target_width - 1;
+        let min_value = -(1_i128 << shift);
+        let max_value = (1_i128 << shift) - 1;
+        let value = value as i128;
+
+        return value >= min_value && value <= max_value;
+    }
+
+    let value = load_unsigned_word(machine, check.value);
+    let max_value = if target_width >= 64 {
         u128::from(u64::MAX)
     } else {
-        (1_u128 << u32::from(width)) - 1
-    };
-    let left = u128::from(left);
-    let right = u128::from(right);
-
-    let overflows = match operator {
-        mir::BinaryOperator::Add => left + right > max_value,
-        mir::BinaryOperator::Subtract => left < right,
-        mir::BinaryOperator::Multiply => left.saturating_mul(right) > max_value,
-        mir::BinaryOperator::UnsignedDivide | mir::BinaryOperator::UnsignedRemainder => {
-            if right == 0 {
-                return Err(Error::DivisionByZero);
-            }
-
-            false
-        }
-        _ => return Err(Error::InvalidInstruction),
+        (1_u128 << target_width) - 1
     };
 
-    Ok(overflows)
+    u128::from(value) <= max_value
+}
+
+/// Evaluate one union tag check.
+#[inline(always)]
+fn union_check<const IS_SIGNED: bool>(machine: &Machine<'_, '_>, check: UnionCheck) -> bool {
+    if IS_SIGNED {
+        let actual = load_signed_word(machine, check.value);
+
+        return actual >= 0 && actual as u64 == check.expected;
+    }
+
+    let actual = load_unsigned_word(machine, check.value);
+
+    actual == check.expected
+}
+
+/// Return signed bounds for one integer width.
+fn signed_bounds(width: u8) -> (i128, i128) {
+    debug_assert!(width > 0);
+
+    let shift = u32::from(width - 1);
+    let min_value = -(1_i128 << shift);
+    let max_value = (1_i128 << shift) - 1;
+
+    (min_value, max_value)
+}
+
+/// Return unsigned max for one integer width.
+fn unsigned_max(width: u8) -> u128 {
+    if width >= 64 {
+        return u128::from(u64::MAX);
+    }
+
+    (1_u128 << u32::from(width)) - 1
+}
+
+/// Load signed overflow inputs.
+fn signed_overflow_inputs(machine: &Machine<'_, '_>, check: OverflowCheck) -> (i128, i128) {
+    let left = load_signed_word(machine, check.left) as i128;
+    let right = load_signed_word(machine, check.right) as i128;
+
+    (left, right)
+}
+
+/// Load unsigned overflow inputs.
+fn unsigned_overflow_inputs(machine: &Machine<'_, '_>, check: OverflowCheck) -> (u128, u128) {
+    let left = u128::from(load_unsigned_word(machine, check.left));
+    let right = u128::from(load_unsigned_word(machine, check.right));
+
+    (left, right)
+}
+
+/// Evaluate signed add overflow.
+fn overflow_add_int(machine: &Machine<'_, '_>, check: OverflowCheck) -> bool {
+    let (left, right) = signed_overflow_inputs(machine, check);
+    let (min_value, max_value) = signed_bounds(check.width);
+    let result = left + right;
+
+    result < min_value || result > max_value
+}
+
+/// Evaluate unsigned add overflow.
+fn overflow_add_uint(machine: &Machine<'_, '_>, check: OverflowCheck) -> bool {
+    let (left, right) = unsigned_overflow_inputs(machine, check);
+    let max_value = unsigned_max(check.width);
+
+    left + right > max_value
+}
+
+/// Evaluate signed subtract overflow.
+fn overflow_sub_int(machine: &Machine<'_, '_>, check: OverflowCheck) -> bool {
+    let (left, right) = signed_overflow_inputs(machine, check);
+    let (min_value, max_value) = signed_bounds(check.width);
+    let result = left - right;
+
+    result < min_value || result > max_value
+}
+
+/// Evaluate unsigned subtract overflow.
+fn overflow_sub_uint(machine: &Machine<'_, '_>, check: OverflowCheck) -> bool {
+    let (left, right) = unsigned_overflow_inputs(machine, check);
+
+    left < right
+}
+
+/// Evaluate signed multiply overflow.
+fn overflow_mul_int(machine: &Machine<'_, '_>, check: OverflowCheck) -> bool {
+    let (left, right) = signed_overflow_inputs(machine, check);
+    let (min_value, max_value) = signed_bounds(check.width);
+    let result = left * right;
+
+    result < min_value || result > max_value
+}
+
+/// Evaluate unsigned multiply overflow.
+fn overflow_mul_uint(machine: &Machine<'_, '_>, check: OverflowCheck) -> bool {
+    let (left, right) = unsigned_overflow_inputs(machine, check);
+    let max_value = unsigned_max(check.width);
+
+    left != 0 && right > max_value / left
+}
+
+/// Evaluate signed divide or remainder overflow.
+fn overflow_div_int(machine: &Machine<'_, '_>, check: OverflowCheck) -> Result<bool, Error> {
+    let (left, right) = signed_overflow_inputs(machine, check);
+    let (min_value, _) = signed_bounds(check.width);
+    if right == 0 {
+        return Err(Error::DivisionByZero);
+    }
+
+    Ok(left == min_value && right == -1)
+}
+
+/// Evaluate unsigned divide or remainder overflow.
+fn overflow_div_uint(machine: &Machine<'_, '_>, check: OverflowCheck) -> Result<bool, Error> {
+    let (_, right) = unsigned_overflow_inputs(machine, check);
+    if right == 0 {
+        return Err(Error::DivisionByZero);
+    }
+
+    Ok(false)
 }
 
 /// Evaluate one runtime check guard.
-fn evaluate_check(
-    machine: &Machine<'_, '_>,
-    constraint: &mir::CheckConstraint,
-) -> Result<bool, Error> {
+fn evaluate_check(machine: &Machine<'_, '_>, constraint: &Check) -> Result<bool, Error> {
     match constraint {
-        mir::CheckConstraint::Bounds {
-            index,
-            length,
-            is_signed,
-            ..
-        } => {
-            let length = load_length_value(
-                machine,
-                (*length)
-                    .value()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "bounds check length".to_string(),
-                    })?,
-            )?;
-
-            if *is_signed {
-                let (index, _) = load_signed_value(
-                    machine,
-                    (*index)
-                        .value()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "bounds check index".to_string(),
-                        })?,
-                )?;
-                Ok(index >= 0 && (index as u64) < length)
-            } else {
-                let (index, _) = load_unsigned_value(
-                    machine,
-                    (*index)
-                        .value()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "bounds check index".to_string(),
-                        })?,
-                )?;
-                Ok(index < length)
-            }
-        }
-        mir::CheckConstraint::Null { value } => {
-            let value =
-                machine.get(
-                    (*value)
-                        .value()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "null check value".to_string(),
-                        })?,
-                );
+        Check::BoundsIntInt(check) => bounds_check::<true, true>(machine, *check),
+        Check::BoundsIntUint(check) => bounds_check::<true, false>(machine, *check),
+        Check::BoundsUintInt(check) => bounds_check::<false, true>(machine, *check),
+        Check::BoundsUintUint(check) => bounds_check::<false, false>(machine, *check),
+        Check::Null { value } => {
+            let value = machine.get_word_at(*value);
 
             Ok(value.bits() != 0)
         }
-        mir::CheckConstraint::DivZero { divisor } => {
-            let divisor = (*divisor)
-                .value()
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "divzero divisor".to_string(),
-                })?;
-            let ty = machine.value_type(divisor)?;
-            let ty = scalar_layout(machine.tree(), ty)?;
+        Check::DivZeroInt { divisor } => {
+            let value = load_signed_word(machine, *divisor);
 
-            match ty {
-                ScalarLayout::Int {
-                    is_signed: true, ..
-                } => {
-                    let (value, _) = load_signed_value(machine, divisor)?;
-
-                    Ok(value != 0)
-                }
-                ScalarLayout::Int {
-                    is_signed: false, ..
-                } => {
-                    let (value, _) = load_unsigned_value(machine, divisor)?;
-
-                    Ok(value != 0)
-                }
-                _ => Err(Error::TypeMismatch {
-                    expected: "integer divisor".to_string(),
-                    actual: format!("{ty:?}"),
-                }),
-            }
+            Ok(value != 0)
         }
-        mir::CheckConstraint::ShiftRange {
-            value,
-            bit_width,
-            is_signed,
-        } => {
-            let bit_width = u64::from(*bit_width);
-            let value = (*value)
-                .value()
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "shift range value".to_string(),
-                })?;
+        Check::DivZeroUint { divisor } => {
+            let value = load_unsigned_word(machine, *divisor);
 
-            if *is_signed {
-                let (value, _) = load_signed_value(machine, value)?;
-                Ok(value >= 0 && (value as u64) < bit_width)
-            } else {
-                let (value, _) = load_unsigned_value(machine, value)?;
-                Ok(value < bit_width)
-            }
+            Ok(value != 0)
         }
-        mir::CheckConstraint::Narrow {
-            value,
-            to_width,
-            is_signed,
-        } => {
-            let target_width = u32::from(*to_width);
-            let value = (*value)
-                .value()
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "narrow value".to_string(),
-                })?;
+        Check::ShiftRangeInt(check) => Ok(shift_range_check::<true>(machine, *check)),
+        Check::ShiftRangeUint(check) => Ok(shift_range_check::<false>(machine, *check)),
+        Check::NarrowInt(check) => Ok(narrow_check::<true>(machine, *check)),
+        Check::NarrowUint(check) => Ok(narrow_check::<false>(machine, *check)),
+        Check::OverflowAddInt(check) => Ok(overflow_add_int(machine, *check)),
+        Check::OverflowAddUint(check) => Ok(overflow_add_uint(machine, *check)),
+        Check::OverflowSubInt(check) => Ok(overflow_sub_int(machine, *check)),
+        Check::OverflowSubUint(check) => Ok(overflow_sub_uint(machine, *check)),
+        Check::OverflowMulInt(check) => Ok(overflow_mul_int(machine, *check)),
+        Check::OverflowMulUint(check) => Ok(overflow_mul_uint(machine, *check)),
+        Check::OverflowDivInt(check) => overflow_div_int(machine, *check),
+        Check::OverflowDivUint(check) => overflow_div_uint(machine, *check),
+        Check::Type { value, expected } => {
+            let value = machine.get_word_at(*value);
 
-            if *is_signed {
-                let (value, _) = load_signed_value(machine, value)?;
-                let min_value = -(1_i128 << target_width.saturating_sub(1));
-                let max_value = (1_i128 << target_width.saturating_sub(1)) - 1;
-                let value = value as i128;
-                Ok(value >= min_value && value <= max_value)
-            } else {
-                let (value, _) = load_unsigned_value(machine, value)?;
-                let max_value = if target_width >= 64 {
-                    u128::from(u64::MAX)
-                } else {
-                    (1_u128 << target_width) - 1
-                };
-                Ok(u128::from(value) <= max_value)
-            }
+            Ok(value.as_u64() == u64::from(*expected))
         }
-        mir::CheckConstraint::Overflow {
-            operator,
-            left,
-            right,
-            is_signed,
-        } => evaluate_overflow_check(
-            machine,
-            *operator,
-            (*left)
-                .value()
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "overflow left".to_string(),
-                })?,
-            (*right)
-                .value()
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "overflow right".to_string(),
-                })?,
-            *is_signed,
-        ),
-        mir::CheckConstraint::Type { value, expected } => {
-            let value = (*value)
-                .value()
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "type check value".to_string(),
-                })?;
-            let expected = (*expected)
-                .ty()
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "type check expected".to_string(),
-                })?;
-            let value = machine.get(value);
-
-            Ok(value.as_u64() == u64::from(expected.id))
-        }
-        mir::CheckConstraint::Union { value, expected } => {
-            let value = (*value)
-                .value()
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "union check value".to_string(),
-                })?;
-            let ty = machine.value_type(value)?;
-            let ty = scalar_layout(machine.tree(), ty)?;
-
-            match ty {
-                ScalarLayout::Int {
-                    is_signed: false, ..
-                } => Ok(machine.get(value).as_u64() == *expected),
-                ScalarLayout::Int {
-                    is_signed: true, ..
-                } => {
-                    let actual = machine.get(value).as_i64();
-
-                    Ok(actual >= 0 && actual as u64 == *expected)
-                }
-                _ => Err(Error::TypeMismatch {
-                    expected: "union discriminator".to_string(),
-                    actual: format!("{ty:?}"),
-                }),
-            }
-        }
-        mir::CheckConstraint::ReceiverType { .. } => Err(Error::UnsupportedInstruction {
-            name: "receiverType check".to_string(),
-        }),
-        mir::CheckConstraint::Implements { .. } => Err(Error::UnsupportedInstruction {
-            name: "interfaceConformance check".to_string(),
-        }),
+        Check::UnionInt(check) => Ok(union_check::<true>(machine, *check)),
+        Check::UnionUint(check) => Ok(union_check::<false>(machine, *check)),
     }
 }
 
@@ -471,16 +417,29 @@ pub(crate) fn execute_assume(
     Transfer::Continue
 }
 
-/// Execute return (exits tail-call chain).
-pub(crate) fn execute_return(machine: &mut Machine<'_, '_>, instruction: &Instruction) -> Transfer {
-    // resolve return value
-    let return_value = machine.value_operand(mir::Value::new(instruction.a));
-    let return_value = match return_value {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
+/// Return an address from a lowered frame offset.
+#[inline(always)]
+fn frame_address(machine: &Machine<'_, '_>, offset: u32) -> Word {
+    Word::frame_pointer(machine.frame_pointer_at(offset))
+}
 
-    // return to caller
+/// Execute word return.
+pub(crate) fn execute_return_word(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let return_value = machine.get_word_at(instruction.a);
+
+    Transfer::Return(return_value)
+}
+
+/// Execute address return.
+pub(crate) fn execute_return_address(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let return_value = frame_address(machine, instruction.a);
+
     Transfer::Return(return_value)
 }
 
@@ -494,22 +453,34 @@ pub(crate) fn execute_return_void(
     Transfer::Return(Word::VOID)
 }
 
-/// Execute yield (exits tail-call chain).
-pub(crate) fn execute_yield(machine: &mut Machine<'_, '_>, instruction: &Instruction) -> Transfer {
-    let value = mir::Value::new(instruction.a);
-    let source = mir::Value::new(instruction.b);
+/// Execute word yield.
+pub(crate) fn execute_yield_word(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let yield_value = machine.get_word_at(instruction.a);
+    let source_type = mir::LocalNodeId::new(instruction.b);
     let frame_state = engine::FrameStateId(instruction.c);
 
-    // resolve yielded value
-    let yield_value = match machine.value_operand(value) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
-
-    // return yield control
     Transfer::Yield {
         value: yield_value,
-        source,
+        source_type,
+        frame_state,
+    }
+}
+
+/// Execute address yield.
+pub(crate) fn execute_yield_address(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let yield_value = frame_address(machine, instruction.a);
+    let source_type = mir::LocalNodeId::new(instruction.b);
+    let frame_state = engine::FrameStateId(instruction.c);
+
+    Transfer::Yield {
+        value: yield_value,
+        source_type,
         frame_state,
     }
 }
@@ -535,15 +506,58 @@ pub(crate) fn execute_branch_bool(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let condition = mir::Value::new(instruction.a);
+    let condition = instruction.a;
     let then_edge = control_edge(machine, instruction.b);
     let else_edge = control_edge(machine, instruction.c);
 
     // evaluate branch condition
-    let cond = machine.get(condition);
-    let is_truthy = cond.bits() != 0;
+    let condition = machine.get_word_at(condition);
+    let is_truthy = condition.bits() != 0;
 
     branch_transfer(is_truthy, then_edge, else_edge)
+}
+
+fixed_compare_branch_executor! {
+    /// Execute 32-bit integer equality branch.
+    execute_branch_eq_32 => u32, ==,
+    /// Execute 64-bit integer equality branch.
+    execute_branch_eq_64 => u64, ==,
+    /// Execute 32-bit integer inequality branch.
+    execute_branch_ne_32 => u32, !=,
+    /// Execute 64-bit integer inequality branch.
+    execute_branch_ne_64 => u64, !=,
+    /// Execute 32-bit signed integer less-than branch.
+    execute_branch_lt_i32 => i32, <,
+    /// Execute 32-bit unsigned integer less-than branch.
+    execute_branch_lt_u32 => u32, <,
+    /// Execute 64-bit signed integer less-than branch.
+    execute_branch_lt_i64 => i64, <,
+    /// Execute 64-bit unsigned integer less-than branch.
+    execute_branch_lt_u64 => u64, <,
+    /// Execute 32-bit signed integer less-or-equal branch.
+    execute_branch_le_i32 => i32, <=,
+    /// Execute 32-bit unsigned integer less-or-equal branch.
+    execute_branch_le_u32 => u32, <=,
+    /// Execute 64-bit signed integer less-or-equal branch.
+    execute_branch_le_i64 => i64, <=,
+    /// Execute 64-bit unsigned integer less-or-equal branch.
+    execute_branch_le_u64 => u64, <=,
+    /// Execute 32-bit signed integer greater-than branch.
+    execute_branch_gt_i32 => i32, >,
+    /// Execute 32-bit unsigned integer greater-than branch.
+    execute_branch_gt_u32 => u32, >,
+    /// Execute 64-bit signed integer greater-than branch.
+    execute_branch_gt_i64 => i64, >,
+    /// Execute 64-bit unsigned integer greater-than branch.
+    execute_branch_gt_u64 => u64, >,
+    /// Execute 32-bit signed integer greater-or-equal branch.
+    execute_branch_ge_i32 => i32, >=,
+    /// Execute 32-bit unsigned integer greater-or-equal branch.
+    execute_branch_ge_u32 => u32, >=,
+    /// Execute 64-bit signed integer greater-or-equal branch.
+    execute_branch_ge_i64 => i64, >=,
+    /// Execute 64-bit unsigned integer greater-or-equal branch.
+    execute_branch_ge_u64 => u64, >=,
 }
 
 /// Execute runtime check (exits tail-call chain).
@@ -826,15 +840,40 @@ pub(crate) fn execute_branch_ge_f64(
     compare_branch_transfer(then_edge, else_edge, is_truthy)
 }
 
-/// Execute switch (exits tail-call chain).
-pub(crate) fn execute_switch(machine: &mut Machine<'_, '_>, instruction: &Instruction) -> Transfer {
+/// Execute a word switch.
+pub(crate) fn execute_switch_word<const IS_SIGNED: bool>(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
     let table = machine.side_table_ptr();
-    let value = mir::Value::new(instruction.a);
+    let cases = unsafe { (*table).switch_cases(SwitchCasesId(instruction.b)) };
+    let default_edge = control_edge(machine, instruction.c);
+    let int_val = load_word_switch_value::<IS_SIGNED>(machine, instruction.a);
+
+    // find matching case
+    for case in cases {
+        if case.value == int_val {
+            return Transfer::Jump {
+                block: case.target,
+                moves: case.moves,
+            };
+        }
+    }
+
+    default_switch_transfer(default_edge)
+}
+
+/// Execute a wide integer switch.
+pub(crate) fn execute_switch_wide<const IS_SIGNED: bool>(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let table = machine.side_table_ptr();
     let cases = unsafe { (*table).switch_cases(SwitchCasesId(instruction.b)) };
     let default_edge = control_edge(machine, instruction.c);
 
     // load switch value
-    let int_val = match load_switch_value(machine, value) {
+    let int_val = match load_wide_switch_value::<IS_SIGNED>(machine, instruction.a, instruction.d) {
         Ok(Some(int_val)) => int_val,
         Ok(None) => return default_switch_transfer(default_edge),
         Err(error) => return Transfer::Error(error),
@@ -855,18 +894,42 @@ pub(crate) fn execute_switch(machine: &mut Machine<'_, '_>, instruction: &Instru
     default_switch_transfer(default_edge)
 }
 
-/// Execute switch via dense jump table (exits tail-call chain).
-pub(crate) fn execute_switch_table(
+/// Execute a word switch via dense jump table.
+pub(crate) fn execute_switch_table_word<const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
     let side_table = machine.side_table_ptr();
-    let value = mir::Value::new(instruction.a);
+    let table = unsafe { (*side_table).switch_table(SwitchTableId(instruction.b)) };
+    let default_edge = control_edge(machine, instruction.c);
+    let int_val = load_word_switch_value::<IS_SIGNED>(machine, instruction.a);
+
+    // resolve jump table entry
+    if int_val < table.min {
+        return default_switch_transfer(default_edge);
+    }
+    let offset = (int_val - table.min) as usize;
+    let Some(case) = table.cases.get(offset) else {
+        return default_switch_transfer(default_edge);
+    };
+
+    Transfer::Jump {
+        block: case.target,
+        moves: case.moves,
+    }
+}
+
+/// Execute a wide integer switch via dense jump table.
+pub(crate) fn execute_switch_table_wide<const IS_SIGNED: bool>(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let side_table = machine.side_table_ptr();
     let table = unsafe { (*side_table).switch_table(SwitchTableId(instruction.b)) };
     let default_edge = control_edge(machine, instruction.c);
 
     // load switch value
-    let int_val = match load_switch_value(machine, value) {
+    let int_val = match load_wide_switch_value::<IS_SIGNED>(machine, instruction.a, instruction.d) {
         Ok(Some(int_val)) => int_val,
         Ok(None) => return default_switch_transfer(default_edge),
         Err(error) => return Transfer::Error(error),
@@ -881,7 +944,7 @@ pub(crate) fn execute_switch_table(
         return default_switch_transfer(default_edge);
     };
 
-    // jump to resolved case
+    // jump to the selected case
     Transfer::Jump {
         block: case.target,
         moves: case.moves,
@@ -898,20 +961,28 @@ pub(crate) fn execute_abort(
 
 /// Execute panic.
 pub(crate) fn execute_panic(machine: &mut Machine<'_, '_>, instruction: &Instruction) -> Transfer {
-    let payload = machine.get(mir::Value::new(instruction.a));
+    let payload = machine.get_word_at(instruction.a);
     let message = format!("panic payload: {payload:?}");
 
     Transfer::Error(Error::Panic { message })
 }
 
-/// Execute throw terminator.
-pub(crate) fn execute_throw(machine: &mut Machine<'_, '_>, instruction: &Instruction) -> Transfer {
-    let value = mir::Value::new(instruction.a);
+/// Execute word throw.
+pub(crate) fn execute_throw_word(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let value = machine.get_word_at(instruction.a);
 
-    let value = match machine.value_operand(value) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
+    Transfer::Throw(value)
+}
+
+/// Execute address throw.
+pub(crate) fn execute_throw_address(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let value = frame_address(machine, instruction.a);
 
     Transfer::Throw(value)
 }

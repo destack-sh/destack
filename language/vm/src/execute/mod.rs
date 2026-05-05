@@ -1,4 +1,5 @@
 mod access;
+mod address;
 mod allocation;
 mod arithmetic;
 mod atomic;
@@ -16,7 +17,6 @@ mod frame;
 mod index;
 mod intrinsic;
 mod memory;
-mod operator;
 mod reference;
 mod resume;
 mod run;

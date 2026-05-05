@@ -1,129 +1,131 @@
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
-use crate::{FunctionPointer, HeapReference, Word};
+use crate::{HeapReference, Word};
 use destack_mir as mir;
 
-use crate::program::{callable_object_layout, decode_word_bits, encode_word_bytes};
+use crate::program::{CallableEnvironment, CallableObjectLayout, WordLayout};
 
-use super::access::load_scalar_bits;
-
-/// Return the environment type for one bound function.
-fn callable_environment_type(
-    tree: &mir::Tree,
-    function_id: mir::LocalNodeId<mir::Function>,
-) -> Result<mir::LocalNodeId<mir::Type>, Error> {
-    let function = tree.get(function_id);
-    let environment = function.environment.ok_or(Error::InvalidInstruction)?;
-
-    environment
-        .ty()
-        .ok_or_else(|| Error::MissingRepresentation {
-            context: "callable environment type".to_string(),
-        })
-}
+use super::access;
 
 /// Decode one callable object into function and environment values.
 fn decode_callable_object(
     machine: &mut Machine<'_, '_>,
     reference: HeapReference,
 ) -> Result<(Word, Word), Error> {
-    let layout = callable_object_layout(machine.tree().pointer_bytes() as usize);
-    let pointer_bytes = machine.tree().pointer_bytes() as usize;
+    let layout = machine.program.callable_object_layout;
     let base_address = machine.heap().heap_base_address() + reference.offset();
 
     // split the two pointer fields
     let function_address = base_address + layout.function_offset;
     let environment_address = base_address + layout.environment_offset;
-    let function_raw = load_scalar_bits(function_address, pointer_bytes);
-    let environment_raw = load_scalar_bits(environment_address, pointer_bytes);
-
-    let function = FunctionPointer::from_bits(function_raw as usize);
+    let function =
+        access::load_scalar_by_layout_at_address(function_address, WordLayout::FunctionPointer)
+            .as_function_pointer();
     let function_id = mir::LocalNodeId::new(function.function_index());
     let function = Word::function_pointer(function);
 
-    // decode small environments directly, otherwise decode the heap reference
-    let environment_type = callable_environment_type(machine.tree(), function_id)?;
-    let environment_value = if machine.layout(environment_type)?.is_word() {
-        decode_word_bits(
-            machine.tree(),
-            environment_type,
-            environment_raw,
-            pointer_bytes,
-        )?
-    } else {
-        let environment_reference = HeapReference::from_bits(environment_raw as usize);
-
-        Word::heap_reference(environment_reference)
-    };
+    // decode the environment through lowered callable metadata
+    let environment_layout = machine
+        .program
+        .functions
+        .environment_layout(function_id)
+        .ok_or(Error::InvalidInstruction)?;
+    let environment_value =
+        access::load_scalar_by_layout_at_address(environment_address, environment_layout);
 
     Ok((function, environment_value))
 }
 
-/// Encode one callable environment value into pointer-sized bits.
-fn encode_callable_environment(
+/// Encode one word callable environment into pointer-sized bits.
+fn encode_callable_word_environment(
     machine: &mut Machine<'_, '_>,
-    function_id: mir::LocalNodeId<mir::Function>,
-    environment_value: mir::Value,
+    layout: WordLayout,
+    environment_offset: u32,
+) -> u64 {
+    let environment = machine.get_word_at(environment_offset);
+
+    layout.encode(environment)
+}
+
+/// Encode one frame callable environment into pointer-sized bits.
+fn encode_callable_address_environment(
+    machine: &mut Machine<'_, '_>,
+    layout: mir::LayoutId,
+    byte_len: usize,
+    environment_offset: u32,
 ) -> Result<u64, Error> {
-    let environment_type = callable_environment_type(machine.tree(), function_id)?;
-    if machine.layout(environment_type)?.is_word() {
-        let environment = encode_word_bytes(
-            machine.tree(),
-            environment_type,
-            machine.get(environment_value),
-        )?;
-        let pointer_bytes = machine.tree().pointer_bytes() as usize;
-        let mut bytes = [0u8; Word::BYTE_LEN];
-
-        bytes[..pointer_bytes].copy_from_slice(&environment.as_slice()[..pointer_bytes]);
-
-        return Ok(u64::from_le_bytes(bytes));
-    }
-
-    // non-word environments are copied into one heap allocation
-    let environment_layout_id = machine
-        .program
-        .layout_id_for_type(environment_type)
-        .ok_or(Error::InvalidInstruction)?;
-    let environment_bytes = machine.value_bytes(environment_value)?.to_vec();
-    let environment_reference =
-        machine.allocate_heap_layout_bytes(environment_layout_id, &environment_bytes)?;
+    let environment_pointer = machine.frame_pointer_at(environment_offset).address() as *const u8;
+    let environment_bytes = unsafe { std::slice::from_raw_parts(environment_pointer, byte_len) };
+    let environment_reference = machine.allocate_heap_layout_bytes(layout, environment_bytes)?;
 
     Ok(environment_reference.bits() as u64)
+}
+
+/// Encode one callable environment into pointer-sized bits.
+fn encode_callable_environment(
+    machine: &mut Machine<'_, '_>,
+    environment: CallableEnvironment,
+    environment_offset: u32,
+) -> Result<u64, Error> {
+    match environment {
+        CallableEnvironment::Word { layout } => Ok(encode_callable_word_environment(
+            machine,
+            layout,
+            environment_offset,
+        )),
+        CallableEnvironment::Frame { layout, byte_len } => {
+            encode_callable_address_environment(machine, layout, byte_len, environment_offset)
+        }
+    }
+}
+
+/// Bind one function and encoded environment into a callable value.
+fn bind_callable_object(
+    machine: &mut Machine<'_, '_>,
+    callable_layout: mir::LayoutId,
+    object_layout: CallableObjectLayout,
+    function: Word,
+    environment_bits: u64,
+) -> Result<Word, Error> {
+    let function = function.as_function_pointer();
+    let function_bytes = (function.bits() as u64).to_le_bytes();
+    let environment_bytes = environment_bits.to_le_bytes();
+    let mut bytes = [0u8; Word::BYTE_LEN * 2];
+    let bytes = &mut bytes[..object_layout.byte_len];
+
+    // place the two pointer sized fields
+    let pointer_bytes = object_layout.alignment;
+    let function_end = object_layout.function_offset + pointer_bytes;
+    let environment_end = object_layout.environment_offset + pointer_bytes;
+    bytes[object_layout.function_offset..function_end]
+        .copy_from_slice(&function_bytes[..pointer_bytes]);
+    bytes[object_layout.environment_offset..environment_end]
+        .copy_from_slice(&environment_bytes[..pointer_bytes]);
+
+    // allocate the callable object
+    let reference = machine.allocate_heap_layout_bytes(callable_layout, bytes)?;
+
+    Ok(Word::heap_reference(reference))
 }
 
 /// Bind one function and environment into a callable value.
 pub(crate) fn bind_callable(
     machine: &mut Machine<'_, '_>,
-    ty: mir::LocalNodeId<mir::Type>,
+    callable_layout: mir::LayoutId,
+    object_layout: CallableObjectLayout,
     function: Word,
-    environment_value: mir::Value,
+    environment: CallableEnvironment,
+    environment_offset: u32,
 ) -> Result<Word, Error> {
-    let layout = callable_object_layout(machine.tree().pointer_bytes() as usize);
-    let function = function.as_function_pointer();
-    let function_id = mir::LocalNodeId::new(function.function_index());
-    let function_bytes = (function.bits() as u64).to_le_bytes();
-    let environment_bytes =
-        encode_callable_environment(machine, function_id, environment_value)?.to_le_bytes();
-    let mut bytes = [0u8; Word::BYTE_LEN * 2];
-    let bytes = &mut bytes[..layout.byte_len];
+    let environment_bits = encode_callable_environment(machine, environment, environment_offset)?;
 
-    // place the two pointer sized fields
-    let pointer_bytes = machine.tree().pointer_bytes() as usize;
-    let function_end = layout.function_offset + pointer_bytes;
-    let environment_end = layout.environment_offset + pointer_bytes;
-    bytes[layout.function_offset..function_end].copy_from_slice(&function_bytes[..pointer_bytes]);
-    bytes[layout.environment_offset..environment_end]
-        .copy_from_slice(&environment_bytes[..pointer_bytes]);
-
-    // allocate the callable object
-    let layout_id = machine
-        .program
-        .layout_id_for_type(ty)
-        .ok_or(Error::InvalidInstruction)?;
-    let reference = machine.allocate_heap_layout_bytes(layout_id, bytes)?;
-
-    Ok(Word::heap_reference(reference))
+    bind_callable_object(
+        machine,
+        callable_layout,
+        object_layout,
+        function,
+        environment_bits,
+    )
 }
 
 /// Decode one callable value into function and environment values.

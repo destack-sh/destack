@@ -1,125 +1,444 @@
 use super::access;
-use super::element::element_access_for_type;
 use super::index::word_to_usize;
 use super::scalar::{
-    ReduceOperator, ScalarConvertMode, ScalarLayout, binary_operator, convert_scalar_value,
-    reduce_operator, scalar_layout,
+    convert_scalar_exact, convert_scalar_round_ceil, convert_scalar_round_floor,
+    convert_scalar_round_ties_even, convert_scalar_round_toward_zero, convert_scalar_saturate,
+    reduce_add, reduce_and, reduce_max, reduce_min, reduce_multiply, reduce_or, reduce_xor,
 };
 use crate::Word;
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
-use crate::program::{Instruction, Op, Transfer, U32RangeId};
-use destack_mir as mir;
+use crate::program::{
+    ElementAccess, Instruction, ScalarLayout, Transfer, VectorBinary, VectorConvert, VectorExtract,
+    VectorInsert, VectorReduce, VectorSelect, VectorShuffle, VectorSplat, VectorUnary,
+};
 
-/// Return one vector reduction operator from an side record.
-fn vector_reduce_operator_from_operand(operand: u32) -> Result<mir::VectorReduceOperator, Error> {
-    match operand {
-        0 => Ok(mir::VectorReduceOperator::Add),
-        1 => Ok(mir::VectorReduceOperator::Multiply),
-        2 => Ok(mir::VectorReduceOperator::Min),
-        3 => Ok(mir::VectorReduceOperator::Max),
-        4 => Ok(mir::VectorReduceOperator::And),
-        5 => Ok(mir::VectorReduceOperator::Or),
-        6 => Ok(mir::VectorReduceOperator::Xor),
-        _ => Err(Error::InvalidInstruction),
-    }
-}
-
-/// Return the scalar conversion mode for one vector conversion operation.
-fn vector_convert_mode(op: Op) -> Result<ScalarConvertMode, Error> {
-    match op {
-        Op::VectorConvertExact => Ok(ScalarConvertMode::Exact),
-        Op::VectorConvertRoundTiesEven => Ok(ScalarConvertMode::RoundTiesEven),
-        Op::VectorConvertRoundTowardZero => Ok(ScalarConvertMode::RoundTowardZero),
-        Op::VectorConvertRoundFloor => Ok(ScalarConvertMode::RoundFloor),
-        Op::VectorConvertRoundCeil => Ok(ScalarConvertMode::RoundCeil),
-        Op::VectorConvertSaturate => Ok(ScalarConvertMode::Saturate),
-        _ => Err(Error::InvalidInstruction),
-    }
-}
-
-/// Return the vector element count for one vector value id.
-fn vector_element_count(machine: &Machine<'_, '_>, value_id: mir::Value) -> Result<usize, Error> {
-    let vector_type = machine.value_type(value_id)?;
-
-    match machine.tree().get(vector_type) {
-        mir::Type::Vector {
-            lanes: elements, ..
-        } => Ok(*elements as usize),
-        _ => Err(Error::TypeMismatch {
-            expected: "vector type".to_string(),
-            actual: format!("{vector_type:?}"),
-        }),
-    }
-}
-
-/// Return the scalar element type for one vector value.
-fn vector_element_type(
-    machine: &Machine<'_, '_>,
-    value_id: mir::Value,
-) -> Result<ScalarLayout, Error> {
-    let vector_type = machine.value_type(value_id)?;
-    let element = match machine.tree().get(vector_type) {
-        mir::Type::Vector { element, .. } => {
-            element.ty().ok_or_else(|| Error::MissingRepresentation {
-                context: "vector element type".to_string(),
-            })?
-        }
-        _ => {
-            return Err(Error::TypeMismatch {
-                expected: "vector type".to_string(),
-                actual: format!("{vector_type:?}"),
-            });
+macro_rules! vector_binary_executor {
+    ($function:ident, $operation:ident, $doc:literal) => {
+        #[doc = $doc]
+        pub(crate) fn $function(
+            machine: &mut Machine<'_, '_>,
+            instruction: &Instruction,
+        ) -> Transfer {
+            execute_vector_binary(machine, instruction, super::scalar::$operation)
         }
     };
-
-    scalar_layout(machine.tree(), element)
 }
 
-/// Load one vector element through indexed access.
-fn load_vector_element_at(
+macro_rules! vector_unary_executor {
+    ($function:ident, $operation:ident, $doc:literal) => {
+        #[doc = $doc]
+        pub(crate) fn $function(
+            machine: &mut Machine<'_, '_>,
+            instruction: &Instruction,
+        ) -> Transfer {
+            execute_vector_unary(machine, instruction, super::scalar::$operation)
+        }
+    };
+}
+
+/// Load one vector element through a precomputed element access.
+#[inline(always)]
+fn load_vector_element(
     machine: &mut Machine<'_, '_>,
-    vector: Word,
-    vector_type: mir::LocalNodeId<mir::Type>,
+    vector_offset: u32,
+    element: ElementAccess,
     element_index: usize,
 ) -> Result<Word, Error> {
-    let index = u32::try_from(element_index).map_err(|_| Error::TypeMismatch {
-        expected: "vector element index".to_string(),
-        actual: element_index.to_string(),
-    })?;
-    let (element, element_count) = element_access_for_type(machine, vector_type, index.into())?;
+    let element_offset = element.byte_stride * element_index;
+    let pointer = machine
+        .frame_pointer_at(vector_offset)
+        .add_bytes(element_offset);
 
-    access::load_frame_element(machine, vector, index.into(), element_count, element)
+    access::load_frame_scalar_by_layout(machine, pointer, element.into())
 }
 
 /// Store one vector result into frame bytes.
 fn store_vector_elements<F>(
     machine: &mut Machine<'_, '_>,
-    dest: mir::Value,
+    dest_offset: u32,
+    dest_element: ElementAccess,
+    element_count: u32,
     mut element_value: F,
 ) -> Result<(), Error>
 where
     F: FnMut(&mut Machine<'_, '_>, usize) -> Result<Word, Error>,
 {
-    super::frame::store_frame_elements(machine, dest, |machine, element_index, _value_type| {
-        element_value(machine, element_index)
-    })
+    for element_index in 0..element_count as usize {
+        let value = element_value(machine, element_index)?;
+        let element_offset = dest_element.byte_stride * element_index;
+        let pointer = machine
+            .frame_pointer_at(dest_offset)
+            .add_bytes(element_offset);
+
+        access::store_frame_scalar_by_layout(machine, pointer, dest_element.into(), value)?;
+    }
+
+    Ok(())
 }
+
+/// Execute a vector binary operation.
+fn execute_vector_binary<F>(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+    operation: F,
+) -> Transfer
+where
+    F: Fn(ScalarLayout, Word, Word) -> Result<Word, Error>,
+{
+    // decode fixed fields
+    let VectorBinary {
+        dest_offset,
+        left_offset,
+        right_offset,
+        dest_element,
+        left_element,
+        right_element,
+        element_layout,
+        element_count,
+    } = machine.side::<VectorBinary>(instruction);
+
+    // apply the scalar operation to each vector element
+    if let Err(error) = store_vector_elements(
+        machine,
+        *dest_offset,
+        *dest_element,
+        *element_count,
+        |machine, element_index| {
+            let left = load_vector_element(machine, *left_offset, *left_element, element_index)?;
+            let right = load_vector_element(machine, *right_offset, *right_element, element_index)?;
+
+            operation(*element_layout, left, right)
+        },
+    ) {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
+}
+
+/// Execute a vector unary operation.
+fn execute_vector_unary<F>(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+    operation: F,
+) -> Transfer
+where
+    F: Fn(ScalarLayout, Word) -> Result<Word, Error>,
+{
+    // decode fixed fields
+    let VectorUnary {
+        dest_offset,
+        argument_offset,
+        dest_element,
+        argument_element,
+        element_layout,
+        element_count,
+    } = machine.side::<VectorUnary>(instruction);
+
+    // apply the scalar operation to each vector element
+    if let Err(error) = store_vector_elements(
+        machine,
+        *dest_offset,
+        *dest_element,
+        *element_count,
+        |machine, element_index| {
+            let value =
+                load_vector_element(machine, *argument_offset, *argument_element, element_index)?;
+
+            operation(*element_layout, value)
+        },
+    ) {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
+}
+
+vector_binary_executor!(
+    execute_vector_and_bool,
+    and_bool,
+    "Execute vector boolean and."
+);
+vector_binary_executor!(
+    execute_vector_or_bool,
+    or_bool,
+    "Execute vector boolean or."
+);
+vector_binary_executor!(
+    execute_vector_xor_bool,
+    xor_bool,
+    "Execute vector boolean xor."
+);
+vector_binary_executor!(
+    execute_vector_add_int,
+    add_int,
+    "Execute vector integer add."
+);
+vector_binary_executor!(
+    execute_vector_sub_int,
+    sub_int,
+    "Execute vector integer subtract."
+);
+vector_binary_executor!(
+    execute_vector_mul_int,
+    mul_int,
+    "Execute vector integer multiply."
+);
+vector_binary_executor!(
+    execute_vector_div_int,
+    div_int,
+    "Execute vector signed integer divide."
+);
+vector_binary_executor!(
+    execute_vector_div_uint,
+    div_uint,
+    "Execute vector unsigned integer divide."
+);
+vector_binary_executor!(
+    execute_vector_rem_int,
+    rem_int,
+    "Execute vector signed integer remainder."
+);
+vector_binary_executor!(
+    execute_vector_rem_uint,
+    rem_uint,
+    "Execute vector unsigned integer remainder."
+);
+vector_binary_executor!(
+    execute_vector_and_int,
+    and_int,
+    "Execute vector integer and."
+);
+vector_binary_executor!(execute_vector_or_int, or_int, "Execute vector integer or.");
+vector_binary_executor!(
+    execute_vector_xor_int,
+    xor_int,
+    "Execute vector integer xor."
+);
+vector_binary_executor!(
+    execute_vector_shl_int,
+    shl_int,
+    "Execute vector integer shift left."
+);
+vector_binary_executor!(
+    execute_vector_shr_int,
+    shr_int,
+    "Execute vector signed integer shift right."
+);
+vector_binary_executor!(
+    execute_vector_shr_uint,
+    shr_uint,
+    "Execute vector unsigned integer shift right."
+);
+vector_binary_executor!(
+    execute_vector_add_f32,
+    add_f32,
+    "Execute vector float32 add."
+);
+vector_binary_executor!(
+    execute_vector_add_f64,
+    add_f64,
+    "Execute vector float64 add."
+);
+vector_binary_executor!(
+    execute_vector_sub_f32,
+    sub_f32,
+    "Execute vector float32 subtract."
+);
+vector_binary_executor!(
+    execute_vector_sub_f64,
+    sub_f64,
+    "Execute vector float64 subtract."
+);
+vector_binary_executor!(
+    execute_vector_mul_f32,
+    mul_f32,
+    "Execute vector float32 multiply."
+);
+vector_binary_executor!(
+    execute_vector_mul_f64,
+    mul_f64,
+    "Execute vector float64 multiply."
+);
+vector_binary_executor!(
+    execute_vector_div_f32,
+    div_f32,
+    "Execute vector float32 divide."
+);
+vector_binary_executor!(
+    execute_vector_div_f64,
+    div_f64,
+    "Execute vector float64 divide."
+);
+vector_binary_executor!(
+    execute_vector_eq_int,
+    eq_int,
+    "Execute vector integer equality."
+);
+vector_binary_executor!(
+    execute_vector_eq_bool,
+    eq_bool,
+    "Execute vector boolean equality."
+);
+vector_binary_executor!(
+    execute_vector_ne_int,
+    ne_int,
+    "Execute vector integer inequality."
+);
+vector_binary_executor!(
+    execute_vector_ne_bool,
+    ne_bool,
+    "Execute vector boolean inequality."
+);
+vector_binary_executor!(
+    execute_vector_lt_int,
+    lt_int,
+    "Execute vector signed integer less than."
+);
+vector_binary_executor!(
+    execute_vector_lt_uint,
+    lt_uint,
+    "Execute vector unsigned integer less than."
+);
+vector_binary_executor!(
+    execute_vector_le_int,
+    le_int,
+    "Execute vector signed integer less than or equal."
+);
+vector_binary_executor!(
+    execute_vector_le_uint,
+    le_uint,
+    "Execute vector unsigned integer less than or equal."
+);
+vector_binary_executor!(
+    execute_vector_gt_int,
+    gt_int,
+    "Execute vector signed integer greater than."
+);
+vector_binary_executor!(
+    execute_vector_gt_uint,
+    gt_uint,
+    "Execute vector unsigned integer greater than."
+);
+vector_binary_executor!(
+    execute_vector_ge_int,
+    ge_int,
+    "Execute vector signed integer greater than or equal."
+);
+vector_binary_executor!(
+    execute_vector_ge_uint,
+    ge_uint,
+    "Execute vector unsigned integer greater than or equal."
+);
+vector_binary_executor!(
+    execute_vector_eq_f32,
+    eq_f32,
+    "Execute vector float32 equality."
+);
+vector_binary_executor!(
+    execute_vector_eq_f64,
+    eq_f64,
+    "Execute vector float64 equality."
+);
+vector_binary_executor!(
+    execute_vector_ne_f32,
+    ne_f32,
+    "Execute vector float32 inequality."
+);
+vector_binary_executor!(
+    execute_vector_ne_f64,
+    ne_f64,
+    "Execute vector float64 inequality."
+);
+vector_binary_executor!(
+    execute_vector_lt_f32,
+    lt_f32,
+    "Execute vector float32 less than."
+);
+vector_binary_executor!(
+    execute_vector_lt_f64,
+    lt_f64,
+    "Execute vector float64 less than."
+);
+vector_binary_executor!(
+    execute_vector_le_f32,
+    le_f32,
+    "Execute vector float32 less than or equal."
+);
+vector_binary_executor!(
+    execute_vector_le_f64,
+    le_f64,
+    "Execute vector float64 less than or equal."
+);
+vector_binary_executor!(
+    execute_vector_gt_f32,
+    gt_f32,
+    "Execute vector float32 greater than."
+);
+vector_binary_executor!(
+    execute_vector_gt_f64,
+    gt_f64,
+    "Execute vector float64 greater than."
+);
+vector_binary_executor!(
+    execute_vector_ge_f32,
+    ge_f32,
+    "Execute vector float32 greater than or equal."
+);
+vector_binary_executor!(
+    execute_vector_ge_f64,
+    ge_f64,
+    "Execute vector float64 greater than or equal."
+);
+vector_unary_executor!(
+    execute_vector_neg_int,
+    neg_int,
+    "Execute vector integer negation."
+);
+vector_unary_executor!(
+    execute_vector_not_int,
+    not_int,
+    "Execute vector integer inversion."
+);
+vector_unary_executor!(
+    execute_vector_neg_f32,
+    neg_f32,
+    "Execute vector float32 negation."
+);
+vector_unary_executor!(
+    execute_vector_neg_f64,
+    neg_f64,
+    "Execute vector float64 negation."
+);
+vector_unary_executor!(
+    execute_vector_not_bool,
+    not_bool,
+    "Execute vector boolean inversion."
+);
 
 /// Execute vector.splat.
 pub(crate) fn execute_vector_splat(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let dest = mir::Value::new(instruction.a);
-    let value = mir::Value::new(instruction.b);
+    let VectorSplat {
+        dest_offset,
+        value_offset,
+        dest_element,
+        element_count,
+    } = machine.side::<VectorSplat>(instruction);
 
-    let element_value = machine.get(value);
+    let element_value = machine.get_word_at(*value_offset);
 
     // store the same value into each element
-    if let Err(error) =
-        store_vector_elements(machine, dest, |_machine, _element_index| Ok(element_value))
-    {
+    if let Err(error) = store_vector_elements(
+        machine,
+        *dest_offset,
+        *dest_element,
+        *element_count,
+        |_machine, _element_index| Ok(element_value),
+    ) {
         return Transfer::Error(error);
     }
 
@@ -132,37 +451,33 @@ pub(crate) fn execute_vector_extract(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let dest = mir::Value::new(instruction.a);
-    let vector = mir::Value::new(instruction.b);
-    let index = mir::Value::new(instruction.c);
+    let VectorExtract {
+        dest_offset,
+        vector_offset,
+        index_offset,
+        vector_element,
+        element_count,
+    } = machine.side::<VectorExtract>(instruction);
 
     // resolve inputs
-    let vec_value = machine.get(vector);
-    let index_value = match word_to_usize(machine.get(index)) {
+    let index_value = match word_to_usize(machine.get_word_at(*index_offset)) {
         Ok(index) => index,
         Err(error) => return Transfer::Error(error),
     };
-    let element_count = match vector_element_count(machine, vector) {
-        Ok(elements) => elements,
-        Err(error) => return Transfer::Error(error),
-    };
-    let vector_type = match machine.value_type(vector) {
-        Ok(ty) => ty,
-        Err(error) => return Transfer::Error(error),
-    };
-
-    // extract element
+    let element_count = *element_count as usize;
     if index_value >= element_count {
         return Transfer::Error(Error::IndexOutOfBounds {
             index: index_value as u64,
             length: element_count as u64,
         });
     }
-    let result = match load_vector_element_at(machine, vec_value, vector_type, index_value) {
+
+    // extract element
+    let result = match load_vector_element(machine, *vector_offset, *vector_element, index_value) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
-    machine.set_word(dest, result);
+    machine.set_word_at(*dest_offset, result);
 
     // continue to next instruction
     Transfer::Continue
@@ -173,44 +488,48 @@ pub(crate) fn execute_vector_insert(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let dest = mir::Value::new(instruction.a);
-    let vector = mir::Value::new(instruction.b);
-    let index = mir::Value::new(instruction.c);
-    let value = mir::Value::new(instruction.d);
+    let VectorInsert {
+        dest_offset,
+        vector_offset,
+        index_offset,
+        value_offset,
+        dest_element,
+        vector_element,
+        element_count,
+    } = machine.side::<VectorInsert>(instruction);
 
     // resolve inputs
-    let vec_value = machine.get(vector);
-    let index_value = match word_to_usize(machine.get(index)) {
+    let index_value = match word_to_usize(machine.get_word_at(*index_offset)) {
         Ok(index) => index,
         Err(error) => return Transfer::Error(error),
     };
-    let element_count = match vector_element_count(machine, vector) {
-        Ok(elements) => elements,
-        Err(error) => return Transfer::Error(error),
-    };
-    let vector_type = match machine.value_type(vector) {
-        Ok(ty) => ty,
-        Err(error) => return Transfer::Error(error),
-    };
+    let element_count = *element_count;
+    let element_count_usize = element_count as usize;
 
     // reject out of bounds element indices
-    if index_value >= element_count {
+    if index_value >= element_count_usize {
         return Transfer::Error(Error::IndexOutOfBounds {
             index: index_value as u64,
             length: element_count as u64,
         });
     }
 
-    let inserted_value = machine.get(value);
+    let inserted_value = machine.get_word_at(*value_offset);
 
     // write the updated vector one element at a time
-    if let Err(error) = store_vector_elements(machine, dest, |machine, element_index| {
-        if element_index == index_value {
-            return Ok(inserted_value);
-        }
+    if let Err(error) = store_vector_elements(
+        machine,
+        *dest_offset,
+        *dest_element,
+        element_count,
+        |machine, element_index| {
+            if element_index == index_value {
+                return Ok(inserted_value);
+            }
 
-        load_vector_element_at(machine, vec_value, vector_type, element_index)
-    }) {
+            load_vector_element(machine, *vector_offset, *vector_element, element_index)
+        },
+    ) {
         return Transfer::Error(error);
     }
 
@@ -223,54 +542,51 @@ pub(crate) fn execute_vector_shuffle(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let dest = mir::Value::new(instruction.a);
-    let left = mir::Value::new(instruction.b);
-    let right = mir::Value::new(instruction.c);
-    let mask = U32RangeId(instruction.d);
+    let VectorShuffle {
+        dest_offset,
+        left_offset,
+        right_offset,
+        mask,
+        dest_element,
+        left_element,
+        right_element,
+        left_count,
+        right_count,
+    } = machine.side::<VectorShuffle>(instruction);
     let table = machine.side_table_ptr();
-    let mask = unsafe { (*table).u32_range(mask) };
+    let mask = unsafe { (*table).u32_range(*mask) };
 
     // resolve element sources
-    let left_value = machine.get(left);
-    let right_value = machine.get(right);
-    let left_element_count = match vector_element_count(machine, left) {
-        Ok(elements) => elements,
-        Err(error) => return Transfer::Error(error),
-    };
-    let right_element_count = match vector_element_count(machine, right) {
-        Ok(elements) => elements,
-        Err(error) => return Transfer::Error(error),
-    };
-    let left_type = match machine.value_type(left) {
-        Ok(ty) => ty,
-        Err(error) => return Transfer::Error(error),
-    };
-    let right_type = match machine.value_type(right) {
-        Ok(ty) => ty,
-        Err(error) => return Transfer::Error(error),
-    };
+    let left_count = *left_count as usize;
+    let right_count = *right_count as usize;
 
     // write the shuffled elements directly
-    if let Err(error) = store_vector_elements(machine, dest, |machine, element_index| {
-        let index = *mask.get(element_index).ok_or(Error::IndexOutOfBounds {
-            index: element_index as u64,
-            length: mask.len() as u64,
-        })? as usize;
+    if let Err(error) = store_vector_elements(
+        machine,
+        *dest_offset,
+        *dest_element,
+        mask.len() as u32,
+        |machine, element_index| {
+            let index = *mask.get(element_index).ok_or(Error::IndexOutOfBounds {
+                index: element_index as u64,
+                length: mask.len() as u64,
+            })? as usize;
 
-        if index < left_element_count {
-            return load_vector_element_at(machine, left_value, left_type, index);
-        }
+            if index < left_count {
+                return load_vector_element(machine, *left_offset, *left_element, index);
+            }
 
-        let right_index = index - left_element_count;
-        if right_index >= right_element_count {
-            return Err(Error::IndexOutOfBounds {
-                index: index as u64,
-                length: (left_element_count + right_element_count) as u64,
-            });
-        }
+            let right_index = index - left_count;
+            if right_index >= right_count {
+                return Err(Error::IndexOutOfBounds {
+                    index: index as u64,
+                    length: (left_count + right_count) as u64,
+                });
+            }
 
-        load_vector_element_at(machine, right_value, right_type, right_index)
-    }) {
+            load_vector_element(machine, *right_offset, *right_element, right_index)
+        },
+    ) {
         return Transfer::Error(error);
     }
 
@@ -283,276 +599,211 @@ pub(crate) fn execute_vector_select(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let dest = mir::Value::new(instruction.a);
-    let mask = mir::Value::new(instruction.b);
-    let then_value = mir::Value::new(instruction.c);
-    let else_value = mir::Value::new(instruction.d);
-
-    let mask_value = machine.get(mask);
-    let then_vector = machine.get(then_value);
-    let else_vector = machine.get(else_value);
-    let mask_element_count = match vector_element_count(machine, mask) {
-        Ok(elements) => elements,
-        Err(error) => return Transfer::Error(error),
-    };
-    let then_element_count = match vector_element_count(machine, then_value) {
-        Ok(elements) => elements,
-        Err(error) => return Transfer::Error(error),
-    };
-    let else_element_count = match vector_element_count(machine, else_value) {
-        Ok(elements) => elements,
-        Err(error) => return Transfer::Error(error),
-    };
-    let mask_type = match machine.value_type(mask) {
-        Ok(ty) => ty,
-        Err(error) => return Transfer::Error(error),
-    };
-    let then_type = match machine.value_type(then_value) {
-        Ok(ty) => ty,
-        Err(error) => return Transfer::Error(error),
-    };
-    let else_type = match machine.value_type(else_value) {
-        Ok(ty) => ty,
-        Err(error) => return Transfer::Error(error),
-    };
-
-    if mask_element_count != then_element_count || mask_element_count != else_element_count {
-        return Transfer::Error(Error::TypeMismatch {
-            expected: "matching vector elements".to_string(),
-            actual: format!("{mask_element_count} vs {then_element_count} vs {else_element_count}"),
-        });
-    }
+    let VectorSelect {
+        dest_offset,
+        mask_offset,
+        then_offset,
+        else_offset,
+        dest_element,
+        mask_element,
+        then_element,
+        else_element,
+        element_count,
+    } = machine.side::<VectorSelect>(instruction);
 
     // write the selected elements directly
-    if let Err(error) = store_vector_elements(machine, dest, |machine, element_index| {
-        let mask_element =
-            match load_vector_element_at(machine, mask_value, mask_type, element_index) {
-                Ok(value) => value,
-                Err(error) => return Err(error),
-            };
-        let then_element =
-            match load_vector_element_at(machine, then_vector, then_type, element_index) {
-                Ok(value) => value,
-                Err(error) => return Err(error),
-            };
-        let else_element =
-            match load_vector_element_at(machine, else_vector, else_type, element_index) {
-                Ok(value) => value,
-                Err(error) => return Err(error),
-            };
-        let select = mask_element.as_bool();
-        Ok(if select { then_element } else { else_element })
-    }) {
+    if let Err(error) = store_vector_elements(
+        machine,
+        *dest_offset,
+        *dest_element,
+        *element_count,
+        |machine, element_index| {
+            let mask = load_vector_element(machine, *mask_offset, *mask_element, element_index)?;
+            let then_value =
+                load_vector_element(machine, *then_offset, *then_element, element_index)?;
+            let else_value =
+                load_vector_element(machine, *else_offset, *else_element, element_index)?;
+            let select = mask.as_bool();
+
+            Ok(if select { then_value } else { else_value })
+        },
+    ) {
         return Transfer::Error(error);
     }
     Transfer::Continue
 }
 
-/// Execute vector.reduce.
-pub(crate) fn execute_vector_reduce(
+macro_rules! vector_reduce_executor {
+    ($function:ident, $operation:ident, $doc:literal) => {
+        #[doc = $doc]
+        pub(crate) fn $function(
+            machine: &mut Machine<'_, '_>,
+            instruction: &Instruction,
+        ) -> Transfer {
+            execute_vector_reduce(machine, instruction, $operation)
+        }
+    };
+}
+
+/// Execute vector reduction.
+fn execute_vector_reduce(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
+    operation: fn(ScalarLayout, Word, Word) -> Result<Word, Error>,
 ) -> Transfer {
-    let dest = mir::Value::new(instruction.a);
-    let operator = match vector_reduce_operator_from_operand(instruction.b) {
-        Ok(operator) => operator,
-        Err(error) => return Transfer::Error(error),
-    };
-    let vector = mir::Value::new(instruction.c);
+    let VectorReduce {
+        dest_offset,
+        vector_offset,
+        vector_element,
+        element_layout,
+        element_count,
+    } = machine.side::<VectorReduce>(instruction);
 
-    // resolve vector elements
-    let vec_value = machine.get(vector);
-    let element_count = match vector_element_count(machine, vector) {
-        Ok(elements) => elements,
-        Err(error) => return Transfer::Error(error),
-    };
-    let vector_type = match machine.value_type(vector) {
-        Ok(ty) => ty,
-        Err(error) => return Transfer::Error(error),
-    };
+    let element_count = *element_count as usize;
     if element_count == 0 {
         return Transfer::Error(Error::InvalidInstruction);
     }
 
-    let mut result = match load_vector_element_at(machine, vec_value, vector_type, 0) {
+    let mut result = match load_vector_element(machine, *vector_offset, *vector_element, 0) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
-    let op = ReduceOperator::from(operator);
-    let element_type = match vector_element_type(machine, vector) {
-        Ok(ty) => ty,
-        Err(error) => return Transfer::Error(error),
-    };
     for element_index in 1..element_count {
-        let element = match load_vector_element_at(machine, vec_value, vector_type, element_index) {
-            Ok(value) => value,
-            Err(error) => return Transfer::Error(error),
-        };
-        match reduce_operator(element_type, op, result, element) {
+        let value =
+            match load_vector_element(machine, *vector_offset, *vector_element, element_index) {
+                Ok(value) => value,
+                Err(error) => return Transfer::Error(error),
+            };
+        match operation(*element_layout, result, value) {
             Ok(value) => result = value,
             Err(error) => return Transfer::Error(error),
         }
     }
 
     // store result
-    machine.set_word(dest, result);
+    machine.set_word_at(*dest_offset, result);
 
     // continue to next instruction
     Transfer::Continue
 }
 
-/// Execute vector.compare.
-pub(crate) fn execute_vector_compare(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Transfer {
-    let dest = mir::Value::new(instruction.a);
-    let operator = match super::arithmetic::binary_operator_from_operand(instruction.b) {
-        Ok(operator) => operator,
-        Err(error) => return Transfer::Error(error),
-    };
-    let left = mir::Value::new(instruction.c);
-    let right = mir::Value::new(instruction.d);
-
-    // resolve vector elements
-    let left_value = machine.get(left);
-    let right_value = machine.get(right);
-    let left_element_count = match vector_element_count(machine, left) {
-        Ok(elements) => elements,
-        Err(error) => return Transfer::Error(error),
-    };
-    let right_element_count = match vector_element_count(machine, right) {
-        Ok(elements) => elements,
-        Err(error) => return Transfer::Error(error),
-    };
-    let left_type = match machine.value_type(left) {
-        Ok(ty) => ty,
-        Err(error) => return Transfer::Error(error),
-    };
-    let right_type = match machine.value_type(right) {
-        Ok(ty) => ty,
-        Err(error) => return Transfer::Error(error),
-    };
-    let element_type = match vector_element_type(machine, left) {
-        Ok(ty) => ty,
-        Err(error) => return Transfer::Error(error),
-    };
-
-    // validate vector element counts
-    if left_element_count != right_element_count {
-        return Transfer::Error(Error::TypeMismatch {
-            expected: "matching vector elements".to_string(),
-            actual: format!("{left_element_count} vs {right_element_count}"),
-        });
-    }
-
-    // compare the vectors element by element
-    if let Err(error) = store_vector_elements(machine, dest, |machine, element_index| {
-        let left_element =
-            match load_vector_element_at(machine, left_value, left_type, element_index) {
-                Ok(value) => value,
-                Err(error) => return Err(error),
-            };
-        let right_element =
-            match load_vector_element_at(machine, right_value, right_type, element_index) {
-                Ok(value) => value,
-                Err(error) => return Err(error),
-            };
-
-        binary_operator(element_type, operator, left_element, right_element)
-    }) {
-        return Transfer::Error(error);
-    }
-
-    // continue to next instruction
-    Transfer::Continue
-}
+vector_reduce_executor!(
+    execute_vector_reduce_add,
+    reduce_add,
+    "Execute vector add reduction."
+);
+vector_reduce_executor!(
+    execute_vector_reduce_multiply,
+    reduce_multiply,
+    "Execute vector multiply reduction."
+);
+vector_reduce_executor!(
+    execute_vector_reduce_min,
+    reduce_min,
+    "Execute vector minimum reduction."
+);
+vector_reduce_executor!(
+    execute_vector_reduce_max,
+    reduce_max,
+    "Execute vector maximum reduction."
+);
+vector_reduce_executor!(
+    execute_vector_reduce_and,
+    reduce_and,
+    "Execute vector bitwise and reduction."
+);
+vector_reduce_executor!(
+    execute_vector_reduce_or,
+    reduce_or,
+    "Execute vector bitwise or reduction."
+);
+vector_reduce_executor!(
+    execute_vector_reduce_xor,
+    reduce_xor,
+    "Execute vector bitwise xor reduction."
+);
 
 /// Execute vector.convert.
-pub(crate) fn execute_vector_convert(
+fn execute_vector_convert(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
+    convert: fn(Word, ScalarLayout, ScalarLayout) -> Result<Word, Error>,
 ) -> Transfer {
-    // decode side records
-    let dest = mir::Value::new(instruction.a);
-    let vector = mir::Value::new(instruction.b);
-    let source_type = mir::LocalNodeId::new(instruction.c);
-    let dest_type = mir::LocalNodeId::new(instruction.d);
-    let convert_mode = match vector_convert_mode(instruction.op) {
-        Ok(mode) => mode,
-        Err(error) => return Transfer::Error(error),
-    };
-
-    // resolve vector element types
-    let source_element = match machine.tree().get(source_type) {
-        mir::Type::Vector { element, .. } => *element,
-        _ => {
-            return Transfer::Error(Error::TypeMismatch {
-                expected: "vector type".to_string(),
-                actual: format!("{source_type:?}"),
-            });
-        }
-    };
-    let dest_vector = machine.tree().get(dest_type);
-    let (dest_element, dest_elements) = match dest_vector {
-        mir::Type::Vector {
-            element,
-            lanes: elements,
-            ..
-        } => (*element, *elements as usize),
-        _ => {
-            return Transfer::Error(Error::TypeMismatch {
-                expected: "vector type".to_string(),
-                actual: format!("{dest_type:?}"),
-            });
-        }
-    };
-
-    // resolve element values
-    let vector_value = machine.get(vector);
-    let vector_type = match machine.value_type(vector) {
-        Ok(ty) => ty,
-        Err(error) => return Transfer::Error(error),
-    };
-    let source_element_count = match vector_element_count(machine, vector) {
-        Ok(elements) => elements,
-        Err(error) => return Transfer::Error(error),
-    };
-    if source_element_count != dest_elements {
-        return Transfer::Error(Error::TypeMismatch {
-            expected: "matching vector elements".to_string(),
-            actual: format!("{source_element_count} vs {dest_elements}"),
-        });
-    }
-
-    let Some(source_element) = source_element.ty() else {
-        return Transfer::Error(Error::MissingRepresentation {
-            context: "vector convert source element".to_string(),
-        });
-    };
-    let Some(dest_element) = dest_element.ty() else {
-        return Transfer::Error(Error::MissingRepresentation {
-            context: "vector convert destination element".to_string(),
-        });
-    };
-    let source_layout = match scalar_layout(machine.tree(), source_element) {
-        Ok(layout) => layout,
-        Err(error) => return Transfer::Error(error),
-    };
-    let dest_layout = match scalar_layout(machine.tree(), dest_element) {
-        Ok(layout) => layout,
-        Err(error) => return Transfer::Error(error),
-    };
+    // decode fixed fields
+    let VectorConvert {
+        dest_offset,
+        vector_offset,
+        dest_element,
+        source_element,
+        dest_layout,
+        source_layout,
+        element_count,
+    } = machine.side::<VectorConvert>(instruction);
 
     // convert the elements one by one
-    if let Err(error) = store_vector_elements(machine, dest, |machine, element_index| {
-        let value = load_vector_element_at(machine, vector_value, vector_type, element_index)?;
+    if let Err(error) = store_vector_elements(
+        machine,
+        *dest_offset,
+        *dest_element,
+        *element_count,
+        |machine, element_index| {
+            let value =
+                load_vector_element(machine, *vector_offset, *source_element, element_index)?;
 
-        convert_scalar_value(value, source_layout, dest_layout, convert_mode)
-    }) {
+            convert(value, *source_layout, *dest_layout)
+        },
+    ) {
         return Transfer::Error(error);
     }
 
     // continue to next instruction
     Transfer::Continue
+}
+
+/// Execute exact vector conversion.
+pub(crate) fn execute_vector_convert_exact(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    execute_vector_convert(machine, instruction, convert_scalar_exact)
+}
+
+/// Execute vector conversion with round to nearest even.
+pub(crate) fn execute_vector_convert_round_ties_even(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    execute_vector_convert(machine, instruction, convert_scalar_round_ties_even)
+}
+
+/// Execute vector conversion with round toward zero.
+pub(crate) fn execute_vector_convert_round_toward_zero(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    execute_vector_convert(machine, instruction, convert_scalar_round_toward_zero)
+}
+
+/// Execute vector conversion with round toward negative infinity.
+pub(crate) fn execute_vector_convert_round_floor(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    execute_vector_convert(machine, instruction, convert_scalar_round_floor)
+}
+
+/// Execute vector conversion with round toward positive infinity.
+pub(crate) fn execute_vector_convert_round_ceil(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    execute_vector_convert(machine, instruction, convert_scalar_round_ceil)
+}
+
+/// Execute vector conversion with saturation.
+pub(crate) fn execute_vector_convert_saturate(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    execute_vector_convert(machine, instruction, convert_scalar_saturate)
 }
