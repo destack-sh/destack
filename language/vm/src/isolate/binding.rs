@@ -12,22 +12,12 @@ use destack_heap::{
 };
 use destack_mir as mir;
 
-/// Handler invoked by the VM when calling an external function.
-pub trait ExternalHandler:
-    for<'ctx> Fn(&mut ExternalCallContext<'ctx>, &[Word]) -> Result<Word, Error> + Send + Sync
-{
-}
+/// Boxed binding handler.
+pub type BindingFn =
+    Arc<dyn for<'ctx> Fn(&mut BindingContext<'ctx>, &[Word]) -> Result<Word, Error> + Send + Sync>;
 
-impl<T> ExternalHandler for T where
-    T: for<'ctx> Fn(&mut ExternalCallContext<'ctx>, &[Word]) -> Result<Word, Error> + Send + Sync
-{
-}
-
-/// Boxed external handler type.
-pub type ExternalFn = Arc<dyn ExternalHandler>;
-
-/// Runtime call context with restricted access to isolate state.
-pub struct ExternalCallContext<'ctx> {
+/// Runtime binding context with restricted access to isolate state.
+pub struct BindingContext<'ctx> {
     /// The immutable program metadata for this isolate.
     program: &'ctx Program,
     /// The worker-local heap.
@@ -36,29 +26,29 @@ pub struct ExternalCallContext<'ctx> {
     shared: *const SharedHeap,
     /// The configured shared raw-space limits.
     shared_raw_limits: SharedRawLimits,
-    /// The external pin scope for this call.
+    /// The binding pin scope for this call.
     pin_scope: PinScope,
 }
 
-/// External VM call read capability.
+/// Read capability for one binding call.
 #[derive(Debug)]
-pub struct ExternalReadContext<'call, 'ctx> {
-    /// The owning external call context.
-    pub(super) context: *const ExternalCallContext<'ctx>,
+pub struct BindingRead<'call, 'ctx> {
+    /// The owning binding context.
+    pub(super) context: *const BindingContext<'ctx>,
     /// The lifetime marker for the call context.
-    _marker: PhantomData<&'call ExternalCallContext<'ctx>>,
+    _marker: PhantomData<&'call BindingContext<'ctx>>,
 }
 
-/// Mutable external VM call capability.
+/// Write capability for one binding call.
 #[derive(Debug)]
-pub struct ExternalWriteContext<'call, 'ctx> {
-    /// The owning external call context.
-    pub(super) context: *mut ExternalCallContext<'ctx>,
+pub struct BindingWrite<'call, 'ctx> {
+    /// The owning binding context.
+    pub(super) context: *mut BindingContext<'ctx>,
     /// The lifetime marker for the call context.
-    _marker: PhantomData<&'call mut ExternalCallContext<'ctx>>,
+    _marker: PhantomData<&'call mut BindingContext<'ctx>>,
 }
 
-/// One external call pin scope.
+/// One binding call pin scope.
 #[derive(Debug, Default)]
 struct PinScope {
     /// The local heap references pinned for the call lifetime.
@@ -91,24 +81,24 @@ impl PinScope {
     }
 }
 
-impl<'ctx> ExternalCallContext<'ctx> {
-    /// Return the external call read capability.
-    pub fn read(&self) -> ExternalReadContext<'_, 'ctx> {
-        ExternalReadContext {
+impl<'ctx> BindingContext<'ctx> {
+    /// Return the binding read capability.
+    pub fn read(&self) -> BindingRead<'_, 'ctx> {
+        BindingRead {
             context: self as *const Self,
             _marker: PhantomData,
         }
     }
 
-    /// Return the mutable external call capability.
-    pub fn write(&mut self) -> ExternalWriteContext<'_, 'ctx> {
-        ExternalWriteContext {
+    /// Return the binding write capability.
+    pub fn write(&mut self) -> BindingWrite<'_, 'ctx> {
+        BindingWrite {
             context: self as *mut Self,
             _marker: PhantomData,
         }
     }
 
-    /// Create one external call context.
+    /// Create one binding context.
     pub(crate) fn new(
         program: &'ctx Program,
         heap: &'ctx mut Heap,
@@ -150,9 +140,9 @@ impl<'ctx> ExternalCallContext<'ctx> {
         layout_id: mir::LayoutId,
         payload: Payload<'_>,
     ) -> Result<HeapReference, Error> {
-        let plan = self.program.allocation_plan(layout_id)?;
+        let shape = self.program.allocation_shape(layout_id)?;
         let heap = unsafe { &mut *self.heap };
-        let layout = heap.allocation_layout(plan);
+        let layout = heap.allocation_layout(shape);
 
         heap.allocate(&layout, payload).map_err(Error::from)
     }
@@ -163,9 +153,9 @@ impl<'ctx> ExternalCallContext<'ctx> {
         layout_id: mir::LayoutId,
         bytes: &[u8],
     ) -> Result<HeapReference, Error> {
-        let plan = self.program.allocation_plan(layout_id)?;
+        let shape = self.program.allocation_shape(layout_id)?;
         let heap = unsafe { &mut *self.heap };
-        let layout = heap.allocation_layout(plan);
+        let layout = heap.allocation_layout(shape);
 
         heap.allocate_bytes(&layout, bytes).map_err(Error::from)
     }
@@ -347,7 +337,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
             .map_err(Error::from)
     }
 
-    /// Pin one local heap reference for the external call lifetime.
+    /// Pin one local heap reference for the binding call lifetime.
     pub(super) fn capture_heap_reference(
         &mut self,
         reference: HeapReference,
@@ -395,15 +385,15 @@ impl<'ctx> ExternalCallContext<'ctx> {
     }
 }
 
-impl Drop for ExternalCallContext<'_> {
+impl Drop for BindingContext<'_> {
     fn drop(&mut self) {
         let _ = self.release_pins();
     }
 }
 
-impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
-    /// Return the external call context immutably.
-    pub(super) fn context(&self) -> &ExternalCallContext<'ctx> {
+impl<'call, 'ctx> BindingRead<'call, 'ctx> {
+    /// Return the binding context immutably.
+    pub(super) fn context(&self) -> &BindingContext<'ctx> {
         unsafe { &*self.context }
     }
 
@@ -448,9 +438,9 @@ impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
     }
 }
 
-impl<'call, 'ctx> ExternalWriteContext<'call, 'ctx> {
-    /// Return the external call context mutably.
-    pub(super) fn context_mut(&self) -> &mut ExternalCallContext<'ctx> {
+impl<'call, 'ctx> BindingWrite<'call, 'ctx> {
+    /// Return the binding context mutably.
+    pub(super) fn context_mut(&self) -> &mut BindingContext<'ctx> {
         unsafe { &mut *self.context }
     }
 
@@ -547,8 +537,8 @@ impl<'call, 'ctx> ExternalWriteContext<'call, 'ctx> {
     }
 }
 
-impl fmt::Debug for ExternalCallContext<'_> {
+impl fmt::Debug for BindingContext<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ExternalCallContext").finish()
+        f.debug_struct("BindingContext").finish()
     }
 }

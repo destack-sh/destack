@@ -6,10 +6,10 @@ use std::sync::Arc;
 use crate::Word;
 use crate::diagnostic::Error;
 use crate::program::{Layout, decode_word_bytes, encode_word_bytes, repr_type};
-use destack_heap::{AllocationPlan, HeapReference, Payload};
+use destack_heap::{AllocationShape, HeapReference, Payload};
 use destack_mir as mir;
 
-use super::{ExternalCallContext, ExternalReadContext, ExternalWriteContext};
+use super::{BindingContext, BindingRead, BindingWrite};
 
 // FUGU #Architecture: remove generated ABI shims once VM and native ABI share normal MIR payloads
 /// One typed field inside one aggregate payload.
@@ -63,8 +63,8 @@ impl StringHandle {
 /// One VM aggregate value view.
 #[derive(Debug)]
 pub struct VmValueRef<'call, 'ctx> {
-    /// The active external call context.
-    context: *mut ExternalCallContext<'ctx>,
+    /// The active binding call context.
+    context: *mut BindingContext<'ctx>,
     /// The typed fields inside this value.
     fields: Box<[AggregateField]>,
     /// The shared payload bytes.
@@ -74,17 +74,17 @@ pub struct VmValueRef<'call, 'ctx> {
     /// The byte length of this view.
     byte_len: usize,
     /// The lifetime marker for the call context.
-    _marker: PhantomData<&'call ExternalCallContext<'ctx>>,
+    _marker: PhantomData<&'call BindingContext<'ctx>>,
 }
 
 impl<'call, 'ctx> VmValueRef<'call, 'ctx> {
-    /// Return the active external call context mutably.
-    fn context_mut(&self) -> &'call mut ExternalCallContext<'ctx> {
+    /// Return the active binding call context mutably.
+    fn context_mut(&self) -> &'call mut BindingContext<'ctx> {
         unsafe { &mut *self.context }
     }
 
-    /// Return the active external call context immutably.
-    fn context_ref(&self) -> &'call ExternalCallContext<'ctx> {
+    /// Return the active binding call context immutably.
+    fn context_ref(&self) -> &'call BindingContext<'ctx> {
         unsafe { &*self.context }
     }
 
@@ -160,14 +160,14 @@ impl<'call, 'ctx> VmValueRef<'call, 'ctx> {
 /// One deferred VM value builder.
 #[derive(Debug)]
 pub struct VmValueBuilder<'ctx> {
-    /// The active external call context.
-    context: *mut ExternalCallContext<'ctx>,
+    /// The active binding call context.
+    context: *mut BindingContext<'ctx>,
     /// The target MIR type.
     ty: mir::LocalNodeId<mir::Type>,
     /// The staged field values.
     fields: Vec<Option<Word>>,
     /// The lifetime marker for the call context.
-    _marker: PhantomData<&'ctx ExternalCallContext<'ctx>>,
+    _marker: PhantomData<&'ctx BindingContext<'ctx>>,
 }
 
 impl VmValueBuilder<'_> {
@@ -260,7 +260,7 @@ fn aggregate_fields(layout: &Layout) -> Result<Vec<AggregateField>, Error> {
     Ok(values)
 }
 
-impl<'ctx> ExternalCallContext<'ctx> {
+impl<'ctx> BindingContext<'ctx> {
     /// Copy one managed payload range into caller storage.
     fn copy_payload_into(
         &self,
@@ -317,8 +317,8 @@ impl<'ctx> ExternalCallContext<'ctx> {
     pub fn allocate_heap_words(&mut self, count: usize) -> Result<HeapReference, Error> {
         let byte_len = count * Word::BYTE_LEN;
         let reference_map = mir::ReferenceMap::None;
-        let plan = AllocationPlan::new(byte_len, Word::BYTE_LEN, &reference_map);
-        let layout = self.heap().allocation_layout(plan);
+        let shape = AllocationShape::new(byte_len, Word::BYTE_LEN, &reference_map);
+        let layout = self.heap().allocation_layout(shape);
 
         self.heap()
             .allocate(&layout, Payload::Zeroed)
@@ -579,7 +579,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
     }
 }
 
-impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
+impl<'call, 'ctx> BindingRead<'call, 'ctx> {
     /// Return one cached VM value view.
     pub fn value_ref(
         &self,
@@ -594,7 +594,7 @@ impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
         let bytes = self.context().copy_payload(reference, byte_len)?;
 
         Ok(VmValueRef {
-            context: self.context as *mut ExternalCallContext<'ctx>,
+            context: self.context as *mut BindingContext<'ctx>,
             fields,
             bytes: Arc::<[u8]>::from(bytes),
             start: 0,
@@ -618,7 +618,7 @@ impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
     }
 }
 
-impl<'call, 'ctx> ExternalWriteContext<'call, 'ctx> {
+impl<'call, 'ctx> BindingWrite<'call, 'ctx> {
     /// Return one managed value builder by aggregate type name.
     pub fn begin_named_aggregate_builder(
         &mut self,
