@@ -1,0 +1,289 @@
+import { Slice } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { SignalHandle } from "../resource/index.ds";
+import { ProcessId } from "./ids.ds";
+
+/// Signal number for process control.
+export newtype Signal = uint32;
+
+/// Signal mask operation selector.
+export enum SignalMaskHow {
+    /// Replace the active mask with the provided set.
+    Set = 0,
+    /// Add signals to the active mask.
+    Block = 1,
+    /// Remove signals from the active mask.
+    Unblock = 2,
+}
+
+/// Signal event payload delivered by a subscription.
+export struct SignalEvent {
+    /// Signal number observed by the runtime.
+    signal: Signal;
+    /// Process id associated with the signal when provided by the platform.
+    pid: ProcessId;
+}
+
+/// Send a signal to a target process.
+///
+/// Deliver one signal value to the target process according to host signal semantics.
+/// Delivery guarantees and supported signal numbers are host-defined.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses kill(2) on Unix and terminate or control-event APIs on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.signal.send`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.signals.kill", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.signal.send"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function kill(pid: ProcessId, signal: Signal): Result<void, PlatformError>;
+
+/// Subscribe to one signal value.
+///
+/// Register one runtime subscription handle for signal delivery.
+/// Subscription mode and coalescing behavior follow runtime and host integration rules.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host signal subscription state and queue integration.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.signals.signalSubscribe", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.signal.receive"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function signalSubscribe(signal: Signal): Result<SignalHandle, PlatformError>;
+
+/// Remove a signal subscription handle.
+///
+/// Unregister one signal subscription from runtime delivery.
+/// Pending events may still be readable depending on host queueing behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host signal subscription teardown semantics.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.signals.signalUnsubscribe", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.signal.receive"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function signalUnsubscribe(handle: SignalHandle): Result<void, PlatformError>;
+
+/// Receive the next signal event from a subscription.
+///
+/// Wait for the next queued signal event for the subscription.
+/// Delivery ordering and batching follow runtime and host signal queue semantics.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host signal delivery queues and wait primitives.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.signals.signalReceive", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.signal.receive"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function signalReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>;
+
+/// Poll one signal event without blocking.
+///
+/// Read a queued signal event when available and return immediately otherwise.
+/// Empty queue behavior is reported through host-specific not-ready errors.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host signal queue polling with nonblocking probes.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.signals.signalTryReceive", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.signal.receive"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function signalTryReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>;
+
+/// Read the current thread signal mask.
+///
+/// Return the active signal mask as an explicit signal set.
+/// Mask semantics follow host thread-signal rules.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses sigprocmask or pthread_sigmask on Unix and host-equivalent APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.signals.signalMaskRead", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.signal.receive"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function signalMaskRead(): Result<Signal[], PlatformError>;
+
+/// Update the current thread signal mask.
+///
+/// Apply one set, block, or unblock operation to the active signal mask.
+/// Mask transitions are atomic under host signal APIs.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses sigprocmask or pthread_sigmask on Unix and host-equivalent APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.signals.signalMaskUpdate", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.signal.receive"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function signalMaskUpdate(
+    how: SignalMaskHow,
+    signals: Slice<Signal>,
+): Result<void, PlatformError>;
+
+/// Wait for one signal from a requested set.
+///
+/// Block until one of the requested signals is observed and returned.
+/// Selection and wakeup semantics follow host signal wait behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses sigwait-style primitives on Unix and host-equivalent wait APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.signals.signalWait", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.signal.receive"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function signalWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>;
+
+/// Poll one signal from a requested set without blocking.
+///
+/// Check whether one requested signal is pending and return immediately.
+/// Empty readiness is reported through host-specific not-ready errors.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking signal wait primitives and host-equivalent polling APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.signals.signalTryWait", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.signal.receive"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function signalTryWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>;

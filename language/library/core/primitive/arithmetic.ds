@@ -1,0 +1,99 @@
+// Arithmetic intrinsics for overflow handling.
+//
+// Provides checked, unchecked, saturating, and wrapping variants
+// of arithmetic operations for precise control over overflow behavior.
+
+import { intrinsic } from "./decorator.ds";
+
+// checked arithmetic (returns [result, overflowed] tuple)
+
+/// Add with overflow detection.
+///
+/// Returns a tuple of the result and a boolean indicating overflow.
+/// The result is the wrapped value if overflow occurred.
+@intrinsic("add.overflow")
+export declare function addOverflow<T: int>(a: T, b: T): [T, boolean];
+
+/// Subtract with overflow detection.
+///
+/// Returns a tuple of the result and a boolean indicating overflow.
+/// The result is the wrapped value if overflow occurred.
+@intrinsic("sub.overflow")
+export declare function subOverflow<T: int>(a: T, b: T): [T, boolean];
+
+/// Multiply with overflow detection.
+///
+/// Returns a tuple of the result and a boolean indicating overflow.
+/// The result is the wrapped value if overflow occurred.
+@intrinsic("mul.overflow")
+export declare function mulOverflow<T: int>(a: T, b: T): [T, boolean];
+
+// unchecked arithmetic (undefined behavior on overflow)
+
+/// Unchecked add.
+///
+/// Adds two integers without overflow checking.
+/// Behavior is undefined if the result overflows.
+/// Allows the optimizer to assume no overflow occurs.
+@intrinsic("add.unchecked")
+export declare function addUnchecked<T: int>(a: T, b: T): T;
+
+/// Unchecked subtract.
+///
+/// Subtracts two integers without overflow checking.
+/// Behavior is undefined if the result overflows.
+@intrinsic("sub.unchecked")
+export declare function subUnchecked<T: int>(a: T, b: T): T;
+
+/// Unchecked multiply.
+///
+/// Multiplies two integers without overflow checking.
+/// Behavior is undefined if the result overflows.
+@intrinsic("mul.unchecked")
+export declare function mulUnchecked<T: int>(a: T, b: T): T;
+
+/// Unchecked divide.
+///
+/// Divides two integers without checking for division by zero or overflow.
+/// Behavior is undefined if divisor is zero or if the result overflows
+/// (e.g., INT_MIN / -1).
+@intrinsic("div.unchecked")
+export declare function divUnchecked<T: int>(a: T, b: T): T;
+
+/// Unchecked remainder.
+///
+/// Computes remainder without checking for division by zero or overflow.
+/// Behavior is undefined if divisor is zero.
+@intrinsic("rem.unchecked")
+export declare function remUnchecked<T: int>(a: T, b: T): T;
+
+/// Unchecked shift left.
+///
+/// Shifts left without checking if shift amount exceeds bit width.
+/// Behavior is undefined if `amount` >= bit width of T.
+@intrinsic("shl.unchecked")
+export declare function shlUnchecked<T: int>(value: T, amount: T): T;
+
+/// Unchecked shift right.
+///
+/// Shifts right without checking if shift amount exceeds bit width.
+/// Behavior is undefined if `amount` >= bit width of T.
+/// Sign extension applies of signed types.
+@intrinsic("shr.unchecked")
+export declare function shrUnchecked<T: int>(value: T, amount: T): T;
+
+// saturating arithmetic (clamps to min/max on overflow)
+
+/// Saturating add.
+///
+/// Adds two integers, saturating at the numeric bounds instead of overflowing.
+/// Returns T.MAX on overflow, T.MIN on underflow.
+@intrinsic("add.sat")
+export declare function addSaturating<T: int>(a: T, b: T): T;
+
+/// Saturating subtract.
+///
+/// Subtracts two integers, saturating at the numeric bounds instead of overflowing.
+/// Returns T.MAX on overflow, T.MIN on underflow.
+@intrinsic("sub.sat")
+export declare function subSaturating<T: int>(a: T, b: T): T;

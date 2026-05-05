@@ -1,0 +1,179 @@
+import { Array } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { OsPath } from "../fs/path.ds";
+
+/// Media asset class.
+export enum MediaAssetKind {
+    /// Image asset.
+    Image = 1,
+    /// Video asset.
+    Video = 2,
+    /// Audio asset.
+    Audio = 3,
+    /// Other asset class.
+    Other = 4,
+}
+
+/// Media query options.
+export struct MediaQuery {
+    /// Opaque page cursor from one prior mediaList call.
+    cursor?: string;
+    /// Maximum returned assets for this page.
+    limit?: uint32;
+    /// Included asset classes, empty means all classes.
+    kinds: Array<MediaAssetKind>;
+    /// Whether hidden assets should be included.
+    includeHidden: boolean;
+}
+
+/// Media asset descriptor.
+export struct MediaAssetDescriptor {
+    /// Stable asset identifier.
+    id: string;
+    /// Host URI for this asset.
+    uri: string;
+    /// Asset filename payload.
+    filename: string;
+    /// Asset MIME type payload when available.
+    mimeType: string;
+    /// Asset class.
+    kind: MediaAssetKind;
+    /// Asset width in pixels when available.
+    width: uint32;
+    /// Asset height in pixels when available.
+    height: uint32;
+    /// Asset duration in milliseconds for time-based assets.
+    durationMs: uint64;
+    /// Asset size in bytes when available.
+    sizeBytes: uint64;
+    /// Asset creation timestamp in UTC nanoseconds when available.
+    createdUnixNs: uint64;
+    /// Asset modification timestamp in UTC nanoseconds when available.
+    modifiedUnixNs: uint64;
+}
+
+/// Paged media result payload.
+export struct MediaPage {
+    /// Asset items for this page.
+    assets: Array<MediaAssetDescriptor>;
+    /// Opaque cursor for the next page, empty when unavailable.
+    nextCursor: string;
+    /// Whether more assets are available.
+    hasMore: boolean;
+}
+
+/// Media bindings.
+/// List media assets.
+///
+/// Return one page of host media assets for one query.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses Photos framework on Apple platforms, MediaStore on Android, and host media-library bridges on desktop hosts.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.media.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.media.list", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.media.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function mediaList(query: MediaQuery): Result<MediaPage, PlatformError>;
+
+/// Read one media asset descriptor.
+///
+/// Read one host media asset descriptor by stable identifier.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host media-library read APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.media.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.media.read", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.media.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function mediaRead(id: string): Result<MediaAssetDescriptor, PlatformError>;
+
+/// Import one file path into host media library.
+///
+/// Import one file from one runtime-visible path and return one created media identifier.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host media-library write APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.media.write`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.media.importPath", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.media.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function mediaImportPath(
+    path: OsPath,
+    kind: MediaAssetKind,
+): Result<string, PlatformError>;
+
+/// Delete media assets by identifier.
+///
+/// Delete host media assets and return deleted asset count.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host media-library delete APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.media.write`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.media.delete", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.media.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function mediaDelete(ids: Array<string>): Result<uint32, PlatformError>;

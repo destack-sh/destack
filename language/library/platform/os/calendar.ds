@@ -1,0 +1,411 @@
+import { Array } from "core";
+import type { PlatformError } from "../error/index.ds";
+
+/// Calendar access level.
+export enum CalendarAccess {
+    /// Read-only access.
+    Read = 1,
+    /// Read and write access.
+    Write = 2,
+}
+
+/// Calendar availability class.
+export enum CalendarAvailability {
+    /// Busy slot.
+    Busy = 1,
+    /// Free slot.
+    Free = 2,
+    /// Tentative slot.
+    Tentative = 3,
+    /// Out-of-office slot.
+    OutOfOffice = 4,
+    /// Unavailable slot.
+    Unavailable = 5,
+    /// Unknown or host-specific availability.
+    Unknown = 6,
+}
+
+/// Calendar participant response status.
+export enum CalendarParticipantStatus {
+    /// Participant status is unknown.
+    Unknown = 1,
+    /// Participant has not responded.
+    Pending = 2,
+    /// Participant accepted the invitation.
+    Accepted = 3,
+    /// Participant tentatively accepted the invitation.
+    Tentative = 4,
+    /// Participant declined the invitation.
+    Declined = 5,
+    /// Participant delegated the invitation.
+    Delegated = 6,
+    /// Participant completed the request.
+    Completed = 7,
+    /// Participant is processing the request.
+    InProcess = 8,
+}
+
+/// Calendar recurrence frequency.
+export enum CalendarRecurrenceFrequency {
+    /// Daily recurrence.
+    Daily = 1,
+    /// Weekly recurrence.
+    Weekly = 2,
+    /// Monthly recurrence.
+    Monthly = 3,
+    /// Yearly recurrence.
+    Yearly = 4,
+}
+
+/// Calendar attendee payload.
+export struct CalendarAttendee {
+    /// Stable attendee identifier when available.
+    id?: string;
+    /// Attendee display name when available.
+    name?: string;
+    /// Attendee email address when available.
+    email?: string;
+    /// Whether this attendee is optional.
+    optional: boolean;
+    /// Whether this attendee is the organizer.
+    organizer: boolean;
+    /// Attendee response status.
+    responseStatus: CalendarParticipantStatus;
+}
+
+/// Calendar recurrence weekday payload.
+export struct CalendarRecurrenceWeekday {
+    /// Weekday number in ISO-8601 encoding, 1 to 7.
+    day: uint8;
+    /// Week occurrence within the recurrence range when needed.
+    weekNumber?: int8;
+}
+
+/// Relative calendar reminder payload.
+export struct CalendarRelativeReminder {
+    /// Discriminator for this calendar reminder variant.
+    kind: "relative";
+    /// Minutes before start time for one relative reminder.
+    minutesBeforeStart: int32;
+}
+
+/// Absolute calendar reminder payload.
+export struct CalendarAbsoluteReminder {
+    /// Discriminator for this calendar reminder variant.
+    kind: "absolute";
+    /// Absolute reminder timestamp in UTC nanoseconds.
+    absoluteUnixNs: uint64;
+}
+
+/// Calendar reminder payload.
+export newtype CalendarReminder = CalendarRelativeReminder | CalendarAbsoluteReminder;
+
+/// Calendar recurrence rule payload.
+export struct CalendarRecurrenceRule {
+    /// Recurrence frequency.
+    frequency: CalendarRecurrenceFrequency;
+    /// Recurrence interval.
+    interval: uint32;
+    /// Maximum occurrence count when bounded.
+    count?: uint32;
+    /// Recurrence end timestamp in UTC nanoseconds when bounded.
+    untilUnixNs?: uint64;
+    /// Weekday numbers in ISO-8601 encoding, 1 to 7.
+    byWeekDays: Array<uint8>;
+    /// Structured weekday selectors with optional ordinal positions.
+    byWeekdayOrdinals: Array<CalendarRecurrenceWeekday>;
+    /// Day-of-month set.
+    byMonthDays: Array<int8>;
+    /// Month set, 1 to 12.
+    byMonths: Array<uint8>;
+    /// Day-of-year set.
+    byYearDays: Array<int16>;
+    /// Week-of-year set.
+    byWeekNumbers: Array<int8>;
+    /// Final set-position filters.
+    bySetPositions: Array<int16>;
+}
+
+/// Calendar descriptor payload.
+export struct CalendarDescriptor {
+    /// Stable calendar identifier.
+    id: string;
+    /// Host-visible calendar title.
+    title: string;
+    /// Host-visible source or account label.
+    source: string;
+    /// Host-visible owner account label when available.
+    owner?: string;
+    /// ARGB color value for this calendar.
+    colorArgb: uint32;
+    /// Whether this calendar is the default write target.
+    primary: boolean;
+    /// Access mode for this calendar.
+    access: CalendarAccess;
+}
+
+/// Calendar event payload.
+export struct CalendarEvent {
+    /// Stable event identifier.
+    id: string;
+    /// Calendar identifier.
+    calendarId: string;
+    /// Event title.
+    title: string;
+    /// Event description or notes.
+    notes?: string;
+    /// Event location text.
+    location?: string;
+    /// Event start timestamp in UTC nanoseconds.
+    startUnixNs: uint64;
+    /// Event end timestamp in UTC nanoseconds.
+    endUnixNs: uint64;
+    /// Whether this event is all-day.
+    allDay: boolean;
+    /// Whether this event is canceled.
+    canceled: boolean;
+    /// Event timezone identifier when available.
+    timeZone?: string;
+    /// Event availability class.
+    availability: CalendarAvailability;
+    /// Event URL or deep link when available.
+    url?: string;
+    /// Organizer display name when available.
+    organizerName?: string;
+    /// Organizer email address when available.
+    organizerEmail?: string;
+    /// Whether this event is one recurrence instance.
+    recurring: boolean;
+    /// Event identifier for the recurrence series master when available.
+    recurrenceMasterId?: string;
+    /// Recurrence instance identifier timestamp in UTC nanoseconds when available.
+    recurrenceIdUnixNs?: uint64;
+    /// Recurrence rule for series master events when available.
+    recurrenceRule?: CalendarRecurrenceRule;
+    /// Event attendees when available.
+    attendees?: Array<CalendarAttendee>;
+    /// Event reminders when available.
+    reminders?: Array<CalendarReminder>;
+}
+
+/// Calendar event draft payload.
+export struct CalendarEventDraft {
+    /// Calendar identifier.
+    calendarId: string;
+    /// Event title.
+    title: string;
+    /// Event description or notes.
+    notes?: string;
+    /// Event location text.
+    location?: string;
+    /// Event start timestamp in UTC nanoseconds.
+    startUnixNs: uint64;
+    /// Event end timestamp in UTC nanoseconds.
+    endUnixNs: uint64;
+    /// Whether this event is all-day.
+    allDay: boolean;
+    /// Event timezone identifier.
+    timeZone?: string;
+    /// Event availability class.
+    availability: CalendarAvailability;
+    /// Event URL or deep link.
+    url?: string;
+    /// Recurrence rule for this event when provided.
+    recurrenceRule?: CalendarRecurrenceRule;
+    /// Event attendees to apply when provided.
+    attendees?: Array<CalendarAttendee>;
+    /// Event reminders to apply when provided.
+    reminders?: Array<CalendarReminder>;
+}
+
+/// Calendar event query options.
+export struct CalendarEventQuery {
+    /// Calendar identifiers to query, empty means all readable calendars.
+    calendarIds: Array<string>;
+    /// Query start timestamp in UTC nanoseconds.
+    startUnixNs: uint64;
+    /// Query end timestamp in UTC nanoseconds.
+    endUnixNs: uint64;
+    /// Maximum returned events when provided.
+    limit?: uint32;
+    /// Whether canceled events should be included.
+    includeCanceled: boolean;
+    /// Whether declined events should be included when provided by host.
+    includeDeclined: boolean;
+    /// Whether expanded recurrence instances should be included.
+    includeRecurrenceInstances: boolean;
+}
+
+/// Calendar bindings.
+/// List host calendars.
+///
+/// Enumerate readable host calendars and return descriptor metadata.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses EventKit on Apple platforms, CalendarContract on Android, and calendar provider APIs on desktop hosts.
+///
+/// # Errors
+/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.calendar.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.calendar.list", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.calendar.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function calendarList(): Result<Array<CalendarDescriptor>, PlatformError>;
+
+/// List host calendar events.
+///
+/// Enumerate host calendar events over one selected UTC time range.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host calendar query APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.calendar.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.calendar.eventList", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.calendar.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function calendarEventList(
+    query: CalendarEventQuery,
+): Result<Array<CalendarEvent>, PlatformError>;
+
+/// Read one host calendar event.
+///
+/// Read one host calendar event payload by stable identifier.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host calendar read APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.calendar.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.calendar.eventRead", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.calendar.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function calendarEventRead(id: string): Result<CalendarEvent, PlatformError>;
+
+/// Create one calendar event.
+///
+/// Create one host calendar event and return its stable identifier.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host calendar-write APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.calendar.write`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.calendar.eventCreate", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.calendar.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function calendarEventCreate(event: CalendarEventDraft): Result<string, PlatformError>;
+
+/// Update one calendar event.
+///
+/// Update one existing host calendar event by identifier.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host calendar-write APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.calendar.write`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.calendar.eventUpdate", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.calendar.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function calendarEventUpdate(
+    id: string,
+    event: CalendarEventDraft,
+): Result<void, PlatformError>;
+
+/// Delete one calendar event.
+///
+/// Delete one existing host calendar event by identifier.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host calendar-delete APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.calendar.write`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.os.calendar.eventDelete", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["os.calendar.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function calendarEventDelete(id: string): Result<void, PlatformError>;

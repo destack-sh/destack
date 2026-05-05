@@ -1,0 +1,64 @@
+import type { PlatformError } from "../error/index.ds";
+import { LibraryHandle, SymbolHandle } from "../resource/index.ds";
+
+/// Dynamic symbol bindings.
+/// Resolve a symbol from a loaded library.
+///
+/// Resolve one symbol name in one loaded library and return a stable symbol handle.
+/// Symbol lookup rules follow host dynamic loader name resolution behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dlsym on Unix and GetProcAddress on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `ffi.symbol`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.ffi.symbol.lookup", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["ffi.symbol"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function symbolLookup(
+    library: LibraryHandle,
+    name: string,
+): Result<SymbolHandle, PlatformError>;
+
+/// Return a raw address for a resolved symbol handle.
+///
+/// Return one raw process address for a previously resolved symbol.
+/// Address lifetime is tied to the owning dynamic library handle.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses runtime symbol table state after host resolution.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `ffi.symbol`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.ffi.symbol.address", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["ffi.symbol"],
+    platforms: ["windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function symbolAddress(symbol: SymbolHandle): Result<uint64, PlatformError>;

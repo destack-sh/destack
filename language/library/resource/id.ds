@@ -1,0 +1,1 @@
+export type { ResourceId } from "library/platform/resource/id.ds";

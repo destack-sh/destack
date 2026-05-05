@@ -1,0 +1,94 @@
+import type { PlatformError } from "../error/index.ds";
+import type { PlatformCapability } from "./capability.ds";
+import { SandboxHandle } from "../resource/index.ds";
+
+/// Security enforcement bindings.
+/// Seal one sandbox policy.
+///
+/// Transition one sandbox scope into sealed mode.
+/// Sealed policy rejects further capability broadening.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime sandbox policy controls.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `security.restrict`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.security.enforce.sandboxSeal", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["security.restrict"],
+    platforms: ["windows", "unix"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function sandboxSeal(handle: SandboxHandle): Result<void, PlatformError>;
+
+/// Apply an explicit capability set to one sandbox scope.
+///
+/// Replace one sandbox capability set with explicit allow-list semantics.
+/// Capability inheritance and scope visibility follow runtime policy rules.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime sandbox policy controls.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `security.restrict`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.security.enforce.sandboxSetCapabilities", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["security.restrict"],
+    platforms: ["windows", "unix"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function sandboxSetCapabilities(
+    handle: SandboxHandle,
+    capabilities: Slice<PlatformCapability>,
+): Result<void, PlatformError>;
+
+/// Set runtime W^X policy.
+///
+/// Enable or disable runtime write-xor-execute policy enforcement.
+/// Policy update affects subsequent executable-memory transitions.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime memory policy controls layered over host page protections.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `security.restrict`.
+///
+/// # Replay
+/// Deterministic.
+@binding("destack.security.enforce.setWriteXorExecute", {
+    effect: "deterministic",
+    replay: "nonrecordable",
+    capabilities: ["security.restrict"],
+    platforms: ["windows", "unix"],
+    simulation: "unsupported",
+    scope: "runtime",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function setWriteXorExecute(enabled: boolean): Result<void, PlatformError>;

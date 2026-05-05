@@ -1,0 +1,208 @@
+import { Array, Slice } from "core";
+import type { PlatformError } from "../../error/index.ds";
+import { MidiOutputPortHandle } from "../../resource/index.ds";
+import {
+    MidiOutputPortOpenOptions,
+    MidiPortDescriptor,
+    MidiPortListOptions,
+    MidiVirtualOutputCreateOptions,
+} from "./port.ds";
+import { MidiDataFormat, MidiProtocol, MidiRecordFraming } from "./protocol.ds";
+
+/// One outbound MIDI transport record.
+export struct MidiOutputRecord {
+    /// Scheduled send timestamp in nanoseconds in the runtime monotonic domain when supported.
+    sendAtNs: uint64 | void;
+    /// Transport data format for this record payload.
+    dataFormat: MidiDataFormat;
+    /// Protocol semantics for this record payload when the backend reports them.
+    /// `Midi2` requires `Ump`.
+    protocol: MidiProtocol | void;
+    /// Transport framing for this record payload.
+    framing: MidiRecordFraming;
+    /// Raw record payload bytes.
+    /// This stores one low-level transport record in the selected data format.
+    /// For `Midi1Bytes`, this stores the backend-native record bytes for this fragment or complete record.
+    /// For `Ump`, this stores one or more whole packed 32-bit words in big-endian byte order.
+    data: Slice<uint8>;
+}
+
+/// MIDI output bindings.
+/// List available MIDI output endpoints.
+///
+/// Enumerate host MIDI output endpoints for one selected backend.
+/// Endpoint visibility and ordering follow host MIDI subsystem behavior.
+///
+/// # Platform
+/// Android, Unix, Windows, and iOS.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.midi.port`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.midi.output.port.list", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.midi.port"],
+    platforms: ["android", "windows", "unix", "ios"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function outputPortList(
+    options: MidiPortListOptions,
+): Result<Slice<MidiPortDescriptor>, PlatformError>;
+
+/// Open one MIDI output endpoint.
+///
+/// Open one host MIDI output endpoint for outbound transport-record writes.
+/// Endpoint open behavior follows host MIDI session policy and sharing semantics.
+///
+/// # Platform
+/// Android, Unix, Windows, and iOS.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.midi.port`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.midi.output.port.open", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.midi.port"],
+    platforms: ["android", "windows", "unix", "ios"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function outputPortOpen(
+    id: string,
+    options: MidiOutputPortOpenOptions,
+): Result<MidiOutputPortHandle, PlatformError>;
+
+/// Describe one opened MIDI output endpoint.
+///
+/// Resolve the current descriptor for one opened MIDI output session.
+/// This returns the runtime-stable identity surface for the opened endpoint even when the original list row is no longer cached locally.
+///
+/// # Platform
+/// Android, Unix, Windows, and iOS.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.midi.port`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.midi.output.port.descriptor", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.midi.port"],
+    platforms: ["android", "windows", "unix", "ios"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function outputPortDescriptor(
+    handle: MidiOutputPortHandle,
+): Result<MidiPortDescriptor, PlatformError>;
+
+/// Close one opened MIDI output endpoint.
+///
+/// Close one opened MIDI output session and release host resources.
+///
+/// # Platform
+/// Android, Unix, Windows, and iOS.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.midi.port`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.midi.output.port.close", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.midi.port"],
+    platforms: ["android", "windows", "unix", "ios"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function outputPortClose(handle: MidiOutputPortHandle): Result<void, PlatformError>;
+
+/// Write one batch of outbound MIDI records.
+///
+/// Submit one batch of outbound MIDI transport records to one opened output endpoint.
+/// Scheduled timestamps are advisory unless the backend advertises scheduled output support and the opened endpoint accepts them.
+/// Record framing and payload encoding must match the selected transport data format.
+///
+/// # Platform
+/// Android, Unix, Windows, and iOS.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.midi.write`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.midi.output.write", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.midi.write"],
+    platforms: ["android", "windows", "unix", "ios"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function outputWrite(
+    handle: MidiOutputPortHandle,
+    records: Array<MidiOutputRecord>,
+): Result<uint32, PlatformError>;
+
+/// Create one virtual MIDI output endpoint.
+///
+/// Create one host-visible virtual MIDI output endpoint and return one opened output handle for writes.
+///
+/// # Platform
+/// Android, Unix, Windows, and iOS.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.midi.virtual`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.device.midi.output.virtual.create", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["device.midi.virtual"],
+    platforms: ["android", "windows", "unix", "ios"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function outputVirtualCreate(
+    options: MidiVirtualOutputCreateOptions,
+): Result<MidiOutputPortHandle, PlatformError>;

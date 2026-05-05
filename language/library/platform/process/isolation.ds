@@ -1,0 +1,211 @@
+import { Array } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { ProcessId } from "./ids.ds";
+import { OsPath } from "../fs/path.ds";
+
+/// Flags for `unshare` operations.
+export newtype ProcessUnshareFlags = uint64;
+
+/// Flags for syscall-filter installation.
+export newtype SyscallFilterFlags = uint32;
+
+/// Process namespace kind.
+export enum ProcessNamespaceKind {
+    /// Mount namespace.
+    Mount = 1,
+    /// User namespace.
+    User = 2,
+    /// PID namespace.
+    Pid = 3,
+    /// Network namespace.
+    Network = 4,
+    /// IPC namespace.
+    Ipc = 5,
+    /// UTS namespace.
+    Uts = 6,
+    /// Cgroup namespace.
+    Cgroup = 7,
+    /// Time namespace.
+    Time = 8,
+}
+
+/// Process isolation bindings.
+/// Enter one namespace owned by another process.
+///
+/// Join one specific namespace type from the target process.
+/// Namespace join rules and privilege checks are enforced by the host kernel.
+///
+/// # Platform
+/// Linux.
+/// Uses setns(2) with namespace file descriptors.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.namespace`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.process.isolation.setns", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["process.namespace"],
+    platforms: ["linux"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function setns(
+    pid: ProcessId,
+    namespace: ProcessNamespaceKind,
+): Result<void, PlatformError>;
+
+/// Unshare one or more namespaces.
+///
+/// Create isolated namespaces for the current process according to flag bits.
+/// Namespace semantics and inheritance follow host kernel rules.
+///
+/// # Platform
+/// Linux.
+/// Uses unshare(2).
+///
+/// # Errors
+/// Returns invalidArgument, processPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.namespace`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.process.isolation.unshare", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["process.namespace"],
+    platforms: ["linux"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function unshare(flags: ProcessUnshareFlags): Result<void, PlatformError>;
+
+/// Change the root directory for path resolution.
+///
+/// Replace process root path resolution context with the provided directory.
+/// Root-change semantics are host-defined and privilege-gated.
+///
+/// # Platform
+/// Unix.
+/// Uses chroot(2) or equivalent jail primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, processPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `security.restrict`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.process.isolation.chroot", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["security.restrict"],
+    platforms: ["unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function chroot(path: OsPath): Result<void, PlatformError>;
+
+/// Install one syscall filter program.
+///
+/// Install one host syscall filter for the current process.
+/// Program bytecode and verifier rules are host-specific.
+///
+/// # Platform
+/// Linux.
+/// Uses seccomp filter install primitives.
+///
+/// # Errors
+/// Returns invalidArgument, processPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `security.filter`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.process.isolation.installSyscallFilter", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["security.filter"],
+    platforms: ["linux"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function installSyscallFilter(
+    program: Array<uint8>,
+    flags: SyscallFilterFlags,
+): Result<void, PlatformError>;
+
+/// Set process host name inside the active UTS namespace.
+///
+/// Update host name for the current UTS namespace or host context.
+/// Name-length and privilege rules are enforced by the host kernel.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses sethostname(2) on Unix and host name APIs on Windows where permitted.
+///
+/// # Errors
+/// Returns invalidArgument, processPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.namespace`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.process.isolation.setHostName", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["process.namespace"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function setHostName(name: string): Result<void, PlatformError>;
+
+/// Set network namespace context for subsequent network operations.
+///
+/// Switch network operation context to the specified network namespace path.
+/// Namespace transition rules and privileges are host-defined.
+///
+/// # Platform
+/// Linux.
+/// Uses setns-style namespace switching with network namespace descriptors.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.namespace`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.process.isolation.setNetworkNamespace", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["process.namespace"],
+    platforms: ["linux"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function setNetworkNamespace(path: OsPath): Result<void, PlatformError>;

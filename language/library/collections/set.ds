@@ -1,0 +1,161 @@
+/// Ordered hash set with one hash index and one ordered entry array.
+///
+/// The raw table and entry pointers are internal storage owned by `Set<T>`
+/// itself.
+/// `Set<T>` is responsible for value lifetime and tracing over stored values,
+/// while heap forking and CoW stay below this type.
+export struct Set<T> {
+    /// Number of elements in the set.
+    length: uint32;
+    /// Number of allocated hash slots.
+    tableCapacity: uint32;
+    /// Number of allocated entry slots.
+    entryCapacity: uint32;
+    /// Raw control-byte storage owned by this set.
+    control: *uint8;
+    /// Raw bucket-to-entry index storage owned by this set.
+    buckets: *uint32;
+    /// Raw ordered entry storage owned by this set.
+    entries: *SetEntry<T>;
+}
+
+/// One stored set value in insertion order.
+struct SetEntry<T> {
+    /// Cached hash for lookup.
+    hash: uint64;
+    /// The stored value.
+    value: T;
+}
+
+extension<T> of Set<T> implements Iterable<T> {
+    /// Create an empty set.
+    static new(): Set<T> {
+        Set {
+            length: 0,
+            tableCapacity: 0,
+            entryCapacity: 0,
+            control: null as *uint8,
+            buckets: null as *uint32,
+            entries: null as *SetEntry<T>,
+        }
+    }
+
+    /// Get the number of elements.
+    get size(): number {
+        this.length as number
+    }
+
+    /// Check if the set is empty.
+    get isEmpty(): boolean {
+        this.length == 0
+    }
+
+    /// Add an element.
+    add(value: T): this {
+        // #Incomplete
+        this
+    }
+
+    /// Check if an element exists.
+    has(value: T): boolean {
+        // #Incomplete
+        false
+    }
+
+    /// Delete an element.
+    delete(value: T): boolean {
+        // #Incomplete
+        false
+    }
+
+    /// Clear all elements.
+    clear(): void {
+        // #Incomplete
+        this.length = 0;
+    }
+
+    /// Get all values (same as elements for sets).
+    values(): Iterator<T> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Iterate over elements.
+    [Symbol.iterator](): Iterator<T> {
+        this.values()
+    }
+
+    /// Execute function for each element.
+    forEach(f: (value: T, value2: T, set: Set<T>) => void): void {
+        // #Incomplete
+    }
+
+    // --- set operations ---
+
+    /// Union of two sets.
+    union(other: Set<T>): Set<T> {
+        // #Incomplete
+        this
+    }
+
+    /// Intersection of two sets.
+    intersection(other: Set<T>): Set<T> {
+        // #Incomplete
+        Set {
+            length: 0,
+            tableCapacity: 0,
+            entryCapacity: 0,
+            control: null as *uint8,
+            buckets: null as *uint32,
+            entries: null as *SetEntry<T>,
+        }
+    }
+
+    /// Difference (this - other).
+    difference(other: Set<T>): Set<T> {
+        // #Incomplete
+        this
+    }
+
+    /// Symmetric difference.
+    symmetricDifference(other: Set<T>): Set<T> {
+        // #Incomplete
+        this
+    }
+
+    /// Check if this is a subset of other.
+    isSubsetOf(other: Set<T>): boolean {
+        // #Incomplete
+        false
+    }
+
+    /// Check if this is a superset of other.
+    isSupersetOf(other: Set<T>): boolean {
+        // #Incomplete
+        false
+    }
+
+    /// Check if sets are disjoint.
+    isDisjointFrom(other: Set<T>): boolean {
+        // #Incomplete
+        true
+    }
+
+    /// Create a new set from values.
+    static from<T>(values: Iterable<T>): Set<T> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Create an empty set.
+    static new<T>(): Set<T> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Create a set with pre-allocated capacity.
+    static withCapacity<T>(capacity: uint32): Set<T> {
+        // #Incomplete
+        undefined!
+    }
+}

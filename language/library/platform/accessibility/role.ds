@@ -1,0 +1,176 @@
+/// Stable identifier for one accessibility-tree node.
+export newtype AccessibilityNodeId = uint64;
+
+/// WAI-ARIA role selector.
+export enum AccessibilityRole {
+    /// `alert`.
+    Alert = 1,
+    /// `alertdialog`.
+    AlertDialog = 2,
+    /// `application`.
+    Application = 3,
+    /// `article`.
+    Article = 4,
+    /// `banner`.
+    Banner = 5,
+    /// `blockquote`.
+    BlockQuote = 6,
+    /// `button`.
+    Button = 7,
+    /// `caption`.
+    Caption = 8,
+    /// `cell`.
+    Cell = 9,
+    /// `checkbox`.
+    Checkbox = 10,
+    /// `code`.
+    Code = 11,
+    /// `columnheader`.
+    ColumnHeader = 12,
+    /// `combobox`.
+    ComboBox = 13,
+    /// `comment`.
+    Comment = 14,
+    /// `complementary`.
+    Complementary = 15,
+    /// `contentinfo`.
+    ContentInfo = 16,
+    /// `definition`.
+    Definition = 17,
+    /// `deletion`.
+    Deletion = 18,
+    /// `dialog`.
+    Dialog = 19,
+    /// `directory`.
+    Directory = 20,
+    /// `document`.
+    Document = 21,
+    /// `emphasis`.
+    Emphasis = 22,
+    /// `feed`.
+    Feed = 23,
+    /// `figure`.
+    Figure = 24,
+    /// `form`.
+    Form = 25,
+    /// `generic`.
+    Generic = 26,
+    /// `grid`.
+    Grid = 27,
+    /// `gridcell`.
+    GridCell = 28,
+    /// `group`.
+    Group = 29,
+    /// `heading`.
+    Heading = 30,
+    /// `img`.
+    Image = 31,
+    /// `insertion`.
+    Insertion = 32,
+    /// `link`.
+    Link = 33,
+    /// `list`.
+    List = 34,
+    /// `listbox`.
+    ListBox = 35,
+    /// `listitem`.
+    ListItem = 36,
+    /// `log`.
+    Log = 37,
+    /// `main`.
+    Main = 38,
+    /// `mark`.
+    Mark = 39,
+    /// `marquee`.
+    Marquee = 40,
+    /// `math`.
+    Math = 41,
+    /// `menu`.
+    Menu = 42,
+    /// `menubar`.
+    MenuBar = 43,
+    /// `menuitem`.
+    MenuItem = 44,
+    /// `menuitemcheckbox`.
+    MenuItemCheckbox = 45,
+    /// `menuitemradio`.
+    MenuItemRadio = 46,
+    /// `meter`.
+    Meter = 47,
+    /// `navigation`.
+    Navigation = 48,
+    /// `none`.
+    None = 49,
+    /// `note`.
+    Note = 50,
+    /// `option`.
+    Option = 51,
+    /// `paragraph`.
+    Paragraph = 52,
+    /// `presentation`.
+    Presentation = 53,
+    /// `progressbar`.
+    ProgressBar = 54,
+    /// `radio`.
+    Radio = 55,
+    /// `radiogroup`.
+    RadioGroup = 56,
+    /// `region`.
+    Region = 57,
+    /// `row`.
+    Row = 58,
+    /// `rowgroup`.
+    RowGroup = 59,
+    /// `rowheader`.
+    RowHeader = 60,
+    /// `scrollbar`.
+    ScrollBar = 61,
+    /// `search`.
+    Search = 62,
+    /// `searchbox`.
+    SearchBox = 63,
+    /// `separator`.
+    Separator = 64,
+    /// `slider`.
+    Slider = 65,
+    /// `spinbutton`.
+    SpinButton = 66,
+    /// `status`.
+    Status = 67,
+    /// `strong`.
+    Strong = 68,
+    /// `subscript`.
+    Subscript = 69,
+    /// `suggestion`.
+    Suggestion = 70,
+    /// `superscript`.
+    Superscript = 71,
+    /// `switch`.
+    Switch = 72,
+    /// `tab`.
+    Tab = 73,
+    /// `table`.
+    Table = 74,
+    /// `tablist`.
+    TabList = 75,
+    /// `tabpanel`.
+    TabPanel = 76,
+    /// `term`.
+    Term = 77,
+    /// `textbox`.
+    TextBox = 78,
+    /// `time`.
+    Time = 79,
+    /// `timer`.
+    Timer = 80,
+    /// `toolbar`.
+    ToolBar = 81,
+    /// `tooltip`.
+    ToolTip = 82,
+    /// `tree`.
+    Tree = 83,
+    /// `treegrid`.
+    TreeGrid = 84,
+    /// `treeitem`.
+    TreeItem = 85,
+}

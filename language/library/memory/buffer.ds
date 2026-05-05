@@ -1,0 +1,57 @@
+import { rawAlloc, rawFree, rawRealloc } from "./alloc.ds";
+import { Slice, sliceFromRaw } from "../collections/slice.ds";
+
+/// A raw, untyped byte buffer.
+///
+/// This is a low-level building block for implementing resizable
+/// data structures. Most code should use Array<T> instead.
+struct RawBuffer {
+    /// Pointer to buffer data.
+    data: *uint8;
+    /// Size in bytes.
+    size: uint64;
+    /// Allocated capacity.
+    capacity: uint64;
+}
+
+extension of RawBuffer {
+    /// Create a new buffer with given capacity.
+    static withCapacity(capacity: uint64): RawBuffer {
+        let data = rawAlloc(capacity, 8) as *uint8;
+        RawBuffer { data, size: 0, capacity }
+    }
+
+    /// Create an empty buffer.
+    static new(): RawBuffer {
+        RawBuffer { data: null as *uint8, size: 0, capacity: 0 }
+    }
+
+    /// Grow the buffer to at least the given capacity.
+    grow(minCapacity: uint64): void {
+        if (minCapacity <= this.capacity) {
+            return;
+        }
+        // double capacity or use minCapacity, whichever is larger
+        let newCapacity = this.capacity * 2;
+        if (newCapacity < minCapacity) {
+            newCapacity = minCapacity;
+        }
+        this.data = rawRealloc(this.data as *unknown, newCapacity, 8) as *uint8;
+        this.capacity = newCapacity;
+    }
+
+    /// Free the buffer.
+    free(): void {
+        if (this.data != null as *uint8) {
+            rawFree(this.data as *unknown);
+            this.data = null as *uint8;
+            this.size = 0;
+            this.capacity = 0;
+        }
+    }
+
+    /// Get a slice view of the buffer contents.
+    asSlice(): Slice<uint8> {
+        sliceFromRaw(this.data, this.size as usize)
+    }
+}

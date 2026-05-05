@@ -1,0 +1,135 @@
+import type { PlatformError } from "../error/index.ds";
+import { ListenerHandle, SocketHandle } from "../resource/index.ds";
+import { SocketAddress } from "./address.ds";
+
+/// Accept flags for listener sockets.
+///
+/// This value is a normalized accept-flag bitset.
+/// The runtime maps it to native accept controls such as SOCK_NONBLOCK and SOCK_CLOEXEC.
+export newtype AcceptFlags = uint32;
+/// Accept the socket in nonblocking mode.
+export const ACCEPT_NONBLOCK: AcceptFlags = AcceptFlags(1 << 0);
+/// Accept the socket with close-on-exec or non-inheritable semantics.
+export const ACCEPT_CLOEXEC: AcceptFlags = AcceptFlags(1 << 1);
+
+/// Start listening on a raw socket address.
+///
+/// Create, bind, and place a listener socket into passive accept mode.
+/// Backlog limits and bind conflicts are enforced by the host kernel.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses bind(2)+listen(2) on Unix and bind+listen on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.listen`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.listener.listen", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.listen"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function listen(
+    address: SocketAddress,
+    backlog: uint32,
+): Result<ListenerHandle, PlatformError>;
+
+/// Bind an existing socket to a raw address.
+///
+/// Bind an existing socket descriptor to the specified local address.
+/// Address validation and reuse checks are enforced by the host kernel.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses bind(2) on Unix and bind on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.listen`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.listener.bind", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.listen"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function bind(handle: SocketHandle, address: SocketAddress): Result<void, PlatformError>;
+
+/// Accept a new connection from a listener.
+///
+/// Accept the next pending connection from the listener queue.
+/// Accept flags and queued-connection ordering follow host kernel semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses accept4/accept on Unix and accept/AcceptEx on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.accept`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.listener.accept", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.accept"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function accept(
+    listener: ListenerHandle,
+    flags: AcceptFlags,
+): Result<SocketHandle, PlatformError>;
+
+/// Close a listener handle.
+///
+/// Close a listener socket descriptor.
+/// Pending accepts are interrupted according to host kernel semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses close(2) on Unix and closesocket on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.close`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.net.listener.closeListener", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["net.close"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function closeListener(handle: ListenerHandle): Result<void, PlatformError>;

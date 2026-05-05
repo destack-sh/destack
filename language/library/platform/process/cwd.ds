@@ -1,0 +1,60 @@
+import type { PlatformError } from "../error/index.ds";
+import { OsPath } from "../fs/path.ds";
+
+/// Return the current working directory.
+///
+/// Query the calling process working directory without changing process state.
+/// The returned path preserves host encoding through `OsPath`.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses getcwd(3) on Unix and GetCurrentDirectoryW on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.workdir.read`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.cwd.get", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.workdir.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cwd(): Result<OsPath, PlatformError>;
+
+/// Change the current working directory.
+///
+/// Update process working directory state for subsequent relative path resolution.
+/// Directory existence and permission checks are performed by the host kernel.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses chdir(2) on Unix and SetCurrentDirectoryW on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.workdir.write`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.cwd.chdir", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.workdir.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function chdir(path: OsPath): Result<void, PlatformError>;

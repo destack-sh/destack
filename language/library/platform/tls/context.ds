@@ -1,0 +1,345 @@
+import { Slice } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { TlsContextHandle } from "../resource/index.ds";
+
+/// Tls protocol version.
+export enum TlsVersion {
+    /// Tls 1.2.
+    Tls12 = 0x0303,
+    /// Tls 1.3.
+    Tls13 = 0x0304,
+}
+
+/// Tls endpoint role.
+export enum TlsRole {
+    /// Client endpoint.
+    Client = 0,
+    /// Server endpoint.
+    Server = 1,
+}
+
+/// Options for opening one tls context.
+export struct TlsContextOptions {
+    /// Client or server role.
+    role: TlsRole;
+    /// Minimum protocol version.
+    minVersion: TlsVersion;
+    /// Maximum protocol version.
+    maxVersion: TlsVersion;
+    /// Require peer certificate validation.
+    verifyPeer: boolean;
+    /// Application layer protocol identifiers in preference order.
+    alpnProtocols: Slice<Slice<uint8>>;
+}
+
+/// Tls hostname verification mode.
+export enum TlsHostnameVerificationMode {
+    /// Enforce strict hostname verification against the expected server name.
+    Strict = 0,
+    /// Permit hostname mismatch while still validating certificate trust.
+    AllowMismatch = 1,
+    /// Disable hostname verification checks.
+    Disabled = 2,
+}
+
+/// Tls session resumption policy.
+export enum TlsSessionResumptionMode {
+    /// Disable session resumption.
+    Disabled = 0,
+    /// Enable stateful session cache based resumption.
+    Stateful = 1,
+    /// Enable stateless ticket based resumption.
+    Stateless = 2,
+    /// Enable both stateful and stateless resumption modes.
+    StatefulAndStateless = 3,
+}
+
+/// Tls context bindings for the platform runtime boundary.
+/// Open one tls context object.
+///
+/// Create one rustls-backed tls context with explicit role and version bounds.
+/// Cipher suite, group, signature, and resumption policy are runtime-owned rather than delegated to host provider state.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses the runtime tls engine over host sockets.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.context`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.tls.context.open", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["tls.context"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function contextOpen(
+    options: TlsContextOptions,
+): Result<TlsContextHandle, PlatformError>;
+
+/// Close one tls context object.
+///
+/// Release one backend-backed tls context and associated runtime resources.
+/// Existing sessions created from this context keep their current runtime state.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses runtime tls context teardown semantics.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `tls.context`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.tls.context.close", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["tls.context"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function contextClose(handle: TlsContextHandle): Result<void, PlatformError>;
+
+/// Set one local certificate chain and private key on a tls context.
+///
+/// Install one PEM-encoded certificate chain and one PEM-encoded private key for local endpoint authentication.
+/// PEM parsing is strict and malformed inputs fail immediately.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses provider identity import APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.identity.use`, `tls.identity.write`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.tls.context.setIdentityPem", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["tls.context", "tls.identity.use", "tls.identity.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function contextSetIdentityPem(
+    handle: TlsContextHandle,
+    certificateChainPem: Slice<uint8>,
+    privateKeyPem: Slice<uint8>,
+): Result<void, PlatformError>;
+
+/// Set trust anchors on a tls context from one PEM bundle.
+///
+/// Install one PEM-encoded trust-anchor bundle used for peer certificate validation.
+/// Bundle parsing is strict and malformed trust anchors fail immediately.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses provider trust-store APIs or runtime trust bundle loading.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.trust.write`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.tls.context.setTrustAnchorsPem", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["tls.context", "tls.trust.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function contextSetTrustAnchorsPem(
+    handle: TlsContextHandle,
+    trustAnchorsPem: Slice<uint8>,
+): Result<void, PlatformError>;
+
+/// Set allowed tls cipher suites for one context.
+///
+/// Apply one ordered list of cipher-suite names to one context policy.
+/// Names are matched case-insensitively after normalizing spaces and hyphens to underscores against rustls cipher-suite names.
+/// Unsupported names fail immediately, even when other entries are valid.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses runtime tls policy filtering.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.context`, `tls.policy`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.tls.context.setCipherSuites", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["tls.context", "tls.policy"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function contextSetCipherSuites(
+    handle: TlsContextHandle,
+    suites: Slice<string>,
+): Result<void, PlatformError>;
+
+/// Set allowed tls key exchange groups for one context.
+///
+/// Apply one ordered list of key exchange groups to one context policy.
+/// Names are matched case-insensitively after normalizing spaces and hyphens to underscores against rustls key-exchange group names.
+/// Unsupported names fail immediately, even when other entries are valid.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses runtime tls policy filtering.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.context`, `tls.policy`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.tls.context.setGroups", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["tls.context", "tls.policy"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function contextSetGroups(
+    handle: TlsContextHandle,
+    groups: Slice<string>,
+): Result<void, PlatformError>;
+
+/// Set allowed tls signature algorithms for one context.
+///
+/// Apply one ordered list of signature algorithms to one context policy.
+/// Names are matched case-insensitively after normalizing spaces and hyphens to underscores against rustls signature-scheme names.
+/// Unsupported names and schemes outside the active runtime tls policy fail immediately.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses runtime tls policy filtering.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.context`, `tls.policy`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.tls.context.setSignatureAlgorithms", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["tls.context", "tls.policy"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function contextSetSignatureAlgorithms(
+    handle: TlsContextHandle,
+    algorithms: Slice<string>,
+): Result<void, PlatformError>;
+
+/// Set hostname verification mode for one context.
+///
+/// Configure hostname verification behavior for sessions created by this context.
+/// Verification defaults match strict hostname checks unless explicitly overridden.
+/// This setting applies to client contexts, and server contexts ignore it.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses runtime tls verification policy.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.context`, `tls.hostname.verify`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.tls.context.setHostnameVerificationMode", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["tls.context", "tls.hostname.verify"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function contextSetHostnameVerificationMode(
+    handle: TlsContextHandle,
+    mode: TlsHostnameVerificationMode,
+): Result<void, PlatformError>;
+
+/// Set session resumption policy for one context.
+///
+/// Configure whether sessions use stateful cache, stateless tickets, or both.
+/// Cache size, lifetime, and ticket semantics follow bounded runtime policy.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses runtime tls resumption controls.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.context`, `tls.resumption`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.tls.context.setSessionResumption", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["tls.context", "tls.resumption"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function contextSetSessionResumption(
+    handle: TlsContextHandle,
+    mode: TlsSessionResumptionMode,
+): Result<void, PlatformError>;

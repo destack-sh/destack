@@ -1,0 +1,405 @@
+import { Slice } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { AccessibilityActionHandle, WindowHandle } from "../resource/index.ds";
+import { AccessibilityTextUnit } from "./document.ds";
+import { AccessibilityNodeId } from "./role.ds";
+import { AccessibilityTextRange, AccessibilityTextSelection } from "./text.ds";
+
+/// Scroll direction for one accessibility scroll action.
+export enum AccessibilityScrollDirection {
+    /// Scroll forward in the node's primary reading direction.
+    Forward = 1,
+    /// Scroll backward in the node's primary reading direction.
+    Backward = 2,
+    /// Scroll upward.
+    Up = 3,
+    /// Scroll downward.
+    Down = 4,
+    /// Scroll leftward.
+    Left = 5,
+    /// Scroll rightward.
+    Right = 6,
+    /// Scroll one page upward.
+    PageUp = 7,
+    /// Scroll one page downward.
+    PageDown = 8,
+    /// Scroll one page leftward.
+    PageLeft = 9,
+    /// Scroll one page rightward.
+    PageRight = 10,
+}
+
+/// Shared metadata for all accessibility actions.
+export struct AccessibilityActionMetadata {
+    /// Target window for this action.
+    window: WindowHandle;
+    /// Target node identifier.
+    nodeId: AccessibilityNodeId;
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this action stream.
+    sequence: uint64;
+    /// Number of actions dropped by this stream before this action.
+    droppedCount: uint64;
+}
+
+/// Accessibility action stream options.
+export struct AccessibilityActionOpenOptions {
+    /// Requested queue capacity, or zero for the backend default.
+    queueCapacity: uint32;
+}
+
+/// Activate action.
+export struct AccessibilityActivateAction {
+    /// Discriminator for this action variant.
+    kind: "activate";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Focus action.
+export struct AccessibilityFocusAction {
+    /// Discriminator for this action variant.
+    kind: "focus";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Select action.
+export struct AccessibilitySelectAction {
+    /// Discriminator for this action variant.
+    kind: "select";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Add-to-selection action.
+export struct AccessibilityAddToSelectionAction {
+    /// Discriminator for this action variant.
+    kind: "addToSelection";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Remove-from-selection action.
+export struct AccessibilityRemoveFromSelectionAction {
+    /// Discriminator for this action variant.
+    kind: "removeFromSelection";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Toggle action.
+export struct AccessibilityToggleAction {
+    /// Discriminator for this action variant.
+    kind: "toggle";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Scroll-into-view action.
+export struct AccessibilityScrollIntoViewAction {
+    /// Discriminator for this action variant.
+    kind: "scrollIntoView";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Scroll action.
+export struct AccessibilityScrollAction {
+    /// Discriminator for this action variant.
+    kind: "scroll";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+    /// Requested scroll direction.
+    direction: AccessibilityScrollDirection;
+}
+
+/// Clear-selection action.
+export struct AccessibilityClearSelectionAction {
+    /// Discriminator for this action variant.
+    kind: "clearSelection";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Dismiss action.
+export struct AccessibilityDismissAction {
+    /// Discriminator for this action variant.
+    kind: "dismiss";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Show-menu action.
+export struct AccessibilityShowMenuAction {
+    /// Discriminator for this action variant.
+    kind: "showMenu";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Increment action.
+export struct AccessibilityIncrementAction {
+    /// Discriminator for this action variant.
+    kind: "increment";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Decrement action.
+export struct AccessibilityDecrementAction {
+    /// Discriminator for this action variant.
+    kind: "decrement";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Collapse action.
+export struct AccessibilityCollapseAction {
+    /// Discriminator for this action variant.
+    kind: "collapse";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Expand action.
+export struct AccessibilityExpandAction {
+    /// Discriminator for this action variant.
+    kind: "expand";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Set-numeric-value action.
+export struct AccessibilitySetNumericValueAction {
+    /// Discriminator for this action variant.
+    kind: "setNumericValue";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+    /// Requested numeric value.
+    value: float64;
+}
+
+/// Set-text-value action.
+export struct AccessibilitySetTextValueAction {
+    /// Discriminator for this action variant.
+    kind: "setTextValue";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+    /// Requested text value.
+    value: string;
+}
+
+/// Set-selected-text-range action.
+export struct AccessibilitySetSelectedTextRangeAction {
+    /// Discriminator for this action variant.
+    kind: "setSelectedTextRange";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+    /// Requested anchor offset in UTF-16 code units.
+    anchorOffset: uint32;
+    /// Requested focus offset in UTF-16 code units.
+    focusOffset: uint32;
+}
+
+/// Set-selected-text-ranges action.
+export struct AccessibilitySetSelectedTextRangesAction {
+    /// Discriminator for this action variant.
+    kind: "setSelectedTextRanges";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+    /// Requested selections in source order.
+    selections: Slice<AccessibilityTextSelection>;
+}
+
+/// Replace-selected-text action.
+export struct AccessibilityReplaceSelectedTextAction {
+    /// Discriminator for this action variant.
+    kind: "replaceSelectedText";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+    /// Replacement text payload.
+    text: string;
+}
+
+/// Scroll-text-range-into-view action.
+export struct AccessibilityScrollTextRangeIntoViewAction {
+    /// Discriminator for this action variant.
+    kind: "scrollTextRangeIntoView";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+    /// Requested text range.
+    range: AccessibilityTextRange;
+    /// Whether the range should align to the leading edge when possible.
+    alignToStart: boolean;
+}
+
+/// Move-text-selection action.
+export struct AccessibilityMoveTextSelectionAction {
+    /// Discriminator for this action variant.
+    kind: "moveTextSelection";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+    /// Navigation unit to move by.
+    unit: AccessibilityTextUnit;
+    /// Signed movement count in unit steps.
+    count: int32;
+    /// Whether the move should extend the current selection.
+    extend: boolean;
+}
+
+/// Custom accessibility action.
+export struct AccessibilityCustomActionInvocation {
+    /// Discriminator for this action variant.
+    kind: "custom";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+    /// Requested custom action identifier.
+    actionId: string;
+}
+
+/// One inbound accessibility action.
+export newtype AccessibilityAction =
+    | AccessibilityActivateAction
+    | AccessibilityFocusAction
+    | AccessibilitySelectAction
+    | AccessibilityAddToSelectionAction
+    | AccessibilityRemoveFromSelectionAction
+    | AccessibilityToggleAction
+    | AccessibilityScrollIntoViewAction
+    | AccessibilityScrollAction
+    | AccessibilityClearSelectionAction
+    | AccessibilityDismissAction
+    | AccessibilityShowMenuAction
+    | AccessibilityIncrementAction
+    | AccessibilityDecrementAction
+    | AccessibilityCollapseAction
+    | AccessibilityExpandAction
+    | AccessibilitySetNumericValueAction
+    | AccessibilitySetTextValueAction
+    | AccessibilitySetSelectedTextRangeAction
+    | AccessibilitySetSelectedTextRangesAction
+    | AccessibilityReplaceSelectedTextAction
+    | AccessibilityScrollTextRangeIntoViewAction
+    | AccessibilityMoveTextSelectionAction
+    | AccessibilityCustomActionInvocation;
+
+/// Accessibility action bindings.
+/// Open one inbound accessibility-action stream for one window.
+///
+/// Deliver assistive-technology actions that correspond to the published accessibility tree for the window.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `accessibility.actions`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.accessibility.action.open", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["accessibility.actions"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function actionOpen(
+    window: WindowHandle,
+    options: AccessibilityActionOpenOptions,
+): Result<AccessibilityActionHandle, PlatformError>;
+
+/// Close one inbound accessibility-action stream.
+///
+/// Close the action stream and discard queued actions.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `accessibility.actions`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.accessibility.action.close", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["accessibility.actions"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function actionClose(handle: AccessibilityActionHandle): Result<void, PlatformError>;
+
+/// Wait for one accessibility action.
+///
+/// Wait for one pending assistive-technology action.
+/// Timeout uses nanoseconds in the runtime monotonic domain.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `accessibility.actions`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.accessibility.action.read", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["accessibility.actions"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function actionRead(
+    handle: AccessibilityActionHandle,
+    timeoutNs: uint64,
+): Result<AccessibilityAction, PlatformError>;
+
+/// Poll one accessibility action without blocking.
+///
+/// Poll one pending assistive-technology action and return immediately when the queue is empty.
+/// Empty queue state is reported through ioWouldBlock.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `accessibility.actions`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.accessibility.action.tryRead", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["accessibility.actions"],
+    platforms: ["android", "windows", "unix"],
+    simulation: "stub",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function actionTryRead(
+    handle: AccessibilityActionHandle,
+): Result<AccessibilityAction, PlatformError>;

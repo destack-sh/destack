@@ -1,0 +1,161 @@
+import { Slice } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { ProcessId } from "./ids.ds";
+import { ProcessLimit, ProcessLimitResource } from "./limits.ds";
+
+/// Process group and control-group bindings.
+/// Join one control group.
+///
+/// Attach the current process to one control-group path.
+/// Group hierarchy and controller behavior follow host kernel rules.
+///
+/// # Platform
+/// Linux.
+/// Uses cgroup v2 control files.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, processPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.cgroup`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.process.group.cgroupJoin", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["process.cgroup"],
+    platforms: ["linux"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cgroupJoin(path: string): Result<void, PlatformError>;
+
+/// Read one control-group resource limit.
+///
+/// Read one controller limit value from one control-group path.
+/// Resource selector interpretation follows host controller semantics.
+///
+/// # Platform
+/// Linux.
+/// Uses cgroup controller files in v2 hierarchies.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, processPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.cgroup`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.process.group.cgroupGetLimit", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["process.cgroup"],
+    platforms: ["linux"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cgroupGetLimit(
+    path: string,
+    resource: ProcessLimitResource,
+): Result<ProcessLimit, PlatformError>;
+
+/// Write one control-group resource limit.
+///
+/// Write one controller limit value to one control-group path.
+/// Controller validation and privilege checks are host-enforced.
+///
+/// # Platform
+/// Linux.
+/// Uses cgroup controller files in v2 hierarchies.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, processPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.cgroup`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.process.group.cgroupSetLimit", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["process.cgroup"],
+    platforms: ["linux"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cgroupSetLimit(
+    path: string,
+    resource: ProcessLimitResource,
+    limit: ProcessLimit,
+): Result<void, PlatformError>;
+
+/// Assign processes to one Windows job object.
+///
+/// Attach one or more target processes to one named job object.
+/// Job object lifetime and inheritance follow host process-manager semantics.
+///
+/// # Platform
+/// Windows.
+/// Uses job object assignment APIs.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.cgroup`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.process.group.jobAssign", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["process.cgroup"],
+    platforms: ["windows"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function jobAssign(name: string, pids: Slice<ProcessId>): Result<void, PlatformError>;
+
+/// Set one Windows job object resource limit.
+///
+/// Write one resource limit entry to one named job object.
+/// Resource selector interpretation follows host job object semantics.
+///
+/// # Platform
+/// Windows.
+/// Uses job object limit APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, processPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.cgroup`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.process.group.jobSetLimit", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["process.cgroup"],
+    platforms: ["windows"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function jobSetLimit(
+    name: string,
+    resource: ProcessLimitResource,
+    limit: ProcessLimit,
+): Result<void, PlatformError>;

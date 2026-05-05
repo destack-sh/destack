@@ -1,0 +1,30 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Exit the current process with the given code.
+///
+/// Terminate the current process without returning to the caller.
+/// Exit code interpretation is host-defined and propagated to the parent process.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses _exit(2) or exit(3) on Unix and ExitProcess on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.run`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.process.exit.terminate", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["process.run"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function exit(code: uint32): Result<void, PlatformError>;

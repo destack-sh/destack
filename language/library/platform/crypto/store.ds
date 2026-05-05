@@ -1,0 +1,506 @@
+import { Array, Slice } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { CryptoCertificateHandle, CryptoKeyHandle, CryptoStoreHandle } from "../resource/index.ds";
+import {
+    CryptoAsymmetricEncryptionAlgorithm,
+    CryptoCipherAlgorithm,
+    CryptoDigestAlgorithm,
+    CryptoKeyAgreementAlgorithm,
+    CryptoKeyAlgorithm,
+    CryptoKeyFormat,
+    CryptoKeyResidency,
+    CryptoKeyUsageMask,
+    CryptoKeyWrapAlgorithm,
+    CryptoMacAlgorithm,
+    CryptoSignatureAlgorithm,
+} from "./algorithm.ds";
+
+/// Crypto store backend kind.
+export enum CryptoStoreKind {
+    /// Host default trust and key provider.
+    /// Typically used for host certificate trust material.
+    /// Key write operations may return notSupported.
+    System = 0,
+    /// User-scoped host key and certificate store.
+    /// Availability is host dependent.
+    /// Key and certificate writes may return notSupported.
+    User = 1,
+    /// Machine-scoped host key and certificate store.
+    /// Availability is host dependent.
+    /// Key and certificate writes may return notSupported.
+    Machine = 2,
+    /// Provider-scoped runtime store.
+    /// Defaults to the OpenSSL software provider when no provider is supplied.
+    Provider = 3,
+    /// Process-scoped ephemeral key and certificate store.
+    Ephemeral = 4,
+}
+
+/// Crypto software provider selector.
+export enum CryptoStoreProvider {
+    /// OpenSSL software provider.
+    ///
+    /// This is currently the only provider selector.
+    OpenSsl = 1,
+}
+
+/// Crypto store options.
+export struct CryptoStoreOptions {
+    /// Store backend kind.
+    kind: CryptoStoreKind;
+    /// Provider selector for provider-backed stores.
+    provider?: CryptoStoreProvider;
+    /// Optional logical namespace.
+    namespace?: string;
+}
+
+/// Canonical identity for one store.
+export struct CryptoStoreIdentity {
+    /// Store backend kind.
+    kind: CryptoStoreKind;
+    /// Provider selector.
+    provider?: CryptoStoreProvider;
+    /// Provider namespace.
+    namespace?: string;
+}
+
+/// Effective store provenance for created crypto objects.
+export struct CryptoStoreProvenance {
+    /// Effective store identity.
+    identity: CryptoStoreIdentity;
+}
+
+/// Key operation capability row for one store identity.
+export struct CryptoStoreKeyCapability {
+    /// Key algorithm family.
+    algorithm: CryptoKeyAlgorithm;
+    /// Key residency policy.
+    residency: CryptoKeyResidency;
+    /// Whether secret-key generation is supported.
+    supportsGenerateSecret: boolean;
+    /// Whether asymmetric key-pair generation is supported.
+    supportsGeneratePair: boolean;
+    /// Whether key import is supported.
+    supportsImport: boolean;
+    /// Whether public-key export is supported.
+    supportsExportPublic: boolean;
+    /// Whether private-key export is supported.
+    supportsExportPrivate: boolean;
+    /// Whether secret-key export is supported.
+    supportsExportSecret: boolean;
+    /// Supported key usage bits.
+    supportedUsageMask: CryptoKeyUsageMask;
+    /// Supported import formats.
+    supportedImportFormats: Slice<CryptoKeyFormat>;
+    /// Supported export formats.
+    supportedExportFormats: Slice<CryptoKeyFormat>;
+}
+
+/// Signature capability row for one store identity.
+export struct CryptoStoreSignatureCapability {
+    /// Key algorithm family.
+    keyAlgorithm: CryptoKeyAlgorithm;
+    /// Signature algorithm selector.
+    signatureAlgorithm: CryptoSignatureAlgorithm;
+    /// Whether sign is supported.
+    supportsSign: boolean;
+    /// Whether verify is supported.
+    supportsVerify: boolean;
+    /// Supported digest algorithms.
+    supportedDigests: Slice<CryptoDigestAlgorithm>;
+}
+
+/// Asymmetric-encryption capability row for one store identity.
+export struct CryptoStoreAsymmetricEncryptionCapability {
+    /// Key algorithm family.
+    keyAlgorithm: CryptoKeyAlgorithm;
+    /// Asymmetric encryption algorithm selector.
+    algorithm: CryptoAsymmetricEncryptionAlgorithm;
+    /// Whether encrypt is supported.
+    supportsEncrypt: boolean;
+    /// Whether decrypt is supported.
+    supportsDecrypt: boolean;
+    /// Supported digest algorithms.
+    supportedDigests: Slice<CryptoDigestAlgorithm>;
+}
+
+/// Key-wrap capability row for one store identity.
+export struct CryptoStoreKeyWrapCapability {
+    /// Wrapping-key algorithm family.
+    wrappingKeyAlgorithm: CryptoKeyAlgorithm;
+    /// Key-wrap algorithm selector.
+    algorithm: CryptoKeyWrapAlgorithm;
+    /// Whether key wrap is supported.
+    supportsWrap: boolean;
+    /// Whether key unwrap is supported.
+    supportsUnwrap: boolean;
+    /// Supported digest algorithms for digest-parameterized wrap algorithms.
+    supportedDigests: Slice<CryptoDigestAlgorithm>;
+}
+
+/// Symmetric-cipher capability row for one store identity.
+export struct CryptoStoreCipherCapability {
+    /// Key algorithm family.
+    keyAlgorithm: CryptoKeyAlgorithm;
+    /// Cipher algorithm selector.
+    algorithm: CryptoCipherAlgorithm;
+    /// Whether one-shot operation is supported.
+    supportsOneShot: boolean;
+    /// Whether streaming operation is supported.
+    supportsStreaming: boolean;
+    /// Whether additional authenticated data is supported.
+    supportsAdditionalData: boolean;
+    /// Whether detached tag semantics are supported.
+    supportsDetachedTag: boolean;
+    /// Minimum supported tag length in bytes.
+    minTagLengthBytes: uint32;
+    /// Maximum supported tag length in bytes.
+    maxTagLengthBytes: uint32;
+}
+
+/// Message-authentication capability row for one store identity.
+export struct CryptoStoreMacCapability {
+    /// Key algorithm family.
+    keyAlgorithm: CryptoKeyAlgorithm;
+    /// MAC algorithm selector.
+    algorithm: CryptoMacAlgorithm;
+    /// Whether one-shot operation is supported.
+    supportsOneShot: boolean;
+    /// Whether streaming operation is supported.
+    supportsStreaming: boolean;
+    /// Supported digest algorithms.
+    supportedDigests: Slice<CryptoDigestAlgorithm>;
+    /// Minimum supported tag length in bytes.
+    minTagLengthBytes: uint32;
+    /// Maximum supported tag length in bytes.
+    maxTagLengthBytes: uint32;
+}
+
+/// Key-agreement capability row for one store identity.
+export struct CryptoStoreAgreementCapability {
+    /// Local private-key algorithm family.
+    privateKeyAlgorithm: CryptoKeyAlgorithm;
+    /// Peer public-key algorithm family.
+    peerPublicKeyAlgorithm: CryptoKeyAlgorithm;
+    /// Agreement algorithm selector.
+    algorithm: CryptoKeyAgreementAlgorithm;
+    /// Whether shared-secret derivation is supported.
+    supportsDeriveSharedSecret: boolean;
+    /// Whether key derivation is supported.
+    supportsDeriveKey: boolean;
+}
+
+/// Certificate capability row for one store identity.
+export struct CryptoStoreCertificateCapability {
+    /// Whether certificate import is supported.
+    supportsImport: boolean;
+    /// Whether certificate export is supported.
+    supportsExport: boolean;
+    /// Whether certificate descriptor reads are supported.
+    supportsDescriptor: boolean;
+    /// Whether certificate verification is supported.
+    supportsVerify: boolean;
+    /// Whether certificate deletion is supported.
+    supportsDelete: boolean;
+    /// Whether system trust-anchor reads are supported.
+    supportsSystemTrustAnchors: boolean;
+}
+
+/// Capability descriptor for one store backend identity.
+export struct CryptoStoreCapability {
+    /// Store identity.
+    identity: CryptoStoreIdentity;
+    /// Whether this store identity is available for open calls.
+    isAvailable: boolean;
+    /// Whether hardware-backed key operations are supported.
+    supportsHardwareBacked: boolean;
+    /// Whether persistent key operations are supported.
+    supportsPersistent: boolean;
+    /// Whether key export operations are supported by policy.
+    supportsKeyExport: boolean;
+    /// Supported key algorithm families for this store identity.
+    supportedKeyAlgorithms: Array<CryptoKeyAlgorithm>;
+    /// Supported key formats for this store identity.
+    supportedKeyFormats: Array<CryptoKeyFormat>;
+    /// Supported key residencies for this store identity.
+    supportedKeyResidencies: Array<CryptoKeyResidency>;
+    /// Operation-scoped key capability rows.
+    keyCapabilities: Array<CryptoStoreKeyCapability>;
+    /// Operation-scoped signature capability rows.
+    signatureCapabilities: Array<CryptoStoreSignatureCapability>;
+    /// Operation-scoped asymmetric-encryption capability rows.
+    asymmetricEncryptionCapabilities: Array<CryptoStoreAsymmetricEncryptionCapability>;
+    /// Operation-scoped key-wrap capability rows.
+    keyWrapCapabilities: Array<CryptoStoreKeyWrapCapability>;
+    /// Operation-scoped symmetric-cipher capability rows.
+    cipherCapabilities: Array<CryptoStoreCipherCapability>;
+    /// Operation-scoped message-authentication capability rows.
+    macCapabilities: Array<CryptoStoreMacCapability>;
+    /// Operation-scoped key-agreement capability rows.
+    agreementCapabilities: Array<CryptoStoreAgreementCapability>;
+    /// Operation-scoped certificate capability row.
+    certificateCapabilities: CryptoStoreCertificateCapability;
+}
+
+/// Key query selector for store enumeration.
+export struct CryptoKeyQuery {
+    /// Label prefix filter.
+    labelPrefix: string;
+    /// Key algorithm filter.
+    algorithm?: CryptoKeyAlgorithm;
+    /// Required key usage mask bits.
+    usageMask?: CryptoKeyUsageMask;
+    /// Pagination cursor.
+    cursor?: string;
+    /// Maximum returned entries.
+    limit?: uint32;
+}
+
+/// Certificate query selector for store enumeration.
+export struct CryptoCertificateQuery {
+    /// Subject substring filter.
+    subjectContains: string;
+    /// Issuer substring filter.
+    issuerContains: string;
+    /// Subject alternative name exact-match filter.
+    subjectAlternativeName: string;
+    /// Pagination cursor.
+    cursor?: string;
+    /// Maximum returned entries.
+    limit?: uint32;
+}
+
+/// Key list entry.
+export struct CryptoKeyListEntry {
+    /// Key handle.
+    handle: CryptoKeyHandle;
+    /// User-visible key label.
+    label: string;
+    /// Key algorithm family.
+    algorithm: CryptoKeyAlgorithm;
+    /// Key usage mask.
+    usageMask: CryptoKeyUsageMask;
+}
+
+/// Key list page.
+export struct CryptoKeyListPage {
+    /// Page entries.
+    entries: Array<CryptoKeyListEntry>;
+    /// Continuation cursor.
+    ///
+    /// Use one empty string when there is no next page.
+    nextCursor?: string;
+}
+
+/// Certificate list entry.
+export struct CryptoCertificateListEntry {
+    /// Certificate handle.
+    handle: CryptoCertificateHandle;
+    /// Subject name string.
+    subject: string;
+    /// Issuer name string.
+    issuer: string;
+    /// Serial number string.
+    serialNumber: string;
+}
+
+/// Certificate list page.
+export struct CryptoCertificateListPage {
+    /// Page entries.
+    entries: Array<CryptoCertificateListEntry>;
+    /// Continuation cursor.
+    ///
+    /// Use one empty string when there is no next page.
+    nextCursor?: string;
+}
+
+/// Crypto store bindings.
+/// List store backend kinds that are currently available.
+///
+/// Return one runtime capability snapshot for store backends that can be opened.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store capability introspection over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.crypto.store.probeKinds", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["crypto.probe"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function storeProbeKinds(): Result<Array<CryptoStoreKind>, PlatformError>;
+
+/// Return capabilities for one store backend identity.
+///
+/// Query one store kind and optional provider and return effective capability policy.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store capability introspection over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.crypto.store.probeCapability", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["crypto.probe"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "never",
+    affinity: "any",
+})
+export declare function storeProbeCapability(
+    kind: CryptoStoreKind,
+    provider?: CryptoStoreProvider,
+): Result<CryptoStoreCapability, PlatformError>;
+
+/// Open one crypto store.
+///
+/// Create one runtime crypto store handle for key and certificate operations.
+/// Provider selection and access scope follow runtime crypto store semantics.
+/// `Ephemeral` and `Provider` store support is required.
+/// Host-backed `System`, `User`, and `Machine` support is host dependent.
+/// Host-backed stores may expose certificate reads while rejecting key or certificate writes.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+/// Operations may return `notSupported` when host stores are unavailable.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.store.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.store.open", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.store.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function storeOpen(
+    options: CryptoStoreOptions,
+): Result<CryptoStoreHandle, PlatformError>;
+
+/// Close one crypto store.
+///
+/// Release one runtime crypto store handle.
+/// Open key and certificate handles remain valid according to runtime store lifetime rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+/// Operations may return `notSupported` when host stores are unavailable.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `crypto.store.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.store.close", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.store.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function storeClose(handle: CryptoStoreHandle): Result<void, PlatformError>;
+
+/// List keys from one store.
+///
+/// Enumerate key entries that match one query selector.
+/// Result ordering and visibility follow runtime store policies and caller permissions.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+/// Operations may return `notSupported` when host stores are unavailable.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.store.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.store.listKeys", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.store.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function storeListKeys(
+    handle: CryptoStoreHandle,
+    query: CryptoKeyQuery,
+): Result<CryptoKeyListPage, PlatformError>;
+
+/// List certificates from one store.
+///
+/// Enumerate certificate entries that match one query selector.
+/// Result ordering and visibility follow runtime store policies and caller permissions.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+/// Operations may return `notSupported` when host stores are unavailable.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.store.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+@binding("destack.crypto.store.listCertificates", {
+    effect: "external",
+    replay: "nonrecordable",
+    capabilities: ["crypto.store.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function storeListCertificates(
+    handle: CryptoStoreHandle,
+    query: CryptoCertificateQuery,
+): Result<CryptoCertificateListPage, PlatformError>;

@@ -1,0 +1,77 @@
+// Control flow and debugging intrinsics.
+//
+// Low-level control over execution, debugging support, and optimizer hints.
+
+import { intrinsic } from "./decorator.ds";
+
+/// Mark code as unreachable.
+///
+/// Indicates that this point in the code should never be reached.
+/// Behavior is undefined if executed. Allows the optimizer to remove
+/// code paths leading here.
+@intrinsic("unreachable")
+export declare function unreachable(): never;
+
+/// Trigger a debugger breakpoint.
+///
+/// Causes a software breakpoint. When running under a debugger, execution
+/// will pause here. Otherwise, may terminate or be a no-op depending on platform.
+@intrinsic("breakpoint")
+export declare function breakpoint(): void;
+
+/// Abort execution immediately.
+///
+/// Terminates the program abnormally without running destructors or cleanup.
+/// Does not return.
+@intrinsic("abort")
+export declare function abort(): never;
+
+/// Trigger a panic with a message.
+///
+/// Terminates the program with a diagnostic message.
+/// Does not return.
+@intrinsic("panic")
+export declare function panic(message: string): never;
+
+/// Get the return address.
+///
+/// Returns the address to which the current function will return.
+/// Useful for stack unwinding and debugging.
+@intrinsic("return_address")
+export declare function returnAddress(): *void;
+
+/// Get the frame pointer.
+///
+/// Returns the frame pointer (base pointer) of the current function.
+/// Useful for stack inspection and debugging.
+@intrinsic("frame_address")
+export declare function frameAddress(): *void;
+
+/// Hint that a condition is expected to have a specific value.
+///
+/// Returns `condition` unchanged but hints to the optimizer that
+/// `condition` is expected to equal `expected`.
+@intrinsic("expect")
+export declare function expect(condition: boolean, expected: boolean): boolean;
+
+/// Hint that a condition is likely true.
+///
+/// Returns `condition` unchanged but hints to the optimizer that
+/// it is expected to be true most of the time.
+@intrinsic("likely")
+export declare function likely(condition: boolean): boolean;
+
+/// Hint that a condition is likely false.
+///
+/// Returns `condition` unchanged but hints to the optimizer that
+/// it is expected to be false most of the time.
+@intrinsic("unlikely")
+export declare function unlikely(condition: boolean): boolean;
+
+/// Optimization barrier.
+///
+/// Returns `value` unchanged but prevents the optimizer from making
+/// assumptions about the value or optimizing across this call.
+/// Useful for benchmarking to prevent dead code elimination.
+@intrinsic("black_box")
+export declare function blackBox<T>(value: T): T;

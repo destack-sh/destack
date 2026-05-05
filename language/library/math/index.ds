@@ -1,0 +1,47 @@
+// bit manipulation
+export {
+    clz,
+    ctz,
+    popcnt,
+    byteSwap,
+    bitReverse,
+    rotateLeft,
+    rotateRight,
+} from "./bits.ds";
+
+// float math
+export {
+    sqrt,
+    abs,
+    fma,
+    copysign,
+    min,
+    max,
+    sin,
+    cos,
+    tan,
+    asin,
+    acos,
+    atan,
+    atan2,
+    exp,
+    exp2,
+    log,
+    log2,
+    log10,
+    pow,
+    floor,
+    ceil,
+    trunc,
+    round,
+} from "./float.ds";
+
+// checked arithmetic
+export {
+    OverflowResult,
+    addOverflow,
+    subOverflow,
+    mulOverflow,
+    satAdd,
+    satSub,
+} from "./checked.ds";

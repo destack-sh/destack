@@ -1,0 +1,238 @@
+/// A growable contiguous array.
+export struct Array<T> {
+    /// The backing storage view.
+    data: Slice<T>;
+    /// The allocated capacity in elements.
+    capacity: usize;
+}
+
+/// Readonly view of a dynamic array.
+export type ReadonlyArray<T> = readonly T[];
+
+/// Fixed-size array alias.
+export type FixedArray<T, comptime N: number> = [T; N];
+
+extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {
+    /// Get the length of the array.
+    get length(): number {
+        this.data.length
+    }
+
+    /// Check if the array is empty.
+    get isEmpty(): boolean {
+        this.data.isEmpty
+    }
+
+    /// Get the element at the index with bounds checks.
+    index(i: number): T {
+        if (i < 0 || i >= this.length) {
+            undefined!
+        }
+
+        this.unsafeGet(i as usize)
+    }
+
+    /// Set the element at the index with bounds checks.
+    indexSet(i: number, value: T): void {
+        if (i < 0 || i >= this.length) {
+            undefined!
+        }
+
+        this.unsafeSet(i as usize, value)
+    }
+
+    /// Get element at index (unchecked).
+    unsafeGet(i: usize): T {
+        this.data.unsafeGet(i)
+    }
+
+    /// Set element at index (unchecked).
+    unsafeSet(i: usize, value: T): void {
+        this.data.indexSet(i as number, value)
+    }
+
+    /// Push an element to the end.
+    push(value: T): void {
+        // #Incomplete
+    }
+
+    /// Pop an element from the end.
+    pop(): T | undefined {
+        if (this.isEmpty) {
+            return undefined;
+        }
+
+        // #Incomplete
+        undefined
+    }
+
+    /// Get the first element.
+    first(): T | undefined {
+        if (this.isEmpty) {
+            return undefined;
+        }
+
+        this.unsafeGet(0)
+    }
+
+    /// Get the last element.
+    last(): T | undefined {
+        if (this.isEmpty) {
+            return undefined;
+        }
+
+        this.unsafeGet(this.data.length as usize - 1)
+    }
+
+    /// Clear all elements.
+    clear(): void {
+        // #Incomplete
+    }
+
+    /// Reserve capacity for at least `additional` more elements.
+    reserve(additional: usize): void {
+        // #Incomplete
+    }
+
+    /// Shrink capacity to fit current length.
+    shrinkToFit(): void {
+        // #Incomplete
+    }
+
+    /// Create an iterator over the array.
+    [Symbol.iterator](): Iterator<T> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Map each element to a new value.
+    map<U>(f: (value: T, index: number) => U): Array<U> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Filter elements by predicate.
+    filter(predicate: (value: T, index: number) => boolean): Array<T> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Reduce array to single value.
+    reduce<U>(f: (acc: U, value: T, index: number) => U, initial: U): U {
+        // #Incomplete
+        initial
+    }
+
+    /// Find first element matching predicate.
+    find(predicate: (value: T, index: number) => boolean): T | undefined {
+        // #Incomplete
+        undefined
+    }
+
+    /// Find index of first element matching predicate.
+    findIndex(predicate: (value: T, index: number) => boolean): number {
+        // #Incomplete
+        -1
+    }
+
+    /// Check if any element matches predicate.
+    some(predicate: (value: T, index: number) => boolean): boolean {
+        // #Incomplete
+        false
+    }
+
+    /// Check if all elements match predicate.
+    every(predicate: (value: T, index: number) => boolean): boolean {
+        // #Incomplete
+        true
+    }
+
+    /// Execute function for each element.
+    forEach(f: (value: T, index: number) => void): void {
+        // #Incomplete
+    }
+
+    /// Check if array includes a value.
+    includes(value: T, fromIndex?: number): boolean {
+        // #Incomplete
+        false
+    }
+
+    /// Find index of value.
+    indexOf(value: T, fromIndex?: number): number {
+        // #Incomplete
+        -1
+    }
+
+    /// Join elements into a string.
+    join(separator?: string): string {
+        // #Incomplete
+        ""
+    }
+
+    /// Reverse the array in place.
+    reverse(): this {
+        // #Incomplete
+        this
+    }
+
+    /// Sort the array in place.
+    sort(compareFn?: (a: T, b: T) => number): this {
+        // #Incomplete
+        this
+    }
+
+    /// Get a slice of the array.
+    slice(start?: number, end?: number): Array<T> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Splice elements.
+    splice(start: number, deleteCount?: number, ...items: T[]): Array<T> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Concatenate arrays.
+    concat(...items: Array<T>[]): Array<T> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Flatten nested arrays.
+    flat<D extends number = 1>(depth?: D): Array<unknown> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Map and flatten.
+    flatMap<U>(f: (value: T, index: number) => Array<U>): Array<U> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Create an array from an iterable.
+    static from<T>(values: Iterable<T>): Array<T> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Create an array from a fixed-size array.
+    static fromSized<T>(values: readonly T[]): Array<T> {
+        // #Incomplete
+        undefined!
+    }
+}
+
+/// Create an array with the given elements.
+export function arrayOf<T>(...elements: T[]): Array<T> {
+    // #Incomplete
+    undefined!
+}
+
+/// Create an array with the given length, filled with a value.
+export function arrayFill<T>(length: usize, value: T): Array<T> {
+    // #Incomplete
+    undefined!
+}

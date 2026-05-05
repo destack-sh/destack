@@ -1,0 +1,238 @@
+import type { PlatformError } from "../error/index.ds";
+import { ResourceId, UringHandle } from "../resource/index.ds";
+import { Slice } from "core";
+
+/// io_uring setup parameters.
+export struct UringParameters {
+    /// Submission queue entry count.
+    entries: uint32;
+    /// io_uring setup flags.
+    flags: uint32;
+    /// SQ poll idle timeout in milliseconds.
+    sqThreadIdleMs: uint32;
+}
+
+/// io_uring feature probe result.
+export struct UringFeatures {
+    /// Whether submission polling is available.
+    hasSubmissionPolling: boolean;
+    /// Whether kernel-side thread polling is available.
+    hasKernelPolling: boolean;
+    /// Whether fixed-file registration is available.
+    hasFixedFiles: boolean;
+    /// Whether fixed-buffer registration is available.
+    hasFixedBuffers: boolean;
+    /// Maximum submission queue depth reported by the kernel.
+    maxEntries: uint32;
+}
+
+/// io_uring bindings.
+/// Open one io_uring ring.
+///
+/// Create one io_uring instance with explicit setup parameters.
+/// Kernel feature availability is validated during setup.
+///
+/// # Platform
+/// Linux.
+/// Uses io_uring_setup and associated ring mappings.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.uring`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.io.uring.open", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["io.uring"],
+    platforms: ["linux"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function uringOpen(parameters: UringParameters): Result<UringHandle, PlatformError>;
+
+/// Close one io_uring ring.
+///
+/// Tear down one io_uring instance and unmap ring memory.
+/// Pending entries are canceled or drained by kernel behavior.
+///
+/// # Platform
+/// Linux.
+/// Uses io_uring ring teardown and unmap operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.uring`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.io.uring.close", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["io.uring"],
+    platforms: ["linux"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function uringClose(handle: UringHandle): Result<void, PlatformError>;
+
+/// Query io_uring feature support.
+///
+/// Probe one ring instance for normalized feature support metadata.
+/// Feature flags are derived from host kernel capability bits.
+///
+/// # Platform
+/// Linux.
+/// Uses io_uring register and probe primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.uring`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.io.uring.features", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["io.uring"],
+    platforms: ["linux"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function uringFeatures(handle: UringHandle): Result<UringFeatures, PlatformError>;
+
+/// Register fixed files with a ring.
+///
+/// Register one fixed-file table from runtime resource identifiers.
+/// File registration semantics follow io_uring fixed-file contracts.
+///
+/// # Platform
+/// Linux.
+/// Uses io_uring register files operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.register`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.io.uring.registerFiles", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["io.register"],
+    platforms: ["linux"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function uringRegisterFiles(
+    handle: UringHandle,
+    files: Slice<ResourceId>,
+): Result<void, PlatformError>;
+
+/// Unregister fixed files for a ring.
+///
+/// Remove the fixed-file table for one ring.
+/// Pending operations that reference fixed files follow kernel cancellation semantics.
+///
+/// # Platform
+/// Linux.
+/// Uses io_uring unregister files operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.register`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.io.uring.unregisterFiles", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["io.register"],
+    platforms: ["linux"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function uringUnregisterFiles(handle: UringHandle): Result<void, PlatformError>;
+
+/// Register fixed buffers with a ring.
+///
+/// Register one fixed-buffer table from address and length lanes.
+/// Buffer registration semantics follow io_uring fixed-buffer contracts.
+///
+/// # Platform
+/// Linux.
+/// Uses io_uring register buffers operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.register`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.io.uring.registerBuffers", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["io.register"],
+    platforms: ["linux"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function uringRegisterBuffers(
+    handle: UringHandle,
+    addresses: Slice<uint64>,
+    lengths: Slice<uint32>,
+): Result<void, PlatformError>;
+
+/// Unregister fixed buffers for a ring.
+///
+/// Remove the fixed-buffer table for one ring.
+/// Pending operations that reference fixed buffers follow kernel cancellation semantics.
+///
+/// # Platform
+/// Linux.
+/// Uses io_uring unregister buffers operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.register`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.io.uring.unregisterBuffers", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["io.register"],
+    platforms: ["linux"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function uringUnregisterBuffers(handle: UringHandle): Result<void, PlatformError>;

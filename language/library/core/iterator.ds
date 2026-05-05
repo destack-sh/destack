@@ -1,0 +1,64 @@
+/// The global symbol constructor used by well known symbols.
+export declare interface SymbolConstructor {
+    /// The default iterator symbol used by for of semantics.
+    readonly iterator: unique symbol;
+
+    /// The default async iterator symbol used by for await of semantics.
+    readonly asyncIterator: unique symbol;
+
+    /// The default dispose symbol used by using semantics.
+    readonly dispose: unique symbol;
+
+    /// The default async dispose symbol used by await using semantics.
+    readonly asyncDispose: unique symbol;
+}
+
+/// The global Symbol constructor.
+export declare const Symbol: SymbolConstructor;
+
+/// The result of producing a value from an iterator.
+export interface IteratorYieldResult<TYield> {
+    /// Whether the iterator is complete.
+    done?: false;
+    /// The yielded value.
+    value: TYield;
+}
+
+/// The result of completing an iterator.
+export interface IteratorReturnResult<TReturn> {
+    /// Whether the iterator is complete.
+    done: true;
+    /// The return value.
+    value: TReturn;
+}
+
+/// The union of iterator yield and return results.
+export type IteratorResult<T, TReturn = any> =
+    | IteratorYieldResult<T>
+    | IteratorReturnResult<TReturn>;
+
+/// A protocol for producing a sequence of values.
+export interface Iterator<T, TReturn = any, TNext = any> {
+    /// Advance the iterator and return the next result.
+    next(...value: [] | [TNext]): IteratorResult<T, TReturn>;
+    /// Finalize the iterator and return the completion value.
+    return?(value?: TReturn): IteratorResult<T, TReturn>;
+    /// Signal an error to the iterator.
+    throw?(error?: any): IteratorResult<T, TReturn>;
+}
+
+/// A value that can produce an iterator.
+export interface Iterable<T, TReturn = any, TNext = any> {
+    /// Return a new iterator for this value.
+    [Symbol.iterator](): Iterator<T, TReturn, TNext>;
+}
+
+/// A value that is both iterable and its own iterator.
+export interface IterableIterator<
+    T,
+    TReturn = any,
+    TNext = any,
+> extends Iterator<T, TReturn, TNext> {
+    /// Return an iterator for this value.
+    [Symbol.iterator](): IterableIterator<T, TReturn, TNext>;
+}

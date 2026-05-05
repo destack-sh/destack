@@ -1,0 +1,10 @@
+/// Interface for unary `-`.
+///
+/// `-a` becomes `a.negate()`.
+export newtype interface Negate {
+    /// The result type.
+    type Output;
+
+    /// Negate this value.
+    negate(): this.Output;
+}

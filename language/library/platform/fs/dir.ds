@@ -1,0 +1,345 @@
+import { Array } from "core";
+import type { PlatformError } from "../error/index.ds";
+import { DirectoryHandle, FileHandle } from "../resource/index.ds";
+import { FileMode } from "./flags.ds";
+import { OsPath } from "./path.ds";
+
+/// File type for directory entries.
+export enum DirentKind {
+    /// A regular file.
+    File = 1,
+    /// A directory.
+    Directory = 2,
+    /// A symbolic link.
+    Symlink = 3,
+    /// A block device.
+    BlockDevice = 4,
+    /// A character device.
+    CharDevice = 5,
+    /// A FIFO/pipe.
+    Fifo = 6,
+    /// A socket.
+    Socket = 7,
+    /// An unknown type.
+    Unknown = 255,
+}
+
+/// Directory entry metadata.
+export struct Dirent {
+    /// Entry name.
+    name: OsPath;
+    /// Entry kind.
+    kind: DirentKind;
+}
+
+/// Incremental directory iteration payload when one entry was returned.
+export struct DirentNextEntry {
+    /// Discriminator for this incremental-read variant.
+    kind: "entry";
+    /// The current entry.
+    entry: Dirent;
+}
+
+/// Incremental directory iteration payload when end-of-directory was reached.
+export struct DirentNextEnd {
+    /// Discriminator for this incremental-read variant.
+    kind: "end";
+}
+
+/// Result payload for incremental directory iteration.
+export newtype DirentNext = DirentNextEntry | DirentNextEnd;
+
+/// Create a directory.
+///
+/// Create a single directory entry at the provided path with the supplied mode bits.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses mkdir(2) on Unix and CreateDirectoryW on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.write`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.fs.dir.mkdir", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function mkdir(path: OsPath, mode: FileMode): Result<void, PlatformError>;
+
+/// Create a directory relative to a directory handle.
+///
+/// Create a single directory entry relative to an existing directory descriptor.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses mkdirat(2) on Unix and handle-relative directory create on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.write`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.fs.dir.mkdirat", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function mkdirat(
+    dir: DirectoryHandle,
+    path: OsPath,
+    mode: FileMode,
+): Result<void, PlatformError>;
+
+/// Remove a directory.
+///
+/// Remove the target resource through a single host namespace operation with no runtime fallback path.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses rmdir(2) on Unix and RemoveDirectoryW on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.write`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.fs.dir.rmdir", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function rmdir(path: OsPath): Result<void, PlatformError>;
+
+/// Open a directory and return a handle.
+///
+/// Open the target resource with the requested flags and return the host handle exposed by the kernel.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses opendir/readdir on Unix and FindFirstFileW directory enumeration on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.fs.dir.opendir", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function opendir(path: OsPath): Result<DirectoryHandle, PlatformError>;
+
+/// Read directory entries from an open directory handle.
+///
+/// Read the full directory stream from the current cursor until the host reports end-of-directory.
+/// Entry ordering and type classification follow host directory iteration semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses readdir(3) loop on Unix and FindNextFileW loop on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.fs.dir.readdir", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function readdir(handle: DirectoryHandle): Result<Array<Dirent>, PlatformError>;
+
+/// Read a single directory entry from an open directory handle.
+///
+/// Read at most one entry from the current directory cursor and advance the host iterator.
+/// Callers can iterate deterministically by repeatedly invoking this operation until `kind` is `"end"`.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses readdir(3) step on Unix and FindNextFileW step on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.fs.dir.readdirNext", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function readdirNext(handle: DirectoryHandle): Result<DirentNext, PlatformError>;
+
+/// Reset an open directory handle to the first entry.
+///
+/// Reset the directory iteration cursor to the beginning of the stream.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses rewinddir(3) on Unix and enumeration reset on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.fs.dir.rewinddir", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function rewinddir(handle: DirectoryHandle): Result<void, PlatformError>;
+
+/// Resolve the directory descriptor for an open directory handle.
+///
+/// Extract the underlying file descriptor or handle value from an open directory stream.
+/// The returned handle is valid only while the source directory handle remains open.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses dirfd(3) on Unix and directory handle extraction on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.handle`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.fs.dir.dirfd", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.handle"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function dirfd(handle: DirectoryHandle): Result<FileHandle, PlatformError>;
+
+/// Close a directory handle.
+///
+/// Close the target handle by forwarding the descriptor teardown to the host kernel.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses closedir(3) on Unix and FindClose/CloseHandle on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.handle`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.fs.dir.closedir", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.handle"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function closedir(handle: DirectoryHandle): Result<void, PlatformError>;
+
+/// Create a temporary directory.
+///
+/// Create a unique temporary directory by replacing the trailing `XXXXXX` suffix in `template`.
+/// The resulting directory is created at the caller-supplied path, not in an implicit host temp root.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses mkdtemp(3) on Unix and a CreateDirectoryW-based template loop on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.temp`.
+///
+/// # Replay
+/// External, recordable.
+@binding("destack.fs.dir.mkdtemp", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.temp"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function mkdtemp(template: OsPath): Result<OsPath, PlatformError>;
