@@ -157,9 +157,9 @@ function main(): Result<int, Error> {
 }
 ```
 
-- contains: no matching overload
+- contains: nullable or Try
 
-### Try and non-Try unions need narrowing
+### mixed Try unions need narrowing
 
 The `?` operator needs a nullable value, a Try value, or a narrowed union.
 
@@ -172,4 +172,4 @@ function main(): Result<int, Error> {
 }
 ```
 
-- contains: no matching overload
+- contains: narrow

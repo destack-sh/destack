@@ -1,12 +1,14 @@
 # Coalescing
 
 The `??` operator keeps the value or evaluates the fallback.
+It falls back on outer nullish values, Try failures, and nullish values inside the opened success value.
+It does not open nested Try values or distribute over unrelated union arms.
 
 ## results
 
-### Try failures use fallback
+### fallback preserves opened success type
 
-> A failed Try value uses the fallback.
+Numeric fallbacks keep the opened success type when the literal fits.
 
 ```ds
 declare function getResult(): Result<int, Error>;
@@ -15,9 +17,9 @@ const value = getResult() ?? 0;
 value satisfies int;
 ```
 
-### outer nullish values use fallback
+### nullish wrappers preserve opened success type
 
-> Null and undefined on the left also use the fallback.
+Nullish wrappers use the fallback without widening the opened success type.
 
 ```ds
 declare function getMaybeResult(): Result<int, Error> | null | undefined;
@@ -26,9 +28,9 @@ const value = getMaybeResult() ?? 0;
 value satisfies int;
 ```
 
-### nullish success values use fallback
+### nullish success values preserve opened success type
 
-> A null success value also uses the fallback.
+Nullish success values use the fallback without widening the opened success type.
 
 ```ds
 declare function getMaybeResult(): Result<int | null, Error>;
@@ -37,9 +39,9 @@ const value = getMaybeResult() ?? 0;
 value satisfies int;
 ```
 
-### nullish failures use fallback
+### nullish failures preserve opened success type
 
-> Nullish values inside the opened layer use the fallback.
+Nullish values inside the opened layer use the fallback without widening the opened success type.
 
 ```ds
 declare function getMaybeResult(): Result<int | null | undefined, Error | null> | undefined;
@@ -50,7 +52,7 @@ value satisfies int;
 
 ### fallback types join
 
-> A fallback with a different type joins the result.
+A fallback with a different type joins the opened success type.
 
 ```ds
 declare function getMaybeResult(): Result<int, Error> | null;
@@ -61,7 +63,7 @@ value satisfies int | string;
 
 ### fallback Results are not unwrapped
 
-> The fallback expression is not unwrapped.
+The fallback expression is ordinary code, even when it is another Result.
 
 ```ds
 declare function getResult(): Result<int, Error>;
@@ -73,7 +75,7 @@ value satisfies int | Result<string, Error>;
 
 ### coalescing opens one Try layer
 
-> Coalescing opens only one Try layer.
+Only the outer Try layer is opened.
 
 ```ds
 declare function getNested(): Result<Result<int, Error>, Error>;
@@ -82,11 +84,30 @@ const value = getNested() ?? 0;
 value satisfies Result<int, Error> | int;
 ```
 
+### Try carrier unions join success types
+
+Coalescing can open a union when every non-nullish arm is a Try carrier.
+
+```ds
+struct MissingError implements Error {
+    message: string;
+}
+
+struct FormatError implements Error {
+    message: string;
+}
+
+declare function getResult(): Result<int, MissingError> | Result<string, FormatError>;
+
+const value = getResult() ?? false;
+value satisfies int | string | boolean;
+```
+
 ## custom
 
-### custom Try failures use fallback
+### custom Try fallback preserves opened success type
 
-Coalescing uses the fallback instead of propagating failure.
+Custom Try implementors use the same fallback typing.
 
 ```ds
 struct Maybe<T, E> {
@@ -96,7 +117,7 @@ struct Maybe<T, E> {
 extension<T, E> of Maybe<T, E> implements Try {
     type Value = T;
     type Failure = E;
-    
+
     static fromValue(value: T): Maybe<T, E> {
         Maybe { branchValue: TryContinue { kind: "continue", value } }
     }
@@ -114,9 +135,9 @@ value satisfies int;
 
 ## narrowing
 
-### Try and non-Try unions need narrowing
+### mixed Try unions need narrowing
 
-> A union of Try and unrelated values must be narrowed first.
+A union of Try and unrelated values must be narrowed first.
 
 ```ds
 declare function getMaybeResult(): Result<int, Error> | string;
@@ -124,11 +145,11 @@ declare function getMaybeResult(): Result<int, Error> | string;
 const value = getMaybeResult() ?? 0;
 ```
 
-- contains: no matching overload
+- contains: narrow
 
 ### nullish mixed unions need narrowing
 
-> Nullish members are allowed, but unrelated members must be narrowed first.
+Nullish members are allowed, but unrelated members must be narrowed first.
 
 ```ds
 declare function getMaybeResult(): Result<int, Error> | null | string;
@@ -136,4 +157,4 @@ declare function getMaybeResult(): Result<int, Error> | null | string;
 const value = getMaybeResult() ?? 0;
 ```
 
-- contains: no matching overload
+- contains: narrow
