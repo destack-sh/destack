@@ -21,10 +21,10 @@ pub(crate) struct AllocationLayout {
 }
 
 impl AllocationLayout {
-    /// Return one borrowed heap allocation plan.
+    /// Return one borrowed heap allocation shape.
     #[inline(always)]
-    pub(crate) fn plan<'a>(&self, reference_map: &'a ReferenceMap) -> heap::AllocationPlan<'a> {
-        heap::AllocationPlan {
+    pub(crate) fn shape<'a>(&self, reference_map: &'a ReferenceMap) -> heap::AllocationShape<'a> {
+        heap::AllocationShape {
             byte_len: self.byte_len,
             alignment: self.alignment,
             reference_map,

@@ -42,14 +42,6 @@ pub(crate) struct FieldAccess {
     pub word_layout: Option<WordLayout>,
 }
 
-impl FieldAccess {
-    /// Return whether this access fits in one VM word.
-    #[inline(always)]
-    pub(crate) fn is_word(self) -> bool {
-        self.word_layout.is_some()
-    }
-}
-
 /// One compiled element access.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ElementAccess {

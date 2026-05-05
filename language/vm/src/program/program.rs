@@ -25,7 +25,7 @@ pub struct Program {
     pub(crate) side_table: SideTable,
     /// Lookup table for function ids by name.
     pub(crate) function_id_by_name: HashMap<String, mir::LocalNodeId<mir::Function>>,
-    /// Layout metadata for types, heap allocation, and external views.
+    /// Layout metadata for types, heap allocation, and binding views.
     layout_index: LayoutIndex,
     /// Immutable program static data.
     pub(crate) statics: engine::StaticSpace,
@@ -167,9 +167,12 @@ impl Program {
         self.layout_index.table()
     }
 
-    /// Return the resolved heap allocation plan for one layout id.
-    pub(crate) fn allocation_plan(&self, layout_id: LayoutId) -> Result<heap::AllocationPlan<'_>> {
-        self.layout_index.allocation_plan(layout_id)
+    /// Return the heap allocation shape for one layout id.
+    pub(crate) fn allocation_shape(
+        &self,
+        layout_id: LayoutId,
+    ) -> Result<heap::AllocationShape<'_>> {
+        self.layout_index.allocation_shape(layout_id)
     }
 
     /// Return the layout id for one MIR type.
@@ -183,11 +186,6 @@ impl Program {
         global: mir::LocalNodeId<mir::Global>,
     ) -> Option<StaticPointer> {
         self.statics.pointer(self.static_id(global))
-    }
-
-    /// Borrow program static bytes for one global.
-    pub(crate) fn static_bytes(&self, global: mir::LocalNodeId<mir::Global>) -> Option<&[u8]> {
-        self.statics.bytes(self.static_id(global))
     }
 
     /// Return whether one global is stored in program static space.
@@ -803,7 +801,7 @@ impl ProgramBuilder {
 
         // collect imported and lowerable callables
         for (function_id, function) in self.tree.iter_nodes::<mir::Function>() {
-            // imported functions stay as import targets
+            // binding functions stay as import targets
             if function.is_import() {
                 target_by_id.insert(function_id, CallTarget::Import);
                 continue;

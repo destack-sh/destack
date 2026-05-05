@@ -1,18 +1,109 @@
 use {destack_heap as heap, destack_mir as mir};
 
 use super::{
-    AllocationLayout, Call, CallBranch, CallIndirect, CallIndirectBranch, CallInterface,
-    CallInterfaceBranch, CallVirtual, CallVirtualBranch, ConstValue, ElementAccess, FieldAccess,
-    FrameAccess, Intrinsic, MoveRange, PointeeAccess, SliceElementAccess, SwitchCase, TailCall,
-    TailCallIndirect, TailCallInterface, TailCallVirtual, TensorBroadcast, TensorCompare,
-    TensorConcat, TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract,
-    TensorFill, TensorGather, TensorLoad, TensorPad, TensorReduce, TensorReshape, TensorScatter,
-    TensorSelect, TensorSlice, TensorStore, TensorTranspose, TensorView,
+    AllocationLayout, AtomicCompareExchange, AtomicFence, AtomicLoad, AtomicRmw, AtomicStore, Call,
+    CallBranch, CallIndirect, CallIndirectBranch, CallInterface, CallInterfaceBranch, CallVirtual,
+    CallVirtualBranch, ConstValue, ElementAccess, FieldAccess, FrameAccess, FrameSelect, Intrinsic,
+    MoveRange, PointeeAccess, SliceElementAccess, SwitchCase, TailCall, TailCallIndirect,
+    TailCallInterface, TailCallVirtual, TensorBinary, TensorBroadcast, TensorConcat, TensorConvert,
+    TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather, TensorLoad,
+    TensorPad, TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore,
+    TensorTranspose, TensorUnary, TensorView, VectorBinary, VectorConvert, VectorExtract,
+    VectorInsert, VectorReduce, VectorSelect, VectorShuffle, VectorSplat, VectorUnary,
 };
 
 /// Identifier for one pooled check constraint.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct CheckId(pub(crate) u32);
+
+/// One lowered runtime check.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Check {
+    /// Bounds check over word index and length values.
+    Bounds {
+        /// The index word offset.
+        index: u32,
+        /// The length word offset.
+        length: u32,
+        /// Whether the index is signed.
+        index_signed: bool,
+        /// Whether the length is signed.
+        length_signed: bool,
+    },
+    /// Non-null check over one word.
+    Null {
+        /// The value word offset.
+        value: u32,
+    },
+    /// Division-by-zero check over one word.
+    DivZero {
+        /// The divisor word offset.
+        divisor: u32,
+        /// Whether the divisor is signed.
+        is_signed: bool,
+    },
+    /// Shift range check over one word.
+    ShiftRange {
+        /// The shift amount word offset.
+        value: u32,
+        /// The shifted type bit width.
+        bit_width: u8,
+        /// Whether the shift amount is signed.
+        is_signed: bool,
+    },
+    /// Integer narrowing check over one word.
+    Narrow {
+        /// The value word offset.
+        value: u32,
+        /// The target bit width.
+        to_width: u8,
+        /// Whether the value is signed.
+        is_signed: bool,
+    },
+    /// Signed add overflow check over two words.
+    OverflowAddInt(OverflowCheck),
+    /// Unsigned add overflow check over two words.
+    OverflowAddUint(OverflowCheck),
+    /// Signed subtract overflow check over two words.
+    OverflowSubInt(OverflowCheck),
+    /// Unsigned subtract overflow check over two words.
+    OverflowSubUint(OverflowCheck),
+    /// Signed multiply overflow check over two words.
+    OverflowMulInt(OverflowCheck),
+    /// Unsigned multiply overflow check over two words.
+    OverflowMulUint(OverflowCheck),
+    /// Signed divide or remainder overflow check over two words.
+    OverflowDivInt(OverflowCheck),
+    /// Unsigned divide or remainder overflow check over two words.
+    OverflowDivUint(OverflowCheck),
+    /// Runtime type descriptor check.
+    Type {
+        /// The descriptor word offset.
+        value: u32,
+        /// The expected type id.
+        expected: u32,
+    },
+    /// Union tag check.
+    Union {
+        /// The tag word offset.
+        value: u32,
+        /// The expected tag.
+        expected: u64,
+        /// Whether the tag is signed.
+        is_signed: bool,
+    },
+}
+
+/// Two word operands for one overflow check.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct OverflowCheck {
+    /// The left operand word offset.
+    pub(crate) left: u32,
+    /// The right operand word offset.
+    pub(crate) right: u32,
+    /// The operand bit width.
+    pub(crate) width: u8,
+}
 
 /// Identifier for one pooled switch case table.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -170,6 +261,21 @@ macro_rules! side_record_table {
 }
 
 side_record_table! {
+    frame_select: FrameSelect,
+    atomic_load: AtomicLoad,
+    atomic_store: AtomicStore,
+    atomic_rmw: AtomicRmw,
+    atomic_compare_exchange: AtomicCompareExchange,
+    atomic_fence: AtomicFence,
+    vector_splat: VectorSplat,
+    vector_extract: VectorExtract,
+    vector_binary: VectorBinary,
+    vector_unary: VectorUnary,
+    vector_insert: VectorInsert,
+    vector_shuffle: VectorShuffle,
+    vector_select: VectorSelect,
+    vector_reduce: VectorReduce,
+    vector_convert: VectorConvert,
     call: Call,
     call_branch: CallBranch,
     call_virtual: CallVirtual,
@@ -180,6 +286,8 @@ side_record_table! {
     call_indirect_branch: CallIndirectBranch,
     tensor_load: TensorLoad,
     tensor_extract: TensorExtract,
+    tensor_binary: TensorBinary,
+    tensor_unary: TensorUnary,
     tensor_store: TensorStore,
     tensor_fill: TensorFill,
     tensor_copy: TensorCopy,
@@ -194,7 +302,6 @@ side_record_table! {
     tensor_convolution: TensorConvolution,
     tensor_gather: TensorGather,
     tensor_scatter: TensorScatter,
-    tensor_compare: TensorCompare,
     tensor_select: TensorSelect,
     tensor_convert: TensorConvert,
     tensor_view: TensorView,
@@ -231,7 +338,7 @@ pub(crate) struct SideTable {
     /// Pooled pointee accesses.
     pointee_access: Box<[PointeeAccess]>,
     /// Pooled check constraints.
-    check: Box<[mir::CheckConstraint]>,
+    check: Box<[Check]>,
     /// Pooled switch case tables.
     switch_cases: Box<[Box<[SwitchCase]>]>,
     /// Pooled dense switch tables.
@@ -260,7 +367,7 @@ pub(crate) struct SideTableBuilder {
     /// Pooled side records.
     record: SideRecordTableBuilder,
     /// Pooled check constraints.
-    check: Vec<mir::CheckConstraint>,
+    check: Vec<Check>,
     /// Pooled switch case tables.
     switch_cases: Vec<Box<[SwitchCase]>>,
     /// Pooled dense switch tables.
@@ -358,7 +465,7 @@ impl SideTableBuilder {
     }
 
     /// Add one check constraint to the side table.
-    pub(crate) fn push_check(&mut self, check: mir::CheckConstraint) -> CheckId {
+    pub(crate) fn push_check(&mut self, check: Check) -> CheckId {
         let id = self.check.len() as u32;
         self.check.push(check);
 
@@ -697,7 +804,7 @@ impl SideTable {
 
     /// Borrow one pooled check constraint.
     #[inline(always)]
-    pub(crate) fn check(&self, id: CheckId) -> &mir::CheckConstraint {
+    pub(crate) fn check(&self, id: CheckId) -> &Check {
         &self.check[id.0 as usize]
     }
 

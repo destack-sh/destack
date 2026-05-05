@@ -95,7 +95,7 @@ impl FunctionTable {
     }
 }
 
-/// Program call target resolved for one function id.
+/// Program call target for one function id.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum CallTarget {
     /// The function id names one imported callable.
