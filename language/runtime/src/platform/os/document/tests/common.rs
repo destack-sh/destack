@@ -62,7 +62,7 @@ pub(super) fn pick_options_harness_value(
 ) -> HarnessValue<DocumentPickOptions, DocumentPickOptionsVm> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             let mime_types = mime_types
                 .iter()
                 .map(|value| {
@@ -157,7 +157,7 @@ pub(super) fn decode_document_descriptors(
                 &mut *(context
                     .vm_context
                     .expect("vm context should exist for vm harness")
-                    as *mut vm::ExternalCallContext<'_>)
+                    as *mut vm::BindingContext<'_>)
             };
             let descriptors = value.read_values(&vm_context.read())?;
             let mut values = Vec::with_capacity(descriptors.len());
@@ -183,7 +183,7 @@ pub(super) fn string_harness_value(
 ) -> HarnessValue<NativeStringRef, vm::StringHandle> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             let value = vm::StringHandle::new(
                 vm_context
                     .intern_string(value)
@@ -208,7 +208,7 @@ pub(super) fn decode_document_bytes(
                 &mut *(context
                     .vm_context
                     .expect("vm context should exist for vm harness")
-                    as *mut vm::ExternalCallContext<'_>)
+                    as *mut vm::BindingContext<'_>)
             };
 
             value.read_bytes(&vm_context.read())

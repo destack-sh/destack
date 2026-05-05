@@ -62,13 +62,13 @@ impl VmAbiCodec for PipeHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -117,13 +117,13 @@ impl VmAbiCodec for ResourceId {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -172,13 +172,13 @@ impl VmAbiCodec for TransferredHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -199,7 +199,7 @@ pub type MessageQueueReceiveVm = MessageQueueReceive;
 
 impl VmAggregateCodec for MessageQueueReceive {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -209,7 +209,7 @@ impl VmAggregateCodec for MessageQueueReceive {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -232,7 +232,7 @@ impl VmAggregateCodec for MessageQueueReceive {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("ipc::MessageQueueReceive")
@@ -269,13 +269,13 @@ impl VmAbiCodec for MessageQueueReceive {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -298,7 +298,7 @@ pub type PipePairVm = PipePair;
 
 impl VmAggregateCodec for PipePair {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -308,7 +308,7 @@ impl VmAggregateCodec for PipePair {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -333,7 +333,7 @@ impl VmAggregateCodec for PipePair {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("ipc::PipePair")
@@ -372,13 +372,13 @@ impl VmAbiCodec for PipePair {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -401,7 +401,7 @@ pub type SharedMemoryMappingVm = SharedMemoryMapping;
 
 impl VmAggregateCodec for SharedMemoryMapping {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -411,7 +411,7 @@ impl VmAggregateCodec for SharedMemoryMapping {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -434,7 +434,7 @@ impl VmAggregateCodec for SharedMemoryMapping {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("ipc::SharedMemoryMapping")
@@ -471,13 +471,13 @@ impl VmAbiCodec for SharedMemoryMapping {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -502,7 +502,7 @@ pub type UnixPeerCredentialsVm = UnixPeerCredentials;
 
 impl VmAggregateCodec for UnixPeerCredentials {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -512,7 +512,7 @@ impl VmAggregateCodec for UnixPeerCredentials {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -538,7 +538,7 @@ impl VmAggregateCodec for UnixPeerCredentials {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("ipc::UnixPeerCredentials")
@@ -580,13 +580,13 @@ impl VmAbiCodec for UnixPeerCredentials {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -632,7 +632,7 @@ impl Clone for UnixReceiveAncillaryAbi<VmAbi> {
 
 impl VmAggregateCodec for UnixReceiveAncillaryAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -642,7 +642,7 @@ impl VmAggregateCodec for UnixReceiveAncillaryAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -672,7 +672,7 @@ impl VmAggregateCodec for UnixReceiveAncillaryAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("ipc::UnixReceiveAncillary")
@@ -750,7 +750,7 @@ impl VmAbiCodec for UnixReceiveAncillaryAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UnixReceiveAncillaryValue {
             bytes: <u64 as VmAbiCodec>::into_value(self.bytes, context)?,
@@ -766,7 +766,7 @@ impl VmAbiCodec for UnixReceiveAncillaryAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {

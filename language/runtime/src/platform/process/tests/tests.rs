@@ -195,7 +195,7 @@ fn native_string(value: NativeStringRef) -> RuntimeResult<String> {
 
 /// Decode a VM string handle into an owned string.
 fn vm_string(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<String> {
     let value_ref = context
@@ -232,7 +232,7 @@ fn native_path_to_utf8(path: fs::OsPath) -> RuntimeResult<String> {
 
 /// Decode a VM `OsPath` value into UTF-8.
 fn vm_path_to_utf8(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     path: fs::OsPathVm,
 ) -> RuntimeResult<String> {
     match path {
@@ -266,7 +266,7 @@ fn native_path_from_utf8(binding: &BindingCallContext, value: &str) -> fs::OsPat
 
 /// Encode a UTF-8 path string into VM `OsPath`.
 fn vm_path_from_utf8(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: &str,
 ) -> RuntimeResult<fs::OsPathVm> {
     #[cfg(unix)]
@@ -313,7 +313,7 @@ fn vm_path_from_utf8(
 
 /// Build one VM string slice from owned string values.
 fn vm_string_slice(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     values: &[String],
 ) -> RuntimeResult<VmSlice<vm::StringHandle>> {
     let handles = values
@@ -331,7 +331,7 @@ fn vm_string_slice(
 
 /// Build one VM stdio slice from test specs.
 fn vm_process_stdio_slice(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     values: &[ProcessStdioSpec],
 ) -> RuntimeResult<VmSlice<ProcessStdioVm>> {
     if values.is_empty() {
@@ -408,7 +408,7 @@ fn vm_process_stdio_slice(
 
 /// Build one VM fd-action slice from test specs.
 fn vm_process_fd_action_slice(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     values: &[ProcessFdActionSpec],
 ) -> RuntimeResult<VmSlice<ProcessFdActionVm>> {
     if values.is_empty() {
@@ -816,7 +816,7 @@ impl ProcessHarnessHandle {
                 harness
                     .runtime
                     .with_vm_call_context(|call_context, vm_context| {
-                        let vm_context = vm_context as *mut vm::ExternalCallContext<'_> as *mut ();
+                        let vm_context = vm_context as *mut vm::BindingContext<'_> as *mut ();
                         callback(ProcessHarnessContext {
                             call_context,
                             vm_context: Some(vm_context),

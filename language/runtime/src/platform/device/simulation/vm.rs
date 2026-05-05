@@ -26,7 +26,7 @@ use destack_vm as vm;
 /// Simulation binding for `destack.device.bluetooth.adapterList`.
 pub(crate) fn destack_device_bluetooth_adapter_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<VmSlice<BluetoothAdapterDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.adapterList",
@@ -37,7 +37,7 @@ pub(crate) fn destack_device_bluetooth_adapter_list(
 /// Simulation binding for `destack.device.bluetooth.adapterWatchClose`.
 pub(crate) fn destack_device_bluetooth_adapter_watch_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothAdapterWatchHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -50,7 +50,7 @@ pub(crate) fn destack_device_bluetooth_adapter_watch_close(
 /// Simulation binding for `destack.device.bluetooth.adapterWatchOpen`.
 pub(crate) fn destack_device_bluetooth_adapter_watch_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<resource::BluetoothAdapterWatchHandle> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.adapterWatchOpen",
@@ -61,7 +61,7 @@ pub(crate) fn destack_device_bluetooth_adapter_watch_open(
 /// Simulation binding for `destack.device.bluetooth.adapterWatchRead`.
 pub(crate) fn destack_device_bluetooth_adapter_watch_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothAdapterWatchHandle,
     timeoutns: u64,
 ) -> RuntimeResult<BluetoothAdapterEventVm> {
@@ -75,7 +75,7 @@ pub(crate) fn destack_device_bluetooth_adapter_watch_read(
 /// Simulation binding for `destack.device.bluetooth.adapterWatchTryRead`.
 pub(crate) fn destack_device_bluetooth_adapter_watch_try_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothAdapterWatchHandle,
 ) -> RuntimeResult<BluetoothAdapterEventVm> {
     let _ = handle;
@@ -88,7 +88,7 @@ pub(crate) fn destack_device_bluetooth_adapter_watch_try_read(
 /// Simulation binding for `destack.device.bluetooth.gatt.characteristicList`.
 pub(crate) fn destack_device_bluetooth_gatt_characteristic_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     serviceid: vm::StringHandle,
 ) -> RuntimeResult<VmSlice<BluetoothGattCharacteristicVm>> {
@@ -102,7 +102,7 @@ pub(crate) fn destack_device_bluetooth_gatt_characteristic_list(
 /// Simulation binding for `destack.device.bluetooth.gatt.descriptorList`.
 pub(crate) fn destack_device_bluetooth_gatt_descriptor_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     characteristicid: vm::StringHandle,
 ) -> RuntimeResult<VmSlice<BluetoothGattDescriptorVm>> {
@@ -116,7 +116,7 @@ pub(crate) fn destack_device_bluetooth_gatt_descriptor_list(
 /// Simulation binding for `destack.device.bluetooth.gatt.mtu`.
 pub(crate) fn destack_device_bluetooth_gatt_mtu(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<u16> {
     let _ = handle;
@@ -129,7 +129,7 @@ pub(crate) fn destack_device_bluetooth_gatt_mtu(
 /// Simulation binding for `destack.device.bluetooth.gatt.read`.
 pub(crate) fn destack_device_bluetooth_gatt_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     characteristicid: vm::StringHandle,
     timeoutns: u64,
@@ -144,7 +144,7 @@ pub(crate) fn destack_device_bluetooth_gatt_read(
 /// Simulation binding for `destack.device.bluetooth.gatt.readDescriptor`.
 pub(crate) fn destack_device_bluetooth_gatt_read_descriptor(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     descriptorid: vm::StringHandle,
     timeoutns: u64,
@@ -159,7 +159,7 @@ pub(crate) fn destack_device_bluetooth_gatt_read_descriptor(
 /// Simulation binding for `destack.device.bluetooth.gatt.readEvent`.
 pub(crate) fn destack_device_bluetooth_gatt_read_event(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothSubscriptionHandle,
     timeoutns: u64,
 ) -> RuntimeResult<BluetoothGattValueEventVm> {
@@ -173,7 +173,7 @@ pub(crate) fn destack_device_bluetooth_gatt_read_event(
 /// Simulation binding for `destack.device.bluetooth.gatt.serviceList`.
 pub(crate) fn destack_device_bluetooth_gatt_service_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<VmSlice<BluetoothGattServiceVm>> {
     let _ = handle;
@@ -186,7 +186,7 @@ pub(crate) fn destack_device_bluetooth_gatt_service_list(
 /// Simulation binding for `destack.device.bluetooth.gatt.subscribe`.
 pub(crate) fn destack_device_bluetooth_gatt_subscribe(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     characteristicid: vm::StringHandle,
 ) -> RuntimeResult<resource::BluetoothSubscriptionHandle> {
@@ -200,7 +200,7 @@ pub(crate) fn destack_device_bluetooth_gatt_subscribe(
 /// Simulation binding for `destack.device.bluetooth.gatt.tryReadEvent`.
 pub(crate) fn destack_device_bluetooth_gatt_try_read_event(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeResult<BluetoothGattValueEventVm> {
     let _ = handle;
@@ -213,7 +213,7 @@ pub(crate) fn destack_device_bluetooth_gatt_try_read_event(
 /// Simulation binding for `destack.device.bluetooth.gatt.unsubscribe`.
 pub(crate) fn destack_device_bluetooth_gatt_unsubscribe(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -226,7 +226,7 @@ pub(crate) fn destack_device_bluetooth_gatt_unsubscribe(
 /// Simulation binding for `destack.device.bluetooth.gatt.write`.
 pub(crate) fn destack_device_bluetooth_gatt_write(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     characteristicid: vm::StringHandle,
     argument_value: VmSlice<u8>,
@@ -243,7 +243,7 @@ pub(crate) fn destack_device_bluetooth_gatt_write(
 /// Simulation binding for `destack.device.bluetooth.gatt.writeDescriptor`.
 pub(crate) fn destack_device_bluetooth_gatt_write_descriptor(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     descriptorid: vm::StringHandle,
     argument_value: VmSlice<u8>,
@@ -259,7 +259,7 @@ pub(crate) fn destack_device_bluetooth_gatt_write_descriptor(
 /// Simulation binding for `destack.device.bluetooth.scan.close`.
 pub(crate) fn destack_device_bluetooth_scan_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -272,7 +272,7 @@ pub(crate) fn destack_device_bluetooth_scan_close(
 /// Simulation binding for `destack.device.bluetooth.scan.open`.
 pub(crate) fn destack_device_bluetooth_scan_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     adapterid: vm::StringHandle,
     filter: Option<BluetoothScanFilterVm>,
 ) -> RuntimeResult<resource::BluetoothScanHandle> {
@@ -286,7 +286,7 @@ pub(crate) fn destack_device_bluetooth_scan_open(
 /// Simulation binding for `destack.device.bluetooth.scan.readEvent`.
 pub(crate) fn destack_device_bluetooth_scan_read_event(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothScanHandle,
     timeoutns: u64,
 ) -> RuntimeResult<BluetoothScanEventVm> {
@@ -300,7 +300,7 @@ pub(crate) fn destack_device_bluetooth_scan_read_event(
 /// Simulation binding for `destack.device.bluetooth.scan.tryReadEvent`.
 pub(crate) fn destack_device_bluetooth_scan_try_read_event(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeResult<BluetoothScanEventVm> {
     let _ = handle;
@@ -313,7 +313,7 @@ pub(crate) fn destack_device_bluetooth_scan_try_read_event(
 /// Simulation binding for `destack.device.bluetooth.session.close`.
 pub(crate) fn destack_device_bluetooth_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -326,7 +326,7 @@ pub(crate) fn destack_device_bluetooth_close(
 /// Simulation binding for `destack.device.bluetooth.session.descriptor`.
 pub(crate) fn destack_device_bluetooth_descriptor(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<BluetoothDeviceDescriptorVm> {
     let _ = handle;
@@ -339,7 +339,7 @@ pub(crate) fn destack_device_bluetooth_descriptor(
 /// Simulation binding for `destack.device.bluetooth.session.open`.
 pub(crate) fn destack_device_bluetooth_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     adapterid: vm::StringHandle,
     deviceid: vm::StringHandle,
 ) -> RuntimeResult<resource::BluetoothDeviceHandle> {
@@ -353,7 +353,7 @@ pub(crate) fn destack_device_bluetooth_open(
 /// Simulation binding for `destack.device.bluetooth.session.pair`.
 pub(crate) fn destack_device_bluetooth_pair(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
@@ -367,7 +367,7 @@ pub(crate) fn destack_device_bluetooth_pair(
 /// Simulation binding for `destack.device.bluetooth.session.readEvent`.
 pub(crate) fn destack_device_bluetooth_session_read_event(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     timeoutns: u64,
 ) -> RuntimeResult<BluetoothSessionEventVm> {
@@ -381,7 +381,7 @@ pub(crate) fn destack_device_bluetooth_session_read_event(
 /// Simulation binding for `destack.device.bluetooth.session.rssi`.
 pub(crate) fn destack_device_bluetooth_read_rssi(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     timeoutns: u64,
 ) -> RuntimeResult<i32> {
@@ -395,7 +395,7 @@ pub(crate) fn destack_device_bluetooth_read_rssi(
 /// Simulation binding for `destack.device.bluetooth.session.tryReadEvent`.
 pub(crate) fn destack_device_bluetooth_session_try_read_event(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<BluetoothSessionEventVm> {
     let _ = handle;
@@ -408,7 +408,7 @@ pub(crate) fn destack_device_bluetooth_session_try_read_event(
 /// Simulation binding for `destack.device.bluetooth.session.unpair`.
 pub(crate) fn destack_device_bluetooth_unpair(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     adapterid: vm::StringHandle,
     deviceid: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -422,7 +422,7 @@ pub(crate) fn destack_device_bluetooth_unpair(
 /// Simulation binding for `destack.device.camera.device.close`.
 pub(crate) fn destack_device_camera_device_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -435,7 +435,7 @@ pub(crate) fn destack_device_camera_device_close(
 /// Simulation binding for `destack.device.camera.device.list`.
 pub(crate) fn destack_device_camera_device_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<VmSlice<CameraDeviceDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.device.list",
@@ -446,7 +446,7 @@ pub(crate) fn destack_device_camera_device_list(
 /// Simulation binding for `destack.device.camera.device.open`.
 pub(crate) fn destack_device_camera_device_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<resource::CameraDeviceHandle> {
     let _ = id;
@@ -459,7 +459,7 @@ pub(crate) fn destack_device_camera_device_open(
 /// Simulation binding for `destack.device.camera.device.streamCapabilityList`.
 pub(crate) fn destack_device_camera_device_stream_capability_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<VmSlice<CameraStreamCapabilityVm>> {
     let _ = handle;
@@ -472,7 +472,7 @@ pub(crate) fn destack_device_camera_device_stream_capability_list(
 /// Simulation binding for `destack.device.camera.device.watchClose`.
 pub(crate) fn destack_device_camera_device_watch_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraWatchHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -485,7 +485,7 @@ pub(crate) fn destack_device_camera_device_watch_close(
 /// Simulation binding for `destack.device.camera.device.watchOpen`.
 pub(crate) fn destack_device_camera_device_watch_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<resource::CameraWatchHandle> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.device.watchOpen",
@@ -496,7 +496,7 @@ pub(crate) fn destack_device_camera_device_watch_open(
 /// Simulation binding for `destack.device.camera.device.watchRead`.
 pub(crate) fn destack_device_camera_device_watch_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraWatchHandle,
     timeoutns: u64,
 ) -> RuntimeResult<CameraWatchEventVm> {
@@ -510,7 +510,7 @@ pub(crate) fn destack_device_camera_device_watch_read(
 /// Simulation binding for `destack.device.camera.device.watchTryRead`.
 pub(crate) fn destack_device_camera_device_watch_try_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraWatchHandle,
 ) -> RuntimeResult<CameraWatchEventVm> {
     let _ = handle;
@@ -523,7 +523,7 @@ pub(crate) fn destack_device_camera_device_watch_try_read(
 /// Simulation binding for `destack.device.camera.stream.close`.
 pub(crate) fn destack_device_camera_stream_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -536,7 +536,7 @@ pub(crate) fn destack_device_camera_stream_close(
 /// Simulation binding for `destack.device.camera.stream.config`.
 pub(crate) fn destack_device_camera_stream_config(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraStreamConfigVm> {
     let _ = handle;
@@ -549,7 +549,7 @@ pub(crate) fn destack_device_camera_stream_config(
 /// Simulation binding for `destack.device.camera.stream.configureControls`.
 pub(crate) fn destack_device_camera_stream_configure_controls(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     controls: CameraControlPatchVm,
 ) -> RuntimeResult<()> {
@@ -563,7 +563,7 @@ pub(crate) fn destack_device_camera_stream_configure_controls(
 /// Simulation binding for `destack.device.camera.stream.controlCapabilities`.
 pub(crate) fn destack_device_camera_stream_control_capabilities(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraControlCapabilitiesVm> {
     let _ = handle;
@@ -576,7 +576,7 @@ pub(crate) fn destack_device_camera_stream_control_capabilities(
 /// Simulation binding for `destack.device.camera.stream.controlState`.
 pub(crate) fn destack_device_camera_stream_control_state(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraControlStateVm> {
     let _ = handle;
@@ -589,7 +589,7 @@ pub(crate) fn destack_device_camera_stream_control_state(
 /// Simulation binding for `destack.device.camera.stream.open`.
 pub(crate) fn destack_device_camera_stream_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::CameraDeviceHandle,
     config: CameraStreamConfigVm,
 ) -> RuntimeResult<resource::CameraStreamHandle> {
@@ -603,7 +603,7 @@ pub(crate) fn destack_device_camera_stream_open(
 /// Simulation binding for `destack.device.camera.stream.pauseRecording`.
 pub(crate) fn destack_device_camera_stream_pause_recording(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -616,7 +616,7 @@ pub(crate) fn destack_device_camera_stream_pause_recording(
 /// Simulation binding for `destack.device.camera.stream.photoCapabilities`.
 pub(crate) fn destack_device_camera_stream_photo_capabilities(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraPhotoCapabilitiesVm> {
     let _ = handle;
@@ -629,7 +629,7 @@ pub(crate) fn destack_device_camera_stream_photo_capabilities(
 /// Simulation binding for `destack.device.camera.stream.photoState`.
 pub(crate) fn destack_device_camera_stream_photo_state(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraPhotoStateVm> {
     let _ = handle;
@@ -642,7 +642,7 @@ pub(crate) fn destack_device_camera_stream_photo_state(
 /// Simulation binding for `destack.device.camera.stream.read`.
 pub(crate) fn destack_device_camera_stream_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     timeoutns: u64,
 ) -> RuntimeResult<CameraFrameVm> {
@@ -656,7 +656,7 @@ pub(crate) fn destack_device_camera_stream_read(
 /// Simulation binding for `destack.device.camera.stream.recordingCapabilities`.
 pub(crate) fn destack_device_camera_stream_recording_capabilities(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraRecordingCapabilitiesVm> {
     let _ = handle;
@@ -669,7 +669,7 @@ pub(crate) fn destack_device_camera_stream_recording_capabilities(
 /// Simulation binding for `destack.device.camera.stream.recordingState`.
 pub(crate) fn destack_device_camera_stream_recording_state(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraRecordingStateVm> {
     let _ = handle;
@@ -682,7 +682,7 @@ pub(crate) fn destack_device_camera_stream_recording_state(
 /// Simulation binding for `destack.device.camera.stream.resumeRecording`.
 pub(crate) fn destack_device_camera_stream_resume_recording(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -695,7 +695,7 @@ pub(crate) fn destack_device_camera_stream_resume_recording(
 /// Simulation binding for `destack.device.camera.stream.start`.
 pub(crate) fn destack_device_camera_stream_start(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -708,7 +708,7 @@ pub(crate) fn destack_device_camera_stream_start(
 /// Simulation binding for `destack.device.camera.stream.startRecording`.
 pub(crate) fn destack_device_camera_stream_start_recording(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     options: CameraRecordingOptionsVm,
 ) -> RuntimeResult<()> {
@@ -722,7 +722,7 @@ pub(crate) fn destack_device_camera_stream_start_recording(
 /// Simulation binding for `destack.device.camera.stream.stop`.
 pub(crate) fn destack_device_camera_stream_stop(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -735,7 +735,7 @@ pub(crate) fn destack_device_camera_stream_stop(
 /// Simulation binding for `destack.device.camera.stream.stopRecording`.
 pub(crate) fn destack_device_camera_stream_stop_recording(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     timeoutns: u64,
 ) -> RuntimeResult<CameraRecordingVm> {
@@ -749,7 +749,7 @@ pub(crate) fn destack_device_camera_stream_stop_recording(
 /// Simulation binding for `destack.device.camera.stream.takePhoto`.
 pub(crate) fn destack_device_camera_stream_take_photo(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     settings: CameraPhotoSettingsVm,
     timeoutns: u64,
@@ -764,7 +764,7 @@ pub(crate) fn destack_device_camera_stream_take_photo(
 /// Simulation binding for `destack.device.camera.stream.tryRead`.
 pub(crate) fn destack_device_camera_stream_try_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraFrameVm> {
     let _ = handle;
@@ -777,7 +777,7 @@ pub(crate) fn destack_device_camera_stream_try_read(
 /// Simulation binding for `destack.device.midi.backend.list`.
 pub(crate) fn destack_device_midi_backend_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<VmSlice<MidiBackendDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.midi.backend.list",
@@ -788,7 +788,7 @@ pub(crate) fn destack_device_midi_backend_list(
 /// Simulation binding for `destack.device.midi.event.close`.
 pub(crate) fn destack_device_midi_event_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiEventHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -801,7 +801,7 @@ pub(crate) fn destack_device_midi_event_close(
 /// Simulation binding for `destack.device.midi.event.open`.
 pub(crate) fn destack_device_midi_event_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     options: MidiEventSubscriptionOptionsVm,
 ) -> RuntimeResult<resource::MidiEventHandle> {
     let _ = options;
@@ -814,7 +814,7 @@ pub(crate) fn destack_device_midi_event_open(
 /// Simulation binding for `destack.device.midi.event.read`.
 pub(crate) fn destack_device_midi_event_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<MidiEventVm> {
@@ -828,7 +828,7 @@ pub(crate) fn destack_device_midi_event_read(
 /// Simulation binding for `destack.device.midi.event.readBatch`.
 pub(crate) fn destack_device_midi_event_read_batch(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiEventHandle,
     maxevents: u32,
     timeoutns: u64,
@@ -843,7 +843,7 @@ pub(crate) fn destack_device_midi_event_read_batch(
 /// Simulation binding for `destack.device.midi.event.tryRead`.
 pub(crate) fn destack_device_midi_event_try_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiEventHandle,
 ) -> RuntimeResult<MidiEventVm> {
     let _ = handle;
@@ -856,7 +856,7 @@ pub(crate) fn destack_device_midi_event_try_read(
 /// Simulation binding for `destack.device.midi.event.tryReadBatch`.
 pub(crate) fn destack_device_midi_event_try_read_batch(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiEventHandle,
     maxevents: u32,
 ) -> RuntimeResult<VmSlice<MidiEventVm>> {
@@ -870,7 +870,7 @@ pub(crate) fn destack_device_midi_event_try_read_batch(
 /// Simulation binding for `destack.device.midi.input.port.close`.
 pub(crate) fn destack_device_midi_input_port_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiInputPortHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -883,7 +883,7 @@ pub(crate) fn destack_device_midi_input_port_close(
 /// Simulation binding for `destack.device.midi.input.port.descriptor`.
 pub(crate) fn destack_device_midi_input_port_descriptor(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiInputPortHandle,
 ) -> RuntimeResult<MidiPortDescriptorVm> {
     let _ = handle;
@@ -896,7 +896,7 @@ pub(crate) fn destack_device_midi_input_port_descriptor(
 /// Simulation binding for `destack.device.midi.input.port.list`.
 pub(crate) fn destack_device_midi_input_port_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     options: MidiPortListOptionsVm,
 ) -> RuntimeResult<VmSlice<MidiPortDescriptorVm>> {
     let _ = options;
@@ -909,7 +909,7 @@ pub(crate) fn destack_device_midi_input_port_list(
 /// Simulation binding for `destack.device.midi.input.port.open`.
 pub(crate) fn destack_device_midi_input_port_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     id: vm::StringHandle,
     options: MidiInputPortOpenOptionsVm,
 ) -> RuntimeResult<resource::MidiInputPortHandle> {
@@ -923,7 +923,7 @@ pub(crate) fn destack_device_midi_input_port_open(
 /// Simulation binding for `destack.device.midi.input.read`.
 pub(crate) fn destack_device_midi_input_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiInputPortHandle,
     timeoutns: u64,
 ) -> RuntimeResult<MidiInputRecordVm> {
@@ -937,7 +937,7 @@ pub(crate) fn destack_device_midi_input_read(
 /// Simulation binding for `destack.device.midi.input.readBatch`.
 pub(crate) fn destack_device_midi_input_read_batch(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiInputPortHandle,
     maxrecords: u32,
     timeoutns: u64,
@@ -952,7 +952,7 @@ pub(crate) fn destack_device_midi_input_read_batch(
 /// Simulation binding for `destack.device.midi.input.tryRead`.
 pub(crate) fn destack_device_midi_input_try_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiInputPortHandle,
 ) -> RuntimeResult<MidiInputRecordVm> {
     let _ = handle;
@@ -965,7 +965,7 @@ pub(crate) fn destack_device_midi_input_try_read(
 /// Simulation binding for `destack.device.midi.input.tryReadBatch`.
 pub(crate) fn destack_device_midi_input_try_read_batch(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiInputPortHandle,
     maxrecords: u32,
 ) -> RuntimeResult<VmArray<MidiInputRecordVm>> {
@@ -979,7 +979,7 @@ pub(crate) fn destack_device_midi_input_try_read_batch(
 /// Simulation binding for `destack.device.midi.input.virtual.create`.
 pub(crate) fn destack_device_midi_input_virtual_create(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     options: MidiVirtualInputCreateOptionsVm,
 ) -> RuntimeResult<resource::MidiInputPortHandle> {
     let _ = options;
@@ -992,7 +992,7 @@ pub(crate) fn destack_device_midi_input_virtual_create(
 /// Simulation binding for `destack.device.midi.output.port.close`.
 pub(crate) fn destack_device_midi_output_port_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiOutputPortHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1005,7 +1005,7 @@ pub(crate) fn destack_device_midi_output_port_close(
 /// Simulation binding for `destack.device.midi.output.port.descriptor`.
 pub(crate) fn destack_device_midi_output_port_descriptor(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiOutputPortHandle,
 ) -> RuntimeResult<MidiPortDescriptorVm> {
     let _ = handle;
@@ -1018,7 +1018,7 @@ pub(crate) fn destack_device_midi_output_port_descriptor(
 /// Simulation binding for `destack.device.midi.output.port.list`.
 pub(crate) fn destack_device_midi_output_port_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     options: MidiPortListOptionsVm,
 ) -> RuntimeResult<VmSlice<MidiPortDescriptorVm>> {
     let _ = options;
@@ -1031,7 +1031,7 @@ pub(crate) fn destack_device_midi_output_port_list(
 /// Simulation binding for `destack.device.midi.output.port.open`.
 pub(crate) fn destack_device_midi_output_port_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     id: vm::StringHandle,
     options: MidiOutputPortOpenOptionsVm,
 ) -> RuntimeResult<resource::MidiOutputPortHandle> {
@@ -1045,7 +1045,7 @@ pub(crate) fn destack_device_midi_output_port_open(
 /// Simulation binding for `destack.device.midi.output.virtual.create`.
 pub(crate) fn destack_device_midi_output_virtual_create(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     options: MidiVirtualOutputCreateOptionsVm,
 ) -> RuntimeResult<resource::MidiOutputPortHandle> {
     let _ = options;
@@ -1058,7 +1058,7 @@ pub(crate) fn destack_device_midi_output_virtual_create(
 /// Simulation binding for `destack.device.midi.output.write`.
 pub(crate) fn destack_device_midi_output_write(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiOutputPortHandle,
     records: VmArray<MidiOutputRecordVm>,
 ) -> RuntimeResult<u32> {
@@ -1072,7 +1072,7 @@ pub(crate) fn destack_device_midi_output_write(
 /// Simulation binding for `destack.device.serial.close`.
 pub(crate) fn destack_device_serial_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1082,7 +1082,7 @@ pub(crate) fn destack_device_serial_close(
 /// Simulation binding for `destack.device.serial.config`.
 pub(crate) fn destack_device_serial_config(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<SerialPortConfigVm> {
     let _ = handle;
@@ -1092,7 +1092,7 @@ pub(crate) fn destack_device_serial_config(
 /// Simulation binding for `destack.device.serial.configure`.
 pub(crate) fn destack_device_serial_configure(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
     config: SerialPortConfigVm,
 ) -> RuntimeResult<()> {
@@ -1106,7 +1106,7 @@ pub(crate) fn destack_device_serial_configure(
 /// Simulation binding for `destack.device.serial.descriptor`.
 pub(crate) fn destack_device_serial_descriptor(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<SerialPortDescriptorVm> {
     let _ = handle;
@@ -1119,7 +1119,7 @@ pub(crate) fn destack_device_serial_descriptor(
 /// Simulation binding for `destack.device.serial.discardInput`.
 pub(crate) fn destack_device_serial_discard_input(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1132,7 +1132,7 @@ pub(crate) fn destack_device_serial_discard_input(
 /// Simulation binding for `destack.device.serial.discardOutput`.
 pub(crate) fn destack_device_serial_discard_output(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1145,7 +1145,7 @@ pub(crate) fn destack_device_serial_discard_output(
 /// Simulation binding for `destack.device.serial.drain`.
 pub(crate) fn destack_device_serial_drain(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1155,7 +1155,7 @@ pub(crate) fn destack_device_serial_drain(
 /// Simulation binding for `destack.device.serial.getSignals`.
 pub(crate) fn destack_device_serial_get_signals(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<SerialInputSignalsVm> {
     let _ = handle;
@@ -1168,7 +1168,7 @@ pub(crate) fn destack_device_serial_get_signals(
 /// Simulation binding for `destack.device.serial.list`.
 pub(crate) fn destack_device_serial_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<VmSlice<SerialPortDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.list")).boxed())
 }
@@ -1176,7 +1176,7 @@ pub(crate) fn destack_device_serial_list(
 /// Simulation binding for `destack.device.serial.open`.
 pub(crate) fn destack_device_serial_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     id: vm::StringHandle,
     options: SerialPortOpenOptionsVm,
 ) -> RuntimeResult<resource::SerialPortHandle> {
@@ -1187,7 +1187,7 @@ pub(crate) fn destack_device_serial_open(
 /// Simulation binding for `destack.device.serial.readEvent`.
 pub(crate) fn destack_device_serial_read_event(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
     timeoutns: u64,
 ) -> RuntimeResult<SerialEventVm> {
@@ -1201,7 +1201,7 @@ pub(crate) fn destack_device_serial_read_event(
 /// Simulation binding for `destack.device.serial.readInto`.
 pub(crate) fn destack_device_serial_read_into(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
     buffer: VmSlice<u8>,
     timeoutns: u64,
@@ -1216,7 +1216,7 @@ pub(crate) fn destack_device_serial_read_into(
 /// Simulation binding for `destack.device.serial.setSignals`.
 pub(crate) fn destack_device_serial_set_signals(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
     signals: SerialOutputSignalsVm,
 ) -> RuntimeResult<()> {
@@ -1230,7 +1230,7 @@ pub(crate) fn destack_device_serial_set_signals(
 /// Simulation binding for `destack.device.serial.tryReadEvent`.
 pub(crate) fn destack_device_serial_try_read_event(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<SerialEventVm> {
     let _ = handle;
@@ -1243,7 +1243,7 @@ pub(crate) fn destack_device_serial_try_read_event(
 /// Simulation binding for `destack.device.serial.tryReadInto`.
 pub(crate) fn destack_device_serial_try_read_into(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -1257,7 +1257,7 @@ pub(crate) fn destack_device_serial_try_read_into(
 /// Simulation binding for `destack.device.serial.watchClose`.
 pub(crate) fn destack_device_serial_watch_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialWatchHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1270,7 +1270,7 @@ pub(crate) fn destack_device_serial_watch_close(
 /// Simulation binding for `destack.device.serial.watchOpen`.
 pub(crate) fn destack_device_serial_watch_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<resource::SerialWatchHandle> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.serial.watchOpen",
@@ -1281,7 +1281,7 @@ pub(crate) fn destack_device_serial_watch_open(
 /// Simulation binding for `destack.device.serial.watchRead`.
 pub(crate) fn destack_device_serial_watch_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialWatchHandle,
     timeoutns: u64,
 ) -> RuntimeResult<SerialWatchEventVm> {
@@ -1295,7 +1295,7 @@ pub(crate) fn destack_device_serial_watch_read(
 /// Simulation binding for `destack.device.serial.watchTryRead`.
 pub(crate) fn destack_device_serial_watch_try_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialWatchHandle,
 ) -> RuntimeResult<SerialWatchEventVm> {
     let _ = handle;
@@ -1308,7 +1308,7 @@ pub(crate) fn destack_device_serial_watch_try_read(
 /// Simulation binding for `destack.device.serial.write`.
 pub(crate) fn destack_device_serial_write(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
     data: VmSlice<u8>,
     timeoutns: u64,
@@ -1320,7 +1320,7 @@ pub(crate) fn destack_device_serial_write(
 /// Simulation binding for `destack.device.usb.bosCapabilityList`.
 pub(crate) fn destack_device_usb_bos_capability_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<VmSlice<UsbBosCapabilityDescriptorVm>> {
     let _ = handle;
@@ -1333,7 +1333,7 @@ pub(crate) fn destack_device_usb_bos_capability_list(
 /// Simulation binding for `destack.device.usb.bulkRead`.
 pub(crate) fn destack_device_usb_bulk_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
     maxbytes: u32,
@@ -1346,7 +1346,7 @@ pub(crate) fn destack_device_usb_bulk_read(
 /// Simulation binding for `destack.device.usb.bulkWrite`.
 pub(crate) fn destack_device_usb_bulk_write(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
     argument_bytes: VmSlice<u8>,
@@ -1359,7 +1359,7 @@ pub(crate) fn destack_device_usb_bulk_write(
 /// Simulation binding for `destack.device.usb.claimInterface`.
 pub(crate) fn destack_device_usb_claim_interface(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeResult<()> {
@@ -1373,7 +1373,7 @@ pub(crate) fn destack_device_usb_claim_interface(
 /// Simulation binding for `destack.device.usb.clearHalt`.
 pub(crate) fn destack_device_usb_clear_halt(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
 ) -> RuntimeResult<()> {
@@ -1384,7 +1384,7 @@ pub(crate) fn destack_device_usb_clear_halt(
 /// Simulation binding for `destack.device.usb.close`.
 pub(crate) fn destack_device_usb_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1394,7 +1394,7 @@ pub(crate) fn destack_device_usb_close(
 /// Simulation binding for `destack.device.usb.configurationGet`.
 pub(crate) fn destack_device_usb_configuration_get(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<u8> {
     let _ = handle;
@@ -1407,7 +1407,7 @@ pub(crate) fn destack_device_usb_configuration_get(
 /// Simulation binding for `destack.device.usb.configurationList`.
 pub(crate) fn destack_device_usb_configuration_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<VmSlice<UsbConfigurationDescriptorVm>> {
     let _ = handle;
@@ -1420,7 +1420,7 @@ pub(crate) fn destack_device_usb_configuration_list(
 /// Simulation binding for `destack.device.usb.configurationSet`.
 pub(crate) fn destack_device_usb_configuration_set(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     configurationvalue: u8,
 ) -> RuntimeResult<()> {
@@ -1434,7 +1434,7 @@ pub(crate) fn destack_device_usb_configuration_set(
 /// Simulation binding for `destack.device.usb.controlRead`.
 pub(crate) fn destack_device_usb_control_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     setup: UsbControlSetupVm,
     timeoutns: u64,
@@ -1449,7 +1449,7 @@ pub(crate) fn destack_device_usb_control_read(
 /// Simulation binding for `destack.device.usb.controlWrite`.
 pub(crate) fn destack_device_usb_control_write(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     setup: UsbControlSetupVm,
     argument_bytes: VmSlice<u8>,
@@ -1465,7 +1465,7 @@ pub(crate) fn destack_device_usb_control_write(
 /// Simulation binding for `destack.device.usb.descriptor`.
 pub(crate) fn destack_device_usb_descriptor(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<UsbDeviceDescriptorVm> {
     let _ = handle;
@@ -1478,7 +1478,7 @@ pub(crate) fn destack_device_usb_descriptor(
 /// Simulation binding for `destack.device.usb.interruptRead`.
 pub(crate) fn destack_device_usb_interrupt_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
     maxbytes: u32,
@@ -1494,7 +1494,7 @@ pub(crate) fn destack_device_usb_interrupt_read(
 /// Simulation binding for `destack.device.usb.interruptWrite`.
 pub(crate) fn destack_device_usb_interrupt_write(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
     argument_bytes: VmSlice<u8>,
@@ -1510,7 +1510,7 @@ pub(crate) fn destack_device_usb_interrupt_write(
 /// Simulation binding for `destack.device.usb.isochronousRead`.
 pub(crate) fn destack_device_usb_isochronous_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
     packetsizes: VmSlice<u32>,
@@ -1526,7 +1526,7 @@ pub(crate) fn destack_device_usb_isochronous_read(
 /// Simulation binding for `destack.device.usb.isochronousWrite`.
 pub(crate) fn destack_device_usb_isochronous_write(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
     argument_bytes: VmSlice<u8>,
@@ -1543,7 +1543,7 @@ pub(crate) fn destack_device_usb_isochronous_write(
 /// Simulation binding for `destack.device.usb.list`.
 pub(crate) fn destack_device_usb_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<VmSlice<UsbDeviceDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.usb.list")).boxed())
 }
@@ -1551,7 +1551,7 @@ pub(crate) fn destack_device_usb_list(
 /// Simulation binding for `destack.device.usb.open`.
 pub(crate) fn destack_device_usb_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<resource::UsbDeviceHandle> {
     let _ = id;
@@ -1561,7 +1561,7 @@ pub(crate) fn destack_device_usb_open(
 /// Simulation binding for `destack.device.usb.releaseInterface`.
 pub(crate) fn destack_device_usb_release_interface(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeResult<()> {
@@ -1575,7 +1575,7 @@ pub(crate) fn destack_device_usb_release_interface(
 /// Simulation binding for `destack.device.usb.reset`.
 pub(crate) fn destack_device_usb_reset(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1585,7 +1585,7 @@ pub(crate) fn destack_device_usb_reset(
 /// Simulation binding for `destack.device.usb.setInterfaceAlternateSetting`.
 pub(crate) fn destack_device_usb_set_interface_alternate_setting(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
     alternatesetting: u8,
@@ -1600,7 +1600,7 @@ pub(crate) fn destack_device_usb_set_interface_alternate_setting(
 /// Simulation binding for `destack.device.usb.stringDescriptor`.
 pub(crate) fn destack_device_usb_string_descriptor(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     languageid: u16,
 ) -> RuntimeResult<UsbStringDescriptorVm> {
@@ -1614,7 +1614,7 @@ pub(crate) fn destack_device_usb_string_descriptor(
 /// Simulation binding for `destack.device.usb.stringLanguageList`.
 pub(crate) fn destack_device_usb_string_language_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<VmSlice<u16>> {
     let _ = handle;
@@ -1627,7 +1627,7 @@ pub(crate) fn destack_device_usb_string_language_list(
 /// Simulation binding for `destack.device.usb.transferCancel`.
 pub(crate) fn destack_device_usb_transfer_cancel(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
 ) -> RuntimeResult<()> {
@@ -1641,7 +1641,7 @@ pub(crate) fn destack_device_usb_transfer_cancel(
 /// Simulation binding for `destack.device.usb.transferCancelAll`.
 pub(crate) fn destack_device_usb_transfer_cancel_all(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1654,7 +1654,7 @@ pub(crate) fn destack_device_usb_transfer_cancel_all(
 /// Simulation binding for `destack.device.usb.watchClose`.
 pub(crate) fn destack_device_usb_watch_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1667,7 +1667,7 @@ pub(crate) fn destack_device_usb_watch_close(
 /// Simulation binding for `destack.device.usb.watchOpen`.
 pub(crate) fn destack_device_usb_watch_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<resource::UsbWatchHandle> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.usb.watchOpen")).boxed())
 }
@@ -1675,7 +1675,7 @@ pub(crate) fn destack_device_usb_watch_open(
 /// Simulation binding for `destack.device.usb.watchRead`.
 pub(crate) fn destack_device_usb_watch_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbWatchHandle,
     timeoutns: u64,
 ) -> RuntimeResult<UsbHotplugEventVm> {
@@ -1686,7 +1686,7 @@ pub(crate) fn destack_device_usb_watch_read(
 /// Simulation binding for `destack.device.usb.watchTryRead`.
 pub(crate) fn destack_device_usb_watch_try_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<UsbHotplugEventVm> {
     let _ = handle;

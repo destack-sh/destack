@@ -31,7 +31,7 @@ use super::{
 /// Close one worker.
 pub(crate) fn destack_runtime_worker_close(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     argument_worker: WorkerHandle,
 ) -> RuntimeResult<()> {
     // remove the external handle first
@@ -46,7 +46,7 @@ pub(crate) fn destack_runtime_worker_close(
 /// Spawn one worker in one runtime.
 pub(crate) fn destack_runtime_worker_create(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     runtime_handle: RuntimeHandle,
     options: Option<WorkerCreateOptionsVm>,
 ) -> RuntimeResult<WorkerHandle> {
@@ -78,7 +78,7 @@ pub(crate) fn destack_runtime_worker_create(
 /// Describe one worker.
 pub(crate) fn destack_runtime_worker_describe(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_worker: WorkerHandle,
 ) -> RuntimeResult<WorkerDescriptorVm> {
     // resolve one live worker descriptor
@@ -104,7 +104,7 @@ pub(crate) fn destack_runtime_worker_describe(
 /// Close one runtime.
 pub(crate) fn destack_runtime_runtime_close(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     argument_runtime: RuntimeHandle,
 ) -> RuntimeResult<()> {
     // remove the external handle first
@@ -123,7 +123,7 @@ pub(crate) fn destack_runtime_runtime_close(
 /// Spawn one runtime in one world.
 pub(crate) fn destack_runtime_runtime_create(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     options: Option<RuntimeCreateOptionsVm>,
 ) -> RuntimeResult<RuntimeHandle> {
@@ -157,7 +157,7 @@ pub(crate) fn destack_runtime_runtime_create(
 /// Describe one runtime.
 pub(crate) fn destack_runtime_runtime_describe(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_runtime: RuntimeHandle,
 ) -> RuntimeResult<RuntimeDescriptorVm> {
     // resolve one live runtime descriptor
@@ -176,7 +176,7 @@ pub(crate) fn destack_runtime_runtime_describe(
 /// Close one world.
 pub(crate) fn destack_runtime_world_close(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
 ) -> RuntimeResult<()> {
     let control = control();
@@ -187,7 +187,7 @@ pub(crate) fn destack_runtime_world_close(
 /// Create one world.
 pub(crate) fn destack_runtime_world_create(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     options: Option<WorldCreateOptionsVm>,
 ) -> RuntimeResult<WorldHandle> {
     // request decode
@@ -215,7 +215,7 @@ pub(crate) fn destack_runtime_world_create(
 /// Describe one world.
 pub(crate) fn destack_runtime_world_describe(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
 ) -> RuntimeResult<WorldDescriptorVm> {
     let control = control();
@@ -234,7 +234,7 @@ pub(crate) fn destack_runtime_world_describe(
 /// Advance one world by one scheduler step.
 pub(crate) fn destack_runtime_world_tick(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
 ) -> RuntimeResult<RuntimeTickOutcome> {
     let control = control();
@@ -253,7 +253,7 @@ pub(crate) fn destack_runtime_world_tick(
 /// Close one pinned runtime view.
 pub(crate) fn destack_runtime_world_view_close(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
 ) -> RuntimeResult<()> {
     // drop the external pinned view handle
@@ -267,7 +267,7 @@ pub(crate) fn destack_runtime_world_view_close(
 /// Open one pinned runtime view.
 pub(crate) fn destack_runtime_world_view_open(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     options: Option<WorldViewOptionsVm>,
 ) -> RuntimeResult<WorldViewHandle> {
@@ -302,7 +302,7 @@ pub(crate) fn destack_runtime_world_view_open(
 /// Describe the world visible through one pinned runtime view.
 pub(crate) fn destack_runtime_world_view(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
 ) -> RuntimeResult<WorldDescriptorVm> {
     // resolve the pinned revision backing for this view
@@ -317,7 +317,7 @@ pub(crate) fn destack_runtime_world_view(
 /// Describe the pinned revision for one world view.
 pub(crate) fn destack_runtime_revision_view(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
 ) -> RuntimeResult<RevisionDescriptorVm> {
     // resolve one pinned revision
@@ -332,7 +332,7 @@ pub(crate) fn destack_runtime_revision_view(
 /// Describe the pinned image for one world view.
 pub(crate) fn destack_runtime_image_view(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
 ) -> RuntimeResult<ImageDescriptorVm> {
     // resolve one pinned image
@@ -348,7 +348,7 @@ pub(crate) fn destack_runtime_image_view(
 /// Describe the pinned trace state for one world view.
 pub(crate) fn destack_runtime_trace_view(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
 ) -> RuntimeResult<TraceDescriptorVm> {
     // resolve one pinned trace position
@@ -362,7 +362,7 @@ pub(crate) fn destack_runtime_trace_view(
 /// List runtimes visible through one pinned world view.
 pub(crate) fn destack_runtime_runtime_list(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
     filter: Option<RuntimeFilterVm>,
     after: Option<RuntimeId>,
@@ -388,7 +388,7 @@ pub(crate) fn destack_runtime_runtime_list(
 /// Describe one runtime visible through one pinned world view.
 pub(crate) fn destack_runtime_runtime_view(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
     runtime_id: RuntimeId,
 ) -> RuntimeResult<RuntimeDescriptorVm> {
@@ -406,7 +406,7 @@ pub(crate) fn destack_runtime_runtime_view(
 /// List workers visible through one pinned world view.
 pub(crate) fn destack_runtime_worker_list(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
     filter: Option<WorkerFilterVm>,
     after: Option<WorkerId>,
@@ -432,7 +432,7 @@ pub(crate) fn destack_runtime_worker_list(
 /// Describe one worker visible through one pinned world view.
 pub(crate) fn destack_runtime_worker_view(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
     worker_id: WorkerId,
 ) -> RuntimeResult<WorkerDescriptorVm> {
@@ -450,7 +450,7 @@ pub(crate) fn destack_runtime_worker_view(
 /// List logical world resources visible through one pinned world view.
 pub(crate) fn destack_runtime_resource_list(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
     filter: Option<ResourceFilterVm>,
     after: Option<WorldResourceIdVm>,
@@ -478,7 +478,7 @@ pub(crate) fn destack_runtime_resource_list(
 /// Describe one logical world resource visible through one pinned world view.
 pub(crate) fn destack_runtime_resource_view(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
     resource_id: WorldResourceIdVm,
 ) -> RuntimeResult<ResourceDescriptorVm> {
@@ -496,7 +496,7 @@ pub(crate) fn destack_runtime_resource_view(
 /// List topology entities visible through one pinned world view.
 pub(crate) fn destack_runtime_entity_list(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
     filter: Option<TopologyEntityFilterVm>,
     after: Option<TopologyEntityIdVm>,
@@ -523,7 +523,7 @@ pub(crate) fn destack_runtime_entity_list(
 /// Describe one topology entity visible through one pinned world view.
 pub(crate) fn destack_runtime_entity_view(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
     entity_id: TopologyEntityIdVm,
 ) -> RuntimeResult<TopologyEntityVm> {
@@ -552,7 +552,7 @@ pub(crate) fn destack_runtime_entity_view(
 /// List topology edges visible through one pinned world view.
 pub(crate) fn destack_runtime_edge_list(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
     filter: Option<TopologyEdgeFilterVm>,
     after: Option<TopologyEdgeIdVm>,
@@ -579,7 +579,7 @@ pub(crate) fn destack_runtime_edge_list(
 /// Describe one topology edge visible through one pinned world view.
 pub(crate) fn destack_runtime_edge_view(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
     edge_id: TopologyEdgeIdVm,
 ) -> RuntimeResult<TopologyEdgeVm> {
@@ -607,7 +607,7 @@ pub(crate) fn destack_runtime_edge_view(
 /// Describe the event loop for one worker visible through one pinned world view.
 pub(crate) fn destack_runtime_event_loop_view(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
     worker_id: WorkerId,
 ) -> RuntimeResult<EventLoopDescriptorVm> {
@@ -624,7 +624,7 @@ pub(crate) fn destack_runtime_event_loop_view(
 /// Describe the heap for one worker visible through one pinned world view.
 pub(crate) fn destack_runtime_heap_view(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
     worker_id: WorkerId,
 ) -> RuntimeResult<HeapDescriptorVm> {
@@ -641,7 +641,7 @@ pub(crate) fn destack_runtime_heap_view(
 /// Describe the execution engine for one worker visible through one pinned world view.
 pub(crate) fn destack_runtime_engine_view(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     view: WorldViewHandle,
     worker_id: WorkerId,
 ) -> RuntimeResult<EngineDescriptorVm> {
@@ -658,7 +658,7 @@ pub(crate) fn destack_runtime_engine_view(
 /// Describe one branch.
 pub(crate) fn destack_runtime_branch_describe(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     branchid: BranchId,
 ) -> RuntimeResult<BranchDescriptorVm> {
@@ -675,7 +675,7 @@ pub(crate) fn destack_runtime_branch_describe(
 /// List branches in one world lineage.
 pub(crate) fn destack_runtime_branch_list(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     filter: Option<BranchFilterVm>,
     after: Option<BranchId>,
@@ -727,7 +727,7 @@ pub(crate) fn destack_runtime_branch_list(
 /// Create one checkpoint on the active branch.
 pub(crate) fn destack_runtime_checkpoint_create(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     name: Option<destack_vm::StringHandle>,
     labels: Option<VmArray<RuntimeLabelVm>>,
@@ -758,7 +758,7 @@ pub(crate) fn destack_runtime_checkpoint_create(
 /// Describe one checkpoint.
 pub(crate) fn destack_runtime_checkpoint_describe(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     checkpointid: CheckpointId,
 ) -> RuntimeResult<CheckpointDescriptorVm> {
@@ -776,7 +776,7 @@ pub(crate) fn destack_runtime_checkpoint_describe(
 /// List checkpoints in one world lineage.
 pub(crate) fn destack_runtime_checkpoint_list(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     filter: Option<CheckpointFilterVm>,
     after: Option<CheckpointId>,
@@ -834,7 +834,7 @@ pub(crate) fn destack_runtime_checkpoint_list(
 /// Capture one image at the active revision.
 pub(crate) fn destack_runtime_image_capture(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
 ) -> RuntimeResult<ImageId> {
     // materialize one live image through suspend capture
@@ -850,7 +850,7 @@ pub(crate) fn destack_runtime_image_capture(
 /// Describe one image.
 pub(crate) fn destack_runtime_image_describe(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     imageid: ImageId,
 ) -> RuntimeResult<ImageDescriptorVm> {
@@ -871,7 +871,7 @@ pub(crate) fn destack_runtime_image_describe(
 /// List images in one world lineage.
 pub(crate) fn destack_runtime_image_list(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     filter: Option<ImageFilterVm>,
     after: Option<ImageId>,
@@ -915,7 +915,7 @@ pub(crate) fn destack_runtime_image_list(
 /// Describe one revision.
 pub(crate) fn destack_runtime_revision_describe(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     revisionid: RevisionId,
 ) -> RuntimeResult<RevisionDescriptorVm> {
@@ -937,7 +937,7 @@ pub(crate) fn destack_runtime_revision_describe(
 /// List revisions in one world lineage.
 pub(crate) fn destack_runtime_revision_list(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     filter: Option<RevisionFilterVm>,
     after: Option<RevisionId>,
@@ -986,7 +986,7 @@ pub(crate) fn destack_runtime_revision_list(
 /// Return the active branch for one world.
 pub(crate) fn destack_runtime_world_branch(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
 ) -> RuntimeResult<BranchId> {
     // read the active branch directly from the live world
@@ -1000,7 +1000,7 @@ pub(crate) fn destack_runtime_world_branch(
 /// Fork one child world from one revision.
 pub(crate) fn destack_runtime_world_fork(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     revisionid: RevisionId,
     name: Option<destack_vm::StringHandle>,
@@ -1042,7 +1042,7 @@ pub(crate) fn destack_runtime_world_fork(
 /// Return the active revision for one world.
 pub(crate) fn destack_runtime_world_revision(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
 ) -> RuntimeResult<RevisionId> {
     // read the active revision directly from the live world
@@ -1056,7 +1056,7 @@ pub(crate) fn destack_runtime_world_revision(
 /// Rewind one world to one checkpoint.
 pub(crate) fn destack_runtime_world_rewind_checkpoint(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     checkpointid: CheckpointId,
 ) -> RuntimeResult<()> {
@@ -1070,7 +1070,7 @@ pub(crate) fn destack_runtime_world_rewind_checkpoint(
 /// Rewind one world to one revision.
 pub(crate) fn destack_runtime_world_rewind_revision(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     revisionid: RevisionId,
 ) -> RuntimeResult<()> {
@@ -1084,7 +1084,7 @@ pub(crate) fn destack_runtime_world_rewind_revision(
 /// Close one runtime observation subscription.
 pub(crate) fn destack_runtime_observation_close(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: ObservationHandle,
 ) -> RuntimeResult<()> {
     let control = control();
@@ -1100,7 +1100,7 @@ pub(crate) fn destack_runtime_observation_close(
 /// Read the next batch of observation records.
 pub(crate) fn destack_runtime_observation_next(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: ObservationHandle,
     limit: Option<u32>,
 ) -> RuntimeResult<VmArray<ObservationRecordVm>> {
@@ -1118,7 +1118,7 @@ pub(crate) fn destack_runtime_observation_next(
 /// Open one runtime observation subscription.
 pub(crate) fn destack_runtime_observation_open(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     options: Option<ObservationOptionsVm>,
 ) -> RuntimeResult<ObservationHandle> {
@@ -1160,7 +1160,7 @@ pub(crate) fn destack_runtime_observation_open(
 /// Export one snapshot from one image.
 pub(crate) fn destack_runtime_snapshot_create(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     imageid: ImageId,
     format: SnapshotFormat,
@@ -1193,7 +1193,7 @@ pub(crate) fn destack_runtime_snapshot_create(
 /// Describe one snapshot.
 pub(crate) fn destack_runtime_snapshot_describe(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     snapshotid: SnapshotId,
 ) -> RuntimeResult<SnapshotDescriptorVm> {
@@ -1220,7 +1220,7 @@ pub(crate) fn destack_runtime_snapshot_describe(
 /// Import one serialized snapshot payload.
 pub(crate) fn destack_runtime_snapshot_import(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     argument_payload: VmArray<u8>,
 ) -> RuntimeResult<SnapshotId> {
@@ -1247,7 +1247,7 @@ pub(crate) fn destack_runtime_snapshot_import(
 /// List snapshots in one world lineage.
 pub(crate) fn destack_runtime_snapshot_list(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     after: Option<SnapshotId>,
     limit: Option<u32>,
@@ -1285,7 +1285,7 @@ pub(crate) fn destack_runtime_snapshot_list(
 /// Read one serialized snapshot payload.
 pub(crate) fn destack_runtime_snapshot_read(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     snapshotid: SnapshotId,
 ) -> RuntimeResult<VmArray<u8>> {
@@ -1308,7 +1308,7 @@ pub(crate) fn destack_runtime_snapshot_read(
 /// Restore one world from one image.
 pub(crate) fn destack_runtime_restore_image(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     imageid: ImageId,
 ) -> RuntimeResult<()> {
@@ -1323,7 +1323,7 @@ pub(crate) fn destack_runtime_restore_image(
 /// Restore one world from one snapshot.
 pub(crate) fn destack_runtime_restore_snapshot(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     snapshotid: SnapshotId,
 ) -> RuntimeResult<()> {
@@ -1348,7 +1348,7 @@ pub(crate) fn destack_runtime_restore_snapshot(
 /// Close one causal trace cursor.
 pub(crate) fn destack_runtime_trace_close(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     cursor: TraceCursorHandle,
 ) -> RuntimeResult<()> {
     // drop the external cursor handle
@@ -1362,7 +1362,7 @@ pub(crate) fn destack_runtime_trace_close(
 /// Describe one world's causal trace.
 pub(crate) fn destack_runtime_trace_describe(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
 ) -> RuntimeResult<TraceDescriptorVm> {
     // summarize the active world trace
@@ -1379,7 +1379,7 @@ pub(crate) fn destack_runtime_trace_describe(
 /// Append one explicit trace marker.
 pub(crate) fn destack_runtime_trace_mark(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     label: destack_vm::StringHandle,
 ) -> RuntimeResult<TraceSequence> {
@@ -1399,7 +1399,7 @@ pub(crate) fn destack_runtime_trace_mark(
 /// Read the next batch of causal trace records.
 pub(crate) fn destack_runtime_trace_next(
     _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     cursor: TraceCursorHandle,
     limit: Option<u32>,
 ) -> RuntimeResult<VmArray<TraceRecordVm>> {
@@ -1427,7 +1427,7 @@ pub(crate) fn destack_runtime_trace_next(
 /// Open one causal trace cursor.
 pub(crate) fn destack_runtime_trace_open(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     argument_world: WorldHandle,
     options: Option<TraceCursorOptionsVm>,
 ) -> RuntimeResult<TraceCursorHandle> {
@@ -1459,7 +1459,7 @@ pub(crate) fn destack_runtime_trace_open(
 /// Seek one causal trace cursor to one checkpoint boundary.
 pub(crate) fn destack_runtime_trace_seek_checkpoint(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     cursor: TraceCursorHandle,
     checkpointid: CheckpointId,
 ) -> RuntimeResult<()> {
@@ -1478,7 +1478,7 @@ pub(crate) fn destack_runtime_trace_seek_checkpoint(
 /// Seek one causal trace cursor to one revision boundary.
 pub(crate) fn destack_runtime_trace_seek_revision(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     cursor: TraceCursorHandle,
     revisionid: RevisionId,
 ) -> RuntimeResult<()> {
@@ -1495,7 +1495,7 @@ pub(crate) fn destack_runtime_trace_seek_revision(
 /// Seek one causal trace cursor to one sequence.
 pub(crate) fn destack_runtime_trace_seek_sequence(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     cursor: TraceCursorHandle,
     sequence: TraceSequence,
 ) -> RuntimeResult<()> {
@@ -1511,7 +1511,7 @@ pub(crate) fn destack_runtime_trace_seek_sequence(
 /// Return the current sequence position of one causal trace cursor.
 pub(crate) fn destack_runtime_trace_tell(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     cursor: TraceCursorHandle,
 ) -> RuntimeResult<TraceSequence> {
     // expose the next visible sequence for one live cursor

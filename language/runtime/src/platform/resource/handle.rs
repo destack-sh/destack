@@ -40,15 +40,12 @@ impl NativeAbiCodec for ResourceId {
 impl VmAbiCodec for ResourceId {
     type Value = Self;
 
-    fn into_value(
-        self,
-        _context: &destack_vm::ExternalReadContext<'_, '_>,
-    ) -> RuntimeResult<Self::Value> {
+    fn into_value(self, _context: &destack_vm::BindingRead<'_, '_>) -> RuntimeResult<Self::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut destack_vm::ExternalWriteContext<'_, '_>,
+        _context: &mut destack_vm::BindingWrite<'_, '_>,
         value: Self::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -144,13 +141,13 @@ macro_rules! define_resource_handle_types {
 
                 fn into_value(
                     self,
-                    _context: &destack_vm::ExternalReadContext<'_, '_>,
+                    _context: &destack_vm::BindingRead<'_, '_>,
                 ) -> RuntimeResult<Self::Value> {
                     Ok(self)
                 }
 
                 fn from_value(
-                    _context: &mut destack_vm::ExternalWriteContext<'_, '_>,
+                    _context: &mut destack_vm::BindingWrite<'_, '_>,
                     value: Self::Value,
                 ) -> RuntimeResult<Self> {
                     Ok(value)

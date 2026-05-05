@@ -62,13 +62,13 @@ impl VmAbiCodec for CryptoCertificateHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -117,13 +117,13 @@ impl VmAbiCodec for CryptoKeyHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -172,13 +172,13 @@ impl VmAbiCodec for CryptoKeyUsageMask {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -227,13 +227,13 @@ impl VmAbiCodec for ResourceId {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -297,13 +297,13 @@ impl VmAbiCodec for CryptoAsymmetricEncryptionAlgorithm {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -364,13 +364,13 @@ impl VmAbiCodec for CryptoCertificateFormat {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -437,13 +437,13 @@ impl VmAbiCodec for CryptoCertificateIdentityKind {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -510,13 +510,13 @@ impl VmAbiCodec for CryptoCertificatePurpose {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -580,13 +580,13 @@ impl VmAbiCodec for CryptoCertificateRevocationMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -671,13 +671,13 @@ impl VmAbiCodec for CryptoCertificateVerifyError {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -747,13 +747,13 @@ impl VmAbiCodec for CryptoCipherAlgorithm {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -814,13 +814,13 @@ impl VmAbiCodec for CryptoCipherDirection {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -908,13 +908,13 @@ impl VmAbiCodec for CryptoDigestAlgorithm {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -984,13 +984,13 @@ impl VmAbiCodec for CryptoKdfAlgorithm {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1057,13 +1057,13 @@ impl VmAbiCodec for CryptoKeyAgreementAlgorithm {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1148,13 +1148,13 @@ impl VmAbiCodec for CryptoKeyAlgorithm {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1242,13 +1242,13 @@ impl VmAbiCodec for CryptoKeyFormat {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1312,13 +1312,13 @@ impl VmAbiCodec for CryptoKeyKind {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1385,13 +1385,13 @@ impl VmAbiCodec for CryptoKeyResidency {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1458,13 +1458,13 @@ impl VmAbiCodec for CryptoKeyWrapAlgorithm {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1525,13 +1525,13 @@ impl VmAbiCodec for CryptoMacAlgorithm {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1613,13 +1613,13 @@ impl VmAbiCodec for CryptoNamedCurve {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1692,13 +1692,13 @@ impl VmAbiCodec for CryptoSignatureAlgorithm {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1768,13 +1768,13 @@ impl VmAbiCodec for CryptoStoreKind {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1832,13 +1832,13 @@ impl VmAbiCodec for CryptoStoreProvider {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1891,7 +1891,7 @@ impl Clone for CryptoKeyDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -1901,7 +1901,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -1972,7 +1972,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         match self {
             Self::CryptoKeyDescriptorAes(value) => {
@@ -2274,7 +2274,7 @@ impl VmAbiCodec for CryptoKeyDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::CryptoKeyDescriptorAes(value) => {
@@ -2325,7 +2325,7 @@ impl VmAbiCodec for CryptoKeyDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -2426,7 +2426,7 @@ impl Clone for CryptoKeyGenerationRequestAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -2436,7 +2436,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -2465,7 +2465,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         match self {
             Self::CryptoKeyGenerationRequestAes(value) => {
@@ -2772,7 +2772,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::CryptoKeyGenerationRequestAes(value) => {
@@ -2829,7 +2829,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -2932,7 +2932,7 @@ impl Clone for CryptoKeyImportRequestAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -2942,7 +2942,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -3013,7 +3013,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         match self {
             Self::CryptoKeyImportRequestAes(value) => {
@@ -3317,7 +3317,7 @@ impl VmAbiCodec for CryptoKeyImportRequestAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::CryptoKeyImportRequestAes(value) => {
@@ -3370,7 +3370,7 @@ impl VmAbiCodec for CryptoKeyImportRequestAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -3464,7 +3464,7 @@ impl Clone for CryptoAgreementDeriveKeyRequestAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoAgreementDeriveKeyRequestAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -3474,7 +3474,7 @@ impl VmAggregateCodec for CryptoAgreementDeriveKeyRequestAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -3509,7 +3509,7 @@ impl VmAggregateCodec for CryptoAgreementDeriveKeyRequestAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoAgreementDeriveKeyRequest")
@@ -3596,7 +3596,7 @@ impl VmAbiCodec for CryptoAgreementDeriveKeyRequestAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoAgreementDeriveKeyRequestValue {
             algorithm: <CryptoKeyAgreementAlgorithm as VmAbiCodec>::into_value(
@@ -3611,7 +3611,7 @@ impl VmAbiCodec for CryptoAgreementDeriveKeyRequestAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -3674,7 +3674,7 @@ impl Clone for CryptoArgon2idRequestAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoArgon2idRequestAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -3684,7 +3684,7 @@ impl VmAggregateCodec for CryptoArgon2idRequestAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -3725,7 +3725,7 @@ impl VmAggregateCodec for CryptoArgon2idRequestAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoArgon2idRequest")
@@ -3835,7 +3835,7 @@ impl VmAbiCodec for CryptoArgon2idRequestAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoArgon2idRequestValue {
             password: <VmSlice<u8> as VmAbiCodec>::into_value(self.password, context)?,
@@ -3853,7 +3853,7 @@ impl VmAbiCodec for CryptoArgon2idRequestAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -3910,7 +3910,7 @@ impl Clone for CryptoAsymmetricEncryptionParametersAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoAsymmetricEncryptionParametersAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -3920,7 +3920,7 @@ impl VmAggregateCodec for CryptoAsymmetricEncryptionParametersAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -3950,7 +3950,7 @@ impl VmAggregateCodec for CryptoAsymmetricEncryptionParametersAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoAsymmetricEncryptionParameters")
@@ -4028,7 +4028,7 @@ impl VmAbiCodec for CryptoAsymmetricEncryptionParametersAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoAsymmetricEncryptionParametersValue {
             algorithm: <CryptoAsymmetricEncryptionAlgorithm as VmAbiCodec>::into_value(
@@ -4044,7 +4044,7 @@ impl VmAbiCodec for CryptoAsymmetricEncryptionParametersAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -4110,7 +4110,7 @@ impl Clone for CryptoCertificateDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoCertificateDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -4120,7 +4120,7 @@ impl VmAggregateCodec for CryptoCertificateDescriptorAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -4174,7 +4174,7 @@ impl VmAggregateCodec for CryptoCertificateDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoCertificateDescriptor")
@@ -4334,7 +4334,7 @@ impl VmAbiCodec for CryptoCertificateDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoCertificateDescriptorValue {
             subject: <vm::StringHandle as VmAbiCodec>::into_value(self.subject, context)?,
@@ -4368,7 +4368,7 @@ impl VmAbiCodec for CryptoCertificateDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -4442,7 +4442,7 @@ impl Clone for CryptoCertificateListEntryAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoCertificateListEntryAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -4452,7 +4452,7 @@ impl VmAggregateCodec for CryptoCertificateListEntryAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -4487,7 +4487,7 @@ impl VmAggregateCodec for CryptoCertificateListEntryAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoCertificateListEntry")
@@ -4573,7 +4573,7 @@ impl VmAbiCodec for CryptoCertificateListEntryAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoCertificateListEntryValue {
             handle: <resource::CryptoCertificateHandle as VmAbiCodec>::into_value(
@@ -4590,7 +4590,7 @@ impl VmAbiCodec for CryptoCertificateListEntryAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -4644,7 +4644,7 @@ impl Clone for CryptoCertificateListPageAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoCertificateListPageAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -4654,7 +4654,7 @@ impl VmAggregateCodec for CryptoCertificateListPageAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -4681,7 +4681,7 @@ impl VmAggregateCodec for CryptoCertificateListPageAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoCertificateListPage")
@@ -4752,7 +4752,7 @@ impl VmAbiCodec for CryptoCertificateListPageAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoCertificateListPageValue {
             entries: <VmArray<CryptoCertificateListEntryVm> as VmAbiCodec>::into_value(
@@ -4767,7 +4767,7 @@ impl VmAbiCodec for CryptoCertificateListPageAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -4824,7 +4824,7 @@ impl Clone for CryptoCertificateQueryAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoCertificateQueryAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -4834,7 +4834,7 @@ impl VmAggregateCodec for CryptoCertificateQueryAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -4874,7 +4874,7 @@ impl VmAggregateCodec for CryptoCertificateQueryAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoCertificateQuery")
@@ -4979,7 +4979,7 @@ impl VmAbiCodec for CryptoCertificateQueryAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoCertificateQueryValue {
             subject_contains: <vm::StringHandle as VmAbiCodec>::into_value(
@@ -5000,7 +5000,7 @@ impl VmAbiCodec for CryptoCertificateQueryAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -5036,7 +5036,7 @@ pub type CryptoCertificateValidityVm = CryptoCertificateValidity;
 
 impl VmAggregateCodec for CryptoCertificateValidity {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -5046,7 +5046,7 @@ impl VmAggregateCodec for CryptoCertificateValidity {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -5069,7 +5069,7 @@ impl VmAggregateCodec for CryptoCertificateValidity {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoCertificateValidity")
@@ -5108,13 +5108,13 @@ impl VmAbiCodec for CryptoCertificateValidity {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -5158,7 +5158,7 @@ impl Clone for CryptoCertificateVerifyIdentityAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoCertificateVerifyIdentityAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -5168,7 +5168,7 @@ impl VmAggregateCodec for CryptoCertificateVerifyIdentityAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -5194,7 +5194,7 @@ impl VmAggregateCodec for CryptoCertificateVerifyIdentityAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoCertificateVerifyIdentity")
@@ -5252,7 +5252,7 @@ impl VmAbiCodec for CryptoCertificateVerifyIdentityAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoCertificateVerifyIdentityValue {
             kind: <CryptoCertificateIdentityKind as VmAbiCodec>::into_value(self.kind, context)?,
@@ -5261,7 +5261,7 @@ impl VmAbiCodec for CryptoCertificateVerifyIdentityAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -5320,7 +5320,7 @@ impl Clone for CryptoCertificateVerifyRequestAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoCertificateVerifyRequestAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -5330,7 +5330,7 @@ impl VmAggregateCodec for CryptoCertificateVerifyRequestAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -5374,7 +5374,7 @@ impl VmAggregateCodec for CryptoCertificateVerifyRequestAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoCertificateVerifyRequest")
@@ -5552,7 +5552,7 @@ impl VmAbiCodec for CryptoCertificateVerifyRequestAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoCertificateVerifyRequestValue {
             leaf: <resource::CryptoCertificateHandle as VmAbiCodec>::into_value(
@@ -5587,7 +5587,7 @@ impl VmAbiCodec for CryptoCertificateVerifyRequestAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -5668,7 +5668,7 @@ impl Clone for CryptoCertificateVerifyResultAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoCertificateVerifyResultAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -5678,7 +5678,7 @@ impl VmAggregateCodec for CryptoCertificateVerifyResultAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -5720,7 +5720,7 @@ impl VmAggregateCodec for CryptoCertificateVerifyResultAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoCertificateVerifyResult")
@@ -5845,7 +5845,7 @@ impl VmAbiCodec for CryptoCertificateVerifyResultAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoCertificateVerifyResultValue {
             valid: <bool as VmAbiCodec>::into_value(self.valid, context)?,
@@ -5868,7 +5868,7 @@ impl VmAbiCodec for CryptoCertificateVerifyResultAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -5928,7 +5928,7 @@ impl Clone for CryptoCipherOutputAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoCipherOutputAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -5938,7 +5938,7 @@ impl VmAggregateCodec for CryptoCipherOutputAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -5961,7 +5961,7 @@ impl VmAggregateCodec for CryptoCipherOutputAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoCipherOutput")
@@ -6015,7 +6015,7 @@ impl VmAbiCodec for CryptoCipherOutputAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoCipherOutputValue {
             bytes: <VmSlice<u8> as VmAbiCodec>::into_value(self.bytes, context)?,
@@ -6024,7 +6024,7 @@ impl VmAbiCodec for CryptoCipherOutputAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -6077,7 +6077,7 @@ impl Clone for CryptoCipherParametersAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoCipherParametersAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -6087,7 +6087,7 @@ impl VmAggregateCodec for CryptoCipherParametersAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -6121,7 +6121,7 @@ impl VmAggregateCodec for CryptoCipherParametersAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoCipherParameters")
@@ -6220,7 +6220,7 @@ impl VmAbiCodec for CryptoCipherParametersAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoCipherParametersValue {
             algorithm: <CryptoCipherAlgorithm as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -6238,7 +6238,7 @@ impl VmAbiCodec for CryptoCipherParametersAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -6298,7 +6298,7 @@ impl Clone for CryptoHkdfRequestAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoHkdfRequestAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -6308,7 +6308,7 @@ impl VmAggregateCodec for CryptoHkdfRequestAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -6341,7 +6341,7 @@ impl VmAggregateCodec for CryptoHkdfRequestAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoHkdfRequest")
@@ -6427,7 +6427,7 @@ impl VmAbiCodec for CryptoHkdfRequestAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoHkdfRequestValue {
             digest: <CryptoDigestAlgorithm as VmAbiCodec>::into_value(self.digest, context)?,
@@ -6442,7 +6442,7 @@ impl VmAbiCodec for CryptoHkdfRequestAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -6510,7 +6510,7 @@ impl Clone for CryptoKeyDescriptorAesAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyDescriptorAesAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -6520,7 +6520,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorAesAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -6573,7 +6573,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorAesAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorAes")
@@ -6715,7 +6715,7 @@ impl VmAbiCodec for CryptoKeyDescriptorAesAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyDescriptorAesValue {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -6735,7 +6735,7 @@ impl VmAbiCodec for CryptoKeyDescriptorAesAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -6808,7 +6808,7 @@ impl Clone for CryptoKeyDescriptorChaCha20Abi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyDescriptorChaCha20Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -6818,7 +6818,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorChaCha20Abi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -6871,7 +6871,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorChaCha20Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorChaCha20")
@@ -7013,7 +7013,7 @@ impl VmAbiCodec for CryptoKeyDescriptorChaCha20Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyDescriptorChaCha20Value {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -7033,7 +7033,7 @@ impl VmAbiCodec for CryptoKeyDescriptorChaCha20Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -7106,7 +7106,7 @@ impl Clone for CryptoKeyDescriptorEcAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyDescriptorEcAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -7116,7 +7116,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorEcAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -7171,7 +7171,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorEcAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorEc")
@@ -7320,7 +7320,7 @@ impl VmAbiCodec for CryptoKeyDescriptorEcAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyDescriptorEcValue {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -7343,7 +7343,7 @@ impl VmAbiCodec for CryptoKeyDescriptorEcAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -7417,7 +7417,7 @@ impl Clone for CryptoKeyDescriptorEd25519Abi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyDescriptorEd25519Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -7427,7 +7427,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorEd25519Abi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -7477,7 +7477,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorEd25519Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorEd25519")
@@ -7610,7 +7610,7 @@ impl VmAbiCodec for CryptoKeyDescriptorEd25519Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyDescriptorEd25519Value {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -7629,7 +7629,7 @@ impl VmAbiCodec for CryptoKeyDescriptorEd25519Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -7699,7 +7699,7 @@ impl Clone for CryptoKeyDescriptorEd448Abi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyDescriptorEd448Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -7709,7 +7709,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorEd448Abi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -7759,7 +7759,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorEd448Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorEd448")
@@ -7892,7 +7892,7 @@ impl VmAbiCodec for CryptoKeyDescriptorEd448Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyDescriptorEd448Value {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -7911,7 +7911,7 @@ impl VmAbiCodec for CryptoKeyDescriptorEd448Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -7985,7 +7985,7 @@ impl Clone for CryptoKeyDescriptorHmacAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyDescriptorHmacAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -7995,7 +7995,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorHmacAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -8053,7 +8053,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorHmacAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorHmac")
@@ -8211,7 +8211,7 @@ impl VmAbiCodec for CryptoKeyDescriptorHmacAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyDescriptorHmacValue {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -8235,7 +8235,7 @@ impl VmAbiCodec for CryptoKeyDescriptorHmacAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -8316,7 +8316,7 @@ impl Clone for CryptoKeyDescriptorRsaAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyDescriptorRsaAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -8326,7 +8326,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorRsaAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -8387,7 +8387,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorRsaAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorRsa")
@@ -8561,7 +8561,7 @@ impl VmAbiCodec for CryptoKeyDescriptorRsaAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyDescriptorRsaValue {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -8589,7 +8589,7 @@ impl VmAbiCodec for CryptoKeyDescriptorRsaAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -8668,7 +8668,7 @@ impl Clone for CryptoKeyDescriptorX25519Abi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyDescriptorX25519Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -8678,7 +8678,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorX25519Abi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -8728,7 +8728,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorX25519Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorX25519")
@@ -8861,7 +8861,7 @@ impl VmAbiCodec for CryptoKeyDescriptorX25519Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyDescriptorX25519Value {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -8880,7 +8880,7 @@ impl VmAbiCodec for CryptoKeyDescriptorX25519Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -8950,7 +8950,7 @@ impl Clone for CryptoKeyDescriptorX448Abi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyDescriptorX448Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -8960,7 +8960,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorX448Abi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -9010,7 +9010,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorX448Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorX448")
@@ -9143,7 +9143,7 @@ impl VmAbiCodec for CryptoKeyDescriptorX448Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyDescriptorX448Value {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -9162,7 +9162,7 @@ impl VmAbiCodec for CryptoKeyDescriptorX448Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -9230,7 +9230,7 @@ impl Clone for CryptoKeyGenerationRequestAesAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyGenerationRequestAesAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -9240,7 +9240,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAesAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -9286,7 +9286,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAesAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestAes")
@@ -9407,7 +9407,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestAesAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyGenerationRequestAesValue {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -9425,7 +9425,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestAesAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -9492,7 +9492,7 @@ impl Clone for CryptoKeyGenerationRequestChaCha20Abi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyGenerationRequestChaCha20Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -9502,7 +9502,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestChaCha20Abi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -9548,7 +9548,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestChaCha20Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestChaCha20")
@@ -9669,7 +9669,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestChaCha20Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyGenerationRequestChaCha20Value {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -9687,7 +9687,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestChaCha20Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -9754,7 +9754,7 @@ impl Clone for CryptoKeyGenerationRequestEcAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyGenerationRequestEcAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -9764,7 +9764,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEcAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -9811,7 +9811,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEcAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestEc")
@@ -9938,7 +9938,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestEcAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyGenerationRequestEcValue {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -9956,7 +9956,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestEcAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -10021,7 +10021,7 @@ impl Clone for CryptoKeyGenerationRequestEd25519Abi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyGenerationRequestEd25519Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -10031,7 +10031,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEd25519Abi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -10074,7 +10074,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEd25519Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestEd25519")
@@ -10187,7 +10187,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestEd25519Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyGenerationRequestEd25519Value {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -10204,7 +10204,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestEd25519Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -10268,7 +10268,7 @@ impl Clone for CryptoKeyGenerationRequestEd448Abi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyGenerationRequestEd448Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -10278,7 +10278,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEd448Abi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -10321,7 +10321,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEd448Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestEd448")
@@ -10434,7 +10434,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestEd448Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyGenerationRequestEd448Value {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -10451,7 +10451,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestEd448Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -10519,7 +10519,7 @@ impl Clone for CryptoKeyGenerationRequestHmacAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyGenerationRequestHmacAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -10529,7 +10529,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestHmacAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -10579,7 +10579,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestHmacAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestHmac")
@@ -10709,7 +10709,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestHmacAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyGenerationRequestHmacValue {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -10728,7 +10728,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestHmacAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -10800,7 +10800,7 @@ impl Clone for CryptoKeyGenerationRequestRsaAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyGenerationRequestRsaAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -10810,7 +10810,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestRsaAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -10864,7 +10864,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestRsaAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestRsa")
@@ -11011,7 +11011,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestRsaAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyGenerationRequestRsaValue {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -11034,7 +11034,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestRsaAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -11104,7 +11104,7 @@ impl Clone for CryptoKeyGenerationRequestX25519Abi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyGenerationRequestX25519Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -11114,7 +11114,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestX25519Abi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -11157,7 +11157,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestX25519Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestX25519")
@@ -11270,7 +11270,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestX25519Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyGenerationRequestX25519Value {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -11287,7 +11287,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestX25519Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -11351,7 +11351,7 @@ impl Clone for CryptoKeyGenerationRequestX448Abi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyGenerationRequestX448Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -11361,7 +11361,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestX448Abi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -11404,7 +11404,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestX448Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestX448")
@@ -11517,7 +11517,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestX448Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyGenerationRequestX448Value {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -11534,7 +11534,7 @@ impl VmAbiCodec for CryptoKeyGenerationRequestX448Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -11603,7 +11603,7 @@ impl Clone for CryptoKeyImportRequestAesAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyImportRequestAesAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -11613,7 +11613,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestAesAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -11665,7 +11665,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestAesAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestAes")
@@ -11804,7 +11804,7 @@ impl VmAbiCodec for CryptoKeyImportRequestAesAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyImportRequestAesValue {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -11823,7 +11823,7 @@ impl VmAbiCodec for CryptoKeyImportRequestAesAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -11894,7 +11894,7 @@ impl Clone for CryptoKeyImportRequestChaCha20Abi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyImportRequestChaCha20Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -11904,7 +11904,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestChaCha20Abi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -11956,7 +11956,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestChaCha20Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestChaCha20")
@@ -12095,7 +12095,7 @@ impl VmAbiCodec for CryptoKeyImportRequestChaCha20Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyImportRequestChaCha20Value {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -12114,7 +12114,7 @@ impl VmAbiCodec for CryptoKeyImportRequestChaCha20Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -12187,7 +12187,7 @@ impl Clone for CryptoKeyImportRequestEcAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyImportRequestEcAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -12197,7 +12197,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestEcAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -12254,7 +12254,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestEcAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestEc")
@@ -12409,7 +12409,7 @@ impl VmAbiCodec for CryptoKeyImportRequestEcAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyImportRequestEcValue {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -12432,7 +12432,7 @@ impl VmAbiCodec for CryptoKeyImportRequestEcAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -12507,7 +12507,7 @@ impl Clone for CryptoKeyImportRequestEd25519Abi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyImportRequestEd25519Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -12517,7 +12517,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestEd25519Abi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -12569,7 +12569,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestEd25519Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestEd25519")
@@ -12708,7 +12708,7 @@ impl VmAbiCodec for CryptoKeyImportRequestEd25519Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyImportRequestEd25519Value {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -12727,7 +12727,7 @@ impl VmAbiCodec for CryptoKeyImportRequestEd25519Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -12798,7 +12798,7 @@ impl Clone for CryptoKeyImportRequestEd448Abi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyImportRequestEd448Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -12808,7 +12808,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestEd448Abi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -12860,7 +12860,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestEd448Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestEd448")
@@ -12999,7 +12999,7 @@ impl VmAbiCodec for CryptoKeyImportRequestEd448Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyImportRequestEd448Value {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -13018,7 +13018,7 @@ impl VmAbiCodec for CryptoKeyImportRequestEd448Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -13091,7 +13091,7 @@ impl Clone for CryptoKeyImportRequestHmacAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyImportRequestHmacAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -13101,7 +13101,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestHmacAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -13157,7 +13157,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestHmacAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestHmac")
@@ -13305,7 +13305,7 @@ impl VmAbiCodec for CryptoKeyImportRequestHmacAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyImportRequestHmacValue {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -13325,7 +13325,7 @@ impl VmAbiCodec for CryptoKeyImportRequestHmacAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -13399,7 +13399,7 @@ impl Clone for CryptoKeyImportRequestRsaAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyImportRequestRsaAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -13409,7 +13409,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestRsaAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -13466,7 +13466,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestRsaAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestRsa")
@@ -13621,7 +13621,7 @@ impl VmAbiCodec for CryptoKeyImportRequestRsaAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyImportRequestRsaValue {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -13644,7 +13644,7 @@ impl VmAbiCodec for CryptoKeyImportRequestRsaAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -13719,7 +13719,7 @@ impl Clone for CryptoKeyImportRequestX25519Abi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyImportRequestX25519Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -13729,7 +13729,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestX25519Abi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -13781,7 +13781,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestX25519Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestX25519")
@@ -13920,7 +13920,7 @@ impl VmAbiCodec for CryptoKeyImportRequestX25519Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyImportRequestX25519Value {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -13939,7 +13939,7 @@ impl VmAbiCodec for CryptoKeyImportRequestX25519Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -14010,7 +14010,7 @@ impl Clone for CryptoKeyImportRequestX448Abi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyImportRequestX448Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -14020,7 +14020,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestX448Abi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -14072,7 +14072,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestX448Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestX448")
@@ -14211,7 +14211,7 @@ impl VmAbiCodec for CryptoKeyImportRequestX448Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyImportRequestX448Value {
             algorithm: <vm::StringHandle as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -14230,7 +14230,7 @@ impl VmAbiCodec for CryptoKeyImportRequestX448Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -14289,7 +14289,7 @@ impl Clone for CryptoKeyListEntryAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyListEntryAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -14299,7 +14299,7 @@ impl VmAggregateCodec for CryptoKeyListEntryAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -14333,7 +14333,7 @@ impl VmAggregateCodec for CryptoKeyListEntryAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyListEntry")
@@ -14420,7 +14420,7 @@ impl VmAbiCodec for CryptoKeyListEntryAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyListEntryValue {
             handle: <resource::CryptoKeyHandle as VmAbiCodec>::into_value(self.handle, context)?,
@@ -14431,7 +14431,7 @@ impl VmAbiCodec for CryptoKeyListEntryAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -14479,7 +14479,7 @@ impl Clone for CryptoKeyListPageAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyListPageAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -14489,7 +14489,7 @@ impl VmAggregateCodec for CryptoKeyListPageAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -14516,7 +14516,7 @@ impl VmAggregateCodec for CryptoKeyListPageAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyListPage")
@@ -14584,7 +14584,7 @@ impl VmAbiCodec for CryptoKeyListPageAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyListPageValue {
             entries: <VmArray<CryptoKeyListEntryVm> as VmAbiCodec>::into_value(
@@ -14599,7 +14599,7 @@ impl VmAbiCodec for CryptoKeyListPageAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -14629,7 +14629,7 @@ pub type CryptoKeyPairVm = CryptoKeyPair;
 
 impl VmAggregateCodec for CryptoKeyPair {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -14639,7 +14639,7 @@ impl VmAggregateCodec for CryptoKeyPair {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -14666,7 +14666,7 @@ impl VmAggregateCodec for CryptoKeyPair {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyPair")
@@ -14709,13 +14709,13 @@ impl VmAbiCodec for CryptoKeyPair {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -14765,7 +14765,7 @@ impl Clone for CryptoKeyQueryAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyQueryAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -14775,7 +14775,7 @@ impl VmAggregateCodec for CryptoKeyQueryAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -14814,7 +14814,7 @@ impl VmAggregateCodec for CryptoKeyQueryAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyQuery")
@@ -14919,7 +14919,7 @@ impl VmAbiCodec for CryptoKeyQueryAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyQueryValue {
             label_prefix: <vm::StringHandle as VmAbiCodec>::into_value(self.label_prefix, context)?,
@@ -14937,7 +14937,7 @@ impl VmAbiCodec for CryptoKeyQueryAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -14997,7 +14997,7 @@ impl Clone for CryptoKeyWrapParametersAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoKeyWrapParametersAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -15007,7 +15007,7 @@ impl VmAggregateCodec for CryptoKeyWrapParametersAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -15037,7 +15037,7 @@ impl VmAggregateCodec for CryptoKeyWrapParametersAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoKeyWrapParameters")
@@ -15114,7 +15114,7 @@ impl VmAbiCodec for CryptoKeyWrapParametersAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoKeyWrapParametersValue {
             algorithm: <CryptoKeyWrapAlgorithm as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -15127,7 +15127,7 @@ impl VmAbiCodec for CryptoKeyWrapParametersAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -15161,7 +15161,7 @@ pub type CryptoMacParametersVm = CryptoMacParameters;
 
 impl VmAggregateCodec for CryptoMacParameters {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -15171,7 +15171,7 @@ impl VmAggregateCodec for CryptoMacParameters {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -15199,7 +15199,7 @@ impl VmAggregateCodec for CryptoMacParameters {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoMacParameters")
@@ -15243,13 +15243,13 @@ impl VmAbiCodec for CryptoMacParameters {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -15299,7 +15299,7 @@ impl Clone for CryptoPbkdf2RequestAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoPbkdf2RequestAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -15309,7 +15309,7 @@ impl VmAggregateCodec for CryptoPbkdf2RequestAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -15342,7 +15342,7 @@ impl VmAggregateCodec for CryptoPbkdf2RequestAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoPbkdf2Request")
@@ -15420,7 +15420,7 @@ impl VmAbiCodec for CryptoPbkdf2RequestAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoPbkdf2RequestValue {
             digest: <CryptoDigestAlgorithm as VmAbiCodec>::into_value(self.digest, context)?,
@@ -15432,7 +15432,7 @@ impl VmAbiCodec for CryptoPbkdf2RequestAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -15482,7 +15482,7 @@ impl Clone for CryptoPrivateKeyExportRequestAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoPrivateKeyExportRequestAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -15492,7 +15492,7 @@ impl VmAggregateCodec for CryptoPrivateKeyExportRequestAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -15516,7 +15516,7 @@ impl VmAggregateCodec for CryptoPrivateKeyExportRequestAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoPrivateKeyExportRequest")
@@ -15573,7 +15573,7 @@ impl VmAbiCodec for CryptoPrivateKeyExportRequestAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoPrivateKeyExportRequestValue {
             format: <CryptoKeyFormat as VmAbiCodec>::into_value(self.format, context)?,
@@ -15582,7 +15582,7 @@ impl VmAbiCodec for CryptoPrivateKeyExportRequestAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -15637,7 +15637,7 @@ impl Clone for CryptoScryptRequestAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoScryptRequestAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -15647,7 +15647,7 @@ impl VmAggregateCodec for CryptoScryptRequestAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -15685,7 +15685,7 @@ impl VmAggregateCodec for CryptoScryptRequestAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoScryptRequest")
@@ -15782,7 +15782,7 @@ impl VmAbiCodec for CryptoScryptRequestAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoScryptRequestValue {
             password: <VmSlice<u8> as VmAbiCodec>::into_value(self.password, context)?,
@@ -15796,7 +15796,7 @@ impl VmAbiCodec for CryptoScryptRequestAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -15828,7 +15828,7 @@ pub type CryptoSignatureParametersVm = CryptoSignatureParameters;
 
 impl VmAggregateCodec for CryptoSignatureParameters {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -15838,7 +15838,7 @@ impl VmAggregateCodec for CryptoSignatureParameters {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -15868,7 +15868,7 @@ impl VmAggregateCodec for CryptoSignatureParameters {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoSignatureParameters")
@@ -15918,13 +15918,13 @@ impl VmAbiCodec for CryptoSignatureParameters {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -15953,7 +15953,7 @@ pub type CryptoStoreAgreementCapabilityVm = CryptoStoreAgreementCapability;
 
 impl VmAggregateCodec for CryptoStoreAgreementCapability {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -15963,7 +15963,7 @@ impl VmAggregateCodec for CryptoStoreAgreementCapability {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -16001,7 +16001,7 @@ impl VmAggregateCodec for CryptoStoreAgreementCapability {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoStoreAgreementCapability")
@@ -16063,13 +16063,13 @@ impl VmAbiCodec for CryptoStoreAgreementCapability {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -16121,7 +16121,7 @@ impl Clone for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -16131,7 +16131,7 @@ impl VmAggregateCodec for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -16169,7 +16169,7 @@ impl VmAggregateCodec for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoStoreAsymmetricEncryptionCapability")
@@ -16278,7 +16278,7 @@ impl VmAbiCodec for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoStoreAsymmetricEncryptionCapabilityValue {
             key_algorithm: <CryptoKeyAlgorithm as VmAbiCodec>::into_value(
@@ -16299,7 +16299,7 @@ impl VmAbiCodec for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -16385,7 +16385,7 @@ impl Clone for CryptoStoreCapabilityAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -16395,7 +16395,7 @@ impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -16473,7 +16473,7 @@ impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoStoreCapability")
@@ -16782,7 +16782,7 @@ impl VmAbiCodec for CryptoStoreCapabilityAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoStoreCapabilityValue {
             identity: <CryptoStoreIdentityVm as VmAbiCodec>::into_value(self.identity, context)?,
@@ -16853,7 +16853,7 @@ impl VmAbiCodec for CryptoStoreCapabilityAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -16948,7 +16948,7 @@ pub type CryptoStoreCertificateCapabilityVm = CryptoStoreCertificateCapability;
 
 impl VmAggregateCodec for CryptoStoreCertificateCapability {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -16958,7 +16958,7 @@ impl VmAggregateCodec for CryptoStoreCertificateCapability {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -16993,7 +16993,7 @@ impl VmAggregateCodec for CryptoStoreCertificateCapability {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoStoreCertificateCapability")
@@ -17054,13 +17054,13 @@ impl VmAbiCodec for CryptoStoreCertificateCapability {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -17095,7 +17095,7 @@ pub type CryptoStoreCipherCapabilityVm = CryptoStoreCipherCapability;
 
 impl VmAggregateCodec for CryptoStoreCipherCapability {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -17105,7 +17105,7 @@ impl VmAggregateCodec for CryptoStoreCipherCapability {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -17150,7 +17150,7 @@ impl VmAggregateCodec for CryptoStoreCipherCapability {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoStoreCipherCapability")
@@ -17225,13 +17225,13 @@ impl VmAbiCodec for CryptoStoreCipherCapability {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -17277,7 +17277,7 @@ impl Clone for CryptoStoreIdentityAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoStoreIdentityAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -17287,7 +17287,7 @@ impl VmAggregateCodec for CryptoStoreIdentityAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -17318,7 +17318,7 @@ impl VmAggregateCodec for CryptoStoreIdentityAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoStoreIdentity")
@@ -17394,7 +17394,7 @@ impl VmAbiCodec for CryptoStoreIdentityAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoStoreIdentityValue {
             kind: <CryptoStoreKind as VmAbiCodec>::into_value(self.kind, context)?,
@@ -17410,7 +17410,7 @@ impl VmAbiCodec for CryptoStoreIdentityAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -17480,7 +17480,7 @@ impl Clone for CryptoStoreKeyCapabilityAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoStoreKeyCapabilityAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -17490,7 +17490,7 @@ impl VmAggregateCodec for CryptoStoreKeyCapabilityAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -17548,7 +17548,7 @@ impl VmAggregateCodec for CryptoStoreKeyCapabilityAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoStoreKeyCapability")
@@ -17738,7 +17738,7 @@ impl VmAbiCodec for CryptoStoreKeyCapabilityAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoStoreKeyCapabilityValue {
             algorithm: <CryptoKeyAlgorithm as VmAbiCodec>::into_value(self.algorithm, context)?,
@@ -17780,7 +17780,7 @@ impl VmAbiCodec for CryptoStoreKeyCapabilityAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -17864,7 +17864,7 @@ impl Clone for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -17874,7 +17874,7 @@ impl VmAggregateCodec for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -17912,7 +17912,7 @@ impl VmAggregateCodec for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoStoreKeyWrapCapability")
@@ -18016,7 +18016,7 @@ impl VmAbiCodec for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoStoreKeyWrapCapabilityValue {
             wrapping_key_algorithm: <CryptoKeyAlgorithm as VmAbiCodec>::into_value(
@@ -18034,7 +18034,7 @@ impl VmAbiCodec for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -18101,7 +18101,7 @@ impl Clone for CryptoStoreMacCapabilityAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoStoreMacCapabilityAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -18111,7 +18111,7 @@ impl VmAggregateCodec for CryptoStoreMacCapabilityAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -18154,7 +18154,7 @@ impl VmAggregateCodec for CryptoStoreMacCapabilityAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoStoreMacCapability")
@@ -18291,7 +18291,7 @@ impl VmAbiCodec for CryptoStoreMacCapabilityAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoStoreMacCapabilityValue {
             key_algorithm: <CryptoKeyAlgorithm as VmAbiCodec>::into_value(
@@ -18317,7 +18317,7 @@ impl VmAbiCodec for CryptoStoreMacCapabilityAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -18384,7 +18384,7 @@ impl Clone for CryptoStoreOptionsAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoStoreOptionsAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -18394,7 +18394,7 @@ impl VmAggregateCodec for CryptoStoreOptionsAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -18425,7 +18425,7 @@ impl VmAggregateCodec for CryptoStoreOptionsAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoStoreOptions")
@@ -18501,7 +18501,7 @@ impl VmAbiCodec for CryptoStoreOptionsAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoStoreOptionsValue {
             kind: <CryptoStoreKind as VmAbiCodec>::into_value(self.kind, context)?,
@@ -18517,7 +18517,7 @@ impl VmAbiCodec for CryptoStoreOptionsAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -18567,7 +18567,7 @@ impl Clone for CryptoStoreProvenanceAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoStoreProvenanceAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -18577,7 +18577,7 @@ impl VmAggregateCodec for CryptoStoreProvenanceAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -18599,7 +18599,7 @@ impl VmAggregateCodec for CryptoStoreProvenanceAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoStoreProvenance")
@@ -18647,7 +18647,7 @@ impl VmAbiCodec for CryptoStoreProvenanceAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoStoreProvenanceValue {
             identity: <CryptoStoreIdentityVm as VmAbiCodec>::into_value(self.identity, context)?,
@@ -18655,7 +18655,7 @@ impl VmAbiCodec for CryptoStoreProvenanceAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -18705,7 +18705,7 @@ impl Clone for CryptoStoreSignatureCapabilityAbi<VmAbi> {
 
 impl VmAggregateCodec for CryptoStoreSignatureCapabilityAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -18715,7 +18715,7 @@ impl VmAggregateCodec for CryptoStoreSignatureCapabilityAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -18753,7 +18753,7 @@ impl VmAggregateCodec for CryptoStoreSignatureCapabilityAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("crypto::CryptoStoreSignatureCapability")
@@ -18857,7 +18857,7 @@ impl VmAbiCodec for CryptoStoreSignatureCapabilityAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CryptoStoreSignatureCapabilityValue {
             key_algorithm: <CryptoKeyAlgorithm as VmAbiCodec>::into_value(
@@ -18878,7 +18878,7 @@ impl VmAbiCodec for CryptoStoreSignatureCapabilityAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {

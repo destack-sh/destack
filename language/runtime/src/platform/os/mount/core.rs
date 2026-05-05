@@ -44,7 +44,7 @@ pub(crate) fn read_mount_entries(binding: &BindingCallContext) -> RuntimeResult<
 
 /// Read the current host mount table and encode it for the VM ABI.
 pub(crate) fn read_mount_entries_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<VmArray<MountEntryVm>> {
     let entries = super::target::read_mount_entries()?;
     let entries = entries
@@ -73,7 +73,7 @@ fn native_mount_entry(binding: &BindingCallContext, entry: &MountEntryOwned) -> 
 
 /// Encode one mount entry for the VM ABI.
 fn vm_mount_entry(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     entry: &MountEntryOwned,
 ) -> RuntimeResult<MountEntryVm> {
     Ok(MountEntryVm {
@@ -120,7 +120,7 @@ fn native_os_path_from_path(binding: &BindingCallContext, path: &Path) -> fs::Os
 /// Encode one VM path payload from a host path.
 #[cfg(unix)]
 fn vm_os_path_from_path(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     path: &Path,
 ) -> RuntimeResult<fs::OsPathVm> {
     let bytes = PathBytesAbi::<VmAbi>(VmArray::from_bytes(
@@ -135,7 +135,7 @@ fn vm_os_path_from_path(
 /// Encode one VM path payload from a host path.
 #[cfg(windows)]
 fn vm_os_path_from_path(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     path: &Path,
 ) -> RuntimeResult<fs::OsPathVm> {
     let units = path.as_os_str().encode_wide().collect::<Vec<_>>();
@@ -148,7 +148,7 @@ fn vm_os_path_from_path(
 /// Encode one VM path payload from a host path.
 #[cfg(not(any(unix, windows)))]
 fn vm_os_path_from_path(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     path: &Path,
 ) -> RuntimeResult<fs::OsPathVm> {
     let text = path.to_string_lossy();

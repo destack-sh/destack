@@ -49,7 +49,7 @@ pub(crate) fn watch_try_read(
 
 /// Encode one location sample into one VM value.
 pub(crate) fn sample_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     sample: LocationSample,
 ) -> RuntimeResult<LocationSampleVm> {
     LocationSampleVm::from_value(&mut context.write(), sample)

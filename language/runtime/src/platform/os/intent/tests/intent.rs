@@ -106,7 +106,7 @@ fn decode_vm_intent_event(
         &mut *(context
             .vm_context
             .expect("vm intent event decode requires one vm context")
-            as *mut vm::ExternalCallContext<'_>)
+            as *mut vm::BindingContext<'_>)
     };
 
     match value {
@@ -169,7 +169,7 @@ fn decode_vm_intent_event(
 
 /// Decode one VM path payload into one UTF-8 string.
 fn decode_vm_path(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     path: fs::OsPathVm,
 ) -> RuntimeResult<String> {
     #[cfg(unix)]

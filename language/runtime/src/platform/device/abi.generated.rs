@@ -62,13 +62,13 @@ impl VmAbiCodec for MidiBackendCapabilityFlags {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -117,13 +117,13 @@ impl VmAbiCodec for MidiDataFormatFlags {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -172,13 +172,13 @@ impl VmAbiCodec for MidiEventSubscriptionFlags {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -227,13 +227,13 @@ impl VmAbiCodec for MidiPortDirectionFlags {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -282,13 +282,13 @@ impl VmAbiCodec for MidiPortListFlags {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -337,13 +337,13 @@ impl VmAbiCodec for MidiProtocolFlags {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -363,7 +363,7 @@ pub type PathBytesVm = PathBytesAbi<VmAbi>;
 
 impl VmAggregateCodec for PathBytesAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         Ok(Self(
@@ -373,7 +373,7 @@ impl VmAggregateCodec for PathBytesAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
@@ -410,7 +410,7 @@ impl VmAbiCodec for PathBytesAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PathBytesValue(<VmArray<u8> as VmAbiCodec>::into_value(
             self.0, context,
@@ -418,7 +418,7 @@ impl VmAbiCodec for PathBytesAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self(<VmArray<u8> as VmAbiCodec>::from_value(
@@ -440,7 +440,7 @@ pub type PathUtf16Vm = PathUtf16Abi<VmAbi>;
 
 impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         Ok(Self(
@@ -450,7 +450,7 @@ impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
@@ -487,7 +487,7 @@ impl VmAbiCodec for PathUtf16Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PathUtf16Value(<VmArray<u16> as VmAbiCodec>::into_value(
             self.0, context,
@@ -495,7 +495,7 @@ impl VmAbiCodec for PathUtf16Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self(<VmArray<u16> as VmAbiCodec>::from_value(
@@ -564,13 +564,13 @@ impl VmAbiCodec for BackendSupport {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -631,13 +631,13 @@ impl VmAbiCodec for BluetoothGattWriteMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -701,13 +701,13 @@ impl VmAbiCodec for BluetoothLeTransport {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -774,13 +774,13 @@ impl VmAbiCodec for BluetoothPairState {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -847,13 +847,13 @@ impl VmAbiCodec for BluetoothPhy {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -914,13 +914,13 @@ impl VmAbiCodec for BluetoothScanMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -990,13 +990,13 @@ impl VmAbiCodec for CameraAudioCodec {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1066,13 +1066,13 @@ impl VmAbiCodec for CameraColorSpace {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1136,13 +1136,13 @@ impl VmAbiCodec for CameraDynamicRange {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1206,13 +1206,13 @@ impl VmAbiCodec for CameraExposureMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1285,13 +1285,13 @@ impl VmAbiCodec for CameraFacingMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1355,13 +1355,13 @@ impl VmAbiCodec for CameraFocusMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1425,13 +1425,13 @@ impl VmAbiCodec for CameraPhotoFlashMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1498,13 +1498,13 @@ impl VmAbiCodec for CameraPixelFormat {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1568,13 +1568,13 @@ impl VmAbiCodec for CameraPixelFormatFamily {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1641,13 +1641,13 @@ impl VmAbiCodec for CameraRecordingContainer {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1711,13 +1711,13 @@ impl VmAbiCodec for CameraRedEyeReduction {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1781,13 +1781,13 @@ impl VmAbiCodec for CameraStabilizationMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1851,13 +1851,13 @@ impl VmAbiCodec for CameraTorchMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1927,13 +1927,13 @@ impl VmAbiCodec for CameraVideoCodec {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1997,13 +1997,13 @@ impl VmAbiCodec for CameraWhiteBalanceMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2085,13 +2085,13 @@ impl VmAbiCodec for MidiBackend {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2152,13 +2152,13 @@ impl VmAbiCodec for MidiBackendSelectionPolicy {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2219,13 +2219,13 @@ impl VmAbiCodec for MidiDataFormat {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2289,13 +2289,13 @@ impl VmAbiCodec for MidiEventDeliveryMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2359,13 +2359,13 @@ impl VmAbiCodec for MidiEventOverflowPolicy {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2426,13 +2426,13 @@ impl VmAbiCodec for MidiEventSource {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2493,13 +2493,13 @@ impl VmAbiCodec for MidiPortDirection {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2560,13 +2560,13 @@ impl VmAbiCodec for MidiProtocol {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2633,13 +2633,13 @@ impl VmAbiCodec for MidiRecordFraming {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2706,13 +2706,13 @@ impl VmAbiCodec for SerialDataBits {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2785,13 +2785,13 @@ impl VmAbiCodec for SerialErrorKind {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2861,13 +2861,13 @@ impl VmAbiCodec for SerialParity {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2934,13 +2934,13 @@ impl VmAbiCodec for SerialPortTransport {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3004,13 +3004,13 @@ impl VmAbiCodec for SerialStopBits {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3089,13 +3089,13 @@ impl VmAbiCodec for UsbBosCapabilityKind {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3159,13 +3159,13 @@ impl VmAbiCodec for UsbControlTransferType {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3238,13 +3238,13 @@ impl VmAbiCodec for UsbDeviceSpeed {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3305,13 +3305,13 @@ impl VmAbiCodec for UsbEndpointDirection {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3375,13 +3375,13 @@ impl VmAbiCodec for UsbEndpointTransferType {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3445,13 +3445,13 @@ impl VmAbiCodec for UsbTransferStatus {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3492,7 +3492,7 @@ impl Clone for BluetoothAdapterEventAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothAdapterEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -3502,7 +3502,7 @@ impl VmAggregateCodec for BluetoothAdapterEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -3543,7 +3543,7 @@ impl VmAggregateCodec for BluetoothAdapterEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         match self {
             Self::BluetoothAdapterAttachedEvent(value) => {
@@ -3667,7 +3667,7 @@ impl VmAbiCodec for BluetoothAdapterEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::BluetoothAdapterAttachedEvent(value) => {
@@ -3690,7 +3690,7 @@ impl VmAbiCodec for BluetoothAdapterEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -3747,7 +3747,7 @@ impl Clone for BluetoothScanEventAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothScanEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -3757,7 +3757,7 @@ impl VmAggregateCodec for BluetoothScanEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -3798,7 +3798,7 @@ impl VmAggregateCodec for BluetoothScanEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         match self {
             Self::BluetoothScanDiscoveredEvent(value) => {
@@ -3920,7 +3920,7 @@ impl VmAbiCodec for BluetoothScanEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::BluetoothScanDiscoveredEvent(value) => {
@@ -3941,7 +3941,7 @@ impl VmAbiCodec for BluetoothScanEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -4002,7 +4002,7 @@ impl Clone for BluetoothSessionEventAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothSessionEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -4012,7 +4012,7 @@ impl VmAggregateCodec for BluetoothSessionEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -4035,7 +4035,7 @@ impl VmAggregateCodec for BluetoothSessionEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         match self {
             Self::BluetoothSessionDisconnectedEvent(value) => {
@@ -4159,7 +4159,7 @@ impl VmAbiCodec for BluetoothSessionEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::BluetoothSessionDisconnectedEvent(value) => {
@@ -4188,7 +4188,7 @@ impl VmAbiCodec for BluetoothSessionEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -4249,7 +4249,7 @@ impl Clone for CameraWatchEventAbi<VmAbi> {
 
 impl VmAggregateCodec for CameraWatchEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -4259,7 +4259,7 @@ impl VmAggregateCodec for CameraWatchEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -4295,7 +4295,7 @@ impl VmAggregateCodec for CameraWatchEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         match self {
             Self::CameraAttachedEvent(value) => {
@@ -4385,7 +4385,7 @@ impl VmAbiCodec for CameraWatchEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::CameraAttachedEvent(value) => CameraWatchEventValue::CameraAttachedEvent(
@@ -4399,7 +4399,7 @@ impl VmAbiCodec for CameraWatchEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -4449,7 +4449,7 @@ impl Clone for MidiEventAbi<VmAbi> {
 
 impl VmAggregateCodec for MidiEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -4459,7 +4459,7 @@ impl VmAggregateCodec for MidiEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -4505,7 +4505,7 @@ impl VmAggregateCodec for MidiEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         match self {
             Self::MidiBackendDisconnectedEvent(value) => {
@@ -4647,7 +4647,7 @@ impl VmAbiCodec for MidiEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::MidiBackendDisconnectedEvent(value) => {
@@ -4669,7 +4669,7 @@ impl VmAbiCodec for MidiEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -4723,7 +4723,7 @@ impl Clone for OsPathAbi<VmAbi> {
 
 impl VmAggregateCodec for OsPathAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -4733,7 +4733,7 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -4769,7 +4769,7 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         match self {
             Self::OsPathBytes(value) => {
@@ -4851,7 +4851,7 @@ impl VmAbiCodec for OsPathAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::OsPathBytes(value) => OsPathValue::OsPathBytes(
@@ -4865,7 +4865,7 @@ impl VmAbiCodec for OsPathAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -4917,7 +4917,7 @@ impl Clone for SerialEventAbi<VmAbi> {
 
 impl VmAggregateCodec for SerialEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -4927,7 +4927,7 @@ impl VmAggregateCodec for SerialEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -4978,7 +4978,7 @@ impl VmAggregateCodec for SerialEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         match self {
             Self::SerialDisconnectedEvent(value) => {
@@ -5146,7 +5146,7 @@ impl VmAbiCodec for SerialEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::SerialDisconnectedEvent(value) => SerialEventValue::SerialDisconnectedEvent(
@@ -5171,7 +5171,7 @@ impl VmAbiCodec for SerialEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -5230,7 +5230,7 @@ impl Clone for SerialWatchEventAbi<VmAbi> {
 
 impl VmAggregateCodec for SerialWatchEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -5240,7 +5240,7 @@ impl VmAggregateCodec for SerialWatchEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -5281,7 +5281,7 @@ impl VmAggregateCodec for SerialWatchEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         match self {
             Self::SerialAttachedEvent(value) => {
@@ -5401,7 +5401,7 @@ impl VmAbiCodec for SerialWatchEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::SerialAttachedEvent(value) => SerialWatchEventValue::SerialAttachedEvent(
@@ -5420,7 +5420,7 @@ impl VmAbiCodec for SerialWatchEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -5475,7 +5475,7 @@ impl Clone for UsbControlTargetAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbControlTargetAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -5485,7 +5485,7 @@ impl VmAggregateCodec for UsbControlTargetAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -5531,7 +5531,7 @@ impl VmAggregateCodec for UsbControlTargetAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         match self {
             Self::UsbControlDeviceTarget(value) => {
@@ -5681,7 +5681,7 @@ impl VmAbiCodec for UsbControlTargetAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::UsbControlDeviceTarget(value) => UsbControlTargetValue::UsbControlDeviceTarget(
@@ -5705,7 +5705,7 @@ impl VmAbiCodec for UsbControlTargetAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -5765,7 +5765,7 @@ impl Clone for UsbHotplugEventAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbHotplugEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -5775,7 +5775,7 @@ impl VmAggregateCodec for UsbHotplugEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -5816,7 +5816,7 @@ impl VmAggregateCodec for UsbHotplugEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         match self {
             Self::UsbHotplugAttachedEvent(value) => {
@@ -5934,7 +5934,7 @@ impl VmAbiCodec for UsbHotplugEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::UsbHotplugAttachedEvent(value) => UsbHotplugEventValue::UsbHotplugAttachedEvent(
@@ -5951,7 +5951,7 @@ impl VmAbiCodec for UsbHotplugEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -6009,7 +6009,7 @@ impl Clone for BluetoothAdapterAttachedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothAdapterAttachedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -6019,7 +6019,7 @@ impl VmAggregateCodec for BluetoothAdapterAttachedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -6045,7 +6045,7 @@ impl VmAggregateCodec for BluetoothAdapterAttachedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothAdapterAttachedEvent")
@@ -6106,7 +6106,7 @@ impl VmAbiCodec for BluetoothAdapterAttachedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothAdapterAttachedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -6118,7 +6118,7 @@ impl VmAbiCodec for BluetoothAdapterAttachedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -6166,7 +6166,7 @@ impl Clone for BluetoothAdapterChangedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothAdapterChangedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -6176,7 +6176,7 @@ impl VmAggregateCodec for BluetoothAdapterChangedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -6202,7 +6202,7 @@ impl VmAggregateCodec for BluetoothAdapterChangedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothAdapterChangedEvent")
@@ -6263,7 +6263,7 @@ impl VmAbiCodec for BluetoothAdapterChangedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothAdapterChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -6275,7 +6275,7 @@ impl VmAbiCodec for BluetoothAdapterChangedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -6329,7 +6329,7 @@ impl Clone for BluetoothAdapterDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothAdapterDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -6339,7 +6339,7 @@ impl VmAggregateCodec for BluetoothAdapterDescriptorAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -6373,7 +6373,7 @@ impl VmAggregateCodec for BluetoothAdapterDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothAdapterDescriptor")
@@ -6459,7 +6459,7 @@ impl VmAbiCodec for BluetoothAdapterDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothAdapterDescriptorValue {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
@@ -6474,7 +6474,7 @@ impl VmAbiCodec for BluetoothAdapterDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -6525,7 +6525,7 @@ impl Clone for BluetoothAdapterDetachedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothAdapterDetachedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -6535,7 +6535,7 @@ impl VmAggregateCodec for BluetoothAdapterDetachedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -6561,7 +6561,7 @@ impl VmAggregateCodec for BluetoothAdapterDetachedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothAdapterDetachedEvent")
@@ -6622,7 +6622,7 @@ impl VmAbiCodec for BluetoothAdapterDetachedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothAdapterDetachedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -6634,7 +6634,7 @@ impl VmAbiCodec for BluetoothAdapterDetachedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -6684,7 +6684,7 @@ impl Clone for BluetoothAdapterEventMetadataAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothAdapterEventMetadataAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -6694,7 +6694,7 @@ impl VmAggregateCodec for BluetoothAdapterEventMetadataAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -6722,7 +6722,7 @@ impl VmAggregateCodec for BluetoothAdapterEventMetadataAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothAdapterEventMetadata")
@@ -6790,7 +6790,7 @@ impl VmAbiCodec for BluetoothAdapterEventMetadataAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothAdapterEventMetadataValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
@@ -6803,7 +6803,7 @@ impl VmAbiCodec for BluetoothAdapterEventMetadataAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -6858,7 +6858,7 @@ impl Clone for BluetoothAdvertisementDataAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothAdvertisementDataAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -6868,7 +6868,7 @@ impl VmAggregateCodec for BluetoothAdvertisementDataAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -6902,7 +6902,7 @@ impl VmAggregateCodec for BluetoothAdvertisementDataAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothAdvertisementData")
@@ -7010,7 +7010,7 @@ impl VmAbiCodec for BluetoothAdvertisementDataAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothAdvertisementDataValue {
             local_name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
@@ -7035,7 +7035,7 @@ impl VmAbiCodec for BluetoothAdvertisementDataAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -7098,7 +7098,7 @@ impl Clone for BluetoothAdvertisementManufacturerDataAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothAdvertisementManufacturerDataAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -7108,7 +7108,7 @@ impl VmAggregateCodec for BluetoothAdvertisementManufacturerDataAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -7131,7 +7131,7 @@ impl VmAggregateCodec for BluetoothAdvertisementManufacturerDataAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothAdvertisementManufacturerData")
@@ -7183,7 +7183,7 @@ impl VmAbiCodec for BluetoothAdvertisementManufacturerDataAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothAdvertisementManufacturerDataValue {
             company_id: <u16 as VmAbiCodec>::into_value(self.company_id, context)?,
@@ -7192,7 +7192,7 @@ impl VmAbiCodec for BluetoothAdvertisementManufacturerDataAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -7237,7 +7237,7 @@ impl Clone for BluetoothAdvertisementServiceDataAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothAdvertisementServiceDataAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -7247,7 +7247,7 @@ impl VmAggregateCodec for BluetoothAdvertisementServiceDataAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -7271,7 +7271,7 @@ impl VmAggregateCodec for BluetoothAdvertisementServiceDataAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothAdvertisementServiceData")
@@ -7331,7 +7331,7 @@ impl VmAbiCodec for BluetoothAdvertisementServiceDataAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothAdvertisementServiceDataValue {
             service_uuid: <vm::StringHandle as VmAbiCodec>::into_value(self.service_uuid, context)?,
@@ -7340,7 +7340,7 @@ impl VmAbiCodec for BluetoothAdvertisementServiceDataAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -7388,7 +7388,7 @@ impl Clone for BluetoothDataFilterAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothDataFilterAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -7398,7 +7398,7 @@ impl VmAggregateCodec for BluetoothDataFilterAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -7422,7 +7422,7 @@ impl VmAggregateCodec for BluetoothDataFilterAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothDataFilter")
@@ -7480,7 +7480,7 @@ impl VmAbiCodec for BluetoothDataFilterAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothDataFilterValue {
             data_prefix: <VmSlice<u8> as VmAbiCodec>::into_value(self.data_prefix, context)?,
@@ -7489,7 +7489,7 @@ impl VmAbiCodec for BluetoothDataFilterAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -7548,7 +7548,7 @@ impl Clone for BluetoothDeviceDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothDeviceDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -7558,7 +7558,7 @@ impl VmAggregateCodec for BluetoothDeviceDescriptorAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -7612,7 +7612,7 @@ impl VmAggregateCodec for BluetoothDeviceDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothDeviceDescriptor")
@@ -7756,7 +7756,7 @@ impl VmAbiCodec for BluetoothDeviceDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothDeviceDescriptorValue {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
@@ -7781,7 +7781,7 @@ impl VmAbiCodec for BluetoothDeviceDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -7846,7 +7846,7 @@ impl Clone for BluetoothGattCharacteristicAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothGattCharacteristicAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -7856,7 +7856,7 @@ impl VmAggregateCodec for BluetoothGattCharacteristicAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -7887,7 +7887,7 @@ impl VmAggregateCodec for BluetoothGattCharacteristicAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothGattCharacteristic")
@@ -7970,7 +7970,7 @@ impl VmAbiCodec for BluetoothGattCharacteristicAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothGattCharacteristicValue {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
@@ -7984,7 +7984,7 @@ impl VmAbiCodec for BluetoothGattCharacteristicAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -8027,7 +8027,7 @@ pub type BluetoothGattCharacteristicPropertiesVm = BluetoothGattCharacteristicPr
 
 impl VmAggregateCodec for BluetoothGattCharacteristicProperties {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -8037,7 +8037,7 @@ impl VmAggregateCodec for BluetoothGattCharacteristicProperties {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -8081,7 +8081,7 @@ impl VmAggregateCodec for BluetoothGattCharacteristicProperties {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothGattCharacteristicProperties")
@@ -8152,13 +8152,13 @@ impl VmAbiCodec for BluetoothGattCharacteristicProperties {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -8206,7 +8206,7 @@ impl Clone for BluetoothGattDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothGattDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -8216,7 +8216,7 @@ impl VmAggregateCodec for BluetoothGattDescriptorAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -8250,7 +8250,7 @@ impl VmAggregateCodec for BluetoothGattDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothGattDescriptor")
@@ -8330,7 +8330,7 @@ impl VmAbiCodec for BluetoothGattDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothGattDescriptorValue {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
@@ -8344,7 +8344,7 @@ impl VmAbiCodec for BluetoothGattDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -8398,7 +8398,7 @@ impl Clone for BluetoothGattServiceAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothGattServiceAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -8408,7 +8408,7 @@ impl VmAggregateCodec for BluetoothGattServiceAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -8441,7 +8441,7 @@ impl VmAggregateCodec for BluetoothGattServiceAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothGattService")
@@ -8520,7 +8520,7 @@ impl VmAbiCodec for BluetoothGattServiceAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothGattServiceValue {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
@@ -8534,7 +8534,7 @@ impl VmAbiCodec for BluetoothGattServiceAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -8592,7 +8592,7 @@ impl Clone for BluetoothGattValueEventAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothGattValueEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -8602,7 +8602,7 @@ impl VmAggregateCodec for BluetoothGattValueEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -8643,7 +8643,7 @@ impl VmAggregateCodec for BluetoothGattValueEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothGattValueEvent")
@@ -8755,7 +8755,7 @@ impl VmAbiCodec for BluetoothGattValueEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothGattValueEventValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
@@ -8774,7 +8774,7 @@ impl VmAbiCodec for BluetoothGattValueEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -8832,7 +8832,7 @@ impl Clone for BluetoothManufacturerDataFilterAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothManufacturerDataFilterAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -8842,7 +8842,7 @@ impl VmAggregateCodec for BluetoothManufacturerDataFilterAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -8867,7 +8867,7 @@ impl VmAggregateCodec for BluetoothManufacturerDataFilterAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothManufacturerDataFilter")
@@ -8922,7 +8922,7 @@ impl VmAbiCodec for BluetoothManufacturerDataFilterAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothManufacturerDataFilterValue {
             company_id: <u16 as VmAbiCodec>::into_value(self.company_id, context)?,
@@ -8931,7 +8931,7 @@ impl VmAbiCodec for BluetoothManufacturerDataFilterAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -8976,7 +8976,7 @@ impl Clone for BluetoothScanDiscoveredEventAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothScanDiscoveredEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -8986,7 +8986,7 @@ impl VmAggregateCodec for BluetoothScanDiscoveredEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -9012,7 +9012,7 @@ impl VmAggregateCodec for BluetoothScanDiscoveredEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothScanDiscoveredEvent")
@@ -9072,7 +9072,7 @@ impl VmAbiCodec for BluetoothScanDiscoveredEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothScanDiscoveredEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -9084,7 +9084,7 @@ impl VmAbiCodec for BluetoothScanDiscoveredEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -9134,7 +9134,7 @@ impl Clone for BluetoothScanEventMetadataAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothScanEventMetadataAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -9144,7 +9144,7 @@ impl VmAggregateCodec for BluetoothScanEventMetadataAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -9172,7 +9172,7 @@ impl VmAggregateCodec for BluetoothScanEventMetadataAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothScanEventMetadata")
@@ -9240,7 +9240,7 @@ impl VmAbiCodec for BluetoothScanEventMetadataAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothScanEventMetadataValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
@@ -9250,7 +9250,7 @@ impl VmAbiCodec for BluetoothScanEventMetadataAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -9312,7 +9312,7 @@ impl Clone for BluetoothScanFilterAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothScanFilterAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -9322,7 +9322,7 @@ impl VmAggregateCodec for BluetoothScanFilterAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -9381,7 +9381,7 @@ impl VmAggregateCodec for BluetoothScanFilterAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothScanFilter")
@@ -9570,7 +9570,7 @@ impl VmAbiCodec for BluetoothScanFilterAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothScanFilterValue {
             service_uuids: <VmArray<vm::StringHandle> as VmAbiCodec>::into_value(
@@ -9612,7 +9612,7 @@ impl VmAbiCodec for BluetoothScanFilterAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -9690,7 +9690,7 @@ impl Clone for BluetoothScanLostEventAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothScanLostEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -9700,7 +9700,7 @@ impl VmAggregateCodec for BluetoothScanLostEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -9726,7 +9726,7 @@ impl VmAggregateCodec for BluetoothScanLostEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothScanLostEvent")
@@ -9786,7 +9786,7 @@ impl VmAbiCodec for BluetoothScanLostEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothScanLostEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -9798,7 +9798,7 @@ impl VmAbiCodec for BluetoothScanLostEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -9846,7 +9846,7 @@ impl Clone for BluetoothScanUpdatedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothScanUpdatedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -9856,7 +9856,7 @@ impl VmAggregateCodec for BluetoothScanUpdatedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -9882,7 +9882,7 @@ impl VmAggregateCodec for BluetoothScanUpdatedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothScanUpdatedEvent")
@@ -9942,7 +9942,7 @@ impl VmAbiCodec for BluetoothScanUpdatedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothScanUpdatedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -9954,7 +9954,7 @@ impl VmAbiCodec for BluetoothScanUpdatedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -10002,7 +10002,7 @@ impl Clone for BluetoothServiceDataFilterAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothServiceDataFilterAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -10012,7 +10012,7 @@ impl VmAggregateCodec for BluetoothServiceDataFilterAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -10038,7 +10038,7 @@ impl VmAggregateCodec for BluetoothServiceDataFilterAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothServiceDataFilter")
@@ -10101,7 +10101,7 @@ impl VmAbiCodec for BluetoothServiceDataFilterAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothServiceDataFilterValue {
             service_uuid: <vm::StringHandle as VmAbiCodec>::into_value(self.service_uuid, context)?,
@@ -10110,7 +10110,7 @@ impl VmAbiCodec for BluetoothServiceDataFilterAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -10158,7 +10158,7 @@ impl Clone for BluetoothSessionDisconnectedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothSessionDisconnectedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -10168,7 +10168,7 @@ impl VmAggregateCodec for BluetoothSessionDisconnectedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -10194,7 +10194,7 @@ impl VmAggregateCodec for BluetoothSessionDisconnectedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothSessionDisconnectedEvent")
@@ -10255,7 +10255,7 @@ impl VmAbiCodec for BluetoothSessionDisconnectedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothSessionDisconnectedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -10267,7 +10267,7 @@ impl VmAbiCodec for BluetoothSessionDisconnectedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -10294,7 +10294,7 @@ pub type BluetoothSessionEventMetadataVm = BluetoothSessionEventMetadata;
 
 impl VmAggregateCodec for BluetoothSessionEventMetadata {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -10304,7 +10304,7 @@ impl VmAggregateCodec for BluetoothSessionEventMetadata {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -10327,7 +10327,7 @@ impl VmAggregateCodec for BluetoothSessionEventMetadata {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothSessionEventMetadata")
@@ -10365,13 +10365,13 @@ impl VmAbiCodec for BluetoothSessionEventMetadata {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -10417,7 +10417,7 @@ impl Clone for BluetoothSessionGattDatabaseChangedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothSessionGattDatabaseChangedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -10427,7 +10427,7 @@ impl VmAggregateCodec for BluetoothSessionGattDatabaseChangedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -10453,7 +10453,7 @@ impl VmAggregateCodec for BluetoothSessionGattDatabaseChangedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothSessionGattDatabaseChangedEvent")
@@ -10514,7 +10514,7 @@ impl VmAbiCodec for BluetoothSessionGattDatabaseChangedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothSessionGattDatabaseChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -10526,7 +10526,7 @@ impl VmAbiCodec for BluetoothSessionGattDatabaseChangedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -10577,7 +10577,7 @@ impl Clone for BluetoothSessionPairStateChangedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for BluetoothSessionPairStateChangedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -10587,7 +10587,7 @@ impl VmAggregateCodec for BluetoothSessionPairStateChangedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -10617,7 +10617,7 @@ impl VmAggregateCodec for BluetoothSessionPairStateChangedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::BluetoothSessionPairStateChangedEvent")
@@ -10694,7 +10694,7 @@ impl VmAbiCodec for BluetoothSessionPairStateChangedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothSessionPairStateChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -10707,7 +10707,7 @@ impl VmAbiCodec for BluetoothSessionPairStateChangedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -10756,7 +10756,7 @@ impl Clone for CameraAttachedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for CameraAttachedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -10766,7 +10766,7 @@ impl VmAggregateCodec for CameraAttachedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -10792,7 +10792,7 @@ impl VmAggregateCodec for CameraAttachedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraAttachedEvent")
@@ -10852,7 +10852,7 @@ impl VmAbiCodec for CameraAttachedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CameraAttachedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -10864,7 +10864,7 @@ impl VmAbiCodec for CameraAttachedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -10942,7 +10942,7 @@ impl Clone for CameraControlCapabilitiesAbi<VmAbi> {
 
 impl VmAggregateCodec for CameraControlCapabilitiesAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -10952,7 +10952,7 @@ impl VmAggregateCodec for CameraControlCapabilitiesAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -11045,7 +11045,7 @@ impl VmAggregateCodec for CameraControlCapabilitiesAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraControlCapabilities")
@@ -11397,7 +11397,7 @@ impl VmAbiCodec for CameraControlCapabilitiesAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CameraControlCapabilitiesValue {
             exposure_modes: <Option<VmSlice<CameraExposureMode>> as VmAbiCodec>::into_value(
@@ -11475,7 +11475,7 @@ impl VmAbiCodec for CameraControlCapabilitiesAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -11598,7 +11598,7 @@ pub type CameraControlPatchVm = CameraControlPatch;
 
 impl VmAggregateCodec for CameraControlPatch {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -11608,7 +11608,7 @@ impl VmAggregateCodec for CameraControlPatch {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -11686,7 +11686,7 @@ impl VmAggregateCodec for CameraControlPatch {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraControlPatch")
@@ -11818,13 +11818,13 @@ impl VmAbiCodec for CameraControlPatch {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -11877,7 +11877,7 @@ pub type CameraControlStateVm = CameraControlState;
 
 impl VmAggregateCodec for CameraControlState {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -11887,7 +11887,7 @@ impl VmAggregateCodec for CameraControlState {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -11965,7 +11965,7 @@ impl VmAggregateCodec for CameraControlState {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraControlState")
@@ -12097,13 +12097,13 @@ impl VmAbiCodec for CameraControlState {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -12147,7 +12147,7 @@ impl Clone for CameraDetachedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for CameraDetachedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -12157,7 +12157,7 @@ impl VmAggregateCodec for CameraDetachedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -12183,7 +12183,7 @@ impl VmAggregateCodec for CameraDetachedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraDetachedEvent")
@@ -12243,7 +12243,7 @@ impl VmAbiCodec for CameraDetachedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CameraDetachedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -12255,7 +12255,7 @@ impl VmAbiCodec for CameraDetachedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -12311,7 +12311,7 @@ impl Clone for CameraDeviceDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for CameraDeviceDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -12321,7 +12321,7 @@ impl VmAggregateCodec for CameraDeviceDescriptorAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -12363,7 +12363,7 @@ impl VmAggregateCodec for CameraDeviceDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraDeviceDescriptor")
@@ -12471,7 +12471,7 @@ impl VmAbiCodec for CameraDeviceDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CameraDeviceDescriptorValue {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
@@ -12487,7 +12487,7 @@ impl VmAbiCodec for CameraDeviceDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -12527,7 +12527,7 @@ pub type CameraExposureCompensationRangeVm = CameraExposureCompensationRange;
 
 impl VmAggregateCodec for CameraExposureCompensationRange {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -12537,7 +12537,7 @@ impl VmAggregateCodec for CameraExposureCompensationRange {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -12569,7 +12569,7 @@ impl VmAggregateCodec for CameraExposureCompensationRange {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraExposureCompensationRange")
@@ -12619,13 +12619,13 @@ impl VmAbiCodec for CameraExposureCompensationRange {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -12654,7 +12654,7 @@ pub type CameraExposureTimeRangeVm = CameraExposureTimeRange;
 
 impl VmAggregateCodec for CameraExposureTimeRange {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -12664,7 +12664,7 @@ impl VmAggregateCodec for CameraExposureTimeRange {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -12696,7 +12696,7 @@ impl VmAggregateCodec for CameraExposureTimeRange {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraExposureTimeRange")
@@ -12746,13 +12746,13 @@ impl VmAbiCodec for CameraExposureTimeRange {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -12779,7 +12779,7 @@ pub type CameraFloatControlRangeVm = CameraFloatControlRange;
 
 impl VmAggregateCodec for CameraFloatControlRange {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -12789,7 +12789,7 @@ impl VmAggregateCodec for CameraFloatControlRange {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -12818,7 +12818,7 @@ impl VmAggregateCodec for CameraFloatControlRange {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraFloatControlRange")
@@ -12863,13 +12863,13 @@ impl VmAbiCodec for CameraFloatControlRange {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -12898,7 +12898,7 @@ pub type CameraFocusDistanceRangeVm = CameraFocusDistanceRange;
 
 impl VmAggregateCodec for CameraFocusDistanceRange {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -12908,7 +12908,7 @@ impl VmAggregateCodec for CameraFocusDistanceRange {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -12940,7 +12940,7 @@ impl VmAggregateCodec for CameraFocusDistanceRange {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraFocusDistanceRange")
@@ -12994,13 +12994,13 @@ impl VmAbiCodec for CameraFocusDistanceRange {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -13060,7 +13060,7 @@ impl Clone for CameraFrameAbi<VmAbi> {
 
 impl VmAggregateCodec for CameraFrameAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -13070,7 +13070,7 @@ impl VmAggregateCodec for CameraFrameAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -13126,7 +13126,7 @@ impl VmAggregateCodec for CameraFrameAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraFrame")
@@ -13278,7 +13278,7 @@ impl VmAbiCodec for CameraFrameAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CameraFrameValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
@@ -13301,7 +13301,7 @@ impl VmAbiCodec for CameraFrameAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -13348,7 +13348,7 @@ pub type CameraFrameMetadataVm = CameraFrameMetadata;
 
 impl VmAggregateCodec for CameraFrameMetadata {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -13358,7 +13358,7 @@ impl VmAggregateCodec for CameraFrameMetadata {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -13390,7 +13390,7 @@ impl VmAggregateCodec for CameraFrameMetadata {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraFrameMetadata")
@@ -13448,13 +13448,13 @@ impl VmAbiCodec for CameraFrameMetadata {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -13481,7 +13481,7 @@ pub type CameraPanAngleRangeVm = CameraPanAngleRange;
 
 impl VmAggregateCodec for CameraPanAngleRange {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -13491,7 +13491,7 @@ impl VmAggregateCodec for CameraPanAngleRange {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -13520,7 +13520,7 @@ impl VmAggregateCodec for CameraPanAngleRange {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraPanAngleRange")
@@ -13569,13 +13569,13 @@ impl VmAbiCodec for CameraPanAngleRange {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -13633,7 +13633,7 @@ impl Clone for CameraPhotoAbi<VmAbi> {
 
 impl VmAggregateCodec for CameraPhotoAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -13643,7 +13643,7 @@ impl VmAggregateCodec for CameraPhotoAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -13696,7 +13696,7 @@ impl VmAggregateCodec for CameraPhotoAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraPhoto")
@@ -13840,7 +13840,7 @@ impl VmAbiCodec for CameraPhotoAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CameraPhotoValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
@@ -13862,7 +13862,7 @@ impl VmAbiCodec for CameraPhotoAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -13927,7 +13927,7 @@ impl Clone for CameraPhotoCapabilitiesAbi<VmAbi> {
 
 impl VmAggregateCodec for CameraPhotoCapabilitiesAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -13937,7 +13937,7 @@ impl VmAggregateCodec for CameraPhotoCapabilitiesAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -13974,7 +13974,7 @@ impl VmAggregateCodec for CameraPhotoCapabilitiesAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraPhotoCapabilities")
@@ -14079,7 +14079,7 @@ impl VmAbiCodec for CameraPhotoCapabilitiesAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CameraPhotoCapabilitiesValue {
             options: <VmSlice<CameraPhotoOptionsVm> as VmAbiCodec>::into_value(
@@ -14102,7 +14102,7 @@ impl VmAbiCodec for CameraPhotoCapabilitiesAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -14146,7 +14146,7 @@ pub type CameraPhotoOptionsVm = CameraPhotoOptions;
 
 impl VmAggregateCodec for CameraPhotoOptions {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -14156,7 +14156,7 @@ impl VmAggregateCodec for CameraPhotoOptions {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -14194,7 +14194,7 @@ impl VmAggregateCodec for CameraPhotoOptions {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraPhotoOptions")
@@ -14252,13 +14252,13 @@ impl VmAbiCodec for CameraPhotoOptions {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -14285,7 +14285,7 @@ pub type CameraPhotoSettingsVm = CameraPhotoSettings;
 
 impl VmAggregateCodec for CameraPhotoSettings {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -14295,7 +14295,7 @@ impl VmAggregateCodec for CameraPhotoSettings {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -14328,7 +14328,7 @@ impl VmAggregateCodec for CameraPhotoSettings {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraPhotoSettings")
@@ -14383,13 +14383,13 @@ impl VmAbiCodec for CameraPhotoSettings {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -14416,7 +14416,7 @@ pub type CameraPhotoStateVm = CameraPhotoState;
 
 impl VmAggregateCodec for CameraPhotoState {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -14426,7 +14426,7 @@ impl VmAggregateCodec for CameraPhotoState {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -14459,7 +14459,7 @@ impl VmAggregateCodec for CameraPhotoState {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraPhotoState")
@@ -14514,13 +14514,13 @@ impl VmAbiCodec for CameraPhotoState {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -14545,7 +14545,7 @@ pub type CameraPixelFormatDescriptorVm = CameraPixelFormatDescriptor;
 
 impl VmAggregateCodec for CameraPixelFormatDescriptor {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -14555,7 +14555,7 @@ impl VmAggregateCodec for CameraPixelFormatDescriptor {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -14584,7 +14584,7 @@ impl VmAggregateCodec for CameraPixelFormatDescriptor {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraPixelFormatDescriptor")
@@ -14630,13 +14630,13 @@ impl VmAbiCodec for CameraPixelFormatDescriptor {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -14663,7 +14663,7 @@ pub type CameraPlaneLayoutVm = CameraPlaneLayout;
 
 impl VmAggregateCodec for CameraPlaneLayout {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -14673,7 +14673,7 @@ impl VmAggregateCodec for CameraPlaneLayout {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -14702,7 +14702,7 @@ impl VmAggregateCodec for CameraPlaneLayout {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraPlaneLayout")
@@ -14751,13 +14751,13 @@ impl VmAbiCodec for CameraPlaneLayout {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -14815,7 +14815,7 @@ impl Clone for CameraRecordingAbi<VmAbi> {
 
 impl VmAggregateCodec for CameraRecordingAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -14825,7 +14825,7 @@ impl VmAggregateCodec for CameraRecordingAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -14875,7 +14875,7 @@ impl VmAggregateCodec for CameraRecordingAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraRecording")
@@ -15017,7 +15017,7 @@ impl VmAbiCodec for CameraRecordingAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CameraRecordingValue {
             path: <fs::OsPathVm as VmAbiCodec>::into_value(self.path, context)?,
@@ -15045,7 +15045,7 @@ impl VmAbiCodec for CameraRecordingAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -15119,7 +15119,7 @@ impl Clone for CameraRecordingCapabilitiesAbi<VmAbi> {
 
 impl VmAggregateCodec for CameraRecordingCapabilitiesAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -15129,7 +15129,7 @@ impl VmAggregateCodec for CameraRecordingCapabilitiesAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -15173,7 +15173,7 @@ impl VmAggregateCodec for CameraRecordingCapabilitiesAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraRecordingCapabilities")
@@ -15312,7 +15312,7 @@ impl VmAbiCodec for CameraRecordingCapabilitiesAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CameraRecordingCapabilitiesValue {
             containers: <VmSlice<CameraRecordingContainer> as VmAbiCodec>::into_value(
@@ -15341,7 +15341,7 @@ impl VmAbiCodec for CameraRecordingCapabilitiesAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -15422,7 +15422,7 @@ impl Clone for CameraRecordingOptionsAbi<VmAbi> {
 
 impl VmAggregateCodec for CameraRecordingOptionsAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -15432,7 +15432,7 @@ impl VmAggregateCodec for CameraRecordingOptionsAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -15487,7 +15487,7 @@ impl VmAggregateCodec for CameraRecordingOptionsAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraRecordingOptions")
@@ -15675,7 +15675,7 @@ impl VmAbiCodec for CameraRecordingOptionsAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CameraRecordingOptionsValue {
             output_path: <Option<fs::OsPathVm> as VmAbiCodec>::into_value(
@@ -15710,7 +15710,7 @@ impl VmAbiCodec for CameraRecordingOptionsAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -15785,7 +15785,7 @@ impl Clone for CameraRecordingStateAbi<VmAbi> {
 
 impl VmAggregateCodec for CameraRecordingStateAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -15795,7 +15795,7 @@ impl VmAggregateCodec for CameraRecordingStateAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -15826,7 +15826,7 @@ impl VmAggregateCodec for CameraRecordingStateAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraRecordingState")
@@ -15910,7 +15910,7 @@ impl VmAbiCodec for CameraRecordingStateAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CameraRecordingStateValue {
             active: <bool as VmAbiCodec>::into_value(self.active, context)?,
@@ -15927,7 +15927,7 @@ impl VmAbiCodec for CameraRecordingStateAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -15965,7 +15965,7 @@ pub type CameraSensorIsoRangeVm = CameraSensorIsoRange;
 
 impl VmAggregateCodec for CameraSensorIsoRange {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -15975,7 +15975,7 @@ impl VmAggregateCodec for CameraSensorIsoRange {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -16007,7 +16007,7 @@ impl VmAggregateCodec for CameraSensorIsoRange {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraSensorIsoRange")
@@ -16057,13 +16057,13 @@ impl VmAbiCodec for CameraSensorIsoRange {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -16115,7 +16115,7 @@ impl Clone for CameraStreamCapabilityAbi<VmAbi> {
 
 impl VmAggregateCodec for CameraStreamCapabilityAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -16125,7 +16125,7 @@ impl VmAggregateCodec for CameraStreamCapabilityAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -16167,7 +16167,7 @@ impl VmAggregateCodec for CameraStreamCapabilityAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraStreamCapability")
@@ -16293,7 +16293,7 @@ impl VmAbiCodec for CameraStreamCapabilityAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CameraStreamCapabilityValue {
             config: <CameraStreamConfigVm as VmAbiCodec>::into_value(self.config, context)?,
@@ -16321,7 +16321,7 @@ impl VmAbiCodec for CameraStreamCapabilityAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -16372,7 +16372,7 @@ pub type CameraStreamConfigVm = CameraStreamConfig;
 
 impl VmAggregateCodec for CameraStreamConfig {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -16382,7 +16382,7 @@ impl VmAggregateCodec for CameraStreamConfig {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -16423,7 +16423,7 @@ impl VmAggregateCodec for CameraStreamConfig {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraStreamConfig")
@@ -16486,13 +16486,13 @@ impl VmAbiCodec for CameraStreamConfig {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -16519,7 +16519,7 @@ pub type CameraTiltAngleRangeVm = CameraTiltAngleRange;
 
 impl VmAggregateCodec for CameraTiltAngleRange {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -16529,7 +16529,7 @@ impl VmAggregateCodec for CameraTiltAngleRange {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -16558,7 +16558,7 @@ impl VmAggregateCodec for CameraTiltAngleRange {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraTiltAngleRange")
@@ -16607,13 +16607,13 @@ impl VmAbiCodec for CameraTiltAngleRange {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -16659,7 +16659,7 @@ impl Clone for CameraWatchEventMetadataAbi<VmAbi> {
 
 impl VmAggregateCodec for CameraWatchEventMetadataAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -16669,7 +16669,7 @@ impl VmAggregateCodec for CameraWatchEventMetadataAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -16697,7 +16697,7 @@ impl VmAggregateCodec for CameraWatchEventMetadataAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraWatchEventMetadata")
@@ -16760,7 +16760,7 @@ impl VmAbiCodec for CameraWatchEventMetadataAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CameraWatchEventMetadataValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
@@ -16770,7 +16770,7 @@ impl VmAbiCodec for CameraWatchEventMetadataAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -16801,7 +16801,7 @@ pub type CameraWhiteBalanceRangeVm = CameraWhiteBalanceRange;
 
 impl VmAggregateCodec for CameraWhiteBalanceRange {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -16811,7 +16811,7 @@ impl VmAggregateCodec for CameraWhiteBalanceRange {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -16843,7 +16843,7 @@ impl VmAggregateCodec for CameraWhiteBalanceRange {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraWhiteBalanceRange")
@@ -16897,13 +16897,13 @@ impl VmAbiCodec for CameraWhiteBalanceRange {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -16930,7 +16930,7 @@ pub type CameraZoomRatioRangeVm = CameraZoomRatioRange;
 
 impl VmAggregateCodec for CameraZoomRatioRange {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -16940,7 +16940,7 @@ impl VmAggregateCodec for CameraZoomRatioRange {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -16969,7 +16969,7 @@ impl VmAggregateCodec for CameraZoomRatioRange {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::CameraZoomRatioRange")
@@ -17017,13 +17017,13 @@ impl VmAbiCodec for CameraZoomRatioRange {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -17077,7 +17077,7 @@ impl Clone for MidiBackendDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for MidiBackendDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -17087,7 +17087,7 @@ impl VmAggregateCodec for MidiBackendDescriptorAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -17133,7 +17133,7 @@ impl VmAggregateCodec for MidiBackendDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::MidiBackendDescriptor")
@@ -17251,7 +17251,7 @@ impl VmAbiCodec for MidiBackendDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiBackendDescriptorValue {
             backend: <MidiBackend as VmAbiCodec>::into_value(self.backend, context)?,
@@ -17274,7 +17274,7 @@ impl VmAbiCodec for MidiBackendDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -17335,7 +17335,7 @@ impl Clone for MidiBackendDisconnectedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for MidiBackendDisconnectedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -17345,7 +17345,7 @@ impl VmAggregateCodec for MidiBackendDisconnectedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -17373,7 +17373,7 @@ impl VmAggregateCodec for MidiBackendDisconnectedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::MidiBackendDisconnectedEvent")
@@ -17434,7 +17434,7 @@ impl VmAbiCodec for MidiBackendDisconnectedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiBackendDisconnectedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -17444,7 +17444,7 @@ impl VmAbiCodec for MidiBackendDisconnectedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -17475,7 +17475,7 @@ pub type MidiEventMetadataVm = MidiEventMetadata;
 
 impl VmAggregateCodec for MidiEventMetadata {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -17485,7 +17485,7 @@ impl VmAggregateCodec for MidiEventMetadata {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -17518,7 +17518,7 @@ impl VmAggregateCodec for MidiEventMetadata {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::MidiEventMetadata")
@@ -17571,13 +17571,13 @@ impl VmAbiCodec for MidiEventMetadata {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -17613,7 +17613,7 @@ pub type MidiEventSubscriptionOptionsVm = MidiEventSubscriptionOptions;
 
 impl VmAggregateCodec for MidiEventSubscriptionOptions {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -17623,7 +17623,7 @@ impl VmAggregateCodec for MidiEventSubscriptionOptions {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -17674,7 +17674,7 @@ impl VmAggregateCodec for MidiEventSubscriptionOptions {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::MidiEventSubscriptionOptions")
@@ -17752,13 +17752,13 @@ impl VmAbiCodec for MidiEventSubscriptionOptions {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -17788,7 +17788,7 @@ pub type MidiInputPortOpenOptionsVm = MidiInputPortOpenOptions;
 
 impl VmAggregateCodec for MidiInputPortOpenOptions {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -17798,7 +17798,7 @@ impl VmAggregateCodec for MidiInputPortOpenOptions {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -17835,7 +17835,7 @@ impl VmAggregateCodec for MidiInputPortOpenOptions {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::MidiInputPortOpenOptions")
@@ -17895,13 +17895,13 @@ impl VmAbiCodec for MidiInputPortOpenOptions {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -17957,7 +17957,7 @@ impl Clone for MidiInputRecordAbi<VmAbi> {
 
 impl VmAggregateCodec for MidiInputRecordAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -17967,7 +17967,7 @@ impl VmAggregateCodec for MidiInputRecordAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -18006,7 +18006,7 @@ impl VmAggregateCodec for MidiInputRecordAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::MidiInputRecord")
@@ -18112,7 +18112,7 @@ impl VmAbiCodec for MidiInputRecordAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiInputRecordValue {
             received_at_ns: <u64 as VmAbiCodec>::into_value(self.received_at_ns, context)?,
@@ -18128,7 +18128,7 @@ impl VmAbiCodec for MidiInputRecordAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -18164,7 +18164,7 @@ pub type MidiOutputPortOpenOptionsVm = MidiOutputPortOpenOptions;
 
 impl VmAggregateCodec for MidiOutputPortOpenOptions {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -18174,7 +18174,7 @@ impl VmAggregateCodec for MidiOutputPortOpenOptions {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -18208,7 +18208,7 @@ impl VmAggregateCodec for MidiOutputPortOpenOptions {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::MidiOutputPortOpenOptions")
@@ -18263,13 +18263,13 @@ impl VmAbiCodec for MidiOutputPortOpenOptions {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -18323,7 +18323,7 @@ impl Clone for MidiOutputRecordAbi<VmAbi> {
 
 impl VmAggregateCodec for MidiOutputRecordAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -18333,7 +18333,7 @@ impl VmAggregateCodec for MidiOutputRecordAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -18367,7 +18367,7 @@ impl VmAggregateCodec for MidiOutputRecordAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::MidiOutputRecord")
@@ -18457,7 +18457,7 @@ impl VmAbiCodec for MidiOutputRecordAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiOutputRecordValue {
             send_at_ns: <Option<u64> as VmAbiCodec>::into_value(self.send_at_ns, context)?,
@@ -18469,7 +18469,7 @@ impl VmAbiCodec for MidiOutputRecordAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -18521,7 +18521,7 @@ impl Clone for MidiPortAddedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for MidiPortAddedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -18531,7 +18531,7 @@ impl VmAggregateCodec for MidiPortAddedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -18565,7 +18565,7 @@ impl VmAggregateCodec for MidiPortAddedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::MidiPortAddedEvent")
@@ -18645,7 +18645,7 @@ impl VmAbiCodec for MidiPortAddedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiPortAddedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -18656,7 +18656,7 @@ impl VmAbiCodec for MidiPortAddedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -18710,7 +18710,7 @@ impl Clone for MidiPortChangedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for MidiPortChangedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -18720,7 +18720,7 @@ impl VmAggregateCodec for MidiPortChangedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -18754,7 +18754,7 @@ impl VmAggregateCodec for MidiPortChangedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::MidiPortChangedEvent")
@@ -18834,7 +18834,7 @@ impl VmAbiCodec for MidiPortChangedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiPortChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -18845,7 +18845,7 @@ impl VmAbiCodec for MidiPortChangedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -18923,7 +18923,7 @@ impl Clone for MidiPortDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for MidiPortDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -18933,7 +18933,7 @@ impl VmAggregateCodec for MidiPortDescriptorAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -19017,7 +19017,7 @@ impl VmAggregateCodec for MidiPortDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::MidiPortDescriptor")
@@ -19253,7 +19253,7 @@ impl VmAbiCodec for MidiPortDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiPortDescriptorValue {
             backend: <MidiBackend as VmAbiCodec>::into_value(self.backend, context)?,
@@ -19296,7 +19296,7 @@ impl VmAbiCodec for MidiPortDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -19359,7 +19359,7 @@ pub type MidiPortListOptionsVm = MidiPortListOptions;
 
 impl VmAggregateCodec for MidiPortListOptions {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -19369,7 +19369,7 @@ impl VmAggregateCodec for MidiPortListOptions {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -19398,7 +19398,7 @@ impl VmAggregateCodec for MidiPortListOptions {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::MidiPortListOptions")
@@ -19444,13 +19444,13 @@ impl VmAbiCodec for MidiPortListOptions {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -19500,7 +19500,7 @@ impl Clone for MidiPortRemovedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for MidiPortRemovedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -19510,7 +19510,7 @@ impl VmAggregateCodec for MidiPortRemovedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -19548,7 +19548,7 @@ impl VmAggregateCodec for MidiPortRemovedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::MidiPortRemovedEvent")
@@ -19637,7 +19637,7 @@ impl VmAbiCodec for MidiPortRemovedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiPortRemovedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -19649,7 +19649,7 @@ impl VmAbiCodec for MidiPortRemovedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -19715,7 +19715,7 @@ impl Clone for MidiVirtualInputCreateOptionsAbi<VmAbi> {
 
 impl VmAggregateCodec for MidiVirtualInputCreateOptionsAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -19725,7 +19725,7 @@ impl VmAggregateCodec for MidiVirtualInputCreateOptionsAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -19778,7 +19778,7 @@ impl VmAggregateCodec for MidiVirtualInputCreateOptionsAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::MidiVirtualInputCreateOptions")
@@ -19919,7 +19919,7 @@ impl VmAbiCodec for MidiVirtualInputCreateOptionsAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiVirtualInputCreateOptionsValue {
             backend: <MidiBackend as VmAbiCodec>::into_value(self.backend, context)?,
@@ -19941,7 +19941,7 @@ impl VmAbiCodec for MidiVirtualInputCreateOptionsAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -20012,7 +20012,7 @@ impl Clone for MidiVirtualOutputCreateOptionsAbi<VmAbi> {
 
 impl VmAggregateCodec for MidiVirtualOutputCreateOptionsAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -20022,7 +20022,7 @@ impl VmAggregateCodec for MidiVirtualOutputCreateOptionsAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -20072,7 +20072,7 @@ impl VmAggregateCodec for MidiVirtualOutputCreateOptionsAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::MidiVirtualOutputCreateOptions")
@@ -20204,7 +20204,7 @@ impl VmAbiCodec for MidiVirtualOutputCreateOptionsAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiVirtualOutputCreateOptionsValue {
             backend: <MidiBackend as VmAbiCodec>::into_value(self.backend, context)?,
@@ -20225,7 +20225,7 @@ impl VmAbiCodec for MidiVirtualOutputCreateOptionsAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -20282,7 +20282,7 @@ impl Clone for OsPathBytesAbi<VmAbi> {
 
 impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -20292,7 +20292,7 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -20317,7 +20317,7 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::OsPathBytes")
@@ -20370,7 +20370,7 @@ impl VmAbiCodec for OsPathBytesAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(OsPathBytesValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -20379,7 +20379,7 @@ impl VmAbiCodec for OsPathBytesAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -20424,7 +20424,7 @@ impl Clone for OsPathUtf16Abi<VmAbi> {
 
 impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -20434,7 +20434,7 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -20459,7 +20459,7 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::OsPathUtf16")
@@ -20512,7 +20512,7 @@ impl VmAbiCodec for OsPathUtf16Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(OsPathUtf16Value {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -20521,7 +20521,7 @@ impl VmAbiCodec for OsPathUtf16Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -20566,7 +20566,7 @@ impl Clone for SerialAttachedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for SerialAttachedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -20576,7 +20576,7 @@ impl VmAggregateCodec for SerialAttachedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -20602,7 +20602,7 @@ impl VmAggregateCodec for SerialAttachedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialAttachedEvent")
@@ -20662,7 +20662,7 @@ impl VmAbiCodec for SerialAttachedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SerialAttachedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -20674,7 +20674,7 @@ impl VmAbiCodec for SerialAttachedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -20722,7 +20722,7 @@ impl Clone for SerialDetachedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for SerialDetachedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -20732,7 +20732,7 @@ impl VmAggregateCodec for SerialDetachedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -20758,7 +20758,7 @@ impl VmAggregateCodec for SerialDetachedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialDetachedEvent")
@@ -20818,7 +20818,7 @@ impl VmAbiCodec for SerialDetachedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SerialDetachedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -20830,7 +20830,7 @@ impl VmAbiCodec for SerialDetachedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -20878,7 +20878,7 @@ impl Clone for SerialDisconnectedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for SerialDisconnectedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -20888,7 +20888,7 @@ impl VmAggregateCodec for SerialDisconnectedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -20914,7 +20914,7 @@ impl VmAggregateCodec for SerialDisconnectedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialDisconnectedEvent")
@@ -20971,7 +20971,7 @@ impl VmAbiCodec for SerialDisconnectedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SerialDisconnectedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -20980,7 +20980,7 @@ impl VmAbiCodec for SerialDisconnectedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -21031,7 +21031,7 @@ impl Clone for SerialErrorEventAbi<VmAbi> {
 
 impl VmAggregateCodec for SerialErrorEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -21041,7 +21041,7 @@ impl VmAggregateCodec for SerialErrorEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -21077,7 +21077,7 @@ impl VmAggregateCodec for SerialErrorEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialErrorEvent")
@@ -21170,7 +21170,7 @@ impl VmAbiCodec for SerialErrorEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SerialErrorEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -21182,7 +21182,7 @@ impl VmAbiCodec for SerialErrorEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -21209,7 +21209,7 @@ pub type SerialEventMetadataVm = SerialEventMetadata;
 
 impl VmAggregateCodec for SerialEventMetadata {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -21219,7 +21219,7 @@ impl VmAggregateCodec for SerialEventMetadata {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -21242,7 +21242,7 @@ impl VmAggregateCodec for SerialEventMetadata {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialEventMetadata")
@@ -21280,13 +21280,13 @@ impl VmAbiCodec for SerialEventMetadata {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -21311,7 +21311,7 @@ pub type SerialFlowControlVm = SerialFlowControl;
 
 impl VmAggregateCodec for SerialFlowControl {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -21321,7 +21321,7 @@ impl VmAggregateCodec for SerialFlowControl {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -21348,7 +21348,7 @@ impl VmAggregateCodec for SerialFlowControl {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialFlowControl")
@@ -21396,13 +21396,13 @@ impl VmAbiCodec for SerialFlowControl {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -21429,7 +21429,7 @@ pub type SerialInputSignalsVm = SerialInputSignals;
 
 impl VmAggregateCodec for SerialInputSignals {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -21439,7 +21439,7 @@ impl VmAggregateCodec for SerialInputSignals {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -21468,7 +21468,7 @@ impl VmAggregateCodec for SerialInputSignals {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialInputSignals")
@@ -21517,13 +21517,13 @@ impl VmAbiCodec for SerialInputSignals {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -21569,7 +21569,7 @@ impl Clone for SerialModemStatusChangedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for SerialModemStatusChangedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -21579,7 +21579,7 @@ impl VmAggregateCodec for SerialModemStatusChangedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -21609,7 +21609,7 @@ impl VmAggregateCodec for SerialModemStatusChangedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialModemStatusChangedEvent")
@@ -21675,7 +21675,7 @@ impl VmAbiCodec for SerialModemStatusChangedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SerialModemStatusChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -21685,7 +21685,7 @@ impl VmAbiCodec for SerialModemStatusChangedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -21712,7 +21712,7 @@ pub type SerialOutputSignalsVm = SerialOutputSignals;
 
 impl VmAggregateCodec for SerialOutputSignals {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -21722,7 +21722,7 @@ impl VmAggregateCodec for SerialOutputSignals {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -21748,7 +21748,7 @@ impl VmAggregateCodec for SerialOutputSignals {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialOutputSignals")
@@ -21796,13 +21796,13 @@ impl VmAbiCodec for SerialOutputSignals {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -21846,7 +21846,7 @@ impl Clone for SerialOverflowEventAbi<VmAbi> {
 
 impl VmAggregateCodec for SerialOverflowEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -21856,7 +21856,7 @@ impl VmAggregateCodec for SerialOverflowEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -21882,7 +21882,7 @@ impl VmAggregateCodec for SerialOverflowEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialOverflowEvent")
@@ -21942,7 +21942,7 @@ impl VmAbiCodec for SerialOverflowEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SerialOverflowEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -21954,7 +21954,7 @@ impl VmAbiCodec for SerialOverflowEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -21983,7 +21983,7 @@ pub type SerialOverflowEventMetadataVm = SerialOverflowEventMetadata;
 
 impl VmAggregateCodec for SerialOverflowEventMetadata {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -21993,7 +21993,7 @@ impl VmAggregateCodec for SerialOverflowEventMetadata {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -22019,7 +22019,7 @@ impl VmAggregateCodec for SerialOverflowEventMetadata {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialOverflowEventMetadata")
@@ -22062,13 +22062,13 @@ impl VmAbiCodec for SerialOverflowEventMetadata {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -22097,7 +22097,7 @@ pub type SerialPortConfigVm = SerialPortConfig;
 
 impl VmAggregateCodec for SerialPortConfig {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -22107,7 +22107,7 @@ impl VmAggregateCodec for SerialPortConfig {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -22141,7 +22141,7 @@ impl VmAggregateCodec for SerialPortConfig {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialPortConfig")
@@ -22196,13 +22196,13 @@ impl VmAbiCodec for SerialPortConfig {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -22262,7 +22262,7 @@ impl Clone for SerialPortDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for SerialPortDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -22272,7 +22272,7 @@ impl VmAggregateCodec for SerialPortDescriptorAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -22330,7 +22330,7 @@ impl VmAggregateCodec for SerialPortDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialPortDescriptor")
@@ -22502,7 +22502,7 @@ impl VmAbiCodec for SerialPortDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SerialPortDescriptorValue {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
@@ -22528,7 +22528,7 @@ impl VmAbiCodec for SerialPortDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -22573,7 +22573,7 @@ pub type SerialPortOpenOptionsVm = SerialPortOpenOptions;
 
 impl VmAggregateCodec for SerialPortOpenOptions {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -22583,7 +22583,7 @@ impl VmAggregateCodec for SerialPortOpenOptions {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -22613,7 +22613,7 @@ impl VmAggregateCodec for SerialPortOpenOptions {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialPortOpenOptions")
@@ -22664,13 +22664,13 @@ impl VmAbiCodec for SerialPortOpenOptions {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -22716,7 +22716,7 @@ impl Clone for SerialReadReadyEventAbi<VmAbi> {
 
 impl VmAggregateCodec for SerialReadReadyEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -22726,7 +22726,7 @@ impl VmAggregateCodec for SerialReadReadyEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -22755,7 +22755,7 @@ impl VmAggregateCodec for SerialReadReadyEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialReadReadyEvent")
@@ -22826,7 +22826,7 @@ impl VmAbiCodec for SerialReadReadyEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SerialReadReadyEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -22839,7 +22839,7 @@ impl VmAbiCodec for SerialReadReadyEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -22890,7 +22890,7 @@ impl Clone for SerialWatchEventMetadataAbi<VmAbi> {
 
 impl VmAggregateCodec for SerialWatchEventMetadataAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -22900,7 +22900,7 @@ impl VmAggregateCodec for SerialWatchEventMetadataAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -22927,7 +22927,7 @@ impl VmAggregateCodec for SerialWatchEventMetadataAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialWatchEventMetadata")
@@ -22988,7 +22988,7 @@ impl VmAbiCodec for SerialWatchEventMetadataAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SerialWatchEventMetadataValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
@@ -22998,7 +22998,7 @@ impl VmAbiCodec for SerialWatchEventMetadataAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -23044,7 +23044,7 @@ impl Clone for SerialWatchOverflowEventAbi<VmAbi> {
 
 impl VmAggregateCodec for SerialWatchOverflowEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -23054,7 +23054,7 @@ impl VmAggregateCodec for SerialWatchOverflowEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -23080,7 +23080,7 @@ impl VmAggregateCodec for SerialWatchOverflowEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialWatchOverflowEvent")
@@ -23141,7 +23141,7 @@ impl VmAbiCodec for SerialWatchOverflowEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SerialWatchOverflowEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -23153,7 +23153,7 @@ impl VmAbiCodec for SerialWatchOverflowEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -23182,7 +23182,7 @@ pub type SerialWatchOverflowEventMetadataVm = SerialWatchOverflowEventMetadata;
 
 impl VmAggregateCodec for SerialWatchOverflowEventMetadata {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -23192,7 +23192,7 @@ impl VmAggregateCodec for SerialWatchOverflowEventMetadata {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -23218,7 +23218,7 @@ impl VmAggregateCodec for SerialWatchOverflowEventMetadata {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::SerialWatchOverflowEventMetadata")
@@ -23261,13 +23261,13 @@ impl VmAbiCodec for SerialWatchOverflowEventMetadata {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -23315,7 +23315,7 @@ impl Clone for UsbBosCapabilityDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbBosCapabilityDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -23325,7 +23325,7 @@ impl VmAggregateCodec for UsbBosCapabilityDescriptorAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -23357,7 +23357,7 @@ impl VmAggregateCodec for UsbBosCapabilityDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbBosCapabilityDescriptor")
@@ -23435,7 +23435,7 @@ impl VmAbiCodec for UsbBosCapabilityDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbBosCapabilityDescriptorValue {
             kind: <UsbBosCapabilityKind as VmAbiCodec>::into_value(self.kind, context)?,
@@ -23449,7 +23449,7 @@ impl VmAbiCodec for UsbBosCapabilityDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -23507,7 +23507,7 @@ impl Clone for UsbConfigurationDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbConfigurationDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -23517,7 +23517,7 @@ impl VmAggregateCodec for UsbConfigurationDescriptorAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -23555,7 +23555,7 @@ impl VmAggregateCodec for UsbConfigurationDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbConfigurationDescriptor")
@@ -23659,7 +23659,7 @@ impl VmAbiCodec for UsbConfigurationDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbConfigurationDescriptorValue {
             value: <u8 as VmAbiCodec>::into_value(self.value, context)?,
@@ -23678,7 +23678,7 @@ impl VmAbiCodec for UsbConfigurationDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -23731,7 +23731,7 @@ impl Clone for UsbControlDeviceTargetAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbControlDeviceTargetAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -23741,7 +23741,7 @@ impl VmAggregateCodec for UsbControlDeviceTargetAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -23760,7 +23760,7 @@ impl VmAggregateCodec for UsbControlDeviceTargetAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbControlDeviceTarget")
@@ -23804,7 +23804,7 @@ impl VmAbiCodec for UsbControlDeviceTargetAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbControlDeviceTargetValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -23812,7 +23812,7 @@ impl VmAbiCodec for UsbControlDeviceTargetAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -23856,7 +23856,7 @@ impl Clone for UsbControlEndpointTargetAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbControlEndpointTargetAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -23866,7 +23866,7 @@ impl VmAggregateCodec for UsbControlEndpointTargetAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -23892,7 +23892,7 @@ impl VmAggregateCodec for UsbControlEndpointTargetAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbControlEndpointTarget")
@@ -23949,7 +23949,7 @@ impl VmAbiCodec for UsbControlEndpointTargetAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbControlEndpointTargetValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -23958,7 +23958,7 @@ impl VmAbiCodec for UsbControlEndpointTargetAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -24003,7 +24003,7 @@ impl Clone for UsbControlInterfaceTargetAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbControlInterfaceTargetAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -24013,7 +24013,7 @@ impl VmAggregateCodec for UsbControlInterfaceTargetAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -24037,7 +24037,7 @@ impl VmAggregateCodec for UsbControlInterfaceTargetAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbControlInterfaceTarget")
@@ -24090,7 +24090,7 @@ impl VmAbiCodec for UsbControlInterfaceTargetAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbControlInterfaceTargetValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -24099,7 +24099,7 @@ impl VmAbiCodec for UsbControlInterfaceTargetAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -24144,7 +24144,7 @@ impl Clone for UsbControlOtherTargetAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbControlOtherTargetAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -24154,7 +24154,7 @@ impl VmAggregateCodec for UsbControlOtherTargetAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -24178,7 +24178,7 @@ impl VmAggregateCodec for UsbControlOtherTargetAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbControlOtherTarget")
@@ -24230,7 +24230,7 @@ impl VmAbiCodec for UsbControlOtherTargetAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbControlOtherTargetValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -24239,7 +24239,7 @@ impl VmAbiCodec for UsbControlOtherTargetAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -24290,7 +24290,7 @@ impl Clone for UsbControlSetupAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbControlSetupAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -24300,7 +24300,7 @@ impl VmAggregateCodec for UsbControlSetupAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -24335,7 +24335,7 @@ impl VmAggregateCodec for UsbControlSetupAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbControlSetup")
@@ -24419,7 +24419,7 @@ impl VmAbiCodec for UsbControlSetupAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbControlSetupValue {
             transfer_type: <UsbControlTransferType as VmAbiCodec>::into_value(
@@ -24434,7 +24434,7 @@ impl VmAbiCodec for UsbControlSetupAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -24509,7 +24509,7 @@ impl Clone for UsbDeviceDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbDeviceDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -24519,7 +24519,7 @@ impl VmAggregateCodec for UsbDeviceDescriptorAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -24587,7 +24587,7 @@ impl VmAggregateCodec for UsbDeviceDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbDeviceDescriptor")
@@ -24785,7 +24785,7 @@ impl VmAbiCodec for UsbDeviceDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbDeviceDescriptorValue {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
@@ -24818,7 +24818,7 @@ impl VmAbiCodec for UsbDeviceDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -24872,7 +24872,7 @@ pub type UsbEndpointDescriptorVm = UsbEndpointDescriptor;
 
 impl VmAggregateCodec for UsbEndpointDescriptor {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -24882,7 +24882,7 @@ impl VmAggregateCodec for UsbEndpointDescriptor {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -24918,7 +24918,7 @@ impl VmAggregateCodec for UsbEndpointDescriptor {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbEndpointDescriptor")
@@ -24975,13 +24975,13 @@ impl VmAbiCodec for UsbEndpointDescriptor {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -25004,7 +25004,7 @@ pub type UsbEndpointSelectorVm = UsbEndpointSelector;
 
 impl VmAggregateCodec for UsbEndpointSelector {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -25014,7 +25014,7 @@ impl VmAggregateCodec for UsbEndpointSelector {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -25039,7 +25039,7 @@ impl VmAggregateCodec for UsbEndpointSelector {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbEndpointSelector")
@@ -25079,13 +25079,13 @@ impl VmAbiCodec for UsbEndpointSelector {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -25129,7 +25129,7 @@ impl Clone for UsbHotplugAttachedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbHotplugAttachedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -25139,7 +25139,7 @@ impl VmAggregateCodec for UsbHotplugAttachedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -25165,7 +25165,7 @@ impl VmAggregateCodec for UsbHotplugAttachedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbHotplugAttachedEvent")
@@ -25225,7 +25225,7 @@ impl VmAbiCodec for UsbHotplugAttachedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbHotplugAttachedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -25237,7 +25237,7 @@ impl VmAbiCodec for UsbHotplugAttachedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -25285,7 +25285,7 @@ impl Clone for UsbHotplugDetachedEventAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbHotplugDetachedEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -25295,7 +25295,7 @@ impl VmAggregateCodec for UsbHotplugDetachedEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -25321,7 +25321,7 @@ impl VmAggregateCodec for UsbHotplugDetachedEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbHotplugDetachedEvent")
@@ -25381,7 +25381,7 @@ impl VmAbiCodec for UsbHotplugDetachedEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbHotplugDetachedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -25393,7 +25393,7 @@ impl VmAbiCodec for UsbHotplugDetachedEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -25443,7 +25443,7 @@ impl Clone for UsbHotplugEventMetadataAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbHotplugEventMetadataAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -25453,7 +25453,7 @@ impl VmAggregateCodec for UsbHotplugEventMetadataAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -25480,7 +25480,7 @@ impl VmAggregateCodec for UsbHotplugEventMetadataAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbHotplugEventMetadata")
@@ -25541,7 +25541,7 @@ impl VmAbiCodec for UsbHotplugEventMetadataAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbHotplugEventMetadataValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
@@ -25551,7 +25551,7 @@ impl VmAbiCodec for UsbHotplugEventMetadataAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -25597,7 +25597,7 @@ impl Clone for UsbHotplugOverflowEventAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbHotplugOverflowEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -25607,7 +25607,7 @@ impl VmAggregateCodec for UsbHotplugOverflowEventAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -25633,7 +25633,7 @@ impl VmAggregateCodec for UsbHotplugOverflowEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbHotplugOverflowEvent")
@@ -25694,7 +25694,7 @@ impl VmAbiCodec for UsbHotplugOverflowEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbHotplugOverflowEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -25706,7 +25706,7 @@ impl VmAbiCodec for UsbHotplugOverflowEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -25735,7 +25735,7 @@ pub type UsbHotplugOverflowEventMetadataVm = UsbHotplugOverflowEventMetadata;
 
 impl VmAggregateCodec for UsbHotplugOverflowEventMetadata {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -25745,7 +25745,7 @@ impl VmAggregateCodec for UsbHotplugOverflowEventMetadata {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -25771,7 +25771,7 @@ impl VmAggregateCodec for UsbHotplugOverflowEventMetadata {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbHotplugOverflowEventMetadata")
@@ -25814,13 +25814,13 @@ impl VmAbiCodec for UsbHotplugOverflowEventMetadata {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -25864,7 +25864,7 @@ impl Clone for UsbInTransferResultAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbInTransferResultAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -25874,7 +25874,7 @@ impl VmAggregateCodec for UsbInTransferResultAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -25898,7 +25898,7 @@ impl VmAggregateCodec for UsbInTransferResultAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbInTransferResult")
@@ -25951,7 +25951,7 @@ impl VmAbiCodec for UsbInTransferResultAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbInTransferResultValue {
             status: <UsbTransferStatus as VmAbiCodec>::into_value(self.status, context)?,
@@ -25960,7 +25960,7 @@ impl VmAbiCodec for UsbInTransferResultAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -26015,7 +26015,7 @@ impl Clone for UsbInterfaceDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbInterfaceDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -26025,7 +26025,7 @@ impl VmAggregateCodec for UsbInterfaceDescriptorAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -26066,7 +26066,7 @@ impl VmAggregateCodec for UsbInterfaceDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbInterfaceDescriptor")
@@ -26173,7 +26173,7 @@ impl VmAbiCodec for UsbInterfaceDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbInterfaceDescriptorValue {
             number: <u8 as VmAbiCodec>::into_value(self.number, context)?,
@@ -26190,7 +26190,7 @@ impl VmAbiCodec for UsbInterfaceDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -26222,7 +26222,7 @@ pub type UsbIsochronousPacketResultVm = UsbIsochronousPacketResult;
 
 impl VmAggregateCodec for UsbIsochronousPacketResult {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -26232,7 +26232,7 @@ impl VmAggregateCodec for UsbIsochronousPacketResult {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -26256,7 +26256,7 @@ impl VmAggregateCodec for UsbIsochronousPacketResult {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbIsochronousPacketResult")
@@ -26295,13 +26295,13 @@ impl VmAbiCodec for UsbIsochronousPacketResult {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -26345,7 +26345,7 @@ impl Clone for UsbIsochronousTransferResultAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbIsochronousTransferResultAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -26355,7 +26355,7 @@ impl VmAggregateCodec for UsbIsochronousTransferResultAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -26380,7 +26380,7 @@ impl VmAggregateCodec for UsbIsochronousTransferResultAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbIsochronousTransferResult")
@@ -26443,7 +26443,7 @@ impl VmAbiCodec for UsbIsochronousTransferResultAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbIsochronousTransferResultValue {
             bytes: <VmSlice<u8> as VmAbiCodec>::into_value(self.bytes, context)?,
@@ -26455,7 +26455,7 @@ impl VmAbiCodec for UsbIsochronousTransferResultAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -26482,7 +26482,7 @@ pub type UsbOutTransferResultVm = UsbOutTransferResult;
 
 impl VmAggregateCodec for UsbOutTransferResult {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -26492,7 +26492,7 @@ impl VmAggregateCodec for UsbOutTransferResult {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -26516,7 +26516,7 @@ impl VmAggregateCodec for UsbOutTransferResult {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbOutTransferResult")
@@ -26555,13 +26555,13 @@ impl VmAbiCodec for UsbOutTransferResult {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -26609,7 +26609,7 @@ impl Clone for UsbStringDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for UsbStringDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -26619,7 +26619,7 @@ impl VmAggregateCodec for UsbStringDescriptorAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -26654,7 +26654,7 @@ impl VmAggregateCodec for UsbStringDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("device::UsbStringDescriptor")
@@ -26746,7 +26746,7 @@ impl VmAbiCodec for UsbStringDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbStringDescriptorValue {
             language_id: <u16 as VmAbiCodec>::into_value(self.language_id, context)?,
@@ -26763,7 +26763,7 @@ impl VmAbiCodec for UsbStringDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {

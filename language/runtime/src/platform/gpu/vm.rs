@@ -25,7 +25,7 @@ use destack_vm as vm;
 /// Binding for `destack.gpu.adapter.close`.
 pub(crate) fn destack_gpu_adapter_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -38,7 +38,7 @@ pub(crate) fn destack_gpu_adapter_close(
 /// Binding for `destack.gpu.adapter.features`.
 pub(crate) fn destack_gpu_adapter_features(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<VmSlice<GpuFeatureId>> {
     let _ = handle;
@@ -51,7 +51,7 @@ pub(crate) fn destack_gpu_adapter_features(
 /// Binding for `destack.gpu.adapter.formatCapabilities`.
 pub(crate) fn destack_gpu_adapter_format_capabilities(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuAdapterHandle,
     format: GpuTextureFormat,
 ) -> RuntimeResult<GpuAdapterFormatCapabilitiesVm> {
@@ -65,7 +65,7 @@ pub(crate) fn destack_gpu_adapter_format_capabilities(
 /// Binding for `destack.gpu.adapter.hasFeature`.
 pub(crate) fn destack_gpu_adapter_has_feature(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuAdapterHandle,
     feature: GpuFeatureId,
 ) -> RuntimeResult<bool> {
@@ -79,7 +79,7 @@ pub(crate) fn destack_gpu_adapter_has_feature(
 /// Binding for `destack.gpu.adapter.info`.
 pub(crate) fn destack_gpu_adapter_info(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<GpuAdapterInfoVm> {
     let _ = handle;
@@ -92,7 +92,7 @@ pub(crate) fn destack_gpu_adapter_info(
 /// Binding for `destack.gpu.adapter.limits`.
 pub(crate) fn destack_gpu_adapter_limits(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<GpuAdapterLimitsVm> {
     let _ = handle;
@@ -105,7 +105,7 @@ pub(crate) fn destack_gpu_adapter_limits(
 /// Binding for `destack.gpu.adapter.list`.
 pub(crate) fn destack_gpu_adapter_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     request: GpuAdapterRequestVm,
 ) -> RuntimeResult<VmArray<GpuAdapterInfoVm>> {
     let _ = request;
@@ -118,7 +118,7 @@ pub(crate) fn destack_gpu_adapter_list(
 /// Binding for `destack.gpu.adapter.open`.
 pub(crate) fn destack_gpu_adapter_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<resource::GpuAdapterHandle> {
     let _ = id;
@@ -131,7 +131,7 @@ pub(crate) fn destack_gpu_adapter_open(
 /// Binding for `destack.gpu.bind.groupCreate`.
 pub(crate) fn destack_gpu_bind_group_create(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     layout: resource::GpuBindGroupLayoutHandle,
     entries: VmSlice<GpuBindGroupEntryVm>,
@@ -147,7 +147,7 @@ pub(crate) fn destack_gpu_bind_group_create(
 /// Binding for `destack.gpu.bind.groupDestroy`.
 pub(crate) fn destack_gpu_bind_group_destroy(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuBindGroupHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -160,7 +160,7 @@ pub(crate) fn destack_gpu_bind_group_destroy(
 /// Binding for `destack.gpu.bind.groupLayoutCreate`.
 pub(crate) fn destack_gpu_bind_group_layout_create(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     entries: VmSlice<GpuBindGroupLayoutEntryVm>,
     options: GpuBindGroupLayoutOptionsVm,
@@ -175,7 +175,7 @@ pub(crate) fn destack_gpu_bind_group_layout_create(
 /// Binding for `destack.gpu.bind.groupLayoutDestroy`.
 pub(crate) fn destack_gpu_bind_group_layout_destroy(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuBindGroupLayoutHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -188,7 +188,7 @@ pub(crate) fn destack_gpu_bind_group_layout_destroy(
 /// Binding for `destack.gpu.bind.pipelineLayoutCreate`.
 pub(crate) fn destack_gpu_pipeline_layout_create(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuPipelineLayoutOptionsVm,
 ) -> RuntimeResult<resource::GpuPipelineLayoutHandle> {
@@ -202,7 +202,7 @@ pub(crate) fn destack_gpu_pipeline_layout_create(
 /// Binding for `destack.gpu.bind.pipelineLayoutDestroy`.
 pub(crate) fn destack_gpu_pipeline_layout_destroy(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuPipelineLayoutHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -215,7 +215,7 @@ pub(crate) fn destack_gpu_pipeline_layout_destroy(
 /// Binding for `destack.gpu.command.bindComputePipeline`.
 pub(crate) fn destack_gpu_command_bind_compute_pipeline(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuComputePassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
@@ -229,7 +229,7 @@ pub(crate) fn destack_gpu_command_bind_compute_pipeline(
 /// Binding for `destack.gpu.command.bindRenderPipeline`.
 pub(crate) fn destack_gpu_command_bind_render_pipeline(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
@@ -243,7 +243,7 @@ pub(crate) fn destack_gpu_command_bind_render_pipeline(
 /// Binding for `destack.gpu.command.bufferDestroy`.
 pub(crate) fn destack_gpu_command_buffer_destroy(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuCommandBufferHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -256,7 +256,7 @@ pub(crate) fn destack_gpu_command_buffer_destroy(
 /// Binding for `destack.gpu.command.clearBuffer`.
 pub(crate) fn destack_gpu_command_clear_buffer(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuCommandEncoderHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -272,7 +272,7 @@ pub(crate) fn destack_gpu_command_clear_buffer(
 /// Binding for `destack.gpu.command.computePassBegin`.
 pub(crate) fn destack_gpu_command_compute_pass_begin(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuCommandEncoderHandle,
     options: GpuComputePassOptionsVm,
 ) -> RuntimeResult<resource::GpuComputePassHandle> {
@@ -286,7 +286,7 @@ pub(crate) fn destack_gpu_command_compute_pass_begin(
 /// Binding for `destack.gpu.command.computePassEnd`.
 pub(crate) fn destack_gpu_command_compute_pass_end(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -299,7 +299,7 @@ pub(crate) fn destack_gpu_command_compute_pass_end(
 /// Binding for `destack.gpu.command.computePassInsertDebugMarker`.
 pub(crate) fn destack_gpu_command_compute_pass_insert_debug_marker(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuComputePassHandle,
     marker: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -313,7 +313,7 @@ pub(crate) fn destack_gpu_command_compute_pass_insert_debug_marker(
 /// Binding for `destack.gpu.command.computePassPopDebugGroup`.
 pub(crate) fn destack_gpu_command_compute_pass_pop_debug_group(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -326,7 +326,7 @@ pub(crate) fn destack_gpu_command_compute_pass_pop_debug_group(
 /// Binding for `destack.gpu.command.computePassPushDebugGroup`.
 pub(crate) fn destack_gpu_command_compute_pass_push_debug_group(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuComputePassHandle,
     label: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -340,7 +340,7 @@ pub(crate) fn destack_gpu_command_compute_pass_push_debug_group(
 /// Binding for `destack.gpu.command.copyBuffer`.
 pub(crate) fn destack_gpu_command_copy_buffer(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuCommandEncoderHandle,
     src: resource::GpuBufferHandle,
     srcoffset: u64,
@@ -358,7 +358,7 @@ pub(crate) fn destack_gpu_command_copy_buffer(
 /// Binding for `destack.gpu.command.copyBufferToTexture`.
 pub(crate) fn destack_gpu_command_copy_buffer_to_texture(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuCommandEncoderHandle,
     source: GpuBufferCopyVm,
     destination: GpuTextureCopyVm,
@@ -374,7 +374,7 @@ pub(crate) fn destack_gpu_command_copy_buffer_to_texture(
 /// Binding for `destack.gpu.command.copyTextureToBuffer`.
 pub(crate) fn destack_gpu_command_copy_texture_to_buffer(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuCommandEncoderHandle,
     source: GpuTextureCopyVm,
     destination: GpuBufferCopyVm,
@@ -390,7 +390,7 @@ pub(crate) fn destack_gpu_command_copy_texture_to_buffer(
 /// Binding for `destack.gpu.command.copyTextureToTexture`.
 pub(crate) fn destack_gpu_command_copy_texture_to_texture(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuCommandEncoderHandle,
     source: GpuTextureCopyVm,
     destination: GpuTextureCopyVm,
@@ -406,7 +406,7 @@ pub(crate) fn destack_gpu_command_copy_texture_to_texture(
 /// Binding for `destack.gpu.command.dispatch`.
 pub(crate) fn destack_gpu_command_dispatch(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuComputePassHandle,
     groupx: u32,
     groupy: u32,
@@ -422,7 +422,7 @@ pub(crate) fn destack_gpu_command_dispatch(
 /// Binding for `destack.gpu.command.dispatchIndirect`.
 pub(crate) fn destack_gpu_command_dispatch_indirect(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuComputePassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -437,7 +437,7 @@ pub(crate) fn destack_gpu_command_dispatch_indirect(
 /// Binding for `destack.gpu.command.draw`.
 pub(crate) fn destack_gpu_command_draw(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     vertexcount: u32,
     instancecount: u32,
@@ -460,7 +460,7 @@ pub(crate) fn destack_gpu_command_draw(
 /// Binding for `destack.gpu.command.drawIndexed`.
 pub(crate) fn destack_gpu_command_draw_indexed(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     indexcount: u32,
     instancecount: u32,
@@ -485,7 +485,7 @@ pub(crate) fn destack_gpu_command_draw_indexed(
 /// Binding for `destack.gpu.command.drawIndexedIndirect`.
 pub(crate) fn destack_gpu_command_draw_indexed_indirect(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -502,7 +502,7 @@ pub(crate) fn destack_gpu_command_draw_indexed_indirect(
 /// Binding for `destack.gpu.command.drawIndirect`.
 pub(crate) fn destack_gpu_command_draw_indirect(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -519,7 +519,7 @@ pub(crate) fn destack_gpu_command_draw_indirect(
 /// Binding for `destack.gpu.command.encoderClose`.
 pub(crate) fn destack_gpu_command_encoder_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuCommandEncoderHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -532,7 +532,7 @@ pub(crate) fn destack_gpu_command_encoder_close(
 /// Binding for `destack.gpu.command.encoderFinish`.
 pub(crate) fn destack_gpu_command_encoder_finish(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuCommandEncoderHandle,
     options: GpuCommandBufferOptionsVm,
 ) -> RuntimeResult<resource::GpuCommandBufferHandle> {
@@ -546,7 +546,7 @@ pub(crate) fn destack_gpu_command_encoder_finish(
 /// Binding for `destack.gpu.command.encoderOpen`.
 pub(crate) fn destack_gpu_command_encoder_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuCommandEncoderOptionsVm,
 ) -> RuntimeResult<resource::GpuCommandEncoderHandle> {
@@ -560,7 +560,7 @@ pub(crate) fn destack_gpu_command_encoder_open(
 /// Binding for `destack.gpu.command.executeBundles`.
 pub(crate) fn destack_gpu_command_execute_bundles(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     bundles: VmSlice<resource::GpuRenderBundleHandle>,
 ) -> RuntimeResult<()> {
@@ -574,7 +574,7 @@ pub(crate) fn destack_gpu_command_execute_bundles(
 /// Binding for `destack.gpu.command.insertDebugMarker`.
 pub(crate) fn destack_gpu_command_insert_debug_marker(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuCommandEncoderHandle,
     marker: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -588,7 +588,7 @@ pub(crate) fn destack_gpu_command_insert_debug_marker(
 /// Binding for `destack.gpu.command.multiDrawIndexedIndirect`.
 pub(crate) fn destack_gpu_command_multi_draw_indexed_indirect(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -605,7 +605,7 @@ pub(crate) fn destack_gpu_command_multi_draw_indexed_indirect(
 /// Binding for `destack.gpu.command.multiDrawIndexedIndirectCount`.
 pub(crate) fn destack_gpu_command_multi_draw_indexed_indirect_count(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -632,7 +632,7 @@ pub(crate) fn destack_gpu_command_multi_draw_indexed_indirect_count(
 /// Binding for `destack.gpu.command.multiDrawIndirect`.
 pub(crate) fn destack_gpu_command_multi_draw_indirect(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -649,7 +649,7 @@ pub(crate) fn destack_gpu_command_multi_draw_indirect(
 /// Binding for `destack.gpu.command.multiDrawIndirectCount`.
 pub(crate) fn destack_gpu_command_multi_draw_indirect_count(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -676,7 +676,7 @@ pub(crate) fn destack_gpu_command_multi_draw_indirect_count(
 /// Binding for `destack.gpu.command.popDebugGroup`.
 pub(crate) fn destack_gpu_command_pop_debug_group(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuCommandEncoderHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -689,7 +689,7 @@ pub(crate) fn destack_gpu_command_pop_debug_group(
 /// Binding for `destack.gpu.command.pushDebugGroup`.
 pub(crate) fn destack_gpu_command_push_debug_group(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuCommandEncoderHandle,
     label: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -703,7 +703,7 @@ pub(crate) fn destack_gpu_command_push_debug_group(
 /// Binding for `destack.gpu.command.queueSubmit`.
 pub(crate) fn destack_gpu_queue_submit(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     queue: resource::GpuQueueHandle,
     commandbuffers: VmSlice<resource::GpuCommandBufferHandle>,
     options: GpuSubmitOptionsVm,
@@ -718,7 +718,7 @@ pub(crate) fn destack_gpu_queue_submit(
 /// Binding for `destack.gpu.command.queueWaitIdle`.
 pub(crate) fn destack_gpu_queue_wait_idle(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
@@ -732,7 +732,7 @@ pub(crate) fn destack_gpu_queue_wait_idle(
 /// Binding for `destack.gpu.command.queueWriteBuffer`.
 pub(crate) fn destack_gpu_queue_write_buffer(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     queue: resource::GpuQueueHandle,
     buffer: resource::GpuBufferHandle,
     bufferoffset: u64,
@@ -750,7 +750,7 @@ pub(crate) fn destack_gpu_queue_write_buffer(
 /// Binding for `destack.gpu.command.queueWriteTexture`.
 pub(crate) fn destack_gpu_queue_write_texture(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     queue: resource::GpuQueueHandle,
     destination: GpuTextureCopyVm,
     data: VmSlice<u8>,
@@ -767,7 +767,7 @@ pub(crate) fn destack_gpu_queue_write_texture(
 /// Binding for `destack.gpu.command.renderBundleDestroy`.
 pub(crate) fn destack_gpu_render_bundle_destroy(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderBundleHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -780,7 +780,7 @@ pub(crate) fn destack_gpu_render_bundle_destroy(
 /// Binding for `destack.gpu.command.renderBundleDraw`.
 pub(crate) fn destack_gpu_render_bundle_draw(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     vertexcount: u32,
     instancecount: u32,
@@ -803,7 +803,7 @@ pub(crate) fn destack_gpu_render_bundle_draw(
 /// Binding for `destack.gpu.command.renderBundleDrawIndexed`.
 pub(crate) fn destack_gpu_render_bundle_draw_indexed(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     indexcount: u32,
     instancecount: u32,
@@ -828,7 +828,7 @@ pub(crate) fn destack_gpu_render_bundle_draw_indexed(
 /// Binding for `destack.gpu.command.renderBundleDrawIndexedIndirect`.
 pub(crate) fn destack_gpu_render_bundle_draw_indexed_indirect(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -845,7 +845,7 @@ pub(crate) fn destack_gpu_render_bundle_draw_indexed_indirect(
 /// Binding for `destack.gpu.command.renderBundleDrawIndirect`.
 pub(crate) fn destack_gpu_render_bundle_draw_indirect(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -862,7 +862,7 @@ pub(crate) fn destack_gpu_render_bundle_draw_indirect(
 /// Binding for `destack.gpu.command.renderBundleEncoderClose`.
 pub(crate) fn destack_gpu_render_bundle_encoder_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -875,7 +875,7 @@ pub(crate) fn destack_gpu_render_bundle_encoder_close(
 /// Binding for `destack.gpu.command.renderBundleEncoderFinish`.
 pub(crate) fn destack_gpu_render_bundle_encoder_finish(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     options: GpuRenderBundleOptionsVm,
 ) -> RuntimeResult<resource::GpuRenderBundleHandle> {
@@ -889,7 +889,7 @@ pub(crate) fn destack_gpu_render_bundle_encoder_finish(
 /// Binding for `destack.gpu.command.renderBundleEncoderOpen`.
 pub(crate) fn destack_gpu_render_bundle_encoder_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuRenderBundleEncoderOptionsVm,
 ) -> RuntimeResult<resource::GpuRenderBundleEncoderHandle> {
@@ -903,7 +903,7 @@ pub(crate) fn destack_gpu_render_bundle_encoder_open(
 /// Binding for `destack.gpu.command.renderBundleInsertDebugMarker`.
 pub(crate) fn destack_gpu_render_bundle_insert_debug_marker(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     marker: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -917,7 +917,7 @@ pub(crate) fn destack_gpu_render_bundle_insert_debug_marker(
 /// Binding for `destack.gpu.command.renderBundlePopDebugGroup`.
 pub(crate) fn destack_gpu_render_bundle_pop_debug_group(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -930,7 +930,7 @@ pub(crate) fn destack_gpu_render_bundle_pop_debug_group(
 /// Binding for `destack.gpu.command.renderBundlePushDebugGroup`.
 pub(crate) fn destack_gpu_render_bundle_push_debug_group(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     label: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -944,7 +944,7 @@ pub(crate) fn destack_gpu_render_bundle_push_debug_group(
 /// Binding for `destack.gpu.command.renderBundleSetBindGroup`.
 pub(crate) fn destack_gpu_render_bundle_set_bind_group(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     index: u32,
     bindgroup: resource::GpuBindGroupHandle,
@@ -960,7 +960,7 @@ pub(crate) fn destack_gpu_render_bundle_set_bind_group(
 /// Binding for `destack.gpu.command.renderBundleSetIndexBuffer`.
 pub(crate) fn destack_gpu_render_bundle_set_index_buffer(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     buffer: resource::GpuBufferHandle,
     format: GpuIndexFormat,
@@ -977,7 +977,7 @@ pub(crate) fn destack_gpu_render_bundle_set_index_buffer(
 /// Binding for `destack.gpu.command.renderBundleSetPipeline`.
 pub(crate) fn destack_gpu_render_bundle_set_pipeline(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
@@ -991,7 +991,7 @@ pub(crate) fn destack_gpu_render_bundle_set_pipeline(
 /// Binding for `destack.gpu.command.renderBundleSetVertexBuffer`.
 pub(crate) fn destack_gpu_render_bundle_set_vertex_buffer(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     slot: u32,
     buffer: resource::GpuBufferHandle,
@@ -1008,7 +1008,7 @@ pub(crate) fn destack_gpu_render_bundle_set_vertex_buffer(
 /// Binding for `destack.gpu.command.renderPassBegin`.
 pub(crate) fn destack_gpu_command_render_pass_begin(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuCommandEncoderHandle,
     options: GpuRenderPassOptionsVm,
 ) -> RuntimeResult<resource::GpuRenderPassHandle> {
@@ -1022,7 +1022,7 @@ pub(crate) fn destack_gpu_command_render_pass_begin(
 /// Binding for `destack.gpu.command.renderPassEnd`.
 pub(crate) fn destack_gpu_command_render_pass_end(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1035,7 +1035,7 @@ pub(crate) fn destack_gpu_command_render_pass_end(
 /// Binding for `destack.gpu.command.renderPassInsertDebugMarker`.
 pub(crate) fn destack_gpu_command_render_pass_insert_debug_marker(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     marker: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -1049,7 +1049,7 @@ pub(crate) fn destack_gpu_command_render_pass_insert_debug_marker(
 /// Binding for `destack.gpu.command.renderPassPopDebugGroup`.
 pub(crate) fn destack_gpu_command_render_pass_pop_debug_group(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1062,7 +1062,7 @@ pub(crate) fn destack_gpu_command_render_pass_pop_debug_group(
 /// Binding for `destack.gpu.command.renderPassPushDebugGroup`.
 pub(crate) fn destack_gpu_command_render_pass_push_debug_group(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     label: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -1076,7 +1076,7 @@ pub(crate) fn destack_gpu_command_render_pass_push_debug_group(
 /// Binding for `destack.gpu.command.setBlendConstant`.
 pub(crate) fn destack_gpu_command_set_blend_constant(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     r: f64,
     g: f64,
@@ -1093,7 +1093,7 @@ pub(crate) fn destack_gpu_command_set_blend_constant(
 /// Binding for `destack.gpu.command.setComputeBindGroup`.
 pub(crate) fn destack_gpu_command_set_compute_bind_group(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuComputePassHandle,
     index: u32,
     bindgroup: resource::GpuBindGroupHandle,
@@ -1109,7 +1109,7 @@ pub(crate) fn destack_gpu_command_set_compute_bind_group(
 /// Binding for `destack.gpu.command.setIndexBuffer`.
 pub(crate) fn destack_gpu_command_set_index_buffer(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     format: GpuIndexFormat,
@@ -1126,7 +1126,7 @@ pub(crate) fn destack_gpu_command_set_index_buffer(
 /// Binding for `destack.gpu.command.setRenderBindGroup`.
 pub(crate) fn destack_gpu_command_set_render_bind_group(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     index: u32,
     bindgroup: resource::GpuBindGroupHandle,
@@ -1142,7 +1142,7 @@ pub(crate) fn destack_gpu_command_set_render_bind_group(
 /// Binding for `destack.gpu.command.setScissor`.
 pub(crate) fn destack_gpu_command_set_scissor(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     x: u32,
     y: u32,
@@ -1159,7 +1159,7 @@ pub(crate) fn destack_gpu_command_set_scissor(
 /// Binding for `destack.gpu.command.setStencilReference`.
 pub(crate) fn destack_gpu_command_set_stencil_reference(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     reference: u32,
 ) -> RuntimeResult<()> {
@@ -1173,7 +1173,7 @@ pub(crate) fn destack_gpu_command_set_stencil_reference(
 /// Binding for `destack.gpu.command.setVertexBuffer`.
 pub(crate) fn destack_gpu_command_set_vertex_buffer(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     slot: u32,
     buffer: resource::GpuBufferHandle,
@@ -1190,7 +1190,7 @@ pub(crate) fn destack_gpu_command_set_vertex_buffer(
 /// Binding for `destack.gpu.command.setViewport`.
 pub(crate) fn destack_gpu_command_set_viewport(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuRenderPassHandle,
     x: f64,
     y: f64,
@@ -1209,7 +1209,7 @@ pub(crate) fn destack_gpu_command_set_viewport(
 /// Binding for `destack.gpu.command.transitionResources`.
 pub(crate) fn destack_gpu_command_transition_resources(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuCommandEncoderHandle,
     buffers: VmSlice<GpuBufferTransitionVm>,
     textures: VmSlice<GpuTextureTransitionVm>,
@@ -1224,7 +1224,7 @@ pub(crate) fn destack_gpu_command_transition_resources(
 /// Binding for `destack.gpu.debug.setLabel`.
 pub(crate) fn destack_gpu_set_label(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::ResourceId,
     label: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -1238,7 +1238,7 @@ pub(crate) fn destack_gpu_set_label(
 /// Binding for `destack.gpu.device.close`.
 pub(crate) fn destack_gpu_device_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1251,7 +1251,7 @@ pub(crate) fn destack_gpu_device_close(
 /// Binding for `destack.gpu.device.features`.
 pub(crate) fn destack_gpu_device_features(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<VmSlice<GpuFeatureId>> {
     let _ = device;
@@ -1264,7 +1264,7 @@ pub(crate) fn destack_gpu_device_features(
 /// Binding for `destack.gpu.device.hasFeature`.
 pub(crate) fn destack_gpu_device_has_feature(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     feature: GpuFeatureId,
 ) -> RuntimeResult<bool> {
@@ -1278,7 +1278,7 @@ pub(crate) fn destack_gpu_device_has_feature(
 /// Binding for `destack.gpu.device.info`.
 pub(crate) fn destack_gpu_device_info(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<GpuDeviceInfoVm> {
     let _ = device;
@@ -1291,7 +1291,7 @@ pub(crate) fn destack_gpu_device_info(
 /// Binding for `destack.gpu.device.limits`.
 pub(crate) fn destack_gpu_device_limits(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<GpuAdapterLimitsVm> {
     let _ = device;
@@ -1304,7 +1304,7 @@ pub(crate) fn destack_gpu_device_limits(
 /// Binding for `destack.gpu.device.open`.
 pub(crate) fn destack_gpu_device_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     adapter: resource::GpuAdapterHandle,
     options: GpuDeviceOptionsVm,
 ) -> RuntimeResult<resource::GpuDeviceHandle> {
@@ -1318,7 +1318,7 @@ pub(crate) fn destack_gpu_device_open(
 /// Binding for `destack.gpu.device.poll`.
 pub(crate) fn destack_gpu_device_poll(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     wait: bool,
     timeoutns: u64,
@@ -1333,7 +1333,7 @@ pub(crate) fn destack_gpu_device_poll(
 /// Binding for `destack.gpu.device.popErrorScope`.
 pub(crate) fn destack_gpu_device_pop_error_scope(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     timeoutns: u64,
 ) -> RuntimeResult<GpuCapturedErrorVm> {
@@ -1347,7 +1347,7 @@ pub(crate) fn destack_gpu_device_pop_error_scope(
 /// Binding for `destack.gpu.device.pushErrorScope`.
 pub(crate) fn destack_gpu_device_push_error_scope(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     filter: GpuErrorFilter,
 ) -> RuntimeResult<()> {
@@ -1361,7 +1361,7 @@ pub(crate) fn destack_gpu_device_push_error_scope(
 /// Binding for `destack.gpu.device.queue`.
 pub(crate) fn destack_gpu_device_queue(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<resource::GpuQueueHandle> {
     let _ = device;
@@ -1374,7 +1374,7 @@ pub(crate) fn destack_gpu_device_queue(
 /// Binding for `destack.gpu.device.status`.
 pub(crate) fn destack_gpu_device_status(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<GpuDeviceStatusVm> {
     let _ = device;
@@ -1387,7 +1387,7 @@ pub(crate) fn destack_gpu_device_status(
 /// Binding for `destack.gpu.pipeline.bindGroupLayout`.
 pub(crate) fn destack_gpu_pipeline_bind_group_layout(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     pipeline: resource::GpuPipelineHandle,
     groupindex: u32,
 ) -> RuntimeResult<resource::GpuBindGroupLayoutHandle> {
@@ -1401,7 +1401,7 @@ pub(crate) fn destack_gpu_pipeline_bind_group_layout(
 /// Binding for `destack.gpu.pipeline.computeCreate`.
 pub(crate) fn destack_gpu_compute_pipeline_create(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuComputePipelineOptionsVm,
 ) -> RuntimeResult<resource::GpuPipelineHandle> {
@@ -1415,7 +1415,7 @@ pub(crate) fn destack_gpu_compute_pipeline_create(
 /// Binding for `destack.gpu.pipeline.destroy`.
 pub(crate) fn destack_gpu_pipeline_destroy(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1428,7 +1428,7 @@ pub(crate) fn destack_gpu_pipeline_destroy(
 /// Binding for `destack.gpu.pipeline.renderCreate`.
 pub(crate) fn destack_gpu_render_pipeline_create(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuRenderPipelineOptionsVm,
 ) -> RuntimeResult<resource::GpuPipelineHandle> {
@@ -1442,7 +1442,7 @@ pub(crate) fn destack_gpu_render_pipeline_create(
 /// Binding for `destack.gpu.pipeline.shaderCompilationInfo`.
 pub(crate) fn destack_gpu_shader_compilation_info(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuShaderHandle,
     timeoutns: u64,
 ) -> RuntimeResult<GpuCompilationInfoVm> {
@@ -1456,7 +1456,7 @@ pub(crate) fn destack_gpu_shader_compilation_info(
 /// Binding for `destack.gpu.pipeline.shaderCreate`.
 pub(crate) fn destack_gpu_shader_create(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuShaderOptionsVm,
     argument_bytes: VmSlice<u8>,
@@ -1471,7 +1471,7 @@ pub(crate) fn destack_gpu_shader_create(
 /// Binding for `destack.gpu.pipeline.shaderDestroy`.
 pub(crate) fn destack_gpu_shader_destroy(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuShaderHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1484,7 +1484,7 @@ pub(crate) fn destack_gpu_shader_destroy(
 /// Binding for `destack.gpu.present.surfaceAcquire`.
 pub(crate) fn destack_gpu_surface_acquire(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     surface: resource::GpuSurfaceHandle,
     timeoutns: u64,
 ) -> RuntimeResult<GpuSurfaceFrameVm> {
@@ -1498,7 +1498,7 @@ pub(crate) fn destack_gpu_surface_acquire(
 /// Binding for `destack.gpu.present.surfaceCapabilities`.
 pub(crate) fn destack_gpu_surface_capabilities(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     surface: resource::GpuSurfaceHandle,
     adapter: resource::GpuAdapterHandle,
 ) -> RuntimeResult<GpuSurfaceCapabilitiesVm> {
@@ -1512,7 +1512,7 @@ pub(crate) fn destack_gpu_surface_capabilities(
 /// Binding for `destack.gpu.present.surfaceClose`.
 pub(crate) fn destack_gpu_surface_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     surface: resource::GpuSurfaceHandle,
 ) -> RuntimeResult<()> {
     let _ = surface;
@@ -1525,7 +1525,7 @@ pub(crate) fn destack_gpu_surface_close(
 /// Binding for `destack.gpu.present.surfaceConfigure`.
 pub(crate) fn destack_gpu_surface_configure(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     surface: resource::GpuSurfaceHandle,
     configuration: GpuSurfaceConfigurationVm,
@@ -1540,7 +1540,7 @@ pub(crate) fn destack_gpu_surface_configure(
 /// Binding for `destack.gpu.present.surfaceOpen`.
 pub(crate) fn destack_gpu_surface_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<resource::GpuSurfaceHandle> {
     let _ = window;
@@ -1553,7 +1553,7 @@ pub(crate) fn destack_gpu_surface_open(
 /// Binding for `destack.gpu.present.surfacePresent`.
 pub(crate) fn destack_gpu_surface_present(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     surface: resource::GpuSurfaceHandle,
     options: GpuPresentationOptionsVm,
 ) -> RuntimeResult<()> {
@@ -1567,7 +1567,7 @@ pub(crate) fn destack_gpu_surface_present(
 /// Binding for `destack.gpu.present.surfacePresentationClose`.
 pub(crate) fn destack_gpu_surface_presentation_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuSurfacePresentationHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1580,7 +1580,7 @@ pub(crate) fn destack_gpu_surface_presentation_close(
 /// Binding for `destack.gpu.present.surfacePresentationOpen`.
 pub(crate) fn destack_gpu_surface_presentation_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     surface: resource::GpuSurfaceHandle,
     options: GpuSurfacePresentationOpenOptionsVm,
 ) -> RuntimeResult<resource::GpuSurfacePresentationHandle> {
@@ -1594,7 +1594,7 @@ pub(crate) fn destack_gpu_surface_presentation_open(
 /// Binding for `destack.gpu.present.surfacePresentationRead`.
 pub(crate) fn destack_gpu_surface_presentation_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuSurfacePresentationHandle,
     timeoutns: u64,
 ) -> RuntimeResult<GpuSurfacePresentationEventVm> {
@@ -1608,7 +1608,7 @@ pub(crate) fn destack_gpu_surface_presentation_read(
 /// Binding for `destack.gpu.present.surfacePresentationReadBatch`.
 pub(crate) fn destack_gpu_surface_presentation_read_batch(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuSurfacePresentationHandle,
     maxevents: u32,
     timeoutns: u64,
@@ -1623,7 +1623,7 @@ pub(crate) fn destack_gpu_surface_presentation_read_batch(
 /// Binding for `destack.gpu.present.surfacePresentationTryRead`.
 pub(crate) fn destack_gpu_surface_presentation_try_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuSurfacePresentationHandle,
 ) -> RuntimeResult<GpuSurfacePresentationEventVm> {
     let _ = handle;
@@ -1636,7 +1636,7 @@ pub(crate) fn destack_gpu_surface_presentation_try_read(
 /// Binding for `destack.gpu.present.surfacePresentationTryReadBatch`.
 pub(crate) fn destack_gpu_surface_presentation_try_read_batch(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuSurfacePresentationHandle,
     maxevents: u32,
 ) -> RuntimeResult<VmArray<GpuSurfacePresentationEventVm>> {
@@ -1650,7 +1650,7 @@ pub(crate) fn destack_gpu_surface_presentation_try_read_batch(
 /// Binding for `destack.gpu.present.surfaceStatus`.
 pub(crate) fn destack_gpu_surface_status(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     surface: resource::GpuSurfaceHandle,
 ) -> RuntimeResult<GpuSurfaceStatusInfoVm> {
     let _ = surface;
@@ -1663,7 +1663,7 @@ pub(crate) fn destack_gpu_surface_status(
 /// Binding for `destack.gpu.present.surfaceUnconfigure`.
 pub(crate) fn destack_gpu_surface_unconfigure(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     surface: resource::GpuSurfaceHandle,
 ) -> RuntimeResult<()> {
     let _ = surface;
@@ -1676,7 +1676,7 @@ pub(crate) fn destack_gpu_surface_unconfigure(
 /// Binding for `destack.gpu.resource.bufferCreate`.
 pub(crate) fn destack_gpu_buffer_create(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuBufferOptionsVm,
 ) -> RuntimeResult<resource::GpuBufferHandle> {
@@ -1690,7 +1690,7 @@ pub(crate) fn destack_gpu_buffer_create(
 /// Binding for `destack.gpu.resource.bufferDestroy`.
 pub(crate) fn destack_gpu_buffer_destroy(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1703,7 +1703,7 @@ pub(crate) fn destack_gpu_buffer_destroy(
 /// Binding for `destack.gpu.resource.bufferInfo`.
 pub(crate) fn destack_gpu_buffer_info(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<GpuBufferInfoVm> {
     let _ = handle;
@@ -1716,7 +1716,7 @@ pub(crate) fn destack_gpu_buffer_info(
 /// Binding for `destack.gpu.resource.bufferMap`.
 pub(crate) fn destack_gpu_buffer_map(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuBufferHandle,
     offset: u64,
     length: u64,
@@ -1732,7 +1732,7 @@ pub(crate) fn destack_gpu_buffer_map(
 /// Binding for `destack.gpu.resource.bufferRead`.
 pub(crate) fn destack_gpu_buffer_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuBufferHandle,
     offset: u64,
     length: u64,
@@ -1747,7 +1747,7 @@ pub(crate) fn destack_gpu_buffer_read(
 /// Binding for `destack.gpu.resource.bufferUnmap`.
 pub(crate) fn destack_gpu_buffer_unmap(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1760,7 +1760,7 @@ pub(crate) fn destack_gpu_buffer_unmap(
 /// Binding for `destack.gpu.resource.bufferWrite`.
 pub(crate) fn destack_gpu_buffer_write(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuBufferHandle,
     offset: u64,
     argument_bytes: VmSlice<u8>,
@@ -1775,7 +1775,7 @@ pub(crate) fn destack_gpu_buffer_write(
 /// Binding for `destack.gpu.resource.externalTextureCreate`.
 pub(crate) fn destack_gpu_external_texture_create(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     planeviews: VmSlice<resource::GpuTextureViewHandle>,
     options: GpuExternalTextureOptionsVm,
@@ -1790,7 +1790,7 @@ pub(crate) fn destack_gpu_external_texture_create(
 /// Binding for `destack.gpu.resource.externalTextureDestroy`.
 pub(crate) fn destack_gpu_external_texture_destroy(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuExternalTextureHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1803,7 +1803,7 @@ pub(crate) fn destack_gpu_external_texture_destroy(
 /// Binding for `destack.gpu.resource.samplerCreate`.
 pub(crate) fn destack_gpu_sampler_create(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuSamplerOptionsVm,
 ) -> RuntimeResult<resource::GpuSamplerHandle> {
@@ -1817,7 +1817,7 @@ pub(crate) fn destack_gpu_sampler_create(
 /// Binding for `destack.gpu.resource.samplerDestroy`.
 pub(crate) fn destack_gpu_sampler_destroy(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuSamplerHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1830,7 +1830,7 @@ pub(crate) fn destack_gpu_sampler_destroy(
 /// Binding for `destack.gpu.resource.textureCreate`.
 pub(crate) fn destack_gpu_texture_create(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuTextureOptionsVm,
 ) -> RuntimeResult<resource::GpuTextureHandle> {
@@ -1844,7 +1844,7 @@ pub(crate) fn destack_gpu_texture_create(
 /// Binding for `destack.gpu.resource.textureDestroy`.
 pub(crate) fn destack_gpu_texture_destroy(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1857,7 +1857,7 @@ pub(crate) fn destack_gpu_texture_destroy(
 /// Binding for `destack.gpu.resource.textureInfo`.
 pub(crate) fn destack_gpu_texture_info(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeResult<GpuTextureInfoVm> {
     let _ = handle;
@@ -1870,7 +1870,7 @@ pub(crate) fn destack_gpu_texture_info(
 /// Binding for `destack.gpu.resource.textureViewCreate`.
 pub(crate) fn destack_gpu_texture_view_create(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     texture: resource::GpuTextureHandle,
     options: GpuTextureViewOptionsVm,
 ) -> RuntimeResult<resource::GpuTextureViewHandle> {
@@ -1884,7 +1884,7 @@ pub(crate) fn destack_gpu_texture_view_create(
 /// Binding for `destack.gpu.resource.textureViewDestroy`.
 pub(crate) fn destack_gpu_texture_view_destroy(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuTextureViewHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1897,7 +1897,7 @@ pub(crate) fn destack_gpu_texture_view_destroy(
 /// Binding for `destack.gpu.sync.commandBeginComputePipelineStatisticsQuery`.
 pub(crate) fn destack_gpu_command_begin_compute_pipeline_statistics_query(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     computepass: resource::GpuComputePassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
@@ -1912,7 +1912,7 @@ pub(crate) fn destack_gpu_command_begin_compute_pipeline_statistics_query(
 /// Binding for `destack.gpu.sync.commandBeginOcclusionQuery`.
 pub(crate) fn destack_gpu_command_begin_occlusion_query(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
@@ -1927,7 +1927,7 @@ pub(crate) fn destack_gpu_command_begin_occlusion_query(
 /// Binding for `destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery`.
 pub(crate) fn destack_gpu_command_begin_render_pipeline_statistics_query(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
@@ -1942,7 +1942,7 @@ pub(crate) fn destack_gpu_command_begin_render_pipeline_statistics_query(
 /// Binding for `destack.gpu.sync.commandEndComputePipelineStatisticsQuery`.
 pub(crate) fn destack_gpu_command_end_compute_pipeline_statistics_query(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     computepass: resource::GpuComputePassHandle,
 ) -> RuntimeResult<()> {
     let _ = computepass;
@@ -1955,7 +1955,7 @@ pub(crate) fn destack_gpu_command_end_compute_pipeline_statistics_query(
 /// Binding for `destack.gpu.sync.commandEndOcclusionQuery`.
 pub(crate) fn destack_gpu_command_end_occlusion_query(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
     let _ = renderpass;
@@ -1968,7 +1968,7 @@ pub(crate) fn destack_gpu_command_end_occlusion_query(
 /// Binding for `destack.gpu.sync.commandEndRenderPipelineStatisticsQuery`.
 pub(crate) fn destack_gpu_command_end_render_pipeline_statistics_query(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
     let _ = renderpass;
@@ -1981,7 +1981,7 @@ pub(crate) fn destack_gpu_command_end_render_pipeline_statistics_query(
 /// Binding for `destack.gpu.sync.commandResolveQueries`.
 pub(crate) fn destack_gpu_command_resolve_queries(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     commandencoder: resource::GpuCommandEncoderHandle,
     queryset: resource::GpuQuerySetHandle,
     firstquery: u32,
@@ -2006,7 +2006,7 @@ pub(crate) fn destack_gpu_command_resolve_queries(
 /// Binding for `destack.gpu.sync.commandWriteTimestamp`.
 pub(crate) fn destack_gpu_command_write_timestamp(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     commandencoder: resource::GpuCommandEncoderHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
@@ -2021,7 +2021,7 @@ pub(crate) fn destack_gpu_command_write_timestamp(
 /// Binding for `destack.gpu.sync.fenceCreate`.
 pub(crate) fn destack_gpu_fence_create(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuFenceOptionsVm,
 ) -> RuntimeResult<resource::GpuFenceHandle> {
@@ -2035,7 +2035,7 @@ pub(crate) fn destack_gpu_fence_create(
 /// Binding for `destack.gpu.sync.fenceDestroy`.
 pub(crate) fn destack_gpu_fence_destroy(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuFenceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -2048,7 +2048,7 @@ pub(crate) fn destack_gpu_fence_destroy(
 /// Binding for `destack.gpu.sync.querySetCreate`.
 pub(crate) fn destack_gpu_query_set_create(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuQuerySetOptionsVm,
 ) -> RuntimeResult<resource::GpuQuerySetHandle> {
@@ -2062,7 +2062,7 @@ pub(crate) fn destack_gpu_query_set_create(
 /// Binding for `destack.gpu.sync.querySetDestroy`.
 pub(crate) fn destack_gpu_query_set_destroy(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuQuerySetHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -2075,7 +2075,7 @@ pub(crate) fn destack_gpu_query_set_destroy(
 /// Binding for `destack.gpu.sync.querySetInfo`.
 pub(crate) fn destack_gpu_query_set_info(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::GpuQuerySetHandle,
 ) -> RuntimeResult<GpuQuerySetInfoVm> {
     let _ = handle;
@@ -2088,7 +2088,7 @@ pub(crate) fn destack_gpu_query_set_info(
 /// Binding for `destack.gpu.sync.queueSignal`.
 pub(crate) fn destack_gpu_queue_signal(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     queue: resource::GpuQueueHandle,
     fence: resource::GpuFenceHandle,
     argument_value: u64,
@@ -2103,7 +2103,7 @@ pub(crate) fn destack_gpu_queue_signal(
 /// Binding for `destack.gpu.sync.queueTimestampPeriod`.
 pub(crate) fn destack_gpu_queue_timestamp_period(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     queue: resource::GpuQueueHandle,
 ) -> RuntimeResult<f64> {
     let _ = queue;
@@ -2116,7 +2116,7 @@ pub(crate) fn destack_gpu_queue_timestamp_period(
 /// Binding for `destack.gpu.sync.queueWait`.
 pub(crate) fn destack_gpu_queue_wait(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     queue: resource::GpuQueueHandle,
     fence: resource::GpuFenceHandle,
     argument_value: u64,
@@ -2132,7 +2132,7 @@ pub(crate) fn destack_gpu_queue_wait(
 /// Binding for `destack.gpu.sync.queueWorkDone`.
 pub(crate) fn destack_gpu_queue_work_done(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {

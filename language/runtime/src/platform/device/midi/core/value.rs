@@ -53,7 +53,7 @@ impl MidiBackendDescriptorValue {
     /// Encode one backend descriptor for VM bindings.
     pub(crate) fn into_vm(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::BindingContext<'_>,
     ) -> RuntimeResult<MidiBackendDescriptorVm> {
         Ok(MidiBackendDescriptorVm {
             backend: self.backend,
@@ -144,7 +144,7 @@ impl MidiPortDescriptorValue {
     /// Encode one port descriptor for VM bindings.
     pub(crate) fn into_vm(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::BindingContext<'_>,
     ) -> RuntimeResult<MidiPortDescriptorVm> {
         Ok(MidiPortDescriptorVm {
             backend: self.backend,
@@ -257,7 +257,7 @@ impl MidiInputRecordValue {
     /// Encode one input record for VM bindings.
     pub(crate) fn into_vm(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::BindingContext<'_>,
     ) -> RuntimeResult<MidiInputRecordVm> {
         Ok(MidiInputRecordVm {
             received_at_ns: self.received_at_ns,
@@ -308,7 +308,7 @@ impl MidiOutputRecordValue {
 
     /// Decode one VM output record into owned bytes.
     pub(crate) fn from_vm(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::BindingContext<'_>,
         record: MidiOutputRecordVm,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -445,7 +445,7 @@ impl MidiEventValue {
     /// Encode one MIDI event for VM bindings.
     pub(crate) fn into_vm(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::BindingContext<'_>,
     ) -> RuntimeResult<MidiEventVm> {
         match self {
             Self::PortAdded {

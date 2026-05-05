@@ -114,7 +114,7 @@ fn decode_uint64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -127,7 +127,7 @@ fn decode_string(
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -138,7 +138,7 @@ fn decode_slice<T>(
 /// Decode arguments for destack.tls.context.close.
 #[inline]
 fn decode_destack_tls_context_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TlsContextHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TlsContextHandle")?;
@@ -151,7 +151,7 @@ fn decode_destack_tls_context_close_args(
 /// Encode the result for destack.tls.context.close.
 #[inline]
 fn encode_destack_tls_context_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -160,7 +160,7 @@ fn encode_destack_tls_context_close_result(
 /// Decode arguments for destack.tls.context.open.
 #[inline]
 fn decode_destack_tls_context_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(TlsContextOptionsVm,)> {
     let context = &context.read();
@@ -173,7 +173,7 @@ fn decode_destack_tls_context_open_args(
 /// Encode the result for destack.tls.context.open.
 #[inline]
 fn encode_destack_tls_context_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::TlsContextHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -184,7 +184,7 @@ fn encode_destack_tls_context_open_result(
 /// Decode arguments for destack.tls.context.setCipherSuites.
 #[inline]
 fn decode_destack_tls_context_set_cipher_suites_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TlsContextHandle, VmSlice<vm::StringHandle>)> {
     let context = &context.read();
@@ -201,7 +201,7 @@ fn decode_destack_tls_context_set_cipher_suites_args(
 /// Encode the result for destack.tls.context.setCipherSuites.
 #[inline]
 fn encode_destack_tls_context_set_cipher_suites_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -210,7 +210,7 @@ fn encode_destack_tls_context_set_cipher_suites_result(
 /// Decode arguments for destack.tls.context.setGroups.
 #[inline]
 fn decode_destack_tls_context_set_groups_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TlsContextHandle, VmSlice<vm::StringHandle>)> {
     let context = &context.read();
@@ -227,7 +227,7 @@ fn decode_destack_tls_context_set_groups_args(
 /// Encode the result for destack.tls.context.setGroups.
 #[inline]
 fn encode_destack_tls_context_set_groups_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -236,7 +236,7 @@ fn encode_destack_tls_context_set_groups_result(
 /// Decode arguments for destack.tls.context.setHostnameVerificationMode.
 #[inline]
 fn decode_destack_tls_context_set_hostname_verification_mode_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TlsContextHandle, TlsHostnameVerificationMode)> {
     let handle_value = arg_value(args, 0, "handle", "TlsContextHandle")?;
@@ -263,7 +263,7 @@ fn decode_destack_tls_context_set_hostname_verification_mode_args(
 /// Encode the result for destack.tls.context.setHostnameVerificationMode.
 #[inline]
 fn encode_destack_tls_context_set_hostname_verification_mode_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -272,7 +272,7 @@ fn encode_destack_tls_context_set_hostname_verification_mode_result(
 /// Decode arguments for destack.tls.context.setIdentityPem.
 #[inline]
 fn decode_destack_tls_context_set_identity_pem_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TlsContextHandle, VmSlice<u8>, VmSlice<u8>)> {
     let context = &context.read();
@@ -300,7 +300,7 @@ fn decode_destack_tls_context_set_identity_pem_args(
 /// Encode the result for destack.tls.context.setIdentityPem.
 #[inline]
 fn encode_destack_tls_context_set_identity_pem_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -309,7 +309,7 @@ fn encode_destack_tls_context_set_identity_pem_result(
 /// Decode arguments for destack.tls.context.setSessionResumption.
 #[inline]
 fn decode_destack_tls_context_set_session_resumption_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TlsContextHandle, TlsSessionResumptionMode)> {
     let handle_value = arg_value(args, 0, "handle", "TlsContextHandle")?;
@@ -337,7 +337,7 @@ fn decode_destack_tls_context_set_session_resumption_args(
 /// Encode the result for destack.tls.context.setSessionResumption.
 #[inline]
 fn encode_destack_tls_context_set_session_resumption_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -346,7 +346,7 @@ fn encode_destack_tls_context_set_session_resumption_result(
 /// Decode arguments for destack.tls.context.setSignatureAlgorithms.
 #[inline]
 fn decode_destack_tls_context_set_signature_algorithms_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TlsContextHandle, VmSlice<vm::StringHandle>)> {
     let context = &context.read();
@@ -363,7 +363,7 @@ fn decode_destack_tls_context_set_signature_algorithms_args(
 /// Encode the result for destack.tls.context.setSignatureAlgorithms.
 #[inline]
 fn encode_destack_tls_context_set_signature_algorithms_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -372,7 +372,7 @@ fn encode_destack_tls_context_set_signature_algorithms_result(
 /// Decode arguments for destack.tls.context.setTrustAnchorsPem.
 #[inline]
 fn decode_destack_tls_context_set_trust_anchors_pem_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TlsContextHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -393,7 +393,7 @@ fn decode_destack_tls_context_set_trust_anchors_pem_args(
 /// Encode the result for destack.tls.context.setTrustAnchorsPem.
 #[inline]
 fn encode_destack_tls_context_set_trust_anchors_pem_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -402,7 +402,7 @@ fn encode_destack_tls_context_set_trust_anchors_pem_result(
 /// Decode arguments for destack.tls.session.close.
 #[inline]
 fn decode_destack_tls_session_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TlsSessionHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TlsSessionHandle")?;
@@ -415,7 +415,7 @@ fn decode_destack_tls_session_close_args(
 /// Encode the result for destack.tls.session.close.
 #[inline]
 fn encode_destack_tls_session_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -424,7 +424,7 @@ fn encode_destack_tls_session_close_result(
 /// Decode arguments for destack.tls.session.exportKeyingMaterial.
 #[inline]
 fn decode_destack_tls_session_export_keying_material_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::TlsSessionHandle,
@@ -454,7 +454,7 @@ fn decode_destack_tls_session_export_keying_material_args(
 /// Encode the result for destack.tls.session.exportKeyingMaterial.
 #[inline]
 fn encode_destack_tls_session_export_keying_material_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -466,7 +466,7 @@ fn encode_destack_tls_session_export_keying_material_result(
 /// Decode arguments for destack.tls.session.handshake.
 #[inline]
 fn decode_destack_tls_session_handshake_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TlsSessionHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TlsSessionHandle")?;
@@ -479,7 +479,7 @@ fn decode_destack_tls_session_handshake_args(
 /// Encode the result for destack.tls.session.handshake.
 #[inline]
 fn encode_destack_tls_session_handshake_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<TlsHandshakeStatus>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -490,7 +490,7 @@ fn encode_destack_tls_session_handshake_result(
 /// Decode arguments for destack.tls.session.negotiatedAlpn.
 #[inline]
 fn decode_destack_tls_session_negotiated_alpn_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TlsSessionHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TlsSessionHandle")?;
@@ -503,7 +503,7 @@ fn decode_destack_tls_session_negotiated_alpn_args(
 /// Encode the result for destack.tls.session.negotiatedAlpn.
 #[inline]
 fn encode_destack_tls_session_negotiated_alpn_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -515,7 +515,7 @@ fn encode_destack_tls_session_negotiated_alpn_result(
 /// Decode arguments for destack.tls.session.open.
 #[inline]
 fn decode_destack_tls_session_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::TlsContextHandle,
@@ -543,7 +543,7 @@ fn decode_destack_tls_session_open_args(
 /// Encode the result for destack.tls.session.open.
 #[inline]
 fn encode_destack_tls_session_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::TlsSessionHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -554,7 +554,7 @@ fn encode_destack_tls_session_open_result(
 /// Decode arguments for destack.tls.session.peerCertificatesPem.
 #[inline]
 fn decode_destack_tls_session_peer_certificates_pem_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TlsSessionHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TlsSessionHandle")?;
@@ -567,7 +567,7 @@ fn decode_destack_tls_session_peer_certificates_pem_args(
 /// Encode the result for destack.tls.session.peerCertificatesPem.
 #[inline]
 fn encode_destack_tls_session_peer_certificates_pem_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -579,7 +579,7 @@ fn encode_destack_tls_session_peer_certificates_pem_result(
 /// Decode arguments for destack.tls.session.read.
 #[inline]
 fn decode_destack_tls_session_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TlsSessionHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -595,7 +595,7 @@ fn decode_destack_tls_session_read_args(
 /// Encode the result for destack.tls.session.read.
 #[inline]
 fn encode_destack_tls_session_read_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -606,7 +606,7 @@ fn encode_destack_tls_session_read_result(
 /// Decode arguments for destack.tls.session.resumptionState.
 #[inline]
 fn decode_destack_tls_session_resumption_state_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TlsSessionHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TlsSessionHandle")?;
@@ -619,7 +619,7 @@ fn decode_destack_tls_session_resumption_state_args(
 /// Encode the result for destack.tls.session.resumptionState.
 #[inline]
 fn encode_destack_tls_session_resumption_state_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<TlsSessionResumptionState>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -630,7 +630,7 @@ fn encode_destack_tls_session_resumption_state_result(
 /// Decode arguments for destack.tls.session.shutdown.
 #[inline]
 fn decode_destack_tls_session_shutdown_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TlsSessionHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TlsSessionHandle")?;
@@ -643,7 +643,7 @@ fn decode_destack_tls_session_shutdown_args(
 /// Encode the result for destack.tls.session.shutdown.
 #[inline]
 fn encode_destack_tls_session_shutdown_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -652,7 +652,7 @@ fn encode_destack_tls_session_shutdown_result(
 /// Decode arguments for destack.tls.session.write.
 #[inline]
 fn decode_destack_tls_session_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TlsSessionHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -668,7 +668,7 @@ fn decode_destack_tls_session_write_args(
 /// Encode the result for destack.tls.session.write.
 #[inline]
 fn encode_destack_tls_session_write_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2000,7 +2000,7 @@ pub(crate) unsafe extern "C" fn destack_tls_session_write(
 #[inline]
 fn destack_tls_context_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -2048,7 +2048,7 @@ fn destack_tls_context_close_vm_replay(
 #[inline]
 fn destack_tls_context_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     options: TlsContextOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -2100,7 +2100,7 @@ fn destack_tls_context_open_vm_replay(
 #[inline]
 fn destack_tls_session_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -2148,7 +2148,7 @@ fn destack_tls_session_close_vm_replay(
 #[inline]
 fn destack_tls_session_handshake_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -2202,7 +2202,7 @@ fn destack_tls_session_handshake_vm_replay(
 #[inline]
 fn destack_tls_session_negotiated_alpn_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -2260,7 +2260,7 @@ fn destack_tls_session_negotiated_alpn_vm_replay(
 #[inline]
 fn destack_tls_session_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     argument_context: resource::TlsContextHandle,
     socket: resource::SocketHandle,
@@ -2324,7 +2324,7 @@ fn destack_tls_session_open_vm_replay(
 #[inline]
 fn destack_tls_session_resumption_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -2380,7 +2380,7 @@ fn destack_tls_session_resumption_state_vm_replay(
 #[inline]
 fn destack_tls_session_shutdown_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<vm::Word> {

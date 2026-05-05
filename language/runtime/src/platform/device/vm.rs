@@ -43,7 +43,7 @@ use destack_vm as vm;
 /// Decode one VM binding payload into one native binding payload.
 fn native_value_from_vm<Native, Vm>(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: Vm,
 ) -> RuntimeResult<Native>
 where
@@ -57,7 +57,7 @@ where
 
 /// Encode one native binding payload into one VM binding payload.
 fn vm_value_from_native<Native, Vm>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: Native,
 ) -> RuntimeResult<Vm>
 where
@@ -71,7 +71,7 @@ where
 
 /// Call one native out-parameter binding and encode the result for the VM.
 fn vm_call_out<Native, Vm>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     call: impl FnOnce(*mut Native) -> RuntimeResult<()>,
 ) -> RuntimeResult<Vm>
 where
@@ -119,7 +119,7 @@ where
 /// Read one optional VM binding value and decode it into one native binding value.
 fn optional_vm_value<Native, Vm>(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: RuntimeResult<Vm>,
 ) -> RuntimeResult<Option<Native::Value>>
 where
@@ -158,7 +158,7 @@ pub(crate) use super::midi::vm::*;
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_adapter_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<VmSlice<BluetoothAdapterDescriptorVm>> {
     vm_call_out(
         context,
@@ -186,7 +186,7 @@ pub(crate) fn destack_device_bluetooth_adapter_list(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_adapter_watch_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothAdapterWatchHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_bluetooth_adapter_watch_close(binding, handle) }
@@ -210,7 +210,7 @@ pub(crate) fn destack_device_bluetooth_adapter_watch_close(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_adapter_watch_open(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<resource::BluetoothAdapterWatchHandle> {
     call_out(|out| unsafe {
         device_host::destack_device_bluetooth_adapter_watch_open(binding, out)
@@ -235,7 +235,7 @@ pub(crate) fn destack_device_bluetooth_adapter_watch_open(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_adapter_watch_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothAdapterWatchHandle,
     timeoutns: u64,
 ) -> RuntimeResult<BluetoothAdapterEventVm> {
@@ -262,7 +262,7 @@ pub(crate) fn destack_device_bluetooth_adapter_watch_read(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_adapter_watch_try_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothAdapterWatchHandle,
 ) -> RuntimeResult<BluetoothAdapterEventVm> {
     vm_call_out(context, |out: *mut BluetoothAdapterEvent| unsafe {
@@ -288,7 +288,7 @@ pub(crate) fn destack_device_bluetooth_adapter_watch_try_read(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_characteristic_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     serviceid: vm::StringHandle,
 ) -> RuntimeResult<VmSlice<BluetoothGattCharacteristicVm>> {
@@ -322,7 +322,7 @@ pub(crate) fn destack_device_bluetooth_gatt_characteristic_list(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_descriptor_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     characteristicid: vm::StringHandle,
 ) -> RuntimeResult<VmSlice<BluetoothGattDescriptorVm>> {
@@ -359,7 +359,7 @@ pub(crate) fn destack_device_bluetooth_gatt_descriptor_list(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_mtu(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<u16> {
     call_out(|out| unsafe { device_host::destack_device_bluetooth_gatt_mtu(binding, out, handle) })
@@ -383,7 +383,7 @@ pub(crate) fn destack_device_bluetooth_gatt_mtu(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     characteristicid: vm::StringHandle,
     timeoutns: u64,
@@ -419,7 +419,7 @@ pub(crate) fn destack_device_bluetooth_gatt_read(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_read_descriptor(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     descriptorid: vm::StringHandle,
     timeoutns: u64,
@@ -455,7 +455,7 @@ pub(crate) fn destack_device_bluetooth_gatt_read_descriptor(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_read_event(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothSubscriptionHandle,
     timeoutns: u64,
 ) -> RuntimeResult<BluetoothGattValueEventVm> {
@@ -482,7 +482,7 @@ pub(crate) fn destack_device_bluetooth_gatt_read_event(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_service_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<VmSlice<BluetoothGattServiceVm>> {
     vm_call_out(
@@ -511,7 +511,7 @@ pub(crate) fn destack_device_bluetooth_gatt_service_list(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_subscribe(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     characteristicid: vm::StringHandle,
 ) -> RuntimeResult<resource::BluetoothSubscriptionHandle> {
@@ -545,7 +545,7 @@ pub(crate) fn destack_device_bluetooth_gatt_subscribe(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_try_read_event(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeResult<BluetoothGattValueEventVm> {
     vm_call_out(context, |out: *mut BluetoothGattValueEvent| unsafe {
@@ -571,7 +571,7 @@ pub(crate) fn destack_device_bluetooth_gatt_try_read_event(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_unsubscribe(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_bluetooth_gatt_unsubscribe(binding, handle) }
@@ -595,7 +595,7 @@ pub(crate) fn destack_device_bluetooth_gatt_unsubscribe(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_write(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     characteristicid: vm::StringHandle,
     argument_value: VmSlice<u8>,
@@ -635,7 +635,7 @@ pub(crate) fn destack_device_bluetooth_gatt_write(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_write_descriptor(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     descriptorid: vm::StringHandle,
     argument_value: VmSlice<u8>,
@@ -673,7 +673,7 @@ pub(crate) fn destack_device_bluetooth_gatt_write_descriptor(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_scan_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_bluetooth_scan_close(binding, handle) }
@@ -697,7 +697,7 @@ pub(crate) fn destack_device_bluetooth_scan_close(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_scan_open(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     adapterid: vm::StringHandle,
     filter: Option<BluetoothScanFilterVm>,
 ) -> RuntimeResult<resource::BluetoothScanHandle> {
@@ -729,7 +729,7 @@ pub(crate) fn destack_device_bluetooth_scan_open(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_scan_read_event(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothScanHandle,
     timeoutns: u64,
 ) -> RuntimeResult<BluetoothScanEventVm> {
@@ -756,7 +756,7 @@ pub(crate) fn destack_device_bluetooth_scan_read_event(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_scan_try_read_event(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeResult<BluetoothScanEventVm> {
     vm_call_out(context, |out: *mut BluetoothScanEvent| unsafe {
@@ -782,7 +782,7 @@ pub(crate) fn destack_device_bluetooth_scan_try_read_event(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_bluetooth_close(binding, handle) }
@@ -806,7 +806,7 @@ pub(crate) fn destack_device_bluetooth_close(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_descriptor(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<BluetoothDeviceDescriptorVm> {
     vm_call_out(context, |out: *mut BluetoothDeviceDescriptor| unsafe {
@@ -832,7 +832,7 @@ pub(crate) fn destack_device_bluetooth_descriptor(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_open(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     adapterid: vm::StringHandle,
     deviceid: vm::StringHandle,
 ) -> RuntimeResult<resource::BluetoothDeviceHandle> {
@@ -862,7 +862,7 @@ pub(crate) fn destack_device_bluetooth_open(
 /// External, nonrecordable.
 pub(crate) fn destack_device_bluetooth_pair(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
@@ -887,7 +887,7 @@ pub(crate) fn destack_device_bluetooth_pair(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_session_read_event(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     timeoutns: u64,
 ) -> RuntimeResult<BluetoothSessionEventVm> {
@@ -914,7 +914,7 @@ pub(crate) fn destack_device_bluetooth_session_read_event(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_read_rssi(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     timeoutns: u64,
 ) -> RuntimeResult<i32> {
@@ -941,7 +941,7 @@ pub(crate) fn destack_device_bluetooth_read_rssi(
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_session_try_read_event(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<BluetoothSessionEventVm> {
     vm_call_out(context, |out: *mut BluetoothSessionEvent| unsafe {
@@ -967,7 +967,7 @@ pub(crate) fn destack_device_bluetooth_session_try_read_event(
 /// External, nonrecordable.
 pub(crate) fn destack_device_bluetooth_unpair(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     adapterid: vm::StringHandle,
     deviceid: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -995,7 +995,7 @@ pub(crate) fn destack_device_bluetooth_unpair(
 /// External, recordable.
 pub(crate) fn destack_device_camera_device_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_camera_device_close(binding, handle) }
@@ -1019,7 +1019,7 @@ pub(crate) fn destack_device_camera_device_close(
 /// External, recordable.
 pub(crate) fn destack_device_camera_device_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<VmSlice<CameraDeviceDescriptorVm>> {
     vm_call_out(
         context,
@@ -1047,7 +1047,7 @@ pub(crate) fn destack_device_camera_device_list(
 /// External, recordable.
 pub(crate) fn destack_device_camera_device_open(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<resource::CameraDeviceHandle> {
     let id = native_value_from_vm(binding, context, id)?;
@@ -1073,7 +1073,7 @@ pub(crate) fn destack_device_camera_device_open(
 /// External, recordable.
 pub(crate) fn destack_device_camera_device_watch_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraWatchHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_camera_device_watch_close(binding, handle) }
@@ -1097,7 +1097,7 @@ pub(crate) fn destack_device_camera_device_watch_close(
 /// External, recordable.
 pub(crate) fn destack_device_camera_device_watch_open(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<resource::CameraWatchHandle> {
     call_out(|out| unsafe { device_host::destack_device_camera_device_watch_open(binding, out) })
 }
@@ -1120,7 +1120,7 @@ pub(crate) fn destack_device_camera_device_watch_open(
 /// External, recordable.
 pub(crate) fn destack_device_camera_device_watch_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraWatchHandle,
     timeoutns: u64,
 ) -> RuntimeResult<CameraWatchEventVm> {
@@ -1147,7 +1147,7 @@ pub(crate) fn destack_device_camera_device_watch_read(
 /// External, recordable.
 pub(crate) fn destack_device_camera_device_watch_try_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraWatchHandle,
 ) -> RuntimeResult<CameraWatchEventVm> {
     vm_call_out(context, |out: *mut CameraWatchEvent| unsafe {
@@ -1173,7 +1173,7 @@ pub(crate) fn destack_device_camera_device_watch_try_read(
 /// External, recordable.
 pub(crate) fn destack_device_camera_device_stream_capability_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<VmSlice<CameraStreamCapabilityVm>> {
     vm_call_out(
@@ -1206,7 +1206,7 @@ pub(crate) fn destack_device_camera_device_stream_capability_list(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_camera_stream_close(binding, handle) }
@@ -1230,7 +1230,7 @@ pub(crate) fn destack_device_camera_stream_close(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_config(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraStreamConfigVm> {
     vm_call_out(context, |out: *mut CameraStreamConfig| unsafe {
@@ -1256,7 +1256,7 @@ pub(crate) fn destack_device_camera_stream_config(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_recording_capabilities(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraRecordingCapabilitiesVm> {
     vm_call_out(context, |out: *mut CameraRecordingCapabilities| unsafe {
@@ -1282,7 +1282,7 @@ pub(crate) fn destack_device_camera_stream_recording_capabilities(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_recording_state(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraRecordingStateVm> {
     vm_call_out(context, |out: *mut CameraRecordingState| unsafe {
@@ -1308,7 +1308,7 @@ pub(crate) fn destack_device_camera_stream_recording_state(
 /// External, nonrecordable.
 pub(crate) fn destack_device_camera_stream_start_recording(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     options: CameraRecordingOptionsVm,
 ) -> RuntimeResult<()> {
@@ -1335,7 +1335,7 @@ pub(crate) fn destack_device_camera_stream_start_recording(
 /// External, nonrecordable.
 pub(crate) fn destack_device_camera_stream_pause_recording(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_camera_stream_pause_recording(binding, handle) }
@@ -1359,7 +1359,7 @@ pub(crate) fn destack_device_camera_stream_pause_recording(
 /// External, nonrecordable.
 pub(crate) fn destack_device_camera_stream_resume_recording(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_camera_stream_resume_recording(binding, handle) }
@@ -1383,7 +1383,7 @@ pub(crate) fn destack_device_camera_stream_resume_recording(
 /// External, nonrecordable.
 pub(crate) fn destack_device_camera_stream_stop_recording(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     timeoutns: u64,
 ) -> RuntimeResult<CameraRecordingVm> {
@@ -1410,7 +1410,7 @@ pub(crate) fn destack_device_camera_stream_stop_recording(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_photo_capabilities(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraPhotoCapabilitiesVm> {
     vm_call_out(context, |out: *mut CameraPhotoCapabilities| unsafe {
@@ -1436,7 +1436,7 @@ pub(crate) fn destack_device_camera_stream_photo_capabilities(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_photo_state(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraPhotoStateVm> {
     vm_call_out(context, |out: *mut CameraPhotoState| unsafe {
@@ -1462,7 +1462,7 @@ pub(crate) fn destack_device_camera_stream_photo_state(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_take_photo(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     settings: CameraPhotoSettingsVm,
     timeoutns: u64,
@@ -1494,7 +1494,7 @@ pub(crate) fn destack_device_camera_stream_take_photo(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_configure_controls(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     controls: CameraControlPatchVm,
 ) -> RuntimeResult<()> {
@@ -1592,7 +1592,7 @@ pub(crate) fn destack_device_camera_stream_configure_controls(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_control_capabilities(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraControlCapabilitiesVm> {
     let capabilities: CameraControlCapabilitiesVm =
@@ -1682,7 +1682,7 @@ pub(crate) fn destack_device_camera_stream_control_capabilities(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_control_state(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraControlStateVm> {
     let state = <CameraControlState as NativeAbiCodec>::from_value(
@@ -1763,7 +1763,7 @@ pub(crate) fn destack_device_camera_stream_control_state(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_exposure_compensation(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<f64> {
     call_out(|out| unsafe {
@@ -1789,7 +1789,7 @@ pub(crate) fn destack_device_camera_stream_exposure_compensation(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_exposure_compensation_range(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraExposureCompensationRangeVm> {
     vm_call_out(
@@ -1820,7 +1820,7 @@ pub(crate) fn destack_device_camera_stream_exposure_compensation_range(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_exposure_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraExposureMode> {
     call_out(|out| unsafe {
@@ -1846,7 +1846,7 @@ pub(crate) fn destack_device_camera_stream_exposure_mode(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_exposure_time_ns(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<u64> {
     call_out(|out| unsafe {
@@ -1872,7 +1872,7 @@ pub(crate) fn destack_device_camera_stream_exposure_time_ns(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_exposure_time_range(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraExposureTimeRangeVm> {
     vm_call_out(context, |out: *mut CameraExposureTimeRange| unsafe {
@@ -1898,7 +1898,7 @@ pub(crate) fn destack_device_camera_stream_exposure_time_range(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_focus_distance_diopters(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<f64> {
     call_out(|out| unsafe {
@@ -1924,7 +1924,7 @@ pub(crate) fn destack_device_camera_stream_focus_distance_diopters(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_focus_distance_range(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraFocusDistanceRangeVm> {
     vm_call_out(context, |out: *mut CameraFocusDistanceRange| unsafe {
@@ -1950,7 +1950,7 @@ pub(crate) fn destack_device_camera_stream_focus_distance_range(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_focus_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraFocusMode> {
     call_out(|out| unsafe {
@@ -1976,7 +1976,7 @@ pub(crate) fn destack_device_camera_stream_focus_mode(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_brightness(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<f64> {
     call_out(|out| unsafe {
@@ -2002,7 +2002,7 @@ pub(crate) fn destack_device_camera_stream_brightness(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_brightness_range(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraFloatControlRangeVm> {
     vm_call_out(context, |out: *mut CameraFloatControlRange| unsafe {
@@ -2028,7 +2028,7 @@ pub(crate) fn destack_device_camera_stream_brightness_range(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_contrast(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<f64> {
     call_out(|out| unsafe {
@@ -2054,7 +2054,7 @@ pub(crate) fn destack_device_camera_stream_contrast(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_contrast_range(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraFloatControlRangeVm> {
     vm_call_out(context, |out: *mut CameraFloatControlRange| unsafe {
@@ -2080,7 +2080,7 @@ pub(crate) fn destack_device_camera_stream_contrast_range(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_pan_degrees(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<f64> {
     call_out(|out| unsafe {
@@ -2106,7 +2106,7 @@ pub(crate) fn destack_device_camera_stream_pan_degrees(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_pan_range(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraPanAngleRangeVm> {
     vm_call_out(context, |out: *mut CameraPanAngleRange| unsafe {
@@ -2132,7 +2132,7 @@ pub(crate) fn destack_device_camera_stream_pan_range(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_open(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     device: resource::CameraDeviceHandle,
     config: CameraStreamConfigVm,
 ) -> RuntimeResult<resource::CameraStreamHandle> {
@@ -2161,7 +2161,7 @@ pub(crate) fn destack_device_camera_stream_open(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     timeoutns: u64,
 ) -> RuntimeResult<CameraFrameVm> {
@@ -2188,7 +2188,7 @@ pub(crate) fn destack_device_camera_stream_read(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_exposure_compensation(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     valueev: f64,
 ) -> RuntimeResult<()> {
@@ -2217,7 +2217,7 @@ pub(crate) fn destack_device_camera_stream_set_exposure_compensation(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_exposure_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     mode: CameraExposureMode,
 ) -> RuntimeResult<()> {
@@ -2242,7 +2242,7 @@ pub(crate) fn destack_device_camera_stream_set_exposure_mode(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_exposure_time_ns(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     valuens: u64,
 ) -> RuntimeResult<()> {
@@ -2269,7 +2269,7 @@ pub(crate) fn destack_device_camera_stream_set_exposure_time_ns(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_focus_distance_diopters(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     diopters: f64,
 ) -> RuntimeResult<()> {
@@ -2298,7 +2298,7 @@ pub(crate) fn destack_device_camera_stream_set_focus_distance_diopters(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_focus_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     mode: CameraFocusMode,
 ) -> RuntimeResult<()> {
@@ -2323,7 +2323,7 @@ pub(crate) fn destack_device_camera_stream_set_focus_mode(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_brightness(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     argument_value: f64,
 ) -> RuntimeResult<()> {
@@ -2350,7 +2350,7 @@ pub(crate) fn destack_device_camera_stream_set_brightness(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_contrast(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     argument_value: f64,
 ) -> RuntimeResult<()> {
@@ -2377,7 +2377,7 @@ pub(crate) fn destack_device_camera_stream_set_contrast(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_pan_degrees(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     degrees: f64,
 ) -> RuntimeResult<()> {
@@ -2402,7 +2402,7 @@ pub(crate) fn destack_device_camera_stream_set_pan_degrees(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_saturation(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     argument_value: f64,
 ) -> RuntimeResult<()> {
@@ -2429,7 +2429,7 @@ pub(crate) fn destack_device_camera_stream_set_saturation(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_sensor_iso(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     iso: u32,
 ) -> RuntimeResult<()> {
@@ -2454,7 +2454,7 @@ pub(crate) fn destack_device_camera_stream_set_sensor_iso(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_sharpness(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     argument_value: f64,
 ) -> RuntimeResult<()> {
@@ -2481,7 +2481,7 @@ pub(crate) fn destack_device_camera_stream_set_sharpness(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_tilt_degrees(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     degrees: f64,
 ) -> RuntimeResult<()> {
@@ -2506,7 +2506,7 @@ pub(crate) fn destack_device_camera_stream_set_tilt_degrees(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_stabilization_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     mode: CameraStabilizationMode,
 ) -> RuntimeResult<()> {
@@ -2533,7 +2533,7 @@ pub(crate) fn destack_device_camera_stream_set_stabilization_mode(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_torch_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     mode: CameraTorchMode,
 ) -> RuntimeResult<()> {
@@ -2558,7 +2558,7 @@ pub(crate) fn destack_device_camera_stream_set_torch_mode(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_white_balance_kelvin(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     kelvin: u32,
 ) -> RuntimeResult<()> {
@@ -2585,7 +2585,7 @@ pub(crate) fn destack_device_camera_stream_set_white_balance_kelvin(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_white_balance_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     mode: CameraWhiteBalanceMode,
 ) -> RuntimeResult<()> {
@@ -2612,7 +2612,7 @@ pub(crate) fn destack_device_camera_stream_set_white_balance_mode(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_zoom_ratio(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
     ratio: f64,
 ) -> RuntimeResult<()> {
@@ -2637,7 +2637,7 @@ pub(crate) fn destack_device_camera_stream_set_zoom_ratio(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_stabilization_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraStabilizationMode> {
     call_out(|out| unsafe {
@@ -2663,7 +2663,7 @@ pub(crate) fn destack_device_camera_stream_stabilization_mode(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_start(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_camera_stream_start(binding, handle) }
@@ -2687,7 +2687,7 @@ pub(crate) fn destack_device_camera_stream_start(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_stop(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_camera_stream_stop(binding, handle) }
@@ -2711,7 +2711,7 @@ pub(crate) fn destack_device_camera_stream_stop(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_torch_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraTorchMode> {
     call_out(|out| unsafe {
@@ -2737,7 +2737,7 @@ pub(crate) fn destack_device_camera_stream_torch_mode(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_try_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraFrameVm> {
     vm_call_out(context, |out: *mut CameraFrame| unsafe {
@@ -2763,7 +2763,7 @@ pub(crate) fn destack_device_camera_stream_try_read(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_saturation(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<f64> {
     call_out(|out| unsafe {
@@ -2789,7 +2789,7 @@ pub(crate) fn destack_device_camera_stream_saturation(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_saturation_range(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraFloatControlRangeVm> {
     vm_call_out(context, |out: *mut CameraFloatControlRange| unsafe {
@@ -2815,7 +2815,7 @@ pub(crate) fn destack_device_camera_stream_saturation_range(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_sensor_iso(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<u32> {
     call_out(|out| unsafe {
@@ -2841,7 +2841,7 @@ pub(crate) fn destack_device_camera_stream_sensor_iso(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_sensor_iso_range(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraSensorIsoRangeVm> {
     vm_call_out(context, |out: *mut CameraSensorIsoRange| unsafe {
@@ -2867,7 +2867,7 @@ pub(crate) fn destack_device_camera_stream_sensor_iso_range(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_sharpness(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<f64> {
     call_out(|out| unsafe {
@@ -2893,7 +2893,7 @@ pub(crate) fn destack_device_camera_stream_sharpness(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_sharpness_range(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraFloatControlRangeVm> {
     vm_call_out(context, |out: *mut CameraFloatControlRange| unsafe {
@@ -2919,7 +2919,7 @@ pub(crate) fn destack_device_camera_stream_sharpness_range(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_tilt_degrees(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<f64> {
     call_out(|out| unsafe {
@@ -2945,7 +2945,7 @@ pub(crate) fn destack_device_camera_stream_tilt_degrees(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_tilt_range(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraTiltAngleRangeVm> {
     vm_call_out(context, |out: *mut CameraTiltAngleRange| unsafe {
@@ -2971,7 +2971,7 @@ pub(crate) fn destack_device_camera_stream_tilt_range(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_white_balance_kelvin(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<u32> {
     call_out(|out| unsafe {
@@ -2997,7 +2997,7 @@ pub(crate) fn destack_device_camera_stream_white_balance_kelvin(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_white_balance_range(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraWhiteBalanceRangeVm> {
     vm_call_out(context, |out: *mut CameraWhiteBalanceRange| unsafe {
@@ -3023,7 +3023,7 @@ pub(crate) fn destack_device_camera_stream_white_balance_range(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_white_balance_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraWhiteBalanceMode> {
     call_out(|out| unsafe {
@@ -3049,7 +3049,7 @@ pub(crate) fn destack_device_camera_stream_white_balance_mode(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_zoom_ratio(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<f64> {
     call_out(|out| unsafe {
@@ -3075,7 +3075,7 @@ pub(crate) fn destack_device_camera_stream_zoom_ratio(
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_zoom_ratio_range(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraZoomRatioRangeVm> {
     vm_call_out(context, |out: *mut CameraZoomRatioRange| unsafe {
@@ -3101,7 +3101,7 @@ pub(crate) fn destack_device_camera_stream_zoom_ratio_range(
 /// External, recordable.
 pub(crate) fn destack_device_serial_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_serial_close(binding, handle) }
@@ -3125,7 +3125,7 @@ pub(crate) fn destack_device_serial_close(
 /// External, recordable.
 pub(crate) fn destack_device_serial_config(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<SerialPortConfigVm> {
     vm_call_out(context, |out: *mut SerialPortConfig| unsafe {
@@ -3151,7 +3151,7 @@ pub(crate) fn destack_device_serial_config(
 /// External, recordable.
 pub(crate) fn destack_device_serial_configure(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
     config: SerialPortConfigVm,
 ) -> RuntimeResult<()> {
@@ -3178,7 +3178,7 @@ pub(crate) fn destack_device_serial_configure(
 /// External, recordable.
 pub(crate) fn destack_device_serial_descriptor(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<SerialPortDescriptorVm> {
     vm_call_out(context, |out: *mut SerialPortDescriptor| unsafe {
@@ -3204,7 +3204,7 @@ pub(crate) fn destack_device_serial_descriptor(
 /// External, recordable.
 pub(crate) fn destack_device_serial_discard_input(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_serial_discard_input(binding, handle) }
@@ -3228,7 +3228,7 @@ pub(crate) fn destack_device_serial_discard_input(
 /// External, recordable.
 pub(crate) fn destack_device_serial_discard_output(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_serial_discard_output(binding, handle) }
@@ -3252,7 +3252,7 @@ pub(crate) fn destack_device_serial_discard_output(
 /// External, recordable.
 pub(crate) fn destack_device_serial_drain(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_serial_drain(binding, handle) }
@@ -3276,7 +3276,7 @@ pub(crate) fn destack_device_serial_drain(
 /// External, recordable.
 pub(crate) fn destack_device_serial_get_signals(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<SerialInputSignalsVm> {
     vm_call_out(context, |out: *mut SerialInputSignals| unsafe {
@@ -3303,7 +3303,7 @@ pub(crate) fn destack_device_serial_get_signals(
 /// External, recordable.
 pub(crate) fn destack_device_serial_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<VmSlice<SerialPortDescriptorVm>> {
     vm_call_out(
         context,
@@ -3331,7 +3331,7 @@ pub(crate) fn destack_device_serial_list(
 /// External, recordable.
 pub(crate) fn destack_device_serial_watch_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SerialWatchHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_serial_watch_close(binding, handle) }
@@ -3355,7 +3355,7 @@ pub(crate) fn destack_device_serial_watch_close(
 /// External, recordable.
 pub(crate) fn destack_device_serial_watch_open(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<resource::SerialWatchHandle> {
     call_out(|out| unsafe { device_host::destack_device_serial_watch_open(binding, out) })
 }
@@ -3378,7 +3378,7 @@ pub(crate) fn destack_device_serial_watch_open(
 /// External, recordable.
 pub(crate) fn destack_device_serial_watch_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::SerialWatchHandle,
     timeoutns: u64,
 ) -> RuntimeResult<SerialWatchEventVm> {
@@ -3405,7 +3405,7 @@ pub(crate) fn destack_device_serial_watch_read(
 /// External, recordable.
 pub(crate) fn destack_device_serial_watch_try_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::SerialWatchHandle,
 ) -> RuntimeResult<SerialWatchEventVm> {
     vm_call_out(context, |out: *mut SerialWatchEvent| unsafe {
@@ -3431,7 +3431,7 @@ pub(crate) fn destack_device_serial_watch_try_read(
 /// External, recordable.
 pub(crate) fn destack_device_serial_open(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     id: vm::StringHandle,
     options: SerialPortOpenOptionsVm,
 ) -> RuntimeResult<resource::SerialPortHandle> {
@@ -3459,7 +3459,7 @@ pub(crate) fn destack_device_serial_open(
 /// External, recordable.
 pub(crate) fn destack_device_serial_read_event(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
     timeoutns: u64,
 ) -> RuntimeResult<SerialEventVm> {
@@ -3487,7 +3487,7 @@ pub(crate) fn destack_device_serial_read_event(
 /// External, recordable.
 pub(crate) fn destack_device_serial_read_into(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
     buffer: VmSlice<u8>,
     timeoutns: u64,
@@ -3525,7 +3525,7 @@ pub(crate) fn destack_device_serial_read_into(
 /// External, recordable.
 pub(crate) fn destack_device_serial_set_signals(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
     signals: SerialOutputSignalsVm,
 ) -> RuntimeResult<()> {
@@ -3552,7 +3552,7 @@ pub(crate) fn destack_device_serial_set_signals(
 /// External, recordable.
 pub(crate) fn destack_device_serial_try_read_event(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<SerialEventVm> {
     vm_call_out(context, |out: *mut SerialEvent| unsafe {
@@ -3579,7 +3579,7 @@ pub(crate) fn destack_device_serial_try_read_event(
 /// External, recordable.
 pub(crate) fn destack_device_serial_try_read_into(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -3614,7 +3614,7 @@ pub(crate) fn destack_device_serial_try_read_into(
 /// External, recordable.
 pub(crate) fn destack_device_serial_write(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::SerialPortHandle,
     data: VmSlice<u8>,
     timeoutns: u64,
@@ -3644,7 +3644,7 @@ pub(crate) fn destack_device_serial_write(
 /// External, recordable.
 pub(crate) fn destack_device_usb_bos_capability_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<VmSlice<UsbBosCapabilityDescriptorVm>> {
     vm_call_out(
@@ -3673,7 +3673,7 @@ pub(crate) fn destack_device_usb_bos_capability_list(
 /// External, recordable.
 pub(crate) fn destack_device_usb_bulk_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
     maxbytes: u32,
@@ -3706,7 +3706,7 @@ pub(crate) fn destack_device_usb_bulk_read(
 /// External, recordable.
 pub(crate) fn destack_device_usb_bulk_write(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
     argument_bytes: VmSlice<u8>,
@@ -3745,7 +3745,7 @@ pub(crate) fn destack_device_usb_bulk_write(
 /// External, recordable.
 pub(crate) fn destack_device_usb_claim_interface(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeResult<()> {
@@ -3770,7 +3770,7 @@ pub(crate) fn destack_device_usb_claim_interface(
 /// External, recordable.
 pub(crate) fn destack_device_usb_clear_halt(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
 ) -> RuntimeResult<()> {
@@ -3797,7 +3797,7 @@ pub(crate) fn destack_device_usb_clear_halt(
 /// External, recordable.
 pub(crate) fn destack_device_usb_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_usb_close(binding, handle) }
@@ -3821,7 +3821,7 @@ pub(crate) fn destack_device_usb_close(
 /// External, recordable.
 pub(crate) fn destack_device_usb_configuration_get(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<u8> {
     call_out(|out| unsafe {
@@ -3847,7 +3847,7 @@ pub(crate) fn destack_device_usb_configuration_get(
 /// External, recordable.
 pub(crate) fn destack_device_usb_configuration_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<VmSlice<UsbConfigurationDescriptorVm>> {
     vm_call_out(
@@ -3876,7 +3876,7 @@ pub(crate) fn destack_device_usb_configuration_list(
 /// External, recordable.
 pub(crate) fn destack_device_usb_configuration_set(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     configurationvalue: u8,
 ) -> RuntimeResult<()> {
@@ -3903,7 +3903,7 @@ pub(crate) fn destack_device_usb_configuration_set(
 /// External, recordable.
 pub(crate) fn destack_device_usb_control_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     setup: UsbControlSetupVm,
     timeoutns: u64,
@@ -3933,7 +3933,7 @@ pub(crate) fn destack_device_usb_control_read(
 /// External, recordable.
 pub(crate) fn destack_device_usb_control_write(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     setup: UsbControlSetupVm,
     argument_bytes: VmSlice<u8>,
@@ -3972,7 +3972,7 @@ pub(crate) fn destack_device_usb_control_write(
 /// External, recordable.
 pub(crate) fn destack_device_usb_descriptor(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<UsbDeviceDescriptorVm> {
     vm_call_out(context, |out: *mut UsbDeviceDescriptor| unsafe {
@@ -3998,7 +3998,7 @@ pub(crate) fn destack_device_usb_descriptor(
 /// External, recordable.
 pub(crate) fn destack_device_usb_interrupt_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
     maxbytes: u32,
@@ -4031,7 +4031,7 @@ pub(crate) fn destack_device_usb_interrupt_read(
 /// External, recordable.
 pub(crate) fn destack_device_usb_interrupt_write(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
     argument_bytes: VmSlice<u8>,
@@ -4070,7 +4070,7 @@ pub(crate) fn destack_device_usb_interrupt_write(
 /// External, recordable.
 pub(crate) fn destack_device_usb_isochronous_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
     packetsizes: VmSlice<u32>,
@@ -4109,7 +4109,7 @@ pub(crate) fn destack_device_usb_isochronous_read(
 /// External, recordable.
 pub(crate) fn destack_device_usb_isochronous_write(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
     argument_bytes: VmSlice<u8>,
@@ -4151,7 +4151,7 @@ pub(crate) fn destack_device_usb_isochronous_write(
 /// External, recordable.
 pub(crate) fn destack_device_usb_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<VmSlice<UsbDeviceDescriptorVm>> {
     vm_call_out(
         context,
@@ -4179,7 +4179,7 @@ pub(crate) fn destack_device_usb_list(
 /// External, recordable.
 pub(crate) fn destack_device_usb_open(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<resource::UsbDeviceHandle> {
     let id = native_value_from_vm(binding, context, id)?;
@@ -4205,7 +4205,7 @@ pub(crate) fn destack_device_usb_open(
 /// External, recordable.
 pub(crate) fn destack_device_usb_release_interface(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeResult<()> {
@@ -4230,7 +4230,7 @@ pub(crate) fn destack_device_usb_release_interface(
 /// External, nonrecordable.
 pub(crate) fn destack_device_usb_reset(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_usb_reset(binding, handle) }
@@ -4254,7 +4254,7 @@ pub(crate) fn destack_device_usb_reset(
 /// External, recordable.
 pub(crate) fn destack_device_usb_set_interface_alternate_setting(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
     alternatesetting: u8,
@@ -4287,7 +4287,7 @@ pub(crate) fn destack_device_usb_set_interface_alternate_setting(
 /// External, recordable.
 pub(crate) fn destack_device_usb_string_descriptor(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     languageid: u16,
 ) -> RuntimeResult<UsbStringDescriptorVm> {
@@ -4314,7 +4314,7 @@ pub(crate) fn destack_device_usb_string_descriptor(
 /// External, recordable.
 pub(crate) fn destack_device_usb_string_language_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<VmSlice<u16>> {
     vm_call_out(context, |out: *mut NativeSlice<u16>| unsafe {
@@ -4340,7 +4340,7 @@ pub(crate) fn destack_device_usb_string_language_list(
 /// External, nonrecordable.
 pub(crate) fn destack_device_usb_transfer_cancel(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
 ) -> RuntimeResult<()> {
@@ -4367,7 +4367,7 @@ pub(crate) fn destack_device_usb_transfer_cancel(
 /// External, nonrecordable.
 pub(crate) fn destack_device_usb_transfer_cancel_all(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_usb_transfer_cancel_all(binding, handle) }
@@ -4391,7 +4391,7 @@ pub(crate) fn destack_device_usb_transfer_cancel_all(
 /// External, recordable.
 pub(crate) fn destack_device_usb_watch_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<()> {
     unsafe { device_host::destack_device_usb_watch_close(binding, handle) }
@@ -4415,7 +4415,7 @@ pub(crate) fn destack_device_usb_watch_close(
 /// External, recordable.
 pub(crate) fn destack_device_usb_watch_open(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<resource::UsbWatchHandle> {
     call_out(|out| unsafe { device_host::destack_device_usb_watch_open(binding, out) })
 }
@@ -4438,7 +4438,7 @@ pub(crate) fn destack_device_usb_watch_open(
 /// External, recordable.
 pub(crate) fn destack_device_usb_watch_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbWatchHandle,
     timeoutns: u64,
 ) -> RuntimeResult<UsbHotplugEventVm> {
@@ -4465,7 +4465,7 @@ pub(crate) fn destack_device_usb_watch_read(
 /// External, recordable.
 pub(crate) fn destack_device_usb_watch_try_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<UsbHotplugEventVm> {
     vm_call_out(context, |out: *mut UsbHotplugEvent| unsafe {

@@ -220,7 +220,7 @@ pub(super) fn with_first_openable_local_camera_stream_vm<F>(
 ) -> RuntimeResult<()>
 where
     F: FnMut(
-        &mut vm::ExternalCallContext<'_>,
+        &mut vm::BindingContext<'_>,
         CameraDeviceHandle,
         CameraStreamHandle,
         CameraStreamCapabilityValue,
@@ -238,7 +238,7 @@ fn with_openable_camera_stream_vm<F>(
 ) -> RuntimeResult<()>
 where
     F: FnMut(
-        &mut vm::ExternalCallContext<'_>,
+        &mut vm::BindingContext<'_>,
         CameraDeviceHandle,
         CameraStreamHandle,
         CameraStreamCapabilityValue,

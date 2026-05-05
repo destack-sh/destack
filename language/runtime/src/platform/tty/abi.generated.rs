@@ -62,13 +62,13 @@ impl VmAbiCodec for PtyHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -117,13 +117,13 @@ impl VmAbiCodec for ResourceId {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -172,13 +172,13 @@ impl VmAbiCodec for TtyHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -245,13 +245,13 @@ impl VmAbiCodec for TtyTermiosFlowAction {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -315,13 +315,13 @@ impl VmAbiCodec for TtyTermiosQueue {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -385,13 +385,13 @@ impl VmAbiCodec for TtyTermiosSetAction {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -412,7 +412,7 @@ pub type PtyPairVm = PtyPair;
 
 impl VmAggregateCodec for PtyPair {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -422,7 +422,7 @@ impl VmAggregateCodec for PtyPair {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -448,7 +448,7 @@ impl VmAggregateCodec for PtyPair {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("tty::PtyPair")
@@ -489,13 +489,13 @@ impl VmAbiCodec for PtyPair {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -522,7 +522,7 @@ pub type TtyModeVm = TtyMode;
 
 impl VmAggregateCodec for TtyMode {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -532,7 +532,7 @@ impl VmAggregateCodec for TtyMode {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -561,7 +561,7 @@ impl VmAggregateCodec for TtyMode {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("tty::TtyMode")
@@ -610,13 +610,13 @@ impl VmAbiCodec for TtyMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -643,7 +643,7 @@ pub type TtySizeVm = TtySize;
 
 impl VmAggregateCodec for TtySize {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -653,7 +653,7 @@ impl VmAggregateCodec for TtySize {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -682,7 +682,7 @@ impl VmAggregateCodec for TtySize {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("tty::TtySize")
@@ -727,13 +727,13 @@ impl VmAbiCodec for TtySize {
 
     fn into_value(
         self,
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -787,7 +787,7 @@ impl Clone for TtyTermiosAttributesAbi<VmAbi> {
 
 impl VmAggregateCodec for TtyTermiosAttributesAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
@@ -797,7 +797,7 @@ impl VmAggregateCodec for TtyTermiosAttributesAbi<VmAbi> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         let field_count = value_ref.field_count();
@@ -835,7 +835,7 @@ impl VmAggregateCodec for TtyTermiosAttributesAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("tty::TtyTermiosAttributes")
@@ -947,7 +947,7 @@ impl VmAbiCodec for TtyTermiosAttributesAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(TtyTermiosAttributesValue {
             input_flags: <u64 as VmAbiCodec>::into_value(self.input_flags, context)?,
@@ -964,7 +964,7 @@ impl VmAbiCodec for TtyTermiosAttributesAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {

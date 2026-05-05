@@ -95,7 +95,7 @@ fn decode_uint64(
 /// Decode arguments for destack.time.clock.metadata.
 #[inline]
 fn decode_destack_time_clock_metadata_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(ClockId,)> {
     let clock_value = arg_value(args, 0, "clock", "ClockId")?;
@@ -121,7 +121,7 @@ fn decode_destack_time_clock_metadata_args(
 /// Encode the result for destack.time.clock.metadata.
 #[inline]
 fn encode_destack_time_clock_metadata_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<ClockMetadataVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -154,7 +154,7 @@ fn encode_destack_time_clock_metadata_result(
 /// Encode the result for destack.time.clock.monoNs.
 #[inline]
 fn encode_destack_time_clock_mono_ns_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -165,7 +165,7 @@ fn encode_destack_time_clock_mono_ns_result(
 /// Decode arguments for destack.time.clock.nowNs.
 #[inline]
 fn decode_destack_time_clock_now_ns_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(ClockId,)> {
     let clock_value = arg_value(args, 0, "clock", "ClockId")?;
@@ -191,7 +191,7 @@ fn decode_destack_time_clock_now_ns_args(
 /// Encode the result for destack.time.clock.nowNs.
 #[inline]
 fn encode_destack_time_clock_now_ns_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -202,7 +202,7 @@ fn encode_destack_time_clock_now_ns_result(
 /// Encode the result for destack.time.clock.processCpuNs.
 #[inline]
 fn encode_destack_time_clock_process_cpu_ns_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -213,7 +213,7 @@ fn encode_destack_time_clock_process_cpu_ns_result(
 /// Encode the result for destack.time.clock.threadCpuNs.
 #[inline]
 fn encode_destack_time_clock_thread_cpu_ns_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -224,7 +224,7 @@ fn encode_destack_time_clock_thread_cpu_ns_result(
 /// Encode the result for destack.time.clock.wallNs.
 #[inline]
 fn encode_destack_time_clock_wall_ns_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -235,7 +235,7 @@ fn encode_destack_time_clock_wall_ns_result(
 /// Decode arguments for destack.time.sleep.ns.
 #[inline]
 fn decode_destack_time_sleep_ns_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64,)> {
     let duration_value = arg_value(args, 0, "duration", "uint64")?;
@@ -246,7 +246,7 @@ fn decode_destack_time_sleep_ns_args(
 /// Encode the result for destack.time.sleep.ns.
 #[inline]
 fn encode_destack_time_sleep_ns_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -255,7 +255,7 @@ fn encode_destack_time_sleep_ns_result(
 /// Decode arguments for destack.time.sleep.onNs.
 #[inline]
 fn decode_destack_time_sleep_on_ns_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, SleepClock)> {
     let duration_value = arg_value(args, 0, "duration", "uint64")?;
@@ -279,7 +279,7 @@ fn decode_destack_time_sleep_on_ns_args(
 /// Encode the result for destack.time.sleep.onNs.
 #[inline]
 fn encode_destack_time_sleep_on_ns_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -288,7 +288,7 @@ fn encode_destack_time_sleep_on_ns_result(
 /// Decode arguments for destack.time.sleep.untilNs.
 #[inline]
 fn decode_destack_time_sleep_until_ns_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64,)> {
     let deadline_value = arg_value(args, 0, "deadline", "uint64")?;
@@ -299,7 +299,7 @@ fn decode_destack_time_sleep_until_ns_args(
 /// Encode the result for destack.time.sleep.untilNs.
 #[inline]
 fn encode_destack_time_sleep_until_ns_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -308,7 +308,7 @@ fn encode_destack_time_sleep_until_ns_result(
 /// Decode arguments for destack.time.sleep.untilOnNs.
 #[inline]
 fn decode_destack_time_sleep_until_on_ns_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, SleepClock)> {
     let deadline_value = arg_value(args, 0, "deadline", "uint64")?;
@@ -332,7 +332,7 @@ fn decode_destack_time_sleep_until_on_ns_args(
 /// Encode the result for destack.time.sleep.untilOnNs.
 #[inline]
 fn encode_destack_time_sleep_until_on_ns_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -341,7 +341,7 @@ fn encode_destack_time_sleep_until_on_ns_result(
 /// Decode arguments for destack.time.timer.at.
 #[inline]
 fn decode_destack_time_timer_at_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, TimerOptionsVm)> {
     let context = &context.read();
@@ -356,7 +356,7 @@ fn decode_destack_time_timer_at_args(
 /// Encode the result for destack.time.timer.at.
 #[inline]
 fn encode_destack_time_timer_at_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::TimerHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -367,7 +367,7 @@ fn encode_destack_time_timer_at_result(
 /// Decode arguments for destack.time.timer.cancel.
 #[inline]
 fn decode_destack_time_timer_cancel_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TimerHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TimerHandle")?;
@@ -380,7 +380,7 @@ fn decode_destack_time_timer_cancel_args(
 /// Encode the result for destack.time.timer.cancel.
 #[inline]
 fn encode_destack_time_timer_cancel_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -389,7 +389,7 @@ fn encode_destack_time_timer_cancel_result(
 /// Decode arguments for destack.time.timer.interval.
 #[inline]
 fn decode_destack_time_timer_interval_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, TimerOptionsVm)> {
     let context = &context.read();
@@ -404,7 +404,7 @@ fn decode_destack_time_timer_interval_args(
 /// Encode the result for destack.time.timer.interval.
 #[inline]
 fn encode_destack_time_timer_interval_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::TimerHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -415,7 +415,7 @@ fn encode_destack_time_timer_interval_result(
 /// Decode arguments for destack.time.timer.isActive.
 #[inline]
 fn decode_destack_time_timer_is_active_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TimerHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TimerHandle")?;
@@ -428,7 +428,7 @@ fn decode_destack_time_timer_is_active_args(
 /// Encode the result for destack.time.timer.isActive.
 #[inline]
 fn encode_destack_time_timer_is_active_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -439,7 +439,7 @@ fn encode_destack_time_timer_is_active_result(
 /// Decode arguments for destack.time.timer.once.
 #[inline]
 fn decode_destack_time_timer_once_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, TimerOptionsVm)> {
     let context = &context.read();
@@ -454,7 +454,7 @@ fn decode_destack_time_timer_once_args(
 /// Encode the result for destack.time.timer.once.
 #[inline]
 fn encode_destack_time_timer_once_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::TimerHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -465,7 +465,7 @@ fn encode_destack_time_timer_once_result(
 /// Decode arguments for destack.time.timer.pause.
 #[inline]
 fn decode_destack_time_timer_pause_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TimerHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TimerHandle")?;
@@ -478,7 +478,7 @@ fn decode_destack_time_timer_pause_args(
 /// Encode the result for destack.time.timer.pause.
 #[inline]
 fn encode_destack_time_timer_pause_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -487,7 +487,7 @@ fn encode_destack_time_timer_pause_result(
 /// Decode arguments for destack.time.timer.remainingNs.
 #[inline]
 fn decode_destack_time_timer_remaining_ns_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TimerHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TimerHandle")?;
@@ -500,7 +500,7 @@ fn decode_destack_time_timer_remaining_ns_args(
 /// Encode the result for destack.time.timer.remainingNs.
 #[inline]
 fn encode_destack_time_timer_remaining_ns_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -511,7 +511,7 @@ fn encode_destack_time_timer_remaining_ns_result(
 /// Decode arguments for destack.time.timer.reset.
 #[inline]
 fn decode_destack_time_timer_reset_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TimerHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "TimerHandle")?;
@@ -526,7 +526,7 @@ fn decode_destack_time_timer_reset_args(
 /// Encode the result for destack.time.timer.reset.
 #[inline]
 fn encode_destack_time_timer_reset_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -535,7 +535,7 @@ fn encode_destack_time_timer_reset_result(
 /// Decode arguments for destack.time.timer.resume.
 #[inline]
 fn decode_destack_time_timer_resume_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TimerHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TimerHandle")?;
@@ -548,7 +548,7 @@ fn decode_destack_time_timer_resume_args(
 /// Encode the result for destack.time.timer.resume.
 #[inline]
 fn encode_destack_time_timer_resume_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -557,7 +557,7 @@ fn encode_destack_time_timer_resume_result(
 /// Decode arguments for destack.time.timer.updateInterval.
 #[inline]
 fn decode_destack_time_timer_update_interval_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TimerHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "TimerHandle")?;
@@ -572,7 +572,7 @@ fn decode_destack_time_timer_update_interval_args(
 /// Encode the result for destack.time.timer.updateInterval.
 #[inline]
 fn encode_destack_time_timer_update_interval_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2207,7 +2207,7 @@ pub(crate) unsafe extern "C" fn destack_time_timer_update_interval(
 #[inline]
 fn destack_time_clock_metadata_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     clock: ClockId,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -2271,7 +2271,7 @@ fn destack_time_clock_metadata_vm_replay(
 #[inline]
 fn destack_time_clock_now_ns_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     clock: ClockId,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -2317,7 +2317,7 @@ fn destack_time_clock_now_ns_vm_replay(
 #[inline]
 fn destack_time_clock_process_cpu_ns_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
         TIME_CLOCK_PROCESS_CPU_NS,
@@ -2362,7 +2362,7 @@ fn destack_time_clock_process_cpu_ns_vm_replay(
 #[inline]
 fn destack_time_clock_thread_cpu_ns_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
         TIME_CLOCK_THREAD_CPU_NS,
@@ -2407,7 +2407,7 @@ fn destack_time_clock_thread_cpu_ns_vm_replay(
 #[inline]
 fn destack_time_sleep_ns_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     duration: u64,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -2449,7 +2449,7 @@ fn destack_time_sleep_ns_vm_replay(
 #[inline]
 fn destack_time_sleep_on_ns_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     duration: u64,
     clock: SleepClock,
 ) -> RuntimeResult<vm::Word> {
@@ -2492,7 +2492,7 @@ fn destack_time_sleep_on_ns_vm_replay(
 #[inline]
 fn destack_time_sleep_until_ns_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     deadline: u64,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -2534,7 +2534,7 @@ fn destack_time_sleep_until_ns_vm_replay(
 #[inline]
 fn destack_time_sleep_until_on_ns_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     deadline: u64,
     clock: SleepClock,
 ) -> RuntimeResult<vm::Word> {
@@ -2579,7 +2579,7 @@ fn destack_time_sleep_until_on_ns_vm_replay(
 #[inline]
 fn destack_time_timer_at_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     deadlinens: u64,
     options: TimerOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -2626,7 +2626,7 @@ fn destack_time_timer_at_vm_replay(
 #[inline]
 fn destack_time_timer_cancel_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -2668,7 +2668,7 @@ fn destack_time_timer_cancel_vm_replay(
 #[inline]
 fn destack_time_timer_interval_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     periodns: u64,
     options: TimerOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -2717,7 +2717,7 @@ fn destack_time_timer_interval_vm_replay(
 #[inline]
 fn destack_time_timer_is_active_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -2763,7 +2763,7 @@ fn destack_time_timer_is_active_vm_replay(
 #[inline]
 fn destack_time_timer_once_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     delayns: u64,
     options: TimerOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -2810,7 +2810,7 @@ fn destack_time_timer_once_vm_replay(
 #[inline]
 fn destack_time_timer_pause_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -2852,7 +2852,7 @@ fn destack_time_timer_pause_vm_replay(
 #[inline]
 fn destack_time_timer_remaining_ns_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -2898,7 +2898,7 @@ fn destack_time_timer_remaining_ns_vm_replay(
 #[inline]
 fn destack_time_timer_reset_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::TimerHandle,
     delayns: u64,
 ) -> RuntimeResult<vm::Word> {
@@ -2941,7 +2941,7 @@ fn destack_time_timer_reset_vm_replay(
 #[inline]
 fn destack_time_timer_resume_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -2983,7 +2983,7 @@ fn destack_time_timer_resume_vm_replay(
 #[inline]
 fn destack_time_timer_update_interval_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::TimerHandle,
     periodns: u64,
 ) -> RuntimeResult<vm::Word> {

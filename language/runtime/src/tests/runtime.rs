@@ -232,7 +232,7 @@ impl TestRuntime {
     /// Execute a VM binding within a runtime call context.
     pub(crate) fn with_vm_call_context<T>(
         &mut self,
-        run: impl for<'ctx> FnOnce(&BindingCallContext, &mut vm::ExternalCallContext<'ctx>) -> T,
+        run: impl for<'ctx> FnOnce(&BindingCallContext, &mut vm::BindingContext<'ctx>) -> T,
     ) -> T {
         let world = self.world_scope();
 

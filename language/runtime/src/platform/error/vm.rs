@@ -23,7 +23,7 @@ use destack_vm;
 /// Deterministic.
 pub(crate) fn destack_error_take_platform_error(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     error_id: u64,
 ) -> RuntimeResult<PlatformErrorVm> {
     let error = take_platform_error(

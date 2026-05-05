@@ -64,7 +64,7 @@ pub(crate) fn event_delete(binding: &BindingCallContext, id: &str) -> RuntimeRes
 
 /// Encode one calendar descriptor list into one VM array.
 pub(crate) fn list_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     descriptors: &[CalendarDescriptorValue],
 ) -> RuntimeResult<VmArray<CalendarDescriptorVm>> {
     let mut encoded_descriptors = Vec::with_capacity(descriptors.len());
@@ -81,7 +81,7 @@ pub(crate) fn list_vm(
 
 /// Encode one calendar event list into one VM array.
 pub(crate) fn event_list_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     events: &[CalendarEventValue],
 ) -> RuntimeResult<VmArray<CalendarEventVm>> {
     let mut encoded_events = Vec::with_capacity(events.len());
@@ -97,7 +97,7 @@ pub(crate) fn event_list_vm(
 
 /// Encode one calendar event into one VM value.
 pub(crate) fn event_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     event: CalendarEventValue,
 ) -> RuntimeResult<CalendarEventVm> {
     CalendarEventVm::from_value(&mut context.write(), event)
@@ -105,7 +105,7 @@ pub(crate) fn event_vm(
 
 /// Encode one identifier into one VM string handle.
 pub(crate) fn id_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     id: &str,
 ) -> RuntimeResult<vm::StringHandle> {
     <vm::StringHandle as VmAbiCodec>::from_value(&mut context.write(), id.to_string())

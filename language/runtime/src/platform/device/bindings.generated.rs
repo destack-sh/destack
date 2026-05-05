@@ -283,7 +283,7 @@ fn decode_float64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -296,7 +296,7 @@ fn decode_string(
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -307,7 +307,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -318,7 +318,7 @@ fn decode_array<T>(
 /// Encode the result for destack.device.bluetooth.adapterList.
 #[inline]
 fn encode_destack_device_bluetooth_adapter_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<BluetoothAdapterDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -330,7 +330,7 @@ fn encode_destack_device_bluetooth_adapter_list_result(
 /// Decode arguments for destack.device.bluetooth.adapterWatchClose.
 #[inline]
 fn decode_destack_device_bluetooth_adapter_watch_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothAdapterWatchHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothAdapterWatchHandle")?;
@@ -347,7 +347,7 @@ fn decode_destack_device_bluetooth_adapter_watch_close_args(
 /// Encode the result for destack.device.bluetooth.adapterWatchClose.
 #[inline]
 fn encode_destack_device_bluetooth_adapter_watch_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -356,7 +356,7 @@ fn encode_destack_device_bluetooth_adapter_watch_close_result(
 /// Encode the result for destack.device.bluetooth.adapterWatchOpen.
 #[inline]
 fn encode_destack_device_bluetooth_adapter_watch_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::BluetoothAdapterWatchHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -367,7 +367,7 @@ fn encode_destack_device_bluetooth_adapter_watch_open_result(
 /// Decode arguments for destack.device.bluetooth.adapterWatchRead.
 #[inline]
 fn decode_destack_device_bluetooth_adapter_watch_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothAdapterWatchHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothAdapterWatchHandle")?;
@@ -386,7 +386,7 @@ fn decode_destack_device_bluetooth_adapter_watch_read_args(
 /// Encode the result for destack.device.bluetooth.adapterWatchRead.
 #[inline]
 fn encode_destack_device_bluetooth_adapter_watch_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<BluetoothAdapterEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -645,7 +645,7 @@ fn encode_destack_device_bluetooth_adapter_watch_read_result(
 /// Decode arguments for destack.device.bluetooth.adapterWatchTryRead.
 #[inline]
 fn decode_destack_device_bluetooth_adapter_watch_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothAdapterWatchHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothAdapterWatchHandle")?;
@@ -662,7 +662,7 @@ fn decode_destack_device_bluetooth_adapter_watch_try_read_args(
 /// Encode the result for destack.device.bluetooth.adapterWatchTryRead.
 #[inline]
 fn encode_destack_device_bluetooth_adapter_watch_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<BluetoothAdapterEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -921,7 +921,7 @@ fn encode_destack_device_bluetooth_adapter_watch_try_read_result(
 /// Decode arguments for destack.device.bluetooth.gatt.characteristicList.
 #[inline]
 fn decode_destack_device_bluetooth_gatt_characteristic_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothDeviceHandle, vm::StringHandle)> {
     let context = &context.read();
@@ -938,7 +938,7 @@ fn decode_destack_device_bluetooth_gatt_characteristic_list_args(
 /// Encode the result for destack.device.bluetooth.gatt.characteristicList.
 #[inline]
 fn encode_destack_device_bluetooth_gatt_characteristic_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<BluetoothGattCharacteristicVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -950,7 +950,7 @@ fn encode_destack_device_bluetooth_gatt_characteristic_list_result(
 /// Decode arguments for destack.device.bluetooth.gatt.descriptorList.
 #[inline]
 fn decode_destack_device_bluetooth_gatt_descriptor_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothDeviceHandle, vm::StringHandle)> {
     let context = &context.read();
@@ -972,7 +972,7 @@ fn decode_destack_device_bluetooth_gatt_descriptor_list_args(
 /// Encode the result for destack.device.bluetooth.gatt.descriptorList.
 #[inline]
 fn encode_destack_device_bluetooth_gatt_descriptor_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<BluetoothGattDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -984,7 +984,7 @@ fn encode_destack_device_bluetooth_gatt_descriptor_list_result(
 /// Decode arguments for destack.device.bluetooth.gatt.mtu.
 #[inline]
 fn decode_destack_device_bluetooth_gatt_mtu_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothDeviceHandle")?;
@@ -998,7 +998,7 @@ fn decode_destack_device_bluetooth_gatt_mtu_args(
 /// Encode the result for destack.device.bluetooth.gatt.mtu.
 #[inline]
 fn encode_destack_device_bluetooth_gatt_mtu_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u16>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1009,7 +1009,7 @@ fn encode_destack_device_bluetooth_gatt_mtu_result(
 /// Decode arguments for destack.device.bluetooth.gatt.read.
 #[inline]
 fn decode_destack_device_bluetooth_gatt_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothDeviceHandle, vm::StringHandle, u64)> {
     let context = &context.read();
@@ -1033,7 +1033,7 @@ fn decode_destack_device_bluetooth_gatt_read_args(
 /// Encode the result for destack.device.bluetooth.gatt.read.
 #[inline]
 fn encode_destack_device_bluetooth_gatt_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1045,7 +1045,7 @@ fn encode_destack_device_bluetooth_gatt_read_result(
 /// Decode arguments for destack.device.bluetooth.gatt.readDescriptor.
 #[inline]
 fn decode_destack_device_bluetooth_gatt_read_descriptor_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothDeviceHandle, vm::StringHandle, u64)> {
     let context = &context.read();
@@ -1064,7 +1064,7 @@ fn decode_destack_device_bluetooth_gatt_read_descriptor_args(
 /// Encode the result for destack.device.bluetooth.gatt.readDescriptor.
 #[inline]
 fn encode_destack_device_bluetooth_gatt_read_descriptor_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1076,7 +1076,7 @@ fn encode_destack_device_bluetooth_gatt_read_descriptor_result(
 /// Decode arguments for destack.device.bluetooth.gatt.readEvent.
 #[inline]
 fn decode_destack_device_bluetooth_gatt_read_event_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothSubscriptionHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothSubscriptionHandle")?;
@@ -1095,7 +1095,7 @@ fn decode_destack_device_bluetooth_gatt_read_event_args(
 /// Encode the result for destack.device.bluetooth.gatt.readEvent.
 #[inline]
 fn encode_destack_device_bluetooth_gatt_read_event_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<BluetoothGattValueEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1136,7 +1136,7 @@ fn encode_destack_device_bluetooth_gatt_read_event_result(
 /// Decode arguments for destack.device.bluetooth.gatt.serviceList.
 #[inline]
 fn decode_destack_device_bluetooth_gatt_service_list_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothDeviceHandle")?;
@@ -1150,7 +1150,7 @@ fn decode_destack_device_bluetooth_gatt_service_list_args(
 /// Encode the result for destack.device.bluetooth.gatt.serviceList.
 #[inline]
 fn encode_destack_device_bluetooth_gatt_service_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<BluetoothGattServiceVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1162,7 +1162,7 @@ fn encode_destack_device_bluetooth_gatt_service_list_result(
 /// Decode arguments for destack.device.bluetooth.gatt.subscribe.
 #[inline]
 fn decode_destack_device_bluetooth_gatt_subscribe_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothDeviceHandle, vm::StringHandle)> {
     let context = &context.read();
@@ -1184,7 +1184,7 @@ fn decode_destack_device_bluetooth_gatt_subscribe_args(
 /// Encode the result for destack.device.bluetooth.gatt.subscribe.
 #[inline]
 fn encode_destack_device_bluetooth_gatt_subscribe_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::BluetoothSubscriptionHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1195,7 +1195,7 @@ fn encode_destack_device_bluetooth_gatt_subscribe_result(
 /// Decode arguments for destack.device.bluetooth.gatt.tryReadEvent.
 #[inline]
 fn decode_destack_device_bluetooth_gatt_try_read_event_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothSubscriptionHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothSubscriptionHandle")?;
@@ -1212,7 +1212,7 @@ fn decode_destack_device_bluetooth_gatt_try_read_event_args(
 /// Encode the result for destack.device.bluetooth.gatt.tryReadEvent.
 #[inline]
 fn encode_destack_device_bluetooth_gatt_try_read_event_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<BluetoothGattValueEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1253,7 +1253,7 @@ fn encode_destack_device_bluetooth_gatt_try_read_event_result(
 /// Decode arguments for destack.device.bluetooth.gatt.unsubscribe.
 #[inline]
 fn decode_destack_device_bluetooth_gatt_unsubscribe_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothSubscriptionHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothSubscriptionHandle")?;
@@ -1270,7 +1270,7 @@ fn decode_destack_device_bluetooth_gatt_unsubscribe_args(
 /// Encode the result for destack.device.bluetooth.gatt.unsubscribe.
 #[inline]
 fn encode_destack_device_bluetooth_gatt_unsubscribe_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1279,7 +1279,7 @@ fn encode_destack_device_bluetooth_gatt_unsubscribe_result(
 /// Decode arguments for destack.device.bluetooth.gatt.write.
 #[inline]
 fn decode_destack_device_bluetooth_gatt_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::BluetoothDeviceHandle,
@@ -1329,7 +1329,7 @@ fn decode_destack_device_bluetooth_gatt_write_args(
 /// Encode the result for destack.device.bluetooth.gatt.write.
 #[inline]
 fn encode_destack_device_bluetooth_gatt_write_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1338,7 +1338,7 @@ fn encode_destack_device_bluetooth_gatt_write_result(
 /// Decode arguments for destack.device.bluetooth.gatt.writeDescriptor.
 #[inline]
 fn decode_destack_device_bluetooth_gatt_write_descriptor_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::BluetoothDeviceHandle,
@@ -1369,7 +1369,7 @@ fn decode_destack_device_bluetooth_gatt_write_descriptor_args(
 /// Encode the result for destack.device.bluetooth.gatt.writeDescriptor.
 #[inline]
 fn encode_destack_device_bluetooth_gatt_write_descriptor_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1378,7 +1378,7 @@ fn encode_destack_device_bluetooth_gatt_write_descriptor_result(
 /// Decode arguments for destack.device.bluetooth.scan.close.
 #[inline]
 fn decode_destack_device_bluetooth_scan_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothScanHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothScanHandle")?;
@@ -1392,7 +1392,7 @@ fn decode_destack_device_bluetooth_scan_close_args(
 /// Encode the result for destack.device.bluetooth.scan.close.
 #[inline]
 fn encode_destack_device_bluetooth_scan_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1401,7 +1401,7 @@ fn encode_destack_device_bluetooth_scan_close_result(
 /// Decode arguments for destack.device.bluetooth.scan.open.
 #[inline]
 fn decode_destack_device_bluetooth_scan_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, Option<BluetoothScanFilterVm>)> {
     let context = &context.read();
@@ -1423,7 +1423,7 @@ fn decode_destack_device_bluetooth_scan_open_args(
 /// Encode the result for destack.device.bluetooth.scan.open.
 #[inline]
 fn encode_destack_device_bluetooth_scan_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::BluetoothScanHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1434,7 +1434,7 @@ fn encode_destack_device_bluetooth_scan_open_result(
 /// Decode arguments for destack.device.bluetooth.scan.readEvent.
 #[inline]
 fn decode_destack_device_bluetooth_scan_read_event_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothScanHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothScanHandle")?;
@@ -1450,7 +1450,7 @@ fn decode_destack_device_bluetooth_scan_read_event_args(
 /// Encode the result for destack.device.bluetooth.scan.readEvent.
 #[inline]
 fn encode_destack_device_bluetooth_scan_read_event_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<BluetoothScanEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1952,7 +1952,7 @@ fn encode_destack_device_bluetooth_scan_read_event_result(
 /// Decode arguments for destack.device.bluetooth.scan.tryReadEvent.
 #[inline]
 fn decode_destack_device_bluetooth_scan_try_read_event_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothScanHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothScanHandle")?;
@@ -1966,7 +1966,7 @@ fn decode_destack_device_bluetooth_scan_try_read_event_args(
 /// Encode the result for destack.device.bluetooth.scan.tryReadEvent.
 #[inline]
 fn encode_destack_device_bluetooth_scan_try_read_event_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<BluetoothScanEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2468,7 +2468,7 @@ fn encode_destack_device_bluetooth_scan_try_read_event_result(
 /// Decode arguments for destack.device.bluetooth.session.close.
 #[inline]
 fn decode_destack_device_bluetooth_session_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothDeviceHandle")?;
@@ -2482,7 +2482,7 @@ fn decode_destack_device_bluetooth_session_close_args(
 /// Encode the result for destack.device.bluetooth.session.close.
 #[inline]
 fn encode_destack_device_bluetooth_session_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2491,7 +2491,7 @@ fn encode_destack_device_bluetooth_session_close_result(
 /// Decode arguments for destack.device.bluetooth.session.descriptor.
 #[inline]
 fn decode_destack_device_bluetooth_session_descriptor_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothDeviceHandle")?;
@@ -2505,7 +2505,7 @@ fn decode_destack_device_bluetooth_session_descriptor_args(
 /// Encode the result for destack.device.bluetooth.session.descriptor.
 #[inline]
 fn encode_destack_device_bluetooth_session_descriptor_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<BluetoothDeviceDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2610,7 +2610,7 @@ fn encode_destack_device_bluetooth_session_descriptor_result(
 /// Decode arguments for destack.device.bluetooth.session.open.
 #[inline]
 fn decode_destack_device_bluetooth_session_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, vm::StringHandle)> {
     let context = &context.read();
@@ -2624,7 +2624,7 @@ fn decode_destack_device_bluetooth_session_open_args(
 /// Encode the result for destack.device.bluetooth.session.open.
 #[inline]
 fn encode_destack_device_bluetooth_session_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::BluetoothDeviceHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2635,7 +2635,7 @@ fn encode_destack_device_bluetooth_session_open_result(
 /// Decode arguments for destack.device.bluetooth.session.pair.
 #[inline]
 fn decode_destack_device_bluetooth_session_pair_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothDeviceHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothDeviceHandle")?;
@@ -2651,7 +2651,7 @@ fn decode_destack_device_bluetooth_session_pair_args(
 /// Encode the result for destack.device.bluetooth.session.pair.
 #[inline]
 fn encode_destack_device_bluetooth_session_pair_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2660,7 +2660,7 @@ fn encode_destack_device_bluetooth_session_pair_result(
 /// Decode arguments for destack.device.bluetooth.session.readEvent.
 #[inline]
 fn decode_destack_device_bluetooth_session_read_event_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothDeviceHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothDeviceHandle")?;
@@ -2676,7 +2676,7 @@ fn decode_destack_device_bluetooth_session_read_event_args(
 /// Encode the result for destack.device.bluetooth.session.readEvent.
 #[inline]
 fn encode_destack_device_bluetooth_session_read_event_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<BluetoothSessionEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2824,7 +2824,7 @@ fn encode_destack_device_bluetooth_session_read_event_result(
 /// Decode arguments for destack.device.bluetooth.session.rssi.
 #[inline]
 fn decode_destack_device_bluetooth_session_rssi_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothDeviceHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothDeviceHandle")?;
@@ -2840,7 +2840,7 @@ fn decode_destack_device_bluetooth_session_rssi_args(
 /// Encode the result for destack.device.bluetooth.session.rssi.
 #[inline]
 fn encode_destack_device_bluetooth_session_rssi_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<i32>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2851,7 +2851,7 @@ fn encode_destack_device_bluetooth_session_rssi_result(
 /// Decode arguments for destack.device.bluetooth.session.tryReadEvent.
 #[inline]
 fn decode_destack_device_bluetooth_session_try_read_event_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BluetoothDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothDeviceHandle")?;
@@ -2865,7 +2865,7 @@ fn decode_destack_device_bluetooth_session_try_read_event_args(
 /// Encode the result for destack.device.bluetooth.session.tryReadEvent.
 #[inline]
 fn encode_destack_device_bluetooth_session_try_read_event_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<BluetoothSessionEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3013,7 +3013,7 @@ fn encode_destack_device_bluetooth_session_try_read_event_result(
 /// Decode arguments for destack.device.bluetooth.session.unpair.
 #[inline]
 fn decode_destack_device_bluetooth_session_unpair_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, vm::StringHandle)> {
     let context = &context.read();
@@ -3027,7 +3027,7 @@ fn decode_destack_device_bluetooth_session_unpair_args(
 /// Encode the result for destack.device.bluetooth.session.unpair.
 #[inline]
 fn encode_destack_device_bluetooth_session_unpair_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3036,7 +3036,7 @@ fn encode_destack_device_bluetooth_session_unpair_result(
 /// Decode arguments for destack.device.camera.device.close.
 #[inline]
 fn decode_destack_device_camera_device_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraDeviceHandle")?;
@@ -3050,7 +3050,7 @@ fn decode_destack_device_camera_device_close_args(
 /// Encode the result for destack.device.camera.device.close.
 #[inline]
 fn encode_destack_device_camera_device_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3059,7 +3059,7 @@ fn encode_destack_device_camera_device_close_result(
 /// Encode the result for destack.device.camera.device.list.
 #[inline]
 fn encode_destack_device_camera_device_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<CameraDeviceDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3071,7 +3071,7 @@ fn encode_destack_device_camera_device_list_result(
 /// Decode arguments for destack.device.camera.device.open.
 #[inline]
 fn decode_destack_device_camera_device_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -3083,7 +3083,7 @@ fn decode_destack_device_camera_device_open_args(
 /// Encode the result for destack.device.camera.device.open.
 #[inline]
 fn encode_destack_device_camera_device_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::CameraDeviceHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3094,7 +3094,7 @@ fn encode_destack_device_camera_device_open_result(
 /// Decode arguments for destack.device.camera.device.streamCapabilityList.
 #[inline]
 fn decode_destack_device_camera_device_stream_capability_list_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraDeviceHandle")?;
@@ -3108,7 +3108,7 @@ fn decode_destack_device_camera_device_stream_capability_list_args(
 /// Encode the result for destack.device.camera.device.streamCapabilityList.
 #[inline]
 fn encode_destack_device_camera_device_stream_capability_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<CameraStreamCapabilityVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3120,7 +3120,7 @@ fn encode_destack_device_camera_device_stream_capability_list_result(
 /// Decode arguments for destack.device.camera.device.watchClose.
 #[inline]
 fn decode_destack_device_camera_device_watch_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraWatchHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraWatchHandle")?;
@@ -3134,7 +3134,7 @@ fn decode_destack_device_camera_device_watch_close_args(
 /// Encode the result for destack.device.camera.device.watchClose.
 #[inline]
 fn encode_destack_device_camera_device_watch_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3143,7 +3143,7 @@ fn encode_destack_device_camera_device_watch_close_result(
 /// Encode the result for destack.device.camera.device.watchOpen.
 #[inline]
 fn encode_destack_device_camera_device_watch_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::CameraWatchHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3154,7 +3154,7 @@ fn encode_destack_device_camera_device_watch_open_result(
 /// Decode arguments for destack.device.camera.device.watchRead.
 #[inline]
 fn decode_destack_device_camera_device_watch_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraWatchHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "CameraWatchHandle")?;
@@ -3170,7 +3170,7 @@ fn decode_destack_device_camera_device_watch_read_args(
 /// Encode the result for destack.device.camera.device.watchRead.
 #[inline]
 fn encode_destack_device_camera_device_watch_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CameraWatchEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3361,7 +3361,7 @@ fn encode_destack_device_camera_device_watch_read_result(
 /// Decode arguments for destack.device.camera.device.watchTryRead.
 #[inline]
 fn decode_destack_device_camera_device_watch_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraWatchHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraWatchHandle")?;
@@ -3375,7 +3375,7 @@ fn decode_destack_device_camera_device_watch_try_read_args(
 /// Encode the result for destack.device.camera.device.watchTryRead.
 #[inline]
 fn encode_destack_device_camera_device_watch_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CameraWatchEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3566,7 +3566,7 @@ fn encode_destack_device_camera_device_watch_try_read_result(
 /// Decode arguments for destack.device.camera.stream.close.
 #[inline]
 fn decode_destack_device_camera_stream_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
@@ -3580,7 +3580,7 @@ fn decode_destack_device_camera_stream_close_args(
 /// Encode the result for destack.device.camera.stream.close.
 #[inline]
 fn encode_destack_device_camera_stream_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3589,7 +3589,7 @@ fn encode_destack_device_camera_stream_close_result(
 /// Decode arguments for destack.device.camera.stream.config.
 #[inline]
 fn decode_destack_device_camera_stream_config_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
@@ -3603,7 +3603,7 @@ fn decode_destack_device_camera_stream_config_args(
 /// Encode the result for destack.device.camera.stream.config.
 #[inline]
 fn encode_destack_device_camera_stream_config_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CameraStreamConfigVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3671,7 +3671,7 @@ fn encode_destack_device_camera_stream_config_result(
 /// Decode arguments for destack.device.camera.stream.configureControls.
 #[inline]
 fn decode_destack_device_camera_stream_configure_controls_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle, CameraControlPatchVm)> {
     let context = &context.read();
@@ -3689,7 +3689,7 @@ fn decode_destack_device_camera_stream_configure_controls_args(
 /// Encode the result for destack.device.camera.stream.configureControls.
 #[inline]
 fn encode_destack_device_camera_stream_configure_controls_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3698,7 +3698,7 @@ fn encode_destack_device_camera_stream_configure_controls_result(
 /// Decode arguments for destack.device.camera.stream.controlCapabilities.
 #[inline]
 fn decode_destack_device_camera_stream_control_capabilities_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
@@ -3712,7 +3712,7 @@ fn decode_destack_device_camera_stream_control_capabilities_args(
 /// Encode the result for destack.device.camera.stream.controlCapabilities.
 #[inline]
 fn encode_destack_device_camera_stream_control_capabilities_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CameraControlCapabilitiesVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4143,7 +4143,7 @@ fn encode_destack_device_camera_stream_control_capabilities_result(
 /// Decode arguments for destack.device.camera.stream.controlState.
 #[inline]
 fn decode_destack_device_camera_stream_control_state_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
@@ -4157,7 +4157,7 @@ fn decode_destack_device_camera_stream_control_state_args(
 /// Encode the result for destack.device.camera.stream.controlState.
 #[inline]
 fn encode_destack_device_camera_stream_control_state_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CameraControlStateVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4293,7 +4293,7 @@ fn encode_destack_device_camera_stream_control_state_result(
 /// Decode arguments for destack.device.camera.stream.open.
 #[inline]
 fn decode_destack_device_camera_stream_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraDeviceHandle, CameraStreamConfigVm)> {
     let context = &context.read();
@@ -4311,7 +4311,7 @@ fn decode_destack_device_camera_stream_open_args(
 /// Encode the result for destack.device.camera.stream.open.
 #[inline]
 fn encode_destack_device_camera_stream_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::CameraStreamHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -4322,7 +4322,7 @@ fn encode_destack_device_camera_stream_open_result(
 /// Decode arguments for destack.device.camera.stream.pauseRecording.
 #[inline]
 fn decode_destack_device_camera_stream_pause_recording_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
@@ -4336,7 +4336,7 @@ fn decode_destack_device_camera_stream_pause_recording_args(
 /// Encode the result for destack.device.camera.stream.pauseRecording.
 #[inline]
 fn encode_destack_device_camera_stream_pause_recording_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4345,7 +4345,7 @@ fn encode_destack_device_camera_stream_pause_recording_result(
 /// Decode arguments for destack.device.camera.stream.photoCapabilities.
 #[inline]
 fn decode_destack_device_camera_stream_photo_capabilities_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
@@ -4359,7 +4359,7 @@ fn decode_destack_device_camera_stream_photo_capabilities_args(
 /// Encode the result for destack.device.camera.stream.photoCapabilities.
 #[inline]
 fn encode_destack_device_camera_stream_photo_capabilities_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CameraPhotoCapabilitiesVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4422,7 +4422,7 @@ fn encode_destack_device_camera_stream_photo_capabilities_result(
 /// Decode arguments for destack.device.camera.stream.photoState.
 #[inline]
 fn decode_destack_device_camera_stream_photo_state_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
@@ -4436,7 +4436,7 @@ fn decode_destack_device_camera_stream_photo_state_args(
 /// Encode the result for destack.device.camera.stream.photoState.
 #[inline]
 fn encode_destack_device_camera_stream_photo_state_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CameraPhotoStateVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4534,7 +4534,7 @@ fn encode_destack_device_camera_stream_photo_state_result(
 /// Decode arguments for destack.device.camera.stream.read.
 #[inline]
 fn decode_destack_device_camera_stream_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
@@ -4550,7 +4550,7 @@ fn decode_destack_device_camera_stream_read_args(
 /// Encode the result for destack.device.camera.stream.read.
 #[inline]
 fn encode_destack_device_camera_stream_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CameraFrameVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4670,7 +4670,7 @@ fn encode_destack_device_camera_stream_read_result(
 /// Decode arguments for destack.device.camera.stream.recordingCapabilities.
 #[inline]
 fn decode_destack_device_camera_stream_recording_capabilities_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
@@ -4684,7 +4684,7 @@ fn decode_destack_device_camera_stream_recording_capabilities_args(
 /// Encode the result for destack.device.camera.stream.recordingCapabilities.
 #[inline]
 fn encode_destack_device_camera_stream_recording_capabilities_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CameraRecordingCapabilitiesVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4738,7 +4738,7 @@ fn encode_destack_device_camera_stream_recording_capabilities_result(
 /// Decode arguments for destack.device.camera.stream.recordingState.
 #[inline]
 fn decode_destack_device_camera_stream_recording_state_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
@@ -4752,7 +4752,7 @@ fn decode_destack_device_camera_stream_recording_state_args(
 /// Encode the result for destack.device.camera.stream.recordingState.
 #[inline]
 fn encode_destack_device_camera_stream_recording_state_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CameraRecordingStateVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4923,7 +4923,7 @@ fn encode_destack_device_camera_stream_recording_state_result(
 /// Decode arguments for destack.device.camera.stream.resumeRecording.
 #[inline]
 fn decode_destack_device_camera_stream_resume_recording_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
@@ -4937,7 +4937,7 @@ fn decode_destack_device_camera_stream_resume_recording_args(
 /// Encode the result for destack.device.camera.stream.resumeRecording.
 #[inline]
 fn encode_destack_device_camera_stream_resume_recording_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4946,7 +4946,7 @@ fn encode_destack_device_camera_stream_resume_recording_result(
 /// Decode arguments for destack.device.camera.stream.start.
 #[inline]
 fn decode_destack_device_camera_stream_start_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
@@ -4960,7 +4960,7 @@ fn decode_destack_device_camera_stream_start_args(
 /// Encode the result for destack.device.camera.stream.start.
 #[inline]
 fn encode_destack_device_camera_stream_start_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4969,7 +4969,7 @@ fn encode_destack_device_camera_stream_start_result(
 /// Decode arguments for destack.device.camera.stream.startRecording.
 #[inline]
 fn decode_destack_device_camera_stream_start_recording_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle, CameraRecordingOptionsVm)> {
     let context = &context.read();
@@ -4989,7 +4989,7 @@ fn decode_destack_device_camera_stream_start_recording_args(
 /// Encode the result for destack.device.camera.stream.startRecording.
 #[inline]
 fn encode_destack_device_camera_stream_start_recording_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4998,7 +4998,7 @@ fn encode_destack_device_camera_stream_start_recording_result(
 /// Decode arguments for destack.device.camera.stream.stop.
 #[inline]
 fn decode_destack_device_camera_stream_stop_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
@@ -5012,7 +5012,7 @@ fn decode_destack_device_camera_stream_stop_args(
 /// Encode the result for destack.device.camera.stream.stop.
 #[inline]
 fn encode_destack_device_camera_stream_stop_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -5021,7 +5021,7 @@ fn encode_destack_device_camera_stream_stop_result(
 /// Decode arguments for destack.device.camera.stream.stopRecording.
 #[inline]
 fn decode_destack_device_camera_stream_stop_recording_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
@@ -5037,7 +5037,7 @@ fn decode_destack_device_camera_stream_stop_recording_args(
 /// Encode the result for destack.device.camera.stream.stopRecording.
 #[inline]
 fn encode_destack_device_camera_stream_stop_recording_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CameraRecordingVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -5161,7 +5161,7 @@ fn encode_destack_device_camera_stream_stop_recording_result(
 /// Decode arguments for destack.device.camera.stream.takePhoto.
 #[inline]
 fn decode_destack_device_camera_stream_take_photo_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle, CameraPhotoSettingsVm, u64)> {
     let context = &context.read();
@@ -5181,7 +5181,7 @@ fn decode_destack_device_camera_stream_take_photo_args(
 /// Encode the result for destack.device.camera.stream.takePhoto.
 #[inline]
 fn encode_destack_device_camera_stream_take_photo_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CameraPhotoVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -5297,7 +5297,7 @@ fn encode_destack_device_camera_stream_take_photo_result(
 /// Decode arguments for destack.device.camera.stream.tryRead.
 #[inline]
 fn decode_destack_device_camera_stream_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CameraStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
@@ -5311,7 +5311,7 @@ fn decode_destack_device_camera_stream_try_read_args(
 /// Encode the result for destack.device.camera.stream.tryRead.
 #[inline]
 fn encode_destack_device_camera_stream_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CameraFrameVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -5431,7 +5431,7 @@ fn encode_destack_device_camera_stream_try_read_result(
 /// Encode the result for destack.device.midi.backend.list.
 #[inline]
 fn encode_destack_device_midi_backend_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<MidiBackendDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -5443,7 +5443,7 @@ fn encode_destack_device_midi_backend_list_result(
 /// Decode arguments for destack.device.midi.event.close.
 #[inline]
 fn decode_destack_device_midi_event_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MidiEventHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "MidiEventHandle")?;
@@ -5456,7 +5456,7 @@ fn decode_destack_device_midi_event_close_args(
 /// Encode the result for destack.device.midi.event.close.
 #[inline]
 fn encode_destack_device_midi_event_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -5465,7 +5465,7 @@ fn encode_destack_device_midi_event_close_result(
 /// Decode arguments for destack.device.midi.event.open.
 #[inline]
 fn decode_destack_device_midi_event_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(MidiEventSubscriptionOptionsVm,)> {
     let context = &context.read();
@@ -5480,7 +5480,7 @@ fn decode_destack_device_midi_event_open_args(
 /// Encode the result for destack.device.midi.event.open.
 #[inline]
 fn encode_destack_device_midi_event_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::MidiEventHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -5491,7 +5491,7 @@ fn encode_destack_device_midi_event_open_result(
 /// Decode arguments for destack.device.midi.event.read.
 #[inline]
 fn decode_destack_device_midi_event_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MidiEventHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "MidiEventHandle")?;
@@ -5506,7 +5506,7 @@ fn decode_destack_device_midi_event_read_args(
 /// Encode the result for destack.device.midi.event.read.
 #[inline]
 fn encode_destack_device_midi_event_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<MidiEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -5986,7 +5986,7 @@ fn encode_destack_device_midi_event_read_result(
 /// Decode arguments for destack.device.midi.event.readBatch.
 #[inline]
 fn decode_destack_device_midi_event_read_batch_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MidiEventHandle, u32, u64)> {
     let handle_value = arg_value(args, 0, "handle", "MidiEventHandle")?;
@@ -6003,7 +6003,7 @@ fn decode_destack_device_midi_event_read_batch_args(
 /// Encode the result for destack.device.midi.event.readBatch.
 #[inline]
 fn encode_destack_device_midi_event_read_batch_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<MidiEventVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6015,7 +6015,7 @@ fn encode_destack_device_midi_event_read_batch_result(
 /// Decode arguments for destack.device.midi.event.tryRead.
 #[inline]
 fn decode_destack_device_midi_event_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MidiEventHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "MidiEventHandle")?;
@@ -6028,7 +6028,7 @@ fn decode_destack_device_midi_event_try_read_args(
 /// Encode the result for destack.device.midi.event.tryRead.
 #[inline]
 fn encode_destack_device_midi_event_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<MidiEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6508,7 +6508,7 @@ fn encode_destack_device_midi_event_try_read_result(
 /// Decode arguments for destack.device.midi.event.tryReadBatch.
 #[inline]
 fn decode_destack_device_midi_event_try_read_batch_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MidiEventHandle, u32)> {
     let handle_value = arg_value(args, 0, "handle", "MidiEventHandle")?;
@@ -6523,7 +6523,7 @@ fn decode_destack_device_midi_event_try_read_batch_args(
 /// Encode the result for destack.device.midi.event.tryReadBatch.
 #[inline]
 fn encode_destack_device_midi_event_try_read_batch_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<MidiEventVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6535,7 +6535,7 @@ fn encode_destack_device_midi_event_try_read_batch_result(
 /// Decode arguments for destack.device.midi.input.port.close.
 #[inline]
 fn decode_destack_device_midi_input_port_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MidiInputPortHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "MidiInputPortHandle")?;
@@ -6549,7 +6549,7 @@ fn decode_destack_device_midi_input_port_close_args(
 /// Encode the result for destack.device.midi.input.port.close.
 #[inline]
 fn encode_destack_device_midi_input_port_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -6558,7 +6558,7 @@ fn encode_destack_device_midi_input_port_close_result(
 /// Decode arguments for destack.device.midi.input.port.descriptor.
 #[inline]
 fn decode_destack_device_midi_input_port_descriptor_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MidiInputPortHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "MidiInputPortHandle")?;
@@ -6572,7 +6572,7 @@ fn decode_destack_device_midi_input_port_descriptor_args(
 /// Encode the result for destack.device.midi.input.port.descriptor.
 #[inline]
 fn encode_destack_device_midi_input_port_descriptor_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<MidiPortDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6676,7 +6676,7 @@ fn encode_destack_device_midi_input_port_descriptor_result(
 /// Decode arguments for destack.device.midi.input.port.list.
 #[inline]
 fn decode_destack_device_midi_input_port_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(MidiPortListOptionsVm,)> {
     let context = &context.read();
@@ -6689,7 +6689,7 @@ fn decode_destack_device_midi_input_port_list_args(
 /// Encode the result for destack.device.midi.input.port.list.
 #[inline]
 fn encode_destack_device_midi_input_port_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<MidiPortDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6701,7 +6701,7 @@ fn encode_destack_device_midi_input_port_list_result(
 /// Decode arguments for destack.device.midi.input.port.open.
 #[inline]
 fn decode_destack_device_midi_input_port_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, MidiInputPortOpenOptionsVm)> {
     let context = &context.read();
@@ -6718,7 +6718,7 @@ fn decode_destack_device_midi_input_port_open_args(
 /// Encode the result for destack.device.midi.input.port.open.
 #[inline]
 fn encode_destack_device_midi_input_port_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::MidiInputPortHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -6729,7 +6729,7 @@ fn encode_destack_device_midi_input_port_open_result(
 /// Decode arguments for destack.device.midi.input.read.
 #[inline]
 fn decode_destack_device_midi_input_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MidiInputPortHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "MidiInputPortHandle")?;
@@ -6745,7 +6745,7 @@ fn decode_destack_device_midi_input_read_args(
 /// Encode the result for destack.device.midi.input.read.
 #[inline]
 fn encode_destack_device_midi_input_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<MidiInputRecordVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6794,7 +6794,7 @@ fn encode_destack_device_midi_input_read_result(
 /// Decode arguments for destack.device.midi.input.readBatch.
 #[inline]
 fn decode_destack_device_midi_input_read_batch_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MidiInputPortHandle, u32, u64)> {
     let handle_value = arg_value(args, 0, "handle", "MidiInputPortHandle")?;
@@ -6812,7 +6812,7 @@ fn decode_destack_device_midi_input_read_batch_args(
 /// Encode the result for destack.device.midi.input.readBatch.
 #[inline]
 fn encode_destack_device_midi_input_read_batch_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<MidiInputRecordVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6824,7 +6824,7 @@ fn encode_destack_device_midi_input_read_batch_result(
 /// Decode arguments for destack.device.midi.input.tryRead.
 #[inline]
 fn decode_destack_device_midi_input_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MidiInputPortHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "MidiInputPortHandle")?;
@@ -6838,7 +6838,7 @@ fn decode_destack_device_midi_input_try_read_args(
 /// Encode the result for destack.device.midi.input.tryRead.
 #[inline]
 fn encode_destack_device_midi_input_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<MidiInputRecordVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6887,7 +6887,7 @@ fn encode_destack_device_midi_input_try_read_result(
 /// Decode arguments for destack.device.midi.input.tryReadBatch.
 #[inline]
 fn decode_destack_device_midi_input_try_read_batch_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MidiInputPortHandle, u32)> {
     let handle_value = arg_value(args, 0, "handle", "MidiInputPortHandle")?;
@@ -6903,7 +6903,7 @@ fn decode_destack_device_midi_input_try_read_batch_args(
 /// Encode the result for destack.device.midi.input.tryReadBatch.
 #[inline]
 fn encode_destack_device_midi_input_try_read_batch_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<MidiInputRecordVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6915,7 +6915,7 @@ fn encode_destack_device_midi_input_try_read_batch_result(
 /// Decode arguments for destack.device.midi.input.virtual.create.
 #[inline]
 fn decode_destack_device_midi_input_virtual_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(MidiVirtualInputCreateOptionsVm,)> {
     let context = &context.read();
@@ -6930,7 +6930,7 @@ fn decode_destack_device_midi_input_virtual_create_args(
 /// Encode the result for destack.device.midi.input.virtual.create.
 #[inline]
 fn encode_destack_device_midi_input_virtual_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::MidiInputPortHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -6941,7 +6941,7 @@ fn encode_destack_device_midi_input_virtual_create_result(
 /// Decode arguments for destack.device.midi.output.port.close.
 #[inline]
 fn decode_destack_device_midi_output_port_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MidiOutputPortHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "MidiOutputPortHandle")?;
@@ -6955,7 +6955,7 @@ fn decode_destack_device_midi_output_port_close_args(
 /// Encode the result for destack.device.midi.output.port.close.
 #[inline]
 fn encode_destack_device_midi_output_port_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -6964,7 +6964,7 @@ fn encode_destack_device_midi_output_port_close_result(
 /// Decode arguments for destack.device.midi.output.port.descriptor.
 #[inline]
 fn decode_destack_device_midi_output_port_descriptor_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MidiOutputPortHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "MidiOutputPortHandle")?;
@@ -6978,7 +6978,7 @@ fn decode_destack_device_midi_output_port_descriptor_args(
 /// Encode the result for destack.device.midi.output.port.descriptor.
 #[inline]
 fn encode_destack_device_midi_output_port_descriptor_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<MidiPortDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -7082,7 +7082,7 @@ fn encode_destack_device_midi_output_port_descriptor_result(
 /// Decode arguments for destack.device.midi.output.port.list.
 #[inline]
 fn decode_destack_device_midi_output_port_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(MidiPortListOptionsVm,)> {
     let context = &context.read();
@@ -7095,7 +7095,7 @@ fn decode_destack_device_midi_output_port_list_args(
 /// Encode the result for destack.device.midi.output.port.list.
 #[inline]
 fn encode_destack_device_midi_output_port_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<MidiPortDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -7107,7 +7107,7 @@ fn encode_destack_device_midi_output_port_list_result(
 /// Decode arguments for destack.device.midi.output.port.open.
 #[inline]
 fn decode_destack_device_midi_output_port_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, MidiOutputPortOpenOptionsVm)> {
     let context = &context.read();
@@ -7124,7 +7124,7 @@ fn decode_destack_device_midi_output_port_open_args(
 /// Encode the result for destack.device.midi.output.port.open.
 #[inline]
 fn encode_destack_device_midi_output_port_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::MidiOutputPortHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -7135,7 +7135,7 @@ fn encode_destack_device_midi_output_port_open_result(
 /// Decode arguments for destack.device.midi.output.virtual.create.
 #[inline]
 fn decode_destack_device_midi_output_virtual_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(MidiVirtualOutputCreateOptionsVm,)> {
     let context = &context.read();
@@ -7150,7 +7150,7 @@ fn decode_destack_device_midi_output_virtual_create_args(
 /// Encode the result for destack.device.midi.output.virtual.create.
 #[inline]
 fn encode_destack_device_midi_output_virtual_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::MidiOutputPortHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -7161,7 +7161,7 @@ fn encode_destack_device_midi_output_virtual_create_result(
 /// Decode arguments for destack.device.midi.output.write.
 #[inline]
 fn decode_destack_device_midi_output_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MidiOutputPortHandle, VmArray<MidiOutputRecordVm>)> {
     let context = &context.read();
@@ -7183,7 +7183,7 @@ fn decode_destack_device_midi_output_write_args(
 /// Encode the result for destack.device.midi.output.write.
 #[inline]
 fn encode_destack_device_midi_output_write_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -7194,7 +7194,7 @@ fn encode_destack_device_midi_output_write_result(
 /// Decode arguments for destack.device.serial.close.
 #[inline]
 fn decode_destack_device_serial_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialPortHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "SerialPortHandle")?;
@@ -7207,7 +7207,7 @@ fn decode_destack_device_serial_close_args(
 /// Encode the result for destack.device.serial.close.
 #[inline]
 fn encode_destack_device_serial_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -7216,7 +7216,7 @@ fn encode_destack_device_serial_close_result(
 /// Decode arguments for destack.device.serial.config.
 #[inline]
 fn decode_destack_device_serial_config_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialPortHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "SerialPortHandle")?;
@@ -7229,7 +7229,7 @@ fn decode_destack_device_serial_config_args(
 /// Encode the result for destack.device.serial.config.
 #[inline]
 fn encode_destack_device_serial_config_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<SerialPortConfigVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -7293,7 +7293,7 @@ fn encode_destack_device_serial_config_result(
 /// Decode arguments for destack.device.serial.configure.
 #[inline]
 fn decode_destack_device_serial_configure_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialPortHandle, SerialPortConfigVm)> {
     let context = &context.read();
@@ -7310,7 +7310,7 @@ fn decode_destack_device_serial_configure_args(
 /// Encode the result for destack.device.serial.configure.
 #[inline]
 fn encode_destack_device_serial_configure_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -7319,7 +7319,7 @@ fn encode_destack_device_serial_configure_result(
 /// Decode arguments for destack.device.serial.descriptor.
 #[inline]
 fn decode_destack_device_serial_descriptor_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialPortHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "SerialPortHandle")?;
@@ -7332,7 +7332,7 @@ fn decode_destack_device_serial_descriptor_args(
 /// Encode the result for destack.device.serial.descriptor.
 #[inline]
 fn encode_destack_device_serial_descriptor_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<SerialPortDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -7463,7 +7463,7 @@ fn encode_destack_device_serial_descriptor_result(
 /// Decode arguments for destack.device.serial.discardInput.
 #[inline]
 fn decode_destack_device_serial_discard_input_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialPortHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "SerialPortHandle")?;
@@ -7476,7 +7476,7 @@ fn decode_destack_device_serial_discard_input_args(
 /// Encode the result for destack.device.serial.discardInput.
 #[inline]
 fn encode_destack_device_serial_discard_input_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -7485,7 +7485,7 @@ fn encode_destack_device_serial_discard_input_result(
 /// Decode arguments for destack.device.serial.discardOutput.
 #[inline]
 fn decode_destack_device_serial_discard_output_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialPortHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "SerialPortHandle")?;
@@ -7498,7 +7498,7 @@ fn decode_destack_device_serial_discard_output_args(
 /// Encode the result for destack.device.serial.discardOutput.
 #[inline]
 fn encode_destack_device_serial_discard_output_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -7507,7 +7507,7 @@ fn encode_destack_device_serial_discard_output_result(
 /// Decode arguments for destack.device.serial.drain.
 #[inline]
 fn decode_destack_device_serial_drain_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialPortHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "SerialPortHandle")?;
@@ -7520,7 +7520,7 @@ fn decode_destack_device_serial_drain_args(
 /// Encode the result for destack.device.serial.drain.
 #[inline]
 fn encode_destack_device_serial_drain_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -7529,7 +7529,7 @@ fn encode_destack_device_serial_drain_result(
 /// Decode arguments for destack.device.serial.getSignals.
 #[inline]
 fn decode_destack_device_serial_get_signals_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialPortHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "SerialPortHandle")?;
@@ -7542,7 +7542,7 @@ fn decode_destack_device_serial_get_signals_args(
 /// Encode the result for destack.device.serial.getSignals.
 #[inline]
 fn encode_destack_device_serial_get_signals_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<SerialInputSignalsVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -7575,7 +7575,7 @@ fn encode_destack_device_serial_get_signals_result(
 /// Encode the result for destack.device.serial.list.
 #[inline]
 fn encode_destack_device_serial_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<SerialPortDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -7587,7 +7587,7 @@ fn encode_destack_device_serial_list_result(
 /// Decode arguments for destack.device.serial.open.
 #[inline]
 fn decode_destack_device_serial_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, SerialPortOpenOptionsVm)> {
     let context = &context.read();
@@ -7602,7 +7602,7 @@ fn decode_destack_device_serial_open_args(
 /// Encode the result for destack.device.serial.open.
 #[inline]
 fn encode_destack_device_serial_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::SerialPortHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -7613,7 +7613,7 @@ fn encode_destack_device_serial_open_result(
 /// Decode arguments for destack.device.serial.readEvent.
 #[inline]
 fn decode_destack_device_serial_read_event_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialPortHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "SerialPortHandle")?;
@@ -7628,7 +7628,7 @@ fn decode_destack_device_serial_read_event_args(
 /// Encode the result for destack.device.serial.readEvent.
 #[inline]
 fn encode_destack_device_serial_read_event_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<SerialEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -7911,7 +7911,7 @@ fn encode_destack_device_serial_read_event_result(
 /// Decode arguments for destack.device.serial.readInto.
 #[inline]
 fn decode_destack_device_serial_read_into_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialPortHandle, VmSlice<u8>, u64)> {
     let context = &context.read();
@@ -7929,7 +7929,7 @@ fn decode_destack_device_serial_read_into_args(
 /// Encode the result for destack.device.serial.readInto.
 #[inline]
 fn encode_destack_device_serial_read_into_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -7940,7 +7940,7 @@ fn encode_destack_device_serial_read_into_result(
 /// Decode arguments for destack.device.serial.setSignals.
 #[inline]
 fn decode_destack_device_serial_set_signals_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialPortHandle, SerialOutputSignalsVm)> {
     let context = &context.read();
@@ -7957,7 +7957,7 @@ fn decode_destack_device_serial_set_signals_args(
 /// Encode the result for destack.device.serial.setSignals.
 #[inline]
 fn encode_destack_device_serial_set_signals_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -7966,7 +7966,7 @@ fn encode_destack_device_serial_set_signals_result(
 /// Decode arguments for destack.device.serial.tryReadEvent.
 #[inline]
 fn decode_destack_device_serial_try_read_event_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialPortHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "SerialPortHandle")?;
@@ -7979,7 +7979,7 @@ fn decode_destack_device_serial_try_read_event_args(
 /// Encode the result for destack.device.serial.tryReadEvent.
 #[inline]
 fn encode_destack_device_serial_try_read_event_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<SerialEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -8262,7 +8262,7 @@ fn encode_destack_device_serial_try_read_event_result(
 /// Decode arguments for destack.device.serial.tryReadInto.
 #[inline]
 fn decode_destack_device_serial_try_read_into_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialPortHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -8278,7 +8278,7 @@ fn decode_destack_device_serial_try_read_into_args(
 /// Encode the result for destack.device.serial.tryReadInto.
 #[inline]
 fn encode_destack_device_serial_try_read_into_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -8289,7 +8289,7 @@ fn encode_destack_device_serial_try_read_into_result(
 /// Decode arguments for destack.device.serial.watchClose.
 #[inline]
 fn decode_destack_device_serial_watch_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialWatchHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "SerialWatchHandle")?;
@@ -8303,7 +8303,7 @@ fn decode_destack_device_serial_watch_close_args(
 /// Encode the result for destack.device.serial.watchClose.
 #[inline]
 fn encode_destack_device_serial_watch_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -8312,7 +8312,7 @@ fn encode_destack_device_serial_watch_close_result(
 /// Encode the result for destack.device.serial.watchOpen.
 #[inline]
 fn encode_destack_device_serial_watch_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::SerialWatchHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -8323,7 +8323,7 @@ fn encode_destack_device_serial_watch_open_result(
 /// Decode arguments for destack.device.serial.watchRead.
 #[inline]
 fn decode_destack_device_serial_watch_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialWatchHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "SerialWatchHandle")?;
@@ -8339,7 +8339,7 @@ fn decode_destack_device_serial_watch_read_args(
 /// Encode the result for destack.device.serial.watchRead.
 #[inline]
 fn encode_destack_device_serial_watch_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<SerialWatchEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -8759,7 +8759,7 @@ fn encode_destack_device_serial_watch_read_result(
 /// Decode arguments for destack.device.serial.watchTryRead.
 #[inline]
 fn decode_destack_device_serial_watch_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialWatchHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "SerialWatchHandle")?;
@@ -8773,7 +8773,7 @@ fn decode_destack_device_serial_watch_try_read_args(
 /// Encode the result for destack.device.serial.watchTryRead.
 #[inline]
 fn encode_destack_device_serial_watch_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<SerialWatchEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -9193,7 +9193,7 @@ fn encode_destack_device_serial_watch_try_read_result(
 /// Decode arguments for destack.device.serial.write.
 #[inline]
 fn decode_destack_device_serial_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SerialPortHandle, VmSlice<u8>, u64)> {
     let context = &context.read();
@@ -9211,7 +9211,7 @@ fn decode_destack_device_serial_write_args(
 /// Encode the result for destack.device.serial.write.
 #[inline]
 fn encode_destack_device_serial_write_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -9222,7 +9222,7 @@ fn encode_destack_device_serial_write_result(
 /// Decode arguments for destack.device.usb.bosCapabilityList.
 #[inline]
 fn decode_destack_device_usb_bos_capability_list_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "UsbDeviceHandle")?;
@@ -9235,7 +9235,7 @@ fn decode_destack_device_usb_bos_capability_list_args(
 /// Encode the result for destack.device.usb.bosCapabilityList.
 #[inline]
 fn encode_destack_device_usb_bos_capability_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<UsbBosCapabilityDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -9247,7 +9247,7 @@ fn encode_destack_device_usb_bos_capability_list_result(
 /// Decode arguments for destack.device.usb.bulkRead.
 #[inline]
 fn decode_destack_device_usb_bulk_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle, UsbEndpointSelectorVm, u32, u64)> {
     let context = &context.read();
@@ -9268,7 +9268,7 @@ fn decode_destack_device_usb_bulk_read_args(
 /// Encode the result for destack.device.usb.bulkRead.
 #[inline]
 fn encode_destack_device_usb_bulk_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<UsbInTransferResultVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -9294,7 +9294,7 @@ fn encode_destack_device_usb_bulk_read_result(
 /// Decode arguments for destack.device.usb.bulkWrite.
 #[inline]
 fn decode_destack_device_usb_bulk_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::UsbDeviceHandle,
@@ -9325,7 +9325,7 @@ fn decode_destack_device_usb_bulk_write_args(
 /// Encode the result for destack.device.usb.bulkWrite.
 #[inline]
 fn encode_destack_device_usb_bulk_write_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<UsbOutTransferResultVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -9352,7 +9352,7 @@ fn encode_destack_device_usb_bulk_write_result(
 /// Decode arguments for destack.device.usb.claimInterface.
 #[inline]
 fn decode_destack_device_usb_claim_interface_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle, u8)> {
     let handle_value = arg_value(args, 0, "handle", "UsbDeviceHandle")?;
@@ -9367,7 +9367,7 @@ fn decode_destack_device_usb_claim_interface_args(
 /// Encode the result for destack.device.usb.claimInterface.
 #[inline]
 fn encode_destack_device_usb_claim_interface_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -9376,7 +9376,7 @@ fn encode_destack_device_usb_claim_interface_result(
 /// Decode arguments for destack.device.usb.clearHalt.
 #[inline]
 fn decode_destack_device_usb_clear_halt_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle, UsbEndpointSelectorVm)> {
     let context = &context.read();
@@ -9393,7 +9393,7 @@ fn decode_destack_device_usb_clear_halt_args(
 /// Encode the result for destack.device.usb.clearHalt.
 #[inline]
 fn encode_destack_device_usb_clear_halt_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -9402,7 +9402,7 @@ fn encode_destack_device_usb_clear_halt_result(
 /// Decode arguments for destack.device.usb.close.
 #[inline]
 fn decode_destack_device_usb_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "UsbDeviceHandle")?;
@@ -9415,7 +9415,7 @@ fn decode_destack_device_usb_close_args(
 /// Encode the result for destack.device.usb.close.
 #[inline]
 fn encode_destack_device_usb_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -9424,7 +9424,7 @@ fn encode_destack_device_usb_close_result(
 /// Decode arguments for destack.device.usb.configurationGet.
 #[inline]
 fn decode_destack_device_usb_configuration_get_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "UsbDeviceHandle")?;
@@ -9437,7 +9437,7 @@ fn decode_destack_device_usb_configuration_get_args(
 /// Encode the result for destack.device.usb.configurationGet.
 #[inline]
 fn encode_destack_device_usb_configuration_get_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u8>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -9448,7 +9448,7 @@ fn encode_destack_device_usb_configuration_get_result(
 /// Decode arguments for destack.device.usb.configurationList.
 #[inline]
 fn decode_destack_device_usb_configuration_list_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "UsbDeviceHandle")?;
@@ -9461,7 +9461,7 @@ fn decode_destack_device_usb_configuration_list_args(
 /// Encode the result for destack.device.usb.configurationList.
 #[inline]
 fn encode_destack_device_usb_configuration_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<UsbConfigurationDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -9473,7 +9473,7 @@ fn encode_destack_device_usb_configuration_list_result(
 /// Decode arguments for destack.device.usb.configurationSet.
 #[inline]
 fn decode_destack_device_usb_configuration_set_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle, u8)> {
     let handle_value = arg_value(args, 0, "handle", "UsbDeviceHandle")?;
@@ -9488,7 +9488,7 @@ fn decode_destack_device_usb_configuration_set_args(
 /// Encode the result for destack.device.usb.configurationSet.
 #[inline]
 fn encode_destack_device_usb_configuration_set_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -9497,7 +9497,7 @@ fn encode_destack_device_usb_configuration_set_result(
 /// Decode arguments for destack.device.usb.controlRead.
 #[inline]
 fn decode_destack_device_usb_control_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle, UsbControlSetupVm, u64)> {
     let context = &context.read();
@@ -9515,7 +9515,7 @@ fn decode_destack_device_usb_control_read_args(
 /// Encode the result for destack.device.usb.controlRead.
 #[inline]
 fn encode_destack_device_usb_control_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<UsbInTransferResultVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -9541,7 +9541,7 @@ fn encode_destack_device_usb_control_read_result(
 /// Decode arguments for destack.device.usb.controlWrite.
 #[inline]
 fn decode_destack_device_usb_control_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::UsbDeviceHandle,
@@ -9571,7 +9571,7 @@ fn decode_destack_device_usb_control_write_args(
 /// Encode the result for destack.device.usb.controlWrite.
 #[inline]
 fn encode_destack_device_usb_control_write_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<UsbOutTransferResultVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -9598,7 +9598,7 @@ fn encode_destack_device_usb_control_write_result(
 /// Decode arguments for destack.device.usb.descriptor.
 #[inline]
 fn decode_destack_device_usb_descriptor_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "UsbDeviceHandle")?;
@@ -9611,7 +9611,7 @@ fn decode_destack_device_usb_descriptor_args(
 /// Encode the result for destack.device.usb.descriptor.
 #[inline]
 fn encode_destack_device_usb_descriptor_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<UsbDeviceDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -9710,7 +9710,7 @@ fn encode_destack_device_usb_descriptor_result(
 /// Decode arguments for destack.device.usb.interruptRead.
 #[inline]
 fn decode_destack_device_usb_interrupt_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle, UsbEndpointSelectorVm, u32, u64)> {
     let context = &context.read();
@@ -9731,7 +9731,7 @@ fn decode_destack_device_usb_interrupt_read_args(
 /// Encode the result for destack.device.usb.interruptRead.
 #[inline]
 fn encode_destack_device_usb_interrupt_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<UsbInTransferResultVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -9757,7 +9757,7 @@ fn encode_destack_device_usb_interrupt_read_result(
 /// Decode arguments for destack.device.usb.interruptWrite.
 #[inline]
 fn decode_destack_device_usb_interrupt_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::UsbDeviceHandle,
@@ -9788,7 +9788,7 @@ fn decode_destack_device_usb_interrupt_write_args(
 /// Encode the result for destack.device.usb.interruptWrite.
 #[inline]
 fn encode_destack_device_usb_interrupt_write_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<UsbOutTransferResultVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -9815,7 +9815,7 @@ fn encode_destack_device_usb_interrupt_write_result(
 /// Decode arguments for destack.device.usb.isochronousRead.
 #[inline]
 fn decode_destack_device_usb_isochronous_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::UsbDeviceHandle,
@@ -9842,7 +9842,7 @@ fn decode_destack_device_usb_isochronous_read_args(
 /// Encode the result for destack.device.usb.isochronousRead.
 #[inline]
 fn encode_destack_device_usb_isochronous_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<UsbIsochronousTransferResultVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -9867,7 +9867,7 @@ fn encode_destack_device_usb_isochronous_read_result(
 /// Decode arguments for destack.device.usb.isochronousWrite.
 #[inline]
 fn decode_destack_device_usb_isochronous_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::UsbDeviceHandle,
@@ -9902,7 +9902,7 @@ fn decode_destack_device_usb_isochronous_write_args(
 /// Encode the result for destack.device.usb.isochronousWrite.
 #[inline]
 fn encode_destack_device_usb_isochronous_write_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<UsbIsochronousTransferResultVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -9927,7 +9927,7 @@ fn encode_destack_device_usb_isochronous_write_result(
 /// Encode the result for destack.device.usb.list.
 #[inline]
 fn encode_destack_device_usb_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<UsbDeviceDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -9939,7 +9939,7 @@ fn encode_destack_device_usb_list_result(
 /// Decode arguments for destack.device.usb.open.
 #[inline]
 fn decode_destack_device_usb_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -9951,7 +9951,7 @@ fn decode_destack_device_usb_open_args(
 /// Encode the result for destack.device.usb.open.
 #[inline]
 fn encode_destack_device_usb_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::UsbDeviceHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -9962,7 +9962,7 @@ fn encode_destack_device_usb_open_result(
 /// Decode arguments for destack.device.usb.releaseInterface.
 #[inline]
 fn decode_destack_device_usb_release_interface_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle, u8)> {
     let handle_value = arg_value(args, 0, "handle", "UsbDeviceHandle")?;
@@ -9977,7 +9977,7 @@ fn decode_destack_device_usb_release_interface_args(
 /// Encode the result for destack.device.usb.releaseInterface.
 #[inline]
 fn encode_destack_device_usb_release_interface_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -9986,7 +9986,7 @@ fn encode_destack_device_usb_release_interface_result(
 /// Decode arguments for destack.device.usb.reset.
 #[inline]
 fn decode_destack_device_usb_reset_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "UsbDeviceHandle")?;
@@ -9999,7 +9999,7 @@ fn decode_destack_device_usb_reset_args(
 /// Encode the result for destack.device.usb.reset.
 #[inline]
 fn encode_destack_device_usb_reset_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10008,7 +10008,7 @@ fn encode_destack_device_usb_reset_result(
 /// Decode arguments for destack.device.usb.setInterfaceAlternateSetting.
 #[inline]
 fn decode_destack_device_usb_set_interface_alternate_setting_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle, u8, u8)> {
     let handle_value = arg_value(args, 0, "handle", "UsbDeviceHandle")?;
@@ -10025,7 +10025,7 @@ fn decode_destack_device_usb_set_interface_alternate_setting_args(
 /// Encode the result for destack.device.usb.setInterfaceAlternateSetting.
 #[inline]
 fn encode_destack_device_usb_set_interface_alternate_setting_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10034,7 +10034,7 @@ fn encode_destack_device_usb_set_interface_alternate_setting_result(
 /// Decode arguments for destack.device.usb.stringDescriptor.
 #[inline]
 fn decode_destack_device_usb_string_descriptor_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle, u16)> {
     let handle_value = arg_value(args, 0, "handle", "UsbDeviceHandle")?;
@@ -10049,7 +10049,7 @@ fn decode_destack_device_usb_string_descriptor_args(
 /// Encode the result for destack.device.usb.stringDescriptor.
 #[inline]
 fn encode_destack_device_usb_string_descriptor_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<UsbStringDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -10091,7 +10091,7 @@ fn encode_destack_device_usb_string_descriptor_result(
 /// Decode arguments for destack.device.usb.stringLanguageList.
 #[inline]
 fn decode_destack_device_usb_string_language_list_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "UsbDeviceHandle")?;
@@ -10104,7 +10104,7 @@ fn decode_destack_device_usb_string_language_list_args(
 /// Encode the result for destack.device.usb.stringLanguageList.
 #[inline]
 fn encode_destack_device_usb_string_language_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u16>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -10116,7 +10116,7 @@ fn encode_destack_device_usb_string_language_list_result(
 /// Decode arguments for destack.device.usb.transferCancel.
 #[inline]
 fn decode_destack_device_usb_transfer_cancel_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle, UsbEndpointSelectorVm)> {
     let context = &context.read();
@@ -10133,7 +10133,7 @@ fn decode_destack_device_usb_transfer_cancel_args(
 /// Encode the result for destack.device.usb.transferCancel.
 #[inline]
 fn encode_destack_device_usb_transfer_cancel_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10142,7 +10142,7 @@ fn encode_destack_device_usb_transfer_cancel_result(
 /// Decode arguments for destack.device.usb.transferCancelAll.
 #[inline]
 fn decode_destack_device_usb_transfer_cancel_all_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "UsbDeviceHandle")?;
@@ -10155,7 +10155,7 @@ fn decode_destack_device_usb_transfer_cancel_all_args(
 /// Encode the result for destack.device.usb.transferCancelAll.
 #[inline]
 fn encode_destack_device_usb_transfer_cancel_all_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10164,7 +10164,7 @@ fn encode_destack_device_usb_transfer_cancel_all_result(
 /// Decode arguments for destack.device.usb.watchClose.
 #[inline]
 fn decode_destack_device_usb_watch_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbWatchHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "UsbWatchHandle")?;
@@ -10177,7 +10177,7 @@ fn decode_destack_device_usb_watch_close_args(
 /// Encode the result for destack.device.usb.watchClose.
 #[inline]
 fn encode_destack_device_usb_watch_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10186,7 +10186,7 @@ fn encode_destack_device_usb_watch_close_result(
 /// Encode the result for destack.device.usb.watchOpen.
 #[inline]
 fn encode_destack_device_usb_watch_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::UsbWatchHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -10197,7 +10197,7 @@ fn encode_destack_device_usb_watch_open_result(
 /// Decode arguments for destack.device.usb.watchRead.
 #[inline]
 fn decode_destack_device_usb_watch_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbWatchHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "UsbWatchHandle")?;
@@ -10212,7 +10212,7 @@ fn decode_destack_device_usb_watch_read_args(
 /// Encode the result for destack.device.usb.watchRead.
 #[inline]
 fn encode_destack_device_usb_watch_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<UsbHotplugEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -10572,7 +10572,7 @@ fn encode_destack_device_usb_watch_read_result(
 /// Decode arguments for destack.device.usb.watchTryRead.
 #[inline]
 fn decode_destack_device_usb_watch_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UsbWatchHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "UsbWatchHandle")?;
@@ -10585,7 +10585,7 @@ fn decode_destack_device_usb_watch_try_read_args(
 /// Encode the result for destack.device.usb.watchTryRead.
 #[inline]
 fn encode_destack_device_usb_watch_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<UsbHotplugEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -35218,7 +35218,7 @@ pub(crate) unsafe extern "C" fn destack_device_usb_watch_try_read(
 #[inline]
 fn destack_device_bluetooth_adapter_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -35349,7 +35349,7 @@ fn destack_device_bluetooth_adapter_list_vm_replay(
 #[inline]
 fn destack_device_bluetooth_adapter_watch_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothAdapterWatchHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -35401,7 +35401,7 @@ fn destack_device_bluetooth_adapter_watch_close_vm_replay(
 #[inline]
 fn destack_device_bluetooth_adapter_watch_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -35456,7 +35456,7 @@ fn destack_device_bluetooth_adapter_watch_open_vm_replay(
 #[inline]
 fn destack_device_bluetooth_adapter_watch_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothAdapterWatchHandle,
     timeoutns: u64,
@@ -35764,7 +35764,7 @@ fn destack_device_bluetooth_adapter_watch_read_vm_replay(
 #[inline]
 fn destack_device_bluetooth_adapter_watch_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothAdapterWatchHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -36071,7 +36071,7 @@ fn destack_device_bluetooth_adapter_watch_try_read_vm_replay(
 #[inline]
 fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
     serviceid: vm::StringHandle,
@@ -36204,7 +36204,7 @@ fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
 #[inline]
 fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
     characteristicid: vm::StringHandle,
@@ -36335,7 +36335,7 @@ fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
 #[inline]
 fn destack_device_bluetooth_gatt_mtu_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -36389,7 +36389,7 @@ fn destack_device_bluetooth_gatt_mtu_vm_replay(
 #[inline]
 fn destack_device_bluetooth_gatt_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
     characteristicid: vm::StringHandle,
@@ -36455,7 +36455,7 @@ fn destack_device_bluetooth_gatt_read_vm_replay(
 #[inline]
 fn destack_device_bluetooth_gatt_read_descriptor_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
     descriptorid: vm::StringHandle,
@@ -36523,7 +36523,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_vm_replay(
 #[inline]
 fn destack_device_bluetooth_gatt_read_event_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothSubscriptionHandle,
     timeoutns: u64,
@@ -36636,7 +36636,7 @@ fn destack_device_bluetooth_gatt_read_event_vm_replay(
 #[inline]
 fn destack_device_bluetooth_gatt_service_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -36741,7 +36741,7 @@ fn destack_device_bluetooth_gatt_service_list_vm_replay(
 #[inline]
 fn destack_device_bluetooth_gatt_subscribe_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
     characteristicid: vm::StringHandle,
@@ -36804,7 +36804,7 @@ fn destack_device_bluetooth_gatt_subscribe_vm_replay(
 #[inline]
 fn destack_device_bluetooth_gatt_try_read_event_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -36916,7 +36916,7 @@ fn destack_device_bluetooth_gatt_try_read_event_vm_replay(
 #[inline]
 fn destack_device_bluetooth_gatt_unsubscribe_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -36968,7 +36968,7 @@ fn destack_device_bluetooth_gatt_unsubscribe_vm_replay(
 #[inline]
 fn destack_device_bluetooth_gatt_write_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
     characteristicid: vm::StringHandle,
@@ -37036,7 +37036,7 @@ fn destack_device_bluetooth_gatt_write_vm_replay(
 #[inline]
 fn destack_device_bluetooth_gatt_write_descriptor_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
     descriptorid: vm::StringHandle,
@@ -37101,7 +37101,7 @@ fn destack_device_bluetooth_gatt_write_descriptor_vm_replay(
 #[inline]
 fn destack_device_bluetooth_scan_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -37153,7 +37153,7 @@ fn destack_device_bluetooth_scan_close_vm_replay(
 #[inline]
 fn destack_device_bluetooth_scan_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     adapterid: vm::StringHandle,
     filter: Option<BluetoothScanFilterVm>,
@@ -37208,7 +37208,7 @@ fn destack_device_bluetooth_scan_open_vm_replay(
 #[inline]
 fn destack_device_bluetooth_scan_read_event_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothScanHandle,
     timeoutns: u64,
@@ -38005,7 +38005,7 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
 #[inline]
 fn destack_device_bluetooth_scan_try_read_event_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -38801,7 +38801,7 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
 #[inline]
 fn destack_device_bluetooth_session_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -38851,7 +38851,7 @@ fn destack_device_bluetooth_session_close_vm_replay(
 #[inline]
 fn destack_device_bluetooth_session_descriptor_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -39118,7 +39118,7 @@ fn destack_device_bluetooth_session_descriptor_vm_replay(
 #[inline]
 fn destack_device_bluetooth_session_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     adapterid: vm::StringHandle,
     deviceid: vm::StringHandle,
@@ -39173,7 +39173,7 @@ fn destack_device_bluetooth_session_open_vm_replay(
 #[inline]
 fn destack_device_bluetooth_session_read_event_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
     timeoutns: u64,
@@ -39329,7 +39329,7 @@ fn destack_device_bluetooth_session_read_event_vm_replay(
 #[inline]
 fn destack_device_bluetooth_session_rssi_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
     timeoutns: u64,
@@ -39384,7 +39384,7 @@ fn destack_device_bluetooth_session_rssi_vm_replay(
 #[inline]
 fn destack_device_bluetooth_session_try_read_event_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -39539,7 +39539,7 @@ fn destack_device_bluetooth_session_try_read_event_vm_replay(
 #[inline]
 fn destack_device_camera_device_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -39589,7 +39589,7 @@ fn destack_device_camera_device_close_vm_replay(
 #[inline]
 fn destack_device_camera_device_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -39742,7 +39742,7 @@ fn destack_device_camera_device_list_vm_replay(
 #[inline]
 fn destack_device_camera_device_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -39796,7 +39796,7 @@ fn destack_device_camera_device_open_vm_replay(
 #[inline]
 fn destack_device_camera_device_stream_capability_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -40510,7 +40510,7 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
 #[inline]
 fn destack_device_camera_device_watch_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraWatchHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -40562,7 +40562,7 @@ fn destack_device_camera_device_watch_close_vm_replay(
 #[inline]
 fn destack_device_camera_device_watch_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -40615,7 +40615,7 @@ fn destack_device_camera_device_watch_open_vm_replay(
 #[inline]
 fn destack_device_camera_device_watch_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraWatchHandle,
     timeoutns: u64,
@@ -40860,7 +40860,7 @@ fn destack_device_camera_device_watch_read_vm_replay(
 #[inline]
 fn destack_device_camera_device_watch_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraWatchHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -41104,7 +41104,7 @@ fn destack_device_camera_device_watch_try_read_vm_replay(
 #[inline]
 fn destack_device_camera_stream_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -41154,7 +41154,7 @@ fn destack_device_camera_stream_close_vm_replay(
 #[inline]
 fn destack_device_camera_stream_config_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -41271,7 +41271,7 @@ fn destack_device_camera_stream_config_vm_replay(
 #[inline]
 fn destack_device_camera_stream_configure_controls_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
     controls: CameraControlPatchVm,
@@ -41324,7 +41324,7 @@ fn destack_device_camera_stream_configure_controls_vm_replay(
 #[inline]
 fn destack_device_camera_stream_control_capabilities_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -42122,7 +42122,7 @@ fn destack_device_camera_stream_control_capabilities_vm_replay(
 #[inline]
 fn destack_device_camera_stream_control_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -42430,7 +42430,7 @@ fn destack_device_camera_stream_control_state_vm_replay(
 #[inline]
 fn destack_device_camera_stream_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     device: resource::CameraDeviceHandle,
     config: CameraStreamConfigVm,
@@ -42485,7 +42485,7 @@ fn destack_device_camera_stream_open_vm_replay(
 #[inline]
 fn destack_device_camera_stream_photo_capabilities_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -42738,7 +42738,7 @@ fn destack_device_camera_stream_photo_capabilities_vm_replay(
 #[inline]
 fn destack_device_camera_stream_photo_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -42918,7 +42918,7 @@ fn destack_device_camera_stream_photo_state_vm_replay(
 #[inline]
 fn destack_device_camera_stream_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
     timeoutns: u64,
@@ -43156,7 +43156,7 @@ fn destack_device_camera_stream_read_vm_replay(
 #[inline]
 fn destack_device_camera_stream_recording_capabilities_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -43391,7 +43391,7 @@ fn destack_device_camera_stream_recording_capabilities_vm_replay(
 #[inline]
 fn destack_device_camera_stream_recording_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -43686,7 +43686,7 @@ fn destack_device_camera_stream_recording_state_vm_replay(
 #[inline]
 fn destack_device_camera_stream_start_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -43736,7 +43736,7 @@ fn destack_device_camera_stream_start_vm_replay(
 #[inline]
 fn destack_device_camera_stream_stop_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -43786,7 +43786,7 @@ fn destack_device_camera_stream_stop_vm_replay(
 #[inline]
 fn destack_device_camera_stream_take_photo_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
     settings: CameraPhotoSettingsVm,
@@ -44023,7 +44023,7 @@ fn destack_device_camera_stream_take_photo_vm_replay(
 #[inline]
 fn destack_device_camera_stream_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -44262,7 +44262,7 @@ fn destack_device_camera_stream_try_read_vm_replay(
 #[inline]
 fn destack_device_midi_backend_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -44374,7 +44374,7 @@ fn destack_device_midi_backend_list_vm_replay(
 #[inline]
 fn destack_device_midi_event_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiEventHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -44424,7 +44424,7 @@ fn destack_device_midi_event_close_vm_replay(
 #[inline]
 fn destack_device_midi_event_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     options: MidiEventSubscriptionOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -44478,7 +44478,7 @@ fn destack_device_midi_event_open_vm_replay(
 #[inline]
 fn destack_device_midi_event_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiEventHandle,
     timeoutns: u64,
@@ -45089,7 +45089,7 @@ fn destack_device_midi_event_read_vm_replay(
 #[inline]
 fn destack_device_midi_event_read_batch_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiEventHandle,
     maxevents: u32,
@@ -45712,7 +45712,7 @@ fn destack_device_midi_event_read_batch_vm_replay(
 #[inline]
 fn destack_device_midi_event_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiEventHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -46322,7 +46322,7 @@ fn destack_device_midi_event_try_read_vm_replay(
 #[inline]
 fn destack_device_midi_event_try_read_batch_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiEventHandle,
     maxevents: u32,
@@ -46944,7 +46944,7 @@ fn destack_device_midi_event_try_read_batch_vm_replay(
 #[inline]
 fn destack_device_midi_input_port_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiInputPortHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -46996,7 +46996,7 @@ fn destack_device_midi_input_port_close_vm_replay(
 #[inline]
 fn destack_device_midi_input_port_descriptor_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiInputPortHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -47255,7 +47255,7 @@ fn destack_device_midi_input_port_descriptor_vm_replay(
 #[inline]
 fn destack_device_midi_input_port_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     options: MidiPortListOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -47560,7 +47560,7 @@ fn destack_device_midi_input_port_list_vm_replay(
 #[inline]
 fn destack_device_midi_input_port_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
     options: MidiInputPortOpenOptionsVm,
@@ -47617,7 +47617,7 @@ fn destack_device_midi_input_port_open_vm_replay(
 #[inline]
 fn destack_device_midi_input_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiInputPortHandle,
     timeoutns: u64,
@@ -47727,7 +47727,7 @@ fn destack_device_midi_input_read_vm_replay(
 #[inline]
 fn destack_device_midi_input_read_batch_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiInputPortHandle,
     maxrecords: u32,
@@ -47866,7 +47866,7 @@ fn destack_device_midi_input_read_batch_vm_replay(
 #[inline]
 fn destack_device_midi_input_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiInputPortHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -47975,7 +47975,7 @@ fn destack_device_midi_input_try_read_vm_replay(
 #[inline]
 fn destack_device_midi_input_try_read_batch_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiInputPortHandle,
     maxrecords: u32,
@@ -48113,7 +48113,7 @@ fn destack_device_midi_input_try_read_batch_vm_replay(
 #[inline]
 fn destack_device_midi_input_virtual_create_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     options: MidiVirtualInputCreateOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -48169,7 +48169,7 @@ fn destack_device_midi_input_virtual_create_vm_replay(
 #[inline]
 fn destack_device_midi_output_port_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiOutputPortHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -48221,7 +48221,7 @@ fn destack_device_midi_output_port_close_vm_replay(
 #[inline]
 fn destack_device_midi_output_port_descriptor_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiOutputPortHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -48480,7 +48480,7 @@ fn destack_device_midi_output_port_descriptor_vm_replay(
 #[inline]
 fn destack_device_midi_output_port_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     options: MidiPortListOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -48785,7 +48785,7 @@ fn destack_device_midi_output_port_list_vm_replay(
 #[inline]
 fn destack_device_midi_output_port_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
     options: MidiOutputPortOpenOptionsVm,
@@ -48842,7 +48842,7 @@ fn destack_device_midi_output_port_open_vm_replay(
 #[inline]
 fn destack_device_midi_output_virtual_create_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     options: MidiVirtualOutputCreateOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -48898,7 +48898,7 @@ fn destack_device_midi_output_virtual_create_vm_replay(
 #[inline]
 fn destack_device_midi_output_write_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiOutputPortHandle,
     records: VmArray<MidiOutputRecordVm>,
@@ -48953,7 +48953,7 @@ fn destack_device_midi_output_write_vm_replay(
 #[inline]
 fn destack_device_serial_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -49003,7 +49003,7 @@ fn destack_device_serial_close_vm_replay(
 #[inline]
 fn destack_device_serial_config_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -49108,7 +49108,7 @@ fn destack_device_serial_config_vm_replay(
 #[inline]
 fn destack_device_serial_configure_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
     config: SerialPortConfigVm,
@@ -49159,7 +49159,7 @@ fn destack_device_serial_configure_vm_replay(
 #[inline]
 fn destack_device_serial_descriptor_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -49465,7 +49465,7 @@ fn destack_device_serial_descriptor_vm_replay(
 #[inline]
 fn destack_device_serial_discard_input_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -49517,7 +49517,7 @@ fn destack_device_serial_discard_input_vm_replay(
 #[inline]
 fn destack_device_serial_discard_output_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -49569,7 +49569,7 @@ fn destack_device_serial_discard_output_vm_replay(
 #[inline]
 fn destack_device_serial_drain_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -49619,7 +49619,7 @@ fn destack_device_serial_drain_vm_replay(
 #[inline]
 fn destack_device_serial_get_signals_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -49691,7 +49691,7 @@ fn destack_device_serial_get_signals_vm_replay(
 #[inline]
 fn destack_device_serial_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -49936,7 +49936,7 @@ fn destack_device_serial_list_vm_replay(
 #[inline]
 fn destack_device_serial_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
     options: SerialPortOpenOptionsVm,
@@ -49991,7 +49991,7 @@ fn destack_device_serial_open_vm_replay(
 #[inline]
 fn destack_device_serial_read_event_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
     timeoutns: u64,
@@ -50277,7 +50277,7 @@ fn destack_device_serial_read_event_vm_replay(
 #[inline]
 fn destack_device_serial_read_into_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
     buffer: VmSlice<u8>,
@@ -50333,7 +50333,7 @@ fn destack_device_serial_read_into_vm_replay(
 #[inline]
 fn destack_device_serial_set_signals_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
     signals: SerialOutputSignalsVm,
@@ -50384,7 +50384,7 @@ fn destack_device_serial_set_signals_vm_replay(
 #[inline]
 fn destack_device_serial_try_read_event_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -50669,7 +50669,7 @@ fn destack_device_serial_try_read_event_vm_replay(
 #[inline]
 fn destack_device_serial_try_read_into_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
     buffer: VmSlice<u8>,
@@ -50726,7 +50726,7 @@ fn destack_device_serial_try_read_into_vm_replay(
 #[inline]
 fn destack_device_serial_watch_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialWatchHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -50776,7 +50776,7 @@ fn destack_device_serial_watch_close_vm_replay(
 #[inline]
 fn destack_device_serial_watch_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -50827,7 +50827,7 @@ fn destack_device_serial_watch_open_vm_replay(
 #[inline]
 fn destack_device_serial_watch_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialWatchHandle,
     timeoutns: u64,
@@ -51349,7 +51349,7 @@ fn destack_device_serial_watch_read_vm_replay(
 #[inline]
 fn destack_device_serial_watch_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialWatchHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -51870,7 +51870,7 @@ fn destack_device_serial_watch_try_read_vm_replay(
 #[inline]
 fn destack_device_serial_write_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
     data: VmSlice<u8>,
@@ -51926,7 +51926,7 @@ fn destack_device_serial_write_vm_replay(
 #[inline]
 fn destack_device_usb_bos_capability_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -52042,7 +52042,7 @@ fn destack_device_usb_bos_capability_list_vm_replay(
 #[inline]
 fn destack_device_usb_bulk_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
@@ -52111,7 +52111,7 @@ fn destack_device_usb_bulk_read_vm_replay(
 #[inline]
 fn destack_device_usb_bulk_write_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
@@ -52188,7 +52188,7 @@ fn destack_device_usb_bulk_write_vm_replay(
 #[inline]
 fn destack_device_usb_claim_interface_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
@@ -52245,7 +52245,7 @@ fn destack_device_usb_claim_interface_vm_replay(
 #[inline]
 fn destack_device_usb_clear_halt_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
@@ -52296,7 +52296,7 @@ fn destack_device_usb_clear_halt_vm_replay(
 #[inline]
 fn destack_device_usb_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -52344,7 +52344,7 @@ fn destack_device_usb_close_vm_replay(
 #[inline]
 fn destack_device_usb_configuration_get_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -52400,7 +52400,7 @@ fn destack_device_usb_configuration_get_vm_replay(
 #[inline]
 fn destack_device_usb_configuration_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -52593,7 +52593,7 @@ fn destack_device_usb_configuration_list_vm_replay(
 #[inline]
 fn destack_device_usb_configuration_set_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     configurationvalue: u8,
@@ -52652,7 +52652,7 @@ fn destack_device_usb_configuration_set_vm_replay(
 #[inline]
 fn destack_device_usb_control_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     setup: UsbControlSetupVm,
@@ -52720,7 +52720,7 @@ fn destack_device_usb_control_read_vm_replay(
 #[inline]
 fn destack_device_usb_control_write_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     setup: UsbControlSetupVm,
@@ -52797,7 +52797,7 @@ fn destack_device_usb_control_write_vm_replay(
 #[inline]
 fn destack_device_usb_descriptor_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -53024,7 +53024,7 @@ fn destack_device_usb_descriptor_vm_replay(
 #[inline]
 fn destack_device_usb_interrupt_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
@@ -53093,7 +53093,7 @@ fn destack_device_usb_interrupt_read_vm_replay(
 #[inline]
 fn destack_device_usb_interrupt_write_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
@@ -53170,7 +53170,7 @@ fn destack_device_usb_interrupt_write_vm_replay(
 #[inline]
 fn destack_device_usb_isochronous_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
@@ -53284,7 +53284,7 @@ fn destack_device_usb_isochronous_read_vm_replay(
 #[inline]
 fn destack_device_usb_isochronous_write_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     endpoint: UsbEndpointSelectorVm,
@@ -53401,7 +53401,7 @@ fn destack_device_usb_isochronous_write_vm_replay(
 #[inline]
 fn destack_device_usb_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -53661,7 +53661,7 @@ fn destack_device_usb_list_vm_replay(
 #[inline]
 fn destack_device_usb_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -53713,7 +53713,7 @@ fn destack_device_usb_open_vm_replay(
 #[inline]
 fn destack_device_usb_release_interface_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
@@ -53772,7 +53772,7 @@ fn destack_device_usb_release_interface_vm_replay(
 #[inline]
 fn destack_device_usb_set_interface_alternate_setting_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
@@ -53834,7 +53834,7 @@ fn destack_device_usb_set_interface_alternate_setting_vm_replay(
 #[inline]
 fn destack_device_usb_string_descriptor_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     languageid: u16,
@@ -53963,7 +53963,7 @@ fn destack_device_usb_string_descriptor_vm_replay(
 #[inline]
 fn destack_device_usb_string_language_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -54033,7 +54033,7 @@ fn destack_device_usb_string_language_list_vm_replay(
 #[inline]
 fn destack_device_usb_watch_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -54083,7 +54083,7 @@ fn destack_device_usb_watch_close_vm_replay(
 #[inline]
 fn destack_device_usb_watch_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -54134,7 +54134,7 @@ fn destack_device_usb_watch_open_vm_replay(
 #[inline]
 fn destack_device_usb_watch_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbWatchHandle,
     timeoutns: u64,
@@ -54598,7 +54598,7 @@ fn destack_device_usb_watch_read_vm_replay(
 #[inline]
 fn destack_device_usb_watch_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<vm::Word> {

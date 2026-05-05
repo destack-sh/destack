@@ -194,7 +194,7 @@ impl FsHarnessHandle {
                 harness
                     .runtime
                     .with_vm_call_context(|call_context, vm_context| {
-                        let vm_context = vm_context as *mut vm::ExternalCallContext<'_> as *mut ();
+                        let vm_context = vm_context as *mut vm::BindingContext<'_> as *mut ();
                         callback(FsHarnessContext {
                             call_context,
                             vm_context: Some(vm_context),
@@ -347,7 +347,7 @@ fn path_utf16_vec(_path: &Path) -> Vec<u16> {
 
 /// Decode raw bytes from a VM path reference.
 fn path_ref_bytes_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<Vec<u8>> {
     match path {
@@ -362,7 +362,7 @@ fn path_ref_bytes_vm(
 
 /// Decode a VM path reference into a string.
 fn path_ref_string_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<String> {
     match path {
@@ -379,7 +379,7 @@ fn path_ref_string_vm(
 
 /// Decode a VM directory entry from an aggregate value.
 fn decode_dirent_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: vm::Word,
 ) -> RuntimeResult<DirentVm> {
     DirentVm::decode_with_context(&context.read(), value)
@@ -387,14 +387,14 @@ fn decode_dirent_vm(
 
 /// Decode a VM watch event from an aggregate value.
 fn decode_watch_event_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: vm::Word,
 ) -> RuntimeResult<WatchEventVm> {
     WatchEventVm::decode_with_context(&context.read(), value)
 }
 
 fn decode_string_value(
-    context: &vm::ExternalCallContext<'_>,
+    context: &vm::BindingContext<'_>,
     value: vm::Word,
 ) -> RuntimeResult<vm::StringHandle> {
     context.read().string_handle_from_value(value).map_err(|_| {
@@ -664,7 +664,7 @@ fn socket_address_native_from_host_port(
 #[cfg(any(unix, windows))]
 fn socket_address_vm_from_host_port(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     host: &str,
     port: u16,
     family: SocketFamily,
@@ -711,7 +711,7 @@ fn array_u8_native(values: NativeArray<u8>) -> RuntimeResult<Vec<u8>> {
 }
 
 fn array_u8_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     values: VmArray<u8>,
 ) -> RuntimeResult<Vec<u8>> {
     values.read_bytes(&context.read())
@@ -727,7 +727,7 @@ fn array_string_native(values: NativeArray<NativeStringRef>) -> RuntimeResult<Ve
 }
 
 fn array_string_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     values: VmArray<vm::StringHandle>,
 ) -> RuntimeResult<Vec<String>> {
     let values = values.values(&context.read())?;

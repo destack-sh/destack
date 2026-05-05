@@ -55,7 +55,7 @@ impl Harness {
                 })
             }),
             Harness::Vm(runtime) => runtime.with_vm_call_context(|call_context, vm_context| {
-                let vm_context = vm_context as *mut vm::ExternalCallContext<'_> as *mut ();
+                let vm_context = vm_context as *mut vm::BindingContext<'_> as *mut ();
 
                 callback(OsHarnessContext {
                     call_context,

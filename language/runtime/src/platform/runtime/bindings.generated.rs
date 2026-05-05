@@ -124,7 +124,7 @@ fn decode_uint64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -137,7 +137,7 @@ fn decode_string(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -148,7 +148,7 @@ fn decode_array<T>(
 /// Decode arguments for destack.runtime.core.workerClose.
 #[inline]
 fn decode_destack_runtime_core_worker_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorkerHandle,)> {
     let worker_value = arg_value(args, 0, "worker", "WorkerHandle")?;
@@ -161,7 +161,7 @@ fn decode_destack_runtime_core_worker_close_args(
 /// Encode the result for destack.runtime.core.workerClose.
 #[inline]
 fn encode_destack_runtime_core_worker_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -170,7 +170,7 @@ fn encode_destack_runtime_core_worker_close_result(
 /// Decode arguments for destack.runtime.core.workerCreate.
 #[inline]
 fn decode_destack_runtime_core_worker_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(RuntimeHandle, Option<WorkerCreateOptionsVm>)> {
     let context = &context.read();
@@ -198,7 +198,7 @@ fn decode_destack_runtime_core_worker_create_args(
 /// Encode the result for destack.runtime.core.workerCreate.
 #[inline]
 fn encode_destack_runtime_core_worker_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<WorkerHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -209,7 +209,7 @@ fn encode_destack_runtime_core_worker_create_result(
 /// Decode arguments for destack.runtime.core.workerDescribe.
 #[inline]
 fn decode_destack_runtime_core_worker_describe_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorkerHandle,)> {
     let worker_value = arg_value(args, 0, "worker", "WorkerHandle")?;
@@ -222,7 +222,7 @@ fn decode_destack_runtime_core_worker_describe_args(
 /// Encode the result for destack.runtime.core.workerDescribe.
 #[inline]
 fn encode_destack_runtime_core_worker_describe_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<WorkerDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -270,7 +270,7 @@ fn encode_destack_runtime_core_worker_describe_result(
 /// Decode arguments for destack.runtime.core.runtimeClose.
 #[inline]
 fn decode_destack_runtime_core_runtime_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(RuntimeHandle,)> {
     let runtimehandle_value = arg_value(args, 0, "runtimehandle", "RuntimeHandle")?;
@@ -287,7 +287,7 @@ fn decode_destack_runtime_core_runtime_close_args(
 /// Encode the result for destack.runtime.core.runtimeClose.
 #[inline]
 fn encode_destack_runtime_core_runtime_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -296,7 +296,7 @@ fn encode_destack_runtime_core_runtime_close_result(
 /// Decode arguments for destack.runtime.core.runtimeCreate.
 #[inline]
 fn decode_destack_runtime_core_runtime_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, Option<RuntimeCreateOptionsVm>)> {
     let context = &context.read();
@@ -324,7 +324,7 @@ fn decode_destack_runtime_core_runtime_create_args(
 /// Encode the result for destack.runtime.core.runtimeCreate.
 #[inline]
 fn encode_destack_runtime_core_runtime_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<RuntimeHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -335,7 +335,7 @@ fn encode_destack_runtime_core_runtime_create_result(
 /// Decode arguments for destack.runtime.core.runtimeDescribe.
 #[inline]
 fn decode_destack_runtime_core_runtime_describe_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(RuntimeHandle,)> {
     let runtimehandle_value = arg_value(args, 0, "runtimehandle", "RuntimeHandle")?;
@@ -352,7 +352,7 @@ fn decode_destack_runtime_core_runtime_describe_args(
 /// Encode the result for destack.runtime.core.runtimeDescribe.
 #[inline]
 fn encode_destack_runtime_core_runtime_describe_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<RuntimeDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -397,7 +397,7 @@ fn encode_destack_runtime_core_runtime_describe_result(
 /// Decode arguments for destack.runtime.core.worldClose.
 #[inline]
 fn decode_destack_runtime_core_world_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle,)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -414,7 +414,7 @@ fn decode_destack_runtime_core_world_close_args(
 /// Encode the result for destack.runtime.core.worldClose.
 #[inline]
 fn encode_destack_runtime_core_world_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -423,7 +423,7 @@ fn encode_destack_runtime_core_world_close_result(
 /// Decode arguments for destack.runtime.core.worldCreate.
 #[inline]
 fn decode_destack_runtime_core_world_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(Option<WorldCreateOptionsVm>,)> {
     let context = &context.read();
@@ -443,7 +443,7 @@ fn decode_destack_runtime_core_world_create_args(
 /// Encode the result for destack.runtime.core.worldCreate.
 #[inline]
 fn encode_destack_runtime_core_world_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<WorldHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -454,7 +454,7 @@ fn encode_destack_runtime_core_world_create_result(
 /// Decode arguments for destack.runtime.core.worldDescribe.
 #[inline]
 fn decode_destack_runtime_core_world_describe_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle,)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -471,7 +471,7 @@ fn decode_destack_runtime_core_world_describe_args(
 /// Encode the result for destack.runtime.core.worldDescribe.
 #[inline]
 fn encode_destack_runtime_core_world_describe_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<WorldDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -524,7 +524,7 @@ fn encode_destack_runtime_core_world_describe_result(
 /// Decode arguments for destack.runtime.core.worldTick.
 #[inline]
 fn decode_destack_runtime_core_world_tick_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle,)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -541,7 +541,7 @@ fn decode_destack_runtime_core_world_tick_args(
 /// Encode the result for destack.runtime.core.worldTick.
 #[inline]
 fn encode_destack_runtime_core_world_tick_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<RuntimeTickOutcome>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -552,7 +552,7 @@ fn encode_destack_runtime_core_world_tick_result(
 /// Decode arguments for destack.runtime.inspect.workerList.
 #[inline]
 fn decode_destack_runtime_inspect_worker_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     WorldViewHandle,
@@ -594,7 +594,7 @@ fn decode_destack_runtime_inspect_worker_list_args(
 /// Encode the result for destack.runtime.inspect.workerList.
 #[inline]
 fn encode_destack_runtime_inspect_worker_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<WorkerDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -606,7 +606,7 @@ fn encode_destack_runtime_inspect_worker_list_result(
 /// Decode arguments for destack.runtime.inspect.workerView.
 #[inline]
 fn decode_destack_runtime_inspect_worker_view_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldViewHandle, WorkerId)> {
     let view_value = arg_value(args, 0, "view", "WorldViewHandle")?;
@@ -622,7 +622,7 @@ fn decode_destack_runtime_inspect_worker_view_args(
 /// Encode the result for destack.runtime.inspect.workerView.
 #[inline]
 fn encode_destack_runtime_inspect_worker_view_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<WorkerDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -670,7 +670,7 @@ fn encode_destack_runtime_inspect_worker_view_result(
 /// Decode arguments for destack.runtime.inspect.edgeList.
 #[inline]
 fn decode_destack_runtime_inspect_edge_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     WorldViewHandle,
@@ -714,7 +714,7 @@ fn decode_destack_runtime_inspect_edge_list_args(
 /// Encode the result for destack.runtime.inspect.edgeList.
 #[inline]
 fn encode_destack_runtime_inspect_edge_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<TopologyEdgeVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -726,7 +726,7 @@ fn encode_destack_runtime_inspect_edge_list_result(
 /// Decode arguments for destack.runtime.inspect.edgeView.
 #[inline]
 fn decode_destack_runtime_inspect_edge_view_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldViewHandle, TopologyEdgeIdVm)> {
     let context = &context.read();
@@ -743,7 +743,7 @@ fn decode_destack_runtime_inspect_edge_view_args(
 /// Encode the result for destack.runtime.inspect.edgeView.
 #[inline]
 fn encode_destack_runtime_inspect_edge_view_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<TopologyEdgeVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -783,7 +783,7 @@ fn encode_destack_runtime_inspect_edge_view_result(
 /// Decode arguments for destack.runtime.inspect.engineView.
 #[inline]
 fn decode_destack_runtime_inspect_engine_view_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldViewHandle, WorkerId)> {
     let view_value = arg_value(args, 0, "view", "WorldViewHandle")?;
@@ -799,7 +799,7 @@ fn decode_destack_runtime_inspect_engine_view_args(
 /// Encode the result for destack.runtime.inspect.engineView.
 #[inline]
 fn encode_destack_runtime_inspect_engine_view_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<EngineDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -848,7 +848,7 @@ fn encode_destack_runtime_inspect_engine_view_result(
 /// Decode arguments for destack.runtime.inspect.entityList.
 #[inline]
 fn decode_destack_runtime_inspect_entity_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     WorldViewHandle,
@@ -898,7 +898,7 @@ fn decode_destack_runtime_inspect_entity_list_args(
 /// Encode the result for destack.runtime.inspect.entityList.
 #[inline]
 fn encode_destack_runtime_inspect_entity_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<TopologyEntityVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -910,7 +910,7 @@ fn encode_destack_runtime_inspect_entity_list_result(
 /// Decode arguments for destack.runtime.inspect.entityView.
 #[inline]
 fn decode_destack_runtime_inspect_entity_view_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldViewHandle, TopologyEntityIdVm)> {
     let context = &context.read();
@@ -932,7 +932,7 @@ fn decode_destack_runtime_inspect_entity_view_args(
 /// Encode the result for destack.runtime.inspect.entityView.
 #[inline]
 fn encode_destack_runtime_inspect_entity_view_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<TopologyEntityVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -964,7 +964,7 @@ fn encode_destack_runtime_inspect_entity_view_result(
 /// Decode arguments for destack.runtime.inspect.eventLoopView.
 #[inline]
 fn decode_destack_runtime_inspect_event_loop_view_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldViewHandle, WorkerId)> {
     let view_value = arg_value(args, 0, "view", "WorldViewHandle")?;
@@ -980,7 +980,7 @@ fn decode_destack_runtime_inspect_event_loop_view_args(
 /// Encode the result for destack.runtime.inspect.eventLoopView.
 #[inline]
 fn encode_destack_runtime_inspect_event_loop_view_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<EventLoopDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1018,7 +1018,7 @@ fn encode_destack_runtime_inspect_event_loop_view_result(
 /// Decode arguments for destack.runtime.inspect.heapView.
 #[inline]
 fn decode_destack_runtime_inspect_heap_view_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldViewHandle, WorkerId)> {
     let view_value = arg_value(args, 0, "view", "WorldViewHandle")?;
@@ -1034,7 +1034,7 @@ fn decode_destack_runtime_inspect_heap_view_args(
 /// Encode the result for destack.runtime.inspect.heapView.
 #[inline]
 fn encode_destack_runtime_inspect_heap_view_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<HeapDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1063,7 +1063,7 @@ fn encode_destack_runtime_inspect_heap_view_result(
 /// Decode arguments for destack.runtime.inspect.imageView.
 #[inline]
 fn decode_destack_runtime_inspect_image_view_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldViewHandle,)> {
     let view_value = arg_value(args, 0, "view", "WorldViewHandle")?;
@@ -1076,7 +1076,7 @@ fn decode_destack_runtime_inspect_image_view_args(
 /// Encode the result for destack.runtime.inspect.imageView.
 #[inline]
 fn encode_destack_runtime_inspect_image_view_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<ImageDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1108,7 +1108,7 @@ fn encode_destack_runtime_inspect_image_view_result(
 /// Decode arguments for destack.runtime.inspect.resourceList.
 #[inline]
 fn decode_destack_runtime_inspect_resource_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     WorldViewHandle,
@@ -1150,7 +1150,7 @@ fn decode_destack_runtime_inspect_resource_list_args(
 /// Encode the result for destack.runtime.inspect.resourceList.
 #[inline]
 fn encode_destack_runtime_inspect_resource_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<ResourceDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1162,7 +1162,7 @@ fn encode_destack_runtime_inspect_resource_list_result(
 /// Decode arguments for destack.runtime.inspect.resourceView.
 #[inline]
 fn decode_destack_runtime_inspect_resource_view_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldViewHandle, WorldResourceIdVm)> {
     let context = &context.read();
@@ -1179,7 +1179,7 @@ fn decode_destack_runtime_inspect_resource_view_args(
 /// Encode the result for destack.runtime.inspect.resourceView.
 #[inline]
 fn encode_destack_runtime_inspect_resource_view_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<ResourceDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1229,7 +1229,7 @@ fn encode_destack_runtime_inspect_resource_view_result(
 /// Decode arguments for destack.runtime.inspect.revisionView.
 #[inline]
 fn decode_destack_runtime_inspect_revision_view_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldViewHandle,)> {
     let view_value = arg_value(args, 0, "view", "WorldViewHandle")?;
@@ -1242,7 +1242,7 @@ fn decode_destack_runtime_inspect_revision_view_args(
 /// Encode the result for destack.runtime.inspect.revisionView.
 #[inline]
 fn encode_destack_runtime_inspect_revision_view_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<RevisionDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1294,7 +1294,7 @@ fn encode_destack_runtime_inspect_revision_view_result(
 /// Decode arguments for destack.runtime.inspect.runtimeList.
 #[inline]
 fn decode_destack_runtime_inspect_runtime_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     WorldViewHandle,
@@ -1336,7 +1336,7 @@ fn decode_destack_runtime_inspect_runtime_list_args(
 /// Encode the result for destack.runtime.inspect.runtimeList.
 #[inline]
 fn encode_destack_runtime_inspect_runtime_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<RuntimeDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1348,7 +1348,7 @@ fn encode_destack_runtime_inspect_runtime_list_result(
 /// Decode arguments for destack.runtime.inspect.runtimeView.
 #[inline]
 fn decode_destack_runtime_inspect_runtime_view_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldViewHandle, RuntimeId)> {
     let view_value = arg_value(args, 0, "view", "WorldViewHandle")?;
@@ -1364,7 +1364,7 @@ fn decode_destack_runtime_inspect_runtime_view_args(
 /// Encode the result for destack.runtime.inspect.runtimeView.
 #[inline]
 fn encode_destack_runtime_inspect_runtime_view_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<RuntimeDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1409,7 +1409,7 @@ fn encode_destack_runtime_inspect_runtime_view_result(
 /// Decode arguments for destack.runtime.inspect.traceView.
 #[inline]
 fn decode_destack_runtime_inspect_trace_view_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldViewHandle,)> {
     let view_value = arg_value(args, 0, "view", "WorldViewHandle")?;
@@ -1422,7 +1422,7 @@ fn decode_destack_runtime_inspect_trace_view_args(
 /// Encode the result for destack.runtime.inspect.traceView.
 #[inline]
 fn encode_destack_runtime_inspect_trace_view_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<TraceDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1447,7 +1447,7 @@ fn encode_destack_runtime_inspect_trace_view_result(
 /// Decode arguments for destack.runtime.inspect.worldView.
 #[inline]
 fn decode_destack_runtime_inspect_world_view_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldViewHandle,)> {
     let view_value = arg_value(args, 0, "view", "WorldViewHandle")?;
@@ -1460,7 +1460,7 @@ fn decode_destack_runtime_inspect_world_view_args(
 /// Encode the result for destack.runtime.inspect.worldView.
 #[inline]
 fn encode_destack_runtime_inspect_world_view_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<WorldDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1513,7 +1513,7 @@ fn encode_destack_runtime_inspect_world_view_result(
 /// Decode arguments for destack.runtime.inspect.worldViewClose.
 #[inline]
 fn decode_destack_runtime_inspect_world_view_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldViewHandle,)> {
     let view_value = arg_value(args, 0, "view", "WorldViewHandle")?;
@@ -1526,7 +1526,7 @@ fn decode_destack_runtime_inspect_world_view_close_args(
 /// Encode the result for destack.runtime.inspect.worldViewClose.
 #[inline]
 fn encode_destack_runtime_inspect_world_view_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1535,7 +1535,7 @@ fn encode_destack_runtime_inspect_world_view_close_result(
 /// Decode arguments for destack.runtime.inspect.worldViewOpen.
 #[inline]
 fn decode_destack_runtime_inspect_world_view_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, Option<WorldViewOptionsVm>)> {
     let context = &context.read();
@@ -1561,7 +1561,7 @@ fn decode_destack_runtime_inspect_world_view_open_args(
 /// Encode the result for destack.runtime.inspect.worldViewOpen.
 #[inline]
 fn encode_destack_runtime_inspect_world_view_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<WorldViewHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1572,7 +1572,7 @@ fn encode_destack_runtime_inspect_world_view_open_result(
 /// Decode arguments for destack.runtime.lineage.branchDescribe.
 #[inline]
 fn decode_destack_runtime_lineage_branch_describe_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, BranchId)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -1592,7 +1592,7 @@ fn decode_destack_runtime_lineage_branch_describe_args(
 /// Encode the result for destack.runtime.lineage.branchDescribe.
 #[inline]
 fn encode_destack_runtime_lineage_branch_describe_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<BranchDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1631,7 +1631,7 @@ fn encode_destack_runtime_lineage_branch_describe_result(
 /// Decode arguments for destack.runtime.lineage.branchList.
 #[inline]
 fn decode_destack_runtime_lineage_branch_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     WorldHandle,
@@ -1677,7 +1677,7 @@ fn decode_destack_runtime_lineage_branch_list_args(
 /// Encode the result for destack.runtime.lineage.branchList.
 #[inline]
 fn encode_destack_runtime_lineage_branch_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<BranchDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1689,7 +1689,7 @@ fn encode_destack_runtime_lineage_branch_list_result(
 /// Decode arguments for destack.runtime.lineage.checkpointCreate.
 #[inline]
 fn decode_destack_runtime_lineage_checkpoint_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     WorldHandle,
@@ -1730,7 +1730,7 @@ fn decode_destack_runtime_lineage_checkpoint_create_args(
 /// Encode the result for destack.runtime.lineage.checkpointCreate.
 #[inline]
 fn encode_destack_runtime_lineage_checkpoint_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CheckpointId>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1741,7 +1741,7 @@ fn encode_destack_runtime_lineage_checkpoint_create_result(
 /// Decode arguments for destack.runtime.lineage.checkpointDescribe.
 #[inline]
 fn decode_destack_runtime_lineage_checkpoint_describe_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, CheckpointId)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -1762,7 +1762,7 @@ fn decode_destack_runtime_lineage_checkpoint_describe_args(
 /// Encode the result for destack.runtime.lineage.checkpointDescribe.
 #[inline]
 fn encode_destack_runtime_lineage_checkpoint_describe_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CheckpointDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1801,7 +1801,7 @@ fn encode_destack_runtime_lineage_checkpoint_describe_result(
 /// Decode arguments for destack.runtime.lineage.checkpointList.
 #[inline]
 fn decode_destack_runtime_lineage_checkpoint_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     WorldHandle,
@@ -1847,7 +1847,7 @@ fn decode_destack_runtime_lineage_checkpoint_list_args(
 /// Encode the result for destack.runtime.lineage.checkpointList.
 #[inline]
 fn encode_destack_runtime_lineage_checkpoint_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<CheckpointDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1859,7 +1859,7 @@ fn encode_destack_runtime_lineage_checkpoint_list_result(
 /// Decode arguments for destack.runtime.lineage.imageCapture.
 #[inline]
 fn decode_destack_runtime_lineage_image_capture_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle,)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -1876,7 +1876,7 @@ fn decode_destack_runtime_lineage_image_capture_args(
 /// Encode the result for destack.runtime.lineage.imageCapture.
 #[inline]
 fn encode_destack_runtime_lineage_image_capture_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<ImageId>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1887,7 +1887,7 @@ fn encode_destack_runtime_lineage_image_capture_result(
 /// Decode arguments for destack.runtime.lineage.imageDescribe.
 #[inline]
 fn decode_destack_runtime_lineage_image_describe_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, ImageId)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -1907,7 +1907,7 @@ fn decode_destack_runtime_lineage_image_describe_args(
 /// Encode the result for destack.runtime.lineage.imageDescribe.
 #[inline]
 fn encode_destack_runtime_lineage_image_describe_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<ImageDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1939,7 +1939,7 @@ fn encode_destack_runtime_lineage_image_describe_result(
 /// Decode arguments for destack.runtime.lineage.imageList.
 #[inline]
 fn decode_destack_runtime_lineage_image_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     WorldHandle,
@@ -1985,7 +1985,7 @@ fn decode_destack_runtime_lineage_image_list_args(
 /// Encode the result for destack.runtime.lineage.imageList.
 #[inline]
 fn encode_destack_runtime_lineage_image_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<ImageDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1997,7 +1997,7 @@ fn encode_destack_runtime_lineage_image_list_result(
 /// Decode arguments for destack.runtime.lineage.revisionDescribe.
 #[inline]
 fn decode_destack_runtime_lineage_revision_describe_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, RevisionId)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -2017,7 +2017,7 @@ fn decode_destack_runtime_lineage_revision_describe_args(
 /// Encode the result for destack.runtime.lineage.revisionDescribe.
 #[inline]
 fn encode_destack_runtime_lineage_revision_describe_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<RevisionDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2069,7 +2069,7 @@ fn encode_destack_runtime_lineage_revision_describe_result(
 /// Decode arguments for destack.runtime.lineage.revisionList.
 #[inline]
 fn decode_destack_runtime_lineage_revision_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     WorldHandle,
@@ -2115,7 +2115,7 @@ fn decode_destack_runtime_lineage_revision_list_args(
 /// Encode the result for destack.runtime.lineage.revisionList.
 #[inline]
 fn encode_destack_runtime_lineage_revision_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<RevisionDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2127,7 +2127,7 @@ fn encode_destack_runtime_lineage_revision_list_result(
 /// Decode arguments for destack.runtime.lineage.worldBranch.
 #[inline]
 fn decode_destack_runtime_lineage_world_branch_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle,)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -2144,7 +2144,7 @@ fn decode_destack_runtime_lineage_world_branch_args(
 /// Encode the result for destack.runtime.lineage.worldBranch.
 #[inline]
 fn encode_destack_runtime_lineage_world_branch_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<BranchId>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2155,7 +2155,7 @@ fn encode_destack_runtime_lineage_world_branch_result(
 /// Decode arguments for destack.runtime.lineage.worldFork.
 #[inline]
 fn decode_destack_runtime_lineage_world_fork_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     WorldHandle,
@@ -2200,7 +2200,7 @@ fn decode_destack_runtime_lineage_world_fork_args(
 /// Encode the result for destack.runtime.lineage.worldFork.
 #[inline]
 fn encode_destack_runtime_lineage_world_fork_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<WorldHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2211,7 +2211,7 @@ fn encode_destack_runtime_lineage_world_fork_result(
 /// Decode arguments for destack.runtime.lineage.worldRevision.
 #[inline]
 fn decode_destack_runtime_lineage_world_revision_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle,)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -2228,7 +2228,7 @@ fn decode_destack_runtime_lineage_world_revision_args(
 /// Encode the result for destack.runtime.lineage.worldRevision.
 #[inline]
 fn encode_destack_runtime_lineage_world_revision_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<RevisionId>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2239,7 +2239,7 @@ fn encode_destack_runtime_lineage_world_revision_result(
 /// Decode arguments for destack.runtime.lineage.worldRewindCheckpoint.
 #[inline]
 fn decode_destack_runtime_lineage_world_rewind_checkpoint_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, CheckpointId)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -2260,7 +2260,7 @@ fn decode_destack_runtime_lineage_world_rewind_checkpoint_args(
 /// Encode the result for destack.runtime.lineage.worldRewindCheckpoint.
 #[inline]
 fn encode_destack_runtime_lineage_world_rewind_checkpoint_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2269,7 +2269,7 @@ fn encode_destack_runtime_lineage_world_rewind_checkpoint_result(
 /// Decode arguments for destack.runtime.lineage.worldRewindRevision.
 #[inline]
 fn decode_destack_runtime_lineage_world_rewind_revision_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, RevisionId)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -2289,7 +2289,7 @@ fn decode_destack_runtime_lineage_world_rewind_revision_args(
 /// Encode the result for destack.runtime.lineage.worldRewindRevision.
 #[inline]
 fn encode_destack_runtime_lineage_world_rewind_revision_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2298,7 +2298,7 @@ fn encode_destack_runtime_lineage_world_rewind_revision_result(
 /// Decode arguments for destack.runtime.observation.close.
 #[inline]
 fn decode_destack_runtime_observation_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(ObservationHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "ObservationHandle")?;
@@ -2312,7 +2312,7 @@ fn decode_destack_runtime_observation_close_args(
 /// Encode the result for destack.runtime.observation.close.
 #[inline]
 fn encode_destack_runtime_observation_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2321,7 +2321,7 @@ fn encode_destack_runtime_observation_close_result(
 /// Decode arguments for destack.runtime.observation.next.
 #[inline]
 fn decode_destack_runtime_observation_next_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(ObservationHandle, Option<u32>)> {
     let handle_value = arg_value(args, 0, "handle", "ObservationHandle")?;
@@ -2342,7 +2342,7 @@ fn decode_destack_runtime_observation_next_args(
 /// Encode the result for destack.runtime.observation.next.
 #[inline]
 fn encode_destack_runtime_observation_next_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<ObservationRecordVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2354,7 +2354,7 @@ fn encode_destack_runtime_observation_next_result(
 /// Decode arguments for destack.runtime.observation.open.
 #[inline]
 fn decode_destack_runtime_observation_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, Option<ObservationOptionsVm>)> {
     let context = &context.read();
@@ -2382,7 +2382,7 @@ fn decode_destack_runtime_observation_open_args(
 /// Encode the result for destack.runtime.observation.open.
 #[inline]
 fn encode_destack_runtime_observation_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<ObservationHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2393,7 +2393,7 @@ fn encode_destack_runtime_observation_open_result(
 /// Decode arguments for destack.runtime.snapshot.create.
 #[inline]
 fn decode_destack_runtime_snapshot_create_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, ImageId, SnapshotFormat)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -2426,7 +2426,7 @@ fn decode_destack_runtime_snapshot_create_args(
 /// Encode the result for destack.runtime.snapshot.create.
 #[inline]
 fn encode_destack_runtime_snapshot_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<SnapshotId>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2437,7 +2437,7 @@ fn encode_destack_runtime_snapshot_create_result(
 /// Decode arguments for destack.runtime.snapshot.describe.
 #[inline]
 fn decode_destack_runtime_snapshot_describe_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, SnapshotId)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -2457,7 +2457,7 @@ fn decode_destack_runtime_snapshot_describe_args(
 /// Encode the result for destack.runtime.snapshot.describe.
 #[inline]
 fn encode_destack_runtime_snapshot_describe_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<SnapshotDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2494,7 +2494,7 @@ fn encode_destack_runtime_snapshot_describe_result(
 /// Decode arguments for destack.runtime.snapshot.import.
 #[inline]
 fn decode_destack_runtime_snapshot_import_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, VmArray<u8>)> {
     let context = &context.read();
@@ -2519,7 +2519,7 @@ fn decode_destack_runtime_snapshot_import_args(
 /// Encode the result for destack.runtime.snapshot.import.
 #[inline]
 fn encode_destack_runtime_snapshot_import_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<SnapshotId>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2530,7 +2530,7 @@ fn encode_destack_runtime_snapshot_import_result(
 /// Decode arguments for destack.runtime.snapshot.list.
 #[inline]
 fn decode_destack_runtime_snapshot_list_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, Option<SnapshotId>, Option<u32>)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -2562,7 +2562,7 @@ fn decode_destack_runtime_snapshot_list_args(
 /// Encode the result for destack.runtime.snapshot.list.
 #[inline]
 fn encode_destack_runtime_snapshot_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<SnapshotDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2574,7 +2574,7 @@ fn encode_destack_runtime_snapshot_list_result(
 /// Decode arguments for destack.runtime.snapshot.read.
 #[inline]
 fn decode_destack_runtime_snapshot_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, SnapshotId)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -2594,7 +2594,7 @@ fn decode_destack_runtime_snapshot_read_args(
 /// Encode the result for destack.runtime.snapshot.read.
 #[inline]
 fn encode_destack_runtime_snapshot_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2606,7 +2606,7 @@ fn encode_destack_runtime_snapshot_read_result(
 /// Decode arguments for destack.runtime.snapshot.restoreImage.
 #[inline]
 fn decode_destack_runtime_snapshot_restore_image_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, ImageId)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -2626,7 +2626,7 @@ fn decode_destack_runtime_snapshot_restore_image_args(
 /// Encode the result for destack.runtime.snapshot.restoreImage.
 #[inline]
 fn encode_destack_runtime_snapshot_restore_image_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2635,7 +2635,7 @@ fn encode_destack_runtime_snapshot_restore_image_result(
 /// Decode arguments for destack.runtime.snapshot.restoreSnapshot.
 #[inline]
 fn decode_destack_runtime_snapshot_restore_snapshot_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, SnapshotId)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -2655,7 +2655,7 @@ fn decode_destack_runtime_snapshot_restore_snapshot_args(
 /// Encode the result for destack.runtime.snapshot.restoreSnapshot.
 #[inline]
 fn encode_destack_runtime_snapshot_restore_snapshot_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2664,7 +2664,7 @@ fn encode_destack_runtime_snapshot_restore_snapshot_result(
 /// Decode arguments for destack.runtime.trace.close.
 #[inline]
 fn decode_destack_runtime_trace_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(TraceCursorHandle,)> {
     let cursor_value = arg_value(args, 0, "cursor", "TraceCursorHandle")?;
@@ -2678,7 +2678,7 @@ fn decode_destack_runtime_trace_close_args(
 /// Encode the result for destack.runtime.trace.close.
 #[inline]
 fn encode_destack_runtime_trace_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2687,7 +2687,7 @@ fn encode_destack_runtime_trace_close_result(
 /// Decode arguments for destack.runtime.trace.describe.
 #[inline]
 fn decode_destack_runtime_trace_describe_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle,)> {
     let argument_world_value = arg_value(args, 0, "argument_world", "WorldHandle")?;
@@ -2704,7 +2704,7 @@ fn decode_destack_runtime_trace_describe_args(
 /// Encode the result for destack.runtime.trace.describe.
 #[inline]
 fn encode_destack_runtime_trace_describe_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<TraceDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2729,7 +2729,7 @@ fn encode_destack_runtime_trace_describe_result(
 /// Decode arguments for destack.runtime.trace.mark.
 #[inline]
 fn decode_destack_runtime_trace_mark_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, vm::StringHandle)> {
     let context = &context.read();
@@ -2749,7 +2749,7 @@ fn decode_destack_runtime_trace_mark_args(
 /// Encode the result for destack.runtime.trace.mark.
 #[inline]
 fn encode_destack_runtime_trace_mark_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<TraceSequence>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2760,7 +2760,7 @@ fn encode_destack_runtime_trace_mark_result(
 /// Decode arguments for destack.runtime.trace.next.
 #[inline]
 fn decode_destack_runtime_trace_next_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(TraceCursorHandle, Option<u32>)> {
     let cursor_value = arg_value(args, 0, "cursor", "TraceCursorHandle")?;
@@ -2781,7 +2781,7 @@ fn decode_destack_runtime_trace_next_args(
 /// Encode the result for destack.runtime.trace.next.
 #[inline]
 fn encode_destack_runtime_trace_next_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<TraceRecordVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2793,7 +2793,7 @@ fn encode_destack_runtime_trace_next_result(
 /// Decode arguments for destack.runtime.trace.open.
 #[inline]
 fn decode_destack_runtime_trace_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WorldHandle, Option<TraceCursorOptionsVm>)> {
     let context = &context.read();
@@ -2821,7 +2821,7 @@ fn decode_destack_runtime_trace_open_args(
 /// Encode the result for destack.runtime.trace.open.
 #[inline]
 fn encode_destack_runtime_trace_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<TraceCursorHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2832,7 +2832,7 @@ fn encode_destack_runtime_trace_open_result(
 /// Decode arguments for destack.runtime.trace.seekCheckpoint.
 #[inline]
 fn decode_destack_runtime_trace_seek_checkpoint_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(TraceCursorHandle, CheckpointId)> {
     let cursor_value = arg_value(args, 0, "cursor", "TraceCursorHandle")?;
@@ -2850,7 +2850,7 @@ fn decode_destack_runtime_trace_seek_checkpoint_args(
 /// Encode the result for destack.runtime.trace.seekCheckpoint.
 #[inline]
 fn encode_destack_runtime_trace_seek_checkpoint_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2859,7 +2859,7 @@ fn encode_destack_runtime_trace_seek_checkpoint_result(
 /// Decode arguments for destack.runtime.trace.seekRevision.
 #[inline]
 fn decode_destack_runtime_trace_seek_revision_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(TraceCursorHandle, RevisionId)> {
     let cursor_value = arg_value(args, 0, "cursor", "TraceCursorHandle")?;
@@ -2876,7 +2876,7 @@ fn decode_destack_runtime_trace_seek_revision_args(
 /// Encode the result for destack.runtime.trace.seekRevision.
 #[inline]
 fn encode_destack_runtime_trace_seek_revision_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2885,7 +2885,7 @@ fn encode_destack_runtime_trace_seek_revision_result(
 /// Decode arguments for destack.runtime.trace.seekSequence.
 #[inline]
 fn decode_destack_runtime_trace_seek_sequence_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(TraceCursorHandle, TraceSequence)> {
     let cursor_value = arg_value(args, 0, "cursor", "TraceCursorHandle")?;
@@ -2902,7 +2902,7 @@ fn decode_destack_runtime_trace_seek_sequence_args(
 /// Encode the result for destack.runtime.trace.seekSequence.
 #[inline]
 fn encode_destack_runtime_trace_seek_sequence_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2911,7 +2911,7 @@ fn encode_destack_runtime_trace_seek_sequence_result(
 /// Decode arguments for destack.runtime.trace.tell.
 #[inline]
 fn decode_destack_runtime_trace_tell_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(TraceCursorHandle,)> {
     let cursor_value = arg_value(args, 0, "cursor", "TraceCursorHandle")?;
@@ -2925,7 +2925,7 @@ fn decode_destack_runtime_trace_tell_args(
 /// Encode the result for destack.runtime.trace.tell.
 #[inline]
 fn encode_destack_runtime_trace_tell_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<TraceSequence>,
 ) -> RuntimeResult<vm::Word> {
     result

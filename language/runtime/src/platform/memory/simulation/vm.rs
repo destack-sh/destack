@@ -13,7 +13,7 @@ use destack_vm as vm;
 /// Apply memory access advice.
 pub(crate) fn destack_memory_advise(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: u64,
     length: u64,
     advice: MemoryAdvice,
@@ -25,7 +25,7 @@ pub(crate) fn destack_memory_advise(
 /// Discard memory contents.
 pub(crate) fn destack_memory_discard(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -36,7 +36,7 @@ pub(crate) fn destack_memory_discard(
 /// Lock one memory range into physical memory.
 pub(crate) fn destack_memory_lock(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -47,7 +47,7 @@ pub(crate) fn destack_memory_lock(
 /// Unlock one memory range.
 pub(crate) fn destack_memory_unlock(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -58,7 +58,7 @@ pub(crate) fn destack_memory_unlock(
 /// Commit one reserved range.
 pub(crate) fn destack_memory_commit(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: u64,
     length: u64,
     protection: MemoryProtection,
@@ -70,7 +70,7 @@ pub(crate) fn destack_memory_commit(
 /// Decommit one range.
 pub(crate) fn destack_memory_decommit(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -81,7 +81,7 @@ pub(crate) fn destack_memory_decommit(
 /// Release one reserved range.
 pub(crate) fn destack_memory_release(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -92,7 +92,7 @@ pub(crate) fn destack_memory_release(
 /// Allocate one mapped range.
 pub(crate) fn destack_memory_allocate(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     length: u64,
     addresshint: u64,
     protection: MemoryProtection,
@@ -105,7 +105,7 @@ pub(crate) fn destack_memory_allocate(
 /// Reserve one virtual memory range.
 pub(crate) fn destack_memory_reserve(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     length: u64,
     addresshint: u64,
     flags: MemoryReserveFlags,
@@ -117,7 +117,7 @@ pub(crate) fn destack_memory_reserve(
 /// Flush instruction cache for one range.
 pub(crate) fn destack_memory_flush_instruction_cache(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -130,7 +130,7 @@ pub(crate) fn destack_memory_flush_instruction_cache(
 /// Change memory protection for one range.
 pub(crate) fn destack_memory_protect(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: u64,
     length: u64,
     protection: MemoryProtection,
@@ -142,7 +142,7 @@ pub(crate) fn destack_memory_protect(
 /// Resize one mapped range.
 pub(crate) fn destack_memory_remap(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: u64,
     oldlength: u64,
     newlength: u64,
@@ -155,7 +155,7 @@ pub(crate) fn destack_memory_remap(
 /// Read the host allocation granularity.
 pub(crate) fn destack_memory_allocation_granularity(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<u64> {
     Err(not_supported("destack.memory.query.allocationGranularity"))
 }
@@ -163,7 +163,7 @@ pub(crate) fn destack_memory_allocation_granularity(
 /// Read the host huge-page allocation size when available.
 pub(crate) fn destack_memory_huge_page_size(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<Option<u64>> {
     Err(not_supported("destack.memory.query.hugePageSize"))
 }
@@ -171,7 +171,7 @@ pub(crate) fn destack_memory_huge_page_size(
 /// Read the host virtual-memory page size.
 pub(crate) fn destack_memory_page_size(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<u64> {
     Err(not_supported("destack.memory.query.pageSize"))
 }

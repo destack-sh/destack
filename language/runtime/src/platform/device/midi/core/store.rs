@@ -27,7 +27,7 @@ pub(crate) fn store_backend_descriptors_native(
 
 /// Store VM backend descriptors as one binding slice.
 pub(crate) fn store_backend_descriptors_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     values: Vec<MidiBackendDescriptorValue>,
 ) -> RuntimeResult<VmSlice<MidiBackendDescriptorVm>> {
     let descriptors = values
@@ -53,7 +53,7 @@ pub(crate) fn store_port_descriptors_native(
 
 /// Store VM port descriptors as one binding slice.
 pub(crate) fn store_port_descriptors_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     values: Vec<MidiPortDescriptorValue>,
 ) -> RuntimeResult<VmSlice<MidiPortDescriptorVm>> {
     let descriptors = values
@@ -79,7 +79,7 @@ pub(crate) fn store_input_records_native(
 
 /// Store VM input records as one binding array.
 pub(crate) fn store_input_records_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     values: Vec<MidiInputRecordValue>,
 ) -> RuntimeResult<VmArray<MidiInputRecordVm>> {
     let records = values
@@ -100,7 +100,7 @@ pub(crate) fn store_input_record_native(
 
 /// Store one VM input record.
 pub(crate) fn store_input_record_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: MidiInputRecordValue,
 ) -> RuntimeResult<MidiInputRecordVm> {
     value.into_vm(context)
@@ -121,7 +121,7 @@ pub(crate) fn store_events_native(
 
 /// Store VM MIDI events as one binding slice.
 pub(crate) fn store_events_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     values: Vec<MidiEventValue>,
 ) -> RuntimeResult<VmSlice<MidiEventVm>> {
     let events = values
@@ -139,7 +139,7 @@ pub(crate) fn store_event_native(binding: &BindingCallContext, value: MidiEventV
 
 /// Store one VM MIDI event.
 pub(crate) fn store_event_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: MidiEventValue,
 ) -> RuntimeResult<MidiEventVm> {
     value.into_vm(context)

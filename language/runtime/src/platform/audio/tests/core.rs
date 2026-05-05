@@ -96,10 +96,10 @@ impl DeterministicSequence {
 /// Return the mutable VM context when the harness is running in VM mode.
 pub(super) fn vm_context_mut<'context, 'call>(
     context: &'context mut AudioHarnessContext<'call>,
-) -> Option<&'context mut vm::ExternalCallContext<'call>> {
+) -> Option<&'context mut vm::BindingContext<'call>> {
     context
         .vm_context
-        .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
+        .map(|context| unsafe { &mut *(context as *mut vm::BindingContext<'_>) })
 }
 
 /// Build one harness string value for the current engine mode.
@@ -231,7 +231,7 @@ pub(super) fn harness_bytes(
 
 /// Build one VM nested slice from vm byte slices.
 fn vm_slice_of_slices(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     slices: &[VmSlice<u8>],
 ) -> RuntimeResult<VmSlice<VmSlice<u8>>> {
     let values = slices

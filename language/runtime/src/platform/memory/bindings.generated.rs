@@ -99,7 +99,7 @@ fn decode_uint64(
 /// Decode arguments for destack.memory.advise.adviseRange.
 #[inline]
 fn decode_destack_memory_advise_advise_range_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, u64, MemoryAdvice)> {
     let address_value = arg_value(args, 0, "address", "uint64")?;
@@ -128,7 +128,7 @@ fn decode_destack_memory_advise_advise_range_args(
 /// Encode the result for destack.memory.advise.adviseRange.
 #[inline]
 fn encode_destack_memory_advise_advise_range_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -137,7 +137,7 @@ fn encode_destack_memory_advise_advise_range_result(
 /// Decode arguments for destack.memory.advise.discard.
 #[inline]
 fn decode_destack_memory_advise_discard_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, u64)> {
     let address_value = arg_value(args, 0, "address", "uint64")?;
@@ -150,7 +150,7 @@ fn decode_destack_memory_advise_discard_args(
 /// Encode the result for destack.memory.advise.discard.
 #[inline]
 fn encode_destack_memory_advise_discard_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -159,7 +159,7 @@ fn encode_destack_memory_advise_discard_result(
 /// Decode arguments for destack.memory.lock.lockRange.
 #[inline]
 fn decode_destack_memory_lock_lock_range_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, u64)> {
     let address_value = arg_value(args, 0, "address", "uint64")?;
@@ -172,7 +172,7 @@ fn decode_destack_memory_lock_lock_range_args(
 /// Encode the result for destack.memory.lock.lockRange.
 #[inline]
 fn encode_destack_memory_lock_lock_range_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -181,7 +181,7 @@ fn encode_destack_memory_lock_lock_range_result(
 /// Decode arguments for destack.memory.lock.unlock.
 #[inline]
 fn decode_destack_memory_lock_unlock_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, u64)> {
     let address_value = arg_value(args, 0, "address", "uint64")?;
@@ -194,7 +194,7 @@ fn decode_destack_memory_lock_unlock_args(
 /// Encode the result for destack.memory.lock.unlock.
 #[inline]
 fn encode_destack_memory_lock_unlock_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -203,7 +203,7 @@ fn encode_destack_memory_lock_unlock_result(
 /// Decode arguments for destack.memory.map.allocate.
 #[inline]
 fn decode_destack_memory_map_allocate_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, u64, MemoryProtection, MemoryReserveFlags)> {
     let length_value = arg_value(args, 0, "length", "uint64")?;
@@ -222,7 +222,7 @@ fn decode_destack_memory_map_allocate_args(
 /// Encode the result for destack.memory.map.allocate.
 #[inline]
 fn encode_destack_memory_map_allocate_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<ProtectedMemoryRangeVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -247,7 +247,7 @@ fn encode_destack_memory_map_allocate_result(
 /// Decode arguments for destack.memory.map.commit.
 #[inline]
 fn decode_destack_memory_map_commit_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, u64, MemoryProtection)> {
     let address_value = arg_value(args, 0, "address", "uint64")?;
@@ -263,7 +263,7 @@ fn decode_destack_memory_map_commit_args(
 /// Encode the result for destack.memory.map.commit.
 #[inline]
 fn encode_destack_memory_map_commit_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -272,7 +272,7 @@ fn encode_destack_memory_map_commit_result(
 /// Decode arguments for destack.memory.map.decommit.
 #[inline]
 fn decode_destack_memory_map_decommit_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, u64)> {
     let address_value = arg_value(args, 0, "address", "uint64")?;
@@ -285,7 +285,7 @@ fn decode_destack_memory_map_decommit_args(
 /// Encode the result for destack.memory.map.decommit.
 #[inline]
 fn encode_destack_memory_map_decommit_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -294,7 +294,7 @@ fn encode_destack_memory_map_decommit_result(
 /// Decode arguments for destack.memory.map.release.
 #[inline]
 fn decode_destack_memory_map_release_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, u64)> {
     let address_value = arg_value(args, 0, "address", "uint64")?;
@@ -307,7 +307,7 @@ fn decode_destack_memory_map_release_args(
 /// Encode the result for destack.memory.map.release.
 #[inline]
 fn encode_destack_memory_map_release_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -316,7 +316,7 @@ fn encode_destack_memory_map_release_result(
 /// Decode arguments for destack.memory.map.reserve.
 #[inline]
 fn decode_destack_memory_map_reserve_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, u64, MemoryReserveFlags)> {
     let length_value = arg_value(args, 0, "length", "uint64")?;
@@ -332,7 +332,7 @@ fn decode_destack_memory_map_reserve_args(
 /// Encode the result for destack.memory.map.reserve.
 #[inline]
 fn encode_destack_memory_map_reserve_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<MemoryRangeVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -357,7 +357,7 @@ fn encode_destack_memory_map_reserve_result(
 /// Decode arguments for destack.memory.protect.flushInstructionCache.
 #[inline]
 fn decode_destack_memory_protect_flush_instruction_cache_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, u64)> {
     let address_value = arg_value(args, 0, "address", "uint64")?;
@@ -370,7 +370,7 @@ fn decode_destack_memory_protect_flush_instruction_cache_args(
 /// Encode the result for destack.memory.protect.flushInstructionCache.
 #[inline]
 fn encode_destack_memory_protect_flush_instruction_cache_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -379,7 +379,7 @@ fn encode_destack_memory_protect_flush_instruction_cache_result(
 /// Decode arguments for destack.memory.protect.protectRange.
 #[inline]
 fn decode_destack_memory_protect_protect_range_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, u64, MemoryProtection)> {
     let address_value = arg_value(args, 0, "address", "uint64")?;
@@ -395,7 +395,7 @@ fn decode_destack_memory_protect_protect_range_args(
 /// Encode the result for destack.memory.protect.protectRange.
 #[inline]
 fn encode_destack_memory_protect_protect_range_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -404,7 +404,7 @@ fn encode_destack_memory_protect_protect_range_result(
 /// Decode arguments for destack.memory.protect.remap.
 #[inline]
 fn decode_destack_memory_protect_remap_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, u64, u64, MemoryRemapFlags)> {
     let address_value = arg_value(args, 0, "address", "uint64")?;
@@ -422,7 +422,7 @@ fn decode_destack_memory_protect_remap_args(
 /// Encode the result for destack.memory.protect.remap.
 #[inline]
 fn encode_destack_memory_protect_remap_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<ProtectedMemoryRangeVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -447,7 +447,7 @@ fn encode_destack_memory_protect_remap_result(
 /// Encode the result for destack.memory.query.allocationGranularity.
 #[inline]
 fn encode_destack_memory_query_allocation_granularity_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -458,7 +458,7 @@ fn encode_destack_memory_query_allocation_granularity_result(
 /// Encode the result for destack.memory.query.hugePageSize.
 #[inline]
 fn encode_destack_memory_query_huge_page_size_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<Option<u64>>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -472,7 +472,7 @@ fn encode_destack_memory_query_huge_page_size_result(
 /// Encode the result for destack.memory.query.pageSize.
 #[inline]
 fn encode_destack_memory_query_page_size_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1964,7 +1964,7 @@ pub(crate) unsafe extern "C" fn destack_memory_query_page_size(out: *mut u64) ->
 #[inline]
 fn destack_memory_advise_advise_range_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
@@ -2016,7 +2016,7 @@ fn destack_memory_advise_advise_range_vm_replay(
 #[inline]
 fn destack_memory_advise_discard_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
@@ -2067,7 +2067,7 @@ fn destack_memory_advise_discard_vm_replay(
 #[inline]
 fn destack_memory_lock_lock_range_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
@@ -2118,7 +2118,7 @@ fn destack_memory_lock_lock_range_vm_replay(
 #[inline]
 fn destack_memory_lock_unlock_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
@@ -2169,7 +2169,7 @@ fn destack_memory_lock_unlock_vm_replay(
 #[inline]
 fn destack_memory_map_allocate_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     length: u64,
     addresshint: u64,
@@ -2246,7 +2246,7 @@ fn destack_memory_map_allocate_vm_replay(
 #[inline]
 fn destack_memory_map_commit_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
@@ -2298,7 +2298,7 @@ fn destack_memory_map_commit_vm_replay(
 #[inline]
 fn destack_memory_map_decommit_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
@@ -2349,7 +2349,7 @@ fn destack_memory_map_decommit_vm_replay(
 #[inline]
 fn destack_memory_map_release_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
@@ -2400,7 +2400,7 @@ fn destack_memory_map_release_vm_replay(
 #[inline]
 fn destack_memory_map_reserve_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     length: u64,
     addresshint: u64,
@@ -2470,7 +2470,7 @@ fn destack_memory_map_reserve_vm_replay(
 #[inline]
 fn destack_memory_protect_flush_instruction_cache_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
@@ -2523,7 +2523,7 @@ fn destack_memory_protect_flush_instruction_cache_vm_replay(
 #[inline]
 fn destack_memory_protect_protect_range_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
@@ -2575,7 +2575,7 @@ fn destack_memory_protect_protect_range_vm_replay(
 #[inline]
 fn destack_memory_protect_remap_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     address: u64,
     oldlength: u64,
@@ -2642,7 +2642,7 @@ fn destack_memory_protect_remap_vm_replay(
 #[inline]
 fn destack_memory_query_allocation_granularity_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -2695,7 +2695,7 @@ fn destack_memory_query_allocation_granularity_vm_replay(
 #[inline]
 fn destack_memory_query_huge_page_size_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -2756,7 +2756,7 @@ fn destack_memory_query_huge_page_size_vm_replay(
 #[inline]
 fn destack_memory_query_page_size_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(

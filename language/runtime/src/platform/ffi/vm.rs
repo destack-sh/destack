@@ -9,7 +9,7 @@ use destack_vm as vm;
 /// Binding for `destack.ffi.call.invoke`.
 pub(crate) fn destack_ffi_call(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     symbol: resource::SymbolHandle,
     abi: u32,
     flags: u32,
@@ -26,7 +26,7 @@ pub(crate) fn destack_ffi_call(
 /// Binding for `destack.ffi.library.close`.
 pub(crate) fn destack_ffi_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::LibraryHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -39,7 +39,7 @@ pub(crate) fn destack_ffi_close(
 /// Binding for `destack.ffi.library.open`.
 pub(crate) fn destack_ffi_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: fs::OsPathVm,
     flags: u32,
 ) -> RuntimeResult<resource::LibraryHandle> {
@@ -53,7 +53,7 @@ pub(crate) fn destack_ffi_open(
 /// Binding for `destack.ffi.pointer.address`.
 pub(crate) fn destack_ffi_address(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     pointer: FfiPointer,
 ) -> RuntimeResult<u64> {
     let _ = pointer;
@@ -66,7 +66,7 @@ pub(crate) fn destack_ffi_address(
 /// Binding for `destack.ffi.pointer.fromAddress`.
 pub(crate) fn destack_ffi_from_address(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: u64,
 ) -> RuntimeResult<FfiPointer> {
     let _ = address;
@@ -79,7 +79,7 @@ pub(crate) fn destack_ffi_from_address(
 /// Binding for `destack.ffi.symbol.address`.
 pub(crate) fn destack_ffi_symbol_address(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     symbol: resource::SymbolHandle,
 ) -> RuntimeResult<u64> {
     let _ = symbol;
@@ -92,7 +92,7 @@ pub(crate) fn destack_ffi_symbol_address(
 /// Binding for `destack.ffi.symbol.lookup`.
 pub(crate) fn destack_ffi_symbol_lookup(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     library: resource::LibraryHandle,
     name: vm::StringHandle,
 ) -> RuntimeResult<resource::SymbolHandle> {

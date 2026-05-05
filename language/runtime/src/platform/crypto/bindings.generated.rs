@@ -171,7 +171,7 @@ fn decode_uint64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -184,7 +184,7 @@ fn decode_string(
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -195,7 +195,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -206,7 +206,7 @@ fn decode_array<T>(
 /// Decode arguments for destack.crypto.agreement.deriveKey.
 #[inline]
 fn decode_destack_crypto_agreement_derive_key_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::CryptoKeyHandle,
@@ -241,7 +241,7 @@ fn decode_destack_crypto_agreement_derive_key_args(
 /// Encode the result for destack.crypto.agreement.deriveKey.
 #[inline]
 fn encode_destack_crypto_agreement_derive_key_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -253,7 +253,7 @@ fn encode_destack_crypto_agreement_derive_key_result(
 /// Decode arguments for destack.crypto.agreement.deriveSharedSecret.
 #[inline]
 fn decode_destack_crypto_agreement_derive_shared_secret_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::CryptoKeyHandle,
@@ -301,7 +301,7 @@ fn decode_destack_crypto_agreement_derive_shared_secret_args(
 /// Encode the result for destack.crypto.agreement.deriveSharedSecret.
 #[inline]
 fn encode_destack_crypto_agreement_derive_shared_secret_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -313,7 +313,7 @@ fn encode_destack_crypto_agreement_derive_shared_secret_result(
 /// Decode arguments for destack.crypto.certificate.delete.
 #[inline]
 fn decode_destack_crypto_certificate_delete_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoCertificateHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CryptoCertificateHandle")?;
@@ -330,7 +330,7 @@ fn decode_destack_crypto_certificate_delete_args(
 /// Encode the result for destack.crypto.certificate.delete.
 #[inline]
 fn encode_destack_crypto_certificate_delete_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -339,7 +339,7 @@ fn encode_destack_crypto_certificate_delete_result(
 /// Decode arguments for destack.crypto.certificate.descriptor.
 #[inline]
 fn decode_destack_crypto_certificate_descriptor_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoCertificateHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CryptoCertificateHandle")?;
@@ -356,7 +356,7 @@ fn decode_destack_crypto_certificate_descriptor_args(
 /// Encode the result for destack.crypto.certificate.descriptor.
 #[inline]
 fn encode_destack_crypto_certificate_descriptor_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CryptoCertificateDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -464,7 +464,7 @@ fn encode_destack_crypto_certificate_descriptor_result(
 /// Decode arguments for destack.crypto.certificate.export.
 #[inline]
 fn decode_destack_crypto_certificate_export_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoCertificateHandle, CryptoCertificateFormat)> {
     let handle_value = arg_value(args, 0, "handle", "CryptoCertificateHandle")?;
@@ -494,7 +494,7 @@ fn decode_destack_crypto_certificate_export_args(
 /// Encode the result for destack.crypto.certificate.export.
 #[inline]
 fn encode_destack_crypto_certificate_export_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -506,7 +506,7 @@ fn encode_destack_crypto_certificate_export_result(
 /// Decode arguments for destack.crypto.certificate.import.
 #[inline]
 fn decode_destack_crypto_certificate_import_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::CryptoStoreHandle,
@@ -540,7 +540,7 @@ fn decode_destack_crypto_certificate_import_args(
 /// Encode the result for destack.crypto.certificate.import.
 #[inline]
 fn encode_destack_crypto_certificate_import_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::CryptoCertificateHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -551,7 +551,7 @@ fn encode_destack_crypto_certificate_import_result(
 /// Decode arguments for destack.crypto.certificate.verify.
 #[inline]
 fn decode_destack_crypto_certificate_verify_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(CryptoCertificateVerifyRequestVm,)> {
     let context = &context.read();
@@ -566,7 +566,7 @@ fn decode_destack_crypto_certificate_verify_args(
 /// Encode the result for destack.crypto.certificate.verify.
 #[inline]
 fn encode_destack_crypto_certificate_verify_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CryptoCertificateVerifyResultVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -619,7 +619,7 @@ fn encode_destack_crypto_certificate_verify_result(
 /// Decode arguments for destack.crypto.cipher.close.
 #[inline]
 fn decode_destack_crypto_cipher_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoCipherHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CryptoCipherHandle")?;
@@ -633,7 +633,7 @@ fn decode_destack_crypto_cipher_close_args(
 /// Encode the result for destack.crypto.cipher.close.
 #[inline]
 fn encode_destack_crypto_cipher_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -642,7 +642,7 @@ fn encode_destack_crypto_cipher_close_result(
 /// Decode arguments for destack.crypto.cipher.decrypt.
 #[inline]
 fn decode_destack_crypto_cipher_decrypt_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::CryptoKeyHandle,
@@ -672,7 +672,7 @@ fn decode_destack_crypto_cipher_decrypt_args(
 /// Encode the result for destack.crypto.cipher.decrypt.
 #[inline]
 fn encode_destack_crypto_cipher_decrypt_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -684,7 +684,7 @@ fn encode_destack_crypto_cipher_decrypt_result(
 /// Decode arguments for destack.crypto.cipher.encrypt.
 #[inline]
 fn decode_destack_crypto_cipher_encrypt_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::CryptoKeyHandle,
@@ -714,7 +714,7 @@ fn decode_destack_crypto_cipher_encrypt_args(
 /// Encode the result for destack.crypto.cipher.encrypt.
 #[inline]
 fn encode_destack_crypto_cipher_encrypt_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CryptoCipherOutputVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -739,7 +739,7 @@ fn encode_destack_crypto_cipher_encrypt_result(
 /// Decode arguments for destack.crypto.cipher.finish.
 #[inline]
 fn decode_destack_crypto_cipher_finish_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoCipherHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -757,7 +757,7 @@ fn decode_destack_crypto_cipher_finish_args(
 /// Encode the result for destack.crypto.cipher.finish.
 #[inline]
 fn encode_destack_crypto_cipher_finish_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CryptoCipherOutputVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -782,7 +782,7 @@ fn encode_destack_crypto_cipher_finish_result(
 /// Decode arguments for destack.crypto.cipher.open.
 #[inline]
 fn decode_destack_crypto_cipher_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::CryptoKeyHandle,
@@ -818,7 +818,7 @@ fn decode_destack_crypto_cipher_open_args(
 /// Encode the result for destack.crypto.cipher.open.
 #[inline]
 fn encode_destack_crypto_cipher_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::CryptoCipherHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -829,7 +829,7 @@ fn encode_destack_crypto_cipher_open_result(
 /// Decode arguments for destack.crypto.cipher.reset.
 #[inline]
 fn decode_destack_crypto_cipher_reset_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoCipherHandle, CryptoCipherParametersVm)> {
     let context = &context.read();
@@ -849,7 +849,7 @@ fn decode_destack_crypto_cipher_reset_args(
 /// Encode the result for destack.crypto.cipher.reset.
 #[inline]
 fn encode_destack_crypto_cipher_reset_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -858,7 +858,7 @@ fn encode_destack_crypto_cipher_reset_result(
 /// Decode arguments for destack.crypto.cipher.update.
 #[inline]
 fn decode_destack_crypto_cipher_update_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoCipherHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -880,7 +880,7 @@ fn decode_destack_crypto_cipher_update_args(
 /// Encode the result for destack.crypto.cipher.update.
 #[inline]
 fn encode_destack_crypto_cipher_update_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -892,7 +892,7 @@ fn encode_destack_crypto_cipher_update_result(
 /// Decode arguments for destack.crypto.cipher.updateAdditionalData.
 #[inline]
 fn decode_destack_crypto_cipher_update_additional_data_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoCipherHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -914,7 +914,7 @@ fn decode_destack_crypto_cipher_update_additional_data_args(
 /// Encode the result for destack.crypto.cipher.updateAdditionalData.
 #[inline]
 fn encode_destack_crypto_cipher_update_additional_data_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -923,7 +923,7 @@ fn encode_destack_crypto_cipher_update_additional_data_result(
 /// Decode arguments for destack.crypto.digest.close.
 #[inline]
 fn decode_destack_crypto_digest_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoDigestHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CryptoDigestHandle")?;
@@ -937,7 +937,7 @@ fn decode_destack_crypto_digest_close_args(
 /// Encode the result for destack.crypto.digest.close.
 #[inline]
 fn encode_destack_crypto_digest_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -946,7 +946,7 @@ fn encode_destack_crypto_digest_close_result(
 /// Decode arguments for destack.crypto.digest.compute.
 #[inline]
 fn decode_destack_crypto_digest_compute_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(CryptoDigestAlgorithm, VmSlice<u8>)> {
     let context = &context.read();
@@ -985,7 +985,7 @@ fn decode_destack_crypto_digest_compute_args(
 /// Encode the result for destack.crypto.digest.compute.
 #[inline]
 fn encode_destack_crypto_digest_compute_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -997,7 +997,7 @@ fn encode_destack_crypto_digest_compute_result(
 /// Decode arguments for destack.crypto.digest.finish.
 #[inline]
 fn decode_destack_crypto_digest_finish_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoDigestHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CryptoDigestHandle")?;
@@ -1011,7 +1011,7 @@ fn decode_destack_crypto_digest_finish_args(
 /// Encode the result for destack.crypto.digest.finish.
 #[inline]
 fn encode_destack_crypto_digest_finish_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1023,7 +1023,7 @@ fn encode_destack_crypto_digest_finish_result(
 /// Decode arguments for destack.crypto.digest.open.
 #[inline]
 fn decode_destack_crypto_digest_open_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(CryptoDigestAlgorithm,)> {
     let algorithm_value = arg_value(args, 0, "algorithm", "CryptoDigestAlgorithm")?;
@@ -1054,7 +1054,7 @@ fn decode_destack_crypto_digest_open_args(
 /// Encode the result for destack.crypto.digest.open.
 #[inline]
 fn encode_destack_crypto_digest_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::CryptoDigestHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1065,7 +1065,7 @@ fn encode_destack_crypto_digest_open_result(
 /// Decode arguments for destack.crypto.digest.reset.
 #[inline]
 fn decode_destack_crypto_digest_reset_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoDigestHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CryptoDigestHandle")?;
@@ -1079,7 +1079,7 @@ fn decode_destack_crypto_digest_reset_args(
 /// Encode the result for destack.crypto.digest.reset.
 #[inline]
 fn encode_destack_crypto_digest_reset_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1088,7 +1088,7 @@ fn encode_destack_crypto_digest_reset_result(
 /// Decode arguments for destack.crypto.digest.update.
 #[inline]
 fn decode_destack_crypto_digest_update_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoDigestHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -1110,7 +1110,7 @@ fn decode_destack_crypto_digest_update_args(
 /// Encode the result for destack.crypto.digest.update.
 #[inline]
 fn encode_destack_crypto_digest_update_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1119,7 +1119,7 @@ fn encode_destack_crypto_digest_update_result(
 /// Decode arguments for destack.crypto.kdf.argon2id.
 #[inline]
 fn decode_destack_crypto_kdf_argon2id_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(CryptoArgon2idRequestVm,)> {
     let context = &context.read();
@@ -1132,7 +1132,7 @@ fn decode_destack_crypto_kdf_argon2id_args(
 /// Encode the result for destack.crypto.kdf.argon2id.
 #[inline]
 fn encode_destack_crypto_kdf_argon2id_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1144,7 +1144,7 @@ fn encode_destack_crypto_kdf_argon2id_result(
 /// Decode arguments for destack.crypto.kdf.hkdf.
 #[inline]
 fn decode_destack_crypto_kdf_hkdf_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(CryptoHkdfRequestVm,)> {
     let context = &context.read();
@@ -1157,7 +1157,7 @@ fn decode_destack_crypto_kdf_hkdf_args(
 /// Encode the result for destack.crypto.kdf.hkdf.
 #[inline]
 fn encode_destack_crypto_kdf_hkdf_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1169,7 +1169,7 @@ fn encode_destack_crypto_kdf_hkdf_result(
 /// Decode arguments for destack.crypto.kdf.pbkdf2.
 #[inline]
 fn decode_destack_crypto_kdf_pbkdf2_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(CryptoPbkdf2RequestVm,)> {
     let context = &context.read();
@@ -1182,7 +1182,7 @@ fn decode_destack_crypto_kdf_pbkdf2_args(
 /// Encode the result for destack.crypto.kdf.pbkdf2.
 #[inline]
 fn encode_destack_crypto_kdf_pbkdf2_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1194,7 +1194,7 @@ fn encode_destack_crypto_kdf_pbkdf2_result(
 /// Decode arguments for destack.crypto.kdf.scrypt.
 #[inline]
 fn decode_destack_crypto_kdf_scrypt_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(CryptoScryptRequestVm,)> {
     let context = &context.read();
@@ -1207,7 +1207,7 @@ fn decode_destack_crypto_kdf_scrypt_args(
 /// Encode the result for destack.crypto.kdf.scrypt.
 #[inline]
 fn encode_destack_crypto_kdf_scrypt_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1219,7 +1219,7 @@ fn encode_destack_crypto_kdf_scrypt_result(
 /// Decode arguments for destack.crypto.key.decrypt.
 #[inline]
 fn decode_destack_crypto_key_decrypt_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::CryptoKeyHandle,
@@ -1255,7 +1255,7 @@ fn decode_destack_crypto_key_decrypt_args(
 /// Encode the result for destack.crypto.key.decrypt.
 #[inline]
 fn encode_destack_crypto_key_decrypt_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1267,7 +1267,7 @@ fn encode_destack_crypto_key_decrypt_result(
 /// Decode arguments for destack.crypto.key.delete.
 #[inline]
 fn decode_destack_crypto_key_delete_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoKeyHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
@@ -1280,7 +1280,7 @@ fn decode_destack_crypto_key_delete_args(
 /// Encode the result for destack.crypto.key.delete.
 #[inline]
 fn encode_destack_crypto_key_delete_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1289,7 +1289,7 @@ fn encode_destack_crypto_key_delete_result(
 /// Decode arguments for destack.crypto.key.descriptor.
 #[inline]
 fn decode_destack_crypto_key_descriptor_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoKeyHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
@@ -1302,7 +1302,7 @@ fn decode_destack_crypto_key_descriptor_args(
 /// Encode the result for destack.crypto.key.descriptor.
 #[inline]
 fn encode_destack_crypto_key_descriptor_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CryptoKeyDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2235,7 +2235,7 @@ fn encode_destack_crypto_key_descriptor_result(
 /// Decode arguments for destack.crypto.key.encrypt.
 #[inline]
 fn decode_destack_crypto_key_encrypt_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::CryptoKeyHandle,
@@ -2271,7 +2271,7 @@ fn decode_destack_crypto_key_encrypt_args(
 /// Encode the result for destack.crypto.key.encrypt.
 #[inline]
 fn encode_destack_crypto_key_encrypt_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2283,7 +2283,7 @@ fn encode_destack_crypto_key_encrypt_result(
 /// Decode arguments for destack.crypto.key.exportPrivate.
 #[inline]
 fn decode_destack_crypto_key_export_private_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoKeyHandle, CryptoPrivateKeyExportRequestVm)> {
     let context = &context.read();
@@ -2302,7 +2302,7 @@ fn decode_destack_crypto_key_export_private_args(
 /// Encode the result for destack.crypto.key.exportPrivate.
 #[inline]
 fn encode_destack_crypto_key_export_private_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2314,7 +2314,7 @@ fn encode_destack_crypto_key_export_private_result(
 /// Decode arguments for destack.crypto.key.exportPublic.
 #[inline]
 fn decode_destack_crypto_key_export_public_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoKeyHandle, CryptoKeyFormat)> {
     let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
@@ -2349,7 +2349,7 @@ fn decode_destack_crypto_key_export_public_args(
 /// Encode the result for destack.crypto.key.exportPublic.
 #[inline]
 fn encode_destack_crypto_key_export_public_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2361,7 +2361,7 @@ fn encode_destack_crypto_key_export_public_result(
 /// Decode arguments for destack.crypto.key.exportSecret.
 #[inline]
 fn decode_destack_crypto_key_export_secret_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoKeyHandle, CryptoKeyFormat)> {
     let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
@@ -2396,7 +2396,7 @@ fn decode_destack_crypto_key_export_secret_args(
 /// Encode the result for destack.crypto.key.exportSecret.
 #[inline]
 fn encode_destack_crypto_key_export_secret_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2408,7 +2408,7 @@ fn encode_destack_crypto_key_export_secret_result(
 /// Decode arguments for destack.crypto.key.generatePair.
 #[inline]
 fn decode_destack_crypto_key_generate_pair_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoStoreHandle, CryptoKeyGenerationRequestVm)> {
     let context = &context.read();
@@ -2427,7 +2427,7 @@ fn decode_destack_crypto_key_generate_pair_args(
 /// Encode the result for destack.crypto.key.generatePair.
 #[inline]
 fn encode_destack_crypto_key_generate_pair_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CryptoKeyPairVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2452,7 +2452,7 @@ fn encode_destack_crypto_key_generate_pair_result(
 /// Decode arguments for destack.crypto.key.generateSecret.
 #[inline]
 fn decode_destack_crypto_key_generate_secret_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoStoreHandle, CryptoKeyGenerationRequestVm)> {
     let context = &context.read();
@@ -2471,7 +2471,7 @@ fn decode_destack_crypto_key_generate_secret_args(
 /// Encode the result for destack.crypto.key.generateSecret.
 #[inline]
 fn encode_destack_crypto_key_generate_secret_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::CryptoKeyHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2482,7 +2482,7 @@ fn encode_destack_crypto_key_generate_secret_result(
 /// Decode arguments for destack.crypto.key.import.
 #[inline]
 fn decode_destack_crypto_key_import_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoStoreHandle, CryptoKeyImportRequestVm)> {
     let context = &context.read();
@@ -2501,7 +2501,7 @@ fn decode_destack_crypto_key_import_args(
 /// Encode the result for destack.crypto.key.import.
 #[inline]
 fn encode_destack_crypto_key_import_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::CryptoKeyHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2512,7 +2512,7 @@ fn encode_destack_crypto_key_import_result(
 /// Decode arguments for destack.crypto.key.sign.
 #[inline]
 fn decode_destack_crypto_key_sign_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::CryptoKeyHandle,
@@ -2542,7 +2542,7 @@ fn decode_destack_crypto_key_sign_args(
 /// Encode the result for destack.crypto.key.sign.
 #[inline]
 fn encode_destack_crypto_key_sign_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2554,7 +2554,7 @@ fn encode_destack_crypto_key_sign_result(
 /// Decode arguments for destack.crypto.key.unwrap.
 #[inline]
 fn decode_destack_crypto_key_unwrap_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::CryptoStoreHandle,
@@ -2594,7 +2594,7 @@ fn decode_destack_crypto_key_unwrap_args(
 /// Encode the result for destack.crypto.key.unwrap.
 #[inline]
 fn encode_destack_crypto_key_unwrap_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::CryptoKeyHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2605,7 +2605,7 @@ fn encode_destack_crypto_key_unwrap_result(
 /// Decode arguments for destack.crypto.key.verify.
 #[inline]
 fn decode_destack_crypto_key_verify_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::CryptoKeyHandle,
@@ -2638,7 +2638,7 @@ fn decode_destack_crypto_key_verify_args(
 /// Encode the result for destack.crypto.key.verify.
 #[inline]
 fn encode_destack_crypto_key_verify_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2649,7 +2649,7 @@ fn encode_destack_crypto_key_verify_result(
 /// Decode arguments for destack.crypto.key.wrap.
 #[inline]
 fn decode_destack_crypto_key_wrap_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::CryptoKeyHandle,
@@ -2704,7 +2704,7 @@ fn decode_destack_crypto_key_wrap_args(
 /// Encode the result for destack.crypto.key.wrap.
 #[inline]
 fn encode_destack_crypto_key_wrap_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2716,7 +2716,7 @@ fn encode_destack_crypto_key_wrap_result(
 /// Decode arguments for destack.crypto.mac.close.
 #[inline]
 fn decode_destack_crypto_mac_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoMacHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CryptoMacHandle")?;
@@ -2729,7 +2729,7 @@ fn decode_destack_crypto_mac_close_args(
 /// Encode the result for destack.crypto.mac.close.
 #[inline]
 fn encode_destack_crypto_mac_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2738,7 +2738,7 @@ fn encode_destack_crypto_mac_close_result(
 /// Decode arguments for destack.crypto.mac.compute.
 #[inline]
 fn decode_destack_crypto_mac_compute_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::CryptoKeyHandle,
@@ -2768,7 +2768,7 @@ fn decode_destack_crypto_mac_compute_args(
 /// Encode the result for destack.crypto.mac.compute.
 #[inline]
 fn encode_destack_crypto_mac_compute_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2780,7 +2780,7 @@ fn encode_destack_crypto_mac_compute_result(
 /// Decode arguments for destack.crypto.mac.finish.
 #[inline]
 fn decode_destack_crypto_mac_finish_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoMacHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CryptoMacHandle")?;
@@ -2793,7 +2793,7 @@ fn decode_destack_crypto_mac_finish_args(
 /// Encode the result for destack.crypto.mac.finish.
 #[inline]
 fn encode_destack_crypto_mac_finish_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2805,7 +2805,7 @@ fn encode_destack_crypto_mac_finish_result(
 /// Decode arguments for destack.crypto.mac.open.
 #[inline]
 fn decode_destack_crypto_mac_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoKeyHandle, CryptoMacParametersVm)> {
     let context = &context.read();
@@ -2824,7 +2824,7 @@ fn decode_destack_crypto_mac_open_args(
 /// Encode the result for destack.crypto.mac.open.
 #[inline]
 fn encode_destack_crypto_mac_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::CryptoMacHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2835,7 +2835,7 @@ fn encode_destack_crypto_mac_open_result(
 /// Decode arguments for destack.crypto.mac.reset.
 #[inline]
 fn decode_destack_crypto_mac_reset_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoMacHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CryptoMacHandle")?;
@@ -2848,7 +2848,7 @@ fn decode_destack_crypto_mac_reset_args(
 /// Encode the result for destack.crypto.mac.reset.
 #[inline]
 fn encode_destack_crypto_mac_reset_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2857,7 +2857,7 @@ fn encode_destack_crypto_mac_reset_result(
 /// Decode arguments for destack.crypto.mac.update.
 #[inline]
 fn decode_destack_crypto_mac_update_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoMacHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -2878,7 +2878,7 @@ fn decode_destack_crypto_mac_update_args(
 /// Encode the result for destack.crypto.mac.update.
 #[inline]
 fn encode_destack_crypto_mac_update_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2887,7 +2887,7 @@ fn encode_destack_crypto_mac_update_result(
 /// Decode arguments for destack.crypto.mac.verify.
 #[inline]
 fn decode_destack_crypto_mac_verify_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::CryptoKeyHandle,
@@ -2920,7 +2920,7 @@ fn decode_destack_crypto_mac_verify_args(
 /// Encode the result for destack.crypto.mac.verify.
 #[inline]
 fn encode_destack_crypto_mac_verify_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2931,7 +2931,7 @@ fn encode_destack_crypto_mac_verify_result(
 /// Encode the result for destack.crypto.probe.agreementAlgorithms.
 #[inline]
 fn encode_destack_crypto_probe_agreement_algorithms_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKeyAgreementAlgorithm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2943,7 +2943,7 @@ fn encode_destack_crypto_probe_agreement_algorithms_result(
 /// Encode the result for destack.crypto.probe.cipherAlgorithms.
 #[inline]
 fn encode_destack_crypto_probe_cipher_algorithms_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<CryptoCipherAlgorithm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2955,7 +2955,7 @@ fn encode_destack_crypto_probe_cipher_algorithms_result(
 /// Encode the result for destack.crypto.probe.digestAlgorithms.
 #[inline]
 fn encode_destack_crypto_probe_digest_algorithms_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<CryptoDigestAlgorithm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2967,7 +2967,7 @@ fn encode_destack_crypto_probe_digest_algorithms_result(
 /// Encode the result for destack.crypto.probe.kdfAlgorithms.
 #[inline]
 fn encode_destack_crypto_probe_kdf_algorithms_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKdfAlgorithm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2979,7 +2979,7 @@ fn encode_destack_crypto_probe_kdf_algorithms_result(
 /// Encode the result for destack.crypto.probe.keyAlgorithms.
 #[inline]
 fn encode_destack_crypto_probe_key_algorithms_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKeyAlgorithm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2991,7 +2991,7 @@ fn encode_destack_crypto_probe_key_algorithms_result(
 /// Encode the result for destack.crypto.probe.keyFormats.
 #[inline]
 fn encode_destack_crypto_probe_key_formats_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKeyFormat>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3003,7 +3003,7 @@ fn encode_destack_crypto_probe_key_formats_result(
 /// Encode the result for destack.crypto.probe.keyResidencies.
 #[inline]
 fn encode_destack_crypto_probe_key_residencies_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKeyResidency>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3015,7 +3015,7 @@ fn encode_destack_crypto_probe_key_residencies_result(
 /// Encode the result for destack.crypto.probe.keyWrapAlgorithms.
 #[inline]
 fn encode_destack_crypto_probe_key_wrap_algorithms_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKeyWrapAlgorithm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3027,7 +3027,7 @@ fn encode_destack_crypto_probe_key_wrap_algorithms_result(
 /// Encode the result for destack.crypto.probe.macAlgorithms.
 #[inline]
 fn encode_destack_crypto_probe_mac_algorithms_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<CryptoMacAlgorithm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3039,7 +3039,7 @@ fn encode_destack_crypto_probe_mac_algorithms_result(
 /// Encode the result for destack.crypto.probe.namedCurves.
 #[inline]
 fn encode_destack_crypto_probe_named_curves_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<CryptoNamedCurve>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3051,7 +3051,7 @@ fn encode_destack_crypto_probe_named_curves_result(
 /// Encode the result for destack.crypto.probe.signatureAlgorithms.
 #[inline]
 fn encode_destack_crypto_probe_signature_algorithms_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<CryptoSignatureAlgorithm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3063,7 +3063,7 @@ fn encode_destack_crypto_probe_signature_algorithms_result(
 /// Decode arguments for destack.crypto.random.bytes.
 #[inline]
 fn decode_destack_crypto_random_bytes_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u32,)> {
     let length_value = arg_value(args, 0, "length", "uint32")?;
@@ -3074,7 +3074,7 @@ fn decode_destack_crypto_random_bytes_args(
 /// Encode the result for destack.crypto.random.bytes.
 #[inline]
 fn encode_destack_crypto_random_bytes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3086,7 +3086,7 @@ fn encode_destack_crypto_random_bytes_result(
 /// Decode arguments for destack.crypto.random.fill.
 #[inline]
 fn decode_destack_crypto_random_fill_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(VmSlice<u8>,)> {
     let context = &context.read();
@@ -3098,7 +3098,7 @@ fn decode_destack_crypto_random_fill_args(
 /// Encode the result for destack.crypto.random.fill.
 #[inline]
 fn encode_destack_crypto_random_fill_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3107,7 +3107,7 @@ fn encode_destack_crypto_random_fill_result(
 /// Decode arguments for destack.crypto.store.close.
 #[inline]
 fn decode_destack_crypto_store_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoStoreHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CryptoStoreHandle")?;
@@ -3121,7 +3121,7 @@ fn decode_destack_crypto_store_close_args(
 /// Encode the result for destack.crypto.store.close.
 #[inline]
 fn encode_destack_crypto_store_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3130,7 +3130,7 @@ fn encode_destack_crypto_store_close_result(
 /// Decode arguments for destack.crypto.store.listCertificates.
 #[inline]
 fn decode_destack_crypto_store_list_certificates_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoStoreHandle, CryptoCertificateQueryVm)> {
     let context = &context.read();
@@ -3148,7 +3148,7 @@ fn decode_destack_crypto_store_list_certificates_args(
 /// Encode the result for destack.crypto.store.listCertificates.
 #[inline]
 fn encode_destack_crypto_store_list_certificates_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CryptoCertificateListPageVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3176,7 +3176,7 @@ fn encode_destack_crypto_store_list_certificates_result(
 /// Decode arguments for destack.crypto.store.listKeys.
 #[inline]
 fn decode_destack_crypto_store_list_keys_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CryptoStoreHandle, CryptoKeyQueryVm)> {
     let context = &context.read();
@@ -3193,7 +3193,7 @@ fn decode_destack_crypto_store_list_keys_args(
 /// Encode the result for destack.crypto.store.listKeys.
 #[inline]
 fn encode_destack_crypto_store_list_keys_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CryptoKeyListPageVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3221,7 +3221,7 @@ fn encode_destack_crypto_store_list_keys_result(
 /// Decode arguments for destack.crypto.store.open.
 #[inline]
 fn decode_destack_crypto_store_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(CryptoStoreOptionsVm,)> {
     let context = &context.read();
@@ -3234,7 +3234,7 @@ fn decode_destack_crypto_store_open_args(
 /// Encode the result for destack.crypto.store.open.
 #[inline]
 fn encode_destack_crypto_store_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::CryptoStoreHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3245,7 +3245,7 @@ fn encode_destack_crypto_store_open_result(
 /// Decode arguments for destack.crypto.store.probeCapability.
 #[inline]
 fn decode_destack_crypto_store_probe_capability_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(CryptoStoreKind, Option<CryptoStoreProvider>)> {
     let kind_value = arg_value(args, 0, "kind", "CryptoStoreKind")?;
@@ -3288,7 +3288,7 @@ fn decode_destack_crypto_store_probe_capability_args(
 /// Encode the result for destack.crypto.store.probeCapability.
 #[inline]
 fn encode_destack_crypto_store_probe_capability_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CryptoStoreCapabilityVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3437,7 +3437,7 @@ fn encode_destack_crypto_store_probe_capability_result(
 /// Encode the result for destack.crypto.store.probeKinds.
 #[inline]
 fn encode_destack_crypto_store_probe_kinds_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<CryptoStoreKind>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -7927,7 +7927,7 @@ pub(crate) unsafe extern "C" fn destack_crypto_store_probe_kinds(
 #[inline]
 fn destack_crypto_probe_agreement_algorithms_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -8011,7 +8011,7 @@ fn destack_crypto_probe_agreement_algorithms_vm_replay(
 #[inline]
 fn destack_crypto_probe_cipher_algorithms_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -8096,7 +8096,7 @@ fn destack_crypto_probe_cipher_algorithms_vm_replay(
 #[inline]
 fn destack_crypto_probe_digest_algorithms_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -8187,7 +8187,7 @@ fn destack_crypto_probe_digest_algorithms_vm_replay(
 #[inline]
 fn destack_crypto_probe_kdf_algorithms_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -8272,7 +8272,7 @@ fn destack_crypto_probe_kdf_algorithms_vm_replay(
 #[inline]
 fn destack_crypto_probe_key_algorithms_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -8362,7 +8362,7 @@ fn destack_crypto_probe_key_algorithms_vm_replay(
 #[inline]
 fn destack_crypto_probe_key_formats_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -8451,7 +8451,7 @@ fn destack_crypto_probe_key_formats_vm_replay(
 #[inline]
 fn destack_crypto_probe_key_residencies_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -8535,7 +8535,7 @@ fn destack_crypto_probe_key_residencies_vm_replay(
 #[inline]
 fn destack_crypto_probe_key_wrap_algorithms_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -8619,7 +8619,7 @@ fn destack_crypto_probe_key_wrap_algorithms_vm_replay(
 #[inline]
 fn destack_crypto_probe_mac_algorithms_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -8701,7 +8701,7 @@ fn destack_crypto_probe_mac_algorithms_vm_replay(
 #[inline]
 fn destack_crypto_probe_named_curves_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -8788,7 +8788,7 @@ fn destack_crypto_probe_named_curves_vm_replay(
 #[inline]
 fn destack_crypto_probe_signature_algorithms_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -8874,7 +8874,7 @@ fn destack_crypto_probe_signature_algorithms_vm_replay(
 #[inline]
 fn destack_crypto_store_probe_capability_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     kind: CryptoStoreKind,
     provider: Option<CryptoStoreProvider>,
@@ -9443,7 +9443,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
 #[inline]
 fn destack_crypto_store_probe_kinds_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(

@@ -127,7 +127,7 @@ fn decode_uint64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -140,7 +140,7 @@ fn decode_string(
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -151,7 +151,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -162,7 +162,7 @@ fn decode_array<T>(
 /// Decode arguments for destack.io.completion.cancel.
 #[inline]
 fn decode_destack_io_completion_cancel_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CompletionHandle, resource::ResourceId)> {
     let handle_value = arg_value(args, 0, "handle", "CompletionHandle")?;
@@ -178,7 +178,7 @@ fn decode_destack_io_completion_cancel_args(
 /// Encode the result for destack.io.completion.cancel.
 #[inline]
 fn encode_destack_io_completion_cancel_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -189,7 +189,7 @@ fn encode_destack_io_completion_cancel_result(
 /// Decode arguments for destack.io.completion.close.
 #[inline]
 fn decode_destack_io_completion_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CompletionHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "CompletionHandle")?;
@@ -202,7 +202,7 @@ fn decode_destack_io_completion_close_args(
 /// Encode the result for destack.io.completion.close.
 #[inline]
 fn encode_destack_io_completion_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -211,7 +211,7 @@ fn encode_destack_io_completion_close_result(
 /// Decode arguments for destack.io.completion.enter.
 #[inline]
 fn decode_destack_io_completion_enter_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CompletionHandle, u32, u64, u32)> {
     let handle_value = arg_value(args, 0, "handle", "CompletionHandle")?;
@@ -230,7 +230,7 @@ fn decode_destack_io_completion_enter_args(
 /// Encode the result for destack.io.completion.enter.
 #[inline]
 fn encode_destack_io_completion_enter_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -241,7 +241,7 @@ fn encode_destack_io_completion_enter_result(
 /// Decode arguments for destack.io.completion.open.
 #[inline]
 fn decode_destack_io_completion_open_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u32,)> {
     let entries_value = arg_value(args, 0, "entries", "uint32")?;
@@ -252,7 +252,7 @@ fn decode_destack_io_completion_open_args(
 /// Encode the result for destack.io.completion.open.
 #[inline]
 fn encode_destack_io_completion_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::CompletionHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -263,7 +263,7 @@ fn encode_destack_io_completion_open_result(
 /// Decode arguments for destack.io.completion.submit.
 #[inline]
 fn decode_destack_io_completion_submit_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CompletionHandle, CompletionOperationVm)> {
     let context = &context.read();
@@ -280,7 +280,7 @@ fn decode_destack_io_completion_submit_args(
 /// Encode the result for destack.io.completion.submit.
 #[inline]
 fn encode_destack_io_completion_submit_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -289,7 +289,7 @@ fn encode_destack_io_completion_submit_result(
 /// Decode arguments for destack.io.completion.submitBatch.
 #[inline]
 fn decode_destack_io_completion_submit_batch_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CompletionHandle, VmSlice<u64>, u32, u32)> {
     let context = &context.read();
@@ -315,7 +315,7 @@ fn decode_destack_io_completion_submit_batch_args(
 /// Encode the result for destack.io.completion.submitBatch.
 #[inline]
 fn encode_destack_io_completion_submit_batch_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -326,7 +326,7 @@ fn encode_destack_io_completion_submit_batch_result(
 /// Decode arguments for destack.io.completion.wait.
 #[inline]
 fn decode_destack_io_completion_wait_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::CompletionHandle, u64, u32)> {
     let handle_value = arg_value(args, 0, "handle", "CompletionHandle")?;
@@ -343,7 +343,7 @@ fn decode_destack_io_completion_wait_args(
 /// Encode the result for destack.io.completion.wait.
 #[inline]
 fn encode_destack_io_completion_wait_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<CompletionEventVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -355,7 +355,7 @@ fn encode_destack_io_completion_wait_result(
 /// Decode arguments for destack.io.control.fcntl.
 #[inline]
 fn decode_destack_io_control_fcntl_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::ResourceId,
@@ -380,7 +380,7 @@ fn decode_destack_io_control_fcntl_args(
 /// Encode the result for destack.io.control.fcntl.
 #[inline]
 fn encode_destack_io_control_fcntl_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<i64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -391,7 +391,7 @@ fn encode_destack_io_control_fcntl_result(
 /// Decode arguments for destack.io.control.ioctl.
 #[inline]
 fn decode_destack_io_control_ioctl_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::ResourceId, DescriptorRequestVm)> {
     let context = &context.read();
@@ -407,7 +407,7 @@ fn decode_destack_io_control_ioctl_args(
 /// Encode the result for destack.io.control.ioctl.
 #[inline]
 fn encode_destack_io_control_ioctl_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<DescriptorResultVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -432,7 +432,7 @@ fn encode_destack_io_control_ioctl_result(
 /// Decode arguments for destack.io.device.close.
 #[inline]
 fn decode_destack_io_device_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DeviceHandle")?;
@@ -445,7 +445,7 @@ fn decode_destack_io_device_close_args(
 /// Encode the result for destack.io.device.close.
 #[inline]
 fn encode_destack_io_device_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -454,7 +454,7 @@ fn encode_destack_io_device_close_result(
 /// Decode arguments for destack.io.device.control.
 #[inline]
 fn decode_destack_io_device_control_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DeviceHandle, DescriptorRequestVm)> {
     let context = &context.read();
@@ -471,7 +471,7 @@ fn decode_destack_io_device_control_args(
 /// Encode the result for destack.io.device.control.
 #[inline]
 fn encode_destack_io_device_control_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<DescriptorResultVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -496,7 +496,7 @@ fn encode_destack_io_device_control_result(
 /// Decode arguments for destack.io.device.open.
 #[inline]
 fn decode_destack_io_device_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(fs::OsPathVm, u32, u32)> {
     let context = &context.read();
@@ -512,7 +512,7 @@ fn decode_destack_io_device_open_args(
 /// Encode the result for destack.io.device.open.
 #[inline]
 fn encode_destack_io_device_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::DeviceHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -523,7 +523,7 @@ fn encode_destack_io_device_open_result(
 /// Decode arguments for destack.io.device.read.
 #[inline]
 fn decode_destack_io_device_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DeviceHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -539,7 +539,7 @@ fn decode_destack_io_device_read_args(
 /// Encode the result for destack.io.device.read.
 #[inline]
 fn encode_destack_io_device_read_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -550,7 +550,7 @@ fn encode_destack_io_device_read_result(
 /// Decode arguments for destack.io.device.write.
 #[inline]
 fn decode_destack_io_device_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DeviceHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -566,7 +566,7 @@ fn decode_destack_io_device_write_args(
 /// Encode the result for destack.io.device.write.
 #[inline]
 fn encode_destack_io_device_write_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -577,7 +577,7 @@ fn encode_destack_io_device_write_result(
 /// Decode arguments for destack.io.event.attach.
 #[inline]
 fn decode_destack_io_event_attach_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(EventToken, resource::ResourceId, u64)> {
     let token_value = arg_value(args, 0, "token", "EventToken")?;
@@ -594,7 +594,7 @@ fn decode_destack_io_event_attach_args(
 /// Encode the result for destack.io.event.attach.
 #[inline]
 fn encode_destack_io_event_attach_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -603,7 +603,7 @@ fn encode_destack_io_event_attach_result(
 /// Decode arguments for destack.io.event.close.
 #[inline]
 fn decode_destack_io_event_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(EventToken,)> {
     let token_value = arg_value(args, 0, "token", "EventToken")?;
@@ -615,7 +615,7 @@ fn decode_destack_io_event_close_args(
 /// Encode the result for destack.io.event.close.
 #[inline]
 fn encode_destack_io_event_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -624,7 +624,7 @@ fn encode_destack_io_event_close_result(
 /// Decode arguments for destack.io.event.open.
 #[inline]
 fn decode_destack_io_event_open_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64,)> {
     let initial_value = arg_value(args, 0, "initial", "uint64")?;
@@ -635,7 +635,7 @@ fn decode_destack_io_event_open_args(
 /// Encode the result for destack.io.event.open.
 #[inline]
 fn encode_destack_io_event_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<EventToken>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -646,7 +646,7 @@ fn encode_destack_io_event_open_result(
 /// Decode arguments for destack.io.event.signal.
 #[inline]
 fn decode_destack_io_event_signal_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(EventToken, u64)> {
     let token_value = arg_value(args, 0, "token", "EventToken")?;
@@ -660,7 +660,7 @@ fn decode_destack_io_event_signal_args(
 /// Encode the result for destack.io.event.signal.
 #[inline]
 fn encode_destack_io_event_signal_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -669,7 +669,7 @@ fn encode_destack_io_event_signal_result(
 /// Decode arguments for destack.io.poll.close.
 #[inline]
 fn decode_destack_io_poll_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::PollHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "PollHandle")?;
@@ -682,7 +682,7 @@ fn decode_destack_io_poll_close_args(
 /// Encode the result for destack.io.poll.close.
 #[inline]
 fn encode_destack_io_poll_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -691,7 +691,7 @@ fn encode_destack_io_poll_close_result(
 /// Decode arguments for destack.io.poll.deregister.
 #[inline]
 fn decode_destack_io_poll_deregister_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::PollHandle, resource::ResourceId)> {
     let handle_value = arg_value(args, 0, "handle", "PollHandle")?;
@@ -707,7 +707,7 @@ fn decode_destack_io_poll_deregister_args(
 /// Encode the result for destack.io.poll.deregister.
 #[inline]
 fn encode_destack_io_poll_deregister_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -716,7 +716,7 @@ fn encode_destack_io_poll_deregister_result(
 /// Decode arguments for destack.io.poll.open.
 #[inline]
 fn decode_destack_io_poll_open_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(PollBackend,)> {
     let backend_value = arg_value(args, 0, "backend", "PollBackend")?;
@@ -740,7 +740,7 @@ fn decode_destack_io_poll_open_args(
 /// Encode the result for destack.io.poll.open.
 #[inline]
 fn encode_destack_io_poll_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::PollHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -751,7 +751,7 @@ fn encode_destack_io_poll_open_result(
 /// Decode arguments for destack.io.poll.register.
 #[inline]
 fn decode_destack_io_poll_register_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::PollHandle,
@@ -777,7 +777,7 @@ fn decode_destack_io_poll_register_args(
 /// Encode the result for destack.io.poll.register.
 #[inline]
 fn encode_destack_io_poll_register_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -786,7 +786,7 @@ fn encode_destack_io_poll_register_result(
 /// Decode arguments for destack.io.poll.update.
 #[inline]
 fn decode_destack_io_poll_update_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::PollHandle,
@@ -812,7 +812,7 @@ fn decode_destack_io_poll_update_args(
 /// Encode the result for destack.io.poll.update.
 #[inline]
 fn encode_destack_io_poll_update_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -821,7 +821,7 @@ fn encode_destack_io_poll_update_result(
 /// Decode arguments for destack.io.poll.wait.
 #[inline]
 fn decode_destack_io_poll_wait_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::PollHandle, u64, u32)> {
     let handle_value = arg_value(args, 0, "handle", "PollHandle")?;
@@ -838,7 +838,7 @@ fn decode_destack_io_poll_wait_args(
 /// Encode the result for destack.io.poll.wait.
 #[inline]
 fn encode_destack_io_poll_wait_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<PollEventVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -850,7 +850,7 @@ fn encode_destack_io_poll_wait_result(
 /// Decode arguments for destack.io.timerfd.close.
 #[inline]
 fn decode_destack_io_timerfd_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TimerFdHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TimerFdHandle")?;
@@ -863,7 +863,7 @@ fn decode_destack_io_timerfd_close_args(
 /// Encode the result for destack.io.timerfd.close.
 #[inline]
 fn encode_destack_io_timerfd_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -872,7 +872,7 @@ fn encode_destack_io_timerfd_close_result(
 /// Decode arguments for destack.io.timerfd.get.
 #[inline]
 fn decode_destack_io_timerfd_get_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TimerFdHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TimerFdHandle")?;
@@ -885,7 +885,7 @@ fn decode_destack_io_timerfd_get_args(
 /// Encode the result for destack.io.timerfd.get.
 #[inline]
 fn encode_destack_io_timerfd_get_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<TimerFdSpecVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -910,7 +910,7 @@ fn encode_destack_io_timerfd_get_result(
 /// Decode arguments for destack.io.timerfd.open.
 #[inline]
 fn decode_destack_io_timerfd_open_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(TimerFdClock, TimerFdFlags)> {
     let clock_value = arg_value(args, 0, "clock", "TimerFdClock")?;
@@ -936,7 +936,7 @@ fn decode_destack_io_timerfd_open_args(
 /// Encode the result for destack.io.timerfd.open.
 #[inline]
 fn encode_destack_io_timerfd_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::TimerFdHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -947,7 +947,7 @@ fn encode_destack_io_timerfd_open_result(
 /// Decode arguments for destack.io.timerfd.read.
 #[inline]
 fn decode_destack_io_timerfd_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TimerFdHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TimerFdHandle")?;
@@ -960,7 +960,7 @@ fn decode_destack_io_timerfd_read_args(
 /// Encode the result for destack.io.timerfd.read.
 #[inline]
 fn encode_destack_io_timerfd_read_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -971,7 +971,7 @@ fn encode_destack_io_timerfd_read_result(
 /// Decode arguments for destack.io.timerfd.set.
 #[inline]
 fn decode_destack_io_timerfd_set_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TimerFdHandle, TimerFdSpecVm, TimerFdSetFlags)> {
     let context = &context.read();
@@ -990,7 +990,7 @@ fn decode_destack_io_timerfd_set_args(
 /// Encode the result for destack.io.timerfd.set.
 #[inline]
 fn encode_destack_io_timerfd_set_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -999,7 +999,7 @@ fn encode_destack_io_timerfd_set_result(
 /// Decode arguments for destack.io.uring.close.
 #[inline]
 fn decode_destack_io_uring_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UringHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "UringHandle")?;
@@ -1012,7 +1012,7 @@ fn decode_destack_io_uring_close_args(
 /// Encode the result for destack.io.uring.close.
 #[inline]
 fn encode_destack_io_uring_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1021,7 +1021,7 @@ fn encode_destack_io_uring_close_result(
 /// Decode arguments for destack.io.uring.features.
 #[inline]
 fn decode_destack_io_uring_features_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UringHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "UringHandle")?;
@@ -1034,7 +1034,7 @@ fn decode_destack_io_uring_features_args(
 /// Encode the result for destack.io.uring.features.
 #[inline]
 fn encode_destack_io_uring_features_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<UringFeaturesVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1071,7 +1071,7 @@ fn encode_destack_io_uring_features_result(
 /// Decode arguments for destack.io.uring.open.
 #[inline]
 fn decode_destack_io_uring_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(UringParametersVm,)> {
     let context = &context.read();
@@ -1084,7 +1084,7 @@ fn decode_destack_io_uring_open_args(
 /// Encode the result for destack.io.uring.open.
 #[inline]
 fn encode_destack_io_uring_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::UringHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1095,7 +1095,7 @@ fn encode_destack_io_uring_open_result(
 /// Decode arguments for destack.io.uring.registerBuffers.
 #[inline]
 fn decode_destack_io_uring_register_buffers_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UringHandle, VmSlice<u64>, VmSlice<u32>)> {
     let context = &context.read();
@@ -1113,7 +1113,7 @@ fn decode_destack_io_uring_register_buffers_args(
 /// Encode the result for destack.io.uring.registerBuffers.
 #[inline]
 fn encode_destack_io_uring_register_buffers_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1122,7 +1122,7 @@ fn encode_destack_io_uring_register_buffers_result(
 /// Decode arguments for destack.io.uring.registerFiles.
 #[inline]
 fn decode_destack_io_uring_register_files_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UringHandle, VmSlice<resource::ResourceId>)> {
     let context = &context.read();
@@ -1139,7 +1139,7 @@ fn decode_destack_io_uring_register_files_args(
 /// Encode the result for destack.io.uring.registerFiles.
 #[inline]
 fn encode_destack_io_uring_register_files_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1148,7 +1148,7 @@ fn encode_destack_io_uring_register_files_result(
 /// Decode arguments for destack.io.uring.unregisterBuffers.
 #[inline]
 fn decode_destack_io_uring_unregister_buffers_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UringHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "UringHandle")?;
@@ -1161,7 +1161,7 @@ fn decode_destack_io_uring_unregister_buffers_args(
 /// Encode the result for destack.io.uring.unregisterBuffers.
 #[inline]
 fn encode_destack_io_uring_unregister_buffers_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1170,7 +1170,7 @@ fn encode_destack_io_uring_unregister_buffers_result(
 /// Decode arguments for destack.io.uring.unregisterFiles.
 #[inline]
 fn decode_destack_io_uring_unregister_files_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::UringHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "UringHandle")?;
@@ -1183,7 +1183,7 @@ fn decode_destack_io_uring_unregister_files_args(
 /// Encode the result for destack.io.uring.unregisterFiles.
 #[inline]
 fn encode_destack_io_uring_unregister_files_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4804,7 +4804,7 @@ pub(crate) unsafe extern "C" fn destack_io_uring_unregister_files(
 #[inline]
 fn destack_io_completion_cancel_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
     target: resource::ResourceId,
@@ -4859,7 +4859,7 @@ fn destack_io_completion_cancel_vm_replay(
 #[inline]
 fn destack_io_completion_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -4909,7 +4909,7 @@ fn destack_io_completion_close_vm_replay(
 #[inline]
 fn destack_io_completion_enter_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
     mincomplete: u32,
@@ -4976,7 +4976,7 @@ fn destack_io_completion_enter_vm_replay(
 #[inline]
 fn destack_io_completion_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     entries: u32,
 ) -> RuntimeResult<vm::Word> {
@@ -5030,7 +5030,7 @@ fn destack_io_completion_open_vm_replay(
 #[inline]
 fn destack_io_completion_submit_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
     operation: CompletionOperationVm,
@@ -5081,7 +5081,7 @@ fn destack_io_completion_submit_vm_replay(
 #[inline]
 fn destack_io_completion_submit_batch_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
     operationwords: VmSlice<u64>,
@@ -5148,7 +5148,7 @@ fn destack_io_completion_submit_batch_vm_replay(
 #[inline]
 fn destack_io_completion_wait_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
     timeoutns: u64,
@@ -5236,7 +5236,7 @@ fn destack_io_completion_wait_vm_replay(
 #[inline]
 fn destack_io_control_fcntl_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::ResourceId,
     command: DescriptorControlCommand,
@@ -5293,7 +5293,7 @@ fn destack_io_control_fcntl_vm_replay(
 #[inline]
 fn destack_io_control_ioctl_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::ResourceId,
     request: DescriptorRequestVm,
@@ -5361,7 +5361,7 @@ fn destack_io_control_ioctl_vm_replay(
 #[inline]
 fn destack_io_device_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -5409,7 +5409,7 @@ fn destack_io_device_close_vm_replay(
 #[inline]
 fn destack_io_device_control_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DeviceHandle,
     request: DescriptorRequestVm,
@@ -5477,7 +5477,7 @@ fn destack_io_device_control_vm_replay(
 #[inline]
 fn destack_io_device_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     path: fs::OsPathVm,
     flags: u32,
@@ -5533,7 +5533,7 @@ fn destack_io_device_open_vm_replay(
 #[inline]
 fn destack_io_device_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DeviceHandle,
     buffer: VmSlice<u8>,
@@ -5588,7 +5588,7 @@ fn destack_io_device_read_vm_replay(
 #[inline]
 fn destack_io_device_write_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DeviceHandle,
     buffer: VmSlice<u8>,
@@ -5643,7 +5643,7 @@ fn destack_io_device_write_vm_replay(
 #[inline]
 fn destack_io_event_attach_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     token: EventToken,
     target: resource::ResourceId,
@@ -5695,7 +5695,7 @@ fn destack_io_event_attach_vm_replay(
 #[inline]
 fn destack_io_event_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     token: EventToken,
 ) -> RuntimeResult<vm::Word> {
@@ -5743,7 +5743,7 @@ fn destack_io_event_close_vm_replay(
 #[inline]
 fn destack_io_event_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     initial: u64,
 ) -> RuntimeResult<vm::Word> {
@@ -5795,7 +5795,7 @@ fn destack_io_event_open_vm_replay(
 #[inline]
 fn destack_io_event_signal_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     token: EventToken,
     argument_value: u64,
@@ -5849,7 +5849,7 @@ fn destack_io_event_signal_vm_replay(
 #[inline]
 fn destack_io_poll_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::PollHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -5897,7 +5897,7 @@ fn destack_io_poll_close_vm_replay(
 #[inline]
 fn destack_io_poll_deregister_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::PollHandle,
     target: resource::ResourceId,
@@ -5948,7 +5948,7 @@ fn destack_io_poll_deregister_vm_replay(
 #[inline]
 fn destack_io_poll_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     backend: PollBackend,
 ) -> RuntimeResult<vm::Word> {
@@ -6000,7 +6000,7 @@ fn destack_io_poll_open_vm_replay(
 #[inline]
 fn destack_io_poll_register_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::PollHandle,
     target: resource::ResourceId,
@@ -6053,7 +6053,7 @@ fn destack_io_poll_register_vm_replay(
 #[inline]
 fn destack_io_poll_update_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::PollHandle,
     target: resource::ResourceId,
@@ -6106,7 +6106,7 @@ fn destack_io_poll_update_vm_replay(
 #[inline]
 fn destack_io_poll_wait_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::PollHandle,
     timeoutns: u64,
@@ -6194,7 +6194,7 @@ fn destack_io_poll_wait_vm_replay(
 #[inline]
 fn destack_io_timerfd_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -6242,7 +6242,7 @@ fn destack_io_timerfd_close_vm_replay(
 #[inline]
 fn destack_io_timerfd_get_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -6304,7 +6304,7 @@ fn destack_io_timerfd_get_vm_replay(
 #[inline]
 fn destack_io_timerfd_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     clock: TimerFdClock,
     flags: TimerFdFlags,
@@ -6359,7 +6359,7 @@ fn destack_io_timerfd_open_vm_replay(
 #[inline]
 fn destack_io_timerfd_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -6411,7 +6411,7 @@ fn destack_io_timerfd_read_vm_replay(
 #[inline]
 fn destack_io_timerfd_set_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
     spec: TimerFdSpecVm,
@@ -6463,7 +6463,7 @@ fn destack_io_timerfd_set_vm_replay(
 #[inline]
 fn destack_io_uring_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -6511,7 +6511,7 @@ fn destack_io_uring_close_vm_replay(
 #[inline]
 fn destack_io_uring_features_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -6585,7 +6585,7 @@ fn destack_io_uring_features_vm_replay(
 #[inline]
 fn destack_io_uring_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     parameters: UringParametersVm,
 ) -> RuntimeResult<vm::Word> {
@@ -6637,7 +6637,7 @@ fn destack_io_uring_open_vm_replay(
 #[inline]
 fn destack_io_uring_register_buffers_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
     addresses: VmSlice<u64>,
@@ -6689,7 +6689,7 @@ fn destack_io_uring_register_buffers_vm_replay(
 #[inline]
 fn destack_io_uring_register_files_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
     files: VmSlice<resource::ResourceId>,
@@ -6740,7 +6740,7 @@ fn destack_io_uring_register_files_vm_replay(
 #[inline]
 fn destack_io_uring_unregister_buffers_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -6792,7 +6792,7 @@ fn destack_io_uring_unregister_buffers_vm_replay(
 #[inline]
 fn destack_io_uring_unregister_files_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Word> {

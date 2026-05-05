@@ -337,7 +337,7 @@ impl<'a> VmStubRenderer<'a> {
             self.output.push_str("    _binding: &BindingCallContext,\n");
         }
         self.output
-            .push_str("    _context: &mut vm::ExternalCallContext<'_>,\n");
+            .push_str("    _context: &mut vm::BindingContext<'_>,\n");
         for param in &params {
             self.output.push_str(&format!("    {param},\n"));
         }

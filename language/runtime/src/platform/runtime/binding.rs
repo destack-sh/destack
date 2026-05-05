@@ -7,12 +7,12 @@ use destack_vm as vm;
 /// One VM runtime decode adapter.
 pub(crate) struct VmRuntimeDecode<'a, 'context> {
     /// The active VM binding call.
-    context: &'a mut vm::ExternalCallContext<'context>,
+    context: &'a mut vm::BindingContext<'context>,
 }
 
 impl<'a, 'context> VmRuntimeDecode<'a, 'context> {
     /// Create one VM runtime decode adapter.
-    pub(crate) fn new(context: &'a mut vm::ExternalCallContext<'context>) -> Self {
+    pub(crate) fn new(context: &'a mut vm::BindingContext<'context>) -> Self {
         Self { context }
     }
 
@@ -35,12 +35,12 @@ impl<'a, 'context> VmRuntimeDecode<'a, 'context> {
 /// One VM runtime binding adapter.
 pub(crate) struct VmRuntimeBinding<'a, 'context> {
     /// The active VM binding call.
-    context: &'a mut vm::ExternalCallContext<'context>,
+    context: &'a mut vm::BindingContext<'context>,
 }
 
 impl<'a, 'context> VmRuntimeBinding<'a, 'context> {
     /// Create one VM runtime binding adapter.
-    pub(crate) fn new(context: &'a mut vm::ExternalCallContext<'context>) -> Self {
+    pub(crate) fn new(context: &'a mut vm::BindingContext<'context>) -> Self {
         Self { context }
     }
 

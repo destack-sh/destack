@@ -188,7 +188,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode a string argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_string(\n");
-            output.push_str("    context: &vm::ExternalReadContext<'_, '_>,\n");
+            output.push_str("    context: &vm::BindingRead<'_, '_>,\n");
             output.push_str("    value: vm::Word,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
@@ -203,7 +203,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode a slice argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_slice<T>(\n");
-            output.push_str("    context: &vm::ExternalReadContext<'_, '_>,\n");
+            output.push_str("    context: &vm::BindingRead<'_, '_>,\n");
             output.push_str("    value: vm::Word,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
@@ -216,7 +216,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode an array argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_array<T>(\n");
-            output.push_str("    context: &vm::ExternalReadContext<'_, '_>,\n");
+            output.push_str("    context: &vm::BindingRead<'_, '_>,\n");
             output.push_str("    value: vm::Word,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
@@ -248,7 +248,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                 output.push_str(&format!("/// Decode arguments for {}.\n", extern_name));
                 output.push_str("#[inline]\n");
                 output.push_str(&format!(
-                "fn {decode_helper}(\n    {decode_context_name}: &mut vm::ExternalCallContext<'_>,\n    args: &[vm::Word],\n) -> RuntimeResult<{}> {{\n",
+                "fn {decode_helper}(\n    {decode_context_name}: &mut vm::BindingContext<'_>,\n    args: &[vm::Word],\n) -> RuntimeResult<{}> {{\n",
                 codegen.vm_args_tuple_type(&entry.parameters)
                 ));
                 if decode_uses_context {
@@ -297,7 +297,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str(&format!("/// Encode the result for {}.\n", extern_name));
             output.push_str("#[inline]\n");
             output.push_str(&format!(
-            "fn {encode_helper}(\n    {encode_context_name}: &mut vm::ExternalCallContext<'_>,\n    result: RuntimeResult<{}>,\n) -> RuntimeResult<vm::Word> {{\n",
+            "fn {encode_helper}(\n    {encode_context_name}: &mut vm::BindingContext<'_>,\n    result: RuntimeResult<{}>,\n) -> RuntimeResult<vm::Word> {{\n",
             codegen.vm_return_type(&entry.return_binding)
         ));
             if encode_uses_context {
@@ -500,7 +500,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                             let buffer_name =
                                 Self::random_bytes_buffer_arg(&codegen, &binding.entry);
                             output.push_str(
-                                "                let context_ptr = context as *mut vm::ExternalCallContext<'_>;\n",
+                                "                let context_ptr = context as *mut vm::BindingContext<'_>;\n",
                             );
                             output.push_str(
                                 "                let result = binding.trace().run_random_bytes(\n",

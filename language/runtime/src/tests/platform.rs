@@ -185,7 +185,7 @@ pub(crate) fn is_privileged_test_mode() -> bool {
 
 /// Intern one VM test string into one handle.
 pub(crate) fn vm_test_string(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: &str,
 ) -> vm::StringHandle {
     let value = context
@@ -197,7 +197,7 @@ pub(crate) fn vm_test_string(
 
 /// Allocate one VM test byte array.
 pub(crate) fn vm_test_byte_array(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     bytes: &[u8],
 ) -> VmArray<u8> {
     VmArray::from_bytes(&mut context.write(), bytes).expect("vm test byte array should allocate")
@@ -206,7 +206,7 @@ pub(crate) fn vm_test_byte_array(
 #[cfg(test)]
 /// Allocate one VM test byte slice.
 pub(crate) fn vm_test_byte_slice(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     bytes: &[u8],
 ) -> VmSlice<u8> {
     VmSlice::from_bytes(&mut context.write(), bytes).expect("vm test byte slice should allocate")
@@ -215,7 +215,7 @@ pub(crate) fn vm_test_byte_slice(
 #[cfg(test)]
 /// Allocate one VM heap value buffer from fully encoded values.
 pub(crate) fn vm_test_values(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     values: Vec<vm::Word>,
 ) -> vm::Word {
     let data = context

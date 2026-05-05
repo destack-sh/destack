@@ -82,7 +82,7 @@ pub(crate) fn event_try_read(
 
 /// Encode one background task descriptor list into one VM array.
 pub(crate) fn list_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     descriptors: &[BackgroundTaskDescriptorValue],
 ) -> RuntimeResult<VmArray<BackgroundTaskDescriptorVm>> {
     let mut encoded_descriptors = Vec::with_capacity(descriptors.len());
@@ -99,7 +99,7 @@ pub(crate) fn list_vm(
 
 /// Encode one background event into one VM value.
 pub(crate) fn event_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     event: BackgroundEventValue,
 ) -> RuntimeResult<BackgroundEventVm> {
     BackgroundEventVm::from_value(&mut context.write(), event)

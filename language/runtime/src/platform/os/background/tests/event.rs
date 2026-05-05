@@ -1,6 +1,6 @@
 use std::mem::ManuallyDrop;
 
-use destack_vm::{ExternalCallContext, StringHandle};
+use destack_vm::{BindingContext, StringHandle};
 
 use super::core::{enable_background_declaration, with_background_test_environment};
 use crate::diagnostic::RuntimeResult;
@@ -159,7 +159,7 @@ fn background_task_options(
 
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut BindingContext<'_>) };
             let identifier = StringHandle::new(
                 vm_context
                     .intern_string(identifier)
@@ -215,7 +215,7 @@ fn decode_background_event_value(
                 &mut *(context
                     .vm_context
                     .expect("vm background event decode requires one vm context")
-                    as *mut ExternalCallContext<'_>)
+                    as *mut BindingContext<'_>)
             };
 
             BackgroundEventVm::into_value(event, &vm_context.read())?
@@ -245,7 +245,7 @@ fn string_harness_value(
 ) -> HarnessValue<NativeStringRef, StringHandle> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut BindingContext<'_>) };
             let handle = StringHandle::new(
                 vm_context
                     .intern_string(value)

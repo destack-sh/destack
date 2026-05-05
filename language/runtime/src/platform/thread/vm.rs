@@ -34,7 +34,7 @@ fn thread_options_from_vm(options: ThreadOptionsVm) -> ThreadOptions {
 /// External, nonrecordable.
 pub(crate) fn destack_thread_local_create(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<resource::ThreadLocalKey> {
     call_out(|out| unsafe { host_thread::destack_thread_local_create(binding, out) })
 }
@@ -58,7 +58,7 @@ pub(crate) fn destack_thread_local_create(
 /// External, nonrecordable.
 pub(crate) fn destack_thread_local_delete(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     key: resource::ThreadLocalKey,
 ) -> RuntimeResult<()> {
     unsafe { host_thread::destack_thread_local_delete(binding, key) }
@@ -83,7 +83,7 @@ pub(crate) fn destack_thread_local_delete(
 /// External, nonrecordable.
 pub(crate) fn destack_thread_local_get(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     key: resource::ThreadLocalKey,
 ) -> RuntimeResult<u64> {
     call_out(|out| unsafe { host_thread::destack_thread_local_get(binding, out, key) })
@@ -108,7 +108,7 @@ pub(crate) fn destack_thread_local_get(
 /// External, nonrecordable.
 pub(crate) fn destack_thread_local_set(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     key: resource::ThreadLocalKey,
     argument_value: u64,
 ) -> RuntimeResult<()> {
@@ -135,7 +135,7 @@ pub(crate) fn destack_thread_local_set(
 /// External, nonrecordable.
 pub(crate) fn destack_thread_get_affinity(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::ThreadHandle,
 ) -> RuntimeResult<ThreadCpuSetVm> {
     let cpus =
@@ -164,7 +164,7 @@ pub(crate) fn destack_thread_get_affinity(
 /// External, nonrecordable.
 pub(crate) fn destack_thread_get_priority(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::ThreadHandle,
 ) -> RuntimeResult<i32> {
     call_out(|out| unsafe { host_thread::destack_thread_get_priority(binding, out, handle) })
@@ -190,7 +190,7 @@ pub(crate) fn destack_thread_get_priority(
 /// External, nonrecordable.
 pub(crate) fn destack_thread_set_affinity(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::ThreadHandle,
     cpus: ThreadCpuSetVm,
 ) -> RuntimeResult<()> {
@@ -219,7 +219,7 @@ pub(crate) fn destack_thread_set_affinity(
 /// External, nonrecordable.
 pub(crate) fn destack_thread_set_priority(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::ThreadHandle,
     priority: i32,
 ) -> RuntimeResult<()> {
@@ -245,7 +245,7 @@ pub(crate) fn destack_thread_set_priority(
 /// External, nonrecordable.
 pub(crate) fn destack_thread_detach(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::ThreadHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_thread::destack_thread_detach(binding, handle) }
@@ -270,7 +270,7 @@ pub(crate) fn destack_thread_detach(
 /// External, nonrecordable.
 pub(crate) fn destack_thread_join(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::ThreadHandle,
 ) -> RuntimeResult<u64> {
     call_out(|out| unsafe { host_thread::destack_thread_join(binding, out, handle) })
@@ -295,7 +295,7 @@ pub(crate) fn destack_thread_join(
 /// External, nonrecordable.
 pub(crate) fn destack_thread_spawn(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     entry: resource::ThreadEntryHandle,
     argument: u64,
     options: ThreadOptionsVm,
@@ -326,7 +326,7 @@ pub(crate) fn destack_thread_spawn(
 /// External, nonrecordable.
 pub(crate) fn destack_thread_address_wait(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: u64,
     expected: u32,
     timeoutns: u64,
@@ -353,7 +353,7 @@ pub(crate) fn destack_thread_address_wait(
 /// External, nonrecordable.
 pub(crate) fn destack_thread_address_wake_all(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: u64,
 ) -> RuntimeResult<()> {
     unsafe { host_thread::destack_thread_address_wake_all(binding, address) }
@@ -378,7 +378,7 @@ pub(crate) fn destack_thread_address_wake_all(
 /// External, nonrecordable.
 pub(crate) fn destack_thread_address_wake_one(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: u64,
 ) -> RuntimeResult<()> {
     unsafe { host_thread::destack_thread_address_wake_one(binding, address) }

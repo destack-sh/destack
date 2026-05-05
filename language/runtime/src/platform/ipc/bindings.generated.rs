@@ -86,7 +86,7 @@ fn decode_uint64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -99,7 +99,7 @@ fn decode_string(
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -110,7 +110,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -121,7 +121,7 @@ fn decode_array<T>(
 /// Decode arguments for destack.ipc.message.queueClose.
 #[inline]
 fn decode_destack_ipc_message_queue_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MessageQueueHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "MessageQueueHandle")?;
@@ -135,7 +135,7 @@ fn decode_destack_ipc_message_queue_close_args(
 /// Encode the result for destack.ipc.message.queueClose.
 #[inline]
 fn encode_destack_ipc_message_queue_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -144,7 +144,7 @@ fn encode_destack_ipc_message_queue_close_result(
 /// Decode arguments for destack.ipc.message.queueOpen.
 #[inline]
 fn decode_destack_ipc_message_queue_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, u32, u32, u32, u32)> {
     let context = &context.read();
@@ -164,7 +164,7 @@ fn decode_destack_ipc_message_queue_open_args(
 /// Encode the result for destack.ipc.message.queueOpen.
 #[inline]
 fn encode_destack_ipc_message_queue_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::MessageQueueHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -175,7 +175,7 @@ fn encode_destack_ipc_message_queue_open_result(
 /// Decode arguments for destack.ipc.message.queueReceive.
 #[inline]
 fn decode_destack_ipc_message_queue_receive_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MessageQueueHandle, u64, VmSlice<u8>)> {
     let context = &context.read();
@@ -194,7 +194,7 @@ fn decode_destack_ipc_message_queue_receive_args(
 /// Encode the result for destack.ipc.message.queueReceive.
 #[inline]
 fn encode_destack_ipc_message_queue_receive_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<MessageQueueReceiveVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -219,7 +219,7 @@ fn encode_destack_ipc_message_queue_receive_result(
 /// Decode arguments for destack.ipc.message.queueSend.
 #[inline]
 fn decode_destack_ipc_message_queue_send_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::MessageQueueHandle, u32, u64, VmSlice<u8>)> {
     let context = &context.read();
@@ -245,7 +245,7 @@ fn decode_destack_ipc_message_queue_send_args(
 /// Encode the result for destack.ipc.message.queueSend.
 #[inline]
 fn encode_destack_ipc_message_queue_send_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -254,7 +254,7 @@ fn encode_destack_ipc_message_queue_send_result(
 /// Decode arguments for destack.ipc.message.queueUnlink.
 #[inline]
 fn decode_destack_ipc_message_queue_unlink_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -266,7 +266,7 @@ fn decode_destack_ipc_message_queue_unlink_args(
 /// Encode the result for destack.ipc.message.queueUnlink.
 #[inline]
 fn encode_destack_ipc_message_queue_unlink_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -275,7 +275,7 @@ fn encode_destack_ipc_message_queue_unlink_result(
 /// Decode arguments for destack.ipc.pipe.close.
 #[inline]
 fn decode_destack_ipc_pipe_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::PipeHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "PipeHandle")?;
@@ -288,7 +288,7 @@ fn decode_destack_ipc_pipe_close_args(
 /// Encode the result for destack.ipc.pipe.close.
 #[inline]
 fn encode_destack_ipc_pipe_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -297,7 +297,7 @@ fn encode_destack_ipc_pipe_close_result(
 /// Decode arguments for destack.ipc.pipe.open.
 #[inline]
 fn decode_destack_ipc_pipe_open_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u32,)> {
     let flags_value = arg_value(args, 0, "flags", "uint32")?;
@@ -308,7 +308,7 @@ fn decode_destack_ipc_pipe_open_args(
 /// Encode the result for destack.ipc.pipe.open.
 #[inline]
 fn encode_destack_ipc_pipe_open_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<PipePairVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -333,7 +333,7 @@ fn encode_destack_ipc_pipe_open_result(
 /// Decode arguments for destack.ipc.pipe.read.
 #[inline]
 fn decode_destack_ipc_pipe_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::PipeHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -349,7 +349,7 @@ fn decode_destack_ipc_pipe_read_args(
 /// Encode the result for destack.ipc.pipe.read.
 #[inline]
 fn encode_destack_ipc_pipe_read_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -360,7 +360,7 @@ fn encode_destack_ipc_pipe_read_result(
 /// Decode arguments for destack.ipc.pipe.write.
 #[inline]
 fn decode_destack_ipc_pipe_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::PipeHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -376,7 +376,7 @@ fn decode_destack_ipc_pipe_write_args(
 /// Encode the result for destack.ipc.pipe.write.
 #[inline]
 fn encode_destack_ipc_pipe_write_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -387,7 +387,7 @@ fn encode_destack_ipc_pipe_write_result(
 /// Decode arguments for destack.ipc.sharedMemory.close.
 #[inline]
 fn decode_destack_ipc_shared_memory_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SharedMemoryHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "SharedMemoryHandle")?;
@@ -401,7 +401,7 @@ fn decode_destack_ipc_shared_memory_close_args(
 /// Encode the result for destack.ipc.sharedMemory.close.
 #[inline]
 fn encode_destack_ipc_shared_memory_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -410,7 +410,7 @@ fn encode_destack_ipc_shared_memory_close_result(
 /// Decode arguments for destack.ipc.sharedMemory.create.
 #[inline]
 fn decode_destack_ipc_shared_memory_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, u64, u32)> {
     let context = &context.read();
@@ -426,7 +426,7 @@ fn decode_destack_ipc_shared_memory_create_args(
 /// Encode the result for destack.ipc.sharedMemory.create.
 #[inline]
 fn encode_destack_ipc_shared_memory_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::SharedMemoryHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -437,7 +437,7 @@ fn encode_destack_ipc_shared_memory_create_result(
 /// Decode arguments for destack.ipc.sharedMemory.map.
 #[inline]
 fn decode_destack_ipc_shared_memory_map_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SharedMemoryHandle, u64, u64, u32)> {
     let handle_value = arg_value(args, 0, "handle", "SharedMemoryHandle")?;
@@ -457,7 +457,7 @@ fn decode_destack_ipc_shared_memory_map_args(
 /// Encode the result for destack.ipc.sharedMemory.map.
 #[inline]
 fn encode_destack_ipc_shared_memory_map_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<SharedMemoryMappingVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -482,7 +482,7 @@ fn encode_destack_ipc_shared_memory_map_result(
 /// Decode arguments for destack.ipc.sharedMemory.open.
 #[inline]
 fn decode_destack_ipc_shared_memory_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, u32)> {
     let context = &context.read();
@@ -496,7 +496,7 @@ fn decode_destack_ipc_shared_memory_open_args(
 /// Encode the result for destack.ipc.sharedMemory.open.
 #[inline]
 fn encode_destack_ipc_shared_memory_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::SharedMemoryHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -507,7 +507,7 @@ fn encode_destack_ipc_shared_memory_open_result(
 /// Decode arguments for destack.ipc.sharedMemory.unmap.
 #[inline]
 fn decode_destack_ipc_shared_memory_unmap_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, u64)> {
     let address_value = arg_value(args, 0, "address", "uint64")?;
@@ -520,7 +520,7 @@ fn decode_destack_ipc_shared_memory_unmap_args(
 /// Encode the result for destack.ipc.sharedMemory.unmap.
 #[inline]
 fn encode_destack_ipc_shared_memory_unmap_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -529,7 +529,7 @@ fn encode_destack_ipc_shared_memory_unmap_result(
 /// Decode arguments for destack.ipc.sync.futexWait.
 #[inline]
 fn decode_destack_ipc_sync_futex_wait_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SharedMemoryHandle, u64, u32, u64)> {
     let sharedmemory_value = arg_value(args, 0, "sharedmemory", "SharedMemoryHandle")?;
@@ -552,7 +552,7 @@ fn decode_destack_ipc_sync_futex_wait_args(
 /// Encode the result for destack.ipc.sync.futexWait.
 #[inline]
 fn encode_destack_ipc_sync_futex_wait_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -561,7 +561,7 @@ fn encode_destack_ipc_sync_futex_wait_result(
 /// Decode arguments for destack.ipc.sync.futexWake.
 #[inline]
 fn decode_destack_ipc_sync_futex_wake_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SharedMemoryHandle, u64, u32)> {
     let sharedmemory_value = arg_value(args, 0, "sharedmemory", "SharedMemoryHandle")?;
@@ -582,7 +582,7 @@ fn decode_destack_ipc_sync_futex_wake_args(
 /// Encode the result for destack.ipc.sync.futexWake.
 #[inline]
 fn encode_destack_ipc_sync_futex_wake_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -593,7 +593,7 @@ fn encode_destack_ipc_sync_futex_wake_result(
 /// Decode arguments for destack.ipc.sync.semaphoreCreate.
 #[inline]
 fn decode_destack_ipc_sync_semaphore_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, u32, u32)> {
     let context = &context.read();
@@ -609,7 +609,7 @@ fn decode_destack_ipc_sync_semaphore_create_args(
 /// Encode the result for destack.ipc.sync.semaphoreCreate.
 #[inline]
 fn encode_destack_ipc_sync_semaphore_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::SemaphoreHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -620,7 +620,7 @@ fn encode_destack_ipc_sync_semaphore_create_result(
 /// Decode arguments for destack.ipc.sync.semaphorePost.
 #[inline]
 fn decode_destack_ipc_sync_semaphore_post_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SemaphoreHandle, u32)> {
     let handle_value = arg_value(args, 0, "handle", "SemaphoreHandle")?;
@@ -635,7 +635,7 @@ fn decode_destack_ipc_sync_semaphore_post_args(
 /// Encode the result for destack.ipc.sync.semaphorePost.
 #[inline]
 fn encode_destack_ipc_sync_semaphore_post_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -644,7 +644,7 @@ fn encode_destack_ipc_sync_semaphore_post_result(
 /// Decode arguments for destack.ipc.sync.semaphoreWait.
 #[inline]
 fn decode_destack_ipc_sync_semaphore_wait_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SemaphoreHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "SemaphoreHandle")?;
@@ -659,7 +659,7 @@ fn decode_destack_ipc_sync_semaphore_wait_args(
 /// Encode the result for destack.ipc.sync.semaphoreWait.
 #[inline]
 fn encode_destack_ipc_sync_semaphore_wait_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -668,7 +668,7 @@ fn encode_destack_ipc_sync_semaphore_wait_result(
 /// Decode arguments for destack.ipc.unix.receive.
 #[inline]
 fn decode_destack_ipc_unix_receive_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SocketHandle, u32)> {
     let socket_value = arg_value(args, 0, "socket", "SocketHandle")?;
@@ -683,7 +683,7 @@ fn decode_destack_ipc_unix_receive_args(
 /// Encode the result for destack.ipc.unix.receive.
 #[inline]
 fn encode_destack_ipc_unix_receive_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<UnixReceiveAncillaryVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -735,7 +735,7 @@ fn encode_destack_ipc_unix_receive_result(
 /// Decode arguments for destack.ipc.unix.send.
 #[inline]
 fn decode_destack_ipc_unix_send_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::SocketHandle,
@@ -767,7 +767,7 @@ fn decode_destack_ipc_unix_send_args(
 /// Encode the result for destack.ipc.unix.send.
 #[inline]
 fn encode_destack_ipc_unix_send_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2982,7 +2982,7 @@ pub(crate) unsafe extern "C" fn destack_ipc_unix_send(
 #[inline]
 fn destack_ipc_message_queue_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MessageQueueHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -3032,7 +3032,7 @@ fn destack_ipc_message_queue_close_vm_replay(
 #[inline]
 fn destack_ipc_message_queue_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     name: vm::StringHandle,
     flags: u32,
@@ -3102,7 +3102,7 @@ fn destack_ipc_message_queue_open_vm_replay(
 #[inline]
 fn destack_ipc_message_queue_receive_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MessageQueueHandle,
     timeoutns: u64,
@@ -3168,7 +3168,7 @@ fn destack_ipc_message_queue_receive_vm_replay(
 #[inline]
 fn destack_ipc_message_queue_send_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::MessageQueueHandle,
     priority: u32,
@@ -3231,7 +3231,7 @@ fn destack_ipc_message_queue_send_vm_replay(
 #[inline]
 fn destack_ipc_message_queue_unlink_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -3281,7 +3281,7 @@ fn destack_ipc_message_queue_unlink_vm_replay(
 #[inline]
 fn destack_ipc_pipe_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::PipeHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -3329,7 +3329,7 @@ fn destack_ipc_pipe_close_vm_replay(
 #[inline]
 fn destack_ipc_pipe_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     flags: u32,
 ) -> RuntimeResult<vm::Word> {
@@ -3391,7 +3391,7 @@ fn destack_ipc_pipe_open_vm_replay(
 #[inline]
 fn destack_ipc_pipe_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::PipeHandle,
     buffer: VmSlice<u8>,
@@ -3446,7 +3446,7 @@ fn destack_ipc_pipe_read_vm_replay(
 #[inline]
 fn destack_ipc_pipe_write_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::PipeHandle,
     buffer: VmSlice<u8>,
@@ -3501,7 +3501,7 @@ fn destack_ipc_pipe_write_vm_replay(
 #[inline]
 fn destack_ipc_shared_memory_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SharedMemoryHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -3551,7 +3551,7 @@ fn destack_ipc_shared_memory_close_vm_replay(
 #[inline]
 fn destack_ipc_shared_memory_create_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     name: vm::StringHandle,
     size: u64,
@@ -3607,7 +3607,7 @@ fn destack_ipc_shared_memory_create_vm_replay(
 #[inline]
 fn destack_ipc_shared_memory_map_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SharedMemoryHandle,
     offset: u64,
@@ -3674,7 +3674,7 @@ fn destack_ipc_shared_memory_map_vm_replay(
 #[inline]
 fn destack_ipc_shared_memory_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     name: vm::StringHandle,
     flags: u32,
@@ -3729,7 +3729,7 @@ fn destack_ipc_shared_memory_open_vm_replay(
 #[inline]
 fn destack_ipc_shared_memory_unmap_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
@@ -3780,7 +3780,7 @@ fn destack_ipc_shared_memory_unmap_vm_replay(
 #[inline]
 fn destack_ipc_sync_futex_wait_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
@@ -3843,7 +3843,7 @@ fn destack_ipc_sync_futex_wait_vm_replay(
 #[inline]
 fn destack_ipc_sync_futex_wake_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
@@ -3903,7 +3903,7 @@ fn destack_ipc_sync_futex_wake_vm_replay(
 #[inline]
 fn destack_ipc_sync_semaphore_create_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     name: vm::StringHandle,
     initial: u32,
@@ -3959,7 +3959,7 @@ fn destack_ipc_sync_semaphore_create_vm_replay(
 #[inline]
 fn destack_ipc_sync_semaphore_post_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SemaphoreHandle,
     count: u32,
@@ -4010,7 +4010,7 @@ fn destack_ipc_sync_semaphore_post_vm_replay(
 #[inline]
 fn destack_ipc_sync_semaphore_wait_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::SemaphoreHandle,
     timeoutns: u64,
@@ -4061,7 +4061,7 @@ fn destack_ipc_sync_semaphore_wait_vm_replay(
 #[inline]
 fn destack_ipc_unix_receive_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     socket: resource::SocketHandle,
     maxhandles: u32,
@@ -4190,7 +4190,7 @@ fn destack_ipc_unix_receive_vm_replay(
 #[inline]
 fn destack_ipc_unix_send_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     socket: resource::SocketHandle,
     argument_payload: VmSlice<u8>,

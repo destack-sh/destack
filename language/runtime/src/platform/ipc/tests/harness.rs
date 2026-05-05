@@ -16,9 +16,9 @@ pub(crate) use generated::*;
 impl<'call> IpcHarnessContext<'call> {
     /// Return the VM context if available.
     #[allow(clippy::mut_from_ref)]
-    fn vm_context_mut(&self) -> Option<&mut destack_vm::ExternalCallContext<'_>> {
+    fn vm_context_mut(&self) -> Option<&mut destack_vm::BindingContext<'_>> {
         self.vm_context
-            .map(|context| unsafe { &mut *(context as *mut destack_vm::ExternalCallContext<'_>) })
+            .map(|context| unsafe { &mut *(context as *mut destack_vm::BindingContext<'_>) })
     }
 
     /// Build one backend-specific string value.

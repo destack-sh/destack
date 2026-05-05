@@ -25,7 +25,7 @@ use destack_vm;
 /// External, recordable.
 pub(crate) fn destack_random_secure_bytes(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
     runtime::random::vm::destack_random_secure_bytes(binding, context, buffer)
@@ -50,7 +50,7 @@ pub(crate) fn destack_random_secure_bytes(
 /// External, recordable.
 pub(crate) fn destack_random_secure_bytes_try(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
     runtime::random::vm::destack_random_secure_bytes_try(binding, context, buffer)
@@ -75,7 +75,7 @@ pub(crate) fn destack_random_secure_bytes_try(
 /// External, recordable.
 pub(crate) fn destack_random_secure_metadata(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
 ) -> RuntimeResult<SecureRandomMetadataVm> {
     runtime::random::vm::destack_random_secure_metadata(binding, context)
 }
@@ -99,7 +99,7 @@ pub(crate) fn destack_random_secure_metadata(
 /// External, recordable.
 pub(crate) fn destack_random_stream_export(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     stream: RandomStream,
 ) -> RuntimeResult<RandomStreamStateVm> {
     runtime::random::vm::destack_random_stream_export(binding, context, stream)
@@ -124,7 +124,7 @@ pub(crate) fn destack_random_stream_export(
 /// External, recordable.
 pub(crate) fn destack_random_fill_bytes(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
     runtime::random::vm::destack_random_fill_bytes(binding, context, buffer)
@@ -149,7 +149,7 @@ pub(crate) fn destack_random_fill_bytes(
 /// External, recordable.
 pub(crate) fn destack_random_fill_bytes_from(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     stream: RandomStream,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -175,7 +175,7 @@ pub(crate) fn destack_random_fill_bytes_from(
 /// External, recordable.
 pub(crate) fn destack_random_stream_import(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     stream: RandomStream,
     state: RandomStreamStateVm,
 ) -> RuntimeResult<()> {
@@ -201,7 +201,7 @@ pub(crate) fn destack_random_stream_import(
 /// External, recordable.
 pub(crate) fn destack_random_stream_in(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     domain: RandomStreamDomain,
 ) -> RuntimeResult<RandomStream> {
     runtime::random::vm::destack_random_stream_in(binding, context, domain)
@@ -226,7 +226,7 @@ pub(crate) fn destack_random_stream_in(
 /// External, recordable.
 pub(crate) fn destack_random_stream_jump(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     stream: RandomStream,
     jump: u64,
 ) -> RuntimeResult<()> {
@@ -252,7 +252,7 @@ pub(crate) fn destack_random_stream_jump(
 /// External, recordable.
 pub(crate) fn destack_random_next_u64(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
 ) -> RuntimeResult<u64> {
     runtime::random::vm::destack_random_next_u64(binding, context)
 }
@@ -276,7 +276,7 @@ pub(crate) fn destack_random_next_u64(
 /// External, recordable.
 pub(crate) fn destack_random_next_u64_from(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     stream: RandomStream,
 ) -> RuntimeResult<u64> {
     runtime::random::vm::destack_random_next_u64_from(binding, context, stream)
@@ -301,7 +301,7 @@ pub(crate) fn destack_random_next_u64_from(
 /// External, recordable.
 pub(crate) fn destack_random_stream_split(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     parent: RandomStream,
 ) -> RuntimeResult<RandomStream> {
     runtime::random::vm::destack_random_stream_split(binding, context, parent)
@@ -326,7 +326,7 @@ pub(crate) fn destack_random_stream_split(
 /// External, recordable.
 pub(crate) fn destack_random_stream(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
 ) -> RuntimeResult<RandomStream> {
     runtime::random::vm::destack_random_stream(binding, context)
 }

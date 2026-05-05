@@ -44,7 +44,7 @@ pub(super) fn string_harness_value(
 ) -> HarnessValue<NativeStringRef, vm::StringHandle> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             let value = vm::StringHandle::new(
                 vm_context
                     .intern_string(value)
@@ -69,7 +69,7 @@ pub(super) fn decode_clipboard_text(
                 &mut *(context
                     .vm_context
                     .expect("vm context should exist for vm harness")
-                    as *mut vm::ExternalCallContext<'_>)
+                    as *mut vm::BindingContext<'_>)
             };
             let value = vm_context
                 .string_value(value.value())
@@ -92,7 +92,7 @@ pub(super) fn decode_clipboard_bytes(
                 &mut *(context
                     .vm_context
                     .expect("vm context should exist for vm harness")
-                    as *mut vm::ExternalCallContext<'_>)
+                    as *mut vm::BindingContext<'_>)
             };
 
             value.read_bytes(&vm_context.read())
@@ -134,7 +134,7 @@ pub(super) fn decode_clipboard_item_descriptors(
                 &mut *(context
                     .vm_context
                     .expect("vm context should exist for vm harness")
-                    as *mut vm::ExternalCallContext<'_>)
+                    as *mut vm::BindingContext<'_>)
             };
             let values = value.read_values(&vm_context.read())?;
             let mut records = Vec::with_capacity(values.len());
@@ -170,7 +170,7 @@ pub(super) fn string_clipboard_items_value(
 ) -> RuntimeResult<HarnessValue<NativeSlice<ClipboardItem>, VmSlice<ClipboardItemVm>>> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             let item = ClipboardItemValue {
                 presentation_style: ClipboardPresentationStyle::Unspecified,
                 representations: vec![ClipboardItemRepresentationValue {
@@ -214,7 +214,7 @@ pub(super) fn html_clipboard_items_value(
 ) -> RuntimeResult<HarnessValue<NativeSlice<ClipboardItem>, VmSlice<ClipboardItemVm>>> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             let item = ClipboardItemValue {
                 presentation_style: ClipboardPresentationStyle::Unspecified,
                 representations: vec![ClipboardItemRepresentationValue {
