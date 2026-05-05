@@ -19,6 +19,23 @@ b0(v0: int32, v1: int32):
     );
 }
 
+/// Integer addition wraps and preserves signed i32 canonical bits.
+#[test]
+fn test_add_i32_wraps() {
+    let mir = r#"
+function add(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    return v2
+}"#;
+    run_mir_expect(
+        mir,
+        "add",
+        &[Value::int32(i32::MAX), Value::int32(1)],
+        Value::int32(i32::MIN),
+    );
+}
+
 /// Integer subtraction produces the difference of two i32 values.
 #[test]
 fn test_subtract_i32() {

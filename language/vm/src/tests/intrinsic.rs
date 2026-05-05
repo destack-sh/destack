@@ -558,11 +558,11 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
             .isolate
             .layout_id_for_type(pointee_type)
             .expect("managed pointee should have one layout");
-        let plan = isolate
+        let shape = isolate
             .isolate
-            .allocation_plan(layout_id)
+            .allocation_shape(layout_id)
             .expect("managed pointee layout should resolve");
-        let layout = isolate.heap.allocation_layout(plan);
+        let layout = isolate.heap.allocation_layout(shape);
         let handle = isolate
             .heap
             .allocate(&layout, Payload::Zeroed)
@@ -598,11 +598,11 @@ b0(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
             .isolate
             .layout_id_for_type(pointee_type)
             .expect("managed pointee should have one layout");
-        let plan = isolate
+        let shape = isolate
             .isolate
-            .allocation_plan(layout_id)
+            .allocation_shape(layout_id)
             .expect("managed pointee layout should resolve");
-        let layout = isolate.shared_heap.allocation_layout(plan);
+        let layout = isolate.shared_heap.allocation_layout(shape);
         let mut allocator = isolate.shared_heap.allocator();
         let handle = isolate
             .shared_heap
@@ -639,11 +639,11 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
             .isolate
             .layout_id_for_type(pointee_type)
             .expect("managed pointee should have one layout");
-        let plan = isolate
+        let shape = isolate
             .isolate
-            .allocation_plan(layout_id)
+            .allocation_shape(layout_id)
             .expect("managed pointee layout should resolve");
-        let layout = isolate.heap.allocation_layout(plan);
+        let layout = isolate.heap.allocation_layout(shape);
         let handle = isolate
             .heap
             .allocate(&layout, Payload::Zeroed)
