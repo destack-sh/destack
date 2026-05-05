@@ -1,8 +1,0 @@
-export declare namespace tty {}
-
-export * from "./handle.ds";
-export * from "./io.ds";
-export * from "./mode.ds";
-export * from "./pty.ds";
-export * from "./size.ds";
-export * from "./termios.ds";

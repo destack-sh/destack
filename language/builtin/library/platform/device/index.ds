@@ -1,7 +1,0 @@
-export declare namespace device {}
-
-export * from "./serial.ds";
-export * from "./usb.ds";
-export * from "./bluetooth.ds";
-export * from "./camera.ds";
-export * from "./midi/index.ds";

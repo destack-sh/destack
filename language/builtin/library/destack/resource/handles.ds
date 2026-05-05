@@ -1,8 +1,0 @@
-export type {
-    DirectoryHandle,
-    FileHandle,
-    ListenerHandle,
-    ProcessHandle,
-    SocketHandle,
-    TimerHandle,
-} from "library/platform/resource/handles.ds";

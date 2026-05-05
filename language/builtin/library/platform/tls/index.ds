@@ -1,4 +1,0 @@
-export declare namespace tls {}
-
-export * from "./context.ds";
-export * from "./session.ds";
