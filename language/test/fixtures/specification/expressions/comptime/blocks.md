@@ -1,42 +1,58 @@
 # Comptime Blocks
 
-Comptime blocks can appear at module scope.
+Top-level comptime blocks are static checks.
 
 ## module scope
 
-### module comptime blocks are declarations
+### module comptime blocks assert static terms
 
-> Module-level comptime blocks are accepted declarations.
+> Top-level comptime blocks check static terms during compilation.
+
+```ds
+const size = comptime 4;
+
+comptime {
+    assert(size == 4);
+}
+
+size satisfies 4;
+```
+
+### module comptime blocks read imported terms
+
+> Top-level comptime blocks can use imported static terms.
+
+```ds:config.ds
+export const size = comptime 4;
+```
+
+```ds:main.ds
+import { size } from "./config";
+
+comptime {
+    assert(size == 4);
+}
+
+size satisfies 4;
+```
+
+### module comptime assertions can fail
+
+> Failed comptime assertions are compile-time errors.
 
 ```ds
 comptime {
-    let size = 4;
-    let _ = size + 1;
+    assert(false);
 }
-
-const value: int32 = 1;
-value satisfies int32;
 ```
 
-### module comptime blocks can follow declarations
+- contains: assertion
 
-> Comptime blocks can appear after other top-level items.
+## exports
 
-```ds
-const base: int32 = 2;
+### comptime values initialize exports
 
-comptime {
-    let value = base + 1;
-    let _ = value;
-}
-
-const next = base + 1;
-next satisfies int32;
-```
-
-### module comptime values can initialize exports
-
-> Module-level comptime values can be forwarded through exported constants.
+> Exported constants can expose comptime values.
 
 ```ds
 const computed = comptime {
@@ -44,40 +60,6 @@ const computed = comptime {
     base + 4
 };
 
-export const size: int32 = computed;
-size satisfies int32;
+export const size = computed;
+size satisfies 12;
 ```
-
-### module comptime blocks can read imports
-
-> Module-level comptime blocks can use imported compile-time constants.
-
-```ds:config.ds
-export const base: int32 = 8;
-```
-
-```ds:main.ds
-import { base } from "./config";
-
-const computed = comptime {
-    base + 4
-};
-
-computed satisfies int32;
-```
-
-### module comptime blocks reject runtime calls
-
-> Module-level comptime blocks reject runtime-only computations.
-
-```ds
-function runtime_only(): int32 {
-    4
-}
-
-const computed = comptime {
-    runtime_only()
-};
-```
-
-- contains: static expression

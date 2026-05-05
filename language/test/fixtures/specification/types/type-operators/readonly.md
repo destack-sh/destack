@@ -1,5 +1,92 @@
 # Readonly Types
 
+`readonly T` is a deep read-only view of `T`.
+
+## objects
+
+### readonly objects reject field writes
+
+> Readonly object fields cannot be assigned through a readonly view.
+
+```ds
+type User = {
+    name: string;
+};
+
+declare const user: readonly User;
+user.name = "Grace";
+```
+
+- contains: readonly
+
+### readonly objects reject nested field writes
+
+> Readonly reaches through nested object fields.
+
+```ds
+type User = {
+    profile: {
+        name: string;
+    };
+};
+
+declare const user: readonly User;
+user.profile.name = "Grace";
+```
+
+- contains: readonly
+
+### readonly objects can be read
+
+> Readonly views keep field types for reads.
+
+```ds
+type User = {
+    profile: {
+        name: string;
+    };
+};
+
+declare const user: readonly User;
+user.profile.name satisfies string;
+```
+
+## structs
+
+### readonly structs reject field writes
+
+> Readonly struct fields cannot be assigned through a readonly view.
+
+```ds
+struct User {
+    name: string;
+}
+
+declare const user: readonly User;
+user.name = "Grace";
+```
+
+- contains: readonly
+
+### readonly structs reject nested field writes
+
+> Readonly reaches through nested struct fields.
+
+```ds
+struct Profile {
+    name: string;
+}
+
+struct User {
+    profile: Profile;
+}
+
+declare const user: readonly User;
+user.profile.name = "Grace";
+```
+
+- contains: readonly
+
 ## arrays
 
 ### readonly arrays accept mutable arrays
@@ -22,6 +109,99 @@ let bad: number[] = frozen;
 ```
 
 - contains: not assignable
+
+### readonly arrays reject index writes
+
+> Readonly arrays cannot be assigned through indexed access.
+
+```ds
+declare const values: readonly number[];
+values[0] = 1;
+```
+
+- contains: readonly
+
+### readonly arrays reject nested element writes
+
+> Readonly reaches through array elements.
+
+```ds
+type User = {
+    name: string;
+};
+
+declare const users: readonly User[];
+users[0].name = "Grace";
+```
+
+- contains: readonly
+
+### readonly arrays reject mutation methods
+
+> Readonly arrays do not expose mutating array methods.
+
+```ds
+declare const values: readonly number[];
+values.push(1);
+```
+
+- contains: push
+
+## slices
+
+### readonly slices reject index writes
+
+> Readonly slices cannot be assigned through indexed access.
+
+```ds
+declare const values: readonly [number];
+values[0] = 1;
+```
+
+- contains: readonly
+
+### readonly slices reject nested element writes
+
+> Readonly reaches through slice elements.
+
+```ds
+struct User {
+    name: string;
+}
+
+declare const users: readonly [User];
+users[0].name = "Grace";
+```
+
+- contains: readonly
+
+## fixed arrays
+
+### readonly fixed arrays reject index writes
+
+> Readonly fixed arrays cannot be assigned through indexed access.
+
+```ds
+declare const values: readonly [number; 3];
+values[0] = 1;
+```
+
+- contains: readonly
+
+### readonly fixed arrays reject nested element writes
+
+> Readonly reaches through fixed array elements.
+
+```ds
+struct User {
+    name: string;
+}
+
+declare const users: readonly [User; 2];
+users[0].name = "Grace";
+```
+
+- contains: readonly
 
 ## tuples
 
@@ -52,59 +232,28 @@ let bad: Pair = frozen;
 
 - contains: not assignable
 
-### readonly tuple elements do not imply readonly tuples
+### readonly tuples reject element writes
 
-> Tuple element modifiers do not make the tuple readonly.
-
-```ds
-type ElemReadonly = (readonly int32, int32);
-
-declare let values: ElemReadonly;
-let arrayOk: int32[] = values;
-arrayOk satisfies int32[];
-```
-
-### readonly tuple elements reject mutable element assignment
-
-> Readonly tuple elements are not assignable to mutable tuple elements.
+> Readonly tuples cannot be assigned through indexed access.
 
 ```ds
-type ElemReadonly = (readonly int32, int32);
-type Mutable = (int32, int32);
-
-declare let values: ElemReadonly;
-let bad: Mutable = values;
+declare const pair: readonly (number, string);
+pair[0] = 1;
 ```
 
-- contains: not assignable
+- contains: readonly
 
-### readonly tuples reject mutable array assignment
+### readonly tuples reject nested element writes
 
-> Readonly tuples are not assignable to mutable arrays.
+> Readonly reaches through tuple elements.
 
 ```ds
-type ReadonlyPair = readonly (int32, int32);
+type User = {
+    name: string;
+};
 
-declare let frozen: ReadonlyPair;
-let bad: int32[] = frozen;
+declare const pair: readonly (User, number);
+pair[0].name = "Grace";
 ```
 
-- contains: not assignable
-
-## rejections
-
-### readonly operators require array or tuple targets
-
-> Readonly type operators only apply to array and tuple types.
-
-```ts
-type T = string;
-type Array<T> = T[];
-
-type Bad1 = readonly string;
-type Bad2 = readonly T;
-type Bad3 = readonly readonly string[];
-type Bad4 = readonly Array<string>;
-```
-
-- contains: readonly type must target an array or tuple
+- contains: readonly

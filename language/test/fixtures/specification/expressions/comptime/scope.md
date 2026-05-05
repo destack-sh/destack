@@ -1,12 +1,12 @@
 # Comptime Scope
 
-Comptime blocks can use their own locals but cannot mutate outer state.
+Comptime expressions have isolated evaluation scope.
 
 ## locals
 
 ### comptime locals can be mutated
 
-Mutation inside the comptime block is allowed.
+> Mutation inside the comptime expression is allowed.
 
 ```ds
 const width = comptime {
@@ -18,9 +18,30 @@ const width = comptime {
 width satisfies 8;
 ```
 
-### comptime blocks can read static parameters
+### comptime values return lowerable data
 
-Generic value parameters are available inside member comptime blocks.
+> Lowerable data can leave a comptime expression.
+
+```ds
+struct Config {
+    width: uint;
+    tags: string[];
+}
+
+const config = comptime Config {
+    width: 4,
+    tags: ["fast", "safe"],
+};
+
+config.width satisfies 4;
+config.tags[0] satisfies "fast";
+```
+
+## members
+
+### struct comptime blocks can read static parameters
+
+> Member comptime blocks run in the instantiated static environment.
 
 ```ds
 struct Buffer<comptime N: uint> {
@@ -35,49 +56,28 @@ declare const buffer: Buffer<4>;
 buffer.data satisfies [uint8; 4];
 ```
 
-## members
+### class comptime blocks can read static parameters
 
-### struct comptime blocks are allowed
-
-Comptime blocks are accepted struct members.
+> Class member comptime blocks use the member static environment.
 
 ```ds
-struct Buffer {
-    value: int32
-
+class Buffer<comptime N: uint> {
     comptime {
-        let size = 4;
-        let _ = size + 1;
+        assert(N > 0);
     }
+
+    data: [uint8; N] = [0; N];
 }
 
-const buffer = Buffer { value: 0 };
-buffer satisfies Buffer;
-```
-
-### class comptime blocks are allowed
-
-Comptime blocks are accepted class members.
-
-```ds
-class Counter {
-    value: int32 = 0
-
-    comptime {
-        let seed = 1;
-        let _ = seed;
-    }
-}
-
-const counter = new Counter();
-counter satisfies Counter;
+declare const buffer: Buffer<4>;
+buffer.data satisfies [uint8; 4];
 ```
 
 ## outer state
 
-### comptime blocks cannot mutate outer bindings
+### comptime expressions cannot mutate outer bindings
 
-Comptime evaluation cannot change bindings outside the block.
+> Comptime evaluation cannot change bindings outside the expression.
 
 ```ds
 let counter = 0;
@@ -89,9 +89,9 @@ comptime {
 
 - contains: static expression
 
-### comptime blocks cannot read instance fields
+### comptime member blocks cannot read instance fields
 
-Member comptime blocks cannot read runtime instance fields.
+> Member comptime blocks cannot read runtime instance state.
 
 ```ds
 class Counter {
@@ -106,18 +106,14 @@ class Counter {
 
 - contains: static expression
 
-### comptime blocks cannot call runtime functions
+### comptime expressions reject non-lowerable values
 
-Comptime evaluation cannot call runtime-only code.
+> Runtime resources cannot escape comptime evaluation.
 
 ```ds
-function read_runtime(): int32 {
-    4
-}
+declare function currentWorker(): Worker;
 
-const value = comptime {
-    read_runtime()
-};
+const worker = comptime currentWorker();
 ```
 
-- contains: static expression
+- contains: lowerable
