@@ -97,50 +97,53 @@ Pointer-sized integers - that integers that are as wide as the target's pointer 
 
 ### Newtypes
 
-TypeScript is structurally typed, that is, an interface is satisfied by any value matching its shape, even when it doesn't explicitly `implement` it (similar to Go).
-Structural typing is a useful default, but sometimes explicit nominality is important for correctness and expressiveness.
-Destack adds `newtype` as anominal counterpart to `type`: newtype aliases and newtype interfaces, which are really just a convenience around newtype aliases.
+TypeScript is structurally typed: an interface is satisfied by any value matching its shape, regardless of whether it explicitly `implement`s it.
+However, sometimes explicit nominality is helpful for correctness and expressiveness, and Destack adds `newtype` as the nominal counterpart to `type`.
 
-With plain `type`s and aliases, there is no actual protection against accidental assignment.
+For example, with plain `type`s and aliases, there is no actual protection against accidental assignment.
 (The TS ecosystem commonly resorts to "branding" hacks to work around this limitation.)
 ```ts
 type UserId = number;
-type OrderTag = string;
-
 0 satisfies number; // OK, TS is happy, but ouch
+
+type OrderTag = string;
 "invalid" satisfies OrderTag; // OK, TS still happy, also ouch
 ```
 
-With explicit `newtype`, receiver types must be explicitly cast into the nominal form:
+With explicit `newtype`, receiver types must be explicitly cast into their nominal form:
 ```ds
 newtype UserId = number;
-newtype OrderTag = string;
-
 0 satisfies number; // ERROR!
+
+newtype OrderTag = string;
 "invalid" satisfies OrderTag; // ERROR!
 ```
 
-To actually cast a value to a newtype you either use regular `<expr> as T` conversion or explicit `T(..)` style construciton, like:
+To actually cast a value to a newtype we use explicit `T(..)` style construction, like:
 ```ds
 newtype UserId = number;
+UserId(1) satisfies UserId;
+
 newtype OrderTag = string;
+OrderTag("tag") satisfies OrderTag;
+
 newtype Point = (number, number);
+Point(1, 2) satisfies Point;
+
 newtype Rectangle = {
     start: Point,
     end: Point,
 }
-newtype AuthenticatedUser = User;
+Rectangle({ start: Point(0, 0), end: Point(1, 1) }) satisfies Rectangle;
 
-UserId(1) satisfies UserId;
-OrderTag("tag") satisfies OrderTag;
-Point(1, 2) satisfies Point;
-Rectangle { start: ..., } satisfies Rectangle:
+newtype AuthenticatedUser = User;
 AuthenticatedUser(user) satisfies AuthenticatedUser;
 ```
 
 ### Newtype Interfaces
 
-Newtype aliases add nominality to any type, and Destack thus also supports **nominal interfaces** using the `newtype` modifier on `interface` declarations:
+Newtype aliases add nominality to any type, and Destack thus also supports **nominal interfaces** using the `newtype` modifier on `interface` declarations as a convience.
+This makes newtype interfaces behave essentially like traits in other languages.
 
 ```ds
 // structural interface (standard TypeScript behavior)
@@ -156,21 +159,26 @@ newtype interface Add<T, R = this> {
 ```
 
 Nominal interfaces require **explicit `implements`** declarations - structural compatibility alone doesn't satisfy the constraint, unlike for regular `interface`.
-Nominal interfaces are used for operator interfaces like `Add` and `Compare`, and for capability traits like `Send`, `Sync`, `Copy`, and `Clone`.
+Newtype interfaces are used for explicit behavioral traits like operator interfaces (e.g., `Add`, `Compare`), and for capability traits (e.g., `Send`, `Sync`, `Copy`, and `Clone`).
 
 ### Extensions
 
 It is sometimes convenient to attach additional logic and data to the (nominal identity of) a type.
-Rust supports this with `impl` blocks (and only `impl` blocks, actually), and Destack supports _additional_ `extension`s to add methods and static constants to any _nominal_ type:
+Rust supports this with `impl` blocks (and only `impl` blocks, actually), and Destack supports _additional_ `extension`s to add instance and static members to any _nominal_ type:
 
 ```ds
-newtype Vector2 = {
+class Vector2 {
     x: float32;
     y: float32;
-};
+
+    constructor(x: float32, y: float32) {
+        this.x = x;
+        this.y = y;
+    }
+}
 
 extension of Vector2 {
-    static ZERO = Vector2 { x: 0.0, y: 0.0 };
+    static ZERO = new Vector2(0.0, 0.0);
 
     magnitude(): float32 {
         return (this.x * this.x + this.y * this.y).sqrt()
@@ -178,9 +186,10 @@ extension of Vector2 {
 }
 ```
 
-Extensions can be added to any **nominal types**, so all types like `struct`, `class`, `enum`, `newtype`, whether defined locally or in a foreign / imported module.
-Accordingly, plain type aliases (`type X = ...`) and structural types (`{ x: number }`) cannot receive extensions (because it would be unclear when they should apply).
-Further, extensions can be named for explicit exports and subsequent imports:
+Extensions can be added to any **nominal type**, so all types like `struct`, `class`, `enum`, `newtype`, whether defined locally or in a foreign / imported module.
+Note that lain type aliases (`type X = ...`) and structural types (`{ x: number }`) cannot receive extensions (because it would be unclear when they should apply).
+
+Extensions can also be named for explicit exports and imports:
 
 ```ds
 import { User } from "@/model/user";
@@ -199,9 +208,8 @@ The visibility of extension members is straightforward:
 
 ### Enums
 
-Enums are nominal aliases to a set of constants, just like in Typescript, except that Destack's enums do not implicitly cast to with their backing type. 
-Explicit conversions are required when you want the backing value.
-Like other nominal types, enums can carry static members and methods and can also receive extensions.
+Enums are nominal aliases to a set of constants, just like in Typescript, except that Destack's enums do not implicitly cast to their backing type and explicit conversions are required for the backing value type.
+Like other nominal types, enums can carry instance and static members, and of course can also receive extensions.
 
 ```ds
 enum Priority {
@@ -224,8 +232,9 @@ enum Priority {
 
 ### Structs
 
-Structs are nominal value types for data with fixed shape, but without reference identity, constructors, or inheritance.
-Basically, structs are just data with a name, much like structs in other "systems languages": an alias to the struct's components.
+Structs are nominal value types for data with a fixed shape, but without reference identity, constructors, or inheritance.
+Basically, structs are just values with a name, much like structs in other "systems languages": an alias to the struct's components.
+Structs are created via the usual `T { .. }` constructor form to distinguish them from regular objects (no constructors).
 
 ```ds
 struct Point {
@@ -254,7 +263,9 @@ struct Player {
 
 ### Arrays, Slices and Tuples
 
-Destack supports richer sequence forms bBeyond the classic dynamic arrays - `T[]` / `Array<T>` with explicit slice, fixed array, and tuple forms:
+Destack supports richer sequence forms beyond the classic dynamic arrays - `T[]` / `Array<T>` with explicit slice, fixed array, and tuple forms.
+Unfortunately, not much syntax was left here, so we had to adopt the slightly non-TS-y syntax forms of `[T]` and `[T; N]`.
+(This is also why `.ds` does not support `.ts`-style array tuples `[A, B]`; tuples must be explicit `(A, B)`)
 
 | Forms | Meaning |
 |------|---------|
@@ -264,7 +275,7 @@ Destack supports richer sequence forms bBeyond the classic dynamic arrays - `T[]
 | `(A, B)` | Sequence of heterogenous, owned values |
 
 Unlike JavaScript, Destack does not permit holes in arrays (or any other sequences)
-Indexing into `T[]` therefore returns `T`, not `T | undefined`; out-of-bounds indexing traps or errors according to the active profile.
+Indexing into `T[]` therefore returns `T`, not `T | undefined`; out-of-bounds indexing traps or errors depending on compiler options.
 
 ```ds
 let xs: int32[] = [1, 2, 3];
@@ -275,14 +286,30 @@ Fixed arrays are homogeneous arrays whose length is statically known and part of
 They are inline value/layout types by default, and definitionally cannot grow.
 
 ```ds
-type Block = [uint8; 4096];
-type Vec3 = [float32; 3];
+type Block = [uint8; 4096]; // 4KB of uint8
+type Vec3 = [float32; 3];   // 3 float32s
 
 let rgb: [uint8; 3] = [255, 128, 0];
 let zeroes: [uint8; 32] = [0; 32];
 ```
 
-For tuples, we still parse the "array tuple" syntax like `[number, string]` in non-`.ds` files, but require explicit tuple syntax like `(number, string)` in `.ds`.
+Fixed arrays and slices also work directly in patterns.
+Fixed array patterns know their length statically, while slice patterns can use a rest binding for the tail:
+
+```ds
+declare const rgb: [uint8; 3];
+declare const bytes: [uint8];
+
+let [r, g, b] = rgb;
+
+match (bytes) {
+    [0x89, 0x50, 0x4e, 0x47, ...rest] => parsePng(rest)
+    [0xff, 0xd8, ...rest] => parseJpeg(rest)
+    _ => Result.err("unknown image format")
+}
+```
+
+For tuples, as said above, we still parse the "array tuple" syntax like `[number, string]` in non-`.ds` files, but require explicit tuple syntax like `(number, string)` in `.ds`.
 Tuples are fixed heterogeneous products, and of course also work as patterns:
 
 ```ds
@@ -290,7 +317,8 @@ const point: (int32, int32) = (1, 2);
 const (x, _) = getPoint();
 ```
 
-One-element tuples use a trailing comma, empty tuples are just `()`:
+One-element tuples use a trailing comma, empty tuples are just `()`.
+Since tuples are also just value containers, empty tuples occupy no space.
 
 ```ds
 type One = (int32,);
@@ -627,13 +655,13 @@ newtype interface Add<T, R = this> {
 
 extension of Vector2 implements Add<Vector2> {
     add(other: Vector2): Vector2 {
-        Vector2 { x: this.x + other.x, y: this.y + other.y }
+        Vector2({ x: this.x + other.x, y: this.y + other.y })
     }
 }
 
 extension of Vector2 implements Add<float32> {
     add(other: float32): Vector2 {
-        Vector2 { x: this.x + other, y: this.y + other }
+        Vector2({ x: this.x + other, y: this.y + other })
     }
 }
 
@@ -708,31 +736,43 @@ const config = loadConfig() ?? defaultConfig;  // use default on error
 
 #### Try
 
-`?` and `??` are extensible operators via a standard `Try` newtype interface (which `Result<T, E>` implements, jus tlike any userland type, and also basically like in Rust). 
-The `Try` trait is quite simple, we just define the success branch with `TryContinue<T>` and the failure branch with `TryFailure<E>`, like this:
+`?` and `??` are extensible operators via a standard `Try` newtype interface, which `Result<T, E>` implements just like any userland type.
+The interface has three pieces: how to build a successful value, how to branch a value, and what the failed branch carries.
 
 ```ds
-type TryContinue<T> = { kind: "continue"; value: T };
-type TryFailure<E> = { kind: "failure"; error: E };
-type TryBranch<T, E> = TryContinue<T> | TryFailure<E>;
+struct TryContinue<T> {
+    kind: "continue" = "continue";
+    value: T;
+}
+
+struct TryFailure<F> {
+    kind: "failure" = "failure";
+    failure: F;
+}
+
+type TryBranch<T, F> = TryContinue<T> | TryFailure<F>;
 
 newtype interface Try {
     type Value;
-    type Error;
+    type Failure;
 
-    branch(): TryBranch<this.Value, this.Error>;
+    static fromValue(value: this.Value): this;
+    branch(): TryBranch<this.Value, this.Failure>;
 }
 ```
 
 For `Result<T, E>`, `Ok { value }` branches to `TryContinue<T>` and `Err { error }` branches to `TryFailure<E>`.
 The branch names describe the operator's control flow, not the data constructors of any one type.
 
-Propagation is a separate target-side operation.
-When a failure leaves the current function, the enclosing return type must implement `FromFailure<E>` for the propagated error type.
+The success constructor is mostly for generic `try`-like code which needs to finish by rebuilding the surrounding `Try` type from a plain value.
+The ordinary `?` operator does not need it on the success path because success just unwraps and keeps running.
+
+Propagation is the matching failure-side operation.
+When a failure leaves the current function, the enclosing return type must implement `FromFailure<F>` for the propagated failure type.
 
 ```ds
-newtype interface FromFailure<E> {
-    static fromFailure(error: E): this;
+newtype interface FromFailure<F> {
+    static fromFailure(failure: F): this;
 }
 ```
 
