@@ -1,5 +1,4 @@
-use destack_builtin::LanguageSymbol;
-use destack_dir::{AssignOperator, BinaryOperator, UnaryOperator};
+use destack_dir::{AssignOperator, BinaryOperator, LanguageSymbol, UnaryOperator};
 
 /// Extension trait to get the LanguageSymbol for an operator.
 pub trait OperatorLanguageSymbolExt {
@@ -61,7 +60,7 @@ impl OperatorLanguageSymbolExt for UnaryOperator {
             UnaryOperator::Negate | UnaryOperator::WrappingNegate => Some(LanguageSymbol::Negate),
             UnaryOperator::Plus => Some(LanguageSymbol::Plus),
             UnaryOperator::ElementwiseNot => Some(LanguageSymbol::Not),
-            UnaryOperator::Dereference => Some(LanguageSymbol::Deref),
+            UnaryOperator::Dereference => Some(LanguageSymbol::ReadonlyDereference),
 
             // increment/decrement
             UnaryOperator::PostIncrement

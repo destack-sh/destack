@@ -1,5 +1,5 @@
-use destack_builtin::LanguageSymbol;
 use destack_dir as dir;
+use destack_dir::LanguageSymbol;
 use dir::{
     Argument, BinaryOperator, Expression, LocalNodeId, LocalTypeId, NodeType, Resolution,
     ResolutionCandidate, UnaryOperator,

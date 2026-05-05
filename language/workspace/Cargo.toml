@@ -17,18 +17,13 @@ path = "src/bin/schema.rs"
 required-features = ["schema"]
 
 [features]
-default = ["full"]
-builtin-full = ["destack_builtin/full"]
-builtin-core = ["destack_builtin/core"]
-full = ["builtin-full"]
-core = ["builtin-core"]
+default = []
 schema = ["schemars", "destack_artifact/schema"]
 
 [dependencies]
 # language
 destack_artifact = { workspace = true }
 destack_ast = { workspace = true }
-destack_builtin = { path = "../builtin", default-features = false }
 destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_heap = { workspace = true }

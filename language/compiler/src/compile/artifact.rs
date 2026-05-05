@@ -163,7 +163,6 @@ impl Compiler {
     }
 
     /// Require one lowered MIR artifact without loading its payload.
-    #[cfg(feature = "optimize")]
     pub(crate) fn require_mir_lowered(
         &self,
         context: &dyn ProviderContext,

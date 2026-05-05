@@ -6,8 +6,8 @@ use destack_artifact::{
     AmbientEnvironment, DiagnosticAnchor, DirDeclared, LanguageEnvironment, WellKnownIntrinsics,
 };
 use destack_ast::StringId;
-use destack_builtin::LanguageSymbol;
 use destack_core::StringPool;
+use destack_dir::LanguageSymbol;
 use destack_source::{ModuleId, TargetId};
 use destack_workspace::{CheckFailurePolicy, Module, ProfileId, ProviderContext, Target};
 use indexmap::IndexSet;
@@ -951,7 +951,7 @@ impl<'a> ModuleLowerer<'a> {
                 .string_type_for_builtin(anchor)?
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(anchor),
-                    message: "missing well known String layout (load library/native)".to_string(),
+                    message: "missing well known String layout (load core)".to_string(),
                 })
                 .map_err(CompilerError::from)?
         };

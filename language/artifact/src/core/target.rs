@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use destack_builtin::{BuiltinPlatform, BuiltinRuntime};
-
 /// Runtime environment that actually executes the compiled code.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
@@ -28,23 +26,6 @@ pub enum Runtime {
     NativeFreestanding,
     /// Native embedded runtime.
     NativeEmbedded,
-}
-
-impl From<Runtime> for BuiltinRuntime {
-    fn from(value: Runtime) -> Self {
-        match value {
-            Runtime::Browser => BuiltinRuntime::Browser,
-            Runtime::Node => BuiltinRuntime::Node,
-            Runtime::Deno => BuiltinRuntime::Deno,
-            Runtime::Bun => BuiltinRuntime::Bun,
-            Runtime::Worker => BuiltinRuntime::Worker,
-            Runtime::WasmJs => BuiltinRuntime::WasmJs,
-            Runtime::WasmWasi => BuiltinRuntime::WasmWasi,
-            Runtime::NativeManaged => BuiltinRuntime::NativeManaged,
-            Runtime::NativeFreestanding => BuiltinRuntime::NativeFreestanding,
-            Runtime::NativeEmbedded => BuiltinRuntime::NativeEmbedded,
-        }
-    }
 }
 
 impl std::str::FromStr for Runtime {
@@ -160,33 +141,6 @@ pub enum Platform {
     BareMetal,
     /// Portable or unknown.
     Universal,
-}
-
-impl From<Platform> for BuiltinPlatform {
-    fn from(value: Platform) -> Self {
-        match value {
-            Platform::Web => BuiltinPlatform::Web,
-            Platform::Windows => BuiltinPlatform::Windows,
-            Platform::MacOS => BuiltinPlatform::MacOS,
-            Platform::Linux => BuiltinPlatform::Linux,
-            Platform::FreeBsd => BuiltinPlatform::FreeBsd,
-            Platform::OpenBsd => BuiltinPlatform::OpenBsd,
-            Platform::NetBsd => BuiltinPlatform::NetBsd,
-            Platform::DragonFly => BuiltinPlatform::DragonFly,
-            Platform::Solaris => BuiltinPlatform::Solaris,
-            Platform::Illumos => BuiltinPlatform::Illumos,
-            Platform::Haiku => BuiltinPlatform::Haiku,
-            Platform::Fuchsia => BuiltinPlatform::Fuchsia,
-            Platform::Redox => BuiltinPlatform::Redox,
-            Platform::Hermit => BuiltinPlatform::Hermit,
-            Platform::IOS => BuiltinPlatform::IOS,
-            Platform::Android => BuiltinPlatform::Android,
-            Platform::Wasi => BuiltinPlatform::Wasi,
-            Platform::Emscripten => BuiltinPlatform::Emscripten,
-            Platform::BareMetal => BuiltinPlatform::BareMetal,
-            Platform::Universal => BuiltinPlatform::Universal,
-        }
-    }
 }
 
 impl std::str::FromStr for Platform {

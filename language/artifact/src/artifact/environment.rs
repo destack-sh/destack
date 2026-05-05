@@ -1,8 +1,7 @@
-use destack_builtin::LanguageSymbol;
 use destack_core::StringId;
 use destack_dir::{
-    GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolType, WellKnownSymbol,
-    WellKnownSymbolKey,
+    GlobalSymbolId, LanguageSymbol, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolType,
+    WellKnownSymbol, WellKnownSymbolKey,
 };
 use destack_source::ModuleId;
 use indexmap::IndexMap;

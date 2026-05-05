@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::thread;
 
 use destack_compiler::Compiler;
 use destack_linter::Linter;
@@ -41,6 +42,11 @@ impl std::fmt::Debug for Session {
 }
 
 impl Session {
+    /// Return the default session worker limit.
+    pub fn default_worker_limit() -> usize {
+        thread::available_parallelism().map_or(1, usize::from)
+    }
+
     /// Create a private session head rooted at one explicit revision.
     pub fn fork(
         root: PathBuf,

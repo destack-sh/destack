@@ -1,14 +1,14 @@
 use super::*;
-use crate::run_to_completion;
-use destack_builtin::{BuiltinLibrary, LANGUAGE_LIBS, LIBRARY_LIBS, LanguageSymbol};
+use crate::{run_to_completion, LANGUAGE_LIBS, LIBRARY_PACKAGES, LibraryPackage};
 use destack_dir::{
-    Declaration, StaticKey, SymbolSpace, SymbolType, WellKnownSymbol, WellKnownSymbolKey,
+    Declaration, LanguageSymbol, StaticKey, SymbolSpace, SymbolType, WellKnownSymbol,
+    WellKnownSymbolKey,
 };
 use destack_source::DiagnosticSeverity;
 
-/// Analyze one builtin library and summarize any diagnostics.
-fn analyze_builtin_library_summary(library: &BuiltinLibrary) -> Option<String> {
-    // selected builtin library
+/// Analyze one library package and summarize any diagnostics.
+fn analyze_library_summary(library: &LibraryPackage) -> Option<String> {
+    // selected library package
     let test =
         TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&[library.name]);
     let profile = test.default_profile_id_for_root();
@@ -47,19 +47,19 @@ fn analyze_builtin_library_summary(library: &BuiltinLibrary) -> Option<String> {
     ))
 }
 
-/// Analyze every builtin library in one registry and report failures.
-fn analyze_builtin_library_registry_clean(libraries: &[BuiltinLibrary]) {
+/// Analyze every library package in one registry and report failures.
+fn analyze_library_registry_clean(libraries: &[LibraryPackage]) {
     let mut failures = Vec::new();
 
     for library in libraries {
-        if let Some(summary) = analyze_builtin_library_summary(library) {
+        if let Some(summary) = analyze_library_summary(library) {
             failures.push(summary);
         }
     }
 
     assert!(
         failures.is_empty(),
-        "builtin libraries must stay clean:\n{}",
+        "library packages must stay clean:\n{}",
         failures.join("\n")
     );
 }
@@ -89,36 +89,25 @@ fn test_resolve_language_symbol() {
     assert_string!(test.program, symbol.name().unwrap(), "Add");
 }
 
-/// Report conflicts when multiple builtin lib versions are requested.
+// FUGU #Broken: many library package entries are not yet standalone clean in isolation
 #[test]
-fn test_error_on_conflicting_builtin_lib_versions() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_libs(&["node", "node.v24"]);
-    test.resolve_language_environment();
-    test.resolve_libs();
-    test.compile();
-    test.check_has_diagnostic("ER402");
+#[ignore = "library catalog inventory for standalone clean-analysis debt"]
+fn test_analyze_language_libraries_clean() {
+    analyze_library_registry_clean(LANGUAGE_LIBS);
 }
 
-// FUGU #Broken: many builtin library entries are not yet standalone clean in isolation
+// FUGU #Broken: many library package entries are not yet standalone clean in isolation
 #[test]
-#[ignore = "builtin registry inventory for standalone clean-analysis debt"]
-fn test_analyze_language_builtin_libraries_clean() {
-    analyze_builtin_library_registry_clean(LANGUAGE_LIBS);
+#[ignore = "library catalog inventory for standalone clean-analysis debt"]
+fn test_analyze_library_packages_clean() {
+    analyze_library_registry_clean(LIBRARY_PACKAGES);
 }
 
-// FUGU #Broken: many builtin library entries are not yet standalone clean in isolation
-#[test]
-#[ignore = "builtin registry inventory for standalone clean-analysis debt"]
-fn test_analyze_library_builtin_libraries_clean() {
-    analyze_builtin_library_registry_clean(LIBRARY_LIBS);
-}
-
-/// Resolve well known symbols from builtin libs.
+/// Resolve well known symbols from library packages.
 #[test]
 fn test_resolve_well_known_symbols() {
     let test =
-        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es2020", "js"]);
+        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["core"]);
     test.resolve_language_environment();
     test.resolve_libs();
     test.compile();
@@ -169,11 +158,11 @@ fn test_resolve_well_known_symbols() {
     }
 }
 
-/// Resolve native-only well-known symbols when the native lib is active.
+/// Resolve fixed array from the core library.
 #[test]
-fn test_resolve_native_well_known_fixed_array_symbol() {
+fn test_resolve_core_well_known_fixed_array_symbol() {
     let test =
-        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["native"]);
+        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["core"]);
     test.resolve_language_environment();
     test.resolve_libs();
     test.compile();
@@ -187,15 +176,15 @@ fn test_resolve_native_well_known_fixed_array_symbol() {
         well_known
             .get_type_symbol(WellKnownSymbol::FixedArray)
             .is_some(),
-        "missing native FixedArray well-known symbol"
+        "missing core FixedArray well-known symbol"
     );
 }
 
-/// Resolve ambient bare JavaScript globals from the selected ES library surface.
+/// Resolve ambient bare core globals.
 #[test]
-fn test_resolve_bare_javascript_globals_from_builtin_libraries() {
+fn test_resolve_bare_core_globals() {
     let test =
-        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es2020", "js"]);
+        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["core"]);
     let module_id = test.add_module(
         "main.ts",
         r#"
@@ -211,9 +200,9 @@ export const appValue = [infinityValue, nanValue, rootValue];
     test.compile_check_clean();
 }
 
-/// Resolve the native String well-known symbol for an implicit native target profile.
+/// Resolve the core String well-known symbol for an implicit target profile.
 #[test]
-fn test_resolve_native_well_known_string_symbol_from_target_profile() {
+fn test_resolve_core_well_known_string_symbol_from_target_profile() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -230,29 +219,29 @@ function main(): int32 {
     let profile = test
         .program
         .target_profile_id(module_id, &target_id)
-        .unwrap_or_else(|| panic!("missing native profile"));
+        .unwrap_or_else(|| panic!("missing target profile"));
 
     run_to_completion(
         &test.compiler,
         test.program.current_revision(),
         |compiler, context| compiler.require_ambient_environment(context, profile),
     )
-    .unwrap_or_else(|error| panic!("failed to resolve native library environment: {error:?}"));
+    .unwrap_or_else(|error| panic!("failed to resolve core library environment: {error:?}"));
     test.compile();
 
     let well_known = test
         .compiler
         .get_well_known_symbols(test.program.current_revision(), profile)
-        .unwrap_or_else(|| panic!("missing well known symbols for native target profile"));
+        .unwrap_or_else(|| panic!("missing well known symbols for target profile"));
     assert!(
         well_known
             .get_type_symbol(WellKnownSymbol::String)
             .is_some(),
-        "missing native String well-known symbol"
+        "missing core String well-known symbol"
     );
 }
 
-/// Resolve the native String well-known symbol to one concrete struct declaration.
+/// Resolve the core String well-known symbol to one concrete struct declaration.
 #[test]
 fn test_resolve_native_well_known_string_concrete_symbol() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
@@ -299,7 +288,7 @@ function main(): int32 {
             WellKnownSymbol::String,
             destack_dir::SymbolSpaceOrder::TypeThenValue,
         )
-        .unwrap_or_else(|| panic!("missing native String well-known symbol"));
+        .unwrap_or_else(|| panic!("missing core String well-known symbol"));
 
     run_to_completion(
         &test.compiler,
@@ -308,7 +297,7 @@ function main(): int32 {
             compiler.require_dir_declared(_context, string_symbol.module_id, profile)
         },
     )
-    .unwrap_or_else(|error| panic!("failed to declare native String owner module: {error:?}"));
+    .unwrap_or_else(|error| panic!("failed to declare core String owner module: {error:?}"));
 
     let declared = test
         .compiler
@@ -327,14 +316,14 @@ function main(): int32 {
     assert_eq!(
         declared_symbol.ty,
         SymbolType::Struct,
-        "native String symbol: {string_symbol:?}, type sources: {string_sources:?}"
+        "core String symbol: {string_symbol:?}, type sources: {string_sources:?}"
     );
 
     let declaration_id = declared_symbol
         .primary_declaration
         .and_then(|node| node.local_id.try_into_typed::<Declaration>().ok())
-        .unwrap_or_else(|| panic!("native String symbol missing struct declaration"));
+        .unwrap_or_else(|| panic!("core String symbol missing struct declaration"));
     let Declaration::Struct { .. } = declared.tree.get(declaration_id) else {
-        panic!("native String symbol does not point to a struct declaration");
+        panic!("core String symbol does not point to a struct declaration");
     };
 }

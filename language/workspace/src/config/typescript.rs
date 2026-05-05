@@ -1,18 +1,16 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use destack_builtin::{builtin_library, builtin_library_name_for_types_package};
 use destack_source::{FileSystem, PathExt};
 
 use crate::config::TsConfigOptions;
 
 const TYPESCRIPT_LIB_PREFIX: &str = "lib.";
 const TYPESCRIPT_LIB_SUFFIX: &str = ".d.ts";
-const TYPESCRIPT_IMPLICIT_HOST_LIBS: &[&str] = &["dom", "dom.iterable", "scripthost"];
 const TYPESCRIPT_DEFAULT_TYPE_ROOT_SUFFIX: &str = "node_modules/@types";
 const TYPESCRIPT_TYPES_PACKAGE_PREFIX: &str = "@types/";
 
-/// Normalize one TypeScript lib name to builtin lookup form.
+/// Normalize one TypeScript lib name to a library package name.
 pub fn normalize_typescript_lib_name(lib: &str) -> String {
     // normalize casing and whitespace
     let lower = lib.trim().to_ascii_lowercase();
@@ -26,7 +24,7 @@ pub fn normalize_typescript_lib_name(lib: &str) -> String {
     normalized.to_string()
 }
 
-/// Normalize TypeScript lib names to builtin lookup form.
+/// Normalize TypeScript lib names to library package names.
 pub fn normalize_typescript_lib_names(libs: &[String]) -> Vec<String> {
     libs.iter()
         .map(|lib| normalize_typescript_lib_name(lib))
@@ -67,35 +65,25 @@ pub fn normalize_typescript_type_entries(types: &[String]) -> Vec<String> {
     normalized_types
 }
 
-/// Map type entries to builtin ambient library names.
-pub fn builtin_libs_for_type_entries(type_entries: &[String]) -> Vec<String> {
-    let mut builtin_types = Vec::new();
+/// Map type entries to requested library package names.
+pub fn library_packages_for_type_entries(type_entries: &[String]) -> Vec<String> {
+    let mut library_types = Vec::new();
     let mut seen = HashSet::new();
 
-    // project each type entry to one builtin lib when possible
+    // project each type entry to one requested package
     for type_entry in type_entries {
-        let normalized_type_name = normalize_typescript_type_package_name(type_entry);
-        if normalized_type_name.is_empty() {
+        let library_name = normalize_typescript_type_package_name(type_entry);
+        if library_name.is_empty() {
+            continue;
+        };
+        if !seen.insert(library_name.clone()) {
             continue;
         }
 
-        let builtin_name = if builtin_library(&normalized_type_name).is_some() {
-            Some(normalized_type_name.clone())
-        } else {
-            builtin_library_name_for_types_package(&normalized_type_name)
-        };
-
-        let Some(builtin_name) = builtin_name else {
-            continue;
-        };
-        if !seen.insert(builtin_name.clone()) {
-            continue;
-        }
-
-        builtin_types.push(builtin_name);
+        library_types.push(library_name);
     }
 
-    builtin_types
+    library_types
 }
 
 /// Build default TypeScript libs for one tsconfig.
@@ -112,18 +100,7 @@ pub fn typescript_default_libs(tsconfig_options: &TsConfigOptions) -> Vec<String
         return normalize_typescript_lib_names(&ts_compiler_options.lib);
     }
 
-    // start with TypeScript default ambient libs
-    let mut libs = vec![
-        "js".to_string(),
-        ts_compiler_options.es_target.default_lib_name().to_string(),
-    ];
-
-    // add host libs
-    for lib in TYPESCRIPT_IMPLICIT_HOST_LIBS {
-        libs.push((*lib).to_string());
-    }
-
-    libs
+    vec!["core".to_string()]
 }
 
 /// Resolve effective type root directories for one module.

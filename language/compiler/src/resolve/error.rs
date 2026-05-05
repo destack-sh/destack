@@ -1,7 +1,6 @@
 use crate::DiagnosticAnchor;
 use destack_artifact_macros::Diagnostic;
-use destack_builtin::LanguageSymbol;
-use destack_dir::{GlobalScopeId, GlobalSymbolId};
+use destack_dir::{GlobalScopeId, GlobalSymbolId, LanguageSymbol};
 use destack_source::{ModuleId, PackageId, TargetId};
 
 /// Errors during the resolve phase.
@@ -86,7 +85,7 @@ pub enum ResolveError {
     /// Builtin module is not available for the current runtime.
     #[diagnostic(
         code = "ER205",
-        message = "builtin module '{target}' is not supported for runtime '{runtime}'"
+        message = "library module '{target}' is not supported for runtime '{runtime}'"
     )]
     UnsupportedBuiltinModule {
         anchor: DiagnosticAnchor,
@@ -94,17 +93,17 @@ pub enum ResolveError {
         runtime: String,
     },
 
-    /// Unknown builtin module in a recognized protocol namespace.
+    /// Unknown library module in a recognized protocol namespace.
     #[diagnostic(code = "ER206", message = "no such built-in module: {target}")]
     UnknownBuiltinModule {
         anchor: DiagnosticAnchor,
         target: String,
     },
 
-    /// Bare builtin module import must use an explicit protocol prefix.
+    /// Bare library module import must use an explicit protocol prefix.
     #[diagnostic(
         code = "ER207",
-        message = "builtin module '{target}' must use the '{suggested}' protocol form"
+        message = "library module '{target}' must use the '{suggested}' protocol form"
     )]
     UnprefixedBuiltinModule {
         anchor: DiagnosticAnchor,
@@ -132,28 +131,28 @@ pub enum ResolveError {
     },
 
     // -------------------------------------------------------------------------
-    // 4xx: Builtins / config
+    // 4xx: Language library / config
     // -------------------------------------------------------------------------
-    /// Missing language item (builtin not found).
+    /// Missing language item.
     #[diagnostic(code = "ER400", message = "missing language item '{item}'")]
     MissingLanguageSymbol {
         anchor: DiagnosticAnchor,
         item: LanguageSymbol,
     },
 
-    /// Missing builtin library.
-    #[diagnostic(code = "ER401", message = "missing builtin library '{name}'")]
-    MissingBuiltinLibrary {
+    /// Missing library package.
+    #[diagnostic(code = "ER401", message = "missing library package '{name}'")]
+    MissingLibraryPackage {
         anchor: DiagnosticAnchor,
         name: String,
     },
 
-    /// Conflicting builtin library versions.
+    /// Conflicting library package versions.
     #[diagnostic(
         code = "ER402",
-        message = "conflicting builtin library versions for '{base}': {libs}"
+        message = "conflicting library package versions for '{base}': {libs}"
     )]
-    ConflictingBuiltinLibraryVersions {
+    ConflictingLibraryPackageVersions {
         anchor: DiagnosticAnchor,
         base: String,
         libs: String,
@@ -168,7 +167,7 @@ pub enum ResolveError {
         message: String,
     },
 
-    /// Invalid intrinsic binding in builtin modules.
+    /// Invalid intrinsic binding in library modules.
     #[diagnostic(code = "ER404", message = "invalid intrinsic binding: {message}")]
     InvalidIntrinsicBinding {
         anchor: DiagnosticAnchor,
