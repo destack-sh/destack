@@ -1,13 +1,13 @@
 use crate::Word;
 use crate::tests::create_test_heap;
-use destack_heap::{AllocationPlan, Heap, HeapError, HeapReference, Payload};
+use destack_heap::{AllocationShape, Heap, HeapError, HeapReference, Payload};
 use destack_mir::ReferenceMap;
 
 /// Allocate one managed cell for tests.
 fn allocate(heap: &mut Heap) -> HeapReference {
     let reference_map = ReferenceMap::empty();
-    let plan = AllocationPlan::new(1, 1, &reference_map);
-    let layout = heap.allocation_layout(plan);
+    let shape = AllocationShape::new(1, 1, &reference_map);
+    let layout = heap.allocation_layout(shape);
 
     heap.allocate(&layout, Payload::Bytes(&[0]))
         .expect("heap allocation should succeed")
@@ -33,8 +33,8 @@ fn allocate_with_values(heap: &mut Heap, values: Vec<Word>) -> HeapReference {
             shared_offsets: Vec::new().into_boxed_slice(),
         }
     };
-    let plan = AllocationPlan::new(bytes.len(), Word::BYTE_LEN, &reference_map);
-    let layout = heap.allocation_layout(plan);
+    let shape = AllocationShape::new(bytes.len(), Word::BYTE_LEN, &reference_map);
+    let layout = heap.allocation_layout(shape);
 
     heap.allocate(&layout, Payload::Bytes(&bytes))
         .expect("heap allocation should succeed")
@@ -94,8 +94,8 @@ fn assert_cell_prefix(heap: &Heap, reference: HeapReference, expected: &[u8]) {
 fn test_reject_zero_byte_heap_allocation() {
     let mut heap = create_test_heap();
     let reference_map = ReferenceMap::empty();
-    let plan = AllocationPlan::new(0, 1, &reference_map);
-    let layout = heap.allocation_layout(plan);
+    let shape = AllocationShape::new(0, 1, &reference_map);
+    let layout = heap.allocation_layout(shape);
 
     let result = heap.allocate(&layout, Payload::Zeroed);
 
@@ -180,8 +180,8 @@ fn test_gc_handles_cycles() {
         local_offsets: vec![0].into_boxed_slice(),
         shared_offsets: Vec::new().into_boxed_slice(),
     };
-    let plan = AllocationPlan::new(Word::BYTE_LEN, Word::BYTE_LEN, &reference_map);
-    let layout = heap.allocation_layout(plan);
+    let shape = AllocationShape::new(Word::BYTE_LEN, Word::BYTE_LEN, &reference_map);
+    let layout = heap.allocation_layout(shape);
     let a = heap
         .allocate(&layout, Payload::Zeroed)
         .expect("heap allocation should succeed");
