@@ -10,10 +10,10 @@ export struct TryFailure<F> {
     failure: F;
 }
 
-/// Branch result for the `?` and `??` operators.
+/// Result of branching a `Try` value.
 export type TryBranch<T, F> = TryContinue<T> | TryFailure<F>;
 
-/// Protocol for values that can be unwrapped, propagated, or rebuilt.
+/// Protocol for values that work with `?`, `??`, and postfix `!`.
 export newtype interface Try {
     /// The value produced when evaluation continues.
     type Value;

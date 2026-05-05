@@ -1,0 +1,10 @@
+/// Interface for the `**` operator.
+///
+/// `a ** b` becomes `a.power(b)`.
+export newtype interface Power<T = this> {
+    /// The result type.
+    type Output;
+
+    /// Raise this value to `other`.
+    power(other: T): this.Output;
+}

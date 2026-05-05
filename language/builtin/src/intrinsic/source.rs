@@ -3,7 +3,7 @@
 pub struct BuiltinSource {
     /// Module path relative to intrinsic/.
     pub path: &'static str,
-    /// File name (e.g., "arithmetic.ds").
+    /// File name (e.g., "plus.ds").
     pub name: &'static str,
     /// Source content.
     pub content: &'static str,
@@ -66,11 +66,20 @@ builtin_source!(MEMORY_DISPOSE, "memory", "dispose.ds");
 builtin_source!(MEMORY_OWNERSHIP, "memory", "ownership.ds");
 
 // operator
-builtin_source!(OPERATOR_ARITHMETIC, "operator", "arithmetic.ds");
+builtin_source!(OPERATOR_PLUS, "operator", "plus.ds");
+builtin_source!(OPERATOR_MINUS, "operator", "minus.ds");
+builtin_source!(OPERATOR_MULTIPLY, "operator", "multiply.ds");
+builtin_source!(OPERATOR_DIVIDE, "operator", "divide.ds");
+builtin_source!(OPERATOR_REMAINDER, "operator", "remainder.ds");
+builtin_source!(OPERATOR_POWER, "operator", "power.ds");
+builtin_source!(OPERATOR_BITWISE, "operator", "bitwise.ds");
+builtin_source!(OPERATOR_SHIFT, "operator", "shift.ds");
+builtin_source!(OPERATOR_CONCATENATE, "operator", "concatenate.ds");
 builtin_source!(OPERATOR_COMPARISON, "operator", "comparison.ds");
 builtin_source!(OPERATOR_INDEX, "operator", "index.ds");
 builtin_source!(OPERATOR_FORMAT, "operator", "format.ds");
 builtin_source!(OPERATOR_SUBSCRIPT, "operator", "subscript.ds");
+builtin_source!(OPERATOR_DEREFERENCE, "operator", "dereference.ds");
 
 // control
 builtin_source!(CONTROL_INDEX, "control", "index.ds");
@@ -110,9 +119,18 @@ pub const INTRINSIC_SOURCES: &[BuiltinSource] = &[
     MEMORY_BYTES,
     MEMORY_INDEX,
     // operator
-    OPERATOR_ARITHMETIC,
+    OPERATOR_PLUS,
+    OPERATOR_MINUS,
+    OPERATOR_MULTIPLY,
+    OPERATOR_DIVIDE,
+    OPERATOR_REMAINDER,
+    OPERATOR_POWER,
+    OPERATOR_BITWISE,
+    OPERATOR_SHIFT,
+    OPERATOR_CONCATENATE,
     OPERATOR_COMPARISON,
     OPERATOR_SUBSCRIPT,
+    OPERATOR_DEREFERENCE,
     OPERATOR_FORMAT,
     OPERATOR_INDEX,
     // control
@@ -179,10 +197,7 @@ mod tests {
 
     #[test]
     fn test_virtual_path() {
-        assert_eq!(
-            OPERATOR_ARITHMETIC.virtual_path(),
-            "builtin://operator/arithmetic.ds"
-        );
+        assert_eq!(OPERATOR_PLUS.virtual_path(), "builtin://operator/plus.ds");
     }
 
     #[test]
