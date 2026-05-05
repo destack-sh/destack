@@ -151,8 +151,10 @@ interface Drawable {
 const x: Drawable = { draw() {} };  // OK: structural match
 
 // nominal interface (requires explicit `implements`)
-newtype interface Add<T, R = this> {
-    add(other: T): R;
+newtype interface Add<T = this> {
+    type Output;
+
+    add(other: T): this.Output;
 }
 ```
 
@@ -766,29 +768,29 @@ Logical operators (`&&`, `||`, `??`), optional chaining, assignment, and strict 
 
 | Operator | Example | Interface |
 |----------|---------|----------|
-| `+` | `a + b` | `Add<T, R>` |
-| `-` | `a - b` | `Subtract<T, R>` |
-| `*` | `a * b` | `Multiply<T, R>` |
-| `/` | `a / b` | `Divide<T, R>` |
-| `%` | `a % b` | `Remainder<T, R>` |
-| `**` | `a ** b` | `Power<T, R>` |
-| `+` | `+a` | `Plus<R>` |
-| `-` | `-a` | `Negate<R>` |
-| `&` | `a & b` | `And<T, R>` |
-| `\|` | `a \| b` | `Or<T, R>` |
-| `^` | `a ^ b` | `Xor<T, R>` |
-| `~` | `~a` | `Not<R>` |
-| `<<` | `a << b` | `ShiftLeft<T, R>` |
-| `>>` | `a >> b` | `ShiftRight<T, R>` |
-| `>>>` | `a >>> b` | `ShiftRightUnsigned<T, R>` |
+| `+` | `a + b` | `Add<T>` |
+| `-` | `a - b` | `Subtract<T>` |
+| `*` | `a * b` | `Multiply<T>` |
+| `/` | `a / b` | `Divide<T>` |
+| `%` | `a % b` | `Remainder<T>` |
+| `**` | `a ** b` | `Power<T>` |
+| `+` | `+a` | `Plus` |
+| `-` | `-a` | `Negate` |
+| `&` | `a & b` | `And<T>` |
+| `\|` | `a \| b` | `Or<T>` |
+| `^` | `a ^ b` | `Xor<T>` |
+| `~` | `~a` | `Not` |
+| `<<` | `a << b` | `ShiftLeft<T>` |
+| `>>` | `a >> b` | `ShiftRight<T>` |
+| `>>>` | `a >>> b` | `ShiftRightUnsigned<T>` |
 | `==`, `!=` | `a == b` | `Equal<T>` or `PartialEqual<T>` |
 | `<`, `<=`, `>`, `>=` | `a < b` | `Compare<T>` or `PartialCompare<T>` |
-| `[]` | `a[i]` | `Index<I, O>` |
+| `[]` | `a[i]` | `Index<I>` |
 | `[] =` | `a[i] = v` | `IndexSet<I, V>` |
-| `*` | `*a` | `Deref<T>` |
-| `* =` | `*a = v` | `DerefSet<T>` |
+| `*` | `*a` | `ReadonlyDereference` |
+| `* =` | `*a = v` | `Dereference` |
 
-When overflow / wrapping policy is part of the algorithm, the expression should say so directly, so Destack provides Zig-style wrapping and saturating arithmetic for integer code:
+When overflow / wrapping policy is part of the algorithm, the expression should say so directly, so Destack provides Zig-style wrapping and saturating arithmetic for integer code (which are not overloadable):
 
 | Operation | Standard | Wrapping | Saturating |
 |-----------|----------|----------|------------|
@@ -804,17 +806,30 @@ For example, with `a: uint8 = 250` and `b: uint8 = 10`:
 | `a - 255` | trap / error (underflow) | `251` (wraps below `0`) | `0` (clamped to min) |
 | `a * b` | trap / error (overflow) | `196` (wraps modulo `256`) | `255` (clamped to max) |
 
-The explicit forms ignore the safety profile.
-`+%`, `-%`, and `*%` wrap modulo the integer's range.
-`+|`, `-|`, and `*|` clamp to the integer's minimum or maximum value.
+Dereference operators are a little different from the main "value-shaped" operators: `ReadonlyDereference` and `Dereference` project one access form into another access form (quite close but inverted to `Deref` and `DerefMut` from Rust):
 
 ```ds
-const hash = (hash *% 16777619) +% byte;
-const volume = left +| right;
+struct Box<T> {
+    ptr: ^T;
+}
+
+extension<T> of Box<T> implements Dereference {
+    type ReadonlyOutput = &readonly T;
+    type Output = &T;
+
+    readonlyDereference(): this.ReadonlyOutput {
+        &readonly *this.ptr
+    }
+
+    dereference(): this.Output {
+        &*this.ptr
+    }
+}
 ```
 
-Overflow-policy operators are not overloadable.
-For user-defined numeric types, use ordinary named methods when wrapping or saturation is part of the type's API.
+Explicit `*box` uses `ReadonlyDereference`, while assignment through `*box` needs mutable `Dereference`.
+Member lookup and method calls may auto-dereference through `ReadonlyDereference` / `Dereference`, but only after checking the wrapper's own members first (as one would expect).
+Autoderef does not make `Box<T>` generally assignable to `T`; it is just member lookup ergonomics for smart pointers and view-like wrappers.
 
 ### Dispatch
 
@@ -823,7 +838,7 @@ The selection rule is TS-derived: build the candidate set, keep candidates compa
 
 #### Overloads
 
-As said above, overloads and overload resolution follow the same source order.
+Overload resolution follows source order.
 Unlike in TypeScript, there may be multiple overloaded _implementations_ for the same name, but the selection rule is the same as in TypeScript.
 
 ```ds
@@ -842,21 +857,28 @@ Members work the same way (after receiver lookup): inherent members first, then 
 #### Operators
 
 For overloadable operators, the operator decides the interface to check, and the left operand is the receiver (matching how it is written in the interface implementation).
-Binary operators do not fall back to the right operand, so operator overload implementations are _not_ symmetrical.
+Binary operators do not fall back to the right operand.
+If both operand orders should work, both receiver implementations must exist.
 
 ```ds
-newtype interface Add<T, R = this> {
-    add(other: T): R;
+newtype interface Add<T = this> {
+    type Output;
+
+    add(other: T): this.Output;
 }
 
 extension of Vector2 implements Add<Vector2> {
-    add(other: Vector2): Vector2 {
+    type Output = Vector2;
+
+    add(other: Vector2): this.Output {
         Vector2({ x: this.x + other.x, y: this.y + other.y })
     }
 }
 
 extension of Vector2 implements Add<float32> {
-    add(other: float32): Vector2 {
+    type Output = Vector2;
+
+    add(other: float32): this.Output {
         Vector2({ x: this.x + other, y: this.y + other })
     }
 }
