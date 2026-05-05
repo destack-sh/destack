@@ -19,7 +19,11 @@ where
     F: Fn(FileId) -> Option<Arc<File>>,
 {
     let primary = diagnostic.primary_label();
-    let primary_file = file_for_label(file_for_id, primary)?;
+    let primary_file = file_for_id(primary.span.file)?;
+    if !label_matches_file(primary, &primary_file) {
+        return None;
+    }
+
     let primary_span = primary.span;
     let range = byte_span_to_range(&primary_file, primary_span);
 
@@ -34,8 +38,13 @@ where
     let related_locations = diagnostic
         .labels()
         .filter_map(|label| {
-            let file = file_for_label(file_for_id, label)?;
+            let file = file_for_id(label.span.file)?;
+            if !label_matches_file(label, &file) {
+                return None;
+            }
+
             let uri = file.uri.as_ref().parse::<lsp::Uri>().ok()?;
+
             Some(lsp::DiagnosticRelatedInformation {
                 location: lsp::Location {
                     uri,
@@ -84,17 +93,9 @@ where
     })
 }
 
-/// Get the file for the given label and make sure it's actually the same content.
-fn file_for_label<F>(file_for_id: &F, label: &DiagnosticLabel) -> Option<Arc<File>>
-where
-    F: Fn(FileId) -> Option<Arc<File>>,
-{
-    let file = file_for_id(label.span.file)?;
-    if file.content_id() != label.content {
-        return None;
-    }
-
-    Some(file)
+/// Return true when one diagnostic label still points at the same file content.
+fn label_matches_file(label: &DiagnosticLabel, file: &File) -> bool {
+    label.span.file == file.id && label.content == file.content_id()
 }
 
 /// Convert a workspace code action kind to an LSP code action kind.

@@ -8,7 +8,6 @@ use std::time::{Duration, Instant};
 use dashmap::{DashMap, DashSet};
 #[cfg(test)]
 use destack_artifact::MemoryCacheStore;
-use destack_compiler::default_workers;
 use destack_core::StableHasher;
 use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
 use destack_service::{
@@ -16,7 +15,7 @@ use destack_service::{
     LanguageServiceMessageKind as ProtocolMessageKind, LanguageServiceResult, QueryResult,
     TextChange, TextPosition, TextRange,
 };
-use destack_session::open_repository_from_fs;
+use destack_session::{Session, open_repository_from_fs};
 use destack_source::{
     BatchEdit, File, FileId, FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem,
     PhysicalFileSystem, Uri,
@@ -210,7 +209,7 @@ impl DestackLanguageServer {
             client,
             repository: OnceLock::new(),
             language_service: OnceLock::new(),
-            workers: default_workers() as usize,
+            workers: Session::default_worker_limit(),
             progress_cancel_notify: Arc::new(Notify::new()),
             semantic_tokens_cache: DashMap::new(),
             semantic_tokens_counter: AtomicU64::new(1),
