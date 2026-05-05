@@ -14,9 +14,9 @@ try {
 }
 ```
 
-### catch bindings remain mutable after narrowing
+### catch bindings stay mutable after narrowing
 
-> Catch bindings can be reassigned after control-flow narrowing checks.
+> Narrowing does not make a catch binding immutable.
 
 ```ds
 try {
@@ -32,9 +32,9 @@ try {
 
 ### catch annotations allow unknown
 
-`unknown` is the only allowed catch annotation.
+> Catch bindings can be annotated as `unknown`.
 
-```ts:main.ts
+```ds
 try {
     throw "boom";
 } catch (e: unknown) {
@@ -44,9 +44,9 @@ try {
 
 ### catch annotations reject concrete types
 
-Concrete catch annotations are not filters.
+> Concrete catch annotations are not filters.
 
-```ts:main.ts
+```ds
 try {
     throw "boom";
 } catch (e: string) {

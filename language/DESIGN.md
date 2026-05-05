@@ -324,6 +324,29 @@ const one: One = (1,);
 const empty: () = ();
 ```
 
+### Readonly
+
+TypeScript already has `readonly`, but it is shallow, so in `.ds`, `readonly T` becomes a real _deep_ read-only view of `T`.
+That is, `readonly T` forbids all mutation through that path, and `readonly T` cannot be assigned to `T`, including nested members.
+
+```ds
+struct Profile {
+    name: string;
+}
+
+struct User {
+    profile: Profile;
+    tags: string[];
+}
+
+declare const user: readonly User;
+
+user.profile.name = "Grace"; // error
+user.tags[0] = "admin";      // error
+```
+
+As in TypeScript with `readonly` (or Rust with `mut` in inverse), `readonly` does not directly affect runtime behavior or freeze anything, it's just a semantic convention.
+
 ### Generics
 
 Destack keeps TypeScript-shaped generics: inference, constraints, defaults, conditional types, mapped types, indexed access types, and the rest of the usual machinery.
@@ -341,7 +364,6 @@ Unlike with `comptime <expr>` (discussed later), the `comptime` modifier merely 
 function copy<T, comptime N: uint>(src: [T; N]): [T; N] {
     let dst: [T; N];
 
-    @unroll(N)
     for (let i = 0; i < N; i++) {
         dst[i] = src[i];
     }
@@ -1020,9 +1042,6 @@ function oldAPI() {
     // ...
 }
 
-@unroll
-for (let i = 0; i < 4; i++) { }
-
 @derive(Clone, Serialize, Reflect)
 struct User {
     id: UserId;
@@ -1030,12 +1049,6 @@ struct User {
 }
 
 function kernel(data: @space("shared") &Point) { }
-
-match (result) {
-    @cold
-    Err { error } => handleError(error),
-    Ok { value } => value,
-}
 ```
 
 #### Static If

@@ -15,7 +15,7 @@ function bump(x: number): void {
 
 ### parameter assignments enforce declared types
 
-> Reassignment still checks the parameter type.
+> Reassignment checks the parameter type.
 
 ```ds
 function bump(x: number): void {

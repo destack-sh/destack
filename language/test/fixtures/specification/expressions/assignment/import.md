@@ -8,11 +8,11 @@ Imported bindings are immutable.
 
 > Imported bindings cannot be reassigned.
 
-```ts:counter.ts
+```ds:counter.ds
 export let counter: number = 0;
 ```
 
-```ts:main.ts
+```ds:main.ds
 import { counter } from "./counter";
 
 counter = 1;
@@ -20,15 +20,15 @@ counter = 1;
 
 - contains: immutable binding
 
-### imported bindings are immutable with aliases
+### imported aliases are immutable
 
-> Imported bindings remain immutable when renamed.
+> Renaming an import does not make it assignable.
 
-```ts:counter.ts
+```ds:counter.ds
 export let counter: number = 0;
 ```
 
-```ts:main.ts
+```ds:main.ds
 import { counter as localCounter } from "./counter";
 
 localCounter = 1;
@@ -40,11 +40,11 @@ localCounter = 1;
 
 > Namespace imports cannot be reassigned.
 
-```ts:counter.ts
+```ds:counter.ds
 export let counter: number = 0;
 ```
 
-```ts:main.ts
+```ds:main.ds
 import * as counter from "./counter";
 
 counter = { counter: 1 };
@@ -56,11 +56,11 @@ counter = { counter: 1 };
 
 > Namespace import members are immutable aliases of exported bindings.
 
-```ts:counter.ts
+```ds:counter.ds
 export let counter: number = 0;
 ```
 
-```ts:main.ts
+```ds:main.ds
 import * as namespaceCounter from "./counter";
 
 namespaceCounter.counter = 1;
@@ -68,15 +68,15 @@ namespaceCounter.counter = 1;
 
 - contains: immutable binding
 
-### imported bindings reject update expressions
+### imported bindings reject updates
 
-> Imported bindings cannot be mutated through update expressions.
+> Imported bindings cannot be updated.
 
-```ts:counter.ts
+```ds:counter.ds
 export let counter: number = 0;
 ```
 
-```ts:main.ts
+```ds:main.ds
 import { counter } from "./counter";
 
 counter++;

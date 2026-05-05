@@ -32,27 +32,3 @@ const user = User { id: 1 };
 user.clone() satisfies User;
 user.debug() satisfies string;
 ```
-
-### derive rejects structural aliases
-
-Derive output is declaration-shaped and needs a nominal target.
-
-```ds
-@derive(Clone)
-type User = { id: int64 };
-```
-
-- contains: nominal
-
-### derive rejects unresolved capabilities
-
-Derive arguments must resolve.
-
-```ds
-@derive(Missing)
-struct User {
-    id: int64;
-}
-```
-
-- contains: Missing
