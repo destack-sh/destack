@@ -1,19 +1,19 @@
 # Static If Structs
 
-Static if gating on struct members.
+Struct members can be gated with `@if`.
 
 ## gating
 
-### static if gates struct members
+### when false, `@if` removes struct members
 
-> Struct members gated by static if are removed before resolution.
+When false, `@if` removes struct members.
 
 ```ds
 struct Point {
-    @if(import.meta.emit == "js" && import.meta.emit == "native")
+    @if(false)
     missing: MissingType;
 
-    @if(import.meta.emit == "js" && import.meta.emit == "native")
+    @if(false)
     missingMethod(): MissingType {
         return missingSymbol;
     }
@@ -23,9 +23,9 @@ struct Point {
 }
 ```
 
-### static if keeps struct members when true
+### when true, `@if` includes struct members
 
-> Struct members gated by true static if conditions remain available.
+When true, `@if` includes struct members.
 
 ```ds
 struct Point {
@@ -39,9 +39,9 @@ const point = Point { x: 1, y: 2 };
 point.x satisfies int32;
 ```
 
-### static if gated struct members are not visible
+### when false, `@if` hides struct members
 
-> Struct members removed by static if are not available on constructed values.
+When false, struct members behind `@if` are not available on constructed values.
 
 ```ds
 struct Point {
@@ -57,9 +57,9 @@ point.missing satisfies int32;
 
 - contains: does not exist
 
-### static if gated struct fields are not required in literals
+### when false, `@if` removes struct literal requirements
 
-> Struct fields removed by static if are not required in struct literals.
+When false, struct fields behind `@if` are not required in struct literals.
 
 ```ds
 struct Point {
@@ -74,9 +74,9 @@ const point = Point { x: 1, y: 2 };
 point.x satisfies int32;
 ```
 
-### static if true struct fields remain required in literals
+### when true, `@if` keeps struct literal requirements
 
-> Struct fields gated with true remain required for struct literal construction.
+When true, struct fields behind `@if` remain required for struct literal construction.
 
 ```ds
 struct Point {

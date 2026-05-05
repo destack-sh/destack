@@ -1,10 +1,10 @@
-# Try Catch Variables
+# Catch
 
 ## error typing
 
-### try catch uses Try error type
+### catch sees result errors
 
-> Catch variables use the Try error type from ? expressions.
+> A propagated Result error becomes the catch value.
 
 ```ds
 declare function readConfig(): Result<int, string>;
@@ -19,9 +19,9 @@ const value = try {
 value satisfies int;
 ```
 
-### try catch unions Try error types
+### catch sees unioned errors
 
-> Catch variables union error types across Try unions.
+Each Result alternative adds its error type to the catch value.
 
 ```ds
 declare function readConfig(): Result<int, "missing"> | Result<int, "bad">;
@@ -36,9 +36,9 @@ const value = try {
 value satisfies int;
 ```
 
-### try catch unions multiple Try errors
+### catch sees multiple errors
 
-> Catch variables union error types across multiple ? expressions.
+> Multiple propagated errors join in the catch value.
 
 ```ds
 declare function readConfig(): Result<int, "missing">;
@@ -55,31 +55,32 @@ const value = try {
 value satisfies int;
 ```
 
-### try catch handles custom Try failures
+### catch can stop custom failures
 
-> Catching a Try error does not require FromFailure.
+> A caught failure does not have to leave the function.
 
 ```ds
-type BrokenBranch<T, E> =
-    | { kind: "continue", value: T }
-    | { kind: "failure", error: E };
-
-struct BrokenTry<T, E> {
-    value: BrokenBranch<T, E>;
+struct Maybe<T, E> {
+    branchValue: TryBranch<T, E>;
 }
 
-extension<T, E> of BrokenTry<T, E> implements Try {
+extension<T, E> of Maybe<T, E> implements Try {
     type Value = T;
-    type Error = E;
-    branch(): BrokenBranch<T, E> {
-        this.value
+    type Failure = E;
+    
+    static fromValue(value: T): Maybe<T, E> {
+        Maybe { branchValue: TryContinue { kind: "continue", value } }
+    }
+
+    branch(): TryBranch<T, E> {
+        this.branchValue
     }
 }
 
-declare function getBroken(): BrokenTry<int, string>;
+declare function getMaybe(): Maybe<int, string>;
 
 const value = try {
-    getBroken()?;
+    getMaybe()?;
     1
 } catch (e) {
     e satisfies string;
@@ -87,68 +88,3 @@ const value = try {
 };
 value satisfies int;
 ```
-
-### try catch handles custom Try failures in functions
-
-> Catching a Try error allows non Try return types.
-
-```ds
-type BrokenBranch<T, E> =
-    | { kind: "continue", value: T }
-    | { kind: "failure", error: E };
-
-struct BrokenTry<T, E> {
-    value: BrokenBranch<T, E>;
-}
-
-extension<T, E> of BrokenTry<T, E> implements Try {
-    type Value = T;
-    type Error = E;
-    branch(): BrokenBranch<T, E> {
-        this.value
-    }
-}
-
-declare function getBroken(): BrokenTry<int, string>;
-
-function read(): int {
-    const value = try {
-        getBroken()?;
-        1
-    } catch (e) {
-        e satisfies string;
-        0
-    };
-    return value;
-}
-```
-
-## typed catch annotations
-
-### catch annotation allows unknown
-
-> Accepts `unknown` in catch annotations.
-
-```ts:main.ts
-try {
-    throw 1;
-} catch (err: unknown) {
-    err satisfies string;
-}
-```
-
-- contains: not assignable
-
-### catch annotation rejects concrete types
-
-> Catch annotations only allow `unknown`.
-
-```ts:main.ts
-try {
-    throw 1
-} catch (err: string) {
-    0
-}
-```
-
-- contains: catch type annotations must be unknown

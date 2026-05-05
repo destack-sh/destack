@@ -68,7 +68,7 @@ declare const handle: SharedStorage.Handle<User>;
 handle satisfies shared StorageHandle<User>;
 ```
 
-### type members can have comptime value parameters
+### type members can have static value parameters
 
 > Associated type parameters can include `comptime` values.
 

@@ -1,23 +1,23 @@
 # Static If Statements
 
-Static if gating on statements.
+Statements can be gated with `@if`.
 
 ## gating
 
-### static if gates module statements
+### when false, `@if` removes module statements
 
-> Module statements gated by static if are removed before resolution.
+When false, `@if` removes the statement.
 
 ```ds
-@if(import.meta.emit == "js" && import.meta.emit == "native")
+@if(false)
 missingSymbol;
 
 const value = 1;
 ```
 
-### static if keeps module statements when true
+### when true, `@if` includes module statements
 
-> Module statements gated by true static if conditions remain available.
+When true, `@if` includes the statement.
 
 ```ds
 @if(true)
@@ -26,22 +26,22 @@ const value = 1;
 value satisfies number;
 ```
 
-### static if gates block statements
+### when false, `@if` removes block statements
 
-> Block statements gated by static if are removed before resolution.
+When false, `@if` removes the statement inside a block.
 
 ```ds
 function demo(): number {
-    @if(import.meta.emit == "js" && import.meta.emit == "native")
+    @if(false)
     missingSymbol;
 
     return 1;
 }
 ```
 
-### static if keeps block statements when true
+### when true, `@if` includes block statements
 
-> Block statements gated by true static if conditions remain available.
+When true, `@if` includes the statement inside a block.
 
 ```ds
 function demo(): number {
@@ -54,15 +54,49 @@ function demo(): number {
 }
 ```
 
-### static if gates block declarations
+### when false, `@if` removes block declarations
 
-> Block declarations gated by static if are removed before resolution.
+When false, `@if` removes a local declaration.
 
 ```ds
 function compute(): number {
-    @if(import.meta.emit == "js" && import.meta.emit == "native")
+    @if(false)
     const hidden = missingSymbol;
 
     return 1;
 }
 ```
+
+## generic
+
+### returns can be gated by static parameters
+
+Return statements can be `@if` gated with static parameters.
+
+```ds
+function size<comptime Wide: bool>(): Wide extends true ? 8 : 4 {
+    @if(Wide)
+    return 8;
+
+    @if(Wide == false)
+    return 4;
+}
+
+size<true>() satisfies 8;
+size<false>() satisfies 4;
+```
+
+### @if bindings stay local
+
+A binding introduced by an `@if` statement is not visible outside the guarded statement.
+
+```ds
+function demo<comptime Enabled: bool>(): void {
+    @if(Enabled)
+    const value = 1;
+
+    value;
+}
+```
+
+- contains: missing symbol

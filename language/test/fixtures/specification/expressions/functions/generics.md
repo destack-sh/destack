@@ -41,9 +41,9 @@ identity<number>("hi");
 
 - contains: not assignable
 
-### comptime value arguments
+### static value arguments
 
-> Comptime value arguments are checked against declared types.
+> Static value arguments are checked against declared types.
 
 ```ds
 function choose<comptime Flag: boolean>(value: number): number {
@@ -55,9 +55,9 @@ choose<1>(1);
 
 - contains: not assignable
 
-### default comptime value arguments
+### default static value arguments
 
-> Comptime value arguments fall back to defaults when omitted.
+> Static value arguments fall back to defaults when omitted.
 
 ```ds
 function choose<comptime Flag: boolean = true>(value: number): number {
@@ -66,9 +66,9 @@ function choose<comptime Flag: boolean = true>(value: number): number {
 choose(1);
 ```
 
-### default comptime value argument mismatch
+### default static value argument mismatch
 
-> Default comptime values must satisfy declared types.
+> Default static values must satisfy declared types.
 
 ```ds
 function broken<comptime Flag: boolean = 1>(value: number): number {

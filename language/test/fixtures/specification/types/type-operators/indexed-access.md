@@ -1,13 +1,13 @@
 # Indexed Access Types
 
 Indexed access types use the `T[K]` type operator.
-Fixed arrays use `[T; N]` and do not share this syntax.
+Fixed arrays use `[T; N]`.
 
 ## object access
 
 ### indexed access reads property types
 
-> Indexed access yields the property type for known keys.
+> Indexed access returns the property type for known keys.
 
 ```ts
 type User = { name: string; age: number };
@@ -68,7 +68,7 @@ const second: Value = "hi";
 
 ### indexed access with key unions yields unioned values
 
-> Indexed access with key unions yields the union of selected property values.
+> Indexed access with key unions returns the union of selected property values.
 
 ```ts
 type User = { name: string; age: number };
@@ -131,7 +131,7 @@ first satisfies string;
 
 ### dynamic array indexing yields element types
 
-> Array indexed access yields the element type.
+> Array indexed access returns the element type.
 
 ```ts
 type Element<T extends string[]> = T[number];
@@ -142,7 +142,7 @@ value satisfies string;
 
 ### fixed array syntax is separate
 
-> Fixed arrays use `[T; N]` instead of type-index syntax.
+> `[T; N]` is fixed-array syntax, not type-index syntax.
 
 ```ds
 type Lane<comptime N: uint> = [uint8; N];

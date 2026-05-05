@@ -21,9 +21,9 @@ const boxed = makeBox();
 boxed.get() satisfies number;
 ```
 
-### extension comptime value parameters
+### extension static value parameters
 
-> Comptime value parameters on extensions are validated.
+> Static value parameters on extensions are validated.
 
 ```ds
 struct Buffer<T, comptime N: number> { value: T }
@@ -65,7 +65,7 @@ const pair = makePair();
 pair.swap() satisfies Pair<string, number>;
 ```
 
-### extension comptime value parameters use defaults
+### extension static value parameters use defaults
 
 > Extensions inherit default comptime arguments from target type references.
 

@@ -1,19 +1,19 @@
 # Static If Interfaces
 
-Static if gating on interface members.
+Interface members can be gated with `@if`.
 
 ## gating
 
-### static if gates interface members
+### when false, `@if` removes interface members
 
-> Interface members gated by static if are removed before resolution.
+When false, `@if` removes interface members.
 
 ```ds
 interface Box {
-    @if(import.meta.emit == "js" && import.meta.emit == "native")
+    @if(false)
     missing: MissingType;
 
-    @if(import.meta.emit == "js" && import.meta.emit == "native")
+    @if(false)
     missingMethod(): MissingType;
 
     value: number;
@@ -23,9 +23,9 @@ declare const box: Box;
 box.value satisfies number;
 ```
 
-### static if keeps interface members when true
+### when true, `@if` includes interface members
 
-> Interface members gated by true static if conditions remain available.
+When true, `@if` includes interface members.
 
 ```ds
 interface Box {
@@ -41,9 +41,9 @@ box.value satisfies number;
 box.increment() satisfies number;
 ```
 
-### static if gated interface members are not visible
+### when false, `@if` hides interface members
 
-> Interface members removed by static if are not available.
+When false, interface members behind `@if` are not available.
 
 ```ds
 interface Box {
@@ -59,9 +59,9 @@ box.missing satisfies number;
 
 - contains: does not exist
 
-### static if gated interface members are not required by implementations
+### when false, `@if` removes implementation requirements
 
-> Interface members removed by static if are not required in implementations.
+When false, interface members behind `@if` are not required in implementations.
 
 ```ds
 interface Box {
@@ -78,9 +78,9 @@ class Concrete implements Box {
 }
 ```
 
-### static if true interface members remain required by implementations
+### when true, `@if` keeps implementation requirements
 
-> Interface members gated with true must still be implemented.
+When true, interface members behind `@if` must still be implemented.
 
 ```ds
 interface Box {

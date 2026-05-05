@@ -21,9 +21,9 @@ const value = comptime {
 value satisfies int | string;
 ```
 
-### comptime try finally keeps body type
+### comptime try finally returns the body type
 
-A comptime `try/finally` expression keeps the body result type because `finally` is side-effect only.
+A comptime `try/finally` expression uses the body result type.
 
 ```ds
 const value = comptime {
@@ -59,9 +59,9 @@ function compute(value: int): int {
 
 ## nested try
 
-### comptime nested try blocks preserve expression result types
+### nested comptime try blocks join locally
 
-> Nested comptime `try/catch` expressions compose by joining each level's body and fallback results.
+> Each nested `try/catch` joins its own body and catch results.
 
 ```ds
 const value = comptime {
@@ -125,9 +125,9 @@ function compute(value: int): int {
 
 - contains: static expression
 
-### nested comptime lambdas reject try unwrap outside try contexts
+### nested comptime lambdas reject ? outside compatible returns
 
-> `try` unwrap in nested comptime lambdas must be rejected when the enclosing function is not `Try`-compatible.
+> `?` cannot propagate failure from a comptime block whose surrounding return type cannot carry it.
 
 ```ds
 const value = comptime {
@@ -141,4 +141,4 @@ const value = comptime {
 value satisfies int;
 ```
 
-- contains: try unwrap requires a Try return type
+- contains: failure cannot leave through return type
