@@ -15,7 +15,7 @@ use destack_workspace::RuntimeOptions;
 use crate::runtime::bindings::VmBindingSet;
 use destack_workspace::ExecutionMode;
 
-/// Registry for external bindings and shims.
+/// Registry for runtime bindings and shims.
 #[derive(Debug)]
 pub struct BindingRegistry {
     /// Registered binding descriptors for policy enforcement.
@@ -26,7 +26,7 @@ pub struct BindingRegistry {
     native_by_id: HashMap<BindingId, NativeBinding>,
     /// Native binding metadata for linking.
     native_bindings: Vec<NativeBinding>,
-    /// Policy configuration for external bindings.
+    /// Policy configuration for runtime bindings.
     policy: RwLock<BindingPolicy>,
 }
 
@@ -135,7 +135,13 @@ impl BindingRegistry {
         &mut self,
         isolate: &mut Isolate,
         descriptor: BindingDescriptor,
-        handler: impl vm::ExternalHandler + 'static,
+        handler: impl for<'ctx> Fn(
+            &mut vm::BindingContext<'ctx>,
+            &[vm::Word],
+        ) -> Result<vm::Word, vm::Error>
+        + Send
+        + Sync
+        + 'static,
     ) {
         // hard error on descriptor mismatches
         let mut has_descriptor = false;
@@ -147,7 +153,7 @@ impl BindingRegistry {
         }
 
         // NOTE #Incomplete: serialize args/results for replay payloads
-        // register the external handler through the live binding call context
+        // register the handler through the live binding call context
         isolate.register_vm_binding(descriptor.name, move |context, args| {
             let call_context = BindingCallContext::from_current_worker_for_vm()?;
             let _guard = enter_binding_call_context(&call_context);

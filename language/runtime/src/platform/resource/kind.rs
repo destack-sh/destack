@@ -303,13 +303,13 @@ macro_rules! define_resource_kind {
 
             fn into_value(
                 self,
-                _context: &destack_vm::ExternalReadContext<'_, '_>,
+                _context: &destack_vm::BindingRead<'_, '_>,
             ) -> RuntimeResult<Self::Value> {
                 Ok(self)
             }
 
             fn from_value(
-                _context: &mut destack_vm::ExternalWriteContext<'_, '_>,
+                _context: &mut destack_vm::BindingWrite<'_, '_>,
                 value: Self::Value,
             ) -> RuntimeResult<Self> {
                 Ok(value)

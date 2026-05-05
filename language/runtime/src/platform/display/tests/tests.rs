@@ -84,7 +84,7 @@ impl DisplayHarnessHandle {
                 harness
                     .runtime
                     .with_vm_call_context(|call_context, vm_context| {
-                        let vm_context = vm_context as *mut vm::ExternalCallContext<'_> as *mut ();
+                        let vm_context = vm_context as *mut vm::BindingContext<'_> as *mut ();
                         callback(DisplayHarnessContext {
                             call_context,
                             vm_context: Some(vm_context),
@@ -147,7 +147,7 @@ pub(crate) fn harness_string(
 ) -> RuntimeResult<HarnessValue<NativeStringRef, vm::StringHandle>> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             Ok(HarnessValue::Vm(vm::StringHandle::new(
                 vm_context
                     .intern_string(value)
@@ -188,7 +188,7 @@ pub(crate) fn decode_monitor_list(
                 ))
                 .boxed());
             };
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             let values = values.read_values(&vm_context.read())?;
             let mut decoded = Vec::with_capacity(values.len());
 
@@ -228,7 +228,7 @@ pub(crate) fn decode_monitor_modes(
                 ))
                 .boxed());
             };
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             Ok(values.read_values(&vm_context.read())?)
         }
     }
@@ -252,7 +252,7 @@ pub(crate) fn decode_display_descriptor(
                 ))
                 .boxed());
             };
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             let id = vm_context
                 .string_ref(value.id)
                 .map_err(|error| RuntimeError::from(error).boxed())?
@@ -297,7 +297,7 @@ pub(crate) fn decode_display_descriptor_metrics(
                 ))
                 .boxed());
             };
-            let _vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let _vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             Ok((
                 value.orientation,
                 value.builtin_panel,
@@ -328,7 +328,7 @@ pub(crate) fn decode_window_descriptor(
                 ))
                 .boxed());
             };
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             let id = vm_context
                 .string_ref(value.id)
                 .map_err(|error| RuntimeError::from(error).boxed())?
@@ -351,7 +351,7 @@ pub(crate) fn default_window_options(
 ) -> RuntimeResult<HarnessValue<display::WindowOptions, display::WindowOptionsVm>> {
     let options = match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             HarnessValue::Vm(display::WindowOptionsVm {
                 backend: display::DisplayBackend::Auto,
                 backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
@@ -755,7 +755,7 @@ pub(crate) fn harness_window_icon_set(
     ];
 
     if let Some(vm_context) = context.vm_context {
-        let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+        let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
         let pixels_vm = VmSlice::from_bytes(&mut vm_context.write(), &pixels)
             .expect("vm test byte slice should allocate");
         let image_vm = display::WindowIconImageVm {
@@ -817,7 +817,7 @@ pub(crate) fn harness_window_mode_options(
     mode: HarnessWindowMode,
 ) -> HarnessValue<display::WindowModeOptions, display::WindowModeOptionsVm> {
     if let Some(vm_context) = context.vm_context {
-        let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+        let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
         match mode {
             HarnessWindowMode::Windowed => {
                 HarnessValue::Vm(display::WindowModeOptionsVm::WindowWindowedModeOptions(

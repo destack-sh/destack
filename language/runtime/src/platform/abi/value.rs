@@ -16,13 +16,13 @@ pub trait VmValueCodec: Copy {
 pub trait VmAggregateCodec: Copy {
     /// Decode a value from a VM slot with context access.
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self>;
 
     /// Decode one value from one VM value view with context access.
     fn decode_value_ref_with_context(
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
         _value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         Err(RuntimeError::from(PlatformError::invalid_argument_type(
@@ -34,7 +34,7 @@ pub trait VmAggregateCodec: Copy {
 
     /// Decode one semantic field from one VM value view.
     fn decode_field_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
         index: u32,
     ) -> RuntimeResult<Self> {
@@ -51,10 +51,8 @@ pub trait VmAggregateCodec: Copy {
     }
 
     /// Encode a value into a VM slot with context access.
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Word>;
+    fn encode_with_context(self, context: &mut vm::BindingWrite<'_, '_>)
+    -> RuntimeResult<vm::Word>;
 }
 
 /// Storage strategy for VM collection elements.
@@ -74,7 +72,7 @@ pub trait VmCollectionElement: VmAggregateCodec {
 
 impl<T: VmValueCodec> VmAggregateCodec for T {
     fn decode_with_context(
-        _context: &vm::ExternalReadContext<'_, '_>,
+        _context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         T::decode(value)
@@ -82,7 +80,7 @@ impl<T: VmValueCodec> VmAggregateCodec for T {
 
     fn encode_with_context(
         self,
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         Ok(T::encode(self))
     }
@@ -90,7 +88,7 @@ impl<T: VmValueCodec> VmAggregateCodec for T {
 
 impl<T: VmAggregateCodec> VmAggregateCodec for Option<T> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         if value == vm::Word::VOID {
@@ -102,7 +100,7 @@ impl<T: VmAggregateCodec> VmAggregateCodec for Option<T> {
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         Ok(Some(T::decode_value_ref_with_context(context, value_ref)?))
@@ -110,7 +108,7 @@ impl<T: VmAggregateCodec> VmAggregateCodec for Option<T> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         match self {
             Some(value) => T::encode_with_context(value, context),
@@ -251,7 +249,7 @@ impl VmValueCodec for vm::RawPointer {
 
 impl VmAggregateCodec for vm::StringHandle {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         context
@@ -261,7 +259,7 @@ impl VmAggregateCodec for vm::StringHandle {
 
     fn encode_with_context(
         self,
-        _context: &mut vm::ExternalWriteContext<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         Ok(self.value())
     }

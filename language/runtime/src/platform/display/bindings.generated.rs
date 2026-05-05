@@ -248,7 +248,7 @@ fn decode_float64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -261,7 +261,7 @@ fn decode_string(
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -272,7 +272,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -283,7 +283,7 @@ fn decode_array<T>(
 /// Encode the result for destack.display.backend.list.
 #[inline]
 fn encode_destack_display_backend_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<DisplayBackendDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -295,7 +295,7 @@ fn encode_destack_display_backend_list_result(
 /// Decode arguments for destack.display.drag.begin.
 #[inline]
 fn decode_destack_display_drag_begin_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(DisplayDragBeginOptionsVm,)> {
     let context = &context.read();
@@ -310,7 +310,7 @@ fn decode_destack_display_drag_begin_args(
 /// Encode the result for destack.display.drag.begin.
 #[inline]
 fn encode_destack_display_drag_begin_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<DisplayDragOperation>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -321,7 +321,7 @@ fn encode_destack_display_drag_begin_result(
 /// Decode arguments for destack.display.drag.sessionClose.
 #[inline]
 fn decode_destack_display_drag_session_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayDragSessionHandle,)> {
     let session_value = arg_value(args, 0, "session", "DisplayDragSessionHandle")?;
@@ -338,7 +338,7 @@ fn decode_destack_display_drag_session_close_args(
 /// Encode the result for destack.display.drag.sessionClose.
 #[inline]
 fn encode_destack_display_drag_session_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -347,7 +347,7 @@ fn encode_destack_display_drag_session_close_result(
 /// Decode arguments for destack.display.drag.sessionReadBytes.
 #[inline]
 fn decode_destack_display_drag_session_read_bytes_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayDragSessionHandle, u32)> {
     let session_value = arg_value(args, 0, "session", "DisplayDragSessionHandle")?;
@@ -366,7 +366,7 @@ fn decode_destack_display_drag_session_read_bytes_args(
 /// Encode the result for destack.display.drag.sessionReadBytes.
 #[inline]
 fn encode_destack_display_drag_session_read_bytes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -378,7 +378,7 @@ fn encode_destack_display_drag_session_read_bytes_result(
 /// Decode arguments for destack.display.drag.sessionReadPath.
 #[inline]
 fn decode_destack_display_drag_session_read_path_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayDragSessionHandle, u32)> {
     let session_value = arg_value(args, 0, "session", "DisplayDragSessionHandle")?;
@@ -397,7 +397,7 @@ fn decode_destack_display_drag_session_read_path_args(
 /// Encode the result for destack.display.drag.sessionReadPath.
 #[inline]
 fn encode_destack_display_drag_session_read_path_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<fs::OsPathVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -464,7 +464,7 @@ fn encode_destack_display_drag_session_read_path_result(
 /// Decode arguments for destack.display.drag.sessionReadText.
 #[inline]
 fn decode_destack_display_drag_session_read_text_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayDragSessionHandle, u32)> {
     let session_value = arg_value(args, 0, "session", "DisplayDragSessionHandle")?;
@@ -483,7 +483,7 @@ fn decode_destack_display_drag_session_read_text_args(
 /// Encode the result for destack.display.drag.sessionReadText.
 #[inline]
 fn encode_destack_display_drag_session_read_text_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -494,7 +494,7 @@ fn encode_destack_display_drag_session_read_text_result(
 /// Decode arguments for destack.display.drag.sessionSetOperation.
 #[inline]
 fn decode_destack_display_drag_session_set_operation_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayDragSessionHandle, DisplayDragOperation)> {
     let session_value = arg_value(args, 0, "session", "DisplayDragSessionHandle")?;
@@ -526,7 +526,7 @@ fn decode_destack_display_drag_session_set_operation_args(
 /// Encode the result for destack.display.drag.sessionSetOperation.
 #[inline]
 fn encode_destack_display_drag_session_set_operation_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -535,7 +535,7 @@ fn encode_destack_display_drag_session_set_operation_result(
 /// Decode arguments for destack.display.frame.beginClose.
 #[inline]
 fn decode_destack_display_frame_begin_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayBeginFrameHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayBeginFrameHandle")?;
@@ -552,7 +552,7 @@ fn decode_destack_display_frame_begin_close_args(
 /// Encode the result for destack.display.frame.beginClose.
 #[inline]
 fn encode_destack_display_frame_begin_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -561,7 +561,7 @@ fn encode_destack_display_frame_begin_close_result(
 /// Decode arguments for destack.display.frame.beginOpen.
 #[inline]
 fn decode_destack_display_frame_begin_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(DisplayBeginFrameOpenOptionsVm,)> {
     let context = &context.read();
@@ -576,7 +576,7 @@ fn decode_destack_display_frame_begin_open_args(
 /// Encode the result for destack.display.frame.beginOpen.
 #[inline]
 fn encode_destack_display_frame_begin_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::DisplayBeginFrameHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -587,7 +587,7 @@ fn encode_destack_display_frame_begin_open_result(
 /// Decode arguments for destack.display.frame.beginRead.
 #[inline]
 fn decode_destack_display_frame_begin_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayBeginFrameHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayBeginFrameHandle")?;
@@ -606,7 +606,7 @@ fn decode_destack_display_frame_begin_read_args(
 /// Encode the result for destack.display.frame.beginRead.
 #[inline]
 fn encode_destack_display_frame_begin_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<DisplayBeginFrameEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -680,7 +680,7 @@ fn encode_destack_display_frame_begin_read_result(
 /// Decode arguments for destack.display.frame.beginReadBatch.
 #[inline]
 fn decode_destack_display_frame_begin_read_batch_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayBeginFrameHandle, u32, u64)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayBeginFrameHandle")?;
@@ -701,7 +701,7 @@ fn decode_destack_display_frame_begin_read_batch_args(
 /// Encode the result for destack.display.frame.beginReadBatch.
 #[inline]
 fn encode_destack_display_frame_begin_read_batch_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<DisplayBeginFrameEventVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -713,7 +713,7 @@ fn encode_destack_display_frame_begin_read_batch_result(
 /// Decode arguments for destack.display.frame.beginTryRead.
 #[inline]
 fn decode_destack_display_frame_begin_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayBeginFrameHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayBeginFrameHandle")?;
@@ -730,7 +730,7 @@ fn decode_destack_display_frame_begin_try_read_args(
 /// Encode the result for destack.display.frame.beginTryRead.
 #[inline]
 fn encode_destack_display_frame_begin_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<DisplayBeginFrameEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -804,7 +804,7 @@ fn encode_destack_display_frame_begin_try_read_result(
 /// Decode arguments for destack.display.frame.beginTryReadBatch.
 #[inline]
 fn decode_destack_display_frame_begin_try_read_batch_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayBeginFrameHandle, u32)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayBeginFrameHandle")?;
@@ -823,7 +823,7 @@ fn decode_destack_display_frame_begin_try_read_batch_args(
 /// Encode the result for destack.display.frame.beginTryReadBatch.
 #[inline]
 fn encode_destack_display_frame_begin_try_read_batch_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<DisplayBeginFrameEventVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -835,7 +835,7 @@ fn encode_destack_display_frame_begin_try_read_batch_result(
 /// Decode arguments for destack.display.monitor.close.
 #[inline]
 fn decode_destack_display_monitor_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayHandle")?;
@@ -848,7 +848,7 @@ fn decode_destack_display_monitor_close_args(
 /// Encode the result for destack.display.monitor.close.
 #[inline]
 fn encode_destack_display_monitor_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -857,7 +857,7 @@ fn encode_destack_display_monitor_close_result(
 /// Decode arguments for destack.display.monitor.closestMode.
 #[inline]
 fn decode_destack_display_monitor_closest_mode_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayHandle, DisplayModeVm)> {
     let context = &context.read();
@@ -874,7 +874,7 @@ fn decode_destack_display_monitor_closest_mode_args(
 /// Encode the result for destack.display.monitor.closestMode.
 #[inline]
 fn encode_destack_display_monitor_closest_mode_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<DisplayModeVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -912,7 +912,7 @@ fn encode_destack_display_monitor_closest_mode_result(
 /// Decode arguments for destack.display.monitor.colorState.
 #[inline]
 fn decode_destack_display_monitor_color_state_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayHandle")?;
@@ -925,7 +925,7 @@ fn decode_destack_display_monitor_color_state_args(
 /// Encode the result for destack.display.monitor.colorState.
 #[inline]
 fn encode_destack_display_monitor_color_state_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<DisplayColorStateVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -959,7 +959,7 @@ fn encode_destack_display_monitor_color_state_result(
 /// Decode arguments for destack.display.monitor.currentMode.
 #[inline]
 fn decode_destack_display_monitor_current_mode_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayHandle")?;
@@ -972,7 +972,7 @@ fn decode_destack_display_monitor_current_mode_args(
 /// Encode the result for destack.display.monitor.currentMode.
 #[inline]
 fn encode_destack_display_monitor_current_mode_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<DisplayModeVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1010,7 +1010,7 @@ fn encode_destack_display_monitor_current_mode_result(
 /// Decode arguments for destack.display.monitor.descriptor.
 #[inline]
 fn decode_destack_display_monitor_descriptor_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayHandle")?;
@@ -1023,7 +1023,7 @@ fn decode_destack_display_monitor_descriptor_args(
 /// Encode the result for destack.display.monitor.descriptor.
 #[inline]
 fn encode_destack_display_monitor_descriptor_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<DisplayDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1155,7 +1155,7 @@ fn encode_destack_display_monitor_descriptor_result(
 /// Decode arguments for destack.display.monitor.desktopMode.
 #[inline]
 fn decode_destack_display_monitor_desktop_mode_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayHandle")?;
@@ -1168,7 +1168,7 @@ fn decode_destack_display_monitor_desktop_mode_args(
 /// Encode the result for destack.display.monitor.desktopMode.
 #[inline]
 fn encode_destack_display_monitor_desktop_mode_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<DisplayModeVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1206,7 +1206,7 @@ fn encode_destack_display_monitor_desktop_mode_result(
 /// Decode arguments for destack.display.monitor.eventClose.
 #[inline]
 fn decode_destack_display_monitor_event_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayEventHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayEventHandle")?;
@@ -1220,7 +1220,7 @@ fn decode_destack_display_monitor_event_close_args(
 /// Encode the result for destack.display.monitor.eventClose.
 #[inline]
 fn encode_destack_display_monitor_event_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1229,7 +1229,7 @@ fn encode_destack_display_monitor_event_close_result(
 /// Decode arguments for destack.display.monitor.eventOpen.
 #[inline]
 fn decode_destack_display_monitor_event_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(DisplayMonitorEventOpenOptionsVm,)> {
     let context = &context.read();
@@ -1244,7 +1244,7 @@ fn decode_destack_display_monitor_event_open_args(
 /// Encode the result for destack.display.monitor.eventOpen.
 #[inline]
 fn encode_destack_display_monitor_event_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::DisplayEventHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1255,7 +1255,7 @@ fn encode_destack_display_monitor_event_open_result(
 /// Decode arguments for destack.display.monitor.eventRead.
 #[inline]
 fn decode_destack_display_monitor_event_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayEventHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayEventHandle")?;
@@ -1271,7 +1271,7 @@ fn decode_destack_display_monitor_event_read_args(
 /// Encode the result for destack.display.monitor.eventRead.
 #[inline]
 fn encode_destack_display_monitor_event_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<DisplayMonitorEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2314,7 +2314,7 @@ fn encode_destack_display_monitor_event_read_result(
 /// Decode arguments for destack.display.monitor.eventReadBatch.
 #[inline]
 fn decode_destack_display_monitor_event_read_batch_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayEventHandle, u32, u64)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayEventHandle")?;
@@ -2332,7 +2332,7 @@ fn decode_destack_display_monitor_event_read_batch_args(
 /// Encode the result for destack.display.monitor.eventReadBatch.
 #[inline]
 fn encode_destack_display_monitor_event_read_batch_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<DisplayMonitorEventVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2344,7 +2344,7 @@ fn encode_destack_display_monitor_event_read_batch_result(
 /// Decode arguments for destack.display.monitor.eventTryRead.
 #[inline]
 fn decode_destack_display_monitor_event_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayEventHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayEventHandle")?;
@@ -2358,7 +2358,7 @@ fn decode_destack_display_monitor_event_try_read_args(
 /// Encode the result for destack.display.monitor.eventTryRead.
 #[inline]
 fn encode_destack_display_monitor_event_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<DisplayMonitorEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3401,7 +3401,7 @@ fn encode_destack_display_monitor_event_try_read_result(
 /// Decode arguments for destack.display.monitor.eventTryReadBatch.
 #[inline]
 fn decode_destack_display_monitor_event_try_read_batch_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayEventHandle, u32)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayEventHandle")?;
@@ -3417,7 +3417,7 @@ fn decode_destack_display_monitor_event_try_read_batch_args(
 /// Encode the result for destack.display.monitor.eventTryReadBatch.
 #[inline]
 fn encode_destack_display_monitor_event_try_read_batch_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<DisplayMonitorEventVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3429,7 +3429,7 @@ fn encode_destack_display_monitor_event_try_read_batch_result(
 /// Decode arguments for destack.display.monitor.gammaRamp.
 #[inline]
 fn decode_destack_display_monitor_gamma_ramp_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayHandle")?;
@@ -3442,7 +3442,7 @@ fn decode_destack_display_monitor_gamma_ramp_args(
 /// Encode the result for destack.display.monitor.gammaRamp.
 #[inline]
 fn encode_destack_display_monitor_gamma_ramp_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<DisplayGammaRampVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3471,7 +3471,7 @@ fn encode_destack_display_monitor_gamma_ramp_result(
 /// Decode arguments for destack.display.monitor.hdrMode.
 #[inline]
 fn decode_destack_display_monitor_hdr_mode_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayHandle")?;
@@ -3484,7 +3484,7 @@ fn decode_destack_display_monitor_hdr_mode_args(
 /// Encode the result for destack.display.monitor.hdrMode.
 #[inline]
 fn encode_destack_display_monitor_hdr_mode_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<DisplayHdrMode>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3495,7 +3495,7 @@ fn encode_destack_display_monitor_hdr_mode_result(
 /// Decode arguments for destack.display.monitor.list.
 #[inline]
 fn decode_destack_display_monitor_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(DisplayMonitorListRequestVm,)> {
     let context = &context.read();
@@ -3510,7 +3510,7 @@ fn decode_destack_display_monitor_list_args(
 /// Encode the result for destack.display.monitor.list.
 #[inline]
 fn encode_destack_display_monitor_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<DisplayDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3522,7 +3522,7 @@ fn encode_destack_display_monitor_list_result(
 /// Decode arguments for destack.display.monitor.modes.
 #[inline]
 fn decode_destack_display_monitor_modes_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayHandle")?;
@@ -3535,7 +3535,7 @@ fn decode_destack_display_monitor_modes_args(
 /// Encode the result for destack.display.monitor.modes.
 #[inline]
 fn encode_destack_display_monitor_modes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<DisplayModeVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3547,7 +3547,7 @@ fn encode_destack_display_monitor_modes_result(
 /// Decode arguments for destack.display.monitor.open.
 #[inline]
 fn decode_destack_display_monitor_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, DisplayMonitorOpenOptionsVm)> {
     let context = &context.read();
@@ -3564,7 +3564,7 @@ fn decode_destack_display_monitor_open_args(
 /// Encode the result for destack.display.monitor.open.
 #[inline]
 fn encode_destack_display_monitor_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::DisplayHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3575,7 +3575,7 @@ fn encode_destack_display_monitor_open_result(
 /// Decode arguments for destack.display.monitor.primary.
 #[inline]
 fn decode_destack_display_monitor_primary_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(DisplayMonitorListRequestVm,)> {
     let context = &context.read();
@@ -3590,7 +3590,7 @@ fn decode_destack_display_monitor_primary_args(
 /// Encode the result for destack.display.monitor.primary.
 #[inline]
 fn encode_destack_display_monitor_primary_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<Option<resource::DisplayHandle>>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3604,7 +3604,7 @@ fn encode_destack_display_monitor_primary_result(
 /// Decode arguments for destack.display.monitor.setGammaRamp.
 #[inline]
 fn decode_destack_display_monitor_set_gamma_ramp_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayHandle, DisplayGammaRampVm)> {
     let context = &context.read();
@@ -3620,7 +3620,7 @@ fn decode_destack_display_monitor_set_gamma_ramp_args(
 /// Encode the result for destack.display.monitor.setGammaRamp.
 #[inline]
 fn encode_destack_display_monitor_set_gamma_ramp_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3629,7 +3629,7 @@ fn encode_destack_display_monitor_set_gamma_ramp_result(
 /// Decode arguments for destack.display.monitor.setHdrMode.
 #[inline]
 fn decode_destack_display_monitor_set_hdr_mode_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayHandle, DisplayHdrMode)> {
     let handle_value = arg_value(args, 0, "handle", "DisplayHandle")?;
@@ -3657,7 +3657,7 @@ fn decode_destack_display_monitor_set_hdr_mode_args(
 /// Encode the result for destack.display.monitor.setHdrMode.
 #[inline]
 fn encode_destack_display_monitor_set_hdr_mode_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3666,7 +3666,7 @@ fn encode_destack_display_monitor_set_hdr_mode_result(
 /// Decode arguments for destack.display.monitor.setMode.
 #[inline]
 fn decode_destack_display_monitor_set_mode_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DisplayHandle, DisplayModeVm)> {
     let context = &context.read();
@@ -3682,7 +3682,7 @@ fn decode_destack_display_monitor_set_mode_args(
 /// Encode the result for destack.display.monitor.setMode.
 #[inline]
 fn encode_destack_display_monitor_set_mode_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3691,7 +3691,7 @@ fn encode_destack_display_monitor_set_mode_result(
 /// Decode arguments for destack.display.window.beginMoveDrag.
 #[inline]
 fn decode_destack_display_window_begin_move_drag_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -3704,7 +3704,7 @@ fn decode_destack_display_window_begin_move_drag_args(
 /// Encode the result for destack.display.window.beginMoveDrag.
 #[inline]
 fn encode_destack_display_window_begin_move_drag_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3713,7 +3713,7 @@ fn encode_destack_display_window_begin_move_drag_result(
 /// Decode arguments for destack.display.window.beginResizeDrag.
 #[inline]
 fn decode_destack_display_window_begin_resize_drag_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, WindowResizeEdge)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -3745,7 +3745,7 @@ fn decode_destack_display_window_begin_resize_drag_args(
 /// Encode the result for destack.display.window.beginResizeDrag.
 #[inline]
 fn encode_destack_display_window_begin_resize_drag_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3754,7 +3754,7 @@ fn encode_destack_display_window_begin_resize_drag_result(
 /// Decode arguments for destack.display.window.capabilities.
 #[inline]
 fn decode_destack_display_window_capabilities_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -3767,7 +3767,7 @@ fn decode_destack_display_window_capabilities_args(
 /// Encode the result for destack.display.window.capabilities.
 #[inline]
 fn encode_destack_display_window_capabilities_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<DisplayBackendCapabilityFlags>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3778,7 +3778,7 @@ fn encode_destack_display_window_capabilities_result(
 /// Decode arguments for destack.display.window.close.
 #[inline]
 fn decode_destack_display_window_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -3791,7 +3791,7 @@ fn decode_destack_display_window_close_args(
 /// Encode the result for destack.display.window.close.
 #[inline]
 fn encode_destack_display_window_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3800,7 +3800,7 @@ fn encode_destack_display_window_close_result(
 /// Decode arguments for destack.display.window.contentRect.
 #[inline]
 fn decode_destack_display_window_content_rect_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -3813,7 +3813,7 @@ fn decode_destack_display_window_content_rect_args(
 /// Encode the result for destack.display.window.contentRect.
 #[inline]
 fn encode_destack_display_window_content_rect_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<WindowLogicalRectVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3846,7 +3846,7 @@ fn encode_destack_display_window_content_rect_result(
 /// Decode arguments for destack.display.window.descriptor.
 #[inline]
 fn decode_destack_display_window_descriptor_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -3859,7 +3859,7 @@ fn decode_destack_display_window_descriptor_args(
 /// Encode the result for destack.display.window.descriptor.
 #[inline]
 fn encode_destack_display_window_descriptor_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<WindowDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4091,7 +4091,7 @@ fn encode_destack_display_window_descriptor_result(
 /// Decode arguments for destack.display.window.eventClose.
 #[inline]
 fn decode_destack_display_window_event_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowEventHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "WindowEventHandle")?;
@@ -4105,7 +4105,7 @@ fn decode_destack_display_window_event_close_args(
 /// Encode the result for destack.display.window.eventClose.
 #[inline]
 fn encode_destack_display_window_event_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4114,7 +4114,7 @@ fn encode_destack_display_window_event_close_result(
 /// Decode arguments for destack.display.window.eventOpen.
 #[inline]
 fn decode_destack_display_window_event_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WindowEventOpenOptionsVm,)> {
     let context = &context.read();
@@ -4129,7 +4129,7 @@ fn decode_destack_display_window_event_open_args(
 /// Encode the result for destack.display.window.eventOpen.
 #[inline]
 fn encode_destack_display_window_event_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::WindowEventHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -4140,7 +4140,7 @@ fn encode_destack_display_window_event_open_result(
 /// Decode arguments for destack.display.window.eventRead.
 #[inline]
 fn decode_destack_display_window_event_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowEventHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "WindowEventHandle")?;
@@ -4156,7 +4156,7 @@ fn decode_destack_display_window_event_read_args(
 /// Encode the result for destack.display.window.eventRead.
 #[inline]
 fn encode_destack_display_window_event_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<WindowEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -7002,7 +7002,7 @@ fn encode_destack_display_window_event_read_result(
 /// Decode arguments for destack.display.window.eventReadBatch.
 #[inline]
 fn decode_destack_display_window_event_read_batch_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowEventHandle, u32, u64)> {
     let handle_value = arg_value(args, 0, "handle", "WindowEventHandle")?;
@@ -7020,7 +7020,7 @@ fn decode_destack_display_window_event_read_batch_args(
 /// Encode the result for destack.display.window.eventReadBatch.
 #[inline]
 fn encode_destack_display_window_event_read_batch_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<WindowEventVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -7032,7 +7032,7 @@ fn encode_destack_display_window_event_read_batch_result(
 /// Decode arguments for destack.display.window.eventTryRead.
 #[inline]
 fn decode_destack_display_window_event_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowEventHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "WindowEventHandle")?;
@@ -7046,7 +7046,7 @@ fn decode_destack_display_window_event_try_read_args(
 /// Encode the result for destack.display.window.eventTryRead.
 #[inline]
 fn encode_destack_display_window_event_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<WindowEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -9892,7 +9892,7 @@ fn encode_destack_display_window_event_try_read_result(
 /// Decode arguments for destack.display.window.eventTryReadBatch.
 #[inline]
 fn decode_destack_display_window_event_try_read_batch_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowEventHandle, u32)> {
     let handle_value = arg_value(args, 0, "handle", "WindowEventHandle")?;
@@ -9908,7 +9908,7 @@ fn decode_destack_display_window_event_try_read_batch_args(
 /// Encode the result for destack.display.window.eventTryReadBatch.
 #[inline]
 fn encode_destack_display_window_event_try_read_batch_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<WindowEventVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -9920,7 +9920,7 @@ fn encode_destack_display_window_event_try_read_batch_result(
 /// Decode arguments for destack.display.window.focus.
 #[inline]
 fn decode_destack_display_window_focus_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -9933,7 +9933,7 @@ fn decode_destack_display_window_focus_args(
 /// Encode the result for destack.display.window.focus.
 #[inline]
 fn encode_destack_display_window_focus_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -9942,7 +9942,7 @@ fn encode_destack_display_window_focus_result(
 /// Decode arguments for destack.display.window.framebufferSize.
 #[inline]
 fn decode_destack_display_window_framebuffer_size_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -9955,7 +9955,7 @@ fn decode_destack_display_window_framebuffer_size_args(
 /// Encode the result for destack.display.window.framebufferSize.
 #[inline]
 fn encode_destack_display_window_framebuffer_size_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<WindowPhysicalSizeVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -9980,7 +9980,7 @@ fn encode_destack_display_window_framebuffer_size_result(
 /// Decode arguments for destack.display.window.invalidate.
 #[inline]
 fn decode_destack_display_window_invalidate_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -9993,7 +9993,7 @@ fn decode_destack_display_window_invalidate_args(
 /// Encode the result for destack.display.window.invalidate.
 #[inline]
 fn encode_destack_display_window_invalidate_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10002,7 +10002,7 @@ fn encode_destack_display_window_invalidate_result(
 /// Decode arguments for destack.display.window.maximize.
 #[inline]
 fn decode_destack_display_window_maximize_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10015,7 +10015,7 @@ fn decode_destack_display_window_maximize_args(
 /// Encode the result for destack.display.window.maximize.
 #[inline]
 fn encode_destack_display_window_maximize_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10024,7 +10024,7 @@ fn encode_destack_display_window_maximize_result(
 /// Decode arguments for destack.display.window.minimize.
 #[inline]
 fn decode_destack_display_window_minimize_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10037,7 +10037,7 @@ fn decode_destack_display_window_minimize_args(
 /// Encode the result for destack.display.window.minimize.
 #[inline]
 fn encode_destack_display_window_minimize_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10046,7 +10046,7 @@ fn encode_destack_display_window_minimize_result(
 /// Decode arguments for destack.display.window.opacity.
 #[inline]
 fn decode_destack_display_window_opacity_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10059,7 +10059,7 @@ fn decode_destack_display_window_opacity_args(
 /// Encode the result for destack.display.window.opacity.
 #[inline]
 fn encode_destack_display_window_opacity_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<f64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -10070,7 +10070,7 @@ fn encode_destack_display_window_opacity_result(
 /// Decode arguments for destack.display.window.open.
 #[inline]
 fn decode_destack_display_window_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(WindowOptionsVm,)> {
     let context = &context.read();
@@ -10083,7 +10083,7 @@ fn decode_destack_display_window_open_args(
 /// Encode the result for destack.display.window.open.
 #[inline]
 fn encode_destack_display_window_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::WindowHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -10094,7 +10094,7 @@ fn encode_destack_display_window_open_result(
 /// Decode arguments for destack.display.window.raise.
 #[inline]
 fn decode_destack_display_window_raise_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10107,7 +10107,7 @@ fn decode_destack_display_window_raise_args(
 /// Encode the result for destack.display.window.raise.
 #[inline]
 fn encode_destack_display_window_raise_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10116,7 +10116,7 @@ fn encode_destack_display_window_raise_result(
 /// Decode arguments for destack.display.window.renderState.
 #[inline]
 fn decode_destack_display_window_render_state_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10129,7 +10129,7 @@ fn decode_destack_display_window_render_state_args(
 /// Encode the result for destack.display.window.renderState.
 #[inline]
 fn encode_destack_display_window_render_state_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<WindowRenderState>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -10140,7 +10140,7 @@ fn encode_destack_display_window_render_state_result(
 /// Decode arguments for destack.display.window.requestAttention.
 #[inline]
 fn decode_destack_display_window_request_attention_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, WindowAttentionLevel)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10166,7 +10166,7 @@ fn decode_destack_display_window_request_attention_args(
 /// Encode the result for destack.display.window.requestAttention.
 #[inline]
 fn encode_destack_display_window_request_attention_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10175,7 +10175,7 @@ fn encode_destack_display_window_request_attention_result(
 /// Decode arguments for destack.display.window.restore.
 #[inline]
 fn decode_destack_display_window_restore_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10188,7 +10188,7 @@ fn decode_destack_display_window_restore_args(
 /// Encode the result for destack.display.window.restore.
 #[inline]
 fn encode_destack_display_window_restore_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10197,7 +10197,7 @@ fn encode_destack_display_window_restore_result(
 /// Decode arguments for destack.display.window.setAlwaysOnTop.
 #[inline]
 fn decode_destack_display_window_set_always_on_top_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, bool)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10212,7 +10212,7 @@ fn decode_destack_display_window_set_always_on_top_args(
 /// Encode the result for destack.display.window.setAlwaysOnTop.
 #[inline]
 fn encode_destack_display_window_set_always_on_top_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10221,7 +10221,7 @@ fn encode_destack_display_window_set_always_on_top_result(
 /// Decode arguments for destack.display.window.setAspectRatio.
 #[inline]
 fn decode_destack_display_window_set_aspect_ratio_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, Option<WindowAspectRatioVm>)> {
     let context = &context.read();
@@ -10245,7 +10245,7 @@ fn decode_destack_display_window_set_aspect_ratio_args(
 /// Encode the result for destack.display.window.setAspectRatio.
 #[inline]
 fn encode_destack_display_window_set_aspect_ratio_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10254,7 +10254,7 @@ fn encode_destack_display_window_set_aspect_ratio_result(
 /// Decode arguments for destack.display.window.setChrome.
 #[inline]
 fn decode_destack_display_window_set_chrome_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, WindowChromeKind)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10281,7 +10281,7 @@ fn decode_destack_display_window_set_chrome_args(
 /// Encode the result for destack.display.window.setChrome.
 #[inline]
 fn encode_destack_display_window_set_chrome_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10290,7 +10290,7 @@ fn encode_destack_display_window_set_chrome_result(
 /// Decode arguments for destack.display.window.setCursorIcon.
 #[inline]
 fn decode_destack_display_window_set_cursor_icon_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, WindowCursorIcon)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10342,7 +10342,7 @@ fn decode_destack_display_window_set_cursor_icon_args(
 /// Encode the result for destack.display.window.setCursorIcon.
 #[inline]
 fn encode_destack_display_window_set_cursor_icon_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10351,7 +10351,7 @@ fn encode_destack_display_window_set_cursor_icon_result(
 /// Decode arguments for destack.display.window.setCursorMode.
 #[inline]
 fn decode_destack_display_window_set_cursor_mode_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, WindowCursorMode)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10379,7 +10379,7 @@ fn decode_destack_display_window_set_cursor_mode_args(
 /// Encode the result for destack.display.window.setCursorMode.
 #[inline]
 fn encode_destack_display_window_set_cursor_mode_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10388,7 +10388,7 @@ fn encode_destack_display_window_set_cursor_mode_result(
 /// Decode arguments for destack.display.window.setCursorPosition.
 #[inline]
 fn decode_destack_display_window_set_cursor_position_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, WindowPositionVm)> {
     let context = &context.read();
@@ -10405,7 +10405,7 @@ fn decode_destack_display_window_set_cursor_position_args(
 /// Encode the result for destack.display.window.setCursorPosition.
 #[inline]
 fn encode_destack_display_window_set_cursor_position_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10414,7 +10414,7 @@ fn encode_destack_display_window_set_cursor_position_result(
 /// Decode arguments for destack.display.window.setCursorVisible.
 #[inline]
 fn decode_destack_display_window_set_cursor_visible_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, bool)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10429,7 +10429,7 @@ fn decode_destack_display_window_set_cursor_visible_args(
 /// Encode the result for destack.display.window.setCursorVisible.
 #[inline]
 fn encode_destack_display_window_set_cursor_visible_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10438,7 +10438,7 @@ fn encode_destack_display_window_set_cursor_visible_result(
 /// Decode arguments for destack.display.window.setDecorated.
 #[inline]
 fn decode_destack_display_window_set_decorated_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, bool)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10453,7 +10453,7 @@ fn decode_destack_display_window_set_decorated_args(
 /// Encode the result for destack.display.window.setDecorated.
 #[inline]
 fn encode_destack_display_window_set_decorated_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10462,7 +10462,7 @@ fn encode_destack_display_window_set_decorated_result(
 /// Decode arguments for destack.display.window.setIcons.
 #[inline]
 fn decode_destack_display_window_set_icons_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, Option<WindowIconSetVm>)> {
     let context = &context.read();
@@ -10484,7 +10484,7 @@ fn decode_destack_display_window_set_icons_args(
 /// Encode the result for destack.display.window.setIcons.
 #[inline]
 fn encode_destack_display_window_set_icons_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10493,7 +10493,7 @@ fn encode_destack_display_window_set_icons_result(
 /// Decode arguments for destack.display.window.setModal.
 #[inline]
 fn decode_destack_display_window_set_modal_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, bool)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10508,7 +10508,7 @@ fn decode_destack_display_window_set_modal_args(
 /// Encode the result for destack.display.window.setModal.
 #[inline]
 fn encode_destack_display_window_set_modal_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10517,7 +10517,7 @@ fn encode_destack_display_window_set_modal_result(
 /// Decode arguments for destack.display.window.setMode.
 #[inline]
 fn decode_destack_display_window_set_mode_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, WindowModeOptionsVm)> {
     let context = &context.read();
@@ -10533,7 +10533,7 @@ fn decode_destack_display_window_set_mode_args(
 /// Encode the result for destack.display.window.setMode.
 #[inline]
 fn encode_destack_display_window_set_mode_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10542,7 +10542,7 @@ fn encode_destack_display_window_set_mode_result(
 /// Decode arguments for destack.display.window.setMousePassthrough.
 #[inline]
 fn decode_destack_display_window_set_mouse_passthrough_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, bool)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10557,7 +10557,7 @@ fn decode_destack_display_window_set_mouse_passthrough_args(
 /// Encode the result for destack.display.window.setMousePassthrough.
 #[inline]
 fn encode_destack_display_window_set_mouse_passthrough_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10566,7 +10566,7 @@ fn encode_destack_display_window_set_mouse_passthrough_result(
 /// Decode arguments for destack.display.window.setOpacity.
 #[inline]
 fn decode_destack_display_window_set_opacity_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, f64)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10581,7 +10581,7 @@ fn decode_destack_display_window_set_opacity_args(
 /// Encode the result for destack.display.window.setOpacity.
 #[inline]
 fn encode_destack_display_window_set_opacity_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10590,7 +10590,7 @@ fn encode_destack_display_window_set_opacity_result(
 /// Decode arguments for destack.display.window.setParent.
 #[inline]
 fn decode_destack_display_window_set_parent_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, Option<resource::WindowHandle>)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10616,7 +10616,7 @@ fn decode_destack_display_window_set_parent_args(
 /// Encode the result for destack.display.window.setParent.
 #[inline]
 fn encode_destack_display_window_set_parent_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10625,7 +10625,7 @@ fn encode_destack_display_window_set_parent_result(
 /// Decode arguments for destack.display.window.setPosition.
 #[inline]
 fn decode_destack_display_window_set_position_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, WindowPositionVm)> {
     let context = &context.read();
@@ -10642,7 +10642,7 @@ fn decode_destack_display_window_set_position_args(
 /// Encode the result for destack.display.window.setPosition.
 #[inline]
 fn encode_destack_display_window_set_position_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10651,7 +10651,7 @@ fn encode_destack_display_window_set_position_result(
 /// Decode arguments for destack.display.window.setResizable.
 #[inline]
 fn decode_destack_display_window_set_resizable_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, bool)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10666,7 +10666,7 @@ fn decode_destack_display_window_set_resizable_args(
 /// Encode the result for destack.display.window.setResizable.
 #[inline]
 fn encode_destack_display_window_set_resizable_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10675,7 +10675,7 @@ fn encode_destack_display_window_set_resizable_result(
 /// Decode arguments for destack.display.window.setSizeConstraints.
 #[inline]
 fn decode_destack_display_window_set_size_constraints_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, Option<WindowSizeConstraintsVm>)> {
     let context = &context.read();
@@ -10699,7 +10699,7 @@ fn decode_destack_display_window_set_size_constraints_args(
 /// Encode the result for destack.display.window.setSizeConstraints.
 #[inline]
 fn encode_destack_display_window_set_size_constraints_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10708,7 +10708,7 @@ fn encode_destack_display_window_set_size_constraints_result(
 /// Decode arguments for destack.display.window.setSizeLogical.
 #[inline]
 fn decode_destack_display_window_set_size_logical_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, WindowLogicalSizeVm)> {
     let context = &context.read();
@@ -10724,7 +10724,7 @@ fn decode_destack_display_window_set_size_logical_args(
 /// Encode the result for destack.display.window.setSizeLogical.
 #[inline]
 fn encode_destack_display_window_set_size_logical_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10733,7 +10733,7 @@ fn encode_destack_display_window_set_size_logical_result(
 /// Decode arguments for destack.display.window.setSizePhysical.
 #[inline]
 fn decode_destack_display_window_set_size_physical_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, WindowPhysicalSizeVm)> {
     let context = &context.read();
@@ -10750,7 +10750,7 @@ fn decode_destack_display_window_set_size_physical_args(
 /// Encode the result for destack.display.window.setSizePhysical.
 #[inline]
 fn encode_destack_display_window_set_size_physical_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10759,7 +10759,7 @@ fn encode_destack_display_window_set_size_physical_result(
 /// Decode arguments for destack.display.window.setTaskbarVisible.
 #[inline]
 fn decode_destack_display_window_set_taskbar_visible_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, bool)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10774,7 +10774,7 @@ fn decode_destack_display_window_set_taskbar_visible_args(
 /// Encode the result for destack.display.window.setTaskbarVisible.
 #[inline]
 fn encode_destack_display_window_set_taskbar_visible_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10783,7 +10783,7 @@ fn encode_destack_display_window_set_taskbar_visible_result(
 /// Decode arguments for destack.display.window.setTitle.
 #[inline]
 fn decode_destack_display_window_set_title_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, vm::StringHandle)> {
     let context = &context.read();
@@ -10799,7 +10799,7 @@ fn decode_destack_display_window_set_title_args(
 /// Encode the result for destack.display.window.setTitle.
 #[inline]
 fn encode_destack_display_window_set_title_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10808,7 +10808,7 @@ fn encode_destack_display_window_set_title_result(
 /// Decode arguments for destack.display.window.setTransientFor.
 #[inline]
 fn decode_destack_display_window_set_transient_for_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, Option<resource::WindowHandle>)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10834,7 +10834,7 @@ fn decode_destack_display_window_set_transient_for_args(
 /// Encode the result for destack.display.window.setTransientFor.
 #[inline]
 fn encode_destack_display_window_set_transient_for_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10843,7 +10843,7 @@ fn encode_destack_display_window_set_transient_for_result(
 /// Decode arguments for destack.display.window.setVisibility.
 #[inline]
 fn decode_destack_display_window_set_visibility_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, WindowVisibility)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10871,7 +10871,7 @@ fn decode_destack_display_window_set_visibility_args(
 /// Encode the result for destack.display.window.setVisibility.
 #[inline]
 fn encode_destack_display_window_set_visibility_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -10880,7 +10880,7 @@ fn encode_destack_display_window_set_visibility_result(
 /// Decode arguments for destack.display.window.state.
 #[inline]
 fn decode_destack_display_window_state_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -10893,7 +10893,7 @@ fn decode_destack_display_window_state_args(
 /// Encode the result for destack.display.window.state.
 #[inline]
 fn encode_destack_display_window_state_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<WindowStateVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -33096,7 +33096,7 @@ pub(crate) unsafe extern "C" fn destack_display_window_state(
 #[inline]
 fn destack_display_backend_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -33195,7 +33195,7 @@ fn destack_display_backend_list_vm_replay(
 #[inline]
 fn destack_display_drag_session_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     session: resource::DisplayDragSessionHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -33245,7 +33245,7 @@ fn destack_display_drag_session_close_vm_replay(
 #[inline]
 fn destack_display_drag_session_read_bytes_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     session: resource::DisplayDragSessionHandle,
     itemindex: u32,
@@ -33304,7 +33304,7 @@ fn destack_display_drag_session_read_bytes_vm_replay(
 #[inline]
 fn destack_display_drag_session_read_path_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     session: resource::DisplayDragSessionHandle,
     itemindex: u32,
@@ -33456,7 +33456,7 @@ fn destack_display_drag_session_read_path_vm_replay(
 #[inline]
 fn destack_display_drag_session_read_text_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     session: resource::DisplayDragSessionHandle,
     itemindex: u32,
@@ -33522,7 +33522,7 @@ fn destack_display_drag_session_read_text_vm_replay(
 #[inline]
 fn destack_display_frame_begin_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayBeginFrameHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -33572,7 +33572,7 @@ fn destack_display_frame_begin_close_vm_replay(
 #[inline]
 fn destack_display_frame_begin_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     options: DisplayBeginFrameOpenOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -33626,7 +33626,7 @@ fn destack_display_frame_begin_open_vm_replay(
 #[inline]
 fn destack_display_frame_begin_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayBeginFrameHandle,
     timeoutns: u64,
@@ -33773,7 +33773,7 @@ fn destack_display_frame_begin_read_vm_replay(
 #[inline]
 fn destack_display_frame_begin_read_batch_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayBeginFrameHandle,
     maxevents: u32,
@@ -33928,7 +33928,7 @@ fn destack_display_frame_begin_read_batch_vm_replay(
 #[inline]
 fn destack_display_frame_begin_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayBeginFrameHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -34076,7 +34076,7 @@ fn destack_display_frame_begin_try_read_vm_replay(
 #[inline]
 fn destack_display_frame_begin_try_read_batch_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayBeginFrameHandle,
     maxevents: u32,
@@ -34230,7 +34230,7 @@ fn destack_display_frame_begin_try_read_batch_vm_replay(
 #[inline]
 fn destack_display_monitor_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -34280,7 +34280,7 @@ fn destack_display_monitor_close_vm_replay(
 #[inline]
 fn destack_display_monitor_closest_mode_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
     requested: DisplayModeVm,
@@ -34359,7 +34359,7 @@ fn destack_display_monitor_closest_mode_vm_replay(
 #[inline]
 fn destack_display_monitor_color_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -34440,7 +34440,7 @@ fn destack_display_monitor_color_state_vm_replay(
 #[inline]
 fn destack_display_monitor_current_mode_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -34518,7 +34518,7 @@ fn destack_display_monitor_current_mode_vm_replay(
 #[inline]
 fn destack_display_monitor_descriptor_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -34707,7 +34707,7 @@ fn destack_display_monitor_descriptor_vm_replay(
 #[inline]
 fn destack_display_monitor_desktop_mode_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -34785,7 +34785,7 @@ fn destack_display_monitor_desktop_mode_vm_replay(
 #[inline]
 fn destack_display_monitor_event_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -34837,7 +34837,7 @@ fn destack_display_monitor_event_close_vm_replay(
 #[inline]
 fn destack_display_monitor_event_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     options: DisplayMonitorEventOpenOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -34891,7 +34891,7 @@ fn destack_display_monitor_event_open_vm_replay(
 #[inline]
 fn destack_display_monitor_event_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayEventHandle,
     timeoutns: u64,
@@ -35891,7 +35891,7 @@ fn destack_display_monitor_event_read_vm_replay(
 #[inline]
 fn destack_display_monitor_event_read_batch_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayEventHandle,
     maxevents: u32,
@@ -36903,7 +36903,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
 #[inline]
 fn destack_display_monitor_event_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -37902,7 +37902,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
 #[inline]
 fn destack_display_monitor_event_try_read_batch_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayEventHandle,
     maxevents: u32,
@@ -38913,7 +38913,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
 #[inline]
 fn destack_display_monitor_gamma_ramp_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -39031,7 +39031,7 @@ fn destack_display_monitor_gamma_ramp_vm_replay(
 #[inline]
 fn destack_display_monitor_hdr_mode_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -39085,7 +39085,7 @@ fn destack_display_monitor_hdr_mode_vm_replay(
 #[inline]
 fn destack_display_monitor_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     request: DisplayMonitorListRequestVm,
 ) -> RuntimeResult<vm::Word> {
@@ -39274,7 +39274,7 @@ fn destack_display_monitor_list_vm_replay(
 #[inline]
 fn destack_display_monitor_modes_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -39369,7 +39369,7 @@ fn destack_display_monitor_modes_vm_replay(
 #[inline]
 fn destack_display_monitor_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
     options: DisplayMonitorOpenOptionsVm,
@@ -39424,7 +39424,7 @@ fn destack_display_monitor_open_vm_replay(
 #[inline]
 fn destack_display_monitor_primary_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     request: DisplayMonitorListRequestVm,
 ) -> RuntimeResult<vm::Word> {
@@ -39488,7 +39488,7 @@ fn destack_display_monitor_primary_vm_replay(
 #[inline]
 fn destack_display_window_begin_move_drag_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -39540,7 +39540,7 @@ fn destack_display_window_begin_move_drag_vm_replay(
 #[inline]
 fn destack_display_window_begin_resize_drag_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     edge: WindowResizeEdge,
@@ -39593,7 +39593,7 @@ fn destack_display_window_begin_resize_drag_vm_replay(
 #[inline]
 fn destack_display_window_capabilities_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -39649,7 +39649,7 @@ fn destack_display_window_capabilities_vm_replay(
 #[inline]
 fn destack_display_window_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -39699,7 +39699,7 @@ fn destack_display_window_close_vm_replay(
 #[inline]
 fn destack_display_window_content_rect_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -39773,7 +39773,7 @@ fn destack_display_window_content_rect_vm_replay(
 #[inline]
 fn destack_display_window_descriptor_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -40052,7 +40052,7 @@ fn destack_display_window_descriptor_vm_replay(
 #[inline]
 fn destack_display_window_event_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -40102,7 +40102,7 @@ fn destack_display_window_event_close_vm_replay(
 #[inline]
 fn destack_display_window_event_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     options: WindowEventOpenOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -40156,7 +40156,7 @@ fn destack_display_window_event_open_vm_replay(
 #[inline]
 fn destack_display_window_event_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::WindowEventHandle,
     timeoutns: u64,
@@ -42723,7 +42723,7 @@ fn destack_display_window_event_read_vm_replay(
 #[inline]
 fn destack_display_window_event_read_batch_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::WindowEventHandle,
     maxevents: u32,
@@ -45302,7 +45302,7 @@ fn destack_display_window_event_read_batch_vm_replay(
 #[inline]
 fn destack_display_window_event_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -47868,7 +47868,7 @@ fn destack_display_window_event_try_read_vm_replay(
 #[inline]
 fn destack_display_window_event_try_read_batch_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::WindowEventHandle,
     maxevents: u32,
@@ -50446,7 +50446,7 @@ fn destack_display_window_event_try_read_batch_vm_replay(
 #[inline]
 fn destack_display_window_focus_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -50496,7 +50496,7 @@ fn destack_display_window_focus_vm_replay(
 #[inline]
 fn destack_display_window_framebuffer_size_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -50562,7 +50562,7 @@ fn destack_display_window_framebuffer_size_vm_replay(
 #[inline]
 fn destack_display_window_invalidate_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -50612,7 +50612,7 @@ fn destack_display_window_invalidate_vm_replay(
 #[inline]
 fn destack_display_window_maximize_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -50662,7 +50662,7 @@ fn destack_display_window_maximize_vm_replay(
 #[inline]
 fn destack_display_window_minimize_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -50712,7 +50712,7 @@ fn destack_display_window_minimize_vm_replay(
 #[inline]
 fn destack_display_window_opacity_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -50766,7 +50766,7 @@ fn destack_display_window_opacity_vm_replay(
 #[inline]
 fn destack_display_window_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     options: WindowOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -50820,7 +50820,7 @@ fn destack_display_window_open_vm_replay(
 #[inline]
 fn destack_display_window_raise_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -50870,7 +50870,7 @@ fn destack_display_window_raise_vm_replay(
 #[inline]
 fn destack_display_window_render_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -50926,7 +50926,7 @@ fn destack_display_window_render_state_vm_replay(
 #[inline]
 fn destack_display_window_request_attention_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     level: WindowAttentionLevel,
@@ -50979,7 +50979,7 @@ fn destack_display_window_request_attention_vm_replay(
 #[inline]
 fn destack_display_window_restore_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -51029,7 +51029,7 @@ fn destack_display_window_restore_vm_replay(
 #[inline]
 fn destack_display_window_set_always_on_top_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     alwaysontop: bool,
@@ -51088,7 +51088,7 @@ fn destack_display_window_set_always_on_top_vm_replay(
 #[inline]
 fn destack_display_window_set_aspect_ratio_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     aspectratio: Option<WindowAspectRatioVm>,
@@ -51147,7 +51147,7 @@ fn destack_display_window_set_aspect_ratio_vm_replay(
 #[inline]
 fn destack_display_window_set_chrome_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     chrome: WindowChromeKind,
@@ -51198,7 +51198,7 @@ fn destack_display_window_set_chrome_vm_replay(
 #[inline]
 fn destack_display_window_set_cursor_icon_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     icon: WindowCursorIcon,
@@ -51251,7 +51251,7 @@ fn destack_display_window_set_cursor_icon_vm_replay(
 #[inline]
 fn destack_display_window_set_cursor_mode_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     mode: WindowCursorMode,
@@ -51304,7 +51304,7 @@ fn destack_display_window_set_cursor_mode_vm_replay(
 #[inline]
 fn destack_display_window_set_cursor_position_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     position: WindowPositionVm,
@@ -51357,7 +51357,7 @@ fn destack_display_window_set_cursor_position_vm_replay(
 #[inline]
 fn destack_display_window_set_cursor_visible_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     visible: bool,
@@ -51410,7 +51410,7 @@ fn destack_display_window_set_cursor_visible_vm_replay(
 #[inline]
 fn destack_display_window_set_decorated_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     decorated: bool,
@@ -51463,7 +51463,7 @@ fn destack_display_window_set_decorated_vm_replay(
 #[inline]
 fn destack_display_window_set_icons_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     icons: Option<WindowIconSetVm>,
@@ -51514,7 +51514,7 @@ fn destack_display_window_set_icons_vm_replay(
 #[inline]
 fn destack_display_window_set_modal_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     modal: bool,
@@ -51565,7 +51565,7 @@ fn destack_display_window_set_modal_vm_replay(
 #[inline]
 fn destack_display_window_set_mode_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     mode: WindowModeOptionsVm,
@@ -51616,7 +51616,7 @@ fn destack_display_window_set_mode_vm_replay(
 #[inline]
 fn destack_display_window_set_mouse_passthrough_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     passthrough: bool,
@@ -51675,7 +51675,7 @@ fn destack_display_window_set_mouse_passthrough_vm_replay(
 #[inline]
 fn destack_display_window_set_opacity_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     opacity: f64,
@@ -51726,7 +51726,7 @@ fn destack_display_window_set_opacity_vm_replay(
 #[inline]
 fn destack_display_window_set_parent_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     parent: Option<resource::WindowHandle>,
@@ -51777,7 +51777,7 @@ fn destack_display_window_set_parent_vm_replay(
 #[inline]
 fn destack_display_window_set_position_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     position: WindowPositionVm,
@@ -51830,7 +51830,7 @@ fn destack_display_window_set_position_vm_replay(
 #[inline]
 fn destack_display_window_set_resizable_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     resizable: bool,
@@ -51883,7 +51883,7 @@ fn destack_display_window_set_resizable_vm_replay(
 #[inline]
 fn destack_display_window_set_size_constraints_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     constraints: Option<WindowSizeConstraintsVm>,
@@ -51942,7 +51942,7 @@ fn destack_display_window_set_size_constraints_vm_replay(
 #[inline]
 fn destack_display_window_set_size_logical_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     size: WindowLogicalSizeVm,
@@ -51995,7 +51995,7 @@ fn destack_display_window_set_size_logical_vm_replay(
 #[inline]
 fn destack_display_window_set_size_physical_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     size: WindowPhysicalSizeVm,
@@ -52048,7 +52048,7 @@ fn destack_display_window_set_size_physical_vm_replay(
 #[inline]
 fn destack_display_window_set_taskbar_visible_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     visible: bool,
@@ -52101,7 +52101,7 @@ fn destack_display_window_set_taskbar_visible_vm_replay(
 #[inline]
 fn destack_display_window_set_title_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     title: vm::StringHandle,
@@ -52152,7 +52152,7 @@ fn destack_display_window_set_title_vm_replay(
 #[inline]
 fn destack_display_window_set_transient_for_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     transientfor: Option<resource::WindowHandle>,
@@ -52211,7 +52211,7 @@ fn destack_display_window_set_transient_for_vm_replay(
 #[inline]
 fn destack_display_window_set_visibility_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     visibility: WindowVisibility,
@@ -52264,7 +52264,7 @@ fn destack_display_window_set_visibility_vm_replay(
 #[inline]
 fn destack_display_window_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Word> {

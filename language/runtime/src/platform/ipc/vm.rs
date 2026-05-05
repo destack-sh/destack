@@ -47,7 +47,7 @@ fn native_handles_from_vec(
 /// External, recordable.
 pub(crate) fn destack_ipc_message_queue_close(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: resource::MessageQueueHandle,
 ) -> RuntimeResult<()> {
     unsafe { super::host::destack_ipc_message_queue_close(binding, handle) }
@@ -72,7 +72,7 @@ pub(crate) fn destack_ipc_message_queue_close(
 /// External, recordable.
 pub(crate) fn destack_ipc_message_queue_open(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     name: destack_vm::StringHandle,
     flags: u32,
     mode: u32,
@@ -112,7 +112,7 @@ pub(crate) fn destack_ipc_message_queue_open(
 /// External, recordable.
 pub(crate) fn destack_ipc_message_queue_receive(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: resource::MessageQueueHandle,
     timeoutns: u64,
     buffer: VmSlice<u8>,
@@ -153,7 +153,7 @@ pub(crate) fn destack_ipc_message_queue_receive(
 /// External, recordable.
 pub(crate) fn destack_ipc_message_queue_send(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: resource::MessageQueueHandle,
     priority: u32,
     timeoutns: u64,
@@ -186,7 +186,7 @@ pub(crate) fn destack_ipc_message_queue_send(
 /// External, recordable.
 pub(crate) fn destack_ipc_message_queue_unlink(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     name: destack_vm::StringHandle,
 ) -> RuntimeResult<()> {
     let name = store_string_from_vm(binding, context, name)?;
@@ -212,7 +212,7 @@ pub(crate) fn destack_ipc_message_queue_unlink(
 /// External, recordable.
 pub(crate) fn destack_ipc_pipe_close(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: resource::PipeHandle,
 ) -> RuntimeResult<()> {
     unsafe { super::host::destack_ipc_pipe_close(binding, handle) }
@@ -237,7 +237,7 @@ pub(crate) fn destack_ipc_pipe_close(
 /// External, recordable.
 pub(crate) fn destack_ipc_pipe_open(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     flags: u32,
 ) -> RuntimeResult<PipePairVm> {
     call_out(|out| unsafe { super::host::destack_ipc_pipe_open(binding, out, flags) })
@@ -262,7 +262,7 @@ pub(crate) fn destack_ipc_pipe_open(
 /// External, recordable.
 pub(crate) fn destack_ipc_pipe_read(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: resource::PipeHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -300,7 +300,7 @@ pub(crate) fn destack_ipc_pipe_read(
 /// External, recordable.
 pub(crate) fn destack_ipc_pipe_write(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: resource::PipeHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -329,7 +329,7 @@ pub(crate) fn destack_ipc_pipe_write(
 /// External, recordable.
 pub(crate) fn destack_ipc_shared_memory_close(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: resource::SharedMemoryHandle,
 ) -> RuntimeResult<()> {
     unsafe { super::host::destack_ipc_shared_memory_close(binding, handle) }
@@ -354,7 +354,7 @@ pub(crate) fn destack_ipc_shared_memory_close(
 /// External, recordable.
 pub(crate) fn destack_ipc_shared_memory_create(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     name: destack_vm::StringHandle,
     size: u64,
     flags: u32,
@@ -384,7 +384,7 @@ pub(crate) fn destack_ipc_shared_memory_create(
 /// External, recordable.
 pub(crate) fn destack_ipc_shared_memory_map(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: resource::SharedMemoryHandle,
     offset: u64,
     length: u64,
@@ -414,7 +414,7 @@ pub(crate) fn destack_ipc_shared_memory_map(
 /// External, recordable.
 pub(crate) fn destack_ipc_shared_memory_open(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     name: destack_vm::StringHandle,
     flags: u32,
 ) -> RuntimeResult<resource::SharedMemoryHandle> {
@@ -443,7 +443,7 @@ pub(crate) fn destack_ipc_shared_memory_open(
 /// External, recordable.
 pub(crate) fn destack_ipc_shared_memory_unmap(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -469,7 +469,7 @@ pub(crate) fn destack_ipc_shared_memory_unmap(
 /// External, recordable.
 pub(crate) fn destack_ipc_futex_wait(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
     expected: u32,
@@ -499,7 +499,7 @@ pub(crate) fn destack_ipc_futex_wait(
 /// External, recordable.
 pub(crate) fn destack_ipc_futex_wake(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
     count: u32,
@@ -528,7 +528,7 @@ pub(crate) fn destack_ipc_futex_wake(
 /// External, recordable.
 pub(crate) fn destack_ipc_semaphore_create(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     name: destack_vm::StringHandle,
     initial: u32,
     flags: u32,
@@ -558,7 +558,7 @@ pub(crate) fn destack_ipc_semaphore_create(
 /// External, recordable.
 pub(crate) fn destack_ipc_semaphore_post(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: resource::SemaphoreHandle,
     count: u32,
 ) -> RuntimeResult<()> {
@@ -584,7 +584,7 @@ pub(crate) fn destack_ipc_semaphore_post(
 /// External, recordable.
 pub(crate) fn destack_ipc_semaphore_wait(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: resource::SemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
@@ -610,7 +610,7 @@ pub(crate) fn destack_ipc_semaphore_wait(
 /// External, recordable.
 pub(crate) fn destack_ipc_unix_receive(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     socket: resource::SocketHandle,
     maxhandles: u32,
 ) -> RuntimeResult<UnixReceiveAncillaryVm> {
@@ -647,7 +647,7 @@ pub(crate) fn destack_ipc_unix_receive(
 /// External, recordable.
 pub(crate) fn destack_ipc_unix_send(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     socket: resource::SocketHandle,
     argument_payload: VmSlice<u8>,
     handles: VmSlice<resource::TransferredHandle>,

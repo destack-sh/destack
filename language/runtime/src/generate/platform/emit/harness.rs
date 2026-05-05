@@ -152,11 +152,12 @@ impl<'spec, 'output> HarnessWriter<'spec, 'output> {
         self.output
             .push_str("    /// Return the generated VM context if available.\n");
         self.output.push_str("    #[allow(clippy::mut_from_ref)]\n");
-        self.output
-            .push_str("    fn generated_vm_context_mut(&self) -> Option<&mut vm::ExternalCallContext<'_>> {\n");
+        self.output.push_str(
+            "    fn generated_vm_context_mut(&self) -> Option<&mut vm::BindingContext<'_>> {\n",
+        );
         self.output.push_str("        self.vm_context\n");
         self.output
-            .push_str("            .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })\n");
+            .push_str("            .map(|context| unsafe { &mut *(context as *mut vm::BindingContext<'_>) })\n");
         self.output.push_str("    }\n\n");
 
         // native wrapper
@@ -592,9 +593,9 @@ use destack_vm as vm;
 impl<'call> HarnessContext<'call> {
     /// Return the generated VM context if available.
     #[allow(clippy::mut_from_ref)]
-    fn generated_vm_context_mut(&self) -> Option<&mut vm::ExternalCallContext<'_>> {
+    fn generated_vm_context_mut(&self) -> Option<&mut vm::BindingContext<'_>> {
         self.vm_context
-            .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
+            .map(|context| unsafe { &mut *(context as *mut vm::BindingContext<'_>) })
     }
 
     /// Return one standardized value payload for native and VM variants.
@@ -727,9 +728,9 @@ use destack_vm as vm;
 impl<'call> DisplayHarnessContext<'call> {
     /// Return the generated VM context if available.
     #[allow(clippy::mut_from_ref)]
-    fn generated_vm_context_mut(&self) -> Option<&mut vm::ExternalCallContext<'_>> {
+    fn generated_vm_context_mut(&self) -> Option<&mut vm::BindingContext<'_>> {
         self.vm_context
-            .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
+            .map(|context| unsafe { &mut *(context as *mut vm::BindingContext<'_>) })
     }
 
     /// Return one standardized value payload for native and VM variants.

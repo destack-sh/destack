@@ -24,7 +24,7 @@ use crate::platform::security::SecurityPolicyRuleVm;
 /// Deterministic.
 pub(crate) fn destack_security_capability_has(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     capability: destack_vm::StringHandle,
 ) -> RuntimeResult<bool> {
     let _ = capability;
@@ -53,7 +53,7 @@ pub(crate) fn destack_security_capability_has(
 /// Deterministic.
 pub(crate) fn destack_security_capability_list(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
 ) -> RuntimeResult<VmSlice<destack_vm::StringHandle>> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.security.capability.list is not available in the VM yet",
@@ -80,7 +80,7 @@ pub(crate) fn destack_security_capability_list(
 /// Deterministic.
 pub(crate) fn destack_security_sandbox_seal(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -109,7 +109,7 @@ pub(crate) fn destack_security_sandbox_seal(
 /// Deterministic.
 pub(crate) fn destack_security_sandbox_set_capabilities(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: resource::SandboxHandle,
     capabilities: VmSlice<destack_vm::StringHandle>,
 ) -> RuntimeResult<()> {
@@ -139,7 +139,7 @@ pub(crate) fn destack_security_sandbox_set_capabilities(
 /// Deterministic.
 pub(crate) fn destack_security_set_write_xor_execute(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = enabled;
@@ -168,7 +168,7 @@ pub(crate) fn destack_security_set_write_xor_execute(
 /// Deterministic.
 pub(crate) fn destack_security_policy_get(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     scope: destack_vm::StringHandle,
 ) -> RuntimeResult<VmSlice<destack_vm::StringHandle>> {
     let _ = scope;
@@ -197,7 +197,7 @@ pub(crate) fn destack_security_policy_get(
 /// Deterministic.
 pub(crate) fn destack_security_policy_get_rules(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     scope: destack_vm::StringHandle,
 ) -> RuntimeResult<VmSlice<SecurityPolicyRuleVm>> {
     let _ = scope;
@@ -226,7 +226,7 @@ pub(crate) fn destack_security_policy_get_rules(
 /// Deterministic.
 pub(crate) fn destack_security_policy_set(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     scope: destack_vm::StringHandle,
     capabilities: VmSlice<destack_vm::StringHandle>,
 ) -> RuntimeResult<()> {
@@ -256,7 +256,7 @@ pub(crate) fn destack_security_policy_set(
 /// Deterministic.
 pub(crate) fn destack_security_policy_set_rules(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     scope: destack_vm::StringHandle,
     rules: VmSlice<SecurityPolicyRuleVm>,
 ) -> RuntimeResult<()> {
@@ -286,7 +286,7 @@ pub(crate) fn destack_security_policy_set_rules(
 /// External, recordable.
 pub(crate) fn destack_security_sandbox_enter(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     name: destack_vm::StringHandle,
 ) -> RuntimeResult<resource::SandboxHandle> {
     let _ = name;
@@ -315,7 +315,7 @@ pub(crate) fn destack_security_sandbox_enter(
 /// External, recordable.
 pub(crate) fn destack_security_sandbox_exit(
     _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;

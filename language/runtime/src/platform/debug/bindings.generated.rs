@@ -118,7 +118,7 @@ fn decode_uint64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -131,7 +131,7 @@ fn decode_string(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -142,7 +142,7 @@ fn decode_array<T>(
 /// Encode the result for destack.debug.core.breakNow.
 #[inline]
 fn encode_destack_debug_core_break_now_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -151,7 +151,7 @@ fn encode_destack_debug_core_break_now_result(
 /// Decode arguments for destack.debug.core.mark.
 #[inline]
 fn decode_destack_debug_core_mark_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -163,7 +163,7 @@ fn decode_destack_debug_core_mark_args(
 /// Encode the result for destack.debug.core.mark.
 #[inline]
 fn encode_destack_debug_core_mark_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -172,7 +172,7 @@ fn encode_destack_debug_core_mark_result(
 /// Decode arguments for destack.debug.inspector.endpoint.
 #[inline]
 fn decode_destack_debug_inspector_endpoint_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InspectorHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InspectorHandle")?;
@@ -185,7 +185,7 @@ fn decode_destack_debug_inspector_endpoint_args(
 /// Encode the result for destack.debug.inspector.endpoint.
 #[inline]
 fn encode_destack_debug_inspector_endpoint_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InspectorEndpointVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -210,7 +210,7 @@ fn encode_destack_debug_inspector_endpoint_result(
 /// Decode arguments for destack.debug.inspector.start.
 #[inline]
 fn decode_destack_debug_inspector_start_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, u16)> {
     let context = &context.read();
@@ -224,7 +224,7 @@ fn decode_destack_debug_inspector_start_args(
 /// Encode the result for destack.debug.inspector.start.
 #[inline]
 fn encode_destack_debug_inspector_start_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::InspectorHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -235,7 +235,7 @@ fn encode_destack_debug_inspector_start_result(
 /// Decode arguments for destack.debug.inspector.stop.
 #[inline]
 fn decode_destack_debug_inspector_stop_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InspectorHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InspectorHandle")?;
@@ -248,7 +248,7 @@ fn decode_destack_debug_inspector_stop_args(
 /// Encode the result for destack.debug.inspector.stop.
 #[inline]
 fn encode_destack_debug_inspector_stop_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -257,7 +257,7 @@ fn encode_destack_debug_inspector_stop_result(
 /// Decode arguments for destack.debug.profile.snapshot.
 #[inline]
 fn decode_destack_debug_profile_snapshot_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::ProfileHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "ProfileHandle")?;
@@ -270,7 +270,7 @@ fn decode_destack_debug_profile_snapshot_args(
 /// Encode the result for destack.debug.profile.snapshot.
 #[inline]
 fn encode_destack_debug_profile_snapshot_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -282,7 +282,7 @@ fn encode_destack_debug_profile_snapshot_result(
 /// Decode arguments for destack.debug.profile.start.
 #[inline]
 fn decode_destack_debug_profile_start_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(ProfileKind,)> {
     let kind_value = arg_value(args, 0, "kind", "ProfileKind")?;
@@ -305,7 +305,7 @@ fn decode_destack_debug_profile_start_args(
 /// Encode the result for destack.debug.profile.start.
 #[inline]
 fn encode_destack_debug_profile_start_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::ProfileHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -316,7 +316,7 @@ fn encode_destack_debug_profile_start_result(
 /// Decode arguments for destack.debug.profile.stop.
 #[inline]
 fn decode_destack_debug_profile_stop_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::ProfileHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "ProfileHandle")?;
@@ -329,7 +329,7 @@ fn decode_destack_debug_profile_stop_args(
 /// Encode the result for destack.debug.profile.stop.
 #[inline]
 fn encode_destack_debug_profile_stop_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -338,7 +338,7 @@ fn encode_destack_debug_profile_stop_result(
 /// Decode arguments for destack.debug.trace.emit.
 #[inline]
 fn decode_destack_debug_trace_emit_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, vm::StringHandle, vm::StringHandle)> {
     let context = &context.read();
@@ -354,7 +354,7 @@ fn decode_destack_debug_trace_emit_args(
 /// Encode the result for destack.debug.trace.emit.
 #[inline]
 fn encode_destack_debug_trace_emit_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -363,7 +363,7 @@ fn encode_destack_debug_trace_emit_result(
 /// Decode arguments for destack.debug.trace.start.
 #[inline]
 fn decode_destack_debug_trace_start_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(TraceLevel, vm::StringHandle)> {
     let context = &context.read();
@@ -390,7 +390,7 @@ fn decode_destack_debug_trace_start_args(
 /// Encode the result for destack.debug.trace.start.
 #[inline]
 fn encode_destack_debug_trace_start_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::TraceHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -401,7 +401,7 @@ fn encode_destack_debug_trace_start_result(
 /// Decode arguments for destack.debug.trace.stop.
 #[inline]
 fn decode_destack_debug_trace_stop_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TraceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TraceHandle")?;
@@ -414,7 +414,7 @@ fn decode_destack_debug_trace_stop_args(
 /// Encode the result for destack.debug.trace.stop.
 #[inline]
 fn encode_destack_debug_trace_stop_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1372,7 +1372,7 @@ pub(crate) unsafe extern "C" fn destack_debug_trace_stop(
 #[inline]
 fn destack_debug_core_break_now_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
         DEBUG_CORE_BREAK_NOW,
@@ -1413,7 +1413,7 @@ fn destack_debug_core_break_now_vm_replay(
 #[inline]
 fn destack_debug_core_mark_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -1455,7 +1455,7 @@ fn destack_debug_core_mark_vm_replay(
 #[inline]
 fn destack_debug_inspector_endpoint_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -1520,7 +1520,7 @@ fn destack_debug_inspector_endpoint_vm_replay(
 #[inline]
 fn destack_debug_inspector_start_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     host: vm::StringHandle,
     port: u16,
 ) -> RuntimeResult<vm::Word> {
@@ -1567,7 +1567,7 @@ fn destack_debug_inspector_start_vm_replay(
 #[inline]
 fn destack_debug_inspector_stop_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -1609,7 +1609,7 @@ fn destack_debug_inspector_stop_vm_replay(
 #[inline]
 fn destack_debug_profile_snapshot_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -1657,7 +1657,7 @@ fn destack_debug_profile_snapshot_vm_replay(
 #[inline]
 fn destack_debug_profile_start_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     kind: ProfileKind,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -1703,7 +1703,7 @@ fn destack_debug_profile_start_vm_replay(
 #[inline]
 fn destack_debug_profile_stop_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -1745,7 +1745,7 @@ fn destack_debug_profile_stop_vm_replay(
 #[inline]
 fn destack_debug_trace_emit_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     category: vm::StringHandle,
     name: vm::StringHandle,
     payloadjson: vm::StringHandle,
@@ -1797,7 +1797,7 @@ fn destack_debug_trace_emit_vm_replay(
 #[inline]
 fn destack_debug_trace_start_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     level: TraceLevel,
     destination: vm::StringHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -1846,7 +1846,7 @@ fn destack_debug_trace_start_vm_replay(
 #[inline]
 fn destack_debug_trace_stop_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::TraceHandle,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(

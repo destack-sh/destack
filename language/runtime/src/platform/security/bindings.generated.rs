@@ -78,7 +78,7 @@ fn decode_uint64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -91,7 +91,7 @@ fn decode_string(
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -102,7 +102,7 @@ fn decode_slice<T>(
 /// Decode arguments for destack.security.capability.has.
 #[inline]
 fn decode_destack_security_capability_has_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -119,7 +119,7 @@ fn decode_destack_security_capability_has_args(
 /// Encode the result for destack.security.capability.has.
 #[inline]
 fn encode_destack_security_capability_has_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -130,7 +130,7 @@ fn encode_destack_security_capability_has_result(
 /// Encode the result for destack.security.capability.list.
 #[inline]
 fn encode_destack_security_capability_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -142,7 +142,7 @@ fn encode_destack_security_capability_list_result(
 /// Decode arguments for destack.security.enforce.sandboxSeal.
 #[inline]
 fn decode_destack_security_enforce_sandbox_seal_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SandboxHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "SandboxHandle")?;
@@ -155,7 +155,7 @@ fn decode_destack_security_enforce_sandbox_seal_args(
 /// Encode the result for destack.security.enforce.sandboxSeal.
 #[inline]
 fn encode_destack_security_enforce_sandbox_seal_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -164,7 +164,7 @@ fn encode_destack_security_enforce_sandbox_seal_result(
 /// Decode arguments for destack.security.enforce.sandboxSetCapabilities.
 #[inline]
 fn decode_destack_security_enforce_sandbox_set_capabilities_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SandboxHandle, VmSlice<vm::StringHandle>)> {
     let context = &context.read();
@@ -185,7 +185,7 @@ fn decode_destack_security_enforce_sandbox_set_capabilities_args(
 /// Encode the result for destack.security.enforce.sandboxSetCapabilities.
 #[inline]
 fn encode_destack_security_enforce_sandbox_set_capabilities_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -194,7 +194,7 @@ fn encode_destack_security_enforce_sandbox_set_capabilities_result(
 /// Decode arguments for destack.security.enforce.setWriteXorExecute.
 #[inline]
 fn decode_destack_security_enforce_set_write_xor_execute_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(bool,)> {
     let enabled_value = arg_value(args, 0, "enabled", "boolean")?;
@@ -205,7 +205,7 @@ fn decode_destack_security_enforce_set_write_xor_execute_args(
 /// Encode the result for destack.security.enforce.setWriteXorExecute.
 #[inline]
 fn encode_destack_security_enforce_set_write_xor_execute_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -214,7 +214,7 @@ fn encode_destack_security_enforce_set_write_xor_execute_result(
 /// Decode arguments for destack.security.policy.get.
 #[inline]
 fn decode_destack_security_policy_get_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -226,7 +226,7 @@ fn decode_destack_security_policy_get_args(
 /// Encode the result for destack.security.policy.get.
 #[inline]
 fn encode_destack_security_policy_get_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -238,7 +238,7 @@ fn encode_destack_security_policy_get_result(
 /// Decode arguments for destack.security.policy.getRules.
 #[inline]
 fn decode_destack_security_policy_get_rules_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -250,7 +250,7 @@ fn decode_destack_security_policy_get_rules_args(
 /// Encode the result for destack.security.policy.getRules.
 #[inline]
 fn encode_destack_security_policy_get_rules_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<SecurityPolicyRuleVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -262,7 +262,7 @@ fn encode_destack_security_policy_get_rules_result(
 /// Decode arguments for destack.security.policy.set.
 #[inline]
 fn decode_destack_security_policy_set_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, VmSlice<vm::StringHandle>)> {
     let context = &context.read();
@@ -281,7 +281,7 @@ fn decode_destack_security_policy_set_args(
 /// Encode the result for destack.security.policy.set.
 #[inline]
 fn encode_destack_security_policy_set_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -290,7 +290,7 @@ fn encode_destack_security_policy_set_result(
 /// Decode arguments for destack.security.policy.setRules.
 #[inline]
 fn decode_destack_security_policy_set_rules_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, VmSlice<SecurityPolicyRuleVm>)> {
     let context = &context.read();
@@ -309,7 +309,7 @@ fn decode_destack_security_policy_set_rules_args(
 /// Encode the result for destack.security.policy.setRules.
 #[inline]
 fn encode_destack_security_policy_set_rules_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -318,7 +318,7 @@ fn encode_destack_security_policy_set_rules_result(
 /// Decode arguments for destack.security.sandbox.enter.
 #[inline]
 fn decode_destack_security_sandbox_enter_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -330,7 +330,7 @@ fn decode_destack_security_sandbox_enter_args(
 /// Encode the result for destack.security.sandbox.enter.
 #[inline]
 fn encode_destack_security_sandbox_enter_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::SandboxHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -341,7 +341,7 @@ fn encode_destack_security_sandbox_enter_result(
 /// Decode arguments for destack.security.sandbox.exit.
 #[inline]
 fn decode_destack_security_sandbox_exit_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SandboxHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "SandboxHandle")?;
@@ -354,7 +354,7 @@ fn decode_destack_security_sandbox_exit_args(
 /// Encode the result for destack.security.sandbox.exit.
 #[inline]
 fn encode_destack_security_sandbox_exit_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -858,7 +858,7 @@ pub(crate) unsafe extern "C" fn destack_security_sandbox_exit(
 #[inline]
 fn destack_security_sandbox_enter_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -904,7 +904,7 @@ fn destack_security_sandbox_enter_vm_replay(
 #[inline]
 fn destack_security_sandbox_exit_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(

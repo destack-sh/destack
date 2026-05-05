@@ -132,7 +132,7 @@ pub(crate) fn normalize_optional_string(value: Option<String>) -> Option<String>
 
 /// Decode one VM string argument into owned text.
 pub(crate) fn decode_vm_string(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     argument: vm::StringHandle,
     field: &str,
 ) -> RuntimeResult<String> {
@@ -149,7 +149,7 @@ pub(crate) fn decode_vm_string(
 
 /// Decode one VM byte slice argument into owned bytes.
 pub(crate) fn decode_vm_bytes(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     bytes: VmSlice<u8>,
     field: &str,
 ) -> RuntimeResult<Vec<u8>> {
@@ -183,7 +183,7 @@ pub(crate) fn decode_native_query(query: CredentialQuery) -> RuntimeResult<Crede
 
 /// Decode one VM credential query into owned data.
 pub(crate) fn decode_vm_query(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     query: CredentialQueryVm,
 ) -> RuntimeResult<CredentialQueryOwned> {
     let service = decode_vm_string(context, query.service, "query.service")?;
@@ -230,7 +230,7 @@ pub(crate) fn decode_native_write_options(
 
 /// Decode one VM credential write request into owned data.
 pub(crate) fn decode_vm_write_options(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     options: CredentialWriteOptionsVm,
 ) -> RuntimeResult<CredentialWriteOptionsOwned> {
     let service = decode_vm_string(context, options.service, "options.service")?;
@@ -274,7 +274,7 @@ pub(crate) fn decode_native_authentication_options(
 
 /// Decode one VM authentication request into owned data.
 pub(crate) fn decode_vm_authentication_options(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     options: CredentialAuthenticationOptionsVm,
 ) -> RuntimeResult<CredentialAuthenticationOptionsOwned> {
     let title = decode_vm_string(context, options.title, "options.title")?;
@@ -305,7 +305,7 @@ pub(crate) fn store_native_record(
 
 /// Store one VM credential record in the external call context.
 pub(crate) fn store_vm_record(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     record: &CredentialRecordOwned,
 ) -> RuntimeResult<CredentialRecordVm> {
     Ok(CredentialRecordVm {
@@ -345,7 +345,7 @@ pub(crate) unsafe fn destack_os_credentials_authenticate_native(
 /// Authenticate one credential request through the VM ABI surface.
 pub(crate) fn destack_os_credentials_authenticate_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     options: CredentialAuthenticationOptionsVm,
 ) -> RuntimeResult<CredentialAuthenticationResult> {
     // decode and run one authentication request
@@ -386,7 +386,7 @@ pub(crate) unsafe fn destack_os_credentials_contains_native(
 /// Query credential presence through the VM ABI surface.
 pub(crate) fn destack_os_credentials_contains_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     service: vm::StringHandle,
     account: vm::StringHandle,
     access_group: Option<vm::StringHandle>,
@@ -425,7 +425,7 @@ pub(crate) unsafe fn destack_os_credentials_delete_native(
 /// Delete one credential record through the VM ABI surface.
 pub(crate) fn destack_os_credentials_delete_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     service: vm::StringHandle,
     account: vm::StringHandle,
     access_group: Option<vm::StringHandle>,
@@ -465,7 +465,7 @@ pub(crate) unsafe fn destack_os_credentials_read_native(
 /// Read one credential record through the VM ABI surface.
 pub(crate) fn destack_os_credentials_read_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     query: CredentialQueryVm,
 ) -> RuntimeResult<CredentialRecordVm> {
     // decode, read, and encode the record
@@ -489,7 +489,7 @@ pub(crate) unsafe fn destack_os_credentials_write_native(
 /// Write one credential record through the VM ABI surface.
 pub(crate) fn destack_os_credentials_write_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     options: CredentialWriteOptionsVm,
 ) -> RuntimeResult<()> {
     // decode and persist the credential payload

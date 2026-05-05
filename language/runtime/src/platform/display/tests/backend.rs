@@ -436,8 +436,7 @@ fn backend_descriptors(
                 ))
                 .boxed());
             };
-            let vm_context =
-                unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::BindingContext<'_>) };
             values
                 .read_values(&vm_context.read())?
                 .into_iter()
@@ -839,7 +838,7 @@ pub(crate) fn test_display_window_remaining_surface_calls_follow_backend_contrac
                         .boxed());
                     };
                     let vm_context =
-                        unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
+                        unsafe { &mut *(vm_context as *mut destack_vm::BindingContext<'_>) };
                     values.read_values(&vm_context.read())?.len()
                 }
             };
@@ -864,7 +863,7 @@ pub(crate) fn test_display_window_remaining_surface_calls_follow_backend_contrac
                                 .boxed());
                             };
                             let vm_context = unsafe {
-                                &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>)
+                                &mut *(vm_context as *mut destack_vm::BindingContext<'_>)
                             };
                             values.read_values(&vm_context.read())?.len()
                         }
@@ -1167,7 +1166,7 @@ pub(crate) fn test_display_backend_identity_tracks_strict_backend_selection() {
                         .boxed());
                     };
                     let vm_context =
-                        unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
+                        unsafe { &mut *(vm_context as *mut destack_vm::BindingContext<'_>) };
                     let values = values.read_values(&vm_context.read())?;
                     if let Some(value) = values.first() {
                         assert_eq!(value.backend, backend);
@@ -1316,7 +1315,7 @@ pub(crate) fn test_display_x11_capabilities_match_implemented_contract() {
                     .boxed());
                 };
                 let vm_context =
-                    unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
+                    unsafe { &mut *(vm_context as *mut destack_vm::BindingContext<'_>) };
                 values
                     .read_values(&vm_context.read())?
                     .into_iter()
@@ -1577,7 +1576,7 @@ pub(crate) fn test_display_wayland_capabilities_match_implemented_contract() {
                     .boxed());
                 };
                 let vm_context =
-                    unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
+                    unsafe { &mut *(vm_context as *mut destack_vm::BindingContext<'_>) };
                 values
                     .read_values(&vm_context.read())?
                     .into_iter()
@@ -2163,7 +2162,7 @@ pub(crate) fn test_display_win32_capabilities_match_implemented_contract() {
                     .boxed());
                 };
                 let vm_context =
-                    unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
+                    unsafe { &mut *(vm_context as *mut destack_vm::BindingContext<'_>) };
                 values
                     .read_values(&vm_context.read())?
                     .into_iter()
@@ -2319,7 +2318,7 @@ pub(crate) fn test_display_appkit_capabilities_match_implemented_contract() {
                     .boxed());
                 };
                 let vm_context =
-                    unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
+                    unsafe { &mut *(vm_context as *mut destack_vm::BindingContext<'_>) };
                 values
                     .read_values(&vm_context.read())?
                     .into_iter()

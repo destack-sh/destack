@@ -85,8 +85,7 @@ fn backend_descriptors_for_host_execution(
                 ))
                 .boxed());
             };
-            let vm_context =
-                unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::BindingContext<'_>) };
             values
                 .read_values(&vm_context.read())?
                 .into_iter()

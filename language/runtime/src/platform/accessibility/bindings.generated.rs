@@ -221,7 +221,7 @@ fn decode_float64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -234,7 +234,7 @@ fn decode_string(
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -245,7 +245,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -256,7 +256,7 @@ fn decode_array<T>(
 /// Decode arguments for destack.accessibility.action.close.
 #[inline]
 fn decode_destack_accessibility_action_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AccessibilityActionHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AccessibilityActionHandle")?;
@@ -273,7 +273,7 @@ fn decode_destack_accessibility_action_close_args(
 /// Encode the result for destack.accessibility.action.close.
 #[inline]
 fn encode_destack_accessibility_action_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -282,7 +282,7 @@ fn encode_destack_accessibility_action_close_result(
 /// Decode arguments for destack.accessibility.action.open.
 #[inline]
 fn decode_destack_accessibility_action_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, AccessibilityActionOpenOptionsVm)> {
     let context = &context.read();
@@ -301,7 +301,7 @@ fn decode_destack_accessibility_action_open_args(
 /// Encode the result for destack.accessibility.action.open.
 #[inline]
 fn encode_destack_accessibility_action_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::AccessibilityActionHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -312,7 +312,7 @@ fn encode_destack_accessibility_action_open_result(
 /// Decode arguments for destack.accessibility.action.read.
 #[inline]
 fn decode_destack_accessibility_action_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AccessibilityActionHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "AccessibilityActionHandle")?;
@@ -331,7 +331,7 @@ fn decode_destack_accessibility_action_read_args(
 /// Encode the result for destack.accessibility.action.read.
 #[inline]
 fn encode_destack_accessibility_action_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<AccessibilityActionVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1801,7 +1801,7 @@ fn encode_destack_accessibility_action_read_result(
 /// Decode arguments for destack.accessibility.action.tryRead.
 #[inline]
 fn decode_destack_accessibility_action_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AccessibilityActionHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AccessibilityActionHandle")?;
@@ -1818,7 +1818,7 @@ fn decode_destack_accessibility_action_try_read_args(
 /// Encode the result for destack.accessibility.action.tryRead.
 #[inline]
 fn encode_destack_accessibility_action_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<AccessibilityActionVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3288,7 +3288,7 @@ fn encode_destack_accessibility_action_try_read_result(
 /// Decode arguments for destack.accessibility.document.clear.
 #[inline]
 fn decode_destack_accessibility_document_clear_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, AccessibilityNodeId)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -3304,7 +3304,7 @@ fn decode_destack_accessibility_document_clear_args(
 /// Encode the result for destack.accessibility.document.clear.
 #[inline]
 fn encode_destack_accessibility_document_clear_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3313,7 +3313,7 @@ fn encode_destack_accessibility_document_clear_result(
 /// Decode arguments for destack.accessibility.document.close.
 #[inline]
 fn decode_destack_accessibility_document_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AccessibilityDocumentHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AccessibilityDocumentHandle")?;
@@ -3330,7 +3330,7 @@ fn decode_destack_accessibility_document_close_args(
 /// Encode the result for destack.accessibility.document.close.
 #[inline]
 fn encode_destack_accessibility_document_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3339,7 +3339,7 @@ fn encode_destack_accessibility_document_close_result(
 /// Decode arguments for destack.accessibility.document.open.
 #[inline]
 fn decode_destack_accessibility_document_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, AccessibilityDocumentOpenOptionsVm)> {
     let context = &context.read();
@@ -3358,7 +3358,7 @@ fn decode_destack_accessibility_document_open_args(
 /// Encode the result for destack.accessibility.document.open.
 #[inline]
 fn encode_destack_accessibility_document_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::AccessibilityDocumentHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3369,7 +3369,7 @@ fn encode_destack_accessibility_document_open_result(
 /// Decode arguments for destack.accessibility.document.read.
 #[inline]
 fn decode_destack_accessibility_document_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AccessibilityDocumentHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "AccessibilityDocumentHandle")?;
@@ -3388,7 +3388,7 @@ fn decode_destack_accessibility_document_read_args(
 /// Encode the result for destack.accessibility.document.read.
 #[inline]
 fn encode_destack_accessibility_document_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<AccessibilityDocumentQueryVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4116,7 +4116,7 @@ fn encode_destack_accessibility_document_read_result(
 /// Decode arguments for destack.accessibility.document.respond.
 #[inline]
 fn decode_destack_accessibility_document_respond_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::AccessibilityDocumentHandle,
@@ -4142,7 +4142,7 @@ fn decode_destack_accessibility_document_respond_args(
 /// Encode the result for destack.accessibility.document.respond.
 #[inline]
 fn encode_destack_accessibility_document_respond_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4151,7 +4151,7 @@ fn encode_destack_accessibility_document_respond_result(
 /// Decode arguments for destack.accessibility.document.set.
 #[inline]
 fn decode_destack_accessibility_document_set_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::WindowHandle,
@@ -4177,7 +4177,7 @@ fn decode_destack_accessibility_document_set_args(
 /// Encode the result for destack.accessibility.document.set.
 #[inline]
 fn encode_destack_accessibility_document_set_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4186,7 +4186,7 @@ fn encode_destack_accessibility_document_set_result(
 /// Decode arguments for destack.accessibility.document.tryRead.
 #[inline]
 fn decode_destack_accessibility_document_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AccessibilityDocumentHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AccessibilityDocumentHandle")?;
@@ -4203,7 +4203,7 @@ fn decode_destack_accessibility_document_try_read_args(
 /// Encode the result for destack.accessibility.document.tryRead.
 #[inline]
 fn encode_destack_accessibility_document_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<AccessibilityDocumentQueryVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4931,7 +4931,7 @@ fn encode_destack_accessibility_document_try_read_result(
 /// Decode arguments for destack.accessibility.notification.post.
 #[inline]
 fn decode_destack_accessibility_notification_post_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, AccessibilityNotificationVm)> {
     let context = &context.read();
@@ -4950,7 +4950,7 @@ fn decode_destack_accessibility_notification_post_args(
 /// Encode the result for destack.accessibility.notification.post.
 #[inline]
 fn encode_destack_accessibility_notification_post_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4959,7 +4959,7 @@ fn encode_destack_accessibility_notification_post_result(
 /// Decode arguments for destack.accessibility.tree.apply.
 #[inline]
 fn decode_destack_accessibility_tree_apply_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, AccessibilityTreeUpdateVm)> {
     let context = &context.read();
@@ -4978,7 +4978,7 @@ fn decode_destack_accessibility_tree_apply_args(
 /// Encode the result for destack.accessibility.tree.apply.
 #[inline]
 fn encode_destack_accessibility_tree_apply_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4987,7 +4987,7 @@ fn encode_destack_accessibility_tree_apply_result(
 /// Decode arguments for destack.accessibility.tree.clear.
 #[inline]
 fn decode_destack_accessibility_tree_clear_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -5000,7 +5000,7 @@ fn decode_destack_accessibility_tree_clear_args(
 /// Encode the result for destack.accessibility.tree.clear.
 #[inline]
 fn encode_destack_accessibility_tree_clear_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -5009,7 +5009,7 @@ fn encode_destack_accessibility_tree_clear_result(
 /// Decode arguments for destack.accessibility.tree.hitTest.
 #[inline]
 fn decode_destack_accessibility_tree_hit_test_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::WindowHandle, f64, f64)> {
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
@@ -5026,7 +5026,7 @@ fn decode_destack_accessibility_tree_hit_test_args(
 /// Encode the result for destack.accessibility.tree.hitTest.
 #[inline]
 fn encode_destack_accessibility_tree_hit_test_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<Option<AccessibilityNodeId>>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -9598,7 +9598,7 @@ pub(crate) unsafe extern "C" fn destack_accessibility_tree_hit_test(
 #[inline]
 fn destack_accessibility_action_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AccessibilityActionHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -9648,7 +9648,7 @@ fn destack_accessibility_action_close_vm_replay(
 #[inline]
 fn destack_accessibility_action_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     options: AccessibilityActionOpenOptionsVm,
@@ -9703,7 +9703,7 @@ fn destack_accessibility_action_open_vm_replay(
 #[inline]
 fn destack_accessibility_action_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AccessibilityActionHandle,
     timeoutns: u64,
@@ -10843,7 +10843,7 @@ fn destack_accessibility_action_read_vm_replay(
 #[inline]
 fn destack_accessibility_action_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AccessibilityActionHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -11982,7 +11982,7 @@ fn destack_accessibility_action_try_read_vm_replay(
 #[inline]
 fn destack_accessibility_document_clear_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     nodeid: AccessibilityNodeId,
@@ -12035,7 +12035,7 @@ fn destack_accessibility_document_clear_vm_replay(
 #[inline]
 fn destack_accessibility_document_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AccessibilityDocumentHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -12087,7 +12087,7 @@ fn destack_accessibility_document_close_vm_replay(
 #[inline]
 fn destack_accessibility_document_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     options: AccessibilityDocumentOpenOptionsVm,
@@ -12144,7 +12144,7 @@ fn destack_accessibility_document_open_vm_replay(
 #[inline]
 fn destack_accessibility_document_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AccessibilityDocumentHandle,
     timeoutns: u64,
@@ -12785,7 +12785,7 @@ fn destack_accessibility_document_read_vm_replay(
 #[inline]
 fn destack_accessibility_document_respond_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AccessibilityDocumentHandle,
     response: AccessibilityDocumentResponseVm,
@@ -12838,7 +12838,7 @@ fn destack_accessibility_document_respond_vm_replay(
 #[inline]
 fn destack_accessibility_document_set_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     nodeid: AccessibilityNodeId,
@@ -12890,7 +12890,7 @@ fn destack_accessibility_document_set_vm_replay(
 #[inline]
 fn destack_accessibility_document_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AccessibilityDocumentHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -13530,7 +13530,7 @@ fn destack_accessibility_document_try_read_vm_replay(
 #[inline]
 fn destack_accessibility_notification_post_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     notification: AccessibilityNotificationVm,
@@ -13589,7 +13589,7 @@ fn destack_accessibility_notification_post_vm_replay(
 #[inline]
 fn destack_accessibility_tree_apply_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     update: AccessibilityTreeUpdateVm,
@@ -13640,7 +13640,7 @@ fn destack_accessibility_tree_apply_vm_replay(
 #[inline]
 fn destack_accessibility_tree_clear_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -13690,7 +13690,7 @@ fn destack_accessibility_tree_clear_vm_replay(
 #[inline]
 fn destack_accessibility_tree_hit_test_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     x: f64,

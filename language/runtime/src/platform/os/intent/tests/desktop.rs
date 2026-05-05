@@ -15,7 +15,7 @@ fn string_harness_value(
 ) -> HarnessValue<NativeStringRef, vm::StringHandle> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             let value = vm::StringHandle::new(
                 vm_context
                     .intern_string(value)
@@ -35,7 +35,7 @@ fn path_harness_value(
 ) -> RuntimeResult<HarnessValue<fs::OsPath, fs::OsPathVm>> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             let path = vm_path_from_utf8(vm_context, value)?;
 
             Ok(HarnessValue::Vm(path))
@@ -50,7 +50,7 @@ fn path_harness_value(
 
 /// Encode one UTF-8 path string into one VM path payload.
 fn vm_path_from_utf8(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: &str,
 ) -> RuntimeResult<fs::OsPathVm> {
     #[cfg(unix)]

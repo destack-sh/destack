@@ -69,7 +69,7 @@ pub(super) fn media_query_harness_value(
 ) -> HarnessValue<MediaQuery, MediaQueryVm> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             let query = MediaQueryVm::from_value(&mut vm_context.write(), query)
                 .expect("media query should encode");
 
@@ -86,7 +86,7 @@ pub(super) fn string_harness_value(
 ) -> HarnessValue<NativeStringRef, vm::StringHandle> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             let value = vm::StringHandle::new(
                 vm_context
                     .intern_string(value)
@@ -106,7 +106,7 @@ pub(super) fn string_array_harness_value(
 ) -> RuntimeResult<HarnessValue<NativeArray<NativeStringRef>, VmArray<vm::StringHandle>>> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             let mut handles = Vec::with_capacity(values.len());
 
             // intern one string handle per identifier
@@ -143,7 +143,7 @@ pub(super) fn path_harness_value(
 
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             let path = vm_path_from_utf8(vm_context, &value)?;
 
             Ok(HarnessValue::Vm(path))
@@ -168,7 +168,7 @@ pub(super) fn decode_media_page(
                 &mut *(context
                     .vm_context
                     .expect("vm media page decode requires one vm context")
-                    as *mut vm::ExternalCallContext<'_>)
+                    as *mut vm::BindingContext<'_>)
             };
 
             MediaPageVm::into_value(page, &vm_context.read())
@@ -188,7 +188,7 @@ pub(super) fn decode_media_descriptor(
                 &mut *(context
                     .vm_context
                     .expect("vm media descriptor decode requires one vm context")
-                    as *mut vm::ExternalCallContext<'_>)
+                    as *mut vm::BindingContext<'_>)
             };
 
             MediaAssetDescriptorVm::into_value(descriptor, &vm_context.read())
@@ -208,7 +208,7 @@ pub(super) fn decode_string(
                 &mut *(context
                     .vm_context
                     .expect("vm media string decode requires one vm context")
-                    as *mut vm::ExternalCallContext<'_>)
+                    as *mut vm::BindingContext<'_>)
             };
 
             Ok(vm_context
@@ -286,7 +286,7 @@ pub(super) fn native_array<T>(values: Vec<T>) -> NativeArray<T> {
 
 /// Encode one UTF-8 path string into one VM path payload.
 pub(super) fn vm_path_from_utf8(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: &str,
 ) -> RuntimeResult<fs::OsPathVm> {
     #[cfg(unix)]

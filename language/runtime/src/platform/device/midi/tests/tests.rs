@@ -98,7 +98,7 @@ impl MidiHarnessHandle {
                 harness
                     .runtime
                     .with_vm_call_context(|call_context, vm_context| {
-                        let vm_context = vm_context as *mut vm::ExternalCallContext<'_> as *mut ();
+                        let vm_context = vm_context as *mut vm::BindingContext<'_> as *mut ();
                         callback(MidiHarnessContext {
                             call_context,
                             vm_context: Some(vm_context),
@@ -184,10 +184,10 @@ fn midi_test_lock() -> &'static Mutex<()> {
 /// Return the mutable VM context when the harness is running in VM mode.
 pub(crate) fn vm_context_mut<'a>(
     context: &'a MidiHarnessContext<'a>,
-) -> Option<&'a mut vm::ExternalCallContext<'a>> {
+) -> Option<&'a mut vm::BindingContext<'a>> {
     context
         .vm_context
-        .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
+        .map(|context| unsafe { &mut *(context as *mut vm::BindingContext<'_>) })
 }
 
 /// Build one harness string payload for native and VM binding calls.

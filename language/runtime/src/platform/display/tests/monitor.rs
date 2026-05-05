@@ -248,7 +248,7 @@ pub(crate) fn test_monitor_gamma_ramp_lane_roundtrips_current_values() {
                 let vm_context = context
                     .vm_context
                     .map(|vm_context| unsafe {
-                        &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>)
+                        &mut *(vm_context as *mut destack_vm::BindingContext<'_>)
                     })
                     .expect("vm context should exist for vm harness");
                 let red = value.red.read_values(&vm_context.read())?;

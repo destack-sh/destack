@@ -74,7 +74,7 @@ impl GpuHarnessHandle {
                 harness
                     .runtime
                     .with_vm_call_context(|call_context, vm_context| {
-                        let vm_context = vm_context as *mut vm::ExternalCallContext<'_> as *mut ();
+                        let vm_context = vm_context as *mut vm::BindingContext<'_> as *mut ();
                         callback(GpuHarnessContext {
                             call_context,
                             vm_context: Some(vm_context),

@@ -911,7 +911,7 @@ impl From<PlatformError> for vm::Error {
                 .as_ref()
                 .and_then(|context| context.feature.clone())
                 .unwrap_or_else(|| error.message());
-            return vm::Error::ExternalCallForbidden { name };
+            return vm::Error::BindingCallForbidden { name };
         }
 
         vm::Error::Panic {

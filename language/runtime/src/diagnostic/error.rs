@@ -614,18 +614,16 @@ impl From<Box<RuntimeError>> for vm::Error {
         match *error {
             RuntimeError::Vm(error) => *error,
             RuntimeError::Platform(error) => (*error).into(),
-            RuntimeError::BindingNotFound { name } => vm::Error::ExternalFunctionNotFound { name },
-            RuntimeError::PolicyViolation { name } => vm::Error::ExternalCallForbidden { name },
+            RuntimeError::BindingNotFound { name } => vm::Error::BindingFunctionNotFound { name },
+            RuntimeError::PolicyViolation { name } => vm::Error::BindingCallForbidden { name },
             RuntimeError::CapabilityViolation { name, capability } => {
-                vm::Error::ExternalCallForbidden {
+                vm::Error::BindingCallForbidden {
                     name: format!("{name} ({capability})"),
                 }
             }
-            RuntimeError::AffinityViolation { name, affinity } => {
-                vm::Error::ExternalCallForbidden {
-                    name: format!("{name} ({affinity})"),
-                }
-            }
+            RuntimeError::AffinityViolation { name, affinity } => vm::Error::BindingCallForbidden {
+                name: format!("{name} ({affinity})"),
+            },
             RuntimeError::HeapLimitExceeded {
                 scope,
                 used_bytes,

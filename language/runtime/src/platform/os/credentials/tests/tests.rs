@@ -36,7 +36,7 @@ pub(super) fn string_value(
 ) -> HarnessValue<NativeStringRef, destack_vm::StringHandle> {
     // build one vm string value for vm runs
     if let Some(vm_context) = vm_context_pointer(context) {
-        let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
+        let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::BindingContext<'_>) };
         return HarnessValue::Vm(vm_test_string(vm_context, text));
     }
 
@@ -51,7 +51,7 @@ pub(super) fn optional_string_value(
 ) -> HarnessValue<Option<NativeStringRef>, Option<destack_vm::StringHandle>> {
     // build one vm string value for vm runs
     if let Some(vm_context) = vm_context_pointer(context) {
-        let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
+        let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::BindingContext<'_>) };
         return HarnessValue::Vm(text.map(|text| vm_test_string(vm_context, text)));
     }
 
@@ -72,7 +72,7 @@ pub(super) fn credential_write_options_value(
 ) -> RuntimeResult<HarnessValue<CredentialWriteOptions, CredentialWriteOptionsVm>> {
     // build one vm write-options payload for vm runs
     if let Some(vm_context) = vm_context_pointer(context) {
-        let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
+        let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::BindingContext<'_>) };
         let options = CredentialWriteOptionsVm {
             service: vm_test_string(vm_context, service),
             account: vm_test_string(vm_context, account),
@@ -111,7 +111,7 @@ pub(super) fn credential_query_value(
 ) -> HarnessValue<CredentialQuery, CredentialQueryVm> {
     // build one vm query payload for vm runs
     if let Some(vm_context) = vm_context_pointer(context) {
-        let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
+        let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::BindingContext<'_>) };
         let query = CredentialQueryVm {
             service: vm_test_string(vm_context, service),
             account: vm_test_string(vm_context, account),
@@ -144,7 +144,7 @@ pub(super) fn credential_authentication_options_value(
 ) -> HarnessValue<CredentialAuthenticationOptions, CredentialAuthenticationOptionsVm> {
     // build one vm authentication-options payload for vm runs
     if let Some(vm_context) = vm_context_pointer(context) {
-        let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
+        let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::BindingContext<'_>) };
         let options = CredentialAuthenticationOptionsVm {
             title: vm_test_string(vm_context, title),
             subtitle: vm_test_string(vm_context, subtitle),
@@ -182,8 +182,7 @@ pub(super) fn decode_credential_record_value(
         }
         HarnessValue::Vm(value) => {
             let vm_context = vm_context_pointer(context).expect("vm context should be available");
-            let vm_context =
-                unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::BindingContext<'_>) };
             let service = vm_context
                 .string_ref(value.service)
                 .map_err(|error| RuntimeError::from(error).boxed())?

@@ -1,6 +1,6 @@
 use std::mem::ManuallyDrop;
 
-use destack_vm::{ExternalCallContext, StringHandle};
+use destack_vm::{BindingContext, StringHandle};
 use destack_workspace::RuntimeOptions;
 
 use crate::diagnostic::RuntimeResult;
@@ -75,7 +75,7 @@ pub(super) fn notification_request_harness_value(
 ) -> HarnessValue<NotificationRequest, NotificationRequestVm> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut BindingContext<'_>) };
             let request = NotificationRequestVm::from_value(&mut vm_context.write(), request)
                 .expect("request should encode");
 
@@ -96,7 +96,7 @@ pub(super) fn categories_harness_value(
 {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut BindingContext<'_>) };
             let categories = categories
                 .iter()
                 .cloned()
@@ -132,7 +132,7 @@ pub(super) fn decode_notification_id(
                 &mut *(context
                     .vm_context
                     .expect("vm notification id decode requires one vm context")
-                    as *mut ExternalCallContext<'_>)
+                    as *mut BindingContext<'_>)
             };
 
             Ok(vm_context
@@ -165,7 +165,7 @@ pub(super) fn decode_notification_categories(
                 &mut *(context
                     .vm_context
                     .expect("vm notification category decode requires one vm context")
-                    as *mut ExternalCallContext<'_>)
+                    as *mut BindingContext<'_>)
             };
 
             let categories = categories.read_values(&vm_context.read())?;
@@ -207,7 +207,7 @@ pub(super) fn decode_notification_pending_list(
                 &mut *(context
                     .vm_context
                     .expect("vm notification pending decode requires one vm context")
-                    as *mut ExternalCallContext<'_>)
+                    as *mut BindingContext<'_>)
             };
 
             let pending = pending.read_values(&vm_context.read())?;
@@ -255,7 +255,7 @@ pub(super) fn decode_notification_event_value(
                 &mut *(context
                     .vm_context
                     .expect("vm notification event decode requires one vm context")
-                    as *mut ExternalCallContext<'_>)
+                    as *mut BindingContext<'_>)
             };
 
             NotificationEventVm::into_value(event, &vm_context.read())?
@@ -284,7 +284,7 @@ pub(super) fn string_harness_value(
 ) -> HarnessValue<NativeStringRef, StringHandle> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut BindingContext<'_>) };
             let value = StringHandle::new(
                 vm_context
                     .intern_string(value)

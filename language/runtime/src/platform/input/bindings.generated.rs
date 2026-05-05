@@ -221,7 +221,7 @@ fn decode_float64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -234,7 +234,7 @@ fn decode_string(
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -245,7 +245,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -256,7 +256,7 @@ fn decode_array<T>(
 /// Encode the result for destack.input.clipboard.clear.
 #[inline]
 fn encode_destack_input_clipboard_clear_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -265,7 +265,7 @@ fn encode_destack_input_clipboard_clear_result(
 /// Encode the result for destack.input.clipboard.hasText.
 #[inline]
 fn encode_destack_input_clipboard_has_text_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -276,7 +276,7 @@ fn encode_destack_input_clipboard_has_text_result(
 /// Encode the result for destack.input.clipboard.listItems.
 #[inline]
 fn encode_destack_input_clipboard_list_items_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<ClipboardItemDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -288,7 +288,7 @@ fn encode_destack_input_clipboard_list_items_result(
 /// Decode arguments for destack.input.clipboard.readItemBytes.
 #[inline]
 fn decode_destack_input_clipboard_read_item_bytes_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u32, u32)> {
     let itemindex_value = arg_value(args, 0, "itemindex", "uint32")?;
@@ -302,7 +302,7 @@ fn decode_destack_input_clipboard_read_item_bytes_args(
 /// Encode the result for destack.input.clipboard.readItemBytes.
 #[inline]
 fn encode_destack_input_clipboard_read_item_bytes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -314,7 +314,7 @@ fn encode_destack_input_clipboard_read_item_bytes_result(
 /// Decode arguments for destack.input.clipboard.readItemPath.
 #[inline]
 fn decode_destack_input_clipboard_read_item_path_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u32, u32)> {
     let itemindex_value = arg_value(args, 0, "itemindex", "uint32")?;
@@ -328,7 +328,7 @@ fn decode_destack_input_clipboard_read_item_path_args(
 /// Encode the result for destack.input.clipboard.readItemPath.
 #[inline]
 fn encode_destack_input_clipboard_read_item_path_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<fs::OsPathVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -395,7 +395,7 @@ fn encode_destack_input_clipboard_read_item_path_result(
 /// Decode arguments for destack.input.clipboard.readItemText.
 #[inline]
 fn decode_destack_input_clipboard_read_item_text_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u32, u32)> {
     let itemindex_value = arg_value(args, 0, "itemindex", "uint32")?;
@@ -409,7 +409,7 @@ fn decode_destack_input_clipboard_read_item_text_args(
 /// Encode the result for destack.input.clipboard.readItemText.
 #[inline]
 fn encode_destack_input_clipboard_read_item_text_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -420,7 +420,7 @@ fn encode_destack_input_clipboard_read_item_text_result(
 /// Encode the result for destack.input.clipboard.readText.
 #[inline]
 fn encode_destack_input_clipboard_read_text_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -431,7 +431,7 @@ fn encode_destack_input_clipboard_read_text_result(
 /// Encode the result for destack.input.clipboard.sequence.
 #[inline]
 fn encode_destack_input_clipboard_sequence_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -442,7 +442,7 @@ fn encode_destack_input_clipboard_sequence_result(
 /// Decode arguments for destack.input.clipboard.writeItems.
 #[inline]
 fn decode_destack_input_clipboard_write_items_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(VmSlice<ClipboardItemVm>,)> {
     let context = &context.read();
@@ -455,7 +455,7 @@ fn decode_destack_input_clipboard_write_items_args(
 /// Encode the result for destack.input.clipboard.writeItems.
 #[inline]
 fn encode_destack_input_clipboard_write_items_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -464,7 +464,7 @@ fn encode_destack_input_clipboard_write_items_result(
 /// Decode arguments for destack.input.clipboard.writeText.
 #[inline]
 fn decode_destack_input_clipboard_write_text_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -476,7 +476,7 @@ fn decode_destack_input_clipboard_write_text_args(
 /// Encode the result for destack.input.clipboard.writeText.
 #[inline]
 fn encode_destack_input_clipboard_write_text_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -485,7 +485,7 @@ fn encode_destack_input_clipboard_write_text_result(
 /// Decode arguments for destack.input.device.capabilities.
 #[inline]
 fn decode_destack_input_device_capabilities_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -499,7 +499,7 @@ fn decode_destack_input_device_capabilities_args(
 /// Encode the result for destack.input.device.capabilities.
 #[inline]
 fn encode_destack_input_device_capabilities_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputDeviceCapabilitiesVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -628,7 +628,7 @@ fn encode_destack_input_device_capabilities_result(
 /// Decode arguments for destack.input.device.close.
 #[inline]
 fn decode_destack_input_device_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -642,7 +642,7 @@ fn decode_destack_input_device_close_args(
 /// Encode the result for destack.input.device.close.
 #[inline]
 fn encode_destack_input_device_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -651,7 +651,7 @@ fn encode_destack_input_device_close_result(
 /// Encode the result for destack.input.device.list.
 #[inline]
 fn encode_destack_input_device_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<InputDeviceDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -663,7 +663,7 @@ fn encode_destack_input_device_list_result(
 /// Decode arguments for destack.input.device.open.
 #[inline]
 fn decode_destack_input_device_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -675,7 +675,7 @@ fn decode_destack_input_device_open_args(
 /// Encode the result for destack.input.device.open.
 #[inline]
 fn encode_destack_input_device_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::InputDeviceHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -686,7 +686,7 @@ fn encode_destack_input_device_open_result(
 /// Decode arguments for destack.input.event.monitorClose.
 #[inline]
 fn decode_destack_input_event_monitor_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputMonitorHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InputMonitorHandle")?;
@@ -700,7 +700,7 @@ fn decode_destack_input_event_monitor_close_args(
 /// Encode the result for destack.input.event.monitorClose.
 #[inline]
 fn encode_destack_input_event_monitor_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -709,7 +709,7 @@ fn encode_destack_input_event_monitor_close_result(
 /// Encode the result for destack.input.event.monitorOpen.
 #[inline]
 fn encode_destack_input_event_monitor_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::InputMonitorHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -720,7 +720,7 @@ fn encode_destack_input_event_monitor_open_result(
 /// Decode arguments for destack.input.event.monitorRead.
 #[inline]
 fn decode_destack_input_event_monitor_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputMonitorHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InputMonitorHandle")?;
@@ -734,7 +734,7 @@ fn decode_destack_input_event_monitor_read_args(
 /// Encode the result for destack.input.event.monitorRead.
 #[inline]
 fn encode_destack_input_event_monitor_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputMonitorEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -936,7 +936,7 @@ fn encode_destack_input_event_monitor_read_result(
 /// Decode arguments for destack.input.event.monitorTryRead.
 #[inline]
 fn decode_destack_input_event_monitor_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputMonitorHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InputMonitorHandle")?;
@@ -950,7 +950,7 @@ fn decode_destack_input_event_monitor_try_read_args(
 /// Encode the result for destack.input.event.monitorTryRead.
 #[inline]
 fn encode_destack_input_event_monitor_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputMonitorEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1152,7 +1152,7 @@ fn encode_destack_input_event_monitor_try_read_result(
 /// Decode arguments for destack.input.event.read.
 #[inline]
 fn decode_destack_input_event_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -1166,7 +1166,7 @@ fn decode_destack_input_event_read_args(
 /// Encode the result for destack.input.event.read.
 #[inline]
 fn encode_destack_input_event_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2691,7 +2691,7 @@ fn encode_destack_input_event_read_result(
 /// Decode arguments for destack.input.event.readBatch.
 #[inline]
 fn decode_destack_input_event_read_batch_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, u32)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -2707,7 +2707,7 @@ fn decode_destack_input_event_read_batch_args(
 /// Encode the result for destack.input.event.readBatch.
 #[inline]
 fn encode_destack_input_event_read_batch_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<InputEventVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2719,7 +2719,7 @@ fn encode_destack_input_event_read_batch_result(
 /// Decode arguments for destack.input.event.setExclusiveGrab.
 #[inline]
 fn decode_destack_input_event_set_exclusive_grab_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, bool)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -2735,7 +2735,7 @@ fn decode_destack_input_event_set_exclusive_grab_args(
 /// Encode the result for destack.input.event.setExclusiveGrab.
 #[inline]
 fn encode_destack_input_event_set_exclusive_grab_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2744,7 +2744,7 @@ fn encode_destack_input_event_set_exclusive_grab_result(
 /// Decode arguments for destack.input.event.setReadMode.
 #[inline]
 fn decode_destack_input_event_set_read_mode_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, InputReadMode)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -2771,7 +2771,7 @@ fn decode_destack_input_event_set_read_mode_args(
 /// Encode the result for destack.input.event.setReadMode.
 #[inline]
 fn encode_destack_input_event_set_read_mode_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2780,7 +2780,7 @@ fn encode_destack_input_event_set_read_mode_result(
 /// Decode arguments for destack.input.event.tryRead.
 #[inline]
 fn decode_destack_input_event_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -2794,7 +2794,7 @@ fn decode_destack_input_event_try_read_args(
 /// Encode the result for destack.input.event.tryRead.
 #[inline]
 fn encode_destack_input_event_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4319,7 +4319,7 @@ fn encode_destack_input_event_try_read_result(
 /// Decode arguments for destack.input.gamepad.setLight.
 #[inline]
 fn decode_destack_input_gamepad_set_light_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, u8, u8, u8)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -4339,7 +4339,7 @@ fn decode_destack_input_gamepad_set_light_args(
 /// Encode the result for destack.input.gamepad.setLight.
 #[inline]
 fn encode_destack_input_gamepad_set_light_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4348,7 +4348,7 @@ fn encode_destack_input_gamepad_set_light_result(
 /// Decode arguments for destack.input.gamepad.setMotionSensorSampleRate.
 #[inline]
 fn decode_destack_input_gamepad_set_motion_sensor_sample_rate_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, f64)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -4364,7 +4364,7 @@ fn decode_destack_input_gamepad_set_motion_sensor_sample_rate_args(
 /// Encode the result for destack.input.gamepad.setMotionSensorSampleRate.
 #[inline]
 fn encode_destack_input_gamepad_set_motion_sensor_sample_rate_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4373,7 +4373,7 @@ fn encode_destack_input_gamepad_set_motion_sensor_sample_rate_result(
 /// Decode arguments for destack.input.gamepad.setMotionSensorsEnabled.
 #[inline]
 fn decode_destack_input_gamepad_set_motion_sensors_enabled_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, bool)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -4389,7 +4389,7 @@ fn decode_destack_input_gamepad_set_motion_sensors_enabled_args(
 /// Encode the result for destack.input.gamepad.setMotionSensorsEnabled.
 #[inline]
 fn encode_destack_input_gamepad_set_motion_sensors_enabled_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4398,7 +4398,7 @@ fn encode_destack_input_gamepad_set_motion_sensors_enabled_result(
 /// Decode arguments for destack.input.gamepad.setPlayerIndex.
 #[inline]
 fn decode_destack_input_gamepad_set_player_index_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, u8)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -4414,7 +4414,7 @@ fn decode_destack_input_gamepad_set_player_index_args(
 /// Encode the result for destack.input.gamepad.setPlayerIndex.
 #[inline]
 fn encode_destack_input_gamepad_set_player_index_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4423,7 +4423,7 @@ fn encode_destack_input_gamepad_set_player_index_result(
 /// Decode arguments for destack.input.gamepad.state.
 #[inline]
 fn decode_destack_input_gamepad_state_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -4437,7 +4437,7 @@ fn decode_destack_input_gamepad_state_args(
 /// Encode the result for destack.input.gamepad.state.
 #[inline]
 fn encode_destack_input_gamepad_state_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputGamepadStateVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4638,7 +4638,7 @@ fn encode_destack_input_gamepad_state_result(
 /// Decode arguments for destack.input.haptics.effects.
 #[inline]
 fn decode_destack_input_haptics_effects_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -4652,7 +4652,7 @@ fn decode_destack_input_haptics_effects_args(
 /// Encode the result for destack.input.haptics.effects.
 #[inline]
 fn encode_destack_input_haptics_effects_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<InputHapticEffectType>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4664,7 +4664,7 @@ fn encode_destack_input_haptics_effects_result(
 /// Decode arguments for destack.input.haptics.play.
 #[inline]
 fn decode_destack_input_haptics_play_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::InputDeviceHandle,
@@ -4701,7 +4701,7 @@ fn decode_destack_input_haptics_play_args(
 /// Encode the result for destack.input.haptics.play.
 #[inline]
 fn encode_destack_input_haptics_play_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputHapticsResult>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -4712,7 +4712,7 @@ fn encode_destack_input_haptics_play_result(
 /// Decode arguments for destack.input.haptics.stop.
 #[inline]
 fn decode_destack_input_haptics_stop_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -4726,7 +4726,7 @@ fn decode_destack_input_haptics_stop_args(
 /// Encode the result for destack.input.haptics.stop.
 #[inline]
 fn encode_destack_input_haptics_stop_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4735,7 +4735,7 @@ fn encode_destack_input_haptics_stop_result(
 /// Decode arguments for destack.input.keyboard.layout.
 #[inline]
 fn decode_destack_input_keyboard_layout_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -4749,7 +4749,7 @@ fn decode_destack_input_keyboard_layout_args(
 /// Encode the result for destack.input.keyboard.layout.
 #[inline]
 fn encode_destack_input_keyboard_layout_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputKeyboardLayoutInfoVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4794,7 +4794,7 @@ fn encode_destack_input_keyboard_layout_result(
 /// Decode arguments for destack.input.keyboard.state.
 #[inline]
 fn decode_destack_input_keyboard_state_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -4808,7 +4808,7 @@ fn decode_destack_input_keyboard_state_args(
 /// Encode the result for destack.input.keyboard.state.
 #[inline]
 fn encode_destack_input_keyboard_state_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputKeyboardStateVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4971,7 +4971,7 @@ fn encode_destack_input_keyboard_state_result(
 /// Decode arguments for destack.input.pointer.capture.
 #[inline]
 fn decode_destack_input_pointer_capture_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, InputWindowTargetVm, bool)> {
     let context = &context.read();
@@ -4991,7 +4991,7 @@ fn decode_destack_input_pointer_capture_args(
 /// Encode the result for destack.input.pointer.capture.
 #[inline]
 fn encode_destack_input_pointer_capture_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -5000,7 +5000,7 @@ fn encode_destack_input_pointer_capture_result(
 /// Decode arguments for destack.input.pointer.relativeState.
 #[inline]
 fn decode_destack_input_pointer_relative_state_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -5014,7 +5014,7 @@ fn decode_destack_input_pointer_relative_state_args(
 /// Encode the result for destack.input.pointer.relativeState.
 #[inline]
 fn encode_destack_input_pointer_relative_state_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputPointerStateVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -5237,7 +5237,7 @@ fn encode_destack_input_pointer_relative_state_result(
 /// Decode arguments for destack.input.pointer.setGrabMode.
 #[inline]
 fn decode_destack_input_pointer_set_grab_mode_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::InputDeviceHandle,
@@ -5273,7 +5273,7 @@ fn decode_destack_input_pointer_set_grab_mode_args(
 /// Encode the result for destack.input.pointer.setGrabMode.
 #[inline]
 fn encode_destack_input_pointer_set_grab_mode_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -5282,7 +5282,7 @@ fn encode_destack_input_pointer_set_grab_mode_result(
 /// Decode arguments for destack.input.pointer.setRelativeMode.
 #[inline]
 fn decode_destack_input_pointer_set_relative_mode_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, bool)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -5298,7 +5298,7 @@ fn decode_destack_input_pointer_set_relative_mode_args(
 /// Encode the result for destack.input.pointer.setRelativeMode.
 #[inline]
 fn encode_destack_input_pointer_set_relative_mode_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -5307,7 +5307,7 @@ fn encode_destack_input_pointer_set_relative_mode_result(
 /// Decode arguments for destack.input.pointer.state.
 #[inline]
 fn decode_destack_input_pointer_state_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -5321,7 +5321,7 @@ fn decode_destack_input_pointer_state_args(
 /// Encode the result for destack.input.pointer.state.
 #[inline]
 fn encode_destack_input_pointer_state_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputPointerStateVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -5544,7 +5544,7 @@ fn encode_destack_input_pointer_state_result(
 /// Decode arguments for destack.input.pointer.warp.
 #[inline]
 fn decode_destack_input_pointer_warp_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, InputWindowTargetVm, f64, f64)> {
     let context = &context.read();
@@ -5566,7 +5566,7 @@ fn decode_destack_input_pointer_warp_args(
 /// Encode the result for destack.input.pointer.warp.
 #[inline]
 fn encode_destack_input_pointer_warp_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -5575,7 +5575,7 @@ fn encode_destack_input_pointer_warp_result(
 /// Decode arguments for destack.input.rawhid.getFeature.
 #[inline]
 fn decode_destack_input_rawhid_get_feature_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, u8, u32)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -5593,7 +5593,7 @@ fn decode_destack_input_rawhid_get_feature_args(
 /// Encode the result for destack.input.rawhid.getFeature.
 #[inline]
 fn encode_destack_input_rawhid_get_feature_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -5605,7 +5605,7 @@ fn encode_destack_input_rawhid_get_feature_result(
 /// Decode arguments for destack.input.rawhid.read.
 #[inline]
 fn decode_destack_input_rawhid_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, u32, u64)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -5623,7 +5623,7 @@ fn decode_destack_input_rawhid_read_args(
 /// Encode the result for destack.input.rawhid.read.
 #[inline]
 fn encode_destack_input_rawhid_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputRawHidReportVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -5656,7 +5656,7 @@ fn encode_destack_input_rawhid_read_result(
 /// Decode arguments for destack.input.rawhid.setFeature.
 #[inline]
 fn decode_destack_input_rawhid_set_feature_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, u8, VmSlice<u8>)> {
     let context = &context.read();
@@ -5675,7 +5675,7 @@ fn decode_destack_input_rawhid_set_feature_args(
 /// Encode the result for destack.input.rawhid.setFeature.
 #[inline]
 fn encode_destack_input_rawhid_set_feature_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -5684,7 +5684,7 @@ fn encode_destack_input_rawhid_set_feature_result(
 /// Decode arguments for destack.input.rawhid.tryRead.
 #[inline]
 fn decode_destack_input_rawhid_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, u32)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -5700,7 +5700,7 @@ fn decode_destack_input_rawhid_try_read_args(
 /// Encode the result for destack.input.rawhid.tryRead.
 #[inline]
 fn encode_destack_input_rawhid_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputRawHidReportVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -5733,7 +5733,7 @@ fn encode_destack_input_rawhid_try_read_result(
 /// Decode arguments for destack.input.rawhid.write.
 #[inline]
 fn decode_destack_input_rawhid_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, u8, VmSlice<u8>)> {
     let context = &context.read();
@@ -5752,7 +5752,7 @@ fn decode_destack_input_rawhid_write_args(
 /// Encode the result for destack.input.rawhid.write.
 #[inline]
 fn encode_destack_input_rawhid_write_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -5763,7 +5763,7 @@ fn encode_destack_input_rawhid_write_result(
 /// Decode arguments for destack.input.sensor.configure.
 #[inline]
 fn decode_destack_input_sensor_configure_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::InputDeviceHandle,
@@ -5806,7 +5806,7 @@ fn decode_destack_input_sensor_configure_args(
 /// Encode the result for destack.input.sensor.configure.
 #[inline]
 fn encode_destack_input_sensor_configure_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputSensorEffectiveConfigVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -5840,7 +5840,7 @@ fn encode_destack_input_sensor_configure_result(
 /// Decode arguments for destack.input.sensor.list.
 #[inline]
 fn decode_destack_input_sensor_list_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -5854,7 +5854,7 @@ fn decode_destack_input_sensor_list_args(
 /// Encode the result for destack.input.sensor.list.
 #[inline]
 fn encode_destack_input_sensor_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<InputSensorDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -5866,7 +5866,7 @@ fn encode_destack_input_sensor_list_result(
 /// Decode arguments for destack.input.sensor.read.
 #[inline]
 fn decode_destack_input_sensor_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, InputSensorKind)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -5901,7 +5901,7 @@ fn decode_destack_input_sensor_read_args(
 /// Encode the result for destack.input.sensor.read.
 #[inline]
 fn encode_destack_input_sensor_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputSensorSampleVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -5946,7 +5946,7 @@ fn encode_destack_input_sensor_read_result(
 /// Decode arguments for destack.input.sensor.tryRead.
 #[inline]
 fn decode_destack_input_sensor_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle, InputSensorKind)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -5981,7 +5981,7 @@ fn decode_destack_input_sensor_try_read_args(
 /// Encode the result for destack.input.sensor.tryRead.
 #[inline]
 fn encode_destack_input_sensor_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputSensorSampleVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6026,7 +6026,7 @@ fn encode_destack_input_sensor_try_read_result(
 /// Decode arguments for destack.input.text.close.
 #[inline]
 fn decode_destack_input_text_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputTextSessionHandle,)> {
     let session_value = arg_value(args, 0, "session", "InputTextSessionHandle")?;
@@ -6043,7 +6043,7 @@ fn decode_destack_input_text_close_args(
 /// Encode the result for destack.input.text.close.
 #[inline]
 fn encode_destack_input_text_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -6052,7 +6052,7 @@ fn encode_destack_input_text_close_result(
 /// Decode arguments for destack.input.text.getGeometry.
 #[inline]
 fn decode_destack_input_text_get_geometry_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputTextSessionHandle,)> {
     let session_value = arg_value(args, 0, "session", "InputTextSessionHandle")?;
@@ -6069,7 +6069,7 @@ fn decode_destack_input_text_get_geometry_args(
 /// Encode the result for destack.input.text.getGeometry.
 #[inline]
 fn encode_destack_input_text_get_geometry_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputTextGeometryVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6210,7 +6210,7 @@ fn encode_destack_input_text_get_geometry_result(
 /// Decode arguments for destack.input.text.open.
 #[inline]
 fn decode_destack_input_text_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(InputTextSessionConfigVm, InputTextSessionStateVm)> {
     let context = &context.read();
@@ -6226,7 +6226,7 @@ fn decode_destack_input_text_open_args(
 /// Encode the result for destack.input.text.open.
 #[inline]
 fn encode_destack_input_text_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::InputTextSessionHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -6237,7 +6237,7 @@ fn encode_destack_input_text_open_result(
 /// Decode arguments for destack.input.text.readEvent.
 #[inline]
 fn decode_destack_input_text_read_event_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputTextSessionHandle,)> {
     let session_value = arg_value(args, 0, "session", "InputTextSessionHandle")?;
@@ -6254,7 +6254,7 @@ fn decode_destack_input_text_read_event_args(
 /// Encode the result for destack.input.text.readEvent.
 #[inline]
 fn encode_destack_input_text_read_event_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputTextSessionEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6668,7 +6668,7 @@ fn encode_destack_input_text_read_event_result(
 /// Decode arguments for destack.input.text.setGeometry.
 #[inline]
 fn decode_destack_input_text_set_geometry_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputTextSessionHandle, InputTextGeometryVm)> {
     let context = &context.read();
@@ -6689,7 +6689,7 @@ fn decode_destack_input_text_set_geometry_args(
 /// Encode the result for destack.input.text.setGeometry.
 #[inline]
 fn encode_destack_input_text_set_geometry_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -6698,7 +6698,7 @@ fn encode_destack_input_text_set_geometry_result(
 /// Decode arguments for destack.input.text.setState.
 #[inline]
 fn decode_destack_input_text_set_state_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputTextSessionHandle, InputTextSessionStateVm)> {
     let context = &context.read();
@@ -6719,7 +6719,7 @@ fn decode_destack_input_text_set_state_args(
 /// Encode the result for destack.input.text.setState.
 #[inline]
 fn encode_destack_input_text_set_state_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -6728,7 +6728,7 @@ fn encode_destack_input_text_set_state_result(
 /// Decode arguments for destack.input.text.tryReadEvent.
 #[inline]
 fn decode_destack_input_text_try_read_event_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputTextSessionHandle,)> {
     let session_value = arg_value(args, 0, "session", "InputTextSessionHandle")?;
@@ -6745,7 +6745,7 @@ fn decode_destack_input_text_try_read_event_args(
 /// Encode the result for destack.input.text.tryReadEvent.
 #[inline]
 fn encode_destack_input_text_try_read_event_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputTextSessionEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -7159,7 +7159,7 @@ fn encode_destack_input_text_try_read_event_result(
 /// Decode arguments for destack.input.touch.state.
 #[inline]
 fn decode_destack_input_touch_state_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
@@ -7173,7 +7173,7 @@ fn decode_destack_input_touch_state_args(
 /// Encode the result for destack.input.touch.state.
 #[inline]
 fn encode_destack_input_touch_state_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<InputTouchStateVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -21049,7 +21049,7 @@ pub(crate) unsafe extern "C" fn destack_input_touch_state(
 #[inline]
 fn destack_input_clipboard_has_text_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -21100,7 +21100,7 @@ fn destack_input_clipboard_has_text_vm_replay(
 #[inline]
 fn destack_input_clipboard_list_items_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -21235,7 +21235,7 @@ fn destack_input_clipboard_list_items_vm_replay(
 #[inline]
 fn destack_input_clipboard_read_item_bytes_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     itemindex: u32,
     representationindex: u32,
@@ -21300,7 +21300,7 @@ fn destack_input_clipboard_read_item_bytes_vm_replay(
 #[inline]
 fn destack_input_clipboard_read_item_path_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     itemindex: u32,
     representationindex: u32,
@@ -21458,7 +21458,7 @@ fn destack_input_clipboard_read_item_path_vm_replay(
 #[inline]
 fn destack_input_clipboard_read_item_text_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     itemindex: u32,
     representationindex: u32,
@@ -21530,7 +21530,7 @@ fn destack_input_clipboard_read_item_text_vm_replay(
 #[inline]
 fn destack_input_clipboard_read_text_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -21590,7 +21590,7 @@ fn destack_input_clipboard_read_text_vm_replay(
 #[inline]
 fn destack_input_clipboard_sequence_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -21641,7 +21641,7 @@ fn destack_input_clipboard_sequence_vm_replay(
 #[inline]
 fn destack_input_device_capabilities_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -21909,7 +21909,7 @@ fn destack_input_device_capabilities_vm_replay(
 #[inline]
 fn destack_input_device_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -21957,7 +21957,7 @@ fn destack_input_device_close_vm_replay(
 #[inline]
 fn destack_input_device_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -22237,7 +22237,7 @@ fn destack_input_device_list_vm_replay(
 #[inline]
 fn destack_input_device_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -22289,7 +22289,7 @@ fn destack_input_device_open_vm_replay(
 #[inline]
 fn destack_input_event_monitor_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -22339,7 +22339,7 @@ fn destack_input_event_monitor_close_vm_replay(
 #[inline]
 fn destack_input_event_monitor_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -22390,7 +22390,7 @@ fn destack_input_event_monitor_open_vm_replay(
 #[inline]
 fn destack_input_event_monitor_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -22637,7 +22637,7 @@ fn destack_input_event_monitor_read_vm_replay(
 #[inline]
 fn destack_input_event_monitor_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -22884,7 +22884,7 @@ fn destack_input_event_monitor_try_read_vm_replay(
 #[inline]
 fn destack_input_event_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -24648,7 +24648,7 @@ fn destack_input_event_read_vm_replay(
 #[inline]
 fn destack_input_event_read_batch_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     maxevents: u32,
@@ -26424,7 +26424,7 @@ fn destack_input_event_read_batch_vm_replay(
 #[inline]
 fn destack_input_event_set_exclusive_grab_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     enable: bool,
@@ -26475,7 +26475,7 @@ fn destack_input_event_set_exclusive_grab_vm_replay(
 #[inline]
 fn destack_input_event_set_read_mode_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     mode: InputReadMode,
@@ -26526,7 +26526,7 @@ fn destack_input_event_set_read_mode_vm_replay(
 #[inline]
 fn destack_input_event_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -28290,7 +28290,7 @@ fn destack_input_event_try_read_vm_replay(
 #[inline]
 fn destack_input_gamepad_set_light_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     red: u8,
@@ -28343,7 +28343,7 @@ fn destack_input_gamepad_set_light_vm_replay(
 #[inline]
 fn destack_input_gamepad_set_motion_sensor_sample_rate_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     sampleratehz: f64,
@@ -28403,7 +28403,7 @@ fn destack_input_gamepad_set_motion_sensor_sample_rate_vm_replay(
 #[inline]
 fn destack_input_gamepad_set_motion_sensors_enabled_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     enabled: bool,
@@ -28456,7 +28456,7 @@ fn destack_input_gamepad_set_motion_sensors_enabled_vm_replay(
 #[inline]
 fn destack_input_gamepad_set_player_index_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     playerindex: u8,
@@ -28515,7 +28515,7 @@ fn destack_input_gamepad_set_player_index_vm_replay(
 #[inline]
 fn destack_input_gamepad_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -28930,7 +28930,7 @@ fn destack_input_gamepad_state_vm_replay(
 #[inline]
 fn destack_input_haptics_effects_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -29013,7 +29013,7 @@ fn destack_input_haptics_effects_vm_replay(
 #[inline]
 fn destack_input_haptics_play_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     effect: InputHapticEffectType,
@@ -29069,7 +29069,7 @@ fn destack_input_haptics_play_vm_replay(
 #[inline]
 fn destack_input_haptics_stop_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -29117,7 +29117,7 @@ fn destack_input_haptics_stop_vm_replay(
 #[inline]
 fn destack_input_keyboard_layout_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -29259,7 +29259,7 @@ fn destack_input_keyboard_layout_vm_replay(
 #[inline]
 fn destack_input_keyboard_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -29641,7 +29641,7 @@ fn destack_input_keyboard_state_vm_replay(
 #[inline]
 fn destack_input_pointer_capture_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
@@ -29693,7 +29693,7 @@ fn destack_input_pointer_capture_vm_replay(
 #[inline]
 fn destack_input_pointer_relative_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -29992,7 +29992,7 @@ fn destack_input_pointer_relative_state_vm_replay(
 #[inline]
 fn destack_input_pointer_set_grab_mode_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
@@ -30046,7 +30046,7 @@ fn destack_input_pointer_set_grab_mode_vm_replay(
 #[inline]
 fn destack_input_pointer_set_relative_mode_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     enabled: bool,
@@ -30099,7 +30099,7 @@ fn destack_input_pointer_set_relative_mode_vm_replay(
 #[inline]
 fn destack_input_pointer_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -30396,7 +30396,7 @@ fn destack_input_pointer_state_vm_replay(
 #[inline]
 fn destack_input_pointer_warp_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
@@ -30449,7 +30449,7 @@ fn destack_input_pointer_warp_vm_replay(
 #[inline]
 fn destack_input_rawhid_get_feature_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     reportid: u8,
@@ -30507,7 +30507,7 @@ fn destack_input_rawhid_get_feature_vm_replay(
 #[inline]
 fn destack_input_rawhid_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
@@ -30583,7 +30583,7 @@ fn destack_input_rawhid_read_vm_replay(
 #[inline]
 fn destack_input_rawhid_set_feature_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     reportid: u8,
@@ -30635,7 +30635,7 @@ fn destack_input_rawhid_set_feature_vm_replay(
 #[inline]
 fn destack_input_rawhid_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
@@ -30710,7 +30710,7 @@ fn destack_input_rawhid_try_read_vm_replay(
 #[inline]
 fn destack_input_rawhid_write_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     reportid: u8,
@@ -30766,7 +30766,7 @@ fn destack_input_rawhid_write_vm_replay(
 #[inline]
 fn destack_input_sensor_configure_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -30840,7 +30840,7 @@ fn destack_input_sensor_configure_vm_replay(
 #[inline]
 fn destack_input_sensor_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -30937,7 +30937,7 @@ fn destack_input_sensor_list_vm_replay(
 #[inline]
 fn destack_input_sensor_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -31022,7 +31022,7 @@ fn destack_input_sensor_read_vm_replay(
 #[inline]
 fn destack_input_sensor_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -31107,7 +31107,7 @@ fn destack_input_sensor_try_read_vm_replay(
 #[inline]
 fn destack_input_text_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     session: resource::InputTextSessionHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -31155,7 +31155,7 @@ fn destack_input_text_close_vm_replay(
 #[inline]
 fn destack_input_text_get_geometry_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     session: resource::InputTextSessionHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -31336,7 +31336,7 @@ fn destack_input_text_get_geometry_vm_replay(
 #[inline]
 fn destack_input_text_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     config: InputTextSessionConfigVm,
     state: InputTextSessionStateVm,
@@ -31391,7 +31391,7 @@ fn destack_input_text_open_vm_replay(
 #[inline]
 fn destack_input_text_read_event_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     session: resource::InputTextSessionHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -32118,7 +32118,7 @@ fn destack_input_text_read_event_vm_replay(
 #[inline]
 fn destack_input_text_set_geometry_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     session: resource::InputTextSessionHandle,
     geometry: InputTextGeometryVm,
@@ -32169,7 +32169,7 @@ fn destack_input_text_set_geometry_vm_replay(
 #[inline]
 fn destack_input_text_set_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     session: resource::InputTextSessionHandle,
     state: InputTextSessionStateVm,
@@ -32220,7 +32220,7 @@ fn destack_input_text_set_state_vm_replay(
 #[inline]
 fn destack_input_text_try_read_event_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     session: resource::InputTextSessionHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -32947,7 +32947,7 @@ fn destack_input_text_try_read_event_vm_replay(
 #[inline]
 fn destack_input_touch_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Word> {

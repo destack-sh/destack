@@ -215,7 +215,7 @@ pub(crate) fn test_display_backend_capabilities_match_win32_implementation() {
                 let vm_context = context
                     .vm_context
                     .map(|vm_context| unsafe {
-                        &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>)
+                        &mut *(vm_context as *mut destack_vm::BindingContext<'_>)
                     })
                     .expect("vm context should exist for vm harness");
                 let backends = values.read_values(&vm_context.read())?;

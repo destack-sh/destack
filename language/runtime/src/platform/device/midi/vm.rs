@@ -14,7 +14,7 @@ use crate::runtime::BindingCallContext;
 
 /// Decode one VM string handle into one borrowed runtime string.
 fn vm_string(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<String> {
     let value = context
@@ -26,7 +26,7 @@ fn vm_string(
 
 /// Decode one optional VM string handle.
 fn vm_optional_string(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: Option<vm::StringHandle>,
 ) -> RuntimeResult<Option<String>> {
     match value {
@@ -38,7 +38,7 @@ fn vm_optional_string(
 /// Convert one VM virtual-input options payload into one native payload.
 fn virtual_input_options_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: MidiVirtualInputCreateOptionsVm,
 ) -> RuntimeResult<MidiVirtualInputCreateOptions> {
     let name = vm_string(context, value.name)?;
@@ -64,7 +64,7 @@ fn virtual_input_options_from_vm(
 /// Convert one VM virtual-output options payload into one native payload.
 fn virtual_output_options_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: MidiVirtualOutputCreateOptionsVm,
 ) -> RuntimeResult<MidiVirtualOutputCreateOptions> {
     let name = vm_string(context, value.name)?;
@@ -88,7 +88,7 @@ fn virtual_output_options_from_vm(
 
 /// Decode one VM output-record array into owned records.
 fn output_records_from_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     records: VmArray<MidiOutputRecordVm>,
 ) -> RuntimeResult<Vec<midi_core::MidiOutputRecordValue>> {
     let records = records.read_values(&context.read())?;
@@ -105,7 +105,7 @@ fn output_records_from_vm(
 /// List host MIDI backends.
 pub(crate) fn destack_device_midi_backend_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<VmSlice<MidiBackendDescriptorVm>> {
     let descriptors = host::midi_backend_list(binding)?;
 
@@ -115,7 +115,7 @@ pub(crate) fn destack_device_midi_backend_list(
 /// Open one MIDI topology event subscription.
 pub(crate) fn destack_device_midi_event_open(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     options: MidiEventSubscriptionOptionsVm,
 ) -> RuntimeResult<resource::MidiEventHandle> {
     host::midi_event_open(binding, options)
@@ -124,7 +124,7 @@ pub(crate) fn destack_device_midi_event_open(
 /// Close one MIDI topology event subscription.
 pub(crate) fn destack_device_midi_event_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiEventHandle,
 ) -> RuntimeResult<()> {
     host::midi_event_close(binding, handle)
@@ -133,7 +133,7 @@ pub(crate) fn destack_device_midi_event_close(
 /// Wait for one MIDI topology event.
 pub(crate) fn destack_device_midi_event_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::MidiEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<MidiEventVm> {
@@ -145,7 +145,7 @@ pub(crate) fn destack_device_midi_event_read(
 /// Wait for one batch of MIDI topology events.
 pub(crate) fn destack_device_midi_event_read_batch(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::MidiEventHandle,
     maxevents: u32,
     timeoutns: u64,
@@ -158,7 +158,7 @@ pub(crate) fn destack_device_midi_event_read_batch(
 /// Poll one MIDI topology event without blocking.
 pub(crate) fn destack_device_midi_event_try_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::MidiEventHandle,
 ) -> RuntimeResult<MidiEventVm> {
     let event = host::midi_event_try_read(binding, handle)?;
@@ -169,7 +169,7 @@ pub(crate) fn destack_device_midi_event_try_read(
 /// Poll one batch of MIDI topology events without blocking.
 pub(crate) fn destack_device_midi_event_try_read_batch(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::MidiEventHandle,
     maxevents: u32,
 ) -> RuntimeResult<VmSlice<MidiEventVm>> {
@@ -181,7 +181,7 @@ pub(crate) fn destack_device_midi_event_try_read_batch(
 /// List available MIDI input endpoints.
 pub(crate) fn destack_device_midi_input_port_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     options: MidiPortListOptionsVm,
 ) -> RuntimeResult<VmSlice<MidiPortDescriptorVm>> {
     let descriptors = host::midi_input_port_list(binding, options)?;
@@ -192,7 +192,7 @@ pub(crate) fn destack_device_midi_input_port_list(
 /// Open one MIDI input endpoint.
 pub(crate) fn destack_device_midi_input_port_open(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     id: vm::StringHandle,
     options: MidiInputPortOpenOptionsVm,
 ) -> RuntimeResult<resource::MidiInputPortHandle> {
@@ -204,7 +204,7 @@ pub(crate) fn destack_device_midi_input_port_open(
 /// Describe one opened MIDI input endpoint.
 pub(crate) fn destack_device_midi_input_port_descriptor(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::MidiInputPortHandle,
 ) -> RuntimeResult<MidiPortDescriptorVm> {
     let descriptor = host::midi_input_port_descriptor(binding, handle)?;
@@ -215,7 +215,7 @@ pub(crate) fn destack_device_midi_input_port_descriptor(
 /// Close one opened MIDI input endpoint.
 pub(crate) fn destack_device_midi_input_port_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiInputPortHandle,
 ) -> RuntimeResult<()> {
     host::midi_input_port_close(binding, handle)
@@ -224,7 +224,7 @@ pub(crate) fn destack_device_midi_input_port_close(
 /// Wait for one MIDI input record.
 pub(crate) fn destack_device_midi_input_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::MidiInputPortHandle,
     timeoutns: u64,
 ) -> RuntimeResult<MidiInputRecordVm> {
@@ -236,7 +236,7 @@ pub(crate) fn destack_device_midi_input_read(
 /// Wait for one batch of MIDI input records.
 pub(crate) fn destack_device_midi_input_read_batch(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::MidiInputPortHandle,
     maxrecords: u32,
     timeoutns: u64,
@@ -249,7 +249,7 @@ pub(crate) fn destack_device_midi_input_read_batch(
 /// Poll one MIDI input record without blocking.
 pub(crate) fn destack_device_midi_input_try_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::MidiInputPortHandle,
 ) -> RuntimeResult<MidiInputRecordVm> {
     let record = host::midi_input_try_read(binding, handle)?;
@@ -260,7 +260,7 @@ pub(crate) fn destack_device_midi_input_try_read(
 /// Poll one batch of MIDI input records without blocking.
 pub(crate) fn destack_device_midi_input_try_read_batch(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::MidiInputPortHandle,
     maxrecords: u32,
 ) -> RuntimeResult<VmArray<MidiInputRecordVm>> {
@@ -272,7 +272,7 @@ pub(crate) fn destack_device_midi_input_try_read_batch(
 /// Create one virtual MIDI input endpoint.
 pub(crate) fn destack_device_midi_input_virtual_create(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     options: MidiVirtualInputCreateOptionsVm,
 ) -> RuntimeResult<resource::MidiInputPortHandle> {
     let options = virtual_input_options_from_vm(binding, context, options)?;
@@ -283,7 +283,7 @@ pub(crate) fn destack_device_midi_input_virtual_create(
 /// List available MIDI output endpoints.
 pub(crate) fn destack_device_midi_output_port_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     options: MidiPortListOptionsVm,
 ) -> RuntimeResult<VmSlice<MidiPortDescriptorVm>> {
     let descriptors = host::midi_output_port_list(binding, options)?;
@@ -294,7 +294,7 @@ pub(crate) fn destack_device_midi_output_port_list(
 /// Open one MIDI output endpoint.
 pub(crate) fn destack_device_midi_output_port_open(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     id: vm::StringHandle,
     options: MidiOutputPortOpenOptionsVm,
 ) -> RuntimeResult<resource::MidiOutputPortHandle> {
@@ -306,7 +306,7 @@ pub(crate) fn destack_device_midi_output_port_open(
 /// Describe one opened MIDI output endpoint.
 pub(crate) fn destack_device_midi_output_port_descriptor(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::MidiOutputPortHandle,
 ) -> RuntimeResult<MidiPortDescriptorVm> {
     let descriptor = host::midi_output_port_descriptor(binding, handle)?;
@@ -317,7 +317,7 @@ pub(crate) fn destack_device_midi_output_port_descriptor(
 /// Close one opened MIDI output endpoint.
 pub(crate) fn destack_device_midi_output_port_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::MidiOutputPortHandle,
 ) -> RuntimeResult<()> {
     host::midi_output_port_close(binding, handle)
@@ -326,7 +326,7 @@ pub(crate) fn destack_device_midi_output_port_close(
 /// Write one batch of outbound MIDI records.
 pub(crate) fn destack_device_midi_output_write(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     handle: resource::MidiOutputPortHandle,
     records: VmArray<MidiOutputRecordVm>,
 ) -> RuntimeResult<u32> {
@@ -338,7 +338,7 @@ pub(crate) fn destack_device_midi_output_write(
 /// Create one virtual MIDI output endpoint.
 pub(crate) fn destack_device_midi_output_virtual_create(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     options: MidiVirtualOutputCreateOptionsVm,
 ) -> RuntimeResult<resource::MidiOutputPortHandle> {
     let options = virtual_output_options_from_vm(binding, context, options)?;

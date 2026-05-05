@@ -15,7 +15,7 @@ fn harness_permissions(
 ) -> RuntimeResult<HarnessValue<NativeArray<Permission>, VmArray<Permission>>> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::BindingContext<'_>) };
             let values = VmArray::from_values(&mut vm_context.write(), values)?;
 
             Ok(HarnessValue::Vm(values))

@@ -52,7 +52,7 @@ use crate::runtime::BindingCallContext;
 /// External, recordable.
 pub fn destack_net_accept(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     listener: ListenerHandle,
     flags: AcceptFlags,
 ) -> RuntimeResult<SocketHandle> {
@@ -78,7 +78,7 @@ pub fn destack_net_accept(
 /// External, recordable.
 pub fn destack_net_close(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_net::destack_net_close(binding, handle) }
@@ -103,7 +103,7 @@ pub fn destack_net_close(
 /// External, recordable.
 pub fn destack_net_connect(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<()> {
@@ -114,7 +114,7 @@ pub fn destack_net_connect(
 /// Connect to a remote host and return a socket handle.
 pub fn destack_net_connect_text(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     host: destack_vm::StringHandle,
     port: u16,
 ) -> RuntimeResult<SocketHandle> {
@@ -187,7 +187,7 @@ pub fn destack_net_connect_text(
 /// External, recordable.
 pub fn destack_net_listen(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     address: SocketAddressVm,
     backlog: u32,
 ) -> RuntimeResult<ListenerHandle> {
@@ -198,7 +198,7 @@ pub fn destack_net_listen(
 /// Start listening on a host and port.
 pub fn destack_net_listen_text(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     host: destack_vm::StringHandle,
     port: u16,
     backlog: u32,
@@ -246,7 +246,7 @@ pub fn destack_net_listen_text(
 /// External, recordable.
 pub fn destack_net_read(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -282,7 +282,7 @@ pub fn destack_net_read(
 /// External, recordable.
 pub fn destack_net_write(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -312,7 +312,7 @@ pub fn destack_net_write(
 /// External, recordable.
 pub fn destack_net_recv_msg(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     buffer: VmSlice<u8>,
     recv_flags: SocketMessageFlags,
@@ -362,7 +362,7 @@ pub fn destack_net_recv_msg(
 /// External, recordable.
 pub fn destack_net_recv_mmsg(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     requests: VmSlice<SocketRecvBatchRequestVm>,
     max_fds: u32,
@@ -415,7 +415,7 @@ pub fn destack_net_recv_mmsg(
 /// External, recordable.
 pub fn destack_net_send_msg(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     buffer: VmSlice<u8>,
     message: SocketSendMessageVm,
@@ -451,7 +451,7 @@ pub fn destack_net_send_msg(
 /// External, recordable.
 pub fn destack_net_recv_from(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     buffer: VmSlice<u8>,
     recv_flags: SocketMessageFlags,
@@ -483,7 +483,7 @@ pub fn destack_net_recv_from(
 /// External, recordable.
 pub fn destack_net_send_to(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     buffer: VmSlice<u8>,
     message: SocketSendToVm,
@@ -514,7 +514,7 @@ pub fn destack_net_send_to(
 /// External, recordable.
 pub fn destack_net_send_mmsg(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     messages: VmSlice<SocketSendBatchEntryVm>,
 ) -> RuntimeResult<u64> {
@@ -554,7 +554,7 @@ pub fn destack_net_send_mmsg(
 /// External, recordable.
 pub fn destack_net_shutdown(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     how: SocketShutdown,
 ) -> RuntimeResult<()> {
@@ -580,7 +580,7 @@ pub fn destack_net_shutdown(
 /// External, recordable.
 pub fn destack_net_set_nonblocking(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -606,7 +606,7 @@ pub fn destack_net_set_nonblocking(
 /// External, recordable.
 pub fn destack_net_local_address(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<SocketAddressVm> {
     // read the address via the core binding
@@ -618,7 +618,7 @@ pub fn destack_net_local_address(
 /// Read the local socket address as normalized text metadata.
 pub fn destack_net_local_address_text(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<SocketAddressVm> {
     // read the address via the core binding
@@ -648,7 +648,7 @@ pub fn destack_net_local_address_text(
 /// External, recordable.
 pub fn destack_net_peer_address(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<SocketAddressVm> {
     // read the address via the core binding
@@ -660,7 +660,7 @@ pub fn destack_net_peer_address(
 /// Read the remote socket address as normalized text metadata.
 pub fn destack_net_peer_address_text(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<SocketAddressVm> {
     // read the address via the core binding
@@ -690,7 +690,7 @@ pub fn destack_net_peer_address_text(
 /// External, recordable.
 pub fn destack_net_set_no_delay(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -716,7 +716,7 @@ pub fn destack_net_set_no_delay(
 /// External, recordable.
 pub fn destack_net_set_keep_alive(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     config: KeepAliveConfig,
 ) -> RuntimeResult<()> {
@@ -751,7 +751,7 @@ pub fn destack_net_set_keep_alive(
 /// External, recordable.
 pub fn destack_net_set_reuse_addr(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -777,7 +777,7 @@ pub fn destack_net_set_reuse_addr(
 /// External, recordable.
 pub fn destack_net_set_reuse_port(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -803,7 +803,7 @@ pub fn destack_net_set_reuse_port(
 /// External, recordable.
 pub fn destack_net_close_listener(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_net::destack_net_close_listener(binding, handle) }
@@ -828,7 +828,7 @@ pub fn destack_net_close_listener(
 /// External, recordable.
 pub fn destack_net_socket(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     family: SocketFamily,
     socket_type: SocketType,
     protocol: SocketProtocol,
@@ -857,7 +857,7 @@ pub fn destack_net_socket(
 /// External, recordable.
 pub fn destack_net_socket_pair(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     family: SocketFamily,
     socket_type: SocketType,
     protocol: SocketProtocol,
@@ -886,7 +886,7 @@ pub fn destack_net_socket_pair(
 /// External, recordable.
 pub fn destack_net_bind(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<()> {
@@ -913,7 +913,7 @@ pub fn destack_net_bind(
 /// External, recordable.
 pub fn destack_net_readv(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
@@ -944,7 +944,7 @@ pub fn destack_net_readv(
 /// External, recordable.
 pub fn destack_net_writev(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
@@ -971,7 +971,7 @@ pub fn destack_net_writev(
 /// External, recordable.
 pub fn destack_net_resolve(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     query: ResolveQueryVm,
 ) -> RuntimeResult<VmArray<SocketAddressVm>> {
     // decode query host and service values
@@ -987,7 +987,7 @@ pub fn destack_net_resolve(
 /// Resolve a hostname and port into normalized socket addresses.
 pub fn destack_net_resolve_text(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     host: destack_vm::StringHandle,
     port: u16,
     family: SocketFamily,
@@ -1023,7 +1023,7 @@ pub fn destack_net_resolve_text(
 /// External, recordable.
 pub fn destack_net_reverse_lookup(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     address: SocketAddressVm,
     flags: ReverseLookupFlags,
 ) -> RuntimeResult<VmArray<ReverseLookupNameVm>> {
@@ -1051,7 +1051,7 @@ pub fn destack_net_reverse_lookup(
 /// Reverse lookup a normalized socket address into hostnames.
 pub fn destack_net_reverse_lookup_text(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     address: SocketAddressVm,
 ) -> RuntimeResult<VmArray<destack_vm::StringHandle>> {
     // decode address and execute reverse lookup
@@ -1080,7 +1080,7 @@ pub fn destack_net_reverse_lookup_text(
 /// External, recordable.
 pub fn destack_net_udp_socket(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     family: SocketFamily,
 ) -> RuntimeResult<SocketHandle> {
     call_out(|out| unsafe { host_net::destack_net_udp_socket(binding, out, family) })
@@ -1105,7 +1105,7 @@ pub fn destack_net_udp_socket(
 /// External, recordable.
 pub fn destack_net_udp_bind(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<()> {
@@ -1116,7 +1116,7 @@ pub fn destack_net_udp_bind(
 /// Bind a UDP socket to a host and port.
 pub fn destack_net_udp_bind_text(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     host: destack_vm::StringHandle,
     port: u16,
@@ -1162,7 +1162,7 @@ pub fn destack_net_udp_bind_text(
 /// External, recordable.
 pub fn destack_net_udp_connect(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<()> {
@@ -1173,7 +1173,7 @@ pub fn destack_net_udp_connect(
 /// Connect a UDP socket to a host and port.
 pub fn destack_net_udp_connect_text(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     host: destack_vm::StringHandle,
     port: u16,
@@ -1219,7 +1219,7 @@ pub fn destack_net_udp_connect_text(
 /// External, recordable.
 pub fn destack_net_udp_recv_from(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     buffer: VmSlice<u8>,
     recv_flags: UdpMessageFlags,
@@ -1235,7 +1235,7 @@ pub fn destack_net_udp_recv_from(
 /// Receive a UDP packet with normalized sender metadata.
 pub fn destack_net_udp_recv_from_text(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<UdpReceiveVm> {
@@ -1273,7 +1273,7 @@ pub fn destack_net_udp_recv_from_text(
 /// External, recordable.
 pub fn destack_net_udp_send_to(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     address: SocketAddressVm,
     buffer: VmSlice<u8>,
@@ -1289,7 +1289,7 @@ pub fn destack_net_udp_send_to(
 /// Send a UDP packet to a host and port.
 pub fn destack_net_udp_send_to_text(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     host: destack_vm::StringHandle,
     port: u16,
@@ -1348,7 +1348,7 @@ pub fn destack_net_udp_send_to_text(
 /// External, recordable.
 pub fn destack_net_uds_accept(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     listener: ListenerHandle,
 ) -> RuntimeResult<SocketHandle> {
     call_out(|out| unsafe { host_net::destack_net_uds_accept(binding, out, listener) })
@@ -1373,7 +1373,7 @@ pub fn destack_net_uds_accept(
 /// External, recordable.
 pub fn destack_net_uds_close_listener(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_net::destack_net_uds_close_listener(binding, handle) }
@@ -1398,7 +1398,7 @@ pub fn destack_net_uds_close_listener(
 /// External, recordable.
 pub fn destack_net_uds_connect(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     address: UdsAddressVm,
 ) -> RuntimeResult<SocketHandle> {
     // decode the uds address and delegate to the os implementation
@@ -1426,7 +1426,7 @@ pub fn destack_net_uds_connect(
 /// External, recordable.
 pub fn destack_net_uds_listen(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     address: UdsAddressVm,
     backlog: u32,
 ) -> RuntimeResult<ListenerHandle> {
@@ -1455,7 +1455,7 @@ pub fn destack_net_uds_listen(
 /// External, recordable.
 pub fn destack_net_uds_socket_pair(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     socket_type: SocketType,
 ) -> RuntimeResult<SocketPair> {
     call_out(|out| unsafe { host_net::destack_net_uds_socket_pair(binding, out, socket_type) })
@@ -1480,7 +1480,7 @@ pub fn destack_net_uds_socket_pair(
 /// External, recordable.
 pub fn destack_net_set_linger(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     linger: Linger,
 ) -> RuntimeResult<()> {
@@ -1506,7 +1506,7 @@ pub fn destack_net_set_linger(
 /// External, recordable.
 pub fn destack_net_set_recv_buffer(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     size: u32,
 ) -> RuntimeResult<()> {
@@ -1532,7 +1532,7 @@ pub fn destack_net_set_recv_buffer(
 /// External, recordable.
 pub fn destack_net_set_send_buffer(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     size: u32,
 ) -> RuntimeResult<()> {
@@ -1558,7 +1558,7 @@ pub fn destack_net_set_send_buffer(
 /// External, recordable.
 pub fn destack_net_set_broadcast(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -1584,7 +1584,7 @@ pub fn destack_net_set_broadcast(
 /// External, recordable.
 pub fn destack_net_join_multicast_v4(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     group: destack_vm::StringHandle,
     interface_address: destack_vm::StringHandle,
@@ -1618,7 +1618,7 @@ pub fn destack_net_join_multicast_v4(
 /// External, recordable.
 pub fn destack_net_join_multicast_v6(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     group: destack_vm::StringHandle,
     interface_index: u32,
@@ -1649,7 +1649,7 @@ pub fn destack_net_join_multicast_v6(
 /// External, recordable.
 pub fn destack_net_leave_multicast_v4(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     group: destack_vm::StringHandle,
     interface_address: destack_vm::StringHandle,
@@ -1683,7 +1683,7 @@ pub fn destack_net_leave_multicast_v4(
 /// External, recordable.
 pub fn destack_net_leave_multicast_v6(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     group: destack_vm::StringHandle,
     interface_index: u32,
@@ -1714,7 +1714,7 @@ pub fn destack_net_leave_multicast_v6(
 /// External, recordable.
 pub fn destack_net_set_multicast_loop(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -1741,7 +1741,7 @@ pub fn destack_net_set_multicast_loop(
 /// External, recordable.
 pub fn destack_net_set_multicast_ttl(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<()> {
@@ -1768,7 +1768,7 @@ pub fn destack_net_set_multicast_ttl(
 /// External, recordable.
 pub fn destack_net_set_ttl(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<()> {
@@ -1794,7 +1794,7 @@ pub fn destack_net_set_ttl(
 /// External, recordable.
 pub fn destack_net_set_tos(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     tos: u32,
 ) -> RuntimeResult<()> {
@@ -1820,7 +1820,7 @@ pub fn destack_net_set_tos(
 /// External, recordable.
 pub fn destack_net_set_read_timeout(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     timeout_ms: u32,
 ) -> RuntimeResult<()> {
@@ -1846,7 +1846,7 @@ pub fn destack_net_set_read_timeout(
 /// External, recordable.
 pub fn destack_net_set_write_timeout(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     timeout_ms: u32,
 ) -> RuntimeResult<()> {
@@ -1872,7 +1872,7 @@ pub fn destack_net_set_write_timeout(
 /// External, recordable.
 pub fn destack_net_set_only_v6(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -1898,7 +1898,7 @@ pub fn destack_net_set_only_v6(
 /// External, recordable.
 pub fn destack_net_get_keep_alive(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<KeepAliveConfig> {
     call_out(|out| unsafe { host_net::destack_net_get_keep_alive(binding, out, handle) })
@@ -1923,7 +1923,7 @@ pub fn destack_net_get_keep_alive(
 /// External, recordable.
 pub fn destack_net_get_no_delay(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<bool> {
     call_out(|out| unsafe { host_net::destack_net_get_no_delay(binding, out, handle) })
@@ -1948,7 +1948,7 @@ pub fn destack_net_get_no_delay(
 /// External, recordable.
 pub fn destack_net_get_reuse_addr(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<bool> {
     call_out(|out| unsafe { host_net::destack_net_get_reuse_addr(binding, out, handle) })
@@ -1973,7 +1973,7 @@ pub fn destack_net_get_reuse_addr(
 /// External, recordable.
 pub fn destack_net_get_reuse_port(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<bool> {
     call_out(|out| unsafe { host_net::destack_net_get_reuse_port(binding, out, handle) })
@@ -1998,7 +1998,7 @@ pub fn destack_net_get_reuse_port(
 /// External, recordable.
 pub fn destack_net_get_linger(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<Linger> {
     call_out(|out| unsafe { host_net::destack_net_get_linger(binding, out, handle) })
@@ -2023,7 +2023,7 @@ pub fn destack_net_get_linger(
 /// External, recordable.
 pub fn destack_net_get_recv_buffer(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<u32> {
     call_out(|out| unsafe { host_net::destack_net_get_recv_buffer(binding, out, handle) })
@@ -2048,7 +2048,7 @@ pub fn destack_net_get_recv_buffer(
 /// External, recordable.
 pub fn destack_net_get_send_buffer(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<u32> {
     call_out(|out| unsafe { host_net::destack_net_get_send_buffer(binding, out, handle) })
@@ -2073,7 +2073,7 @@ pub fn destack_net_get_send_buffer(
 /// External, recordable.
 pub fn destack_net_get_broadcast(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<bool> {
     call_out(|out| unsafe { host_net::destack_net_get_broadcast(binding, out, handle) })
@@ -2098,7 +2098,7 @@ pub fn destack_net_get_broadcast(
 /// External, recordable.
 pub fn destack_net_get_ttl(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<u32> {
     call_out(|out| unsafe { host_net::destack_net_get_ttl(binding, out, handle) })
@@ -2123,7 +2123,7 @@ pub fn destack_net_get_ttl(
 /// External, recordable.
 pub fn destack_net_get_tos(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<u32> {
     call_out(|out| unsafe { host_net::destack_net_get_tos(binding, out, handle) })
@@ -2148,7 +2148,7 @@ pub fn destack_net_get_tos(
 /// External, recordable.
 pub fn destack_net_get_read_timeout(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<u32> {
     call_out(|out| unsafe { host_net::destack_net_get_read_timeout(binding, out, handle) })
@@ -2173,7 +2173,7 @@ pub fn destack_net_get_read_timeout(
 /// External, recordable.
 pub fn destack_net_get_write_timeout(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<u32> {
     call_out(|out| unsafe { host_net::destack_net_get_write_timeout(binding, out, handle) })
@@ -2198,14 +2198,14 @@ pub fn destack_net_get_write_timeout(
 /// External, recordable.
 pub fn destack_net_get_only_v6(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<bool> {
     call_out(|out| unsafe { host_net::destack_net_get_only_v6(binding, out, handle) })
 }
 
 fn socket_address_to_vm(
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     address: SocketAddress,
 ) -> RuntimeResult<SocketAddressVm> {
     // encode the raw address bytes
@@ -2221,7 +2221,7 @@ fn socket_address_to_vm(
 
 fn socket_address_from_vm(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     address: SocketAddressVm,
 ) -> RuntimeResult<SocketAddress> {
     Ok(SocketAddress {
@@ -2232,7 +2232,7 @@ fn socket_address_from_vm(
 }
 
 fn socket_address_array_to_vm(
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     array: NativeArray<SocketAddress>,
 ) -> RuntimeResult<VmArray<SocketAddressVm>> {
     map_native_array_to_vm(context, array, |context, item| {
@@ -2241,7 +2241,7 @@ fn socket_address_array_to_vm(
 }
 
 fn net_interface_array_to_vm(
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     array: NativeArray<NetInterface>,
 ) -> RuntimeResult<VmArray<NetInterfaceVm>> {
     map_native_array_to_vm(context, array, |context, value| {
@@ -2264,7 +2264,7 @@ fn net_interface_array_to_vm(
 }
 
 fn packet_backend_descriptor_slice_to_vm(
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     value: NativeSlice<PacketBackendDescriptor>,
 ) -> RuntimeResult<VmSlice<PacketBackendDescriptorVm>> {
     map_native_slice_to_vm(context, value, |context, value| {
@@ -2283,7 +2283,7 @@ fn packet_backend_descriptor_slice_to_vm(
 
 fn route_entry_from_vm(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     route: RouteEntryVm,
 ) -> RuntimeResult<RouteEntry> {
     let destination = socket_address_from_vm(binding, context, route.destination)?;
@@ -2301,7 +2301,7 @@ fn route_entry_from_vm(
 }
 
 fn route_entry_array_to_vm(
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     array: NativeArray<RouteEntry>,
 ) -> RuntimeResult<VmArray<RouteEntryVm>> {
     map_native_array_to_vm(context, array, |context, route| {
@@ -2320,7 +2320,7 @@ fn route_entry_array_to_vm(
 }
 
 fn udp_receive_to_vm(
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     receive: UdpReceive,
 ) -> RuntimeResult<UdpReceiveVm> {
     let address = socket_address_to_vm(context, receive.address)?;
@@ -2333,7 +2333,7 @@ fn udp_receive_to_vm(
 
 fn udp_source_membership_v4_from_vm(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     membership: UdpSourceMembershipV4Vm,
 ) -> RuntimeResult<UdpSourceMembershipV4> {
     Ok(UdpSourceMembershipV4 {
@@ -2345,7 +2345,7 @@ fn udp_source_membership_v4_from_vm(
 
 fn udp_source_membership_v6_from_vm(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     membership: UdpSourceMembershipV6Vm,
 ) -> RuntimeResult<UdpSourceMembershipV6> {
     Ok(UdpSourceMembershipV6 {
@@ -2357,7 +2357,7 @@ fn udp_source_membership_v6_from_vm(
 
 fn socket_send_to_from_vm(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     send_to: SocketSendToVm,
 ) -> RuntimeResult<SocketSendTo> {
     let address = socket_address_from_vm(binding, context, send_to.address)?;
@@ -2368,7 +2368,7 @@ fn socket_send_to_from_vm(
 }
 
 fn socket_recv_from_to_vm(
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     recv_from: SocketRecvFrom,
 ) -> RuntimeResult<SocketRecvFromVm> {
     let address = socket_address_to_vm(context, recv_from.address)?;
@@ -2381,7 +2381,7 @@ fn socket_recv_from_to_vm(
 
 fn socket_send_message_from_vm(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     message: SocketSendMessageVm,
 ) -> RuntimeResult<SocketSendMessage> {
     let fds = store_values_array_from_vm(binding, context, message.fds)?;
@@ -2409,7 +2409,7 @@ fn socket_send_message_from_vm(
 }
 
 fn socket_recv_message_to_vm(
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     message: SocketRecvMessage,
 ) -> RuntimeResult<SocketRecvMessageVm> {
     let address = if let Some(address) = message.address {
@@ -2441,7 +2441,7 @@ fn socket_recv_message_to_vm(
 
 fn uds_address_from_vm(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     address: UdsAddressVm,
 ) -> RuntimeResult<UdsAddress> {
     match address {
@@ -2494,7 +2494,7 @@ fn uds_path(binding: &BindingCallContext, address: UdsAddress) -> RuntimeResult<
 
 fn resolve_query_parts_from_vm(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     query: ResolveQueryVm,
 ) -> RuntimeResult<(Option<NativeStringRef>, Option<NativeStringRef>)> {
     // require at least one query component
@@ -2527,7 +2527,7 @@ fn resolve_service_text(binding: &BindingCallContext, port: u16) -> NativeString
 
 fn resolve_text_addresses_from_vm(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     host: destack_vm::StringHandle,
     port: u16,
     binding_name: &'static str,
@@ -2644,7 +2644,7 @@ fn tcp_socket_protocol() -> SocketProtocol {
 /// External, recordable.
 pub(super) fn destack_net_get_packet_mark(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<u32> {
     call_out(|out| unsafe { host_net::destack_net_get_packet_mark(binding, out, handle) })
@@ -2669,7 +2669,7 @@ pub(super) fn destack_net_get_packet_mark(
 /// External, recordable.
 pub(super) fn destack_net_get_sock_opt_raw(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
@@ -2701,7 +2701,7 @@ pub(super) fn destack_net_get_sock_opt_raw(
 /// External, recordable.
 pub(super) fn destack_net_get_timestamping(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<SocketTimestampingMode> {
     call_out(|out| unsafe { host_net::destack_net_get_timestamping(binding, out, handle) })
@@ -2726,7 +2726,7 @@ pub(super) fn destack_net_get_timestamping(
 /// External, recordable.
 pub(super) fn destack_net_interface_index(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     name: destack_vm::StringHandle,
 ) -> RuntimeResult<u32> {
     let name = host_from_vm(binding, context, name)?;
@@ -2752,7 +2752,7 @@ pub(super) fn destack_net_interface_index(
 /// External, recordable.
 pub(super) fn destack_net_interface_name(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     index: u32,
 ) -> RuntimeResult<destack_vm::StringHandle> {
     let value =
@@ -2782,7 +2782,7 @@ pub(super) fn destack_net_interface_name(
 /// External, recordable.
 pub(super) fn destack_net_list_interfaces(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
 ) -> RuntimeResult<VmArray<NetInterfaceVm>> {
     let values = call_out(|out| unsafe { host_net::destack_net_list_interfaces(binding, out) })?;
     net_interface_array_to_vm(context, values)
@@ -2791,7 +2791,7 @@ pub(super) fn destack_net_list_interfaces(
 /// List host packet backends.
 pub(super) fn destack_net_packet_backend_list(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
 ) -> RuntimeResult<VmSlice<PacketBackendDescriptorVm>> {
     let values =
         call_out(|out| unsafe { super::core::destack_net_packet_backend_list(binding, out) })?;
@@ -2822,7 +2822,7 @@ pub(super) fn destack_net_packet_backend_list(
 /// External, recordable.
 pub(super) fn destack_net_packet_open(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     options: PacketCaptureOptionsVm,
 ) -> RuntimeResult<SocketHandle> {
     call_out(|out| unsafe { host_net::destack_net_packet_open(binding, out, options) })
@@ -2851,7 +2851,7 @@ pub(super) fn destack_net_packet_open(
 /// External, recordable.
 pub(super) fn destack_net_packet_receive(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     payload: VmSlice<u8>,
 ) -> RuntimeResult<PacketCaptureRecordVm> {
@@ -2886,7 +2886,7 @@ pub(super) fn destack_net_packet_receive(
 /// External, recordable.
 pub(super) fn destack_net_packet_send(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     payload: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -2916,7 +2916,7 @@ pub(super) fn destack_net_packet_send(
 /// External, recordable.
 pub(super) fn destack_net_packet_set_timestamp_mode(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     mode: PacketTimestampMode,
 ) -> RuntimeResult<()> {
@@ -2944,7 +2944,7 @@ pub(super) fn destack_net_packet_set_timestamp_mode(
 /// External, recordable.
 pub(super) fn destack_net_packet_clear_fanout(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_net::destack_net_packet_clear_fanout(binding, handle) }
@@ -2972,7 +2972,7 @@ pub(super) fn destack_net_packet_clear_fanout(
 /// External, recordable.
 pub(super) fn destack_net_packet_clear_filter(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_net::destack_net_packet_clear_filter(binding, handle) }
@@ -2999,7 +2999,7 @@ pub(super) fn destack_net_packet_clear_filter(
 /// External, recordable.
 pub(super) fn destack_net_packet_clear_ring(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_net::destack_net_packet_clear_ring(binding, handle) }
@@ -3026,7 +3026,7 @@ pub(super) fn destack_net_packet_clear_ring(
 /// External, recordable.
 pub(super) fn destack_net_packet_set_fanout(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     options: PacketFanoutOptionsVm,
 ) -> RuntimeResult<()> {
@@ -3055,7 +3055,7 @@ pub(super) fn destack_net_packet_set_fanout(
 /// External, recordable.
 pub(super) fn destack_net_packet_set_filter(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     filterprogram: VmSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -3084,7 +3084,7 @@ pub(super) fn destack_net_packet_set_filter(
 /// External, recordable.
 pub(super) fn destack_net_packet_set_rx_ring(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     options: PacketRingOptionsVm,
 ) -> RuntimeResult<()> {
@@ -3112,7 +3112,7 @@ pub(super) fn destack_net_packet_set_rx_ring(
 /// External, recordable.
 pub(super) fn destack_net_packet_set_tx_ring(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     options: PacketRingOptionsVm,
 ) -> RuntimeResult<()> {
@@ -3141,7 +3141,7 @@ pub(super) fn destack_net_packet_set_tx_ring(
 /// External, recordable.
 pub(super) fn destack_net_packet_stats(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<PacketCaptureStatsVm> {
     call_out(|out| unsafe { host_net::destack_net_packet_stats(binding, out, handle) })
@@ -3166,7 +3166,7 @@ pub(super) fn destack_net_packet_stats(
 /// External, recordable.
 pub(super) fn destack_net_raw_set_header_included(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -3192,7 +3192,7 @@ pub(super) fn destack_net_raw_set_header_included(
 /// External, recordable.
 pub(super) fn destack_net_raw_socket(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     family: SocketFamily,
     protocol: i32,
 ) -> RuntimeResult<SocketHandle> {
@@ -3220,7 +3220,7 @@ pub(super) fn destack_net_raw_socket(
 /// External, recordable.
 pub(super) fn destack_net_route_add(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     route: RouteEntryVm,
 ) -> RuntimeResult<()> {
     let route = route_entry_from_vm(binding, context, route)?;
@@ -3248,7 +3248,7 @@ pub(super) fn destack_net_route_add(
 /// External, recordable.
 pub(super) fn destack_net_route_delete(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     route: RouteEntryVm,
 ) -> RuntimeResult<()> {
     let route = route_entry_from_vm(binding, context, route)?;
@@ -3276,7 +3276,7 @@ pub(super) fn destack_net_route_delete(
 /// External, recordable.
 pub(super) fn destack_net_route_list(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     family: SocketFamily,
 ) -> RuntimeResult<VmArray<RouteEntryVm>> {
     let routes = call_out(|out| unsafe { host_net::destack_net_route_list(binding, out, family) })?;
@@ -3302,7 +3302,7 @@ pub(super) fn destack_net_route_list(
 /// External, recordable.
 pub(super) fn destack_net_set_packet_mark(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     mark: u32,
 ) -> RuntimeResult<()> {
@@ -3328,7 +3328,7 @@ pub(super) fn destack_net_set_packet_mark(
 /// External, recordable.
 pub(super) fn destack_net_set_sock_opt_raw(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
@@ -3357,7 +3357,7 @@ pub(super) fn destack_net_set_sock_opt_raw(
 /// External, recordable.
 pub(super) fn destack_net_set_timestamping(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     mode: SocketTimestampingMode,
 ) -> RuntimeResult<()> {
@@ -3383,7 +3383,7 @@ pub(super) fn destack_net_set_timestamping(
 /// External, recordable.
 pub(super) fn destack_net_get_multicast_interface_v4(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<destack_vm::StringHandle> {
     let value = call_out(|out| unsafe {
@@ -3414,7 +3414,7 @@ pub(super) fn destack_net_get_multicast_interface_v4(
 /// External, recordable.
 pub(super) fn destack_net_get_multicast_interface_v6(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<u32> {
     call_out(|out| unsafe {
@@ -3441,7 +3441,7 @@ pub(super) fn destack_net_get_multicast_interface_v6(
 /// External, recordable.
 pub(super) fn destack_net_get_multicast_loop(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<bool> {
     call_out(|out| unsafe { host_net::destack_net_get_multicast_loop(binding, out, handle) })
@@ -3466,7 +3466,7 @@ pub(super) fn destack_net_get_multicast_loop(
 /// External, recordable.
 pub(super) fn destack_net_get_multicast_ttl(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<u32> {
     call_out(|out| unsafe { host_net::destack_net_get_multicast_ttl(binding, out, handle) })
@@ -3491,7 +3491,7 @@ pub(super) fn destack_net_get_multicast_ttl(
 /// External, recordable.
 pub(super) fn destack_net_set_multicast_interface_v4(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     interfaceaddress: destack_vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -3518,7 +3518,7 @@ pub(super) fn destack_net_set_multicast_interface_v4(
 /// External, recordable.
 pub(super) fn destack_net_set_multicast_interface_v6(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     interfaceindex: u32,
 ) -> RuntimeResult<()> {
@@ -3544,7 +3544,7 @@ pub(super) fn destack_net_set_multicast_interface_v6(
 /// External, recordable.
 pub(super) fn destack_net_join_multicast_source_v4(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     membership: UdpSourceMembershipV4Vm,
 ) -> RuntimeResult<()> {
@@ -3571,7 +3571,7 @@ pub(super) fn destack_net_join_multicast_source_v4(
 /// External, recordable.
 pub(super) fn destack_net_join_multicast_source_v6(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     membership: UdpSourceMembershipV6Vm,
 ) -> RuntimeResult<()> {
@@ -3598,7 +3598,7 @@ pub(super) fn destack_net_join_multicast_source_v6(
 /// External, recordable.
 pub(super) fn destack_net_leave_multicast_source_v4(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     membership: UdpSourceMembershipV4Vm,
 ) -> RuntimeResult<()> {
@@ -3625,7 +3625,7 @@ pub(super) fn destack_net_leave_multicast_source_v4(
 /// External, recordable.
 pub(super) fn destack_net_leave_multicast_source_v6(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     handle: SocketHandle,
     membership: UdpSourceMembershipV6Vm,
 ) -> RuntimeResult<()> {

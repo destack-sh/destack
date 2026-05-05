@@ -9,7 +9,7 @@ use destack_vm as vm;
 /// Binding for `destack.debug.core.breakNow`.
 pub(crate) fn destack_debug_break_now(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.debug.core.breakNow is not available in the VM yet",
@@ -20,7 +20,7 @@ pub(crate) fn destack_debug_break_now(
 /// Binding for `destack.debug.core.mark`.
 pub(crate) fn destack_debug_mark(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     label: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let _ = label;
@@ -33,7 +33,7 @@ pub(crate) fn destack_debug_mark(
 /// Binding for `destack.debug.inspector.endpoint`.
 pub(crate) fn destack_debug_inspector_endpoint(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<InspectorEndpointVm> {
     let _ = handle;
@@ -46,7 +46,7 @@ pub(crate) fn destack_debug_inspector_endpoint(
 /// Binding for `destack.debug.inspector.start`.
 pub(crate) fn destack_debug_inspector_start(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     host: vm::StringHandle,
     port: u16,
 ) -> RuntimeResult<resource::InspectorHandle> {
@@ -60,7 +60,7 @@ pub(crate) fn destack_debug_inspector_start(
 /// Binding for `destack.debug.inspector.stop`.
 pub(crate) fn destack_debug_inspector_stop(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -73,7 +73,7 @@ pub(crate) fn destack_debug_inspector_stop(
 /// Binding for `destack.debug.profile.snapshot`.
 pub(crate) fn destack_debug_profile_snapshot(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<VmArray<u8>> {
     let _ = handle;
@@ -86,7 +86,7 @@ pub(crate) fn destack_debug_profile_snapshot(
 /// Binding for `destack.debug.profile.start`.
 pub(crate) fn destack_debug_profile_start(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     kind: ProfileKind,
 ) -> RuntimeResult<resource::ProfileHandle> {
     let _ = kind;
@@ -99,7 +99,7 @@ pub(crate) fn destack_debug_profile_start(
 /// Binding for `destack.debug.profile.stop`.
 pub(crate) fn destack_debug_profile_stop(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -112,7 +112,7 @@ pub(crate) fn destack_debug_profile_stop(
 /// Binding for `destack.debug.trace.emit`.
 pub(crate) fn destack_debug_trace_emit(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     category: vm::StringHandle,
     name: vm::StringHandle,
     payloadjson: vm::StringHandle,
@@ -127,7 +127,7 @@ pub(crate) fn destack_debug_trace_emit(
 /// Binding for `destack.debug.trace.start`.
 pub(crate) fn destack_debug_trace_start(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     level: TraceLevel,
     destination: vm::StringHandle,
 ) -> RuntimeResult<resource::TraceHandle> {
@@ -141,7 +141,7 @@ pub(crate) fn destack_debug_trace_start(
 /// Binding for `destack.debug.trace.stop`.
 pub(crate) fn destack_debug_trace_stop(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::TraceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;

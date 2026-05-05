@@ -176,7 +176,7 @@ fn decode_float64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -189,7 +189,7 @@ fn decode_string(
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -200,7 +200,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -211,7 +211,7 @@ fn decode_array<T>(
 /// Encode the result for destack.audio.backend.list.
 #[inline]
 fn encode_destack_audio_backend_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<AudioBackendDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -223,7 +223,7 @@ fn encode_destack_audio_backend_list_result(
 /// Decode arguments for destack.audio.clock.now.
 #[inline]
 fn decode_destack_audio_clock_now_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(AudioClockDomain,)> {
     let domain_value = arg_value(args, 0, "domain", "AudioClockDomain")?;
@@ -245,7 +245,7 @@ fn decode_destack_audio_clock_now_args(
 /// Encode the result for destack.audio.clock.now.
 #[inline]
 fn encode_destack_audio_clock_now_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -256,7 +256,7 @@ fn encode_destack_audio_clock_now_result(
 /// Decode arguments for destack.audio.clock.stream.
 #[inline]
 fn decode_destack_audio_clock_stream_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle, AudioStreamClockDomain)> {
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
@@ -287,7 +287,7 @@ fn decode_destack_audio_clock_stream_args(
 /// Encode the result for destack.audio.clock.stream.
 #[inline]
 fn encode_destack_audio_clock_stream_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<AudioClockSnapshotVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -369,7 +369,7 @@ fn encode_destack_audio_clock_stream_result(
 /// Decode arguments for destack.audio.device.close.
 #[inline]
 fn decode_destack_audio_device_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AudioDeviceHandle")?;
@@ -383,7 +383,7 @@ fn decode_destack_audio_device_close_args(
 /// Encode the result for destack.audio.device.close.
 #[inline]
 fn encode_destack_audio_device_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -392,7 +392,7 @@ fn encode_destack_audio_device_close_result(
 /// Decode arguments for destack.audio.device.default.
 #[inline]
 fn decode_destack_audio_device_default_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     AudioDeviceDirection,
@@ -459,7 +459,7 @@ fn decode_destack_audio_device_default_args(
 /// Encode the result for destack.audio.device.default.
 #[inline]
 fn encode_destack_audio_device_default_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -470,7 +470,7 @@ fn encode_destack_audio_device_default_result(
 /// Decode arguments for destack.audio.device.descriptor.
 #[inline]
 fn decode_destack_audio_device_descriptor_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioDeviceHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AudioDeviceHandle")?;
@@ -484,7 +484,7 @@ fn decode_destack_audio_device_descriptor_args(
 /// Encode the result for destack.audio.device.descriptor.
 #[inline]
 fn encode_destack_audio_device_descriptor_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<AudioDeviceDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -650,7 +650,7 @@ fn encode_destack_audio_device_descriptor_result(
 /// Decode arguments for destack.audio.device.list.
 #[inline]
 fn decode_destack_audio_device_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(AudioDeviceListRequestVm,)> {
     let context = &context.read();
@@ -665,7 +665,7 @@ fn decode_destack_audio_device_list_args(
 /// Encode the result for destack.audio.device.list.
 #[inline]
 fn encode_destack_audio_device_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<AudioDeviceDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -677,7 +677,7 @@ fn encode_destack_audio_device_list_result(
 /// Decode arguments for destack.audio.device.open.
 #[inline]
 fn decode_destack_audio_device_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, AudioDeviceOpenOptionsVm)> {
     let context = &context.read();
@@ -694,7 +694,7 @@ fn decode_destack_audio_device_open_args(
 /// Encode the result for destack.audio.device.open.
 #[inline]
 fn encode_destack_audio_device_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::AudioDeviceHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -705,7 +705,7 @@ fn encode_destack_audio_device_open_result(
 /// Decode arguments for destack.audio.device.rescan.
 #[inline]
 fn decode_destack_audio_device_rescan_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(AudioBackend, AudioBackendSelectionPolicy)> {
     let backend_value = arg_value(args, 0, "backend", "AudioBackend")?;
@@ -753,7 +753,7 @@ fn decode_destack_audio_device_rescan_args(
 /// Encode the result for destack.audio.device.rescan.
 #[inline]
 fn encode_destack_audio_device_rescan_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -762,7 +762,7 @@ fn encode_destack_audio_device_rescan_result(
 /// Decode arguments for destack.audio.event.close.
 #[inline]
 fn decode_destack_audio_event_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioEventHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AudioEventHandle")?;
@@ -775,7 +775,7 @@ fn decode_destack_audio_event_close_args(
 /// Encode the result for destack.audio.event.close.
 #[inline]
 fn encode_destack_audio_event_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -784,7 +784,7 @@ fn encode_destack_audio_event_close_result(
 /// Decode arguments for destack.audio.event.open.
 #[inline]
 fn decode_destack_audio_event_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(AudioEventSubscriptionOptionsVm,)> {
     let context = &context.read();
@@ -799,7 +799,7 @@ fn decode_destack_audio_event_open_args(
 /// Encode the result for destack.audio.event.open.
 #[inline]
 fn encode_destack_audio_event_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::AudioEventHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -810,7 +810,7 @@ fn encode_destack_audio_event_open_result(
 /// Decode arguments for destack.audio.event.read.
 #[inline]
 fn decode_destack_audio_event_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioEventHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "AudioEventHandle")?;
@@ -825,7 +825,7 @@ fn decode_destack_audio_event_read_args(
 /// Encode the result for destack.audio.event.read.
 #[inline]
 fn encode_destack_audio_event_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<AudioEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1838,7 +1838,7 @@ fn encode_destack_audio_event_read_result(
 /// Decode arguments for destack.audio.event.readBatch.
 #[inline]
 fn decode_destack_audio_event_read_batch_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioEventHandle, u32, u64)> {
     let handle_value = arg_value(args, 0, "handle", "AudioEventHandle")?;
@@ -1855,7 +1855,7 @@ fn decode_destack_audio_event_read_batch_args(
 /// Encode the result for destack.audio.event.readBatch.
 #[inline]
 fn encode_destack_audio_event_read_batch_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<AudioEventVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1867,7 +1867,7 @@ fn encode_destack_audio_event_read_batch_result(
 /// Decode arguments for destack.audio.event.tryRead.
 #[inline]
 fn decode_destack_audio_event_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioEventHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AudioEventHandle")?;
@@ -1880,7 +1880,7 @@ fn decode_destack_audio_event_try_read_args(
 /// Encode the result for destack.audio.event.tryRead.
 #[inline]
 fn encode_destack_audio_event_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<AudioEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2893,7 +2893,7 @@ fn encode_destack_audio_event_try_read_result(
 /// Decode arguments for destack.audio.event.tryReadBatch.
 #[inline]
 fn decode_destack_audio_event_try_read_batch_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioEventHandle, u32)> {
     let handle_value = arg_value(args, 0, "handle", "AudioEventHandle")?;
@@ -2908,7 +2908,7 @@ fn decode_destack_audio_event_try_read_batch_args(
 /// Encode the result for destack.audio.event.tryReadBatch.
 #[inline]
 fn encode_destack_audio_event_try_read_batch_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<AudioEventVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2920,7 +2920,7 @@ fn encode_destack_audio_event_try_read_batch_result(
 /// Decode arguments for destack.audio.stream.abort.
 #[inline]
 fn decode_destack_audio_stream_abort_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
@@ -2934,7 +2934,7 @@ fn decode_destack_audio_stream_abort_args(
 /// Encode the result for destack.audio.stream.abort.
 #[inline]
 fn encode_destack_audio_stream_abort_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2943,7 +2943,7 @@ fn encode_destack_audio_stream_abort_result(
 /// Decode arguments for destack.audio.stream.availability.
 #[inline]
 fn decode_destack_audio_stream_availability_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
@@ -2957,7 +2957,7 @@ fn decode_destack_audio_stream_availability_args(
 /// Encode the result for destack.audio.stream.availability.
 #[inline]
 fn encode_destack_audio_stream_availability_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<AudioStreamAvailabilityVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2996,7 +2996,7 @@ fn encode_destack_audio_stream_availability_result(
 /// Decode arguments for destack.audio.stream.close.
 #[inline]
 fn decode_destack_audio_stream_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
@@ -3010,7 +3010,7 @@ fn decode_destack_audio_stream_close_args(
 /// Encode the result for destack.audio.stream.close.
 #[inline]
 fn encode_destack_audio_stream_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3019,7 +3019,7 @@ fn encode_destack_audio_stream_close_result(
 /// Decode arguments for destack.audio.stream.descriptor.
 #[inline]
 fn decode_destack_audio_stream_descriptor_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
@@ -3033,7 +3033,7 @@ fn decode_destack_audio_stream_descriptor_args(
 /// Encode the result for destack.audio.stream.descriptor.
 #[inline]
 fn encode_destack_audio_stream_descriptor_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<AudioStreamDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3154,7 +3154,7 @@ fn encode_destack_audio_stream_descriptor_result(
 /// Decode arguments for destack.audio.stream.drain.
 #[inline]
 fn decode_destack_audio_stream_drain_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
@@ -3170,7 +3170,7 @@ fn decode_destack_audio_stream_drain_args(
 /// Encode the result for destack.audio.stream.drain.
 #[inline]
 fn encode_destack_audio_stream_drain_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3179,7 +3179,7 @@ fn encode_destack_audio_stream_drain_result(
 /// Decode arguments for destack.audio.stream.flush.
 #[inline]
 fn decode_destack_audio_stream_flush_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
@@ -3193,7 +3193,7 @@ fn decode_destack_audio_stream_flush_args(
 /// Encode the result for destack.audio.stream.flush.
 #[inline]
 fn encode_destack_audio_stream_flush_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3202,7 +3202,7 @@ fn encode_destack_audio_stream_flush_result(
 /// Decode arguments for destack.audio.stream.open.
 #[inline]
 fn decode_destack_audio_stream_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::AudioDeviceHandle,
@@ -3229,7 +3229,7 @@ fn decode_destack_audio_stream_open_args(
 /// Encode the result for destack.audio.stream.open.
 #[inline]
 fn encode_destack_audio_stream_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::AudioStreamHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3240,7 +3240,7 @@ fn encode_destack_audio_stream_open_result(
 /// Decode arguments for destack.audio.stream.pause.
 #[inline]
 fn decode_destack_audio_stream_pause_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle, bool)> {
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
@@ -3256,7 +3256,7 @@ fn decode_destack_audio_stream_pause_args(
 /// Encode the result for destack.audio.stream.pause.
 #[inline]
 fn encode_destack_audio_stream_pause_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3265,7 +3265,7 @@ fn encode_destack_audio_stream_pause_result(
 /// Decode arguments for destack.audio.stream.read.
 #[inline]
 fn decode_destack_audio_stream_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle, u32)> {
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
@@ -3281,7 +3281,7 @@ fn decode_destack_audio_stream_read_args(
 /// Encode the result for destack.audio.stream.read.
 #[inline]
 fn encode_destack_audio_stream_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3293,7 +3293,7 @@ fn encode_destack_audio_stream_read_result(
 /// Decode arguments for destack.audio.stream.readv.
 #[inline]
 fn decode_destack_audio_stream_readv_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<VmSlice<u8>>)> {
     let context = &context.read();
@@ -3311,7 +3311,7 @@ fn decode_destack_audio_stream_readv_args(
 /// Encode the result for destack.audio.stream.readv.
 #[inline]
 fn encode_destack_audio_stream_readv_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3322,7 +3322,7 @@ fn encode_destack_audio_stream_readv_result(
 /// Decode arguments for destack.audio.stream.setMute.
 #[inline]
 fn decode_destack_audio_stream_set_mute_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle, bool)> {
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
@@ -3338,7 +3338,7 @@ fn decode_destack_audio_stream_set_mute_args(
 /// Encode the result for destack.audio.stream.setMute.
 #[inline]
 fn encode_destack_audio_stream_set_mute_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3347,7 +3347,7 @@ fn encode_destack_audio_stream_set_mute_result(
 /// Decode arguments for destack.audio.stream.setName.
 #[inline]
 fn decode_destack_audio_stream_set_name_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle, vm::StringHandle)> {
     let context = &context.read();
@@ -3364,7 +3364,7 @@ fn decode_destack_audio_stream_set_name_args(
 /// Encode the result for destack.audio.stream.setName.
 #[inline]
 fn encode_destack_audio_stream_set_name_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3373,7 +3373,7 @@ fn encode_destack_audio_stream_set_name_result(
 /// Decode arguments for destack.audio.stream.setVolume.
 #[inline]
 fn decode_destack_audio_stream_set_volume_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle, f64)> {
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
@@ -3389,7 +3389,7 @@ fn decode_destack_audio_stream_set_volume_args(
 /// Encode the result for destack.audio.stream.setVolume.
 #[inline]
 fn encode_destack_audio_stream_set_volume_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3398,7 +3398,7 @@ fn encode_destack_audio_stream_set_volume_result(
 /// Decode arguments for destack.audio.stream.start.
 #[inline]
 fn decode_destack_audio_stream_start_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
@@ -3412,7 +3412,7 @@ fn decode_destack_audio_stream_start_args(
 /// Encode the result for destack.audio.stream.start.
 #[inline]
 fn encode_destack_audio_stream_start_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3421,7 +3421,7 @@ fn encode_destack_audio_stream_start_result(
 /// Decode arguments for destack.audio.stream.state.
 #[inline]
 fn decode_destack_audio_stream_state_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
@@ -3435,7 +3435,7 @@ fn decode_destack_audio_stream_state_args(
 /// Encode the result for destack.audio.stream.state.
 #[inline]
 fn encode_destack_audio_stream_state_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<AudioStreamStateVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3513,7 +3513,7 @@ fn encode_destack_audio_stream_state_result(
 /// Decode arguments for destack.audio.stream.stop.
 #[inline]
 fn decode_destack_audio_stream_stop_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
@@ -3527,7 +3527,7 @@ fn decode_destack_audio_stream_stop_args(
 /// Encode the result for destack.audio.stream.stop.
 #[inline]
 fn encode_destack_audio_stream_stop_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3536,7 +3536,7 @@ fn encode_destack_audio_stream_stop_result(
 /// Decode arguments for destack.audio.stream.support.
 #[inline]
 fn decode_destack_audio_stream_support_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::AudioDeviceHandle,
@@ -3563,7 +3563,7 @@ fn decode_destack_audio_stream_support_args(
 /// Encode the result for destack.audio.stream.support.
 #[inline]
 fn encode_destack_audio_stream_support_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<AudioStreamSupportVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3729,7 +3729,7 @@ fn encode_destack_audio_stream_support_result(
 /// Decode arguments for destack.audio.stream.timing.
 #[inline]
 fn decode_destack_audio_stream_timing_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
@@ -3743,7 +3743,7 @@ fn decode_destack_audio_stream_timing_args(
 /// Encode the result for destack.audio.stream.timing.
 #[inline]
 fn encode_destack_audio_stream_timing_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<AudioStreamTimingVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3808,7 +3808,7 @@ fn encode_destack_audio_stream_timing_result(
 /// Decode arguments for destack.audio.stream.tryRead.
 #[inline]
 fn decode_destack_audio_stream_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle, u32)> {
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
@@ -3824,7 +3824,7 @@ fn decode_destack_audio_stream_try_read_args(
 /// Encode the result for destack.audio.stream.tryRead.
 #[inline]
 fn encode_destack_audio_stream_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3836,7 +3836,7 @@ fn encode_destack_audio_stream_try_read_result(
 /// Decode arguments for destack.audio.stream.tryReadv.
 #[inline]
 fn decode_destack_audio_stream_try_readv_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<VmSlice<u8>>)> {
     let context = &context.read();
@@ -3854,7 +3854,7 @@ fn decode_destack_audio_stream_try_readv_args(
 /// Encode the result for destack.audio.stream.tryReadv.
 #[inline]
 fn encode_destack_audio_stream_try_readv_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3865,7 +3865,7 @@ fn encode_destack_audio_stream_try_readv_result(
 /// Decode arguments for destack.audio.stream.tryWrite.
 #[inline]
 fn decode_destack_audio_stream_try_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -3882,7 +3882,7 @@ fn decode_destack_audio_stream_try_write_args(
 /// Encode the result for destack.audio.stream.tryWrite.
 #[inline]
 fn encode_destack_audio_stream_try_write_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3893,7 +3893,7 @@ fn encode_destack_audio_stream_try_write_result(
 /// Decode arguments for destack.audio.stream.tryWritev.
 #[inline]
 fn decode_destack_audio_stream_try_writev_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<VmSlice<u8>>)> {
     let context = &context.read();
@@ -3911,7 +3911,7 @@ fn decode_destack_audio_stream_try_writev_args(
 /// Encode the result for destack.audio.stream.tryWritev.
 #[inline]
 fn encode_destack_audio_stream_try_writev_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3922,7 +3922,7 @@ fn encode_destack_audio_stream_try_writev_result(
 /// Decode arguments for destack.audio.stream.write.
 #[inline]
 fn decode_destack_audio_stream_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -3939,7 +3939,7 @@ fn decode_destack_audio_stream_write_args(
 /// Encode the result for destack.audio.stream.write.
 #[inline]
 fn encode_destack_audio_stream_write_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3950,7 +3950,7 @@ fn encode_destack_audio_stream_write_result(
 /// Decode arguments for destack.audio.stream.writeAt.
 #[inline]
 fn decode_destack_audio_stream_write_at_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<u8>, u64)> {
     let context = &context.read();
@@ -3970,7 +3970,7 @@ fn decode_destack_audio_stream_write_at_args(
 /// Encode the result for destack.audio.stream.writeAt.
 #[inline]
 fn encode_destack_audio_stream_write_at_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3981,7 +3981,7 @@ fn encode_destack_audio_stream_write_at_result(
 /// Decode arguments for destack.audio.stream.writeAtv.
 #[inline]
 fn decode_destack_audio_stream_write_atv_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<VmSlice<u8>>, u64)> {
     let context = &context.read();
@@ -4002,7 +4002,7 @@ fn decode_destack_audio_stream_write_atv_args(
 /// Encode the result for destack.audio.stream.writeAtv.
 #[inline]
 fn encode_destack_audio_stream_write_atv_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -4013,7 +4013,7 @@ fn encode_destack_audio_stream_write_atv_result(
 /// Decode arguments for destack.audio.stream.writev.
 #[inline]
 fn decode_destack_audio_stream_writev_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<VmSlice<u8>>)> {
     let context = &context.read();
@@ -4031,7 +4031,7 @@ fn decode_destack_audio_stream_writev_args(
 /// Encode the result for destack.audio.stream.writev.
 #[inline]
 fn encode_destack_audio_stream_writev_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -12410,7 +12410,7 @@ pub(crate) unsafe extern "C" fn destack_audio_stream_writev(
 #[inline]
 fn destack_audio_backend_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -12556,7 +12556,7 @@ fn destack_audio_backend_list_vm_replay(
 #[inline]
 fn destack_audio_clock_now_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     domain: AudioClockDomain,
 ) -> RuntimeResult<vm::Word> {
@@ -12608,7 +12608,7 @@ fn destack_audio_clock_now_vm_replay(
 #[inline]
 fn destack_audio_clock_stream_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     domain: AudioStreamClockDomain,
@@ -12754,7 +12754,7 @@ fn destack_audio_clock_stream_vm_replay(
 #[inline]
 fn destack_audio_device_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -12802,7 +12802,7 @@ fn destack_audio_device_close_vm_replay(
 #[inline]
 fn destack_audio_device_default_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     direction: AudioDeviceDirection,
     backend: AudioBackend,
@@ -12875,7 +12875,7 @@ fn destack_audio_device_default_vm_replay(
 #[inline]
 fn destack_audio_device_descriptor_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -13092,7 +13092,7 @@ fn destack_audio_device_descriptor_vm_replay(
 #[inline]
 fn destack_audio_device_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     request: AudioDeviceListRequestVm,
 ) -> RuntimeResult<vm::Word> {
@@ -13364,7 +13364,7 @@ fn destack_audio_device_list_vm_replay(
 #[inline]
 fn destack_audio_device_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
     options: AudioDeviceOpenOptionsVm,
@@ -13419,7 +13419,7 @@ fn destack_audio_device_open_vm_replay(
 #[inline]
 fn destack_audio_device_rescan_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     backend: AudioBackend,
     backendpolicy: AudioBackendSelectionPolicy,
@@ -13473,7 +13473,7 @@ fn destack_audio_device_rescan_vm_replay(
 #[inline]
 fn destack_audio_event_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -13521,7 +13521,7 @@ fn destack_audio_event_close_vm_replay(
 #[inline]
 fn destack_audio_event_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     options: AudioEventSubscriptionOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -13573,7 +13573,7 @@ fn destack_audio_event_open_vm_replay(
 #[inline]
 fn destack_audio_event_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
     timeoutns: u64,
@@ -14557,7 +14557,7 @@ fn destack_audio_event_read_vm_replay(
 #[inline]
 fn destack_audio_event_read_batch_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
     maxevents: u32,
@@ -15553,7 +15553,7 @@ fn destack_audio_event_read_batch_vm_replay(
 #[inline]
 fn destack_audio_event_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -16536,7 +16536,7 @@ fn destack_audio_event_try_read_vm_replay(
 #[inline]
 fn destack_audio_event_try_read_batch_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
     maxevents: u32,
@@ -17531,7 +17531,7 @@ fn destack_audio_event_try_read_batch_vm_replay(
 #[inline]
 fn destack_audio_stream_abort_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -17579,7 +17579,7 @@ fn destack_audio_stream_abort_vm_replay(
 #[inline]
 fn destack_audio_stream_availability_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -17655,7 +17655,7 @@ fn destack_audio_stream_availability_vm_replay(
 #[inline]
 fn destack_audio_stream_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -17703,7 +17703,7 @@ fn destack_audio_stream_close_vm_replay(
 #[inline]
 fn destack_audio_stream_descriptor_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -17869,7 +17869,7 @@ fn destack_audio_stream_descriptor_vm_replay(
 #[inline]
 fn destack_audio_stream_drain_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     timeoutns: u64,
@@ -17920,7 +17920,7 @@ fn destack_audio_stream_drain_vm_replay(
 #[inline]
 fn destack_audio_stream_flush_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -17968,7 +17968,7 @@ fn destack_audio_stream_flush_vm_replay(
 #[inline]
 fn destack_audio_stream_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfigVm,
@@ -18024,7 +18024,7 @@ fn destack_audio_stream_open_vm_replay(
 #[inline]
 fn destack_audio_stream_pause_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     pause: bool,
@@ -18075,7 +18075,7 @@ fn destack_audio_stream_pause_vm_replay(
 #[inline]
 fn destack_audio_stream_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
@@ -18132,7 +18132,7 @@ fn destack_audio_stream_read_vm_replay(
 #[inline]
 fn destack_audio_stream_readv_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
@@ -18187,7 +18187,7 @@ fn destack_audio_stream_readv_vm_replay(
 #[inline]
 fn destack_audio_stream_set_mute_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     muted: bool,
@@ -18238,7 +18238,7 @@ fn destack_audio_stream_set_mute_vm_replay(
 #[inline]
 fn destack_audio_stream_set_name_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     name: vm::StringHandle,
@@ -18289,7 +18289,7 @@ fn destack_audio_stream_set_name_vm_replay(
 #[inline]
 fn destack_audio_stream_set_volume_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     lineargain: f64,
@@ -18340,7 +18340,7 @@ fn destack_audio_stream_set_volume_vm_replay(
 #[inline]
 fn destack_audio_stream_start_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -18388,7 +18388,7 @@ fn destack_audio_stream_start_vm_replay(
 #[inline]
 fn destack_audio_stream_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -18498,7 +18498,7 @@ fn destack_audio_stream_state_vm_replay(
 #[inline]
 fn destack_audio_stream_stop_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -18546,7 +18546,7 @@ fn destack_audio_stream_stop_vm_replay(
 #[inline]
 fn destack_audio_stream_support_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfigVm,
@@ -18756,7 +18756,7 @@ fn destack_audio_stream_support_vm_replay(
 #[inline]
 fn destack_audio_stream_timing_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -18893,7 +18893,7 @@ fn destack_audio_stream_timing_vm_replay(
 #[inline]
 fn destack_audio_stream_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
@@ -18950,7 +18950,7 @@ fn destack_audio_stream_try_read_vm_replay(
 #[inline]
 fn destack_audio_stream_try_readv_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
@@ -19005,7 +19005,7 @@ fn destack_audio_stream_try_readv_vm_replay(
 #[inline]
 fn destack_audio_stream_try_write_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
@@ -19060,7 +19060,7 @@ fn destack_audio_stream_try_write_vm_replay(
 #[inline]
 fn destack_audio_stream_try_writev_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
@@ -19115,7 +19115,7 @@ fn destack_audio_stream_try_writev_vm_replay(
 #[inline]
 fn destack_audio_stream_write_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
@@ -19170,7 +19170,7 @@ fn destack_audio_stream_write_vm_replay(
 #[inline]
 fn destack_audio_stream_write_at_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
@@ -19234,7 +19234,7 @@ fn destack_audio_stream_write_at_vm_replay(
 #[inline]
 fn destack_audio_stream_write_atv_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
@@ -19298,7 +19298,7 @@ fn destack_audio_stream_write_atv_vm_replay(
 #[inline]
 fn destack_audio_stream_writev_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,

@@ -15,9 +15,9 @@ use destack_vm as vm;
 impl<'call> GpuHarnessContext<'call> {
     /// Return the generated VM context if available.
     #[allow(clippy::mut_from_ref)]
-    fn generated_vm_context_mut(&self) -> Option<&mut vm::ExternalCallContext<'_>> {
+    fn generated_vm_context_mut(&self) -> Option<&mut vm::BindingContext<'_>> {
         self.vm_context
-            .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
+            .map(|context| unsafe { &mut *(context as *mut vm::BindingContext<'_>) })
     }
 
     /// Return one standardized value payload for native and VM variants.

@@ -21,9 +21,9 @@ type ByteSlicesValue = HarnessValue<NativeSlice<NativeSlice<u8>>, VmSlice<VmSlic
 impl<'call> TlsHarnessContext<'call> {
     /// Return one VM context for this harness call.
     #[allow(clippy::mut_from_ref)]
-    fn vm_context_mut(&self) -> Option<&mut vm::ExternalCallContext<'_>> {
+    fn vm_context_mut(&self) -> Option<&mut vm::BindingContext<'_>> {
         self.vm_context
-            .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
+            .map(|context| unsafe { &mut *(context as *mut vm::BindingContext<'_>) })
     }
 
     /// Build one backend-specific context options value.
@@ -295,7 +295,7 @@ impl<'call> TlsHarnessContext<'call> {
 
 /// Build one VM nested slice from one list of VM byte slices.
 fn vm_slice_of_slices(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     slices: &[VmSlice<u8>],
 ) -> VmSlice<VmSlice<u8>> {
     let values = slices

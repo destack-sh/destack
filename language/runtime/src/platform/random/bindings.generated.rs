@@ -110,7 +110,7 @@ fn decode_float64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -123,7 +123,7 @@ fn decode_string(
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -134,7 +134,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -145,7 +145,7 @@ fn decode_array<T>(
 /// Decode arguments for destack.random.secure.bytes.
 #[inline]
 fn decode_destack_random_secure_bytes_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(VmSlice<u8>,)> {
     let context = &context.read();
@@ -157,7 +157,7 @@ fn decode_destack_random_secure_bytes_args(
 /// Encode the result for destack.random.secure.bytes.
 #[inline]
 fn encode_destack_random_secure_bytes_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -166,7 +166,7 @@ fn encode_destack_random_secure_bytes_result(
 /// Decode arguments for destack.random.secure.bytesTry.
 #[inline]
 fn decode_destack_random_secure_bytes_try_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(VmSlice<u8>,)> {
     let context = &context.read();
@@ -178,7 +178,7 @@ fn decode_destack_random_secure_bytes_try_args(
 /// Encode the result for destack.random.secure.bytesTry.
 #[inline]
 fn encode_destack_random_secure_bytes_try_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -187,7 +187,7 @@ fn encode_destack_random_secure_bytes_try_result(
 /// Encode the result for destack.random.secure.metadata.
 #[inline]
 fn encode_destack_random_secure_metadata_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<SecureRandomMetadataVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -233,7 +233,7 @@ fn encode_destack_random_secure_metadata_result(
 /// Encode the result for destack.random.stream.create.
 #[inline]
 fn encode_destack_random_stream_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<RandomStream>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -244,7 +244,7 @@ fn encode_destack_random_stream_create_result(
 /// Decode arguments for destack.random.stream.export.
 #[inline]
 fn decode_destack_random_stream_export_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(RandomStream,)> {
     let stream_value = arg_value(args, 0, "stream", "RandomStream")?;
@@ -256,7 +256,7 @@ fn decode_destack_random_stream_export_args(
 /// Encode the result for destack.random.stream.export.
 #[inline]
 fn encode_destack_random_stream_export_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<RandomStreamStateVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -281,7 +281,7 @@ fn encode_destack_random_stream_export_result(
 /// Decode arguments for destack.random.stream.fillBytes.
 #[inline]
 fn decode_destack_random_stream_fill_bytes_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(VmSlice<u8>,)> {
     let context = &context.read();
@@ -293,7 +293,7 @@ fn decode_destack_random_stream_fill_bytes_args(
 /// Encode the result for destack.random.stream.fillBytes.
 #[inline]
 fn encode_destack_random_stream_fill_bytes_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -302,7 +302,7 @@ fn encode_destack_random_stream_fill_bytes_result(
 /// Decode arguments for destack.random.stream.fillBytesFrom.
 #[inline]
 fn decode_destack_random_stream_fill_bytes_from_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(RandomStream, VmSlice<u8>)> {
     let context = &context.read();
@@ -317,7 +317,7 @@ fn decode_destack_random_stream_fill_bytes_from_args(
 /// Encode the result for destack.random.stream.fillBytesFrom.
 #[inline]
 fn encode_destack_random_stream_fill_bytes_from_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -326,7 +326,7 @@ fn encode_destack_random_stream_fill_bytes_from_result(
 /// Decode arguments for destack.random.stream.import.
 #[inline]
 fn decode_destack_random_stream_import_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(RandomStream, RandomStreamStateVm)> {
     let context = &context.read();
@@ -342,7 +342,7 @@ fn decode_destack_random_stream_import_args(
 /// Encode the result for destack.random.stream.import.
 #[inline]
 fn encode_destack_random_stream_import_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -351,7 +351,7 @@ fn encode_destack_random_stream_import_result(
 /// Decode arguments for destack.random.stream.in.
 #[inline]
 fn decode_destack_random_stream_in_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(RandomStreamDomain,)> {
     let domain_value = arg_value(args, 0, "domain", "RandomStreamDomain")?;
@@ -373,7 +373,7 @@ fn decode_destack_random_stream_in_args(
 /// Encode the result for destack.random.stream.in.
 #[inline]
 fn encode_destack_random_stream_in_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<RandomStream>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -384,7 +384,7 @@ fn encode_destack_random_stream_in_result(
 /// Decode arguments for destack.random.stream.jump.
 #[inline]
 fn decode_destack_random_stream_jump_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(RandomStream, u64)> {
     let stream_value = arg_value(args, 0, "stream", "RandomStream")?;
@@ -398,7 +398,7 @@ fn decode_destack_random_stream_jump_args(
 /// Encode the result for destack.random.stream.jump.
 #[inline]
 fn encode_destack_random_stream_jump_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -407,7 +407,7 @@ fn encode_destack_random_stream_jump_result(
 /// Encode the result for destack.random.stream.nextU64.
 #[inline]
 fn encode_destack_random_stream_next_u64_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -418,7 +418,7 @@ fn encode_destack_random_stream_next_u64_result(
 /// Decode arguments for destack.random.stream.nextU64From.
 #[inline]
 fn decode_destack_random_stream_next_u64_from_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(RandomStream,)> {
     let stream_value = arg_value(args, 0, "stream", "RandomStream")?;
@@ -430,7 +430,7 @@ fn decode_destack_random_stream_next_u64_from_args(
 /// Encode the result for destack.random.stream.nextU64From.
 #[inline]
 fn encode_destack_random_stream_next_u64_from_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -441,7 +441,7 @@ fn encode_destack_random_stream_next_u64_from_result(
 /// Decode arguments for destack.random.stream.split.
 #[inline]
 fn decode_destack_random_stream_split_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(RandomStream,)> {
     let parent_value = arg_value(args, 0, "parent", "RandomStream")?;
@@ -453,7 +453,7 @@ fn decode_destack_random_stream_split_args(
 /// Encode the result for destack.random.stream.split.
 #[inline]
 fn encode_destack_random_stream_split_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<RandomStream>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1377,7 +1377,7 @@ pub(crate) unsafe extern "C" fn destack_random_stream_split(
 #[inline]
 fn destack_random_secure_metadata_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
         RANDOM_SECURE_METADATA,
@@ -1461,7 +1461,7 @@ fn destack_random_secure_metadata_vm_replay(
 #[inline]
 fn destack_random_stream_export_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     stream: RandomStream,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -1519,7 +1519,7 @@ fn destack_random_stream_export_vm_replay(
 #[inline]
 fn destack_random_stream_import_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     stream: RandomStream,
     state: RandomStreamStateVm,
 ) -> RuntimeResult<vm::Word> {
@@ -1564,7 +1564,7 @@ fn destack_random_stream_import_vm_replay(
 #[inline]
 fn destack_random_stream_jump_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     stream: RandomStream,
     jump: u64,
 ) -> RuntimeResult<vm::Word> {
@@ -1607,7 +1607,7 @@ fn destack_random_stream_jump_vm_replay(
 #[inline]
 fn destack_random_stream_split_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     parent: RandomStream,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -1663,7 +1663,7 @@ pub(crate) fn register_random_vm_bindings(registry: &mut BindingRegistry, isolat
                     let (buffer,) = decode_destack_random_secure_bytes_args(context, args)?;
 
                     // execute binding
-                    let context_ptr = context as *mut vm::ExternalCallContext<'_>;
+                    let context_ptr = context as *mut vm::BindingContext<'_>;
                     let result = binding.trace().run_random_bytes(
                         binding.entropy_subject(RANDOM_SECURE_BYTES),
                         binding.random_stream_id(),
@@ -1706,7 +1706,7 @@ pub(crate) fn register_random_vm_bindings(registry: &mut BindingRegistry, isolat
                     let (buffer,) = decode_destack_random_secure_bytes_try_args(context, args)?;
 
                     // execute binding
-                    let context_ptr = context as *mut vm::ExternalCallContext<'_>;
+                    let context_ptr = context as *mut vm::BindingContext<'_>;
                     let result = binding.trace().run_random_bytes(
                         binding.entropy_subject(RANDOM_SECURE_BYTES_TRY),
                         binding.random_stream_id(),
@@ -1809,7 +1809,7 @@ pub(crate) fn register_random_vm_bindings(registry: &mut BindingRegistry, isolat
                     let (buffer,) = decode_destack_random_stream_fill_bytes_args(context, args)?;
 
                     // execute binding
-                    let context_ptr = context as *mut vm::ExternalCallContext<'_>;
+                    let context_ptr = context as *mut vm::BindingContext<'_>;
                     let result = binding.trace().run_random_bytes(
                         binding.entropy_subject(RANDOM_STREAM_FILL_BYTES),
                         binding.random_stream_id(),
@@ -1853,7 +1853,7 @@ pub(crate) fn register_random_vm_bindings(registry: &mut BindingRegistry, isolat
                         decode_destack_random_stream_fill_bytes_from_args(context, args)?;
 
                     // execute binding
-                    let context_ptr = context as *mut vm::ExternalCallContext<'_>;
+                    let context_ptr = context as *mut vm::BindingContext<'_>;
                     let result = binding.trace().run_random_bytes(
                         binding.entropy_subject(RANDOM_STREAM_FILL_BYTES_FROM),
                         RandomStreamId::new(stream.0),

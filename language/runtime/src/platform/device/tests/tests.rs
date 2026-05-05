@@ -73,7 +73,7 @@ impl DeviceHarnessHandle {
                 harness
                     .runtime
                     .with_vm_call_context(|call_context, vm_context| {
-                        let vm_context = vm_context as *mut vm::ExternalCallContext<'_> as *mut ();
+                        let vm_context = vm_context as *mut vm::BindingContext<'_> as *mut ();
                         callback(DeviceHarnessContext {
                             call_context,
                             vm_context: Some(vm_context),
@@ -117,10 +117,10 @@ where
 /// Return the mutable VM context when the harness is running in VM mode.
 pub(crate) fn vm_context_mut<'a>(
     context: &'a DeviceHarnessContext<'a>,
-) -> Option<&'a mut vm::ExternalCallContext<'a>> {
+) -> Option<&'a mut vm::BindingContext<'a>> {
     context
         .vm_context
-        .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
+        .map(|context| unsafe { &mut *(context as *mut vm::BindingContext<'_>) })
 }
 
 /// Run one callback against one native call context.

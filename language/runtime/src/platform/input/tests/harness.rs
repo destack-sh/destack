@@ -309,7 +309,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
 
 /// Decode one VM input event into one normalized event record.
 fn decode_vm_event(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: InputEventVm,
 ) -> RuntimeResult<InputEventRecord> {
     match value {
@@ -489,10 +489,10 @@ impl<'call> InputHarnessContext<'call> {
 
     /// Return the vm context when this harness executes vm bindings.
     #[allow(clippy::mut_from_ref)]
-    fn vm_context_mut(&self) -> Option<&mut vm::ExternalCallContext<'_>> {
+    fn vm_context_mut(&self) -> Option<&mut vm::BindingContext<'_>> {
         // recover mutable vm context from stored raw pointer
         self.vm_context
-            .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
+            .map(|context| unsafe { &mut *(context as *mut vm::BindingContext<'_>) })
     }
 
     /// Build one backend-specific string value.

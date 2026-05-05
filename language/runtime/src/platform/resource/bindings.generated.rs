@@ -86,7 +86,7 @@ fn decode_uint64(
 /// Decode arguments for destack.resource.id.close.
 #[inline]
 fn decode_destack_resource_id_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(ResourceId,)> {
     let id_value = arg_value(args, 0, "id", "ResourceId")?;
@@ -98,7 +98,7 @@ fn decode_destack_resource_id_close_args(
 /// Encode the result for destack.resource.id.close.
 #[inline]
 fn encode_destack_resource_id_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -107,7 +107,7 @@ fn encode_destack_resource_id_close_result(
 /// Decode arguments for destack.resource.id.kind.
 #[inline]
 fn decode_destack_resource_id_kind_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(ResourceId,)> {
     let id_value = arg_value(args, 0, "id", "ResourceId")?;
@@ -119,7 +119,7 @@ fn decode_destack_resource_id_kind_args(
 /// Encode the result for destack.resource.id.kind.
 #[inline]
 fn encode_destack_resource_id_kind_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<ResourceKindVm>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -130,7 +130,7 @@ fn encode_destack_resource_id_kind_result(
 /// Decode arguments for destack.resource.id.remove.
 #[inline]
 fn decode_destack_resource_id_remove_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(ResourceId,)> {
     let id_value = arg_value(args, 0, "id", "ResourceId")?;
@@ -142,7 +142,7 @@ fn decode_destack_resource_id_remove_args(
 /// Encode the result for destack.resource.id.remove.
 #[inline]
 fn encode_destack_resource_id_remove_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -151,7 +151,7 @@ fn encode_destack_resource_id_remove_result(
 /// Decode arguments for destack.resource.id.transfer.
 #[inline]
 fn decode_destack_resource_id_transfer_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(ResourceId, ResourceOwnership)> {
     let id_value = arg_value(args, 0, "id", "ResourceId")?;
@@ -176,7 +176,7 @@ fn decode_destack_resource_id_transfer_args(
 /// Encode the result for destack.resource.id.transfer.
 #[inline]
 fn encode_destack_resource_id_transfer_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -370,7 +370,7 @@ pub(crate) unsafe extern "C" fn destack_resource_id_transfer(
 #[inline]
 fn destack_resource_id_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(

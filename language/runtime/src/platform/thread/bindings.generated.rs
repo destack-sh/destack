@@ -97,7 +97,7 @@ fn decode_uint64(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -108,7 +108,7 @@ fn decode_array<T>(
 /// Encode the result for destack.thread.local.create.
 #[inline]
 fn encode_destack_thread_local_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::ThreadLocalKey>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -119,7 +119,7 @@ fn encode_destack_thread_local_create_result(
 /// Decode arguments for destack.thread.local.delete.
 #[inline]
 fn decode_destack_thread_local_delete_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::ThreadLocalKey,)> {
     let key_value = arg_value(args, 0, "key", "ThreadLocalKey")?;
@@ -132,7 +132,7 @@ fn decode_destack_thread_local_delete_args(
 /// Encode the result for destack.thread.local.delete.
 #[inline]
 fn encode_destack_thread_local_delete_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -141,7 +141,7 @@ fn encode_destack_thread_local_delete_result(
 /// Decode arguments for destack.thread.local.get.
 #[inline]
 fn decode_destack_thread_local_get_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::ThreadLocalKey,)> {
     let key_value = arg_value(args, 0, "key", "ThreadLocalKey")?;
@@ -154,7 +154,7 @@ fn decode_destack_thread_local_get_args(
 /// Encode the result for destack.thread.local.get.
 #[inline]
 fn encode_destack_thread_local_get_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -165,7 +165,7 @@ fn encode_destack_thread_local_get_result(
 /// Decode arguments for destack.thread.local.set.
 #[inline]
 fn decode_destack_thread_local_set_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::ThreadLocalKey, u64)> {
     let key_value = arg_value(args, 0, "key", "ThreadLocalKey")?;
@@ -180,7 +180,7 @@ fn decode_destack_thread_local_set_args(
 /// Encode the result for destack.thread.local.set.
 #[inline]
 fn encode_destack_thread_local_set_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -189,7 +189,7 @@ fn encode_destack_thread_local_set_result(
 /// Decode arguments for destack.thread.sched.getAffinity.
 #[inline]
 fn decode_destack_thread_sched_get_affinity_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::ThreadHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "ThreadHandle")?;
@@ -202,7 +202,7 @@ fn decode_destack_thread_sched_get_affinity_args(
 /// Encode the result for destack.thread.sched.getAffinity.
 #[inline]
 fn encode_destack_thread_sched_get_affinity_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<ThreadCpuSetVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -223,7 +223,7 @@ fn encode_destack_thread_sched_get_affinity_result(
 /// Decode arguments for destack.thread.sched.getPriority.
 #[inline]
 fn decode_destack_thread_sched_get_priority_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::ThreadHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "ThreadHandle")?;
@@ -236,7 +236,7 @@ fn decode_destack_thread_sched_get_priority_args(
 /// Encode the result for destack.thread.sched.getPriority.
 #[inline]
 fn encode_destack_thread_sched_get_priority_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<i32>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -247,7 +247,7 @@ fn encode_destack_thread_sched_get_priority_result(
 /// Decode arguments for destack.thread.sched.setAffinity.
 #[inline]
 fn decode_destack_thread_sched_set_affinity_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::ThreadHandle, ThreadCpuSetVm)> {
     let context = &context.read();
@@ -263,7 +263,7 @@ fn decode_destack_thread_sched_set_affinity_args(
 /// Encode the result for destack.thread.sched.setAffinity.
 #[inline]
 fn encode_destack_thread_sched_set_affinity_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -272,7 +272,7 @@ fn encode_destack_thread_sched_set_affinity_result(
 /// Decode arguments for destack.thread.sched.setPriority.
 #[inline]
 fn decode_destack_thread_sched_set_priority_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::ThreadHandle, i32)> {
     let handle_value = arg_value(args, 0, "handle", "ThreadHandle")?;
@@ -287,7 +287,7 @@ fn decode_destack_thread_sched_set_priority_args(
 /// Encode the result for destack.thread.sched.setPriority.
 #[inline]
 fn encode_destack_thread_sched_set_priority_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -296,7 +296,7 @@ fn encode_destack_thread_sched_set_priority_result(
 /// Decode arguments for destack.thread.spawn.detach.
 #[inline]
 fn decode_destack_thread_spawn_detach_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::ThreadHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "ThreadHandle")?;
@@ -309,7 +309,7 @@ fn decode_destack_thread_spawn_detach_args(
 /// Encode the result for destack.thread.spawn.detach.
 #[inline]
 fn encode_destack_thread_spawn_detach_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -318,7 +318,7 @@ fn encode_destack_thread_spawn_detach_result(
 /// Decode arguments for destack.thread.spawn.join.
 #[inline]
 fn decode_destack_thread_spawn_join_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::ThreadHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "ThreadHandle")?;
@@ -331,7 +331,7 @@ fn decode_destack_thread_spawn_join_args(
 /// Encode the result for destack.thread.spawn.join.
 #[inline]
 fn encode_destack_thread_spawn_join_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -342,7 +342,7 @@ fn encode_destack_thread_spawn_join_result(
 /// Decode arguments for destack.thread.spawn.start.
 #[inline]
 fn decode_destack_thread_spawn_start_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::ThreadEntryHandle, u64, ThreadOptionsVm)> {
     let context = &context.read();
@@ -361,7 +361,7 @@ fn decode_destack_thread_spawn_start_args(
 /// Encode the result for destack.thread.spawn.start.
 #[inline]
 fn encode_destack_thread_spawn_start_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::ThreadHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -372,7 +372,7 @@ fn encode_destack_thread_spawn_start_result(
 /// Decode arguments for destack.thread.wait.addressWait.
 #[inline]
 fn decode_destack_thread_wait_address_wait_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64, u32, u64)> {
     let address_value = arg_value(args, 0, "address", "uint64")?;
@@ -387,7 +387,7 @@ fn decode_destack_thread_wait_address_wait_args(
 /// Encode the result for destack.thread.wait.addressWait.
 #[inline]
 fn encode_destack_thread_wait_address_wait_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -396,7 +396,7 @@ fn encode_destack_thread_wait_address_wait_result(
 /// Decode arguments for destack.thread.wait.addressWakeAll.
 #[inline]
 fn decode_destack_thread_wait_address_wake_all_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64,)> {
     let address_value = arg_value(args, 0, "address", "uint64")?;
@@ -407,7 +407,7 @@ fn decode_destack_thread_wait_address_wake_all_args(
 /// Encode the result for destack.thread.wait.addressWakeAll.
 #[inline]
 fn encode_destack_thread_wait_address_wake_all_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -416,7 +416,7 @@ fn encode_destack_thread_wait_address_wake_all_result(
 /// Decode arguments for destack.thread.wait.addressWakeOne.
 #[inline]
 fn decode_destack_thread_wait_address_wake_one_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u64,)> {
     let address_value = arg_value(args, 0, "address", "uint64")?;
@@ -427,7 +427,7 @@ fn decode_destack_thread_wait_address_wake_one_args(
 /// Encode the result for destack.thread.wait.addressWakeOne.
 #[inline]
 fn encode_destack_thread_wait_address_wake_one_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)

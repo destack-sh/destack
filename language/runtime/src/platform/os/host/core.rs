@@ -125,7 +125,7 @@ pub(crate) unsafe fn destack_os_host_identity(
 /// Read host identity through the VM ABI surface.
 pub(crate) fn destack_os_host_identity_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<HostIdentityVm> {
     // read one normalized host identity payload
     let identity = super::target::read_host_identity(binding)?;

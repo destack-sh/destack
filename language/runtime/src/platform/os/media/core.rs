@@ -45,7 +45,7 @@ pub(crate) fn delete(binding: &BindingCallContext, ids: Vec<String>) -> RuntimeR
 
 /// Encode one media page into one VM value.
 pub(crate) fn page_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     page: MediaPageValue,
 ) -> RuntimeResult<MediaPageVm> {
     MediaPageVm::from_value(&mut context.write(), page)
@@ -53,7 +53,7 @@ pub(crate) fn page_vm(
 
 /// Encode one media asset descriptor into one VM value.
 pub(crate) fn descriptor_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     descriptor: MediaAssetDescriptorValue,
 ) -> RuntimeResult<MediaAssetDescriptorVm> {
     MediaAssetDescriptorVm::from_value(&mut context.write(), descriptor)
@@ -61,7 +61,7 @@ pub(crate) fn descriptor_vm(
 
 /// Encode one identifier into one VM string handle.
 pub(crate) fn id_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     id: &str,
 ) -> RuntimeResult<vm::StringHandle> {
     <vm::StringHandle as VmAbiCodec>::from_value(&mut context.write(), id.to_string())

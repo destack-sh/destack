@@ -92,7 +92,7 @@ pub(crate) struct VmArrayBuilder<T> {
 impl<T> VmArray<T> {
     /// Decode a VM array from one array value.
     pub fn from_value(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
         name: &str,
         expected: &str,
@@ -130,10 +130,7 @@ impl<T> VmArray<T> {
     }
 
     /// Encode this VM array into one array value.
-    pub fn to_value(
-        self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Word> {
+    pub fn to_value(self, context: &mut vm::BindingWrite<'_, '_>) -> RuntimeResult<vm::Word> {
         let slice = VmSlice {
             data: self.data,
             len: self.len,
@@ -149,10 +146,7 @@ impl<T> VmArray<T> {
 
 impl<T: VmCollectionElement> VmArray<T> {
     /// Read the encoded VM values stored in this array.
-    pub fn values(
-        &self,
-        context: &vm::ExternalReadContext<'_, '_>,
-    ) -> RuntimeResult<Vec<vm::Word>> {
+    pub fn values(&self, context: &vm::BindingRead<'_, '_>) -> RuntimeResult<Vec<vm::Word>> {
         VmSlice {
             data: self.data,
             len: self.len,
@@ -163,7 +157,7 @@ impl<T: VmCollectionElement> VmArray<T> {
 
     /// Begin one exact-size VM array builder.
     pub(crate) fn builder(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         len: usize,
     ) -> RuntimeResult<VmArrayBuilder<T>> {
         let slice = VmSlice::builder(context, len)?;
@@ -176,7 +170,7 @@ impl<T: VmCollectionElement> VmArrayBuilder<T> {
     /// Push one decoded element into the final VM array storage.
     pub(crate) fn push(
         &mut self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: T,
     ) -> RuntimeResult<()> {
         self.slice.push(context, value)
@@ -198,7 +192,7 @@ impl<T: VmCollectionElement> VmArrayBuilder<T> {
 impl<T: VmCollectionElement> VmArray<T> {
     /// Allocate a VM array from decoded values.
     pub fn from_values(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         values: &[T],
     ) -> RuntimeResult<Self> {
         let mut builder = Self::builder(context, values.len())?;
@@ -212,7 +206,7 @@ impl<T: VmCollectionElement> VmArray<T> {
     }
 
     /// Read the VM array into a Vec of decoded values.
-    pub fn read_values(&self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<Vec<T>> {
+    pub fn read_values(&self, context: &vm::BindingRead<'_, '_>) -> RuntimeResult<Vec<T>> {
         VmSlice {
             data: self.data,
             len: self.len,
@@ -224,7 +218,7 @@ impl<T: VmCollectionElement> VmArray<T> {
     /// Visit each decoded VM array value without allocating an intermediate Vec.
     pub fn try_for_each_value(
         &self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         visit: impl FnMut(T) -> RuntimeResult<()>,
     ) -> RuntimeResult<()> {
         VmSlice {
@@ -238,8 +232,8 @@ impl<T: VmCollectionElement> VmArray<T> {
     /// Visit each decoded VM array value with context access.
     pub fn try_for_each_value_with_context(
         &self,
-        context: &vm::ExternalReadContext<'_, '_>,
-        visit: impl FnMut(&vm::ExternalReadContext<'_, '_>, T) -> RuntimeResult<()>,
+        context: &vm::BindingRead<'_, '_>,
+        visit: impl FnMut(&vm::BindingRead<'_, '_>, T) -> RuntimeResult<()>,
     ) -> RuntimeResult<()> {
         VmSlice {
             data: self.data,
@@ -252,7 +246,7 @@ impl<T: VmCollectionElement> VmArray<T> {
     /// Write decoded values into the VM array.
     pub fn write_values(
         &self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         values: &[T],
     ) -> RuntimeResult<()> {
         VmSlice {
@@ -266,14 +260,14 @@ impl<T: VmCollectionElement> VmArray<T> {
 
 impl<T: Copy> VmAggregateCodec for VmArray<T> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         VmArray::from_value(context, value, "value", "array")
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         if value_ref.field_count() != 2 {
@@ -299,7 +293,7 @@ impl<T: Copy> VmAggregateCodec for VmArray<T> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         self.to_value(context)
     }
@@ -309,10 +303,7 @@ impl<T: Copy> VmCollectionElement for VmArray<T> {}
 
 impl VmArray<u8> {
     /// Allocate a VM array from raw bytes.
-    pub fn from_bytes(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
-        bytes: &[u8],
-    ) -> RuntimeResult<Self> {
+    pub fn from_bytes(context: &mut vm::BindingWrite<'_, '_>, bytes: &[u8]) -> RuntimeResult<Self> {
         let slice = VmSlice::from_bytes(context, bytes)?;
 
         Ok(Self {
@@ -326,7 +317,7 @@ impl VmArray<u8> {
     /// Borrow or copy a byte array from the VM.
     pub fn bytes<'a>(
         &self,
-        context: &'a vm::ExternalReadContext<'_, '_>,
+        context: &'a vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<std::borrow::Cow<'a, [u8]>> {
         VmSlice {
             data: self.data,
@@ -337,14 +328,14 @@ impl VmArray<u8> {
     }
 
     /// Read a byte array from the VM.
-    pub fn read_bytes(&self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<Vec<u8>> {
+    pub fn read_bytes(&self, context: &vm::BindingRead<'_, '_>) -> RuntimeResult<Vec<u8>> {
         Ok(self.bytes(context)?.into_owned())
     }
 
     /// Write a byte array into the VM.
     pub fn write_bytes(
         &self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         bytes: &[u8],
     ) -> RuntimeResult<()> {
         VmSlice {

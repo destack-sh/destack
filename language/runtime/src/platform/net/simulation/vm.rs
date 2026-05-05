@@ -18,7 +18,7 @@ use destack_vm as vm;
 /// List host packet backends.
 pub(crate) fn destack_net_packet_backend_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<VmSlice<PacketBackendDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.raw.packetBackendList",
@@ -45,7 +45,7 @@ pub(crate) fn destack_net_packet_backend_list(
 /// External, recordable.
 pub(crate) fn destack_net_accept(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     listener: resource::ListenerHandle,
     flags: AcceptFlags,
 ) -> RuntimeResult<resource::SocketHandle> {
@@ -72,7 +72,7 @@ pub(crate) fn destack_net_accept(
 /// External, recordable.
 pub(crate) fn destack_net_local_address(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<SocketAddressVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -100,7 +100,7 @@ pub(crate) fn destack_net_local_address(
 /// External, recordable.
 pub(crate) fn destack_net_peer_address(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<SocketAddressVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -128,7 +128,7 @@ pub(crate) fn destack_net_peer_address(
 /// External, recordable.
 pub(crate) fn destack_net_bind(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<()> {
@@ -155,7 +155,7 @@ pub(crate) fn destack_net_bind(
 /// External, recordable.
 pub(crate) fn destack_net_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.close")).boxed())
@@ -180,7 +180,7 @@ pub(crate) fn destack_net_close(
 /// External, recordable.
 pub(crate) fn destack_net_close_listener(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::ListenerHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.closeListener")).boxed())
@@ -205,7 +205,7 @@ pub(crate) fn destack_net_close_listener(
 /// External, recordable.
 pub(crate) fn destack_net_connect(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<()> {
@@ -232,7 +232,7 @@ pub(crate) fn destack_net_connect(
 /// External, recordable.
 pub(crate) fn destack_net_list_interfaces(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<VmArray<NetInterfaceVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.interface.listInterfaces",
@@ -259,7 +259,7 @@ pub(crate) fn destack_net_list_interfaces(
 /// External, recordable.
 pub(crate) fn destack_net_interface_index(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _name: vm::StringHandle,
 ) -> RuntimeResult<u32> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.interfaceIndex")).boxed())
@@ -284,7 +284,7 @@ pub(crate) fn destack_net_interface_index(
 /// External, recordable.
 pub(crate) fn destack_net_interface_name(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _index: u32,
 ) -> RuntimeResult<vm::StringHandle> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.interfaceName")).boxed())
@@ -309,7 +309,7 @@ pub(crate) fn destack_net_interface_name(
 /// External, recordable.
 pub(crate) fn destack_net_listen(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: SocketAddressVm,
     backlog: u32,
 ) -> RuntimeResult<resource::ListenerHandle> {
@@ -336,7 +336,7 @@ pub(crate) fn destack_net_listen(
 /// External, recordable.
 pub(crate) fn destack_net_get_broadcast(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<bool> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -364,7 +364,7 @@ pub(crate) fn destack_net_get_broadcast(
 /// External, recordable.
 pub(crate) fn destack_net_get_linger(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<LingerVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -392,7 +392,7 @@ pub(crate) fn destack_net_get_linger(
 /// External, recordable.
 pub(crate) fn destack_net_get_only_v6(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<bool> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -420,7 +420,7 @@ pub(crate) fn destack_net_get_only_v6(
 /// External, recordable.
 pub(crate) fn destack_net_get_packet_mark(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -448,7 +448,7 @@ pub(crate) fn destack_net_get_packet_mark(
 /// External, recordable.
 pub(crate) fn destack_net_get_read_timeout(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -476,7 +476,7 @@ pub(crate) fn destack_net_get_read_timeout(
 /// External, recordable.
 pub(crate) fn destack_net_get_recv_buffer(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -504,7 +504,7 @@ pub(crate) fn destack_net_get_recv_buffer(
 /// External, recordable.
 pub(crate) fn destack_net_get_send_buffer(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -532,7 +532,7 @@ pub(crate) fn destack_net_get_send_buffer(
 /// External, recordable.
 pub(crate) fn destack_net_get_sock_opt_raw(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
@@ -564,7 +564,7 @@ pub(crate) fn destack_net_get_sock_opt_raw(
 /// External, recordable.
 pub(crate) fn destack_net_get_timestamping(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<SocketTimestampingMode> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -592,7 +592,7 @@ pub(crate) fn destack_net_get_timestamping(
 /// External, recordable.
 pub(crate) fn destack_net_get_tos(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.options.getTos")).boxed())
@@ -617,7 +617,7 @@ pub(crate) fn destack_net_get_tos(
 /// External, recordable.
 pub(crate) fn destack_net_get_ttl(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.options.getTtl")).boxed())
@@ -642,7 +642,7 @@ pub(crate) fn destack_net_get_ttl(
 /// External, recordable.
 pub(crate) fn destack_net_get_write_timeout(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -670,7 +670,7 @@ pub(crate) fn destack_net_get_write_timeout(
 /// External, recordable.
 pub(crate) fn destack_net_set_broadcast(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -700,7 +700,7 @@ pub(crate) fn destack_net_set_broadcast(
 /// External, recordable.
 pub(crate) fn destack_net_set_linger(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     linger: LingerVm,
 ) -> RuntimeResult<()> {
@@ -730,7 +730,7 @@ pub(crate) fn destack_net_set_linger(
 /// External, recordable.
 pub(crate) fn destack_net_set_only_v6(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -760,7 +760,7 @@ pub(crate) fn destack_net_set_only_v6(
 /// External, recordable.
 pub(crate) fn destack_net_set_packet_mark(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     mark: u32,
 ) -> RuntimeResult<()> {
@@ -790,7 +790,7 @@ pub(crate) fn destack_net_set_packet_mark(
 /// External, recordable.
 pub(crate) fn destack_net_set_read_timeout(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     timeoutms: u32,
 ) -> RuntimeResult<()> {
@@ -820,7 +820,7 @@ pub(crate) fn destack_net_set_read_timeout(
 /// External, recordable.
 pub(crate) fn destack_net_set_recv_buffer(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     size: u32,
 ) -> RuntimeResult<()> {
@@ -850,7 +850,7 @@ pub(crate) fn destack_net_set_recv_buffer(
 /// External, recordable.
 pub(crate) fn destack_net_set_send_buffer(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     size: u32,
 ) -> RuntimeResult<()> {
@@ -880,7 +880,7 @@ pub(crate) fn destack_net_set_send_buffer(
 /// External, recordable.
 pub(crate) fn destack_net_set_sock_opt_raw(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
@@ -912,7 +912,7 @@ pub(crate) fn destack_net_set_sock_opt_raw(
 /// External, recordable.
 pub(crate) fn destack_net_set_timestamping(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     mode: SocketTimestampingMode,
 ) -> RuntimeResult<()> {
@@ -942,7 +942,7 @@ pub(crate) fn destack_net_set_timestamping(
 /// External, recordable.
 pub(crate) fn destack_net_set_tos(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     tos: u32,
 ) -> RuntimeResult<()> {
@@ -969,7 +969,7 @@ pub(crate) fn destack_net_set_tos(
 /// External, recordable.
 pub(crate) fn destack_net_set_ttl(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<()> {
@@ -996,7 +996,7 @@ pub(crate) fn destack_net_set_ttl(
 /// External, recordable.
 pub(crate) fn destack_net_set_write_timeout(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     timeoutms: u32,
 ) -> RuntimeResult<()> {
@@ -1028,7 +1028,7 @@ pub(crate) fn destack_net_set_write_timeout(
 /// External, recordable.
 pub(crate) fn destack_net_packet_clear_fanout(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1059,7 +1059,7 @@ pub(crate) fn destack_net_packet_clear_fanout(
 /// External, recordable.
 pub(crate) fn destack_net_packet_clear_filter(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1089,7 +1089,7 @@ pub(crate) fn destack_net_packet_clear_filter(
 /// External, recordable.
 pub(crate) fn destack_net_packet_clear_ring(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1122,7 +1122,7 @@ pub(crate) fn destack_net_packet_clear_ring(
 /// External, recordable.
 pub(crate) fn destack_net_packet_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _options: PacketCaptureOptionsVm,
 ) -> RuntimeResult<resource::SocketHandle> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.raw.packetOpen")).boxed())
@@ -1151,7 +1151,7 @@ pub(crate) fn destack_net_packet_open(
 /// External, recordable.
 pub(crate) fn destack_net_packet_receive(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<PacketCaptureRecordVm> {
@@ -1185,7 +1185,7 @@ pub(crate) fn destack_net_packet_receive(
 /// External, recordable.
 pub(crate) fn destack_net_packet_send(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -1214,7 +1214,7 @@ pub(crate) fn destack_net_packet_send(
 /// External, recordable.
 pub(crate) fn destack_net_packet_set_fanout(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     options: PacketFanoutOptionsVm,
 ) -> RuntimeResult<()> {
@@ -1247,7 +1247,7 @@ pub(crate) fn destack_net_packet_set_fanout(
 /// External, recordable.
 pub(crate) fn destack_net_packet_set_filter(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     filterprogram: VmSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -1279,7 +1279,7 @@ pub(crate) fn destack_net_packet_set_filter(
 /// External, recordable.
 pub(crate) fn destack_net_packet_set_rx_ring(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     options: PacketRingOptionsVm,
 ) -> RuntimeResult<()> {
@@ -1312,7 +1312,7 @@ pub(crate) fn destack_net_packet_set_rx_ring(
 /// External, recordable.
 pub(crate) fn destack_net_packet_set_timestamp_mode(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     mode: PacketTimestampMode,
 ) -> RuntimeResult<()> {
@@ -1344,7 +1344,7 @@ pub(crate) fn destack_net_packet_set_timestamp_mode(
 /// External, recordable.
 pub(crate) fn destack_net_packet_set_tx_ring(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     options: PacketRingOptionsVm,
 ) -> RuntimeResult<()> {
@@ -1377,7 +1377,7 @@ pub(crate) fn destack_net_packet_set_tx_ring(
 /// External, recordable.
 pub(crate) fn destack_net_packet_stats(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<PacketCaptureStatsVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.raw.packetStats")).boxed())
@@ -1402,7 +1402,7 @@ pub(crate) fn destack_net_packet_stats(
 /// External, recordable.
 pub(crate) fn destack_net_raw_set_header_included(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -1432,7 +1432,7 @@ pub(crate) fn destack_net_raw_set_header_included(
 /// External, recordable.
 pub(crate) fn destack_net_raw_socket(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     family: SocketFamily,
     protocol: i32,
 ) -> RuntimeResult<resource::SocketHandle> {
@@ -1459,7 +1459,7 @@ pub(crate) fn destack_net_raw_socket(
 /// External, recordable.
 pub(crate) fn destack_net_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -1486,7 +1486,7 @@ pub(crate) fn destack_net_read(
 /// External, recordable.
 pub(crate) fn destack_net_readv(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
@@ -1513,7 +1513,7 @@ pub(crate) fn destack_net_readv(
 /// External, recordable.
 pub(crate) fn destack_net_recv_from(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
     recvflags: SocketMessageFlags,
@@ -1541,7 +1541,7 @@ pub(crate) fn destack_net_recv_from(
 /// External, recordable.
 pub(crate) fn destack_net_recv_mmsg(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     requests: VmSlice<SocketRecvBatchRequestVm>,
     maxfds: u32,
@@ -1571,7 +1571,7 @@ pub(crate) fn destack_net_recv_mmsg(
 /// External, recordable.
 pub(crate) fn destack_net_recv_msg(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
     recvflags: SocketMessageFlags,
@@ -1609,7 +1609,7 @@ pub(crate) fn destack_net_recv_msg(
 /// External, recordable.
 pub(crate) fn destack_net_resolve(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _query: ResolveQueryVm,
 ) -> RuntimeResult<VmArray<SocketAddressVm>> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.resolve.lookup")).boxed())
@@ -1634,7 +1634,7 @@ pub(crate) fn destack_net_resolve(
 /// External, recordable.
 pub(crate) fn destack_net_reverse_lookup(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: SocketAddressVm,
     flags: ReverseLookupFlags,
 ) -> RuntimeResult<VmArray<ReverseLookupNameVm>> {
@@ -1664,7 +1664,7 @@ pub(crate) fn destack_net_reverse_lookup(
 /// External, recordable.
 pub(crate) fn destack_net_get_reuse_addr(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<bool> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1692,7 +1692,7 @@ pub(crate) fn destack_net_get_reuse_addr(
 /// External, recordable.
 pub(crate) fn destack_net_get_reuse_port(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<bool> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1720,7 +1720,7 @@ pub(crate) fn destack_net_get_reuse_port(
 /// External, recordable.
 pub(crate) fn destack_net_set_reuse_addr(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -1750,7 +1750,7 @@ pub(crate) fn destack_net_set_reuse_addr(
 /// External, recordable.
 pub(crate) fn destack_net_set_reuse_port(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -1782,7 +1782,7 @@ pub(crate) fn destack_net_set_reuse_port(
 /// External, recordable.
 pub(crate) fn destack_net_route_add(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _route: RouteEntryVm,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.routeAdd")).boxed())
@@ -1809,7 +1809,7 @@ pub(crate) fn destack_net_route_add(
 /// External, recordable.
 pub(crate) fn destack_net_route_delete(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _route: RouteEntryVm,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.routeDelete")).boxed())
@@ -1836,7 +1836,7 @@ pub(crate) fn destack_net_route_delete(
 /// External, recordable.
 pub(crate) fn destack_net_route_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _family: SocketFamily,
 ) -> RuntimeResult<VmArray<RouteEntryVm>> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.routeList")).boxed())
@@ -1861,7 +1861,7 @@ pub(crate) fn destack_net_route_list(
 /// External, recordable.
 pub(crate) fn destack_net_send_mmsg(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     messages: VmSlice<SocketSendBatchEntryVm>,
 ) -> RuntimeResult<u64> {
@@ -1888,7 +1888,7 @@ pub(crate) fn destack_net_send_mmsg(
 /// External, recordable.
 pub(crate) fn destack_net_send_msg(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
     message: SocketSendMessageVm,
@@ -1916,7 +1916,7 @@ pub(crate) fn destack_net_send_msg(
 /// External, recordable.
 pub(crate) fn destack_net_send_to(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
     message: SocketSendToVm,
@@ -1944,7 +1944,7 @@ pub(crate) fn destack_net_send_to(
 /// External, recordable.
 pub(crate) fn destack_net_set_nonblocking(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -1971,7 +1971,7 @@ pub(crate) fn destack_net_set_nonblocking(
 /// External, recordable.
 pub(crate) fn destack_net_shutdown(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     how: SocketShutdown,
 ) -> RuntimeResult<()> {
@@ -1998,7 +1998,7 @@ pub(crate) fn destack_net_shutdown(
 /// External, recordable.
 pub(crate) fn destack_net_socket(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     family: SocketFamily,
     sockettype: SocketType,
     protocol: SocketProtocol,
@@ -2026,7 +2026,7 @@ pub(crate) fn destack_net_socket(
 /// External, recordable.
 pub(crate) fn destack_net_socket_pair(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     family: SocketFamily,
     sockettype: SocketType,
     protocol: SocketProtocol,
@@ -2054,7 +2054,7 @@ pub(crate) fn destack_net_socket_pair(
 /// External, recordable.
 pub(crate) fn destack_net_get_keep_alive(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<KeepAliveConfigVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.tcp.getKeepAlive")).boxed())
@@ -2079,7 +2079,7 @@ pub(crate) fn destack_net_get_keep_alive(
 /// External, recordable.
 pub(crate) fn destack_net_get_no_delay(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<bool> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.tcp.getNoDelay")).boxed())
@@ -2104,7 +2104,7 @@ pub(crate) fn destack_net_get_no_delay(
 /// External, recordable.
 pub(crate) fn destack_net_set_keep_alive(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     config: KeepAliveConfigVm,
 ) -> RuntimeResult<()> {
@@ -2131,7 +2131,7 @@ pub(crate) fn destack_net_set_keep_alive(
 /// External, recordable.
 pub(crate) fn destack_net_set_no_delay(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -2158,7 +2158,7 @@ pub(crate) fn destack_net_set_no_delay(
 /// External, recordable.
 pub(crate) fn destack_net_udp_bind(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<()> {
@@ -2185,7 +2185,7 @@ pub(crate) fn destack_net_udp_bind(
 /// External, recordable.
 pub(crate) fn destack_net_udp_connect(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<()> {
@@ -2212,7 +2212,7 @@ pub(crate) fn destack_net_udp_connect(
 /// External, recordable.
 pub(crate) fn destack_net_get_multicast_interface_v4(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::StringHandle> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2240,7 +2240,7 @@ pub(crate) fn destack_net_get_multicast_interface_v4(
 /// External, recordable.
 pub(crate) fn destack_net_get_multicast_interface_v6(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2268,7 +2268,7 @@ pub(crate) fn destack_net_get_multicast_interface_v6(
 /// External, recordable.
 pub(crate) fn destack_net_get_multicast_loop(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<bool> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2296,7 +2296,7 @@ pub(crate) fn destack_net_get_multicast_loop(
 /// External, recordable.
 pub(crate) fn destack_net_get_multicast_ttl(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2324,7 +2324,7 @@ pub(crate) fn destack_net_get_multicast_ttl(
 /// External, recordable.
 pub(crate) fn destack_net_join_multicast_source_v4(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV4Vm,
 ) -> RuntimeResult<()> {
@@ -2354,7 +2354,7 @@ pub(crate) fn destack_net_join_multicast_source_v4(
 /// External, recordable.
 pub(crate) fn destack_net_join_multicast_source_v6(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV6Vm,
 ) -> RuntimeResult<()> {
@@ -2384,7 +2384,7 @@ pub(crate) fn destack_net_join_multicast_source_v6(
 /// External, recordable.
 pub(crate) fn destack_net_join_multicast_v4(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     group: vm::StringHandle,
     interfaceaddress: vm::StringHandle,
@@ -2415,7 +2415,7 @@ pub(crate) fn destack_net_join_multicast_v4(
 /// External, recordable.
 pub(crate) fn destack_net_join_multicast_v6(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     group: vm::StringHandle,
     interfaceindex: u32,
@@ -2446,7 +2446,7 @@ pub(crate) fn destack_net_join_multicast_v6(
 /// External, recordable.
 pub(crate) fn destack_net_leave_multicast_source_v4(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV4Vm,
 ) -> RuntimeResult<()> {
@@ -2476,7 +2476,7 @@ pub(crate) fn destack_net_leave_multicast_source_v4(
 /// External, recordable.
 pub(crate) fn destack_net_leave_multicast_source_v6(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV6Vm,
 ) -> RuntimeResult<()> {
@@ -2506,7 +2506,7 @@ pub(crate) fn destack_net_leave_multicast_source_v6(
 /// External, recordable.
 pub(crate) fn destack_net_leave_multicast_v4(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     group: vm::StringHandle,
     interfaceaddress: vm::StringHandle,
@@ -2537,7 +2537,7 @@ pub(crate) fn destack_net_leave_multicast_v4(
 /// External, recordable.
 pub(crate) fn destack_net_leave_multicast_v6(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     group: vm::StringHandle,
     interfaceindex: u32,
@@ -2568,7 +2568,7 @@ pub(crate) fn destack_net_leave_multicast_v6(
 /// External, recordable.
 pub(crate) fn destack_net_udp_recv_from(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
     recvflags: UdpMessageFlags,
@@ -2596,7 +2596,7 @@ pub(crate) fn destack_net_udp_recv_from(
 /// External, recordable.
 pub(crate) fn destack_net_udp_send_to(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     address: SocketAddressVm,
     buffer: VmSlice<u8>,
@@ -2625,7 +2625,7 @@ pub(crate) fn destack_net_udp_send_to(
 /// External, recordable.
 pub(crate) fn destack_net_set_multicast_interface_v4(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     interfaceaddress: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -2655,7 +2655,7 @@ pub(crate) fn destack_net_set_multicast_interface_v4(
 /// External, recordable.
 pub(crate) fn destack_net_set_multicast_interface_v6(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     interfaceindex: u32,
 ) -> RuntimeResult<()> {
@@ -2685,7 +2685,7 @@ pub(crate) fn destack_net_set_multicast_interface_v6(
 /// External, recordable.
 pub(crate) fn destack_net_set_multicast_loop(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -2715,7 +2715,7 @@ pub(crate) fn destack_net_set_multicast_loop(
 /// External, recordable.
 pub(crate) fn destack_net_set_multicast_ttl(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<()> {
@@ -2745,7 +2745,7 @@ pub(crate) fn destack_net_set_multicast_ttl(
 /// External, recordable.
 pub(crate) fn destack_net_udp_socket(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _family: SocketFamily,
 ) -> RuntimeResult<resource::SocketHandle> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udp.socket")).boxed())
@@ -2770,7 +2770,7 @@ pub(crate) fn destack_net_udp_socket(
 /// External, recordable.
 pub(crate) fn destack_net_uds_accept(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _listener: resource::ListenerHandle,
 ) -> RuntimeResult<resource::SocketHandle> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsAccept")).boxed())
@@ -2795,7 +2795,7 @@ pub(crate) fn destack_net_uds_accept(
 /// External, recordable.
 pub(crate) fn destack_net_uds_close_listener(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::ListenerHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsCloseListener")).boxed())
@@ -2820,7 +2820,7 @@ pub(crate) fn destack_net_uds_close_listener(
 /// External, recordable.
 pub(crate) fn destack_net_uds_connect(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _address: UdsAddressVm,
 ) -> RuntimeResult<resource::SocketHandle> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsConnect")).boxed())
@@ -2845,7 +2845,7 @@ pub(crate) fn destack_net_uds_connect(
 /// External, recordable.
 pub(crate) fn destack_net_uds_listen(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     address: UdsAddressVm,
     backlog: u32,
 ) -> RuntimeResult<resource::ListenerHandle> {
@@ -2872,7 +2872,7 @@ pub(crate) fn destack_net_uds_listen(
 /// External, recordable.
 pub(crate) fn destack_net_uds_socket_pair(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _sockettype: SocketType,
 ) -> RuntimeResult<SocketPairVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsSocketPair")).boxed())
@@ -2897,7 +2897,7 @@ pub(crate) fn destack_net_uds_socket_pair(
 /// External, recordable.
 pub(crate) fn destack_net_write(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -2924,7 +2924,7 @@ pub(crate) fn destack_net_write(
 /// External, recordable.
 pub(crate) fn destack_net_writev(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::SocketHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {

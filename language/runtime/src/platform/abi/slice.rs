@@ -93,7 +93,7 @@ fn abi_len_u32(len: usize, label: &str) -> RuntimeResult<u32> {
 impl<T> VmSlice<T> {
     /// Decode a VM slice from one typed slice value.
     pub fn from_value(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
         name: &str,
         expected: &str,
@@ -130,10 +130,7 @@ impl<T> VmSlice<T> {
     }
 
     /// Encode this VM slice into one typed slice value.
-    pub fn to_value(
-        self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Word> {
+    pub fn to_value(self, context: &mut vm::BindingWrite<'_, '_>) -> RuntimeResult<vm::Word> {
         context
             .materialize_builtin_slice_value(self.data, self.len as usize)
             .map_err(|error| RuntimeError::from(error).boxed())
@@ -142,10 +139,7 @@ impl<T> VmSlice<T> {
 
 impl<T: VmCollectionElement> VmSlice<T> {
     /// Read the encoded VM values stored in this slice.
-    pub fn values(
-        &self,
-        context: &vm::ExternalReadContext<'_, '_>,
-    ) -> RuntimeResult<Vec<vm::Word>> {
+    pub fn values(&self, context: &vm::BindingRead<'_, '_>) -> RuntimeResult<Vec<vm::Word>> {
         // empty collections do not touch backing storage
         if self.len == 0 {
             return Ok(Vec::new());
@@ -187,7 +181,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
 
     /// Begin one exact-size VM slice builder.
     pub(crate) fn builder(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         len: usize,
     ) -> RuntimeResult<VmSliceBuilder<T>> {
         let len_u32 = abi_len_u32(len, "slice")?;
@@ -239,7 +233,7 @@ impl<T: VmCollectionElement> VmSliceBuilder<T> {
     /// Push one decoded element into the final VM slice storage.
     pub(crate) fn push(
         &mut self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: T,
     ) -> RuntimeResult<()> {
         // enforce the declared element count exactly
@@ -324,8 +318,8 @@ impl<T: VmCollectionElement> VmSlice<T> {
     /// Visit each decoded VM slice value with context access.
     pub fn try_for_each_value_with_context(
         &self,
-        context: &vm::ExternalReadContext<'_, '_>,
-        mut visit: impl FnMut(&vm::ExternalReadContext<'_, '_>, T) -> RuntimeResult<()>,
+        context: &vm::BindingRead<'_, '_>,
+        mut visit: impl FnMut(&vm::BindingRead<'_, '_>, T) -> RuntimeResult<()>,
     ) -> RuntimeResult<()> {
         // empty collections do not touch backing storage
         if self.len == 0 {
@@ -378,7 +372,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
     /// Visit each decoded VM slice value without allocating an intermediate Vec.
     pub fn try_for_each_value(
         &self,
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         mut visit: impl FnMut(T) -> RuntimeResult<()>,
     ) -> RuntimeResult<()> {
         self.try_for_each_value_with_context(context, |_context, value| visit(value))
@@ -386,7 +380,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
 
     /// Allocate a VM slice from decoded values.
     pub fn from_values(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         values: &[T],
     ) -> RuntimeResult<Self> {
         // route byte payloads through raw byte storage
@@ -411,7 +405,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
     }
 
     /// Read the VM slice into a Vec of decoded values.
-    pub fn read_values(&self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<Vec<T>> {
+    pub fn read_values(&self, context: &vm::BindingRead<'_, '_>) -> RuntimeResult<Vec<T>> {
         // route byte payloads through raw byte storage
         if is_byte_element_type::<T>() {
             let bytes = VmSlice::<u8> {
@@ -445,7 +439,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
     /// Write decoded values into the VM slice.
     pub fn write_values(
         &self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         values: &[T],
     ) -> RuntimeResult<()> {
         // empty collections do not touch backing storage
@@ -495,14 +489,14 @@ impl<T: VmCollectionElement> VmSlice<T> {
 
 impl<T: Copy> VmAggregateCodec for VmSlice<T> {
     fn decode_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         VmSlice::from_value(context, value, "value", "slice")
     }
 
     fn decode_value_ref_with_context(
-        context: &vm::ExternalReadContext<'_, '_>,
+        context: &vm::BindingRead<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
         if value_ref.field_count() != 2 {
@@ -525,7 +519,7 @@ impl<T: Copy> VmAggregateCodec for VmSlice<T> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         self.to_value(context)
     }
@@ -535,10 +529,7 @@ impl<T: Copy> VmCollectionElement for VmSlice<T> {}
 
 impl VmSlice<u8> {
     /// Allocate a VM slice from raw bytes.
-    pub fn from_bytes(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
-        bytes: &[u8],
-    ) -> RuntimeResult<Self> {
+    pub fn from_bytes(context: &mut vm::BindingWrite<'_, '_>, bytes: &[u8]) -> RuntimeResult<Self> {
         let len = abi_len_u32(bytes.len(), "slice")?;
         let data = if bytes.is_empty() {
             vm::RawPointer::NULL
@@ -556,10 +547,7 @@ impl VmSlice<u8> {
     }
 
     /// Borrow or copy a byte slice from the VM.
-    pub fn bytes<'a>(
-        &self,
-        context: &'a vm::ExternalReadContext<'_, '_>,
-    ) -> RuntimeResult<Cow<'a, [u8]>> {
+    pub fn bytes<'a>(&self, context: &'a vm::BindingRead<'_, '_>) -> RuntimeResult<Cow<'a, [u8]>> {
         // empty collections do not touch backing storage
         if self.len == 0 {
             return Ok(Cow::Borrowed(&[]));
@@ -582,14 +570,14 @@ impl VmSlice<u8> {
     }
 
     /// Read a byte slice from the VM.
-    pub fn read_bytes(&self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<Vec<u8>> {
+    pub fn read_bytes(&self, context: &vm::BindingRead<'_, '_>) -> RuntimeResult<Vec<u8>> {
         Ok(self.bytes(context)?.into_owned())
     }
 
     /// Write a byte slice into the VM.
     pub fn write_bytes(
         &self,
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         bytes: &[u8],
     ) -> RuntimeResult<()> {
         // empty collections do not touch backing storage

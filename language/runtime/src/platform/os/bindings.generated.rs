@@ -221,7 +221,7 @@ fn decode_float64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -234,7 +234,7 @@ fn decode_string(
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -245,7 +245,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -256,7 +256,7 @@ fn decode_array<T>(
 /// Decode arguments for destack.os.background.complete.
 #[inline]
 fn decode_destack_os_background_complete_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, BackgroundTaskResult)> {
     let context = &context.read();
@@ -286,7 +286,7 @@ fn decode_destack_os_background_complete_args(
 /// Encode the result for destack.os.background.complete.
 #[inline]
 fn encode_destack_os_background_complete_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -295,7 +295,7 @@ fn encode_destack_os_background_complete_result(
 /// Decode arguments for destack.os.background.event.close.
 #[inline]
 fn decode_destack_os_background_event_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BackgroundEventHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "BackgroundEventHandle")?;
@@ -309,7 +309,7 @@ fn decode_destack_os_background_event_close_args(
 /// Encode the result for destack.os.background.event.close.
 #[inline]
 fn encode_destack_os_background_event_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -318,7 +318,7 @@ fn encode_destack_os_background_event_close_result(
 /// Decode arguments for destack.os.background.event.open.
 #[inline]
 fn decode_destack_os_background_event_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(BackgroundEventOpenOptionsVm,)> {
     let context = &context.read();
@@ -333,7 +333,7 @@ fn decode_destack_os_background_event_open_args(
 /// Encode the result for destack.os.background.event.open.
 #[inline]
 fn encode_destack_os_background_event_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::BackgroundEventHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -344,7 +344,7 @@ fn encode_destack_os_background_event_open_result(
 /// Decode arguments for destack.os.background.event.read.
 #[inline]
 fn decode_destack_os_background_event_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BackgroundEventHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "BackgroundEventHandle")?;
@@ -360,7 +360,7 @@ fn decode_destack_os_background_event_read_args(
 /// Encode the result for destack.os.background.event.read.
 #[inline]
 fn encode_destack_os_background_event_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<BackgroundEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -487,7 +487,7 @@ fn encode_destack_os_background_event_read_result(
 /// Decode arguments for destack.os.background.event.tryRead.
 #[inline]
 fn decode_destack_os_background_event_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::BackgroundEventHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "BackgroundEventHandle")?;
@@ -501,7 +501,7 @@ fn decode_destack_os_background_event_try_read_args(
 /// Encode the result for destack.os.background.event.tryRead.
 #[inline]
 fn encode_destack_os_background_event_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<BackgroundEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -628,7 +628,7 @@ fn encode_destack_os_background_event_try_read_result(
 /// Encode the result for destack.os.background.list.
 #[inline]
 fn encode_destack_os_background_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<BackgroundTaskDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -640,7 +640,7 @@ fn encode_destack_os_background_list_result(
 /// Decode arguments for destack.os.background.register.
 #[inline]
 fn decode_destack_os_background_register_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(BackgroundTaskOptionsVm,)> {
     let context = &context.read();
@@ -653,7 +653,7 @@ fn decode_destack_os_background_register_args(
 /// Encode the result for destack.os.background.register.
 #[inline]
 fn encode_destack_os_background_register_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -662,7 +662,7 @@ fn encode_destack_os_background_register_result(
 /// Encode the result for destack.os.background.status.
 #[inline]
 fn encode_destack_os_background_status_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<BackgroundStatus>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -673,7 +673,7 @@ fn encode_destack_os_background_status_result(
 /// Decode arguments for destack.os.background.triggerTest.
 #[inline]
 fn decode_destack_os_background_trigger_test_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -685,7 +685,7 @@ fn decode_destack_os_background_trigger_test_args(
 /// Encode the result for destack.os.background.triggerTest.
 #[inline]
 fn encode_destack_os_background_trigger_test_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -696,7 +696,7 @@ fn encode_destack_os_background_trigger_test_result(
 /// Decode arguments for destack.os.background.unregister.
 #[inline]
 fn decode_destack_os_background_unregister_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -708,7 +708,7 @@ fn decode_destack_os_background_unregister_args(
 /// Encode the result for destack.os.background.unregister.
 #[inline]
 fn encode_destack_os_background_unregister_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -717,7 +717,7 @@ fn encode_destack_os_background_unregister_result(
 /// Decode arguments for destack.os.calendar.eventCreate.
 #[inline]
 fn decode_destack_os_calendar_event_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(CalendarEventDraftVm,)> {
     let context = &context.read();
@@ -730,7 +730,7 @@ fn decode_destack_os_calendar_event_create_args(
 /// Encode the result for destack.os.calendar.eventCreate.
 #[inline]
 fn encode_destack_os_calendar_event_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -741,7 +741,7 @@ fn encode_destack_os_calendar_event_create_result(
 /// Decode arguments for destack.os.calendar.eventDelete.
 #[inline]
 fn decode_destack_os_calendar_event_delete_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -753,7 +753,7 @@ fn decode_destack_os_calendar_event_delete_args(
 /// Encode the result for destack.os.calendar.eventDelete.
 #[inline]
 fn encode_destack_os_calendar_event_delete_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -762,7 +762,7 @@ fn encode_destack_os_calendar_event_delete_result(
 /// Decode arguments for destack.os.calendar.eventList.
 #[inline]
 fn decode_destack_os_calendar_event_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(CalendarEventQueryVm,)> {
     let context = &context.read();
@@ -775,7 +775,7 @@ fn decode_destack_os_calendar_event_list_args(
 /// Encode the result for destack.os.calendar.eventList.
 #[inline]
 fn encode_destack_os_calendar_event_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<CalendarEventVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -787,7 +787,7 @@ fn encode_destack_os_calendar_event_list_result(
 /// Decode arguments for destack.os.calendar.eventRead.
 #[inline]
 fn decode_destack_os_calendar_event_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -799,7 +799,7 @@ fn decode_destack_os_calendar_event_read_args(
 /// Encode the result for destack.os.calendar.eventRead.
 #[inline]
 fn encode_destack_os_calendar_event_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CalendarEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -989,7 +989,7 @@ fn encode_destack_os_calendar_event_read_result(
 /// Decode arguments for destack.os.calendar.eventUpdate.
 #[inline]
 fn decode_destack_os_calendar_event_update_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, CalendarEventDraftVm)> {
     let context = &context.read();
@@ -1004,7 +1004,7 @@ fn decode_destack_os_calendar_event_update_args(
 /// Encode the result for destack.os.calendar.eventUpdate.
 #[inline]
 fn encode_destack_os_calendar_event_update_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1013,7 +1013,7 @@ fn encode_destack_os_calendar_event_update_result(
 /// Encode the result for destack.os.calendar.list.
 #[inline]
 fn encode_destack_os_calendar_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<CalendarDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1025,7 +1025,7 @@ fn encode_destack_os_calendar_list_result(
 /// Decode arguments for destack.os.contact.create.
 #[inline]
 fn decode_destack_os_contact_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(ContactDraftVm,)> {
     let context = &context.read();
@@ -1038,7 +1038,7 @@ fn decode_destack_os_contact_create_args(
 /// Encode the result for destack.os.contact.create.
 #[inline]
 fn encode_destack_os_contact_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1049,7 +1049,7 @@ fn encode_destack_os_contact_create_result(
 /// Decode arguments for destack.os.contact.delete.
 #[inline]
 fn decode_destack_os_contact_delete_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -1061,7 +1061,7 @@ fn decode_destack_os_contact_delete_args(
 /// Encode the result for destack.os.contact.delete.
 #[inline]
 fn encode_destack_os_contact_delete_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1070,7 +1070,7 @@ fn encode_destack_os_contact_delete_result(
 /// Decode arguments for destack.os.contact.list.
 #[inline]
 fn decode_destack_os_contact_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(ContactQueryVm,)> {
     let context = &context.read();
@@ -1082,7 +1082,7 @@ fn decode_destack_os_contact_list_args(
 /// Encode the result for destack.os.contact.list.
 #[inline]
 fn encode_destack_os_contact_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<ContactPageVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1111,7 +1111,7 @@ fn encode_destack_os_contact_list_result(
 /// Decode arguments for destack.os.contact.read.
 #[inline]
 fn decode_destack_os_contact_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -1123,7 +1123,7 @@ fn decode_destack_os_contact_read_args(
 /// Encode the result for destack.os.contact.read.
 #[inline]
 fn encode_destack_os_contact_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<ContactVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1222,7 +1222,7 @@ fn encode_destack_os_contact_read_result(
 /// Decode arguments for destack.os.contact.search.
 #[inline]
 fn decode_destack_os_contact_search_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, ContactQueryVm)> {
     let context = &context.read();
@@ -1236,7 +1236,7 @@ fn decode_destack_os_contact_search_args(
 /// Encode the result for destack.os.contact.search.
 #[inline]
 fn encode_destack_os_contact_search_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<ContactPageVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1265,7 +1265,7 @@ fn encode_destack_os_contact_search_result(
 /// Decode arguments for destack.os.contact.update.
 #[inline]
 fn decode_destack_os_contact_update_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, ContactDraftVm)> {
     let context = &context.read();
@@ -1280,7 +1280,7 @@ fn decode_destack_os_contact_update_args(
 /// Encode the result for destack.os.contact.update.
 #[inline]
 fn encode_destack_os_contact_update_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1289,7 +1289,7 @@ fn encode_destack_os_contact_update_result(
 /// Decode arguments for destack.os.credentials.authenticate.
 #[inline]
 fn decode_destack_os_credentials_authenticate_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(CredentialAuthenticationOptionsVm,)> {
     let context = &context.read();
@@ -1304,7 +1304,7 @@ fn decode_destack_os_credentials_authenticate_args(
 /// Encode the result for destack.os.credentials.authenticate.
 #[inline]
 fn encode_destack_os_credentials_authenticate_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CredentialAuthenticationResultVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1330,7 +1330,7 @@ fn encode_destack_os_credentials_authenticate_result(
 /// Decode arguments for destack.os.credentials.contains.
 #[inline]
 fn decode_destack_os_credentials_contains_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, vm::StringHandle, Option<vm::StringHandle>)> {
     let context = &context.read();
@@ -1352,7 +1352,7 @@ fn decode_destack_os_credentials_contains_args(
 /// Encode the result for destack.os.credentials.contains.
 #[inline]
 fn encode_destack_os_credentials_contains_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1363,7 +1363,7 @@ fn encode_destack_os_credentials_contains_result(
 /// Decode arguments for destack.os.credentials.delete.
 #[inline]
 fn decode_destack_os_credentials_delete_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, vm::StringHandle, Option<vm::StringHandle>)> {
     let context = &context.read();
@@ -1385,7 +1385,7 @@ fn decode_destack_os_credentials_delete_args(
 /// Encode the result for destack.os.credentials.delete.
 #[inline]
 fn encode_destack_os_credentials_delete_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1394,7 +1394,7 @@ fn encode_destack_os_credentials_delete_result(
 /// Decode arguments for destack.os.credentials.read.
 #[inline]
 fn decode_destack_os_credentials_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(CredentialQueryVm,)> {
     let context = &context.read();
@@ -1406,7 +1406,7 @@ fn decode_destack_os_credentials_read_args(
 /// Encode the result for destack.os.credentials.read.
 #[inline]
 fn encode_destack_os_credentials_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<CredentialRecordVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1443,7 +1443,7 @@ fn encode_destack_os_credentials_read_result(
 /// Decode arguments for destack.os.credentials.write.
 #[inline]
 fn decode_destack_os_credentials_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(CredentialWriteOptionsVm,)> {
     let context = &context.read();
@@ -1458,7 +1458,7 @@ fn decode_destack_os_credentials_write_args(
 /// Encode the result for destack.os.credentials.write.
 #[inline]
 fn encode_destack_os_credentials_write_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1467,7 +1467,7 @@ fn encode_destack_os_credentials_write_result(
 /// Decode arguments for destack.os.document.close.
 #[inline]
 fn decode_destack_os_document_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DocumentHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DocumentHandle")?;
@@ -1480,7 +1480,7 @@ fn decode_destack_os_document_close_args(
 /// Encode the result for destack.os.document.close.
 #[inline]
 fn encode_destack_os_document_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1489,7 +1489,7 @@ fn encode_destack_os_document_close_result(
 /// Decode arguments for destack.os.document.flush.
 #[inline]
 fn decode_destack_os_document_flush_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DocumentHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DocumentHandle")?;
@@ -1502,7 +1502,7 @@ fn decode_destack_os_document_flush_args(
 /// Encode the result for destack.os.document.flush.
 #[inline]
 fn encode_destack_os_document_flush_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1511,7 +1511,7 @@ fn encode_destack_os_document_flush_result(
 /// Decode arguments for destack.os.document.open.
 #[inline]
 fn decode_destack_os_document_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, DocumentAccess)> {
     let context = &context.read();
@@ -1537,7 +1537,7 @@ fn decode_destack_os_document_open_args(
 /// Encode the result for destack.os.document.open.
 #[inline]
 fn encode_destack_os_document_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::DocumentHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1548,7 +1548,7 @@ fn encode_destack_os_document_open_result(
 /// Decode arguments for destack.os.document.pickClose.
 #[inline]
 fn decode_destack_os_document_pick_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DocumentPickHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DocumentPickHandle")?;
@@ -1562,7 +1562,7 @@ fn decode_destack_os_document_pick_close_args(
 /// Encode the result for destack.os.document.pickClose.
 #[inline]
 fn encode_destack_os_document_pick_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1571,7 +1571,7 @@ fn encode_destack_os_document_pick_close_result(
 /// Decode arguments for destack.os.document.pickOpen.
 #[inline]
 fn decode_destack_os_document_pick_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(DocumentPickOptionsVm,)> {
     let context = &context.read();
@@ -1584,7 +1584,7 @@ fn decode_destack_os_document_pick_open_args(
 /// Encode the result for destack.os.document.pickOpen.
 #[inline]
 fn encode_destack_os_document_pick_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::DocumentPickHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1595,7 +1595,7 @@ fn encode_destack_os_document_pick_open_result(
 /// Decode arguments for destack.os.document.pickRead.
 #[inline]
 fn decode_destack_os_document_pick_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DocumentPickHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "DocumentPickHandle")?;
@@ -1611,7 +1611,7 @@ fn decode_destack_os_document_pick_read_args(
 /// Encode the result for destack.os.document.pickRead.
 #[inline]
 fn encode_destack_os_document_pick_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<DocumentDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1623,7 +1623,7 @@ fn encode_destack_os_document_pick_read_result(
 /// Decode arguments for destack.os.document.pickTryRead.
 #[inline]
 fn decode_destack_os_document_pick_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DocumentPickHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "DocumentPickHandle")?;
@@ -1637,7 +1637,7 @@ fn decode_destack_os_document_pick_try_read_args(
 /// Encode the result for destack.os.document.pickTryRead.
 #[inline]
 fn encode_destack_os_document_pick_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<DocumentDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1649,7 +1649,7 @@ fn encode_destack_os_document_pick_try_read_result(
 /// Decode arguments for destack.os.document.read.
 #[inline]
 fn decode_destack_os_document_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DocumentHandle, u32, u64)> {
     let handle_value = arg_value(args, 0, "handle", "DocumentHandle")?;
@@ -1666,7 +1666,7 @@ fn decode_destack_os_document_read_args(
 /// Encode the result for destack.os.document.read.
 #[inline]
 fn encode_destack_os_document_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1678,7 +1678,7 @@ fn encode_destack_os_document_read_result(
 /// Decode arguments for destack.os.document.tryRead.
 #[inline]
 fn decode_destack_os_document_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DocumentHandle, u32)> {
     let handle_value = arg_value(args, 0, "handle", "DocumentHandle")?;
@@ -1693,7 +1693,7 @@ fn decode_destack_os_document_try_read_args(
 /// Encode the result for destack.os.document.tryRead.
 #[inline]
 fn encode_destack_os_document_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1705,7 +1705,7 @@ fn encode_destack_os_document_try_read_result(
 /// Decode arguments for destack.os.document.write.
 #[inline]
 fn decode_destack_os_document_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::DocumentHandle, VmSlice<u8>, u64)> {
     let context = &context.read();
@@ -1728,7 +1728,7 @@ fn decode_destack_os_document_write_args(
 /// Encode the result for destack.os.document.write.
 #[inline]
 fn encode_destack_os_document_write_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1739,7 +1739,7 @@ fn encode_destack_os_document_write_result(
 /// Encode the result for destack.os.host.identity.
 #[inline]
 fn encode_destack_os_host_identity_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<HostIdentityVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1772,7 +1772,7 @@ fn encode_destack_os_host_identity_result(
 /// Encode the result for destack.os.info.bootTimeUnixNs.
 #[inline]
 fn encode_destack_os_info_boot_time_unix_ns_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1783,7 +1783,7 @@ fn encode_destack_os_info_boot_time_unix_ns_result(
 /// Encode the result for destack.os.info.loadAverage.
 #[inline]
 fn encode_destack_os_info_load_average_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<LoadAverageVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1812,7 +1812,7 @@ fn encode_destack_os_info_load_average_result(
 /// Encode the result for destack.os.info.systemSnapshot.
 #[inline]
 fn encode_destack_os_info_system_snapshot_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<SystemSnapshotVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -1845,7 +1845,7 @@ fn encode_destack_os_info_system_snapshot_result(
 /// Encode the result for destack.os.info.uptimeNs.
 #[inline]
 fn encode_destack_os_info_uptime_ns_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1856,7 +1856,7 @@ fn encode_destack_os_info_uptime_ns_result(
 /// Decode arguments for destack.os.intent.canOpenUrl.
 #[inline]
 fn decode_destack_os_intent_can_open_url_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -1868,7 +1868,7 @@ fn decode_destack_os_intent_can_open_url_args(
 /// Encode the result for destack.os.intent.canOpenUrl.
 #[inline]
 fn encode_destack_os_intent_can_open_url_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1879,7 +1879,7 @@ fn encode_destack_os_intent_can_open_url_result(
 /// Decode arguments for destack.os.intent.close.
 #[inline]
 fn decode_destack_os_intent_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::IntentHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "IntentHandle")?;
@@ -1892,7 +1892,7 @@ fn decode_destack_os_intent_close_args(
 /// Encode the result for destack.os.intent.close.
 #[inline]
 fn encode_destack_os_intent_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1901,7 +1901,7 @@ fn encode_destack_os_intent_close_result(
 /// Decode arguments for destack.os.intent.open.
 #[inline]
 fn decode_destack_os_intent_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(IntentOpenOptionsVm,)> {
     let context = &context.read();
@@ -1914,7 +1914,7 @@ fn decode_destack_os_intent_open_args(
 /// Encode the result for destack.os.intent.open.
 #[inline]
 fn encode_destack_os_intent_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::IntentHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -1925,7 +1925,7 @@ fn encode_destack_os_intent_open_result(
 /// Decode arguments for destack.os.intent.openPath.
 #[inline]
 fn decode_destack_os_intent_open_path_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(fs::OsPathVm,)> {
     let context = &context.read();
@@ -1937,7 +1937,7 @@ fn decode_destack_os_intent_open_path_args(
 /// Encode the result for destack.os.intent.openPath.
 #[inline]
 fn encode_destack_os_intent_open_path_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1946,7 +1946,7 @@ fn encode_destack_os_intent_open_path_result(
 /// Decode arguments for destack.os.intent.openUrl.
 #[inline]
 fn decode_destack_os_intent_open_url_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -1958,7 +1958,7 @@ fn decode_destack_os_intent_open_url_args(
 /// Encode the result for destack.os.intent.openUrl.
 #[inline]
 fn encode_destack_os_intent_open_url_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -1967,7 +1967,7 @@ fn encode_destack_os_intent_open_url_result(
 /// Decode arguments for destack.os.intent.read.
 #[inline]
 fn decode_destack_os_intent_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::IntentHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "IntentHandle")?;
@@ -1982,7 +1982,7 @@ fn decode_destack_os_intent_read_args(
 /// Encode the result for destack.os.intent.read.
 #[inline]
 fn encode_destack_os_intent_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<IntentEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2410,7 +2410,7 @@ fn encode_destack_os_intent_read_result(
 /// Decode arguments for destack.os.intent.sharePaths.
 #[inline]
 fn decode_destack_os_intent_share_paths_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(VmArray<fs::OsPathVm>, Option<vm::StringHandle>)> {
     let context = &context.read();
@@ -2430,7 +2430,7 @@ fn decode_destack_os_intent_share_paths_args(
 /// Encode the result for destack.os.intent.sharePaths.
 #[inline]
 fn encode_destack_os_intent_share_paths_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2439,7 +2439,7 @@ fn encode_destack_os_intent_share_paths_result(
 /// Decode arguments for destack.os.intent.shareText.
 #[inline]
 fn decode_destack_os_intent_share_text_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle, Option<vm::StringHandle>)> {
     let context = &context.read();
@@ -2459,7 +2459,7 @@ fn decode_destack_os_intent_share_text_args(
 /// Encode the result for destack.os.intent.shareText.
 #[inline]
 fn encode_destack_os_intent_share_text_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2468,7 +2468,7 @@ fn encode_destack_os_intent_share_text_result(
 /// Decode arguments for destack.os.intent.tryRead.
 #[inline]
 fn decode_destack_os_intent_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::IntentHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "IntentHandle")?;
@@ -2481,7 +2481,7 @@ fn decode_destack_os_intent_try_read_args(
 /// Encode the result for destack.os.intent.tryRead.
 #[inline]
 fn encode_destack_os_intent_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<IntentEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -2909,7 +2909,7 @@ fn encode_destack_os_intent_try_read_result(
 /// Decode arguments for destack.os.lifecycle.close.
 #[inline]
 fn decode_destack_os_lifecycle_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::LifecycleEventHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "LifecycleEventHandle")?;
@@ -2923,7 +2923,7 @@ fn decode_destack_os_lifecycle_close_args(
 /// Encode the result for destack.os.lifecycle.close.
 #[inline]
 fn encode_destack_os_lifecycle_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2932,7 +2932,7 @@ fn encode_destack_os_lifecycle_close_result(
 /// Encode the result for destack.os.lifecycle.open.
 #[inline]
 fn encode_destack_os_lifecycle_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::LifecycleEventHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -2943,7 +2943,7 @@ fn encode_destack_os_lifecycle_open_result(
 /// Decode arguments for destack.os.lifecycle.read.
 #[inline]
 fn decode_destack_os_lifecycle_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::LifecycleEventHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "LifecycleEventHandle")?;
@@ -2959,7 +2959,7 @@ fn decode_destack_os_lifecycle_read_args(
 /// Encode the result for destack.os.lifecycle.read.
 #[inline]
 fn encode_destack_os_lifecycle_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<LifecycleEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3336,7 +3336,7 @@ fn encode_destack_os_lifecycle_read_result(
 /// Encode the result for destack.os.lifecycle.state.
 #[inline]
 fn encode_destack_os_lifecycle_state_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<LifecycleState>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3347,7 +3347,7 @@ fn encode_destack_os_lifecycle_state_result(
 /// Decode arguments for destack.os.lifecycle.tryRead.
 #[inline]
 fn decode_destack_os_lifecycle_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::LifecycleEventHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "LifecycleEventHandle")?;
@@ -3361,7 +3361,7 @@ fn decode_destack_os_lifecycle_try_read_args(
 /// Encode the result for destack.os.lifecycle.tryRead.
 #[inline]
 fn encode_destack_os_lifecycle_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<LifecycleEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3738,7 +3738,7 @@ fn encode_destack_os_lifecycle_try_read_result(
 /// Encode the result for destack.os.location.lastKnown.
 #[inline]
 fn encode_destack_os_location_last_known_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<LocationSampleVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3790,7 +3790,7 @@ fn encode_destack_os_location_last_known_result(
 /// Encode the result for destack.os.location.servicesEnabled.
 #[inline]
 fn encode_destack_os_location_services_enabled_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3801,7 +3801,7 @@ fn encode_destack_os_location_services_enabled_result(
 /// Decode arguments for destack.os.location.watchClose.
 #[inline]
 fn decode_destack_os_location_watch_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::LocationWatchHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "LocationWatchHandle")?;
@@ -3815,7 +3815,7 @@ fn decode_destack_os_location_watch_close_args(
 /// Encode the result for destack.os.location.watchClose.
 #[inline]
 fn encode_destack_os_location_watch_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -3824,7 +3824,7 @@ fn encode_destack_os_location_watch_close_result(
 /// Decode arguments for destack.os.location.watchOpen.
 #[inline]
 fn decode_destack_os_location_watch_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(LocationWatchOptionsVm,)> {
     let context = &context.read();
@@ -3837,7 +3837,7 @@ fn decode_destack_os_location_watch_open_args(
 /// Encode the result for destack.os.location.watchOpen.
 #[inline]
 fn encode_destack_os_location_watch_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::LocationWatchHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -3848,7 +3848,7 @@ fn encode_destack_os_location_watch_open_result(
 /// Decode arguments for destack.os.location.watchRead.
 #[inline]
 fn decode_destack_os_location_watch_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::LocationWatchHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "LocationWatchHandle")?;
@@ -3864,7 +3864,7 @@ fn decode_destack_os_location_watch_read_args(
 /// Encode the result for destack.os.location.watchRead.
 #[inline]
 fn encode_destack_os_location_watch_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<LocationSampleVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3916,7 +3916,7 @@ fn encode_destack_os_location_watch_read_result(
 /// Decode arguments for destack.os.location.watchTryRead.
 #[inline]
 fn decode_destack_os_location_watch_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::LocationWatchHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "LocationWatchHandle")?;
@@ -3930,7 +3930,7 @@ fn decode_destack_os_location_watch_try_read_args(
 /// Encode the result for destack.os.location.watchTryRead.
 #[inline]
 fn encode_destack_os_location_watch_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<LocationSampleVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -3982,7 +3982,7 @@ fn encode_destack_os_location_watch_try_read_result(
 /// Decode arguments for destack.os.media.delete.
 #[inline]
 fn decode_destack_os_media_delete_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(VmArray<vm::StringHandle>,)> {
     let context = &context.read();
@@ -3994,7 +3994,7 @@ fn decode_destack_os_media_delete_args(
 /// Encode the result for destack.os.media.delete.
 #[inline]
 fn encode_destack_os_media_delete_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -4005,7 +4005,7 @@ fn encode_destack_os_media_delete_result(
 /// Decode arguments for destack.os.media.importPath.
 #[inline]
 fn decode_destack_os_media_import_path_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(fs::OsPathVm, MediaAssetKind)> {
     let context = &context.read();
@@ -4032,7 +4032,7 @@ fn decode_destack_os_media_import_path_args(
 /// Encode the result for destack.os.media.importPath.
 #[inline]
 fn encode_destack_os_media_import_path_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -4043,7 +4043,7 @@ fn encode_destack_os_media_import_path_result(
 /// Decode arguments for destack.os.media.list.
 #[inline]
 fn decode_destack_os_media_list_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(MediaQueryVm,)> {
     let context = &context.read();
@@ -4055,7 +4055,7 @@ fn decode_destack_os_media_list_args(
 /// Encode the result for destack.os.media.list.
 #[inline]
 fn encode_destack_os_media_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<MediaPageVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4084,7 +4084,7 @@ fn encode_destack_os_media_list_result(
 /// Decode arguments for destack.os.media.read.
 #[inline]
 fn decode_destack_os_media_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -4096,7 +4096,7 @@ fn decode_destack_os_media_read_args(
 /// Encode the result for destack.os.media.read.
 #[inline]
 fn encode_destack_os_media_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<MediaAssetDescriptorVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4157,7 +4157,7 @@ fn encode_destack_os_media_read_result(
 /// Encode the result for destack.os.mount.list.
 #[inline]
 fn encode_destack_os_mount_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<MountEntryVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4169,7 +4169,7 @@ fn encode_destack_os_mount_list_result(
 /// Encode the result for destack.os.network.state.
 #[inline]
 fn encode_destack_os_network_state_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<NetworkStateVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4241,7 +4241,7 @@ fn encode_destack_os_network_state_result(
 /// Decode arguments for destack.os.network.watchClose.
 #[inline]
 fn decode_destack_os_network_watch_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::NetworkWatchHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "NetworkWatchHandle")?;
@@ -4255,7 +4255,7 @@ fn decode_destack_os_network_watch_close_args(
 /// Encode the result for destack.os.network.watchClose.
 #[inline]
 fn encode_destack_os_network_watch_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4264,7 +4264,7 @@ fn encode_destack_os_network_watch_close_result(
 /// Encode the result for destack.os.network.watchOpen.
 #[inline]
 fn encode_destack_os_network_watch_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::NetworkWatchHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -4275,7 +4275,7 @@ fn encode_destack_os_network_watch_open_result(
 /// Decode arguments for destack.os.network.watchRead.
 #[inline]
 fn decode_destack_os_network_watch_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::NetworkWatchHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "NetworkWatchHandle")?;
@@ -4291,7 +4291,7 @@ fn decode_destack_os_network_watch_read_args(
 /// Encode the result for destack.os.network.watchRead.
 #[inline]
 fn encode_destack_os_network_watch_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<NetworkEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4381,7 +4381,7 @@ fn encode_destack_os_network_watch_read_result(
 /// Decode arguments for destack.os.network.watchTryRead.
 #[inline]
 fn decode_destack_os_network_watch_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::NetworkWatchHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "NetworkWatchHandle")?;
@@ -4395,7 +4395,7 @@ fn decode_destack_os_network_watch_try_read_args(
 /// Encode the result for destack.os.network.watchTryRead.
 #[inline]
 fn encode_destack_os_network_watch_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<NetworkEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4485,7 +4485,7 @@ fn encode_destack_os_network_watch_try_read_result(
 /// Decode arguments for destack.os.notification.cancel.
 #[inline]
 fn decode_destack_os_notification_cancel_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -4497,7 +4497,7 @@ fn decode_destack_os_notification_cancel_args(
 /// Encode the result for destack.os.notification.cancel.
 #[inline]
 fn encode_destack_os_notification_cancel_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4506,7 +4506,7 @@ fn encode_destack_os_notification_cancel_result(
 /// Encode the result for destack.os.notification.cancelAll.
 #[inline]
 fn encode_destack_os_notification_cancel_all_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4515,7 +4515,7 @@ fn encode_destack_os_notification_cancel_all_result(
 /// Encode the result for destack.os.notification.categoryList.
 #[inline]
 fn encode_destack_os_notification_category_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<NotificationCategoryVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -4527,7 +4527,7 @@ fn encode_destack_os_notification_category_list_result(
 /// Decode arguments for destack.os.notification.categorySet.
 #[inline]
 fn decode_destack_os_notification_category_set_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(VmArray<NotificationCategoryVm>,)> {
     let context = &context.read();
@@ -4544,7 +4544,7 @@ fn decode_destack_os_notification_category_set_args(
 /// Encode the result for destack.os.notification.categorySet.
 #[inline]
 fn encode_destack_os_notification_category_set_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4553,7 +4553,7 @@ fn encode_destack_os_notification_category_set_result(
 /// Decode arguments for destack.os.notification.event.close.
 #[inline]
 fn decode_destack_os_notification_event_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::NotificationEventHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "NotificationEventHandle")?;
@@ -4570,7 +4570,7 @@ fn decode_destack_os_notification_event_close_args(
 /// Encode the result for destack.os.notification.event.close.
 #[inline]
 fn encode_destack_os_notification_event_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -4579,7 +4579,7 @@ fn encode_destack_os_notification_event_close_result(
 /// Decode arguments for destack.os.notification.event.open.
 #[inline]
 fn decode_destack_os_notification_event_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(NotificationEventOpenOptionsVm,)> {
     let context = &context.read();
@@ -4594,7 +4594,7 @@ fn decode_destack_os_notification_event_open_args(
 /// Encode the result for destack.os.notification.event.open.
 #[inline]
 fn encode_destack_os_notification_event_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::NotificationEventHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -4605,7 +4605,7 @@ fn encode_destack_os_notification_event_open_result(
 /// Decode arguments for destack.os.notification.event.read.
 #[inline]
 fn decode_destack_os_notification_event_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::NotificationEventHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "NotificationEventHandle")?;
@@ -4624,7 +4624,7 @@ fn decode_destack_os_notification_event_read_args(
 /// Encode the result for destack.os.notification.event.read.
 #[inline]
 fn encode_destack_os_notification_event_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<NotificationEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -5495,7 +5495,7 @@ fn encode_destack_os_notification_event_read_result(
 /// Decode arguments for destack.os.notification.event.tryRead.
 #[inline]
 fn decode_destack_os_notification_event_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::NotificationEventHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "NotificationEventHandle")?;
@@ -5512,7 +5512,7 @@ fn decode_destack_os_notification_event_try_read_args(
 /// Encode the result for destack.os.notification.event.tryRead.
 #[inline]
 fn encode_destack_os_notification_event_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<NotificationEventVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6383,7 +6383,7 @@ fn encode_destack_os_notification_event_try_read_result(
 /// Decode arguments for destack.os.notification.pendingCancel.
 #[inline]
 fn decode_destack_os_notification_pending_cancel_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
@@ -6395,7 +6395,7 @@ fn decode_destack_os_notification_pending_cancel_args(
 /// Encode the result for destack.os.notification.pendingCancel.
 #[inline]
 fn encode_destack_os_notification_pending_cancel_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -6404,7 +6404,7 @@ fn encode_destack_os_notification_pending_cancel_result(
 /// Encode the result for destack.os.notification.pendingCancelAll.
 #[inline]
 fn encode_destack_os_notification_pending_cancel_all_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -6413,7 +6413,7 @@ fn encode_destack_os_notification_pending_cancel_all_result(
 /// Encode the result for destack.os.notification.pendingList.
 #[inline]
 fn encode_destack_os_notification_pending_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<NotificationScheduledDescriptorVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6425,7 +6425,7 @@ fn encode_destack_os_notification_pending_list_result(
 /// Encode the result for destack.os.notification.permissionState.
 #[inline]
 fn encode_destack_os_notification_permission_state_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<NotificationPermissionState>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -6436,7 +6436,7 @@ fn encode_destack_os_notification_permission_state_result(
 /// Decode arguments for destack.os.notification.post.
 #[inline]
 fn decode_destack_os_notification_post_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(NotificationRequestVm,)> {
     let context = &context.read();
@@ -6449,7 +6449,7 @@ fn decode_destack_os_notification_post_args(
 /// Encode the result for destack.os.notification.post.
 #[inline]
 fn encode_destack_os_notification_post_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -6460,7 +6460,7 @@ fn encode_destack_os_notification_post_result(
 /// Decode arguments for destack.os.notification.requestPermissionClose.
 #[inline]
 fn decode_destack_os_notification_request_permission_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::NotificationPermissionRequestHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "NotificationPermissionRequestHandle")?;
@@ -6477,7 +6477,7 @@ fn decode_destack_os_notification_request_permission_close_args(
 /// Encode the result for destack.os.notification.requestPermissionClose.
 #[inline]
 fn encode_destack_os_notification_request_permission_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -6486,7 +6486,7 @@ fn encode_destack_os_notification_request_permission_close_result(
 /// Encode the result for destack.os.notification.requestPermissionOpen.
 #[inline]
 fn encode_destack_os_notification_request_permission_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::NotificationPermissionRequestHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -6497,7 +6497,7 @@ fn encode_destack_os_notification_request_permission_open_result(
 /// Decode arguments for destack.os.notification.requestPermissionRead.
 #[inline]
 fn decode_destack_os_notification_request_permission_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::NotificationPermissionRequestHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "NotificationPermissionRequestHandle")?;
@@ -6516,7 +6516,7 @@ fn decode_destack_os_notification_request_permission_read_args(
 /// Encode the result for destack.os.notification.requestPermissionRead.
 #[inline]
 fn encode_destack_os_notification_request_permission_read_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<NotificationPermissionState>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -6527,7 +6527,7 @@ fn encode_destack_os_notification_request_permission_read_result(
 /// Decode arguments for destack.os.notification.requestPermissionTryRead.
 #[inline]
 fn decode_destack_os_notification_request_permission_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::NotificationPermissionRequestHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "NotificationPermissionRequestHandle")?;
@@ -6544,7 +6544,7 @@ fn decode_destack_os_notification_request_permission_try_read_args(
 /// Encode the result for destack.os.notification.requestPermissionTryRead.
 #[inline]
 fn encode_destack_os_notification_request_permission_try_read_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<NotificationPermissionState>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -6555,7 +6555,7 @@ fn encode_destack_os_notification_request_permission_try_read_result(
 /// Decode arguments for destack.os.notification.schedule.
 #[inline]
 fn decode_destack_os_notification_schedule_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(NotificationRequestVm,)> {
     let context = &context.read();
@@ -6568,7 +6568,7 @@ fn decode_destack_os_notification_schedule_args(
 /// Encode the result for destack.os.notification.schedule.
 #[inline]
 fn encode_destack_os_notification_schedule_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -6579,7 +6579,7 @@ fn encode_destack_os_notification_schedule_result(
 /// Encode the result for destack.os.permission.openSettings.
 #[inline]
 fn encode_destack_os_permission_open_settings_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -6588,7 +6588,7 @@ fn encode_destack_os_permission_open_settings_result(
 /// Decode arguments for destack.os.permission.requestClose.
 #[inline]
 fn decode_destack_os_permission_request_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::PermissionRequestHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "PermissionRequestHandle")?;
@@ -6605,7 +6605,7 @@ fn decode_destack_os_permission_request_close_args(
 /// Encode the result for destack.os.permission.requestClose.
 #[inline]
 fn encode_destack_os_permission_request_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -6614,7 +6614,7 @@ fn encode_destack_os_permission_request_close_result(
 /// Decode arguments for destack.os.permission.requestManyOpen.
 #[inline]
 fn decode_destack_os_permission_request_many_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(VmArray<Permission>,)> {
     let context = &context.read();
@@ -6627,7 +6627,7 @@ fn decode_destack_os_permission_request_many_open_args(
 /// Encode the result for destack.os.permission.requestManyOpen.
 #[inline]
 fn encode_destack_os_permission_request_many_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::PermissionRequestHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -6638,7 +6638,7 @@ fn encode_destack_os_permission_request_many_open_result(
 /// Decode arguments for destack.os.permission.requestOpen.
 #[inline]
 fn decode_destack_os_permission_request_open_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(Permission,)> {
     let permission_value = arg_value(args, 0, "permission", "Permission")?;
@@ -6672,7 +6672,7 @@ fn decode_destack_os_permission_request_open_args(
 /// Encode the result for destack.os.permission.requestOpen.
 #[inline]
 fn encode_destack_os_permission_request_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::PermissionRequestHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -6683,7 +6683,7 @@ fn encode_destack_os_permission_request_open_result(
 /// Decode arguments for destack.os.permission.requestRead.
 #[inline]
 fn decode_destack_os_permission_request_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::PermissionRequestHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "PermissionRequestHandle")?;
@@ -6702,7 +6702,7 @@ fn decode_destack_os_permission_request_read_args(
 /// Encode the result for destack.os.permission.requestRead.
 #[inline]
 fn encode_destack_os_permission_request_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<PermissionEntryVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6714,7 +6714,7 @@ fn encode_destack_os_permission_request_read_result(
 /// Decode arguments for destack.os.permission.requestTryRead.
 #[inline]
 fn decode_destack_os_permission_request_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::PermissionRequestHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "PermissionRequestHandle")?;
@@ -6731,7 +6731,7 @@ fn decode_destack_os_permission_request_try_read_args(
 /// Encode the result for destack.os.permission.requestTryRead.
 #[inline]
 fn encode_destack_os_permission_request_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<PermissionEntryVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6743,7 +6743,7 @@ fn encode_destack_os_permission_request_try_read_result(
 /// Decode arguments for destack.os.permission.state.
 #[inline]
 fn decode_destack_os_permission_state_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(Permission,)> {
     let permission_value = arg_value(args, 0, "permission", "Permission")?;
@@ -6777,7 +6777,7 @@ fn decode_destack_os_permission_state_args(
 /// Encode the result for destack.os.permission.state.
 #[inline]
 fn encode_destack_os_permission_state_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<PermissionState>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -6788,7 +6788,7 @@ fn encode_destack_os_permission_state_result(
 /// Decode arguments for destack.os.permission.stateMany.
 #[inline]
 fn decode_destack_os_permission_state_many_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(VmArray<Permission>,)> {
     let context = &context.read();
@@ -6801,7 +6801,7 @@ fn decode_destack_os_permission_state_many_args(
 /// Encode the result for destack.os.permission.stateMany.
 #[inline]
 fn encode_destack_os_permission_state_many_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmArray<PermissionEntryVm>>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -6813,7 +6813,7 @@ fn encode_destack_os_permission_state_many_result(
 /// Encode the result for destack.os.power.state.
 #[inline]
 fn encode_destack_os_power_state_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<PowerState>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -6824,7 +6824,7 @@ fn encode_destack_os_power_state_result(
 /// Encode the result for destack.os.power.suspend.
 #[inline]
 fn encode_destack_os_power_suspend_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -16086,7 +16086,7 @@ pub(crate) unsafe extern "C" fn destack_os_power_suspend() -> RuntimeStatus {
 #[inline]
 fn destack_os_background_event_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BackgroundEventHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -16136,7 +16136,7 @@ fn destack_os_background_event_close_vm_replay(
 #[inline]
 fn destack_os_background_event_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     options: BackgroundEventOpenOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -16190,7 +16190,7 @@ fn destack_os_background_event_open_vm_replay(
 #[inline]
 fn destack_os_background_event_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BackgroundEventHandle,
     timeoutns: u64,
@@ -16347,7 +16347,7 @@ fn destack_os_background_event_read_vm_replay(
 #[inline]
 fn destack_os_background_event_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::BackgroundEventHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -16503,7 +16503,7 @@ fn destack_os_background_event_try_read_vm_replay(
 #[inline]
 fn destack_os_background_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -16636,7 +16636,7 @@ fn destack_os_background_list_vm_replay(
 #[inline]
 fn destack_os_background_status_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -16687,7 +16687,7 @@ fn destack_os_background_status_vm_replay(
 #[inline]
 fn destack_os_host_identity_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -16786,7 +16786,7 @@ fn destack_os_host_identity_vm_replay(
 #[inline]
 fn destack_os_info_boot_time_unix_ns_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -16837,7 +16837,7 @@ fn destack_os_info_boot_time_unix_ns_vm_replay(
 #[inline]
 fn destack_os_info_load_average_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -16902,7 +16902,7 @@ fn destack_os_info_load_average_vm_replay(
 #[inline]
 fn destack_os_info_system_snapshot_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -16971,7 +16971,7 @@ fn destack_os_info_system_snapshot_vm_replay(
 #[inline]
 fn destack_os_info_uptime_ns_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -17022,7 +17022,7 @@ fn destack_os_info_uptime_ns_vm_replay(
 #[inline]
 fn destack_os_intent_can_open_url_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     url: vm::StringHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -17076,7 +17076,7 @@ fn destack_os_intent_can_open_url_vm_replay(
 #[inline]
 fn destack_os_intent_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::IntentHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -17124,7 +17124,7 @@ fn destack_os_intent_close_vm_replay(
 #[inline]
 fn destack_os_intent_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     options: IntentOpenOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -17176,7 +17176,7 @@ fn destack_os_intent_open_vm_replay(
 #[inline]
 fn destack_os_intent_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::IntentHandle,
     timeoutns: u64,
@@ -17839,7 +17839,7 @@ fn destack_os_intent_read_vm_replay(
 #[inline]
 fn destack_os_intent_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::IntentHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -18501,7 +18501,7 @@ fn destack_os_intent_try_read_vm_replay(
 #[inline]
 fn destack_os_lifecycle_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::LifecycleEventHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -18549,7 +18549,7 @@ fn destack_os_lifecycle_close_vm_replay(
 #[inline]
 fn destack_os_lifecycle_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -18600,7 +18600,7 @@ fn destack_os_lifecycle_open_vm_replay(
 #[inline]
 fn destack_os_lifecycle_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::LifecycleEventHandle,
     timeoutns: u64,
@@ -18927,7 +18927,7 @@ fn destack_os_lifecycle_read_vm_replay(
 #[inline]
 fn destack_os_lifecycle_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -18978,7 +18978,7 @@ fn destack_os_lifecycle_state_vm_replay(
 #[inline]
 fn destack_os_lifecycle_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::LifecycleEventHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -19304,7 +19304,7 @@ fn destack_os_lifecycle_try_read_vm_replay(
 #[inline]
 fn destack_os_location_last_known_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -19391,7 +19391,7 @@ fn destack_os_location_last_known_vm_replay(
 #[inline]
 fn destack_os_location_services_enabled_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -19444,7 +19444,7 @@ fn destack_os_location_services_enabled_vm_replay(
 #[inline]
 fn destack_os_location_watch_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::LocationWatchHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -19494,7 +19494,7 @@ fn destack_os_location_watch_close_vm_replay(
 #[inline]
 fn destack_os_location_watch_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     options: LocationWatchOptionsVm,
 ) -> RuntimeResult<vm::Word> {
@@ -19548,7 +19548,7 @@ fn destack_os_location_watch_open_vm_replay(
 #[inline]
 fn destack_os_location_watch_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::LocationWatchHandle,
     timeoutns: u64,
@@ -19639,7 +19639,7 @@ fn destack_os_location_watch_read_vm_replay(
 #[inline]
 fn destack_os_location_watch_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::LocationWatchHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -19729,7 +19729,7 @@ fn destack_os_location_watch_try_read_vm_replay(
 #[inline]
 fn destack_os_mount_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -19908,7 +19908,7 @@ fn destack_os_mount_list_vm_replay(
 #[inline]
 fn destack_os_network_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -20060,7 +20060,7 @@ fn destack_os_network_state_vm_replay(
 #[inline]
 fn destack_os_network_watch_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -20110,7 +20110,7 @@ fn destack_os_network_watch_close_vm_replay(
 #[inline]
 fn destack_os_network_watch_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -20161,7 +20161,7 @@ fn destack_os_network_watch_open_vm_replay(
 #[inline]
 fn destack_os_network_watch_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::NetworkWatchHandle,
     timeoutns: u64,
@@ -20337,7 +20337,7 @@ fn destack_os_network_watch_read_vm_replay(
 #[inline]
 fn destack_os_network_watch_try_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -20512,7 +20512,7 @@ fn destack_os_network_watch_try_read_vm_replay(
 #[inline]
 fn destack_os_notification_category_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -20664,7 +20664,7 @@ fn destack_os_notification_category_list_vm_replay(
 #[inline]
 fn destack_os_notification_pending_list_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -21002,7 +21002,7 @@ fn destack_os_notification_pending_list_vm_replay(
 #[inline]
 fn destack_os_notification_permission_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -21055,7 +21055,7 @@ fn destack_os_notification_permission_state_vm_replay(
 #[inline]
 fn destack_os_permission_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     permission: Permission,
 ) -> RuntimeResult<vm::Word> {
@@ -21109,7 +21109,7 @@ fn destack_os_permission_state_vm_replay(
 #[inline]
 fn destack_os_permission_state_many_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     permissions: VmArray<Permission>,
 ) -> RuntimeResult<vm::Word> {
@@ -21193,7 +21193,7 @@ fn destack_os_permission_state_many_vm_replay(
 #[inline]
 fn destack_os_power_state_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(

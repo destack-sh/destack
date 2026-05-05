@@ -39,12 +39,12 @@ impl<'a> NativeBindingCodec<'a> {
 /// Mechanical VM decode codec for one VM call context.
 pub(crate) struct VmDecodeCodec<'call, 'vm> {
     /// The active VM call context.
-    context: &'call mut vm::ExternalCallContext<'vm>,
+    context: &'call mut vm::BindingContext<'vm>,
 }
 
 impl<'call, 'vm> VmDecodeCodec<'call, 'vm> {
     /// Create one VM decode codec for one call context.
-    pub(crate) fn new(context: &'call mut vm::ExternalCallContext<'vm>) -> Self {
+    pub(crate) fn new(context: &'call mut vm::BindingContext<'vm>) -> Self {
         Self { context }
     }
 
@@ -58,12 +58,12 @@ impl<'call, 'vm> VmDecodeCodec<'call, 'vm> {
 /// Mechanical VM encode codec for one VM call context.
 pub(crate) struct VmEncodeCodec<'call, 'vm> {
     /// The active VM call context.
-    context: &'call mut vm::ExternalCallContext<'vm>,
+    context: &'call mut vm::BindingContext<'vm>,
 }
 
 impl<'call, 'vm> VmEncodeCodec<'call, 'vm> {
     /// Create one VM encode codec for one call context.
-    pub(crate) fn new(context: &'call mut vm::ExternalCallContext<'vm>) -> Self {
+    pub(crate) fn new(context: &'call mut vm::BindingContext<'vm>) -> Self {
         Self { context }
     }
 
@@ -132,7 +132,7 @@ pub(crate) fn decode_optional_string(
 /// Read one VM string handle and store it in binding-local string storage.
 pub(crate) fn store_string_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<NativeStringRef> {
     let context = context.read();
@@ -146,7 +146,7 @@ pub(crate) fn store_string_from_vm(
 /// Read one optional VM string handle and store it in binding-local string storage.
 pub(crate) fn optional_store_string_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: Option<vm::StringHandle>,
 ) -> RuntimeResult<Option<NativeStringRef>> {
     value
@@ -156,7 +156,7 @@ pub(crate) fn optional_store_string_from_vm(
 
 /// Intern one native string reference into one VM string handle.
 pub(crate) fn intern_string_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: NativeStringRef,
 ) -> RuntimeResult<vm::StringHandle> {
     let value = unsafe { value.as_str()? };
@@ -168,7 +168,7 @@ pub(crate) fn intern_string_to_vm(
 
 /// Intern one optional native string reference into one optional VM string handle.
 pub(crate) fn optional_intern_string_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: Option<NativeStringRef>,
 ) -> RuntimeResult<Option<vm::StringHandle>> {
     value
@@ -179,7 +179,7 @@ pub(crate) fn optional_intern_string_to_vm(
 /// Read one VM string-handle slice and store it in binding-local string-slice storage.
 pub(crate) fn store_string_slice_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     values: VmSlice<vm::StringHandle>,
 ) -> RuntimeResult<NativeStringSlice> {
     let context = context.read();
@@ -198,7 +198,7 @@ pub(crate) fn store_string_slice_from_vm(
 /// Read one VM byte slice and store it in binding-local slice storage.
 pub(crate) fn store_bytes_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: VmSlice<u8>,
 ) -> RuntimeResult<NativeSlice<u8>> {
     let context = context.read();
@@ -210,7 +210,7 @@ pub(crate) fn store_bytes_from_vm(
 /// Read one optional VM byte slice and store it in binding-local slice storage.
 pub(crate) fn optional_store_bytes_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: Option<VmSlice<u8>>,
 ) -> RuntimeResult<Option<NativeSlice<u8>>> {
     value
@@ -221,7 +221,7 @@ pub(crate) fn optional_store_bytes_from_vm(
 /// Read one VM value slice and store it in binding-local slice storage.
 pub(crate) fn store_values_from_vm<T: Copy + VmAggregateCodec + VmCollectionElement + 'static>(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: VmSlice<T>,
 ) -> RuntimeResult<NativeSlice<T>> {
     let context = context.read();
@@ -237,7 +237,7 @@ pub(crate) fn store_values_from_vm<T: Copy + VmAggregateCodec + VmCollectionElem
 /// Read one VM byte array and store it in binding-local array storage.
 pub(crate) fn store_bytes_array_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: VmArray<u8>,
 ) -> RuntimeResult<NativeArray<u8>> {
     let context = context.read();
@@ -251,7 +251,7 @@ pub(crate) fn store_values_array_from_vm<
     T: Copy + VmAggregateCodec + VmCollectionElement + 'static,
 >(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: VmArray<T>,
 ) -> RuntimeResult<NativeArray<T>> {
     let context = context.read();
@@ -266,7 +266,7 @@ pub(crate) fn store_values_array_from_vm<
 
 /// Encode one native byte slice as one VM byte slice.
 pub(crate) fn bytes_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: NativeSlice<u8>,
 ) -> RuntimeResult<VmSlice<u8>> {
     let value = unsafe { value.as_slice()? };
@@ -277,7 +277,7 @@ pub(crate) fn bytes_to_vm(
 
 /// Encode one native byte array as one VM byte array.
 pub(crate) fn bytes_array_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: NativeArray<u8>,
 ) -> RuntimeResult<VmArray<u8>> {
     let value = unsafe { value.as_slice()? };
@@ -288,7 +288,7 @@ pub(crate) fn bytes_array_to_vm(
 
 /// Encode one native byte-array array as one VM byte-array array.
 pub(crate) fn bytes_array_array_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     values: NativeArray<NativeArray<u8>>,
 ) -> RuntimeResult<VmArray<VmArray<u8>>> {
     let values = unsafe { values.as_slice()? };
@@ -324,7 +324,7 @@ pub(crate) fn bytes_array_array_to_vm(
 
 /// Encode one native value slice as one VM value slice.
 pub(crate) fn values_to_vm<T: Copy + VmAggregateCodec + VmCollectionElement>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: NativeSlice<T>,
 ) -> RuntimeResult<VmSlice<T>> {
     let value = unsafe { value.as_slice()? };
@@ -335,7 +335,7 @@ pub(crate) fn values_to_vm<T: Copy + VmAggregateCodec + VmCollectionElement>(
 
 /// Encode one native value array as one VM value array.
 pub(crate) fn values_array_to_vm<T: Copy + VmAggregateCodec + VmCollectionElement>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: NativeArray<T>,
 ) -> RuntimeResult<VmArray<T>> {
     let value = unsafe { value.as_slice()? };
@@ -346,9 +346,9 @@ pub(crate) fn values_array_to_vm<T: Copy + VmAggregateCodec + VmCollectionElemen
 
 /// Map one native value slice into one VM aggregate slice.
 pub(crate) fn map_native_slice_to_vm<T, U>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     values: NativeSlice<T>,
-    mut map: impl FnMut(&mut vm::ExternalCallContext<'_>, &T) -> RuntimeResult<U>,
+    mut map: impl FnMut(&mut vm::BindingContext<'_>, &T) -> RuntimeResult<U>,
 ) -> RuntimeResult<VmSlice<U>>
 where
     U: Copy + VmAggregateCodec + VmCollectionElement,
@@ -371,9 +371,9 @@ where
 
 /// Map one native value array into one VM aggregate array.
 pub(crate) fn map_native_array_to_vm<T, U>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     values: NativeArray<T>,
-    map: impl FnMut(&mut vm::ExternalCallContext<'_>, &T) -> RuntimeResult<U>,
+    map: impl FnMut(&mut vm::BindingContext<'_>, &T) -> RuntimeResult<U>,
 ) -> RuntimeResult<VmArray<U>>
 where
     U: Copy + VmAggregateCodec + VmCollectionElement,
@@ -405,7 +405,7 @@ where
 
 /// Encode one native string array as one VM string-handle array.
 pub(crate) fn string_array_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     values: NativeArray<NativeStringRef>,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
     let values = unsafe { values.as_slice()? };
@@ -443,7 +443,7 @@ pub(crate) fn string_array_to_vm(
 
 /// Encode one native string slice as one VM string-handle slice.
 pub(crate) fn string_slice_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     values: NativeStringSlice,
 ) -> RuntimeResult<VmSlice<vm::StringHandle>> {
     let values = unsafe { values.as_slice()? };
@@ -480,7 +480,7 @@ pub(crate) fn string_slice_to_vm(
 
 /// Write one native byte slice into one mutable VM byte slice.
 pub(crate) fn write_bytes_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     output: VmSlice<u8>,
     value: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -493,7 +493,7 @@ pub(crate) fn write_bytes_to_vm(
 /// Read one VM path-bytes payload and store it in binding-local path storage.
 pub(crate) fn store_path_bytes_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     path: PathBytesVm,
 ) -> RuntimeResult<PathBytes> {
     let context = context.read();
@@ -507,7 +507,7 @@ pub(crate) fn store_path_bytes_from_vm(
 /// Read one VM path-utf16 payload and store it in binding-local path storage.
 pub(crate) fn store_path_utf16_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     path: PathUtf16Vm,
 ) -> RuntimeResult<PathUtf16> {
     let context = context.read();
@@ -524,7 +524,7 @@ pub(crate) fn store_path_utf16_from_vm(
 /// Read one VM path payload and store it in binding-local path storage.
 pub(crate) fn store_os_path_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<OsPath> {
     match path {
@@ -543,7 +543,7 @@ pub(crate) fn store_os_path_from_vm(
 
 /// Encode one native path-bytes payload as one VM value.
 pub(crate) fn path_bytes_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     path: PathBytes,
 ) -> RuntimeResult<PathBytesVm> {
     let bytes = unsafe { path.0.as_slice()? };
@@ -555,7 +555,7 @@ pub(crate) fn path_bytes_to_vm(
 
 /// Encode one native path-utf16 payload as one VM value.
 pub(crate) fn path_utf16_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     path: PathUtf16,
 ) -> RuntimeResult<PathUtf16Vm> {
     let units = unsafe { path.0.as_slice()? };
@@ -567,7 +567,7 @@ pub(crate) fn path_utf16_to_vm(
 
 /// Encode one native path payload as one VM value.
 pub(crate) fn os_path_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     path: OsPath,
 ) -> RuntimeResult<OsPathVm> {
     match path {
@@ -606,7 +606,7 @@ pub(crate) fn allocate_vm_read_buffer(
 
 /// Copy one native read buffer back into one VM slice.
 pub(crate) fn write_vm_read_buffer(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     buffer: VmSlice<u8>,
     native: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -618,7 +618,7 @@ pub(crate) fn write_vm_read_buffer(
 
 /// Decode one VM slice of byte slices into plain VM slice values.
 pub(crate) fn decode_vm_byte_slices(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     buffers: VmSlice<VmSlice<u8>>,
     field: &'static str,
 ) -> RuntimeResult<Vec<VmSlice<u8>>> {
@@ -638,7 +638,7 @@ pub(crate) fn decode_vm_byte_slices(
 #[allow(clippy::type_complexity)]
 pub(crate) fn allocate_vm_read_buffers(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     buffers: VmSlice<VmSlice<u8>>,
     field: &'static str,
 ) -> RuntimeResult<(NativeSlice<NativeSlice<u8>>, Vec<VmSlice<u8>>)> {
@@ -657,7 +657,7 @@ pub(crate) fn allocate_vm_read_buffers(
 
 /// Copy native read buffers back into one VM slice of byte slices.
 pub(crate) fn write_vm_read_buffers(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     vm_buffers: Vec<VmSlice<u8>>,
     native_buffers: NativeSlice<NativeSlice<u8>>,
     field: &'static str,
@@ -686,7 +686,7 @@ pub(crate) fn write_vm_read_buffers(
 /// Read one VM slice of byte slices and store it in binding-local slice storage.
 pub(crate) fn store_vm_byte_slices(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     buffers: VmSlice<VmSlice<u8>>,
     field: &'static str,
 ) -> RuntimeResult<NativeSlice<NativeSlice<u8>>> {

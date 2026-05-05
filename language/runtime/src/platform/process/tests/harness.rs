@@ -34,9 +34,9 @@ impl<'call> ProcessHarnessContext<'call> {
 
     /// Return the VM context if available.
     #[allow(clippy::mut_from_ref)]
-    fn vm_context_mut(&self) -> Option<&mut vm::ExternalCallContext<'_>> {
+    fn vm_context_mut(&self) -> Option<&mut vm::BindingContext<'_>> {
         self.vm_context
-            .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
+            .map(|context| unsafe { &mut *(context as *mut vm::BindingContext<'_>) })
     }
 
     /// Write one byte slice through one file handle using native fs bindings.

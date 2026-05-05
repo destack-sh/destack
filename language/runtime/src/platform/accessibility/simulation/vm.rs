@@ -13,7 +13,7 @@ use destack_vm as vm;
 /// Simulation binding for `destack.accessibility.action.close`.
 pub(crate) fn destack_accessibility_action_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::AccessibilityActionHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -26,7 +26,7 @@ pub(crate) fn destack_accessibility_action_close(
 /// Simulation binding for `destack.accessibility.action.open`.
 pub(crate) fn destack_accessibility_action_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     window: resource::WindowHandle,
     options: AccessibilityActionOpenOptionsVm,
 ) -> RuntimeResult<resource::AccessibilityActionHandle> {
@@ -40,7 +40,7 @@ pub(crate) fn destack_accessibility_action_open(
 /// Simulation binding for `destack.accessibility.action.read`.
 pub(crate) fn destack_accessibility_action_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::AccessibilityActionHandle,
     timeoutns: u64,
 ) -> RuntimeResult<AccessibilityActionVm> {
@@ -54,7 +54,7 @@ pub(crate) fn destack_accessibility_action_read(
 /// Simulation binding for `destack.accessibility.action.tryRead`.
 pub(crate) fn destack_accessibility_action_try_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::AccessibilityActionHandle,
 ) -> RuntimeResult<AccessibilityActionVm> {
     let _ = handle;
@@ -67,7 +67,7 @@ pub(crate) fn destack_accessibility_action_try_read(
 /// Simulation binding for `destack.accessibility.document.clear`.
 pub(crate) fn destack_accessibility_document_clear(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     window: resource::WindowHandle,
     nodeid: AccessibilityNodeId,
 ) -> RuntimeResult<()> {
@@ -81,7 +81,7 @@ pub(crate) fn destack_accessibility_document_clear(
 /// Simulation binding for `destack.accessibility.document.close`.
 pub(crate) fn destack_accessibility_document_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::AccessibilityDocumentHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -94,7 +94,7 @@ pub(crate) fn destack_accessibility_document_close(
 /// Simulation binding for `destack.accessibility.document.open`.
 pub(crate) fn destack_accessibility_document_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     window: resource::WindowHandle,
     options: AccessibilityDocumentOpenOptionsVm,
 ) -> RuntimeResult<resource::AccessibilityDocumentHandle> {
@@ -108,7 +108,7 @@ pub(crate) fn destack_accessibility_document_open(
 /// Simulation binding for `destack.accessibility.document.read`.
 pub(crate) fn destack_accessibility_document_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::AccessibilityDocumentHandle,
     timeoutns: u64,
 ) -> RuntimeResult<AccessibilityDocumentQueryVm> {
@@ -122,7 +122,7 @@ pub(crate) fn destack_accessibility_document_read(
 /// Simulation binding for `destack.accessibility.document.respond`.
 pub(crate) fn destack_accessibility_document_respond(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::AccessibilityDocumentHandle,
     response: AccessibilityDocumentResponseVm,
 ) -> RuntimeResult<()> {
@@ -136,7 +136,7 @@ pub(crate) fn destack_accessibility_document_respond(
 /// Simulation binding for `destack.accessibility.document.set`.
 pub(crate) fn destack_accessibility_document_set(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     window: resource::WindowHandle,
     nodeid: AccessibilityNodeId,
     document: AccessibilityTextDocumentVm,
@@ -151,7 +151,7 @@ pub(crate) fn destack_accessibility_document_set(
 /// Simulation binding for `destack.accessibility.document.tryRead`.
 pub(crate) fn destack_accessibility_document_try_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::AccessibilityDocumentHandle,
 ) -> RuntimeResult<AccessibilityDocumentQueryVm> {
     let _ = handle;
@@ -164,7 +164,7 @@ pub(crate) fn destack_accessibility_document_try_read(
 /// Simulation binding for `destack.accessibility.notification.post`.
 pub(crate) fn destack_accessibility_notification_post(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     window: resource::WindowHandle,
     notification: AccessibilityNotificationVm,
 ) -> RuntimeResult<()> {
@@ -178,7 +178,7 @@ pub(crate) fn destack_accessibility_notification_post(
 /// Simulation binding for `destack.accessibility.tree.apply`.
 pub(crate) fn destack_accessibility_tree_apply(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     window: resource::WindowHandle,
     update: AccessibilityTreeUpdateVm,
 ) -> RuntimeResult<()> {
@@ -192,7 +192,7 @@ pub(crate) fn destack_accessibility_tree_apply(
 /// Simulation binding for `destack.accessibility.tree.clear`.
 pub(crate) fn destack_accessibility_tree_clear(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let _ = window;
@@ -205,7 +205,7 @@ pub(crate) fn destack_accessibility_tree_clear(
 /// Simulation binding for `destack.accessibility.tree.hitTest`.
 pub(crate) fn destack_accessibility_tree_hit_test(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     window: resource::WindowHandle,
     x: f64,
     y: f64,

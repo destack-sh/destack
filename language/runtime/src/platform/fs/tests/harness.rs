@@ -34,10 +34,10 @@ type ByteSlicesValue = HarnessValue<NativeSlice<NativeSlice<u8>>, VmSlice<VmSlic
 impl<'call> FsHarnessContext<'call> {
     /// Return the VM context if available.
     #[allow(clippy::mut_from_ref)]
-    fn vm_context_mut(&self) -> Option<&mut vm::ExternalCallContext<'_>> {
+    fn vm_context_mut(&self) -> Option<&mut vm::BindingContext<'_>> {
         // safety: the harness guarantees the VM context pointer is valid for the callback
         self.vm_context
-            .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
+            .map(|context| unsafe { &mut *(context as *mut vm::BindingContext<'_>) })
     }
 
     /// Build a byte path reference for this context.
@@ -977,7 +977,7 @@ impl<T> std::ops::Deref for HarnessValue<T, T> {
 
 /// Build one VM nested slice from one list of VM byte slices.
 fn vm_slice_of_slices(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     slices: &[VmSlice<u8>],
 ) -> VmSlice<VmSlice<u8>> {
     let values = slices

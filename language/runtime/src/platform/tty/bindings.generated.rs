@@ -118,7 +118,7 @@ fn decode_uint64(
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &vm::ExternalReadContext<'_, '_>,
+    context: &vm::BindingRead<'_, '_>,
     value: vm::Word,
     name: &'static str,
     expected: &'static str,
@@ -129,7 +129,7 @@ fn decode_slice<T>(
 /// Decode arguments for destack.tty.handle.close.
 #[inline]
 fn decode_destack_tty_handle_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TtyHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
@@ -142,7 +142,7 @@ fn decode_destack_tty_handle_close_args(
 /// Encode the result for destack.tty.handle.close.
 #[inline]
 fn encode_destack_tty_handle_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -151,7 +151,7 @@ fn encode_destack_tty_handle_close_result(
 /// Decode arguments for destack.tty.handle.isTerminalFile.
 #[inline]
 fn decode_destack_tty_handle_is_terminal_file_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::FileHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
@@ -164,7 +164,7 @@ fn decode_destack_tty_handle_is_terminal_file_args(
 /// Encode the result for destack.tty.handle.isTerminalFile.
 #[inline]
 fn encode_destack_tty_handle_is_terminal_file_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -175,7 +175,7 @@ fn encode_destack_tty_handle_is_terminal_file_result(
 /// Encode the result for destack.tty.handle.stdioStderr.
 #[inline]
 fn encode_destack_tty_handle_stdio_stderr_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::TtyHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -186,7 +186,7 @@ fn encode_destack_tty_handle_stdio_stderr_result(
 /// Encode the result for destack.tty.handle.stdioStdin.
 #[inline]
 fn encode_destack_tty_handle_stdio_stdin_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::TtyHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -197,7 +197,7 @@ fn encode_destack_tty_handle_stdio_stdin_result(
 /// Encode the result for destack.tty.handle.stdioStdout.
 #[inline]
 fn encode_destack_tty_handle_stdio_stdout_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<resource::TtyHandle>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -208,7 +208,7 @@ fn encode_destack_tty_handle_stdio_stdout_result(
 /// Decode arguments for destack.tty.io.read.
 #[inline]
 fn decode_destack_tty_io_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TtyHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -224,7 +224,7 @@ fn decode_destack_tty_io_read_args(
 /// Encode the result for destack.tty.io.read.
 #[inline]
 fn encode_destack_tty_io_read_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -235,7 +235,7 @@ fn encode_destack_tty_io_read_result(
 /// Decode arguments for destack.tty.io.write.
 #[inline]
 fn decode_destack_tty_io_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TtyHandle, VmSlice<u8>)> {
     let context = &context.read();
@@ -251,7 +251,7 @@ fn decode_destack_tty_io_write_args(
 /// Encode the result for destack.tty.io.write.
 #[inline]
 fn encode_destack_tty_io_write_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -262,7 +262,7 @@ fn encode_destack_tty_io_write_result(
 /// Decode arguments for destack.tty.mode.getMode.
 #[inline]
 fn decode_destack_tty_mode_get_mode_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TtyHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
@@ -275,7 +275,7 @@ fn decode_destack_tty_mode_get_mode_args(
 /// Encode the result for destack.tty.mode.getMode.
 #[inline]
 fn encode_destack_tty_mode_get_mode_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<TtyModeVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -308,7 +308,7 @@ fn encode_destack_tty_mode_get_mode_result(
 /// Decode arguments for destack.tty.mode.setMode.
 #[inline]
 fn decode_destack_tty_mode_set_mode_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TtyHandle, TtyModeVm)> {
     let context = &context.read();
@@ -324,7 +324,7 @@ fn decode_destack_tty_mode_set_mode_args(
 /// Encode the result for destack.tty.mode.setMode.
 #[inline]
 fn encode_destack_tty_mode_set_mode_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -333,7 +333,7 @@ fn encode_destack_tty_mode_set_mode_result(
 /// Decode arguments for destack.tty.mode.setRawMode.
 #[inline]
 fn decode_destack_tty_mode_set_raw_mode_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TtyHandle, bool)> {
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
@@ -348,7 +348,7 @@ fn decode_destack_tty_mode_set_raw_mode_args(
 /// Encode the result for destack.tty.mode.setRawMode.
 #[inline]
 fn encode_destack_tty_mode_set_raw_mode_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -357,7 +357,7 @@ fn encode_destack_tty_mode_set_raw_mode_result(
 /// Decode arguments for destack.tty.pty.close.
 #[inline]
 fn decode_destack_tty_pty_close_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::PtyHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "PtyHandle")?;
@@ -370,7 +370,7 @@ fn decode_destack_tty_pty_close_args(
 /// Encode the result for destack.tty.pty.close.
 #[inline]
 fn encode_destack_tty_pty_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -379,7 +379,7 @@ fn encode_destack_tty_pty_close_result(
 /// Decode arguments for destack.tty.pty.open.
 #[inline]
 fn decode_destack_tty_pty_open_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(u32, u32, u32)> {
     let rows_value = arg_value(args, 0, "rows", "uint32")?;
@@ -394,7 +394,7 @@ fn decode_destack_tty_pty_open_args(
 /// Encode the result for destack.tty.pty.open.
 #[inline]
 fn encode_destack_tty_pty_open_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<PtyPairVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -419,7 +419,7 @@ fn encode_destack_tty_pty_open_result(
 /// Decode arguments for destack.tty.size.getSize.
 #[inline]
 fn decode_destack_tty_size_get_size_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TtyHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
@@ -432,7 +432,7 @@ fn decode_destack_tty_size_get_size_args(
 /// Encode the result for destack.tty.size.getSize.
 #[inline]
 fn encode_destack_tty_size_get_size_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<TtySizeVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -465,7 +465,7 @@ fn encode_destack_tty_size_get_size_result(
 /// Decode arguments for destack.tty.size.setSize.
 #[inline]
 fn decode_destack_tty_size_set_size_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TtyHandle, TtySizeVm)> {
     let context = &context.read();
@@ -481,7 +481,7 @@ fn decode_destack_tty_size_set_size_args(
 /// Encode the result for destack.tty.size.setSize.
 #[inline]
 fn encode_destack_tty_size_set_size_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -490,7 +490,7 @@ fn encode_destack_tty_size_set_size_result(
 /// Decode arguments for destack.tty.termios.drain.
 #[inline]
 fn decode_destack_tty_termios_drain_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TtyHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
@@ -503,7 +503,7 @@ fn decode_destack_tty_termios_drain_args(
 /// Encode the result for destack.tty.termios.drain.
 #[inline]
 fn encode_destack_tty_termios_drain_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -512,7 +512,7 @@ fn encode_destack_tty_termios_drain_result(
 /// Decode arguments for destack.tty.termios.flow.
 #[inline]
 fn decode_destack_tty_termios_flow_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TtyHandle, TtyTermiosFlowAction)> {
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
@@ -540,7 +540,7 @@ fn decode_destack_tty_termios_flow_args(
 /// Encode the result for destack.tty.termios.flow.
 #[inline]
 fn encode_destack_tty_termios_flow_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -549,7 +549,7 @@ fn encode_destack_tty_termios_flow_result(
 /// Decode arguments for destack.tty.termios.flush.
 #[inline]
 fn decode_destack_tty_termios_flush_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TtyHandle, TtyTermiosQueue)> {
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
@@ -576,7 +576,7 @@ fn decode_destack_tty_termios_flush_args(
 /// Encode the result for destack.tty.termios.flush.
 #[inline]
 fn encode_destack_tty_termios_flush_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -585,7 +585,7 @@ fn encode_destack_tty_termios_flush_result(
 /// Decode arguments for destack.tty.termios.getAttributes.
 #[inline]
 fn decode_destack_tty_termios_get_attributes_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TtyHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
@@ -598,7 +598,7 @@ fn decode_destack_tty_termios_get_attributes_args(
 /// Encode the result for destack.tty.termios.getAttributes.
 #[inline]
 fn encode_destack_tty_termios_get_attributes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<TtyTermiosAttributesVm>,
 ) -> RuntimeResult<vm::Word> {
     let context = &mut context.write();
@@ -643,7 +643,7 @@ fn encode_destack_tty_termios_get_attributes_result(
 /// Decode arguments for destack.tty.termios.getProcessGroup.
 #[inline]
 fn decode_destack_tty_termios_get_process_group_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TtyHandle,)> {
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
@@ -656,7 +656,7 @@ fn decode_destack_tty_termios_get_process_group_args(
 /// Encode the result for destack.tty.termios.getProcessGroup.
 #[inline]
 fn encode_destack_tty_termios_get_process_group_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<process::ProcessId>,
 ) -> RuntimeResult<vm::Word> {
     result
@@ -667,7 +667,7 @@ fn encode_destack_tty_termios_get_process_group_result(
 /// Decode arguments for destack.tty.termios.sendBreak.
 #[inline]
 fn decode_destack_tty_termios_send_break_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TtyHandle, u32)> {
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
@@ -682,7 +682,7 @@ fn decode_destack_tty_termios_send_break_args(
 /// Encode the result for destack.tty.termios.sendBreak.
 #[inline]
 fn encode_destack_tty_termios_send_break_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -691,7 +691,7 @@ fn encode_destack_tty_termios_send_break_result(
 /// Decode arguments for destack.tty.termios.setAttributes.
 #[inline]
 fn decode_destack_tty_termios_set_attributes_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(
     resource::TtyHandle,
@@ -728,7 +728,7 @@ fn decode_destack_tty_termios_set_attributes_args(
 /// Encode the result for destack.tty.termios.setAttributes.
 #[inline]
 fn encode_destack_tty_termios_set_attributes_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -737,7 +737,7 @@ fn encode_destack_tty_termios_set_attributes_result(
 /// Decode arguments for destack.tty.termios.setProcessGroup.
 #[inline]
 fn decode_destack_tty_termios_set_process_group_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::TtyHandle, process::ProcessId)> {
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
@@ -754,7 +754,7 @@ fn decode_destack_tty_termios_set_process_group_args(
 /// Encode the result for destack.tty.termios.setProcessGroup.
 #[inline]
 fn encode_destack_tty_termios_set_process_group_result(
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
     result.map(|_| vm::Word::VOID)
@@ -2922,7 +2922,7 @@ pub(crate) unsafe extern "C" fn destack_tty_termios_set_process_group(
 #[inline]
 fn destack_tty_handle_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -2970,7 +2970,7 @@ fn destack_tty_handle_close_vm_replay(
 #[inline]
 fn destack_tty_handle_is_terminal_file_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -3024,7 +3024,7 @@ fn destack_tty_handle_is_terminal_file_vm_replay(
 #[inline]
 fn destack_tty_handle_stdio_stderr_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -3075,7 +3075,7 @@ fn destack_tty_handle_stdio_stderr_vm_replay(
 #[inline]
 fn destack_tty_handle_stdio_stdin_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -3126,7 +3126,7 @@ fn destack_tty_handle_stdio_stdin_vm_replay(
 #[inline]
 fn destack_tty_handle_stdio_stdout_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Word> {
     let result = binding.trace().run_binding(
@@ -3177,7 +3177,7 @@ fn destack_tty_handle_stdio_stdout_vm_replay(
 #[inline]
 fn destack_tty_io_read_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
@@ -3230,7 +3230,7 @@ fn destack_tty_io_read_vm_replay(
 #[inline]
 fn destack_tty_io_write_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
@@ -3283,7 +3283,7 @@ fn destack_tty_io_write_vm_replay(
 #[inline]
 fn destack_tty_mode_get_mode_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -3353,7 +3353,7 @@ fn destack_tty_mode_get_mode_vm_replay(
 #[inline]
 fn destack_tty_mode_set_mode_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     mode: TtyModeVm,
@@ -3402,7 +3402,7 @@ fn destack_tty_mode_set_mode_vm_replay(
 #[inline]
 fn destack_tty_mode_set_raw_mode_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     enabled: bool,
@@ -3453,7 +3453,7 @@ fn destack_tty_mode_set_raw_mode_vm_replay(
 #[inline]
 fn destack_tty_pty_close_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::PtyHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -3501,7 +3501,7 @@ fn destack_tty_pty_close_vm_replay(
 #[inline]
 fn destack_tty_pty_open_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     rows: u32,
     columns: u32,
@@ -3567,7 +3567,7 @@ fn destack_tty_pty_open_vm_replay(
 #[inline]
 fn destack_tty_size_get_size_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -3637,7 +3637,7 @@ fn destack_tty_size_get_size_vm_replay(
 #[inline]
 fn destack_tty_size_set_size_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     size: TtySizeVm,
@@ -3686,7 +3686,7 @@ fn destack_tty_size_set_size_vm_replay(
 #[inline]
 fn destack_tty_termios_drain_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -3734,7 +3734,7 @@ fn destack_tty_termios_drain_vm_replay(
 #[inline]
 fn destack_tty_termios_flow_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     action: TtyTermiosFlowAction,
@@ -3785,7 +3785,7 @@ fn destack_tty_termios_flow_vm_replay(
 #[inline]
 fn destack_tty_termios_flush_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     queue: TtyTermiosQueue,
@@ -3836,7 +3836,7 @@ fn destack_tty_termios_flush_vm_replay(
 #[inline]
 fn destack_tty_termios_get_attributes_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -3924,7 +3924,7 @@ fn destack_tty_termios_get_attributes_vm_replay(
 #[inline]
 fn destack_tty_termios_get_process_group_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Word> {
@@ -3980,7 +3980,7 @@ fn destack_tty_termios_get_process_group_vm_replay(
 #[inline]
 fn destack_tty_termios_send_break_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     duration: u32,
@@ -4031,7 +4031,7 @@ fn destack_tty_termios_send_break_vm_replay(
 #[inline]
 fn destack_tty_termios_set_attributes_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     attributes: TtyTermiosAttributesVm,
@@ -4083,7 +4083,7 @@ fn destack_tty_termios_set_attributes_vm_replay(
 #[inline]
 fn destack_tty_termios_set_process_group_vm_replay(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     processgroupid: process::ProcessId,

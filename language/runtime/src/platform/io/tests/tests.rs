@@ -47,9 +47,9 @@ pub(crate) struct IoHarnessContext<'call> {
 impl<'call> IoHarnessContext<'call> {
     /// Return one mutable vm context when this harness runs in vm mode.
     #[allow(clippy::mut_from_ref)]
-    fn vm_context_mut(&self) -> Option<&mut vm::ExternalCallContext<'_>> {
+    fn vm_context_mut(&self) -> Option<&mut vm::BindingContext<'_>> {
         self.vm_context
-            .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
+            .map(|context| unsafe { &mut *(context as *mut vm::BindingContext<'_>) })
     }
 
     /// Wait for poll events and normalize native and vm arrays into one vector.
@@ -267,7 +267,7 @@ impl<'call> IoHarnessContext<'call> {
 
 /// Decode one VM poll event array payload.
 fn decode_vm_poll_events(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: VmArray<PollEventVm>,
 ) -> RuntimeResult<Vec<PollEvent>> {
     value.read_values(&context.read())
@@ -275,7 +275,7 @@ fn decode_vm_poll_events(
 
 /// Decode one VM completion event array payload.
 fn decode_vm_completion_events(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: VmArray<CompletionEventVm>,
 ) -> RuntimeResult<Vec<CompletionEvent>> {
     value.read_values(&context.read())
@@ -361,7 +361,7 @@ impl IoHarnessHandle {
                 harness
                     .runtime
                     .with_vm_call_context(|call_context, vm_context| {
-                        let vm_context = vm_context as *mut vm::ExternalCallContext<'_> as *mut ();
+                        let vm_context = vm_context as *mut vm::BindingContext<'_> as *mut ();
                         callback(IoHarnessContext {
                             call_context,
                             vm_context: Some(vm_context),
@@ -433,7 +433,7 @@ fn host_null_device_path() -> &'static str {
 
 /// Encode one UTF-8 path string into VM `OsPath`.
 fn vm_path_from_utf8(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     value: &str,
 ) -> RuntimeResult<fs::OsPathVm> {
     #[cfg(unix)]

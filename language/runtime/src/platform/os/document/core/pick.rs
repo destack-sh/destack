@@ -24,7 +24,7 @@ pub(crate) fn pick_native(
 /// Pick documents from host UI for the VM ABI.
 pub(crate) fn pick_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::BindingContext<'_>,
     options: DocumentPickOptionsValue,
 ) -> RuntimeResult<VmArray<DocumentDescriptorVm>> {
     let values = pick_values(binding, options)?;

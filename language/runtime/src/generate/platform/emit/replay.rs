@@ -1321,7 +1321,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("#[inline]\n");
             output.push_str(&format!("fn {fn_name}(\n"));
             output.push_str("    binding: &BindingCallContext,\n");
-            output.push_str("    context: &mut vm::ExternalCallContext<'_>,\n");
+            output.push_str("    context: &mut vm::BindingContext<'_>,\n");
             if entry.scope != CatalogBindingScope::Runtime {
                 output.push_str("    world: RuntimeWorld,\n");
             }

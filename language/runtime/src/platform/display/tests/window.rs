@@ -238,7 +238,7 @@ pub(crate) fn test_window_open_mode_exclusive_with_invalid_display_is_rejected()
                 let vm_context = context
                     .vm_context
                     .map(|vm_context| unsafe {
-                        &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>)
+                        &mut *(vm_context as *mut destack_vm::BindingContext<'_>)
                     })
                     .expect("vm context should exist for vm harness");
                 options.mode =

@@ -43,7 +43,7 @@ fn resource_not_found(op: &'static str, id: ResourceId) -> Box<RuntimeError> {
 /// External, recordable.
 pub(crate) fn destack_resource_close(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<()> {
     // enforce any stored resource-affinity requirement before closing
@@ -81,7 +81,7 @@ pub(crate) fn destack_resource_close(
 /// Deterministic.
 pub(crate) fn destack_resource_kind(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::BindingContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<ResourceKindVm> {
     // enforce any stored resource-affinity requirement before resolving metadata
@@ -120,7 +120,7 @@ pub(crate) fn destack_resource_kind(
 /// Deterministic.
 pub(crate) fn destack_resource_remove(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<()> {
     // enforce any stored resource-affinity requirement before removal
@@ -158,7 +158,7 @@ pub(crate) fn destack_resource_remove(
 /// Deterministic.
 pub(crate) fn destack_resource_transfer(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     id: ResourceId,
     ownership: ResourceOwnership,
 ) -> RuntimeResult<()> {

@@ -31,7 +31,7 @@ use destack_vm as vm;
 /// External, recordable.
 pub(crate) fn destack_fs_access(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
@@ -58,7 +58,7 @@ pub(crate) fn destack_fs_access(
 /// External, recordable.
 pub(crate) fn destack_fs_accessat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     mode: AccessMode,
@@ -87,7 +87,7 @@ pub(crate) fn destack_fs_accessat(
 /// External, recordable.
 pub(crate) fn destack_fs_chmod(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -114,7 +114,7 @@ pub(crate) fn destack_fs_chmod(
 /// External, recordable.
 pub(crate) fn destack_fs_chown(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     uid: u32,
     gid: u32,
@@ -142,7 +142,7 @@ pub(crate) fn destack_fs_chown(
 /// External, recordable.
 pub(crate) fn destack_fs_fchmod(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -169,7 +169,7 @@ pub(crate) fn destack_fs_fchmod(
 /// External, recordable.
 pub(crate) fn destack_fs_fchmodat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     mode: FileMode,
@@ -198,7 +198,7 @@ pub(crate) fn destack_fs_fchmodat(
 /// External, recordable.
 pub(crate) fn destack_fs_fchown(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     uid: u32,
     gid: u32,
@@ -226,7 +226,7 @@ pub(crate) fn destack_fs_fchown(
 /// External, recordable.
 pub(crate) fn destack_fs_fchownat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     uid: u32,
@@ -256,7 +256,7 @@ pub(crate) fn destack_fs_fchownat(
 /// External, recordable.
 pub(crate) fn destack_fs_futimes(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     atimens: u64,
     mtimens: u64,
@@ -284,7 +284,7 @@ pub(crate) fn destack_fs_futimes(
 /// External, recordable.
 pub(crate) fn destack_fs_lutimes(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     atimens: u64,
     mtimens: u64,
@@ -312,7 +312,7 @@ pub(crate) fn destack_fs_lutimes(
 /// External, recordable.
 pub(crate) fn destack_fs_utimensat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     atimens: u64,
@@ -342,7 +342,7 @@ pub(crate) fn destack_fs_utimensat(
 /// External, recordable.
 pub(crate) fn destack_fs_utimes(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     atimens: u64,
     mtimens: u64,
@@ -370,7 +370,7 @@ pub(crate) fn destack_fs_utimes(
 /// External, recordable.
 pub(crate) fn destack_fs_closedir(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.closedir")).boxed())
@@ -395,7 +395,7 @@ pub(crate) fn destack_fs_closedir(
 /// External, recordable.
 pub(crate) fn destack_fs_dirfd(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::DirectoryHandle,
 ) -> RuntimeResult<resource::FileHandle> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.dirfd")).boxed())
@@ -420,7 +420,7 @@ pub(crate) fn destack_fs_dirfd(
 /// External, recordable.
 pub(crate) fn destack_fs_mkdir(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -447,7 +447,7 @@ pub(crate) fn destack_fs_mkdir(
 /// External, recordable.
 pub(crate) fn destack_fs_mkdirat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     mode: FileMode,
@@ -475,7 +475,7 @@ pub(crate) fn destack_fs_mkdirat(
 /// External, recordable.
 pub(crate) fn destack_fs_mkdtemp(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _template: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.mkdtemp")).boxed())
@@ -500,7 +500,7 @@ pub(crate) fn destack_fs_mkdtemp(
 /// External, recordable.
 pub(crate) fn destack_fs_opendir(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _path: OsPathVm,
 ) -> RuntimeResult<resource::DirectoryHandle> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.opendir")).boxed())
@@ -525,7 +525,7 @@ pub(crate) fn destack_fs_opendir(
 /// External, recordable.
 pub(crate) fn destack_fs_readdir(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::DirectoryHandle,
 ) -> RuntimeResult<VmArray<DirentVm>> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.readdir")).boxed())
@@ -550,7 +550,7 @@ pub(crate) fn destack_fs_readdir(
 /// External, recordable.
 pub(crate) fn destack_fs_readdir_next(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::DirectoryHandle,
 ) -> RuntimeResult<DirentNextVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.readdirNext")).boxed())
@@ -575,7 +575,7 @@ pub(crate) fn destack_fs_readdir_next(
 /// External, recordable.
 pub(crate) fn destack_fs_rewinddir(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.rewinddir")).boxed())
@@ -600,7 +600,7 @@ pub(crate) fn destack_fs_rewinddir(
 /// External, recordable.
 pub(crate) fn destack_fs_rmdir(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _path: OsPathVm,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.rmdir")).boxed())
@@ -625,7 +625,7 @@ pub(crate) fn destack_fs_rmdir(
 /// External, recordable.
 pub(crate) fn destack_fs_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.close")).boxed())
@@ -650,7 +650,7 @@ pub(crate) fn destack_fs_close(
 /// External, recordable.
 pub(crate) fn destack_fs_copy_file_range(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     src: resource::FileHandle,
     srcoffset: FileOffset,
     dst: resource::FileHandle,
@@ -683,7 +683,7 @@ pub(crate) fn destack_fs_copy_file_range(
 /// External, recordable.
 pub(crate) fn destack_fs_dup(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::FileHandle,
 ) -> RuntimeResult<resource::FileHandle> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.dup")).boxed())
@@ -708,7 +708,7 @@ pub(crate) fn destack_fs_dup(
 /// External, recordable.
 pub(crate) fn destack_fs_dup2(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     target: resource::FileHandle,
 ) -> RuntimeResult<resource::FileHandle> {
@@ -735,7 +735,7 @@ pub(crate) fn destack_fs_dup2(
 /// External, recordable.
 pub(crate) fn destack_fs_dup3(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     target: resource::FileHandle,
     flags: OpenFlags,
@@ -763,7 +763,7 @@ pub(crate) fn destack_fs_dup3(
 /// External, recordable.
 pub(crate) fn destack_fs_fadvise(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     offset: FileOffset,
     length: FileSize,
@@ -792,7 +792,7 @@ pub(crate) fn destack_fs_fadvise(
 /// External, recordable.
 pub(crate) fn destack_fs_fallocate(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     offset: FileOffset,
     length: FileSize,
@@ -821,7 +821,7 @@ pub(crate) fn destack_fs_fallocate(
 /// External, recordable.
 pub(crate) fn destack_fs_fdatasync(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.fdatasync")).boxed())
@@ -846,7 +846,7 @@ pub(crate) fn destack_fs_fdatasync(
 /// External, recordable.
 pub(crate) fn destack_fs_fsync(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.fsync")).boxed())
@@ -871,7 +871,7 @@ pub(crate) fn destack_fs_fsync(
 /// External, recordable.
 pub(crate) fn destack_fs_ftruncate(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     size: FileOffset,
 ) -> RuntimeResult<()> {
@@ -898,7 +898,7 @@ pub(crate) fn destack_fs_ftruncate(
 /// External, recordable.
 pub(crate) fn destack_fs_get_fd_flags(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::FileHandle,
 ) -> RuntimeResult<FdFlags> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.getFdFlags")).boxed())
@@ -923,7 +923,7 @@ pub(crate) fn destack_fs_get_fd_flags(
 /// External, recordable.
 pub(crate) fn destack_fs_get_status_flags(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::FileHandle,
 ) -> RuntimeResult<StatusFlags> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -951,7 +951,7 @@ pub(crate) fn destack_fs_get_status_flags(
 /// External, recordable.
 pub(crate) fn destack_fs_lock(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeResult<()> {
@@ -978,7 +978,7 @@ pub(crate) fn destack_fs_lock(
 /// External, recordable.
 pub(crate) fn destack_fs_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     flags: OpenFlags,
     mode: FileMode,
@@ -1006,7 +1006,7 @@ pub(crate) fn destack_fs_open(
 /// External, recordable.
 pub(crate) fn destack_fs_openat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     flags: OpenFlags,
@@ -1035,7 +1035,7 @@ pub(crate) fn destack_fs_openat(
 /// External, recordable.
 pub(crate) fn destack_fs_openat2(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     how: OpenOptionsVm,
@@ -1063,7 +1063,7 @@ pub(crate) fn destack_fs_openat2(
 /// External, recordable.
 pub(crate) fn destack_fs_pread(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     buffer: VmSlice<u8>,
     offset: FileOffset,
@@ -1091,7 +1091,7 @@ pub(crate) fn destack_fs_pread(
 /// External, recordable.
 pub(crate) fn destack_fs_preadv(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
@@ -1119,7 +1119,7 @@ pub(crate) fn destack_fs_preadv(
 /// External, recordable.
 pub(crate) fn destack_fs_preadv2(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
@@ -1148,7 +1148,7 @@ pub(crate) fn destack_fs_preadv2(
 /// External, recordable.
 pub(crate) fn destack_fs_pwrite(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     buffer: VmSlice<u8>,
     offset: FileOffset,
@@ -1176,7 +1176,7 @@ pub(crate) fn destack_fs_pwrite(
 /// External, recordable.
 pub(crate) fn destack_fs_pwritev(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
@@ -1204,7 +1204,7 @@ pub(crate) fn destack_fs_pwritev(
 /// External, recordable.
 pub(crate) fn destack_fs_pwritev2(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
@@ -1233,7 +1233,7 @@ pub(crate) fn destack_fs_pwritev2(
 /// External, recordable.
 pub(crate) fn destack_fs_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -1260,7 +1260,7 @@ pub(crate) fn destack_fs_read(
 /// External, recordable.
 pub(crate) fn destack_fs_readv(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
@@ -1287,7 +1287,7 @@ pub(crate) fn destack_fs_readv(
 /// External, recordable.
 pub(crate) fn destack_fs_seek(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     offset: FileOffset,
     whence: SeekWhence,
@@ -1315,7 +1315,7 @@ pub(crate) fn destack_fs_seek(
 /// External, recordable.
 pub(crate) fn destack_fs_sendfile(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     socket: resource::SocketHandle,
     file: resource::FileHandle,
     offset: FileOffset,
@@ -1344,7 +1344,7 @@ pub(crate) fn destack_fs_sendfile(
 /// External, recordable.
 pub(crate) fn destack_fs_set_fd_flags(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     flags: FdFlags,
 ) -> RuntimeResult<()> {
@@ -1371,7 +1371,7 @@ pub(crate) fn destack_fs_set_fd_flags(
 /// External, recordable.
 pub(crate) fn destack_fs_set_status_flags(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     flags: StatusFlags,
 ) -> RuntimeResult<()> {
@@ -1401,7 +1401,7 @@ pub(crate) fn destack_fs_set_status_flags(
 /// External, recordable.
 pub(crate) fn destack_fs_splice(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     source: resource::ResourceId,
     sourcecursor: SpliceCursorVm,
     target: resource::ResourceId,
@@ -1432,7 +1432,7 @@ pub(crate) fn destack_fs_splice(
 /// External, recordable.
 pub(crate) fn destack_fs_sync_file_range(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     offset: FileOffset,
     length: FileSize,
@@ -1464,7 +1464,7 @@ pub(crate) fn destack_fs_sync_file_range(
 /// External, recordable.
 pub(crate) fn destack_fs_syncfs(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.syncfs")).boxed())
@@ -1489,7 +1489,7 @@ pub(crate) fn destack_fs_syncfs(
 /// External, recordable.
 pub(crate) fn destack_fs_tee(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     sourcepipe: resource::PipeHandle,
     targetpipe: resource::PipeHandle,
     length: FileSize,
@@ -1518,7 +1518,7 @@ pub(crate) fn destack_fs_tee(
 /// External, recordable.
 pub(crate) fn destack_fs_truncate(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     size: FileOffset,
 ) -> RuntimeResult<()> {
@@ -1545,7 +1545,7 @@ pub(crate) fn destack_fs_truncate(
 /// External, recordable.
 pub(crate) fn destack_fs_vmsplice(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     pipe: resource::PipeHandle,
     buffers: VmSlice<VmSlice<u8>>,
     flags: SpliceFlags,
@@ -1573,7 +1573,7 @@ pub(crate) fn destack_fs_vmsplice(
 /// External, recordable.
 pub(crate) fn destack_fs_write(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -1600,7 +1600,7 @@ pub(crate) fn destack_fs_write(
 /// External, recordable.
 pub(crate) fn destack_fs_writev(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
@@ -1627,7 +1627,7 @@ pub(crate) fn destack_fs_writev(
 /// External, recordable.
 pub(crate) fn destack_fs_madvise(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     mapping: VmSlice<u8>,
     advice: MmapAdvice,
 ) -> RuntimeResult<()> {
@@ -1654,7 +1654,7 @@ pub(crate) fn destack_fs_madvise(
 /// External, recordable.
 pub(crate) fn destack_fs_mprotect(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     mapping: VmSlice<u8>,
     prot: MmapProt,
 ) -> RuntimeResult<()> {
@@ -1681,7 +1681,7 @@ pub(crate) fn destack_fs_mprotect(
 /// External, recordable.
 pub(crate) fn destack_fs_msync(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     mapping: VmSlice<u8>,
     flags: MmapSyncFlags,
 ) -> RuntimeResult<()> {
@@ -1708,7 +1708,7 @@ pub(crate) fn destack_fs_msync(
 /// External, recordable.
 pub(crate) fn destack_fs_munmap(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _mapping: VmSlice<u8>,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmap.munmap")).boxed())
@@ -1733,7 +1733,7 @@ pub(crate) fn destack_fs_munmap(
 /// External, recordable.
 pub(crate) fn destack_fs_mmap_anonymous(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     length: FileSize,
     prot: MmapProt,
     flags: MmapFlags,
@@ -1761,7 +1761,7 @@ pub(crate) fn destack_fs_mmap_anonymous(
 /// External, recordable.
 pub(crate) fn destack_fs_mmap_file(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     offset: FileOffset,
     length: FileSize,
@@ -1791,7 +1791,7 @@ pub(crate) fn destack_fs_mmap_file(
 /// External, recordable.
 pub(crate) fn destack_fs_copyfile(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     from: OsPathVm,
     to: OsPathVm,
     flags: CopyFlags,
@@ -1819,7 +1819,7 @@ pub(crate) fn destack_fs_copyfile(
 /// External, recordable.
 pub(crate) fn destack_fs_link(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     existingpath: OsPathVm,
     newpath: OsPathVm,
 ) -> RuntimeResult<()> {
@@ -1846,7 +1846,7 @@ pub(crate) fn destack_fs_link(
 /// External, recordable.
 pub(crate) fn destack_fs_linkat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     existingdir: resource::DirectoryHandle,
     existingpath: OsPathVm,
     newdir: resource::DirectoryHandle,
@@ -1876,7 +1876,7 @@ pub(crate) fn destack_fs_linkat(
 /// External, recordable.
 pub(crate) fn destack_fs_mkfifo(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -1903,7 +1903,7 @@ pub(crate) fn destack_fs_mkfifo(
 /// External, recordable.
 pub(crate) fn destack_fs_mkfifoat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     mode: FileMode,
@@ -1931,7 +1931,7 @@ pub(crate) fn destack_fs_mkfifoat(
 /// External, recordable.
 pub(crate) fn destack_fs_mknod(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     mode: FileMode,
     device: NodeDevice,
@@ -1959,7 +1959,7 @@ pub(crate) fn destack_fs_mknod(
 /// External, recordable.
 pub(crate) fn destack_fs_mknodat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     mode: FileMode,
@@ -1988,7 +1988,7 @@ pub(crate) fn destack_fs_mknodat(
 /// External, recordable.
 pub(crate) fn destack_fs_readlink(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _path: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.readlink")).boxed())
@@ -2013,7 +2013,7 @@ pub(crate) fn destack_fs_readlink(
 /// External, recordable.
 pub(crate) fn destack_fs_readlinkat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
@@ -2040,7 +2040,7 @@ pub(crate) fn destack_fs_readlinkat(
 /// External, recordable.
 pub(crate) fn destack_fs_realpath(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _path: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.realpath")).boxed())
@@ -2065,7 +2065,7 @@ pub(crate) fn destack_fs_realpath(
 /// External, recordable.
 pub(crate) fn destack_fs_rename(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     from: OsPathVm,
     to: OsPathVm,
 ) -> RuntimeResult<()> {
@@ -2092,7 +2092,7 @@ pub(crate) fn destack_fs_rename(
 /// External, recordable.
 pub(crate) fn destack_fs_renameat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     fromdir: resource::DirectoryHandle,
     from: OsPathVm,
     todir: resource::DirectoryHandle,
@@ -2121,7 +2121,7 @@ pub(crate) fn destack_fs_renameat(
 /// External, recordable.
 pub(crate) fn destack_fs_renameat2(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     fromdir: resource::DirectoryHandle,
     from: OsPathVm,
     todir: resource::DirectoryHandle,
@@ -2151,7 +2151,7 @@ pub(crate) fn destack_fs_renameat2(
 /// External, recordable.
 pub(crate) fn destack_fs_symlink(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     target: OsPathVm,
     path: OsPathVm,
     kind: SymlinkType,
@@ -2179,7 +2179,7 @@ pub(crate) fn destack_fs_symlink(
 /// External, recordable.
 pub(crate) fn destack_fs_symlinkat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     target: OsPathVm,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
@@ -2208,7 +2208,7 @@ pub(crate) fn destack_fs_symlinkat(
 /// External, recordable.
 pub(crate) fn destack_fs_unlink(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _path: OsPathVm,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.unlink")).boxed())
@@ -2233,7 +2233,7 @@ pub(crate) fn destack_fs_unlink(
 /// External, recordable.
 pub(crate) fn destack_fs_unlinkat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     flags: AtFlags,
@@ -2261,7 +2261,7 @@ pub(crate) fn destack_fs_unlinkat(
 /// External, recordable.
 pub(crate) fn destack_fs_fstat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::FileHandle,
 ) -> RuntimeResult<StatVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.fstat")).boxed())
@@ -2286,7 +2286,7 @@ pub(crate) fn destack_fs_fstat(
 /// External, recordable.
 pub(crate) fn destack_fs_fstatfs(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::FileHandle,
 ) -> RuntimeResult<StatFsVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.fstatfs")).boxed())
@@ -2311,7 +2311,7 @@ pub(crate) fn destack_fs_fstatfs(
 /// External, recordable.
 pub(crate) fn destack_fs_lstat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _path: OsPathVm,
 ) -> RuntimeResult<StatVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.lstat")).boxed())
@@ -2336,7 +2336,7 @@ pub(crate) fn destack_fs_lstat(
 /// External, recordable.
 pub(crate) fn destack_fs_stat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _path: OsPathVm,
 ) -> RuntimeResult<StatVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.path")).boxed())
@@ -2361,7 +2361,7 @@ pub(crate) fn destack_fs_stat(
 /// External, recordable.
 pub(crate) fn destack_fs_statat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     flags: AtFlags,
@@ -2389,7 +2389,7 @@ pub(crate) fn destack_fs_statat(
 /// External, recordable.
 pub(crate) fn destack_fs_statfs(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _path: OsPathVm,
 ) -> RuntimeResult<StatFsVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.pathfs")).boxed())
@@ -2414,7 +2414,7 @@ pub(crate) fn destack_fs_statfs(
 /// External, recordable.
 pub(crate) fn destack_fs_statx(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     flags: StatxFlags,
@@ -2443,7 +2443,7 @@ pub(crate) fn destack_fs_statx(
 /// External, recordable.
 pub(crate) fn destack_fs_watch(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     options: WatchOptionsVm,
 ) -> RuntimeResult<resource::WatchHandle> {
@@ -2470,7 +2470,7 @@ pub(crate) fn destack_fs_watch(
 /// External, recordable.
 pub(crate) fn destack_fs_watch_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::WatchHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchClose")).boxed())
@@ -2495,7 +2495,7 @@ pub(crate) fn destack_fs_watch_close(
 /// External, recordable.
 pub(crate) fn destack_fs_watch_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::WatchHandle,
 ) -> RuntimeResult<WatchBatchVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchRead")).boxed())
@@ -2520,7 +2520,7 @@ pub(crate) fn destack_fs_watch_read(
 /// External, recordable.
 pub(crate) fn destack_fs_watchat(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     directory: resource::DirectoryHandle,
     path: OsPathVm,
     options: WatchOptionsVm,
@@ -2548,7 +2548,7 @@ pub(crate) fn destack_fs_watchat(
 /// External, recordable.
 pub(crate) fn destack_fs_fgetxattr(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     name: vm::StringHandle,
 ) -> RuntimeResult<VmArray<u8>> {
@@ -2575,7 +2575,7 @@ pub(crate) fn destack_fs_fgetxattr(
 /// External, recordable.
 pub(crate) fn destack_fs_fgetxattr_bytes(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     name: VmSlice<u8>,
 ) -> RuntimeResult<VmArray<u8>> {
@@ -2605,7 +2605,7 @@ pub(crate) fn destack_fs_fgetxattr_bytes(
 /// External, recordable.
 pub(crate) fn destack_fs_flistxattr(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::FileHandle,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.flistxattr")).boxed())
@@ -2630,7 +2630,7 @@ pub(crate) fn destack_fs_flistxattr(
 /// External, recordable.
 pub(crate) fn destack_fs_flistxattr_bytes(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _handle: resource::FileHandle,
 ) -> RuntimeResult<VmArray<VmArray<u8>>> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2658,7 +2658,7 @@ pub(crate) fn destack_fs_flistxattr_bytes(
 /// External, recordable.
 pub(crate) fn destack_fs_fremovexattr(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     name: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -2688,7 +2688,7 @@ pub(crate) fn destack_fs_fremovexattr(
 /// External, recordable.
 pub(crate) fn destack_fs_fremovexattr_bytes(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     name: VmSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -2718,7 +2718,7 @@ pub(crate) fn destack_fs_fremovexattr_bytes(
 /// External, recordable.
 pub(crate) fn destack_fs_fsetxattr(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     name: vm::StringHandle,
     argument_value: VmSlice<u8>,
@@ -2747,7 +2747,7 @@ pub(crate) fn destack_fs_fsetxattr(
 /// External, recordable.
 pub(crate) fn destack_fs_fsetxattr_bytes(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::FileHandle,
     name: VmSlice<u8>,
     argument_value: VmSlice<u8>,
@@ -2779,7 +2779,7 @@ pub(crate) fn destack_fs_fsetxattr_bytes(
 /// External, recordable.
 pub(crate) fn destack_fs_getxattr(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<VmArray<u8>> {
@@ -2806,7 +2806,7 @@ pub(crate) fn destack_fs_getxattr(
 /// External, recordable.
 pub(crate) fn destack_fs_getxattr_bytes(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<VmArray<u8>> {
@@ -2836,7 +2836,7 @@ pub(crate) fn destack_fs_getxattr_bytes(
 /// External, recordable.
 pub(crate) fn destack_fs_lgetxattr(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<VmArray<u8>> {
@@ -2863,7 +2863,7 @@ pub(crate) fn destack_fs_lgetxattr(
 /// External, recordable.
 pub(crate) fn destack_fs_lgetxattr_bytes(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<VmArray<u8>> {
@@ -2893,7 +2893,7 @@ pub(crate) fn destack_fs_lgetxattr_bytes(
 /// External, recordable.
 pub(crate) fn destack_fs_listxattr(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _path: OsPathVm,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.listxattr")).boxed())
@@ -2918,7 +2918,7 @@ pub(crate) fn destack_fs_listxattr(
 /// External, recordable.
 pub(crate) fn destack_fs_listxattr_bytes(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _path: OsPathVm,
 ) -> RuntimeResult<VmArray<VmArray<u8>>> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2946,7 +2946,7 @@ pub(crate) fn destack_fs_listxattr_bytes(
 /// External, recordable.
 pub(crate) fn destack_fs_llistxattr(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _path: OsPathVm,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.llistxattr")).boxed())
@@ -2971,7 +2971,7 @@ pub(crate) fn destack_fs_llistxattr(
 /// External, recordable.
 pub(crate) fn destack_fs_llistxattr_bytes(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     _path: OsPathVm,
 ) -> RuntimeResult<VmArray<VmArray<u8>>> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2999,7 +2999,7 @@ pub(crate) fn destack_fs_llistxattr_bytes(
 /// External, recordable.
 pub(crate) fn destack_fs_lremovexattr(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -3029,7 +3029,7 @@ pub(crate) fn destack_fs_lremovexattr(
 /// External, recordable.
 pub(crate) fn destack_fs_lremovexattr_bytes(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -3059,7 +3059,7 @@ pub(crate) fn destack_fs_lremovexattr_bytes(
 /// External, recordable.
 pub(crate) fn destack_fs_lsetxattr(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
     argument_value: VmSlice<u8>,
@@ -3088,7 +3088,7 @@ pub(crate) fn destack_fs_lsetxattr(
 /// External, recordable.
 pub(crate) fn destack_fs_lsetxattr_bytes(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     name: VmSlice<u8>,
     argument_value: VmSlice<u8>,
@@ -3120,7 +3120,7 @@ pub(crate) fn destack_fs_lsetxattr_bytes(
 /// External, recordable.
 pub(crate) fn destack_fs_removexattr(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -3147,7 +3147,7 @@ pub(crate) fn destack_fs_removexattr(
 /// External, recordable.
 pub(crate) fn destack_fs_removexattr_bytes(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -3177,7 +3177,7 @@ pub(crate) fn destack_fs_removexattr_bytes(
 /// External, recordable.
 pub(crate) fn destack_fs_setxattr(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
     argument_value: VmSlice<u8>,
@@ -3206,7 +3206,7 @@ pub(crate) fn destack_fs_setxattr(
 /// External, recordable.
 pub(crate) fn destack_fs_setxattr_bytes(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     path: OsPathVm,
     name: VmSlice<u8>,
     argument_value: VmSlice<u8>,

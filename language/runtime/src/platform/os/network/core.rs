@@ -367,7 +367,7 @@ fn service_network_watch_callback(
 /// Expose one VM-facing host network snapshot.
 pub(crate) fn state_vm(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<NetworkStateVm> {
     let _ = _context;
     state(binding)
@@ -376,7 +376,7 @@ pub(crate) fn state_vm(
 /// Expose one VM-facing host network watch open.
 pub(crate) fn watch_open_vm(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
 ) -> RuntimeResult<resource::NetworkWatchHandle> {
     let _ = _context;
     watch_open(binding)
@@ -385,7 +385,7 @@ pub(crate) fn watch_open_vm(
 /// Expose one VM-facing host network watch close.
 pub(crate) fn watch_close_vm(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeResult<()> {
     let _ = _context;
@@ -395,7 +395,7 @@ pub(crate) fn watch_close_vm(
 /// Expose one VM-facing host network watch read.
 pub(crate) fn watch_read_vm(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::NetworkWatchHandle,
     timeout_ns: u64,
 ) -> RuntimeResult<NetworkEventVm> {
@@ -406,7 +406,7 @@ pub(crate) fn watch_read_vm(
 /// Expose one VM-facing host network watch try-read.
 pub(crate) fn watch_try_read_vm(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::BindingContext<'_>,
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeResult<NetworkEventVm> {
     let _ = _context;

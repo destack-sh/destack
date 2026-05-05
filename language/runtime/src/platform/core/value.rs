@@ -22,11 +22,11 @@ pub(crate) trait VmAbiCodec: Sized {
     type Value;
 
     /// Decode this VM binding value into one materialized Rust value.
-    fn into_value(self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<Self::Value>;
+    fn into_value(self, context: &vm::BindingRead<'_, '_>) -> RuntimeResult<Self::Value>;
 
     /// Encode one materialized Rust value into this VM binding type.
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: Self::Value,
     ) -> RuntimeResult<Self>;
 }
@@ -51,13 +51,13 @@ macro_rules! identity_value_codec {
 
                 fn into_value(
                     self,
-                    _context: &vm::ExternalReadContext<'_, '_>,
+                    _context: &vm::BindingRead<'_, '_>,
                 ) -> RuntimeResult<Self::Value> {
                     Ok(self)
                 }
 
                 fn from_value(
-                    _context: &mut vm::ExternalWriteContext<'_, '_>,
+                    _context: &mut vm::BindingWrite<'_, '_>,
                     value: Self::Value,
                 ) -> RuntimeResult<Self> {
                     Ok(value)
@@ -84,7 +84,7 @@ impl<T: NativeAbiCodec> NativeAbiCodec for Option<T> {
 impl VmAbiCodec for vm::StringHandle {
     type Value = String;
 
-    fn into_value(self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<Self::Value> {
+    fn into_value(self, context: &vm::BindingRead<'_, '_>) -> RuntimeResult<Self::Value> {
         Ok(context
             .string_ref(self)
             .map_err(Box::<RuntimeError>::from)?
@@ -92,7 +92,7 @@ impl VmAbiCodec for vm::StringHandle {
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: Self::Value,
     ) -> RuntimeResult<Self> {
         context
@@ -104,12 +104,12 @@ impl VmAbiCodec for vm::StringHandle {
 impl<T: VmAbiCodec> VmAbiCodec for Option<T> {
     type Value = Option<T::Value>;
 
-    fn into_value(self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<Self::Value> {
+    fn into_value(self, context: &vm::BindingRead<'_, '_>) -> RuntimeResult<Self::Value> {
         self.map(|value| value.into_value(context)).transpose()
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: Self::Value,
     ) -> RuntimeResult<Self> {
         value.map(|value| T::from_value(context, value)).transpose()
@@ -221,7 +221,7 @@ where
 {
     type Value = Vec<T::Value>;
 
-    fn into_value(self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<Self::Value> {
+    fn into_value(self, context: &vm::BindingRead<'_, '_>) -> RuntimeResult<Self::Value> {
         let values = self.read_values(context)?;
         let mut decoded_values = Vec::with_capacity(values.len());
 
@@ -234,7 +234,7 @@ where
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: Self::Value,
     ) -> RuntimeResult<Self> {
         let mut builder = VmSlice::<T>::builder(context, value.len())?;
@@ -255,7 +255,7 @@ where
 {
     type Value = Vec<T::Value>;
 
-    fn into_value(self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<Self::Value> {
+    fn into_value(self, context: &vm::BindingRead<'_, '_>) -> RuntimeResult<Self::Value> {
         let values = self.read_values(context)?;
         let mut decoded_values = Vec::with_capacity(values.len());
 
@@ -268,7 +268,7 @@ where
     }
 
     fn from_value(
-        context: &mut vm::ExternalWriteContext<'_, '_>,
+        context: &mut vm::BindingWrite<'_, '_>,
         value: Self::Value,
     ) -> RuntimeResult<Self> {
         let slice = <VmSlice<T> as VmAbiCodec>::from_value(context, value)?;

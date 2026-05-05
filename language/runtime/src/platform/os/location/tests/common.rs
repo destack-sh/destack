@@ -49,7 +49,7 @@ pub(super) fn decode_location_sample(
                 &mut *(context
                     .vm_context
                     .expect("vm context should exist for vm harness")
-                    as *mut vm::ExternalCallContext<'_>)
+                    as *mut vm::BindingContext<'_>)
             };
 
             <LocationSampleVm as VmAbiCodec>::into_value(value, &vm_context.read())

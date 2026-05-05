@@ -1,6 +1,6 @@
 use std::sync::{Mutex, OnceLock};
 
-use destack_vm::{ExternalCallContext, StringHandle};
+use destack_vm::{BindingContext, StringHandle};
 use destack_workspace::{RuntimeAppPermission, RuntimeOptions};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -317,7 +317,7 @@ pub(super) fn contact_query_harness_value(
 ) -> RuntimeResult<HarnessValue<ContactQuery, ContactQueryVm>> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut BindingContext<'_>) };
             let query = ContactQueryVm::from_value(&mut vm_context.write(), query)?;
 
             Ok(HarnessValue::Vm(query))
@@ -336,7 +336,7 @@ pub(super) fn contact_draft_harness_value(
 ) -> HarnessValue<ContactDraft, ContactDraftVm> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut BindingContext<'_>) };
             let draft = ContactDraftVm::from_value(&mut vm_context.write(), draft)
                 .expect("vm contact draft should encode");
 
@@ -353,7 +353,7 @@ pub(super) fn string_harness_value(
 ) -> HarnessValue<NativeStringRef, StringHandle> {
     match context.vm_context {
         Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut BindingContext<'_>) };
             let value = StringHandle::new(
                 vm_context
                     .intern_string(value)
@@ -378,7 +378,7 @@ pub(super) fn decode_string_value(
                 &mut *(context
                     .vm_context
                     .expect("vm context should exist for vm harness")
-                    as *mut ExternalCallContext<'_>)
+                    as *mut BindingContext<'_>)
             };
 
             vm_context
@@ -400,7 +400,7 @@ pub(super) fn decode_contact_page(
                 &mut *(context
                     .vm_context
                     .expect("vm context should exist for vm harness")
-                    as *mut ExternalCallContext<'_>)
+                    as *mut BindingContext<'_>)
             };
 
             ContactPageVm::into_value(page, &vm_context.read())
@@ -420,7 +420,7 @@ pub(super) fn decode_contact(
                 &mut *(context
                     .vm_context
                     .expect("vm context should exist for vm harness")
-                    as *mut ExternalCallContext<'_>)
+                    as *mut BindingContext<'_>)
             };
 
             ContactVm::into_value(contact, &vm_context.read())

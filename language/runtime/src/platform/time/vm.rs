@@ -27,7 +27,7 @@ use crate::runtime::{self, BindingCallContext};
 /// External, recordable.
 pub(crate) fn destack_time_clock_metadata(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     clock: ClockId,
 ) -> RuntimeResult<ClockMetadataVm> {
     call_out(|out| unsafe { runtime::time::host::host_clock_metadata(binding, out, clock) })
@@ -52,7 +52,7 @@ pub(crate) fn destack_time_clock_metadata(
 /// External, recordable.
 pub(crate) fn destack_time_mono_ns(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
 ) -> RuntimeResult<u64> {
     call_out(|out| unsafe { runtime::time::host::host_mono_nanos(binding, out) })
 }
@@ -76,7 +76,7 @@ pub(crate) fn destack_time_mono_ns(
 /// External, recordable.
 pub(crate) fn destack_time_now_ns(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     clock: ClockId,
 ) -> RuntimeResult<u64> {
     call_out(|out| unsafe { runtime::time::host::host_now_nanos(binding, out, clock) })
@@ -101,7 +101,7 @@ pub(crate) fn destack_time_now_ns(
 /// External, recordable.
 pub(crate) fn destack_time_process_cpu_ns(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
 ) -> RuntimeResult<u64> {
     call_out(|out| unsafe { runtime::time::host::host_process_cpu_nanos(binding, out) })
 }
@@ -125,7 +125,7 @@ pub(crate) fn destack_time_process_cpu_ns(
 /// External, recordable.
 pub(crate) fn destack_time_thread_cpu_ns(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
 ) -> RuntimeResult<u64> {
     call_out(|out| unsafe { runtime::time::host::host_thread_cpu_nanos(binding, out) })
 }
@@ -149,7 +149,7 @@ pub(crate) fn destack_time_thread_cpu_ns(
 /// External, recordable.
 pub(crate) fn destack_time_wall_ns(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
 ) -> RuntimeResult<u64> {
     call_out(|out| unsafe { runtime::time::host::host_wall_nanos(binding, out) })
 }
@@ -173,7 +173,7 @@ pub(crate) fn destack_time_wall_ns(
 /// External, recordable.
 pub(crate) fn destack_time_sleep_ns(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     duration: u64,
 ) -> RuntimeResult<()> {
     unsafe { runtime::time::host::host_sleep_nanos(binding, duration) }
@@ -198,7 +198,7 @@ pub(crate) fn destack_time_sleep_ns(
 /// External, recordable.
 pub(crate) fn destack_time_sleep_on_ns(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     duration: u64,
     clock: SleepClock,
 ) -> RuntimeResult<()> {
@@ -224,7 +224,7 @@ pub(crate) fn destack_time_sleep_on_ns(
 /// External, recordable.
 pub(crate) fn destack_time_sleep_until_ns(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     deadline: u64,
 ) -> RuntimeResult<()> {
     unsafe { runtime::time::host::host_sleep_until_nanos(binding, deadline) }
@@ -249,7 +249,7 @@ pub(crate) fn destack_time_sleep_until_ns(
 /// External, recordable.
 pub(crate) fn destack_time_sleep_until_on_ns(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     deadline: u64,
     clock: SleepClock,
 ) -> RuntimeResult<()> {
@@ -275,7 +275,7 @@ pub(crate) fn destack_time_sleep_until_on_ns(
 /// External, recordable.
 pub(crate) fn destack_time_timer_at(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     deadlinens: u64,
     options: TimerOptionsVm,
 ) -> RuntimeResult<resource::TimerHandle> {
@@ -308,7 +308,7 @@ pub(crate) fn destack_time_timer_at(
 /// External, recordable.
 pub(crate) fn destack_time_timer_cancel(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     unsafe { runtime_native::destack_time_timer_cancel(binding, handle) }
@@ -333,7 +333,7 @@ pub(crate) fn destack_time_timer_cancel(
 /// External, recordable.
 pub(crate) fn destack_time_timer_interval(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     periodns: u64,
     options: TimerOptionsVm,
 ) -> RuntimeResult<resource::TimerHandle> {
@@ -366,7 +366,7 @@ pub(crate) fn destack_time_timer_interval(
 /// External, recordable.
 pub(crate) fn destack_time_timer_is_active(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<bool> {
     call_out(|out| unsafe { runtime_native::destack_time_timer_is_active(binding, out, handle) })
@@ -391,7 +391,7 @@ pub(crate) fn destack_time_timer_is_active(
 /// External, recordable.
 pub(crate) fn destack_time_timer_once(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     delayns: u64,
     options: TimerOptionsVm,
 ) -> RuntimeResult<resource::TimerHandle> {
@@ -424,7 +424,7 @@ pub(crate) fn destack_time_timer_once(
 /// External, recordable.
 pub(crate) fn destack_time_timer_pause(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     unsafe { runtime_native::destack_time_timer_pause(binding, handle) }
@@ -449,7 +449,7 @@ pub(crate) fn destack_time_timer_pause(
 /// External, recordable.
 pub(crate) fn destack_time_timer_remaining_ns(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<u64> {
     call_out(|out| unsafe { runtime_native::destack_time_timer_remaining_ns(binding, out, handle) })
@@ -474,7 +474,7 @@ pub(crate) fn destack_time_timer_remaining_ns(
 /// External, recordable.
 pub(crate) fn destack_time_timer_reset(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: resource::TimerHandle,
     delayns: u64,
 ) -> RuntimeResult<()> {
@@ -500,7 +500,7 @@ pub(crate) fn destack_time_timer_reset(
 /// External, recordable.
 pub(crate) fn destack_time_timer_resume(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     unsafe { runtime_native::destack_time_timer_resume(binding, handle) }
@@ -525,7 +525,7 @@ pub(crate) fn destack_time_timer_resume(
 /// External, recordable.
 pub(crate) fn destack_time_timer_update_interval(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::BindingContext<'_>,
     handle: resource::TimerHandle,
     periodns: u64,
 ) -> RuntimeResult<()> {
