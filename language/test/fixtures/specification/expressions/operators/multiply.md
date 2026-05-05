@@ -84,3 +84,24 @@ const b: uint8 = 10;
 const value = a *| b;
 value satisfies uint8;
 ```
+
+### wrapping multiply rejects user types
+
+> `*%` is not an overloadable operator.
+
+```ds
+struct Scalar { value: int }
+
+extension of Scalar implements Multiply<Scalar> {
+    multiply(other: Scalar): Scalar { return this }
+}
+
+declare function getScalar(): Scalar;
+
+const left = getScalar();
+const right = getScalar();
+
+left *% right;
+```
+
+- contains: no matching overload

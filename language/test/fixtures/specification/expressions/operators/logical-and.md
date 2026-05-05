@@ -18,7 +18,7 @@ let value: boolean = true && false;
 
 > `&&=` uses standard assignment rules.
 
-```ts
+```ds
 type Value = { ok: true };
 
 declare const fallback: Value;
@@ -28,11 +28,11 @@ value &&= fallback;
 value satisfies Value | undefined;
 ```
 
-### logical and assignment rejects incompatible values
+### logical and assignment rejects incompatible operands
 
-> `&&=` rejects incompatible right hand side values.
+> `&&=` rejects incompatible right operands.
 
-```ts
+```ds
 let value: string | undefined = "ok";
 
 value &&= 1;

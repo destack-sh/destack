@@ -18,18 +18,18 @@ let value: boolean = true || false;
 
 > `||=` uses standard assignment rules.
 
-```ts
+```ds
 let value: string | undefined = undefined;
 
 value ||= "fallback";
 value satisfies string | undefined;
 ```
 
-### logical or assignment rejects incompatible values
+### logical or assignment rejects incompatible operands
 
-> `||=` rejects incompatible right hand side values.
+> `||=` rejects incompatible right operands.
 
-```ts
+```ds
 let value: string = "ok";
 
 value ||= 1;

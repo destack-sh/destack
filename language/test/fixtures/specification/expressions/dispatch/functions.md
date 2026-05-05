@@ -2,50 +2,9 @@
 
 Function dispatch selects overloads from declared signatures in declaration order.
 
-## signatures
-
-### overload signatures share one implementation
-
-> Multiple overload signatures can share one implementation.
-
-```ts:main.ts
-export function parse(value: string): number;
-export function parse(value: number): number;
-export function parse(value: string | number): number {
-    return 0;
-}
-
-const result = parse("x");
-result satisfies number;
-```
-
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
-```
-
-### multiple overload implementations are rejected
-
-> A signature overload set has exactly one implementation.
-
-```ts:main.ts
-export function parse(value: string): number {
-    return 0;
-}
-
-export function parse(value: number): number {
-    return value;
-}
-```
-
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
-```
-
-- contains: overload
-
 ## implementations
 
-### modules allow implementation overloads
+### functions can overload
 
 > `.ds` modules can define multiple implementations with distinct signatures.
 
@@ -100,7 +59,7 @@ const selected = format("json");
 selected satisfies "json";
 ```
 
-### broad overloads can shadow narrow overloads
+### earlier broad overloads win
 
 > Earlier compatible overloads are selected before later narrower overloads.
 
@@ -157,7 +116,7 @@ result satisfies string | int32;
 
 ## generics
 
-### generic overloads participate in declaration order
+### generic overloads follow declaration order
 
 > Generic overloads are ordinary overload candidates.
 

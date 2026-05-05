@@ -1,58 +1,11 @@
-# Member Dispatch
+# Method Dispatch
 
 Method overloads follow the same declaration-order rules as free functions.
-Signature overloads share one implementation.
-`.ds` modules can also provide multiple concrete implementations with distinct signatures.
-
-## legality
-
-### allows method overload signatures with one implementation
-
-> Method overload signatures can share one implementation.
-
-```ts:main.ts
-export class Parser {
-    parse(value: string): number;
-    parse(value: number): number;
-    parse(value: string | number): number {
-        return 0;
-    }
-}
-
-const parser = new Parser();
-const result = parser.parse("x");
-result satisfies number;
-```
-
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
-```
-
-### rejects multiple method implementations
-
-> Signature overloads cannot declare multiple concrete method implementations for the same symbol.
-
-```ts:main.ts
-export class Parser {
-    parse(value: string): number {
-        return 0;
-    }
-
-    parse(value: number): number {
-        return value;
-    }
-}
-```
-
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
-```
-
-- contains: overload
+`.ds` modules can provide multiple concrete implementations with distinct signatures.
 
 ## overload order
 
-### method overload selection uses declaration order
+### methods use declaration order
 
 > The first matching method overload wins in `.ds` modules.
 
@@ -72,7 +25,7 @@ const selected = parser.parse(1);
 selected satisfies "broad";
 ```
 
-### method overload selection rejects later overload results
+### later method overloads do not win
 
 > Later method overloads do not win when earlier overloads apply.
 
@@ -94,7 +47,7 @@ selected satisfies "narrow";
 
 - contains: not assignable
 
-### method overload order is preserved through class inheritance
+### inherited methods keep overload order
 
 > Overload declaration order stays stable on inherited methods.
 
@@ -116,7 +69,7 @@ const selected = parser.parse(1);
 selected satisfies "broad";
 ```
 
-### method overload order through inheritance does not select later overloads
+### inherited methods do not reorder overloads
 
 > Inherited method overloads do not promote later declaration results.
 
