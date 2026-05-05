@@ -7,8 +7,8 @@ use crate::diagnostic::Error;
 use crate::interpreter::{Frame, Machine};
 use crate::program::{
     ArgumentRange, FrameAccess, FrameAccessId, Instruction, MovePair, MoveRange, MoveSource,
-    PointeeAccess, PointerClass, Program, Transfer, ValueLayout, encode_word_bytes,
-    pointer_class_from_reference, repr_type, value_layout_from_type,
+    PointerClass, Program, Transfer, ValueLayout, encode_word_bytes, pointer_class_from_reference,
+    repr_type, value_layout_from_type,
 };
 use crate::{FramePointer, ReferenceMeta, SharedHeap, Word};
 use destack_heap::{Heap, SharedAllocator, SharedGcWorker};
@@ -21,9 +21,9 @@ use super::reference::{check_reference_address_space, check_reference_mutability
 pub(super) fn frame_element_offset(
     machine: &Machine<'_, '_>,
     access: FrameAccess,
-    index: mir::Value,
+    index: u32,
 ) -> Result<usize, Error> {
-    let index = machine.get_word(index).as_u64();
+    let index = machine.get_word_at(index).as_u64();
     if machine.bounds_checks && index >= access.length {
         return Err(Error::InvalidArrayAccess {
             index,
@@ -34,30 +34,25 @@ pub(super) fn frame_element_offset(
     Ok(access.byte_offset + access.byte_stride * index as usize)
 }
 
-/// Execute fixed frame address calculation.
+/// Execute fixed-offset frame address calculation.
 #[inline(always)]
-pub(crate) fn execute_address_frame(
+pub(crate) fn execute_address_frame_offset(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let dest = mir::Value::new(instruction.a);
-    let base = mir::Value::new(instruction.b);
+    let dest = instruction.a;
+    let base = instruction.b;
     let reference = ReferenceMeta::from_bits(instruction.c as u8);
-    let access = FrameAccessId(instruction.d);
+    let byte_offset = instruction.d as usize;
 
-    let base = match machine.value_operand(base) {
-        Ok(base) => base,
-        Err(error) => return Transfer::Error(error),
-    };
-    let access = machine.frame_access(access);
-    let pointer = base.as_frame_pointer().add_bytes(access.byte_offset);
+    let pointer = machine.frame_pointer_at(base).add_bytes(byte_offset);
     let value = Word::frame_pointer(pointer);
 
     if let Err(error) = check_reference_address_space(machine, reference) {
         return Transfer::Error(error);
     }
 
-    machine.set_word(dest, value);
+    machine.set_word_at(dest, value);
 
     Transfer::Continue
 }
@@ -68,112 +63,87 @@ pub(crate) fn execute_address_frame_element(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let dest = mir::Value::new(instruction.a);
-    let base = mir::Value::new(instruction.b);
-    let index = mir::Value::new(instruction.c);
+    let dest = instruction.a;
+    let base = instruction.b;
+    let index = instruction.c;
     let access = FrameAccessId(instruction.d);
 
-    let base = match machine.value_operand(base) {
-        Ok(base) => base,
-        Err(error) => return Transfer::Error(error),
-    };
     let access = machine.frame_access(access);
     let offset = match frame_element_offset(machine, access, index) {
         Ok(offset) => offset,
         Err(error) => return Transfer::Error(error),
     };
-    let pointer = base.as_frame_pointer().add_bytes(offset);
+    let pointer = machine.frame_pointer_at(base).add_bytes(offset);
     let value = Word::frame_pointer(pointer);
 
     if let Err(error) = check_reference_address_space(machine, access.reference) {
         return Transfer::Error(error);
     }
 
-    machine.set_word(dest, value);
+    machine.set_word_at(dest, value);
 
     Transfer::Continue
 }
 
-/// Execute fixed frame word load.
+/// Execute fixed frame scalar load.
 #[inline(always)]
-pub(crate) fn execute_load_frame(
+pub(crate) fn execute_load_frame_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let dest = mir::Value::new(instruction.a);
-    let base = mir::Value::new(instruction.b);
-    let access = FrameAccessId(instruction.c);
+    let dest = instruction.a;
+    let base = machine.get_word_at(instruction.b);
+    let byte_offset = instruction.c as usize;
+    let pointer = base.as_frame_pointer().add_bytes(byte_offset);
 
-    let base = match machine.value_operand(base) {
-        Ok(base) => base,
-        Err(error) => return Transfer::Error(error),
-    };
-    let access = machine.frame_access(access);
-    let access = PointeeAccess {
-        byte_offset: access.byte_offset,
-        ..access.into()
-    };
+    if !machine.owns_frame_range(pointer, BYTE_LEN) {
+        return Transfer::Error(Error::InvalidAddressSpace {
+            expected: "frame".to_string(),
+            actual: format!("0x{:x}", pointer.address()),
+        });
+    }
 
-    let value = match access::load_frame_word(machine, base.as_frame_pointer(), access) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
-
-    machine.set_word(dest, value);
+    let value = access::load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(pointer.address());
+    machine.set_word_at(dest, value);
 
     Transfer::Continue
 }
 
-/// Execute frame element word load.
+/// Execute fixed frame value scalar load.
 #[inline(always)]
-pub(crate) fn execute_load_frame_element(
+pub(crate) fn execute_load_frame_value_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let dest = mir::Value::new(instruction.a);
-    let base = mir::Value::new(instruction.b);
-    let index = mir::Value::new(instruction.c);
-    let access = FrameAccessId(instruction.d);
+    let dest = instruction.a;
+    let base = instruction.b;
+    let byte_offset = instruction.c as usize;
+    let pointer = machine.frame_pointer_at(base).add_bytes(byte_offset);
 
-    let base = match machine.value_operand(base) {
-        Ok(base) => base,
-        Err(error) => return Transfer::Error(error),
-    };
-    let access = machine.frame_access(access);
-    let offset = match frame_element_offset(machine, access, index) {
-        Ok(offset) => offset,
-        Err(error) => return Transfer::Error(error),
-    };
-    let access = PointeeAccess {
-        byte_offset: offset,
-        ..access.into()
-    };
+    if !machine.owns_frame_range(pointer, BYTE_LEN) {
+        return Transfer::Error(Error::InvalidAddressSpace {
+            expected: "frame".to_string(),
+            actual: format!("0x{:x}", pointer.address()),
+        });
+    }
 
-    let value = match access::load_frame_word(machine, base.as_frame_pointer(), access) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
-
-    machine.set_word(dest, value);
+    let value = access::load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(pointer.address());
+    machine.set_word_at(dest, value);
 
     Transfer::Continue
 }
 
-/// Execute fixed frame word store.
+/// Execute fixed frame scalar store.
 #[inline(always)]
-pub(crate) fn execute_store_frame(
+pub(crate) fn execute_store_frame_scalar<const BYTE_LEN: usize>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let base = mir::Value::new(instruction.a);
-    let value = mir::Value::new(instruction.b);
-    let access = FrameAccessId(instruction.c);
+    let base = machine.get_word_at(instruction.a);
+    let value = instruction.b;
+    let byte_offset = instruction.c as usize;
     let reference = ReferenceMeta::from_bits(instruction.d as u8);
 
-    let base = match machine.value_operand(base) {
-        Ok(base) => base,
-        Err(error) => return Transfer::Error(error),
-    };
     if let Err(error) = check_reference_address_space(machine, reference) {
         return Transfer::Error(error);
     }
@@ -181,56 +151,50 @@ pub(crate) fn execute_store_frame(
         return Transfer::Error(error);
     }
 
-    let access = machine.frame_access(access);
-    let access = PointeeAccess {
-        byte_offset: access.byte_offset,
-        ..access.into()
-    };
-    let value = machine.get_word(value);
+    let pointer = base.as_frame_pointer().add_bytes(byte_offset);
+    let value = machine.get_word_at(value);
 
-    if let Err(error) = access::store_frame_word(machine, base.as_frame_pointer(), access, value) {
-        return Transfer::Error(error);
+    if !machine.owns_frame_range(pointer, BYTE_LEN) {
+        return Transfer::Error(Error::InvalidAddressSpace {
+            expected: "frame".to_string(),
+            actual: format!("0x{:x}", pointer.address()),
+        });
     }
+
+    access::store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
 
     Transfer::Continue
 }
 
-/// Execute frame element word store.
+/// Execute fixed frame value scalar store.
 #[inline(always)]
-pub(crate) fn execute_store_frame_element(
+pub(crate) fn execute_store_frame_value_scalar<const BYTE_LEN: usize>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let base = mir::Value::new(instruction.a);
-    let index = mir::Value::new(instruction.b);
-    let value = mir::Value::new(instruction.c);
-    let access = FrameAccessId(instruction.d);
+    let base = instruction.a;
+    let value = instruction.b;
+    let byte_offset = instruction.c as usize;
+    let reference = ReferenceMeta::from_bits(instruction.d as u8);
 
-    let base = match machine.value_operand(base) {
-        Ok(base) => base,
-        Err(error) => return Transfer::Error(error),
-    };
-    let access = machine.frame_access(access);
-    if let Err(error) = check_reference_address_space(machine, access.reference) {
+    if let Err(error) = check_reference_address_space(machine, reference) {
         return Transfer::Error(error);
     }
-    if let Err(error) = check_reference_mutability(machine, access.reference) {
+    if let Err(error) = check_reference_mutability(machine, reference) {
         return Transfer::Error(error);
     }
 
-    let offset = match frame_element_offset(machine, access, index) {
-        Ok(offset) => offset,
-        Err(error) => return Transfer::Error(error),
-    };
-    let access = PointeeAccess {
-        byte_offset: offset,
-        ..access.into()
-    };
-    let value = machine.get_word(value);
+    let pointer = machine.frame_pointer_at(base).add_bytes(byte_offset);
+    let value = machine.get_word_at(value);
 
-    if let Err(error) = access::store_frame_word(machine, base.as_frame_pointer(), access, value) {
-        return Transfer::Error(error);
+    if !machine.owns_frame_range(pointer, BYTE_LEN) {
+        return Transfer::Error(Error::InvalidAddressSpace {
+            expected: "frame".to_string(),
+            actual: format!("0x{:x}", pointer.address()),
+        });
     }
+
+    access::store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
 
     Transfer::Continue
 }
@@ -304,21 +268,6 @@ pub(crate) fn encode_argument_bytes(
     Ok(bytes)
 }
 
-/// Return one frame byte range for one lowered memory access.
-#[inline(always)]
-pub(crate) fn frame_value_bytes_for_access(
-    machine: &Machine<'_, '_>,
-    value: mir::Value,
-    byte_len: usize,
-) -> Result<(*const u8, usize), Error> {
-    let (bytes, actual_byte_len) = machine.frame_value_byte_range(value)?;
-    if actual_byte_len != byte_len {
-        return Err(Error::InvalidInstruction);
-    }
-
-    Ok((bytes, actual_byte_len))
-}
-
 /// Store one field-shaped value into destination frame bytes.
 pub(crate) fn store_frame_fields<F>(
     machine: &mut Machine<'_, '_>,
@@ -360,53 +309,6 @@ where
                 field_count: layout.byte_len,
             },
         )?;
-
-        value_window.copy_from_slice(value_bytes.as_slice());
-    }
-
-    Ok(())
-}
-
-/// Store one indexed value into destination frame bytes.
-pub(crate) fn store_frame_elements<F>(
-    machine: &mut Machine<'_, '_>,
-    destination: mir::Value,
-    mut element_value: F,
-) -> Result<(), Error>
-where
-    F: FnMut(&mut Machine<'_, '_>, usize, mir::LocalNodeId<mir::Type>) -> Result<Word, Error>,
-{
-    let ty = machine.value_type(destination)?;
-    let layout = machine.layout(ty)?.clone();
-    let element = layout.element().ok_or(Error::TypeMismatch {
-        expected: "indexed frame value".to_string(),
-        actual: format!("{ty:?}"),
-    })?;
-    let element_count = layout.element_count().ok_or(Error::InvalidInstruction)?;
-
-    // validate the destination once before incremental writes
-    if machine.value_bytes(destination)?.len() != layout.byte_len {
-        return Err(Error::InvalidInstruction);
-    }
-
-    // encode each element into its physical byte range
-    for index in 0..element_count {
-        let offset = element.stride * index;
-        let value_end = offset + element.byte_len;
-        let value = element_value(machine, index, element.ty)?;
-        let value_bytes = encode_word_bytes(machine.tree(), element.ty, value)?;
-        if value_bytes.len() != element.byte_len {
-            return Err(Error::InvalidInstruction);
-        }
-
-        let destination_bytes = machine.value_bytes_mut(destination)?;
-        let value_window =
-            destination_bytes
-                .get_mut(offset..value_end)
-                .ok_or(Error::InvalidArrayAccess {
-                    index: index as u64,
-                    length: element_count as u64,
-                })?;
 
         value_window.copy_from_slice(value_bytes.as_slice());
     }
@@ -653,17 +555,17 @@ pub(crate) fn materialize_value(
             let layout_id = program
                 .layout_id_for_type(value.ty)
                 .ok_or(Error::InvalidInstruction)?;
-            let plan = program.allocation_plan(layout_id)?;
+            let shape = program.allocation_shape(layout_id)?;
 
             match boundary_pointer_class(program, value.ty) {
                 PointerClass::Heap => {
-                    let layout = heap.allocation_layout(plan);
+                    let layout = heap.allocation_layout(shape);
                     let reference = heap.allocate_bytes(&layout, &bytes).map_err(Error::from)?;
 
                     Ok(engine::Value::HeapReference(reference))
                 }
                 PointerClass::SharedHeap => {
-                    let layout = shared.allocation_layout(plan);
+                    let layout = shared.allocation_layout(shape);
                     let reference = shared
                         .allocate_bytes(shared_gc, shared_allocator, &layout, &bytes)
                         .map_err(Error::from)?;
@@ -1009,7 +911,7 @@ pub(crate) fn move_arguments_between_frames(
     Ok(())
 }
 
-/// Move frame values using one lowered move plan.
+/// Move frame values using one lowered move range.
 pub(crate) fn move_values(
     program: &Program,
     source_frame: &Frame,
@@ -1133,8 +1035,8 @@ pub(crate) fn load_arguments(
     Ok(collected_arguments)
 }
 
-/// Copy one lowered argument plan out of the current frame.
-pub(crate) fn load_planned_arguments(
+/// Copy one lowered argument move range out of the current frame.
+pub(crate) fn load_moved_arguments(
     program: &Program,
     frames: &[Frame],
     frame: &Frame,

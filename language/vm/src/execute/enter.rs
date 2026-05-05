@@ -5,7 +5,7 @@ use crate::Word;
 use {destack_engine as engine, destack_mir as mir};
 
 use super::frame::{
-    FrameValue, function_return_type, load_arguments, load_planned_arguments, materialize_word,
+    FrameValue, function_return_type, load_arguments, load_moved_arguments, materialize_word,
     move_arguments_between_frames, move_values, store_parameters,
 };
 use crate::SharedHeap;
@@ -247,7 +247,7 @@ impl Interpreter {
 
             // collect explicit call arguments in caller order
             let arguments = if let Some(moves) = moves {
-                load_planned_arguments(
+                load_moved_arguments(
                     program,
                     self.frames.as_slice(),
                     caller,
@@ -410,7 +410,7 @@ impl Interpreter {
             .last()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let argument_values = if let Some(moves) = moves {
-            load_planned_arguments(
+            load_moved_arguments(
                 program,
                 self.frames.as_slice(),
                 caller,

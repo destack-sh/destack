@@ -1,14 +1,13 @@
 use std::{ptr, slice};
 
 use crate::diagnostic::Error;
-use crate::program::{ElementAccess, FieldAccess, PointeeAccess};
-use crate::{
-    FramePointer, HeapReference, RawPointer, SharedHeapReference, SharedRawPointer, StackPointer,
-    StaticPointer, Word,
-};
+use crate::program::{PointeeAccess, WordLayout};
+use crate::{FramePointer, HeapReference, SharedHeapReference, StackPointer, StaticPointer, Word};
 use destack_heap::HeapError;
 
 use crate::interpreter::Machine;
+
+const POINTER_BYTE_LEN: usize = usize::BITS as usize / 8;
 
 /// Build one invalid-pointer-type error for the given value.
 #[inline(always)]
@@ -18,85 +17,18 @@ pub(super) fn invalid_pointer_type(value: Word) -> Error {
     }
 }
 
-/// Ensure one shared heap reference is visible to global heap metadata.
-#[inline(always)]
-fn ensure_shared_heap_live(
-    machine: &mut Machine<'_, '_>,
-    reference: SharedHeapReference,
-) -> Result<(), Error> {
-    if machine.shared().is_heap_live(reference) {
-        return Ok(());
-    }
-
-    machine.flush_shared_allocator();
-    if machine.shared().is_heap_live(reference) {
-        return Ok(());
-    }
-
-    Err(Error::InvalidHeapReference)
-}
-
-/// Debug assert one lowered word access.
+/// Debug assert one lowered scalar access.
 #[inline(always)]
 fn debug_assert_word_access(access: PointeeAccess) {
     debug_assert!(access.is_word());
     debug_assert!(access.byte_len <= Word::BYTE_LEN);
 }
 
-/// Decode raw memory bits through one lowered word layout.
+/// Return one lowered scalar layout.
 #[inline(always)]
-fn decode_word(access: PointeeAccess, raw: u64) -> Word {
+fn scalar_layout(access: PointeeAccess) -> WordLayout {
     debug_assert!(access.word_layout.is_some());
-    let layout = unsafe { access.word_layout.unwrap_unchecked() };
-    layout.decode(raw)
-}
-
-/// Validate a field index against a known field count.
-#[inline(always)]
-fn check_field_index(machine: &Machine<'_, '_>, index: u32, field_count: u32) -> Result<(), Error> {
-    // skip checks when bounds are disabled
-    if !machine.bounds_checks {
-        return Ok(());
-    }
-
-    // reject out of bounds indices
-    if index >= field_count {
-        return Err(Error::InvalidFieldAccess {
-            index,
-            field_count: field_count as usize,
-        });
-    }
-
-    Ok(())
-}
-
-/// Validate an array index against a known length.
-#[inline(always)]
-fn check_array_index(
-    machine: &Machine<'_, '_>,
-    index: u64,
-    array_length: u64,
-) -> Result<(), Error> {
-    // skip checks when bounds are disabled
-    if !machine.bounds_checks {
-        return Ok(());
-    }
-
-    // reject out of bounds indices
-    if index >= array_length {
-        return Err(Error::InvalidArrayAccess {
-            index,
-            length: array_length,
-        });
-    }
-
-    Ok(())
-}
-
-/// Return one element byte offset.
-#[inline(always)]
-fn element_byte_offset(index: u64, stride: usize) -> usize {
-    index as usize * stride
+    unsafe { access.word_layout.unwrap_unchecked() }
 }
 
 /// Return one local heap native address.
@@ -127,16 +59,6 @@ fn shared_heap_address(
     Ok(machine.shared().heap_base_address() + reference.offset() + byte_offset)
 }
 
-/// Check that one destination byte range matches one access.
-#[inline(always)]
-fn check_destination_len(access: PointeeAccess, destination_len: usize) -> Result<(), Error> {
-    if destination_len != access.byte_len {
-        return Err(Error::InvalidInstruction);
-    }
-
-    Ok(())
-}
-
 /// Load bytes from one native address.
 #[inline(always)]
 fn load_native_bytes(address: usize, destination: *mut u8, destination_len: usize) {
@@ -145,27 +67,56 @@ fn load_native_bytes(address: usize, destination: *mut u8, destination_len: usiz
     }
 }
 
-/// Load layout-width scalar bits from one address.
+/// Sign extend one loaded scalar.
 #[inline(always)]
-pub(super) fn load_scalar_bits(address: usize, byte_len: usize) -> u64 {
-    unsafe {
-        let source = address as *const u8;
+fn sign_extend_scalar(raw: u64, byte_len: usize) -> u64 {
+    let shift = u64::BITS as usize - byte_len * 8;
 
+    ((raw << shift) as i64 >> shift) as u64
+}
+
+/// Load unsigned scalar bits from one address.
+#[inline(always)]
+fn load_unsigned_bits(address: usize, byte_len: usize) -> u64 {
+    let source = address as *const u8;
+
+    unsafe {
         match byte_len {
             0 => 0,
             1 => source.read() as u64,
             2 => u16::from_le(source.cast::<u16>().read_unaligned()) as u64,
             4 => u32::from_le(source.cast::<u32>().read_unaligned()) as u64,
             8 => u64::from_le(source.cast::<u64>().read_unaligned()),
-            _ => load_bytewise_scalar_bits(source, byte_len),
+            _ => load_bytewise_unsigned_bits(source, byte_len),
         }
     }
 }
 
-/// Load non-native-width scalar bits from one address.
+/// Load one lowered scalar from one native address.
+#[inline(always)]
+pub(super) fn load_scalar_at_address<const BYTE_LEN: usize, const IS_SIGNED: bool>(
+    address: usize,
+) -> Word {
+    let raw = load_unsigned_bits(address, BYTE_LEN);
+    let raw = if IS_SIGNED && BYTE_LEN < Word::BYTE_LEN {
+        sign_extend_scalar(raw, BYTE_LEN)
+    } else {
+        raw
+    };
+
+    Word::from_bits(raw)
+}
+
+/// Store one lowered scalar to one native address.
+#[inline(always)]
+pub(super) fn store_scalar_at_address<const BYTE_LEN: usize>(address: usize, value: Word) {
+    store_unsigned_bits(address, value.bits(), BYTE_LEN);
+}
+
+/// Load non-native-width unsigned bits from one address.
 #[cold]
 #[inline(never)]
-unsafe fn load_bytewise_scalar_bits(source: *const u8, byte_len: usize) -> u64 {
+unsafe fn load_bytewise_unsigned_bits(source: *const u8, byte_len: usize) -> u64 {
     let mut raw = 0u64;
 
     for index in 0..byte_len {
@@ -175,12 +126,12 @@ unsafe fn load_bytewise_scalar_bits(source: *const u8, byte_len: usize) -> u64 {
     raw
 }
 
-/// Store layout-width scalar bits to one address.
+/// Store unsigned scalar bits to one address.
 #[inline(always)]
-pub(super) fn store_scalar_bits(address: usize, raw: u64, byte_len: usize) {
-    unsafe {
-        let destination = address as *mut u8;
+fn store_unsigned_bits(address: usize, raw: u64, byte_len: usize) {
+    let destination = address as *mut u8;
 
+    unsafe {
         match byte_len {
             0 => {}
             1 => destination.write(raw as u8),
@@ -191,15 +142,15 @@ pub(super) fn store_scalar_bits(address: usize, raw: u64, byte_len: usize) {
                 .cast::<u32>()
                 .write_unaligned((raw as u32).to_le()),
             8 => destination.cast::<u64>().write_unaligned(raw.to_le()),
-            _ => store_bytewise_scalar_bits(destination, raw, byte_len),
+            _ => store_bytewise_unsigned_bits(destination, raw, byte_len),
         }
     }
 }
 
-/// Store non-native-width scalar bits to one address.
+/// Store non-native-width unsigned bits to one address.
 #[cold]
 #[inline(never)]
-unsafe fn store_bytewise_scalar_bits(destination: *mut u8, raw: u64, byte_len: usize) {
+unsafe fn store_bytewise_unsigned_bits(destination: *mut u8, raw: u64, byte_len: usize) {
     for index in 0..byte_len {
         unsafe {
             destination
@@ -209,8 +160,24 @@ unsafe fn store_bytewise_scalar_bits(destination: *mut u8, raw: u64, byte_len: u
     }
 }
 
-/// Load one value from raw heap bytes.
-pub(crate) fn load_raw_word(
+/// Load one typed scalar from one native address.
+#[inline(always)]
+pub(super) fn load_scalar_by_layout_at_address(address: usize, layout: WordLayout) -> Word {
+    let raw = load_unsigned_bits(address, layout.byte_len(POINTER_BYTE_LEN));
+
+    layout.decode(raw)
+}
+
+/// Store one typed scalar to one native address.
+#[inline(always)]
+pub(super) fn store_scalar_by_layout_at_address(address: usize, layout: WordLayout, value: Word) {
+    let raw = layout.encode(value);
+
+    store_unsigned_bits(address, raw, layout.byte_len(POINTER_BYTE_LEN));
+}
+
+/// Load one scalar from local raw heap bytes.
+pub(crate) fn load_raw_scalar_by_layout(
     machine: &mut Machine<'_, '_>,
     pointer: Word,
     access: PointeeAccess,
@@ -226,13 +193,15 @@ pub(crate) fn load_raw_word(
         .heap()
         .raw_address(pointer, access.byte_offset, access.byte_len)
         .map_err(Error::from)?;
-    let raw = load_scalar_bits(address as usize, access.byte_len);
 
-    Ok(decode_word(access, raw))
+    Ok(load_scalar_by_layout_at_address(
+        address as usize,
+        scalar_layout(access),
+    ))
 }
 
-/// Load one value from shared raw heap bytes.
-pub(crate) fn load_shared_raw_word(
+/// Load one scalar from shared raw heap bytes.
+pub(crate) fn load_shared_raw_scalar_by_layout(
     machine: &mut Machine<'_, '_>,
     pointer: Word,
     access: PointeeAccess,
@@ -248,21 +217,21 @@ pub(crate) fn load_shared_raw_word(
         .shared()
         .raw_address(pointer, access.byte_offset, access.byte_len)
         .map_err(Error::from)?;
-    let raw = load_scalar_bits(address as usize, access.byte_len);
 
-    Ok(decode_word(access, raw))
+    Ok(load_scalar_by_layout_at_address(
+        address as usize,
+        scalar_layout(access),
+    ))
 }
 
-/// Store one value into raw heap bytes.
-pub(crate) fn store_raw_word(
+/// Store one scalar into local raw heap bytes.
+pub(crate) fn store_raw_scalar_by_layout(
     machine: &mut Machine<'_, '_>,
     pointer: Word,
     access: PointeeAccess,
     value: Word,
 ) -> Result<(), Error> {
     debug_assert_word_access(access);
-    let raw = value.bits();
-    let byte_len = access.byte_len;
     let pointer = pointer.as_raw_pointer();
     if machine.null_checks && pointer.is_null() {
         return Err(Error::NullPointerDereference);
@@ -270,9 +239,9 @@ pub(crate) fn store_raw_word(
 
     let address = machine
         .heap_mut()
-        .raw_address_mut(pointer, access.byte_offset, byte_len)
+        .raw_address_mut(pointer, access.byte_offset, access.byte_len)
         .map_err(Error::from)?;
-    store_scalar_bits(address as usize, raw, byte_len);
+    store_scalar_by_layout_at_address(address as usize, scalar_layout(access), value);
 
     Ok(())
 }
@@ -295,16 +264,14 @@ pub(crate) fn store_raw_bytes(
         .map_err(Error::from)
 }
 
-/// Store one value into shared raw heap bytes.
-pub(crate) fn store_shared_raw_word(
+/// Store one scalar into shared raw heap bytes.
+pub(crate) fn store_shared_raw_scalar_by_layout(
     machine: &mut Machine<'_, '_>,
     pointer: Word,
     access: PointeeAccess,
     value: Word,
 ) -> Result<(), Error> {
     debug_assert_word_access(access);
-    let raw = value.bits();
-    let byte_len = access.byte_len;
     let pointer = pointer.as_shared_raw_pointer();
     if machine.null_checks && pointer.is_null() {
         return Err(Error::NullPointerDereference);
@@ -312,9 +279,9 @@ pub(crate) fn store_shared_raw_word(
 
     let address = machine
         .shared()
-        .raw_address_mut(pointer, access.byte_offset, byte_len)
+        .raw_address_mut(pointer, access.byte_offset, access.byte_len)
         .map_err(Error::from)?;
-    store_scalar_bits(address as usize, raw, byte_len);
+    store_scalar_by_layout_at_address(address as usize, scalar_layout(access), value);
 
     Ok(())
 }
@@ -346,8 +313,6 @@ pub(crate) fn load_raw_bytes(
     destination: *mut u8,
     destination_len: usize,
 ) -> Result<(), Error> {
-    check_destination_len(access, destination_len)?;
-
     let pointer = pointer.as_raw_pointer();
     if machine.null_checks && pointer.is_null() {
         return Err(Error::NullPointerDereference);
@@ -369,8 +334,6 @@ pub(crate) fn load_heap_bytes(
     destination: *mut u8,
     destination_len: usize,
 ) -> Result<(), Error> {
-    check_destination_len(access, destination_len)?;
-
     let reference = pointer.as_heap_reference();
     let address =
         local_heap_address(machine, reference, access.byte_offset).map_err(Error::from)?;
@@ -388,8 +351,6 @@ pub(crate) fn load_shared_heap_bytes(
     destination: *mut u8,
     destination_len: usize,
 ) -> Result<(), Error> {
-    check_destination_len(access, destination_len)?;
-
     let reference = pointer.as_shared_heap_reference();
     let address =
         shared_heap_address(machine, reference, access.byte_offset).map_err(Error::from)?;
@@ -407,8 +368,6 @@ pub(crate) fn load_shared_raw_bytes(
     destination: *mut u8,
     destination_len: usize,
 ) -> Result<(), Error> {
-    check_destination_len(access, destination_len)?;
-
     let pointer = pointer.as_shared_raw_pointer();
     if machine.null_checks && pointer.is_null() {
         return Err(Error::NullPointerDereference);
@@ -430,8 +389,6 @@ pub(crate) fn load_stack_bytes(
     destination: *mut u8,
     destination_len: usize,
 ) -> Result<(), Error> {
-    check_destination_len(access, destination_len)?;
-
     let pointer = pointer.add_bytes(access.byte_offset);
     if !machine.owns_stack_range(pointer, destination_len) {
         return Err(Error::InvalidAddressSpace {
@@ -453,8 +410,6 @@ pub(crate) fn load_frame_bytes(
     destination: *mut u8,
     destination_len: usize,
 ) -> Result<(), Error> {
-    check_destination_len(access, destination_len)?;
-
     let pointer = pointer.add_bytes(access.byte_offset);
     if !machine.owns_frame_range(pointer, destination_len) {
         return Err(Error::InvalidAddressSpace {
@@ -476,8 +431,6 @@ pub(crate) fn load_static_bytes(
     destination: *mut u8,
     destination_len: usize,
 ) -> Result<(), Error> {
-    check_destination_len(access, destination_len)?;
-
     let pointer = pointer.add_bytes(access.byte_offset);
     if !machine.owns_static_range(pointer, destination_len) {
         return Err(Error::InvalidAddressSpace {
@@ -490,9 +443,251 @@ pub(crate) fn load_static_bytes(
     Ok(())
 }
 
-/// Load one word from a heap reference.
+/// Load one scalar from a local heap reference.
 #[inline(always)]
-pub(crate) fn load_heap_word(
+pub(crate) fn load_heap_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
+    machine: &mut Machine<'_, '_>,
+    pointer: Word,
+    byte_offset: usize,
+) -> Result<Word, Error> {
+    let reference = pointer.as_heap_reference();
+    if machine.null_checks && reference.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    let address = local_heap_address(machine, reference, byte_offset).map_err(Error::from)?;
+
+    Ok(load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(address))
+}
+
+/// Load one scalar from a shared heap reference.
+#[inline(always)]
+pub(crate) fn load_shared_heap_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
+    machine: &mut Machine<'_, '_>,
+    pointer: Word,
+    byte_offset: usize,
+) -> Result<Word, Error> {
+    let reference = pointer.as_shared_heap_reference();
+    if machine.null_checks && reference.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    let address = shared_heap_address(machine, reference, byte_offset).map_err(Error::from)?;
+
+    Ok(load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(address))
+}
+
+/// Load one scalar from a local raw pointer.
+#[inline(always)]
+pub(crate) fn load_raw_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
+    machine: &mut Machine<'_, '_>,
+    pointer: Word,
+    byte_offset: usize,
+) -> Result<Word, Error> {
+    let pointer = pointer.as_raw_pointer();
+    if machine.null_checks && pointer.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    let address = machine
+        .heap()
+        .raw_address(pointer, byte_offset, BYTE_LEN)
+        .map_err(Error::from)?;
+
+    Ok(load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(
+        address as usize,
+    ))
+}
+
+/// Load one scalar from a shared raw pointer.
+#[inline(always)]
+pub(crate) fn load_shared_raw_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
+    machine: &mut Machine<'_, '_>,
+    pointer: Word,
+    byte_offset: usize,
+) -> Result<Word, Error> {
+    let pointer = pointer.as_shared_raw_pointer();
+    if machine.null_checks && pointer.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    let address = machine
+        .shared()
+        .raw_address(pointer, byte_offset, BYTE_LEN)
+        .map_err(Error::from)?;
+
+    Ok(load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(
+        address as usize,
+    ))
+}
+
+/// Load one scalar from a stack pointer.
+#[inline(always)]
+pub(crate) fn load_stack_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
+    machine: &mut Machine<'_, '_>,
+    pointer: StackPointer,
+    byte_offset: usize,
+) -> Result<Word, Error> {
+    let pointer = pointer.add_bytes(byte_offset);
+    if !machine.owns_stack_range(pointer, BYTE_LEN) {
+        return Err(Error::InvalidAddressSpace {
+            expected: "stack".to_string(),
+            actual: "foreign".to_string(),
+        });
+    }
+
+    Ok(load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(
+        pointer.address(),
+    ))
+}
+
+/// Load one scalar from a static pointer.
+#[inline(always)]
+pub(crate) fn load_static_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
+    machine: &mut Machine<'_, '_>,
+    pointer: StaticPointer,
+    byte_offset: usize,
+) -> Result<Word, Error> {
+    let pointer = pointer.add_bytes(byte_offset);
+    if !machine.owns_static_range(pointer, BYTE_LEN) {
+        return Err(Error::InvalidAddressSpace {
+            expected: "static".to_string(),
+            actual: "foreign".to_string(),
+        });
+    }
+
+    Ok(load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(
+        pointer.address(),
+    ))
+}
+
+/// Store one scalar through a local heap reference.
+#[inline(always)]
+pub(crate) fn store_heap_scalar<const BYTE_LEN: usize>(
+    machine: &mut Machine<'_, '_>,
+    pointer: Word,
+    byte_offset: usize,
+    value: Word,
+) -> Result<(), Error> {
+    let reference = pointer.as_heap_reference();
+    if machine.null_checks && reference.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    let address = local_heap_address(machine, reference, byte_offset).map_err(Error::from)?;
+    store_scalar_at_address::<BYTE_LEN>(address, value);
+
+    Ok(())
+}
+
+/// Store one scalar through a shared heap reference.
+#[inline(always)]
+pub(crate) fn store_shared_heap_scalar<const BYTE_LEN: usize>(
+    machine: &mut Machine<'_, '_>,
+    pointer: Word,
+    byte_offset: usize,
+    value: Word,
+) -> Result<(), Error> {
+    let reference = pointer.as_shared_heap_reference();
+    if machine.null_checks && reference.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    let address = shared_heap_address(machine, reference, byte_offset).map_err(Error::from)?;
+    store_scalar_at_address::<BYTE_LEN>(address, value);
+
+    Ok(())
+}
+
+/// Store one scalar through a local raw pointer.
+#[inline(always)]
+pub(crate) fn store_raw_scalar<const BYTE_LEN: usize>(
+    machine: &mut Machine<'_, '_>,
+    pointer: Word,
+    byte_offset: usize,
+    value: Word,
+) -> Result<(), Error> {
+    let pointer = pointer.as_raw_pointer();
+    if machine.null_checks && pointer.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    let address = machine
+        .heap_mut()
+        .raw_address_mut(pointer, byte_offset, BYTE_LEN)
+        .map_err(Error::from)?;
+    store_scalar_at_address::<BYTE_LEN>(address as usize, value);
+
+    Ok(())
+}
+
+/// Store one scalar through a shared raw pointer.
+#[inline(always)]
+pub(crate) fn store_shared_raw_scalar<const BYTE_LEN: usize>(
+    machine: &mut Machine<'_, '_>,
+    pointer: Word,
+    byte_offset: usize,
+    value: Word,
+) -> Result<(), Error> {
+    let pointer = pointer.as_shared_raw_pointer();
+    if machine.null_checks && pointer.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    let address = machine
+        .shared()
+        .raw_address_mut(pointer, byte_offset, BYTE_LEN)
+        .map_err(Error::from)?;
+    store_scalar_at_address::<BYTE_LEN>(address as usize, value);
+
+    Ok(())
+}
+
+/// Store one scalar through a stack pointer.
+#[inline(always)]
+pub(crate) fn store_stack_scalar<const BYTE_LEN: usize>(
+    machine: &mut Machine<'_, '_>,
+    pointer: StackPointer,
+    byte_offset: usize,
+    value: Word,
+) -> Result<(), Error> {
+    let pointer = pointer.add_bytes(byte_offset);
+    if !machine.owns_stack_range(pointer, BYTE_LEN) {
+        return Err(Error::InvalidAddressSpace {
+            expected: "stack".to_string(),
+            actual: "foreign".to_string(),
+        });
+    }
+
+    store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
+
+    Ok(())
+}
+
+/// Store one scalar through a static pointer.
+#[inline(always)]
+pub(crate) fn store_static_scalar<const BYTE_LEN: usize>(
+    machine: &mut Machine<'_, '_>,
+    pointer: StaticPointer,
+    byte_offset: usize,
+    value: Word,
+) -> Result<(), Error> {
+    let pointer = pointer.add_bytes(byte_offset);
+    if !machine.owns_mutable_static_range(pointer, BYTE_LEN) {
+        return Err(Error::InvalidAddressSpace {
+            expected: "mutable static".to_string(),
+            actual: "foreign".to_string(),
+        });
+    }
+
+    store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
+
+    Ok(())
+}
+
+/// Load one scalar from a heap reference.
+#[inline(always)]
+pub(crate) fn load_heap_scalar_by_layout(
     machine: &mut Machine<'_, '_>,
     pointer: Word,
     access: PointeeAccess,
@@ -505,14 +700,16 @@ pub(crate) fn load_heap_word(
     debug_assert_word_access(access);
     let address =
         local_heap_address(machine, reference, access.byte_offset).map_err(Error::from)?;
-    let raw = load_scalar_bits(address, access.byte_len);
 
-    Ok(decode_word(access, raw))
+    Ok(load_scalar_by_layout_at_address(
+        address,
+        scalar_layout(access),
+    ))
 }
 
-/// Load one word from a shared heap reference.
+/// Load one scalar from a shared heap reference.
 #[inline(always)]
-pub(crate) fn load_shared_heap_word(
+pub(crate) fn load_shared_heap_scalar_by_layout(
     machine: &mut Machine<'_, '_>,
     pointer: Word,
     access: PointeeAccess,
@@ -525,14 +722,16 @@ pub(crate) fn load_shared_heap_word(
     debug_assert_word_access(access);
     let address =
         shared_heap_address(machine, reference, access.byte_offset).map_err(Error::from)?;
-    let raw = load_scalar_bits(address, access.byte_len);
 
-    Ok(decode_word(access, raw))
+    Ok(load_scalar_by_layout_at_address(
+        address,
+        scalar_layout(access),
+    ))
 }
 
-/// Load one word from a stack pointer.
+/// Load one scalar from a stack pointer.
 #[inline(always)]
-pub(crate) fn load_stack_word(
+pub(crate) fn load_stack_scalar_by_layout(
     machine: &mut Machine<'_, '_>,
     pointer: StackPointer,
     access: PointeeAccess,
@@ -546,14 +745,16 @@ pub(crate) fn load_stack_word(
     }
 
     debug_assert_word_access(access);
-    let raw = load_scalar_bits(pointer.address(), access.byte_len);
 
-    Ok(decode_word(access, raw))
+    Ok(load_scalar_by_layout_at_address(
+        pointer.address(),
+        scalar_layout(access),
+    ))
 }
 
-/// Load one word from a frame pointer.
+/// Load one scalar from a frame pointer.
 #[inline(always)]
-pub(crate) fn load_frame_word(
+pub(crate) fn load_frame_scalar_by_layout(
     machine: &mut Machine<'_, '_>,
     pointer: FramePointer,
     access: PointeeAccess,
@@ -567,14 +768,16 @@ pub(crate) fn load_frame_word(
     }
 
     debug_assert_word_access(access);
-    let raw = load_scalar_bits(pointer.address(), access.byte_len);
 
-    Ok(decode_word(access, raw))
+    Ok(load_scalar_by_layout_at_address(
+        pointer.address(),
+        scalar_layout(access),
+    ))
 }
 
-/// Load one word from a static pointer.
+/// Load one scalar from a static pointer.
 #[inline(always)]
-pub(crate) fn load_static_word(
+pub(crate) fn load_static_scalar_by_layout(
     machine: &mut Machine<'_, '_>,
     pointer: StaticPointer,
     access: PointeeAccess,
@@ -588,22 +791,22 @@ pub(crate) fn load_static_word(
     }
 
     debug_assert_word_access(access);
-    let raw = load_scalar_bits(pointer.address(), access.byte_len);
 
-    Ok(decode_word(access, raw))
+    Ok(load_scalar_by_layout_at_address(
+        pointer.address(),
+        scalar_layout(access),
+    ))
 }
 
-/// Store one word through a heap reference.
+/// Store one scalar through a heap reference.
 #[inline(always)]
-pub(crate) fn store_heap_word(
+pub(crate) fn store_heap_scalar_by_layout(
     machine: &mut Machine<'_, '_>,
     pointer: Word,
     access: PointeeAccess,
     value: Word,
 ) -> Result<(), Error> {
     debug_assert_word_access(access);
-    let raw = value.bits();
-    let byte_len = access.byte_len;
     let reference = pointer.as_heap_reference();
     if machine.null_checks && reference.is_null() {
         return Err(Error::NullPointerDereference);
@@ -611,7 +814,7 @@ pub(crate) fn store_heap_word(
 
     let start = access.byte_offset;
     let address = local_heap_address(machine, reference, start).map_err(Error::from)?;
-    store_scalar_bits(address, raw, byte_len);
+    store_scalar_by_layout_at_address(address, scalar_layout(access), value);
 
     Ok(())
 }
@@ -638,17 +841,15 @@ pub(crate) fn store_heap_bytes(
     Ok(())
 }
 
-/// Store one word through a shared heap reference.
+/// Store one scalar through a shared heap reference.
 #[inline(always)]
-pub(crate) fn store_shared_heap_word(
+pub(crate) fn store_shared_heap_scalar_by_layout(
     machine: &mut Machine<'_, '_>,
     pointer: Word,
     access: PointeeAccess,
     value: Word,
 ) -> Result<(), Error> {
     debug_assert_word_access(access);
-    let raw = value.bits();
-    let byte_len = access.byte_len;
     let reference = pointer.as_shared_heap_reference();
     if machine.null_checks && reference.is_null() {
         return Err(Error::NullPointerDereference);
@@ -656,7 +857,7 @@ pub(crate) fn store_shared_heap_word(
 
     let start = access.byte_offset;
     let address = shared_heap_address(machine, reference, start).map_err(Error::from)?;
-    store_scalar_bits(address, raw, byte_len);
+    store_scalar_by_layout_at_address(address, scalar_layout(access), value);
 
     Ok(())
 }
@@ -683,26 +884,24 @@ pub(crate) fn store_shared_heap_bytes(
     Ok(())
 }
 
-/// Store one word through a stack pointer.
+/// Store one scalar through a stack pointer.
 #[inline(always)]
-pub(crate) fn store_stack_word(
+pub(crate) fn store_stack_scalar_by_layout(
     machine: &mut Machine<'_, '_>,
     pointer: StackPointer,
     access: PointeeAccess,
     value: Word,
 ) -> Result<(), Error> {
     debug_assert_word_access(access);
-    let raw = value.bits();
-    let byte_len = access.byte_len;
     let pointer = pointer.add_bytes(access.byte_offset);
-    if !machine.owns_stack_range(pointer, byte_len) {
+    if !machine.owns_stack_range(pointer, access.byte_len) {
         return Err(Error::InvalidAddressSpace {
             expected: "stack".to_string(),
             actual: "foreign".to_string(),
         });
     }
 
-    store_scalar_bits(pointer.address(), raw, byte_len);
+    store_scalar_by_layout_at_address(pointer.address(), scalar_layout(access), value);
 
     Ok(())
 }
@@ -730,26 +929,24 @@ pub(crate) fn store_stack_bytes(
     Ok(())
 }
 
-/// Store one word through a frame pointer.
+/// Store one scalar through a frame pointer.
 #[inline(always)]
-pub(crate) fn store_frame_word(
+pub(crate) fn store_frame_scalar_by_layout(
     machine: &mut Machine<'_, '_>,
     pointer: FramePointer,
     access: PointeeAccess,
     value: Word,
 ) -> Result<(), Error> {
     debug_assert_word_access(access);
-    let raw = value.bits();
-    let byte_len = access.byte_len;
     let pointer = pointer.add_bytes(access.byte_offset);
-    if !machine.owns_frame_range(pointer, byte_len) {
+    if !machine.owns_frame_range(pointer, access.byte_len) {
         return Err(Error::InvalidAddressSpace {
             expected: "frame".to_string(),
             actual: format!("0x{:x}", pointer.address()),
         });
     }
 
-    store_scalar_bits(pointer.address(), raw, byte_len);
+    store_scalar_by_layout_at_address(pointer.address(), scalar_layout(access), value);
 
     Ok(())
 }
@@ -777,26 +974,24 @@ pub(crate) fn store_frame_bytes(
     Ok(())
 }
 
-/// Store one word through a static pointer.
+/// Store one scalar through a static pointer.
 #[inline(always)]
-pub(crate) fn store_static_word(
+pub(crate) fn store_static_scalar_by_layout(
     machine: &mut Machine<'_, '_>,
     pointer: StaticPointer,
     access: PointeeAccess,
     value: Word,
 ) -> Result<(), Error> {
     debug_assert_word_access(access);
-    let raw = value.bits();
-    let byte_len = access.byte_len;
     let pointer = pointer.add_bytes(access.byte_offset);
-    if !machine.owns_mutable_static_range(pointer, byte_len) {
+    if !machine.owns_mutable_static_range(pointer, access.byte_len) {
         return Err(Error::InvalidAddressSpace {
             expected: "mutable static".to_string(),
             actual: "foreign".to_string(),
         });
     }
 
-    store_scalar_bits(pointer.address(), raw, byte_len);
+    store_scalar_by_layout_at_address(pointer.address(), scalar_layout(access), value);
 
     Ok(())
 }
@@ -822,807 +1017,4 @@ pub(crate) fn store_static_bytes(
     }
 
     Ok(())
-}
-
-/// Compute a field address from a heap reference.
-#[inline(always)]
-pub(crate) fn address_field_heap(
-    machine: &mut Machine<'_, '_>,
-    reference: HeapReference,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-) -> Result<Word, Error> {
-    // validate field index
-    check_field_index(machine, index, field_count)?;
-
-    if machine.bounds_checks && !machine.heap().is_heap_live(reference) {
-        return Err(Error::InvalidHeapReference);
-    }
-
-    if machine.null_checks && reference.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let reference = reference.add_bytes(field.byte_offset);
-
-    Ok(Word::heap_reference(reference))
-}
-
-/// Compute a field address from a shared heap reference.
-#[inline(always)]
-pub(crate) fn address_field_shared_heap(
-    machine: &mut Machine<'_, '_>,
-    reference: SharedHeapReference,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-) -> Result<Word, Error> {
-    // validate field index
-    check_field_index(machine, index, field_count)?;
-
-    if machine.bounds_checks {
-        ensure_shared_heap_live(machine, reference)?;
-    }
-
-    if machine.null_checks && reference.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let reference = reference.add_bytes(field.byte_offset);
-
-    Ok(Word::shared_heap_reference(reference))
-}
-
-/// Compute a field address from a raw pointer.
-#[inline(always)]
-pub(crate) fn address_field_raw(
-    machine: &mut Machine<'_, '_>,
-    pointer: RawPointer,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-) -> Result<Word, Error> {
-    // validate field index
-    check_field_index(machine, index, field_count)?;
-
-    // reject null pointers when enabled
-    if machine.null_checks && pointer.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let pointer = pointer.add_bytes(field.byte_offset);
-
-    Ok(Word::raw_pointer(pointer))
-}
-
-/// Compute a field address from a shared raw pointer.
-#[inline(always)]
-pub(crate) fn address_field_shared_raw(
-    machine: &mut Machine<'_, '_>,
-    pointer: SharedRawPointer,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-) -> Result<Word, Error> {
-    // validate field index
-    check_field_index(machine, index, field_count)?;
-
-    // reject null pointers when enabled
-    if machine.null_checks && pointer.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let pointer = pointer.add_bytes(field.byte_offset);
-
-    Ok(Word::shared_raw_pointer(pointer))
-}
-
-/// Compute a field address from a stack pointer.
-#[inline(always)]
-pub(crate) fn address_field_stack(
-    machine: &mut Machine<'_, '_>,
-    pointer: StackPointer,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-) -> Result<Word, Error> {
-    // validate field index
-    check_field_index(machine, index, field_count)?;
-
-    let pointer = pointer.add_bytes(field.byte_offset);
-
-    Ok(Word::stack_pointer(pointer))
-}
-
-/// Compute a field address from a static pointer.
-#[inline(always)]
-pub(crate) fn address_field_static(
-    machine: &mut Machine<'_, '_>,
-    pointer: StaticPointer,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-) -> Result<Word, Error> {
-    // validate field index
-    check_field_index(machine, index, field_count)?;
-
-    let pointer = pointer.add_bytes(field.byte_offset);
-
-    Ok(Word::static_pointer(pointer))
-}
-
-/// Compute an element address from a heap reference.
-#[inline(always)]
-pub(crate) fn address_element_heap(
-    machine: &mut Machine<'_, '_>,
-    reference: HeapReference,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-) -> Result<Word, Error> {
-    // validate array index
-    check_array_index(machine, index, array_length)?;
-
-    if machine.bounds_checks && !machine.heap().is_heap_live(reference) {
-        return Err(Error::InvalidHeapReference);
-    }
-
-    if machine.null_checks && reference.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let reference = reference.add_bytes(element_offset);
-
-    Ok(Word::heap_reference(reference))
-}
-
-/// Compute an element address from a shared heap reference.
-#[inline(always)]
-pub(crate) fn address_element_shared_heap(
-    machine: &mut Machine<'_, '_>,
-    reference: SharedHeapReference,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-) -> Result<Word, Error> {
-    // validate array index
-    check_array_index(machine, index, array_length)?;
-
-    if machine.bounds_checks {
-        ensure_shared_heap_live(machine, reference)?;
-    }
-
-    if machine.null_checks && reference.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let reference = reference.add_bytes(element_offset);
-
-    Ok(Word::shared_heap_reference(reference))
-}
-
-/// Compute an element address from a raw pointer.
-#[inline(always)]
-pub(crate) fn address_element_raw(
-    machine: &mut Machine<'_, '_>,
-    pointer: RawPointer,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-) -> Result<Word, Error> {
-    // validate array index
-    check_array_index(machine, index, array_length)?;
-
-    // reject null pointers when enabled
-    if machine.null_checks && pointer.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let pointer = pointer.add_bytes(element_offset);
-
-    Ok(Word::raw_pointer(pointer))
-}
-
-/// Compute an element address from a shared raw pointer.
-#[inline(always)]
-pub(crate) fn address_element_shared_raw(
-    machine: &mut Machine<'_, '_>,
-    pointer: SharedRawPointer,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-) -> Result<Word, Error> {
-    // validate array index
-    check_array_index(machine, index, array_length)?;
-
-    // reject null pointers when enabled
-    if machine.null_checks && pointer.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    // compute the element byte offset
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let pointer = pointer.add_bytes(element_offset);
-
-    Ok(Word::shared_raw_pointer(pointer))
-}
-
-/// Compute an element address from a stack pointer.
-#[inline(always)]
-pub(crate) fn address_element_stack(
-    machine: &mut Machine<'_, '_>,
-    pointer: StackPointer,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-) -> Result<Word, Error> {
-    // validate array index
-    check_array_index(machine, index, array_length)?;
-
-    // compute the element byte offset
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let pointer = pointer.add_bytes(element_offset);
-
-    Ok(Word::stack_pointer(pointer))
-}
-
-/// Compute an element address from a static pointer.
-#[inline(always)]
-pub(crate) fn address_element_static(
-    machine: &mut Machine<'_, '_>,
-    pointer: StaticPointer,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-) -> Result<Word, Error> {
-    // validate array index
-    check_array_index(machine, index, array_length)?;
-
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let pointer = pointer.add_bytes(element_offset);
-
-    Ok(Word::static_pointer(pointer))
-}
-
-/// Load a field from a heap allocation.
-#[inline(always)]
-pub(crate) fn load_field_heap(
-    machine: &mut Machine<'_, '_>,
-    reference: HeapReference,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-) -> Result<Word, Error> {
-    // validate the requested field before decoding bytes
-    check_field_index(machine, index, field_count)?;
-
-    if machine.null_checks && reference.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let access = PointeeAccess::from(field);
-    debug_assert_word_access(access);
-    let address = local_heap_address(machine, reference, field.byte_offset).map_err(Error::from)?;
-    let raw = load_scalar_bits(address, field.byte_len);
-
-    Ok(decode_word(field.into(), raw))
-}
-
-/// Load a field from a shared heap allocation.
-#[inline(always)]
-pub(crate) fn load_field_shared_heap(
-    machine: &mut Machine<'_, '_>,
-    reference: SharedHeapReference,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-) -> Result<Word, Error> {
-    check_field_index(machine, index, field_count)?;
-
-    if machine.null_checks && reference.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let access = PointeeAccess::from(field);
-    debug_assert_word_access(access);
-    let address =
-        shared_heap_address(machine, reference, field.byte_offset).map_err(Error::from)?;
-    let raw = load_scalar_bits(address, field.byte_len);
-
-    Ok(decode_word(field.into(), raw))
-}
-
-/// Store a field into a heap allocation.
-#[inline(always)]
-pub(crate) fn store_field_heap(
-    machine: &mut Machine<'_, '_>,
-    reference: HeapReference,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-    value: Word,
-) -> Result<(), Error> {
-    debug_assert!(field.is_word());
-    let raw = value.bits();
-    let byte_len = field.byte_len;
-    let null_checks = machine.null_checks;
-
-    check_field_index(machine, index, field_count)?;
-
-    if null_checks && reference.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let address = local_heap_address(machine, reference, field.byte_offset).map_err(Error::from)?;
-    store_scalar_bits(address, raw, byte_len);
-
-    Ok(())
-}
-
-/// Store a field into a shared heap allocation.
-#[inline(always)]
-pub(crate) fn store_field_shared_heap(
-    machine: &mut Machine<'_, '_>,
-    reference: SharedHeapReference,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-    value: Word,
-) -> Result<(), Error> {
-    debug_assert!(field.is_word());
-    let raw = value.bits();
-    let byte_len = field.byte_len;
-    let null_checks = machine.null_checks;
-
-    check_field_index(machine, index, field_count)?;
-
-    if null_checks && reference.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let address =
-        shared_heap_address(machine, reference, field.byte_offset).map_err(Error::from)?;
-    store_scalar_bits(address, raw, byte_len);
-
-    Ok(())
-}
-
-/// Load a field from a raw pointer.
-#[inline(always)]
-pub(crate) fn load_field_raw(
-    machine: &mut Machine<'_, '_>,
-    pointer: RawPointer,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-) -> Result<Word, Error> {
-    // validate field index
-    check_field_index(machine, index, field_count)?;
-
-    // reject null pointers when enabled
-    if machine.null_checks && pointer.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let pointer = Word::raw_pointer(pointer);
-    let access = PointeeAccess::from(field);
-
-    load_raw_word(machine, pointer, access)
-}
-
-/// Store a field through a raw pointer.
-#[inline(always)]
-pub(crate) fn store_field_raw(
-    machine: &mut Machine<'_, '_>,
-    pointer: RawPointer,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-    value: Word,
-) -> Result<(), Error> {
-    check_field_index(machine, index, field_count)?;
-
-    store_raw_word(machine, Word::raw_pointer(pointer), field.into(), value)
-}
-
-/// Load a field through a shared raw pointer.
-#[inline(always)]
-pub(crate) fn load_field_shared_raw(
-    machine: &mut Machine<'_, '_>,
-    pointer: SharedRawPointer,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-) -> Result<Word, Error> {
-    // validate field index
-    check_field_index(machine, index, field_count)?;
-
-    let pointer = Word::shared_raw_pointer(pointer);
-    let access = PointeeAccess::from(field);
-
-    load_shared_raw_word(machine, pointer, access)
-}
-
-/// Store a field through a shared raw pointer.
-#[inline(always)]
-pub(crate) fn store_field_shared_raw(
-    machine: &mut Machine<'_, '_>,
-    pointer: SharedRawPointer,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-    value: Word,
-) -> Result<(), Error> {
-    check_field_index(machine, index, field_count)?;
-
-    store_shared_raw_word(
-        machine,
-        Word::shared_raw_pointer(pointer),
-        field.into(),
-        value,
-    )
-}
-
-/// Load a field from a stack allocation.
-#[inline(always)]
-pub(crate) fn load_field_stack(
-    machine: &mut Machine<'_, '_>,
-    pointer: StackPointer,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-) -> Result<Word, Error> {
-    // validate field index
-    check_field_index(machine, index, field_count)?;
-
-    let pointer = pointer.add_bytes(field.byte_offset);
-
-    let access = PointeeAccess::from(field);
-    debug_assert_word_access(access);
-    let raw = load_scalar_bits(pointer.address(), field.byte_len);
-
-    Ok(decode_word(field.into(), raw))
-}
-
-/// Store a field into a stack allocation.
-#[inline(always)]
-pub(crate) fn store_field_stack(
-    machine: &mut Machine<'_, '_>,
-    pointer: StackPointer,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-    value: Word,
-) -> Result<(), Error> {
-    check_field_index(machine, index, field_count)?;
-
-    store_stack_word(machine, pointer, field.into(), value)
-}
-
-/// Load a field through a static pointer.
-#[inline(always)]
-pub(crate) fn load_field_static(
-    machine: &mut Machine<'_, '_>,
-    pointer: StaticPointer,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-) -> Result<Word, Error> {
-    // validate field index
-    check_field_index(machine, index, field_count)?;
-
-    let pointer = pointer.add_bytes(field.byte_offset);
-
-    let access = PointeeAccess::from(field);
-    debug_assert_word_access(access);
-    let raw = load_scalar_bits(pointer.address(), field.byte_len);
-
-    Ok(decode_word(field.into(), raw))
-}
-
-/// Store a field through a static pointer.
-#[inline(always)]
-pub(crate) fn store_field_static(
-    machine: &mut Machine<'_, '_>,
-    pointer: StaticPointer,
-    field: FieldAccess,
-    index: u32,
-    field_count: u32,
-    value: Word,
-) -> Result<(), Error> {
-    check_field_index(machine, index, field_count)?;
-
-    store_static_word(machine, pointer, field.into(), value)
-}
-
-/// Load an element from a heap allocation.
-#[inline(always)]
-pub(crate) fn load_element_heap(
-    machine: &mut Machine<'_, '_>,
-    reference: HeapReference,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-) -> Result<Word, Error> {
-    // validate the requested element before decoding bytes
-    check_array_index(machine, index, array_length)?;
-
-    if machine.null_checks && reference.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let access = PointeeAccess::from(element);
-    debug_assert_word_access(access);
-    let address = local_heap_address(machine, reference, element_offset).map_err(Error::from)?;
-    let raw = load_scalar_bits(address, element.byte_len);
-
-    Ok(decode_word(element.into(), raw))
-}
-
-/// Load an element from a shared heap allocation.
-#[inline(always)]
-pub(crate) fn load_element_shared_heap(
-    machine: &mut Machine<'_, '_>,
-    reference: SharedHeapReference,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-) -> Result<Word, Error> {
-    check_array_index(machine, index, array_length)?;
-
-    if machine.null_checks && reference.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let access = PointeeAccess::from(element);
-    debug_assert_word_access(access);
-    let address = shared_heap_address(machine, reference, element_offset).map_err(Error::from)?;
-    let raw = load_scalar_bits(address, element.byte_len);
-
-    Ok(decode_word(element.into(), raw))
-}
-
-/// Store an element into a heap allocation.
-#[inline(always)]
-pub(crate) fn store_element_heap(
-    machine: &mut Machine<'_, '_>,
-    reference: HeapReference,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-    value: Word,
-) -> Result<(), Error> {
-    debug_assert!(element.is_word());
-    let raw = value.bits();
-    let byte_len = element.byte_len;
-    let null_checks = machine.null_checks;
-
-    check_array_index(machine, index, array_length)?;
-
-    if null_checks && reference.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let address = local_heap_address(machine, reference, element_offset).map_err(Error::from)?;
-    store_scalar_bits(address, raw, byte_len);
-
-    Ok(())
-}
-
-/// Store an element into a shared heap allocation.
-#[inline(always)]
-pub(crate) fn store_element_shared_heap(
-    machine: &mut Machine<'_, '_>,
-    reference: SharedHeapReference,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-    value: Word,
-) -> Result<(), Error> {
-    debug_assert!(element.is_word());
-    let raw = value.bits();
-    let byte_len = element.byte_len;
-    let null_checks = machine.null_checks;
-
-    check_array_index(machine, index, array_length)?;
-
-    if null_checks && reference.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let address = shared_heap_address(machine, reference, element_offset).map_err(Error::from)?;
-    store_scalar_bits(address, raw, byte_len);
-
-    Ok(())
-}
-
-/// Load an element from a raw pointer.
-#[inline(always)]
-pub(crate) fn load_element_raw(
-    machine: &mut Machine<'_, '_>,
-    pointer: RawPointer,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-) -> Result<Word, Error> {
-    // validate array index
-    check_array_index(machine, index, array_length)?;
-
-    // reject null pointers when enabled
-    if machine.null_checks && pointer.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let pointer = pointer.add_bytes(element_offset);
-    let pointer = Word::raw_pointer(pointer);
-    let access = PointeeAccess::from(element);
-
-    load_raw_word(machine, pointer, access)
-}
-
-/// Store an element through a raw pointer.
-#[inline(always)]
-pub(crate) fn store_element_raw(
-    machine: &mut Machine<'_, '_>,
-    pointer: RawPointer,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-    value: Word,
-) -> Result<(), Error> {
-    check_array_index(machine, index, array_length)?;
-
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let pointer = pointer.add_bytes(element_offset);
-
-    store_raw_word(machine, Word::raw_pointer(pointer), element.into(), value)
-}
-
-/// Load an element through a shared raw pointer.
-#[inline(always)]
-pub(crate) fn load_element_shared_raw(
-    machine: &mut Machine<'_, '_>,
-    pointer: SharedRawPointer,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-) -> Result<Word, Error> {
-    // validate array index
-    check_array_index(machine, index, array_length)?;
-
-    // compute the element offset before loading
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let pointer = pointer.add_bytes(element_offset);
-
-    load_shared_raw_word(machine, Word::shared_raw_pointer(pointer), element.into())
-}
-
-/// Store an element through a shared raw pointer.
-#[inline(always)]
-pub(crate) fn store_element_shared_raw(
-    machine: &mut Machine<'_, '_>,
-    pointer: SharedRawPointer,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-    value: Word,
-) -> Result<(), Error> {
-    check_array_index(machine, index, array_length)?;
-
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let pointer = pointer.add_bytes(element_offset);
-
-    store_shared_raw_word(
-        machine,
-        Word::shared_raw_pointer(pointer),
-        element.into(),
-        value,
-    )
-}
-
-/// Load an element from a stack allocation.
-#[inline(always)]
-pub(crate) fn load_element_stack(
-    machine: &mut Machine<'_, '_>,
-    pointer: StackPointer,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-) -> Result<Word, Error> {
-    // validate array index
-    check_array_index(machine, index, array_length)?;
-
-    // compute the element address
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let pointer = pointer.add_bytes(element_offset);
-
-    let access = PointeeAccess::from(element);
-    debug_assert_word_access(access);
-    let raw = load_scalar_bits(pointer.address(), element.byte_len);
-
-    Ok(decode_word(element.into(), raw))
-}
-
-/// Store an element into a stack allocation.
-#[inline(always)]
-pub(crate) fn store_element_stack(
-    machine: &mut Machine<'_, '_>,
-    pointer: StackPointer,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-    value: Word,
-) -> Result<(), Error> {
-    check_array_index(machine, index, array_length)?;
-
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let pointer = pointer.add_bytes(element_offset);
-
-    store_stack_word(machine, pointer, element.into(), value)
-}
-
-/// Load an element through a static pointer.
-#[inline(always)]
-pub(crate) fn load_element_static(
-    machine: &mut Machine<'_, '_>,
-    pointer: StaticPointer,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-) -> Result<Word, Error> {
-    // validate array index
-    check_array_index(machine, index, array_length)?;
-
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let pointer = pointer.add_bytes(element_offset);
-
-    let access = PointeeAccess::from(element);
-    debug_assert_word_access(access);
-    let raw = load_scalar_bits(pointer.address(), element.byte_len);
-
-    Ok(decode_word(element.into(), raw))
-}
-
-/// Load one word element from a frame value.
-#[inline(always)]
-pub(crate) fn load_frame_element(
-    machine: &mut Machine<'_, '_>,
-    value: Word,
-    index: u64,
-    array_length: u64,
-    element: ElementAccess,
-) -> Result<Word, Error> {
-    check_array_index(machine, index, array_length)?;
-
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let pointer = value.as_frame_pointer().add_bytes(element_offset);
-
-    load_frame_word(machine, pointer, element.into())
-}
-
-/// Store an element through a static pointer.
-#[inline(always)]
-pub(crate) fn store_element_static(
-    machine: &mut Machine<'_, '_>,
-    pointer: StaticPointer,
-    element: ElementAccess,
-    index: u64,
-    array_length: u64,
-    value: Word,
-) -> Result<(), Error> {
-    check_array_index(machine, index, array_length)?;
-
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let pointer = pointer.add_bytes(element_offset);
-
-    store_static_word(machine, pointer, element.into(), value)
 }
