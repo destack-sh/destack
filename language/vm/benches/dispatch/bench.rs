@@ -172,26 +172,26 @@ fn bench_vector(criterion: &mut Criterion) {
     group.finish();
 }
 
-/// Benchmark VM dispatch over dense tensor operations.
+/// Benchmark VM dispatch over contiguous tensor operations.
 fn bench_tensor(criterion: &mut Criterion) {
     // group tensor-shaped dispatch programs
     let mut group = dispatch_group(criterion, "vm_dispatch_tensor");
 
-    // measure dense tensor addition
+    // measure contiguous tensor addition
     bench_program(
         &mut group,
         ProgramBench {
-            name: "tensor_dense_add_body_loop",
-            entry: "tensorDenseAddBodyLoop",
+            name: "tensor_contiguous_add_body_loop",
+            entry: "tensorContiguousAddBodyLoop",
         },
     );
 
-    // measure dense tensor addition with loop-carried tensor state
+    // measure contiguous tensor addition with loop-carried tensor state
     bench_program(
         &mut group,
         ProgramBench {
-            name: "tensor_dense_add_loop",
-            entry: "tensorDenseAddLoop",
+            name: "tensor_contiguous_add_loop",
+            entry: "tensorContiguousAddLoop",
         },
     );
 
