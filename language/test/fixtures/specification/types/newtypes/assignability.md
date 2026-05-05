@@ -1,10 +1,10 @@
 # Newtype Assignability
 
-## backing type boundaries
+Newtypes are nominal at assignment boundaries.
 
-### backing values are not assignable to newtypes
+## backing
 
-> Backing values do not implicitly coerce to nominal newtypes.
+### backing values do not satisfy newtypes
 
 ```ds
 newtype UserId = int64;
@@ -14,9 +14,7 @@ const id: UserId = 42;
 
 - contains: not assignable
 
-### newtypes are not assignable to backing values
-
-> Nominal newtypes do not implicitly coerce back to backing values.
+### newtypes do not satisfy backing types
 
 ```ds
 newtype UserId = int64;
@@ -26,22 +24,29 @@ const raw: int64 = UserId(42);
 
 - contains: not assignable
 
-## nominality
+### backing projection is explicit
 
-### matching newtype aliases remain assignable to themselves
+```ds
+newtype UserId = int64;
 
-> Values are assignable within the same nominal newtype.
+const id = UserId(42);
+const raw = id as int64;
+raw satisfies int64;
+```
+
+## identity
+
+### same newtype assigns to itself
 
 ```ds
 newtype UserId = int64;
 
 const source = UserId(42);
 const target: UserId = source;
+target satisfies UserId;
 ```
 
-### distinct newtypes with the same backing type are not assignable
-
-> Distinct nominal newtypes remain incompatible even with shared backing types.
+### distinct newtypes stay distinct
 
 ```ds
 newtype UserId = int64;
@@ -53,9 +58,7 @@ const order: OrderId = user;
 
 - contains: not assignable
 
-### imported newtypes remain distinct
-
-> Imported newtypes remain distinct even when their backing types match.
+### imported newtypes stay distinct
 
 ```ds:left.ds
 export newtype UserId = int64;
