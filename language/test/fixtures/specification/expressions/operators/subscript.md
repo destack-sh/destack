@@ -1,6 +1,6 @@
 # Subscript
 
-Subscript operators use builtin indexed access and receiver contracts for overloads.
+Subscript operators use builtin indexed access and receiver interfaces for overloads.
 
 ## access
 
@@ -60,9 +60,9 @@ bag[1] = "nope";
 
 - contains: not assignable
 
-### index access rejects missing Index contracts
+### index access rejects missing Index
 
-> Index access requires an Index contract implementation.
+> Index access requires an `Index` implementation.
 
 ```ds
 struct Bag { value: int }
@@ -76,9 +76,9 @@ value satisfies int;
 
 - contains: no matching overload
 
-### index assignment rejects missing IndexSet contracts
+### index assignment rejects missing IndexSet
 
-> Index assignment requires an IndexSet contract implementation.
+> Index assignment requires an `IndexSet` implementation.
 
 ```ds
 struct Bag { value: int }
@@ -93,7 +93,7 @@ bag[1] = 2;
 
 ### index access checks key type rules
 
-> Index access rejects keys that do not match the index contract key type.
+> Index access rejects keys that do not match the index key type.
 
 ```ds
 struct Bag { value: int }

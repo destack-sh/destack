@@ -8,7 +8,7 @@
 
 > `as` applies the target type.
 
-```ts
+```ds
 const value = "ok" as string;
 value satisfies string;
 ```
@@ -17,7 +17,7 @@ value satisfies string;
 
 > `as` can select a narrower union member.
 
-```ts
+```ds
 const value = ("ok" as string | number) as string;
 value satisfies string;
 ```
