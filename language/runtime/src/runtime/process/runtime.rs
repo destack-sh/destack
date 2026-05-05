@@ -929,7 +929,7 @@ mod tests {
     use crate::runtime::tests::{TestEngine, start_worker_continuation};
     use crate::runtime::{RuntimeSharedHeap, TickOutcome, Worker, World};
     use destack_engine as engine;
-    use destack_heap::{AllocationPlan, Payload};
+    use destack_heap::{AllocationShape, Payload};
     use destack_mir::ReferenceMap;
     use destack_workspace::RuntimeOptions;
 
@@ -939,8 +939,8 @@ mod tests {
         bytes: &[u8],
     ) -> destack_heap::HeapResult<destack_heap::SharedHeapReference> {
         let reference_map = ReferenceMap::empty();
-        let plan = AllocationPlan::new(bytes.len(), 1, &reference_map);
-        let layout = heap.allocation_layout(plan);
+        let shape = AllocationShape::new(bytes.len(), 1, &reference_map);
+        let layout = heap.allocation_layout(shape);
         let mut allocator = heap.allocator();
         let worker = heap.register_collector_worker();
 

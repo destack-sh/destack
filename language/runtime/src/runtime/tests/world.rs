@@ -30,9 +30,9 @@ use crate::runtime::{
     WorldEntityKindDefinition, WorldResourceId,
 };
 
-/// Return one byte payload plan for runtime tests.
-fn byte_plan<'a>(byte_len: usize, reference_map: &'a ReferenceMap) -> heap::AllocationPlan<'a> {
-    heap::AllocationPlan::new(byte_len, 1, reference_map)
+/// Return one byte payload shape for runtime tests.
+fn byte_shape<'a>(byte_len: usize, reference_map: &'a ReferenceMap) -> heap::AllocationShape<'a> {
+    heap::AllocationShape::new(byte_len, 1, reference_map)
 }
 
 /// Read one managed value from a restored worker heap.
@@ -208,8 +208,8 @@ fn test_runtime_collect_roots_preserves_task_resume_heap_reference() {
             .worker_mut(worker_id)
             .expect("runtime should keep its primary worker");
         let reference_map = ReferenceMap::empty();
-        let plan = byte_plan(1, &reference_map);
-        let layout = worker.heap.allocation_layout(plan);
+        let shape = byte_shape(1, &reference_map);
+        let layout = worker.heap.allocation_layout(shape);
 
         let root = worker
             .heap
@@ -290,7 +290,7 @@ fn test_runtime_heap_handle_roots_local_reference() {
     let mut test = TestWorld::new();
     let runtime_id = test.spawn_runtime(&options, TestEngine::default());
     let reference_map = ReferenceMap::empty();
-    let plan = byte_plan(1, &reference_map);
+    let shape = byte_shape(1, &reference_map);
 
     // retain one local reference through the worker handle table
     let (handle, garbage) = {
@@ -302,7 +302,7 @@ fn test_runtime_heap_handle_roots_local_reference() {
         let worker = runtime
             .worker_mut(worker_id)
             .expect("runtime should keep its primary worker");
-        let layout = worker.heap.allocation_layout(plan);
+        let layout = worker.heap.allocation_layout(shape);
         let root = worker
             .heap
             .allocate(&layout, heap::Payload::Bytes(&[0xE5]))
@@ -373,7 +373,7 @@ fn test_runtime_collect_roots_preserves_task_resume_shared_reference() {
     let mut test = TestWorld::new();
     let runtime_id = test.spawn_runtime(&options, TestEngine::default());
     let reference_map = ReferenceMap::empty();
-    let plan = byte_plan(1, &reference_map);
+    let shape = byte_shape(1, &reference_map);
     let mut allocator = test
         .world()
         .runtime(runtime_id)
@@ -388,7 +388,7 @@ fn test_runtime_collect_roots_preserves_task_resume_shared_reference() {
         .runtime(runtime_id)
         .expect("runtime should exist");
     let shared_heap = runtime.shared.shared();
-    let layout = shared_heap.allocation_layout(plan);
+    let layout = shared_heap.allocation_layout(shape);
     let worker = shared_heap.register_collector_worker();
 
     let root = shared_heap
@@ -466,7 +466,7 @@ fn test_spawned_worker_joins_active_shared_root_scan_pass() {
     let mut test = TestWorld::with_options(&options);
     let runtime_id = test.spawn_runtime(&options, TestEngine::default());
     let reference_map = ReferenceMap::empty();
-    let plan = byte_plan(1, &reference_map);
+    let shape = byte_shape(1, &reference_map);
     let mut allocator = test
         .world()
         .runtime(runtime_id)
@@ -482,7 +482,7 @@ fn test_spawned_worker_joins_active_shared_root_scan_pass() {
         .expect("runtime should exist")
         .shared
         .shared()
-        .allocation_layout(plan);
+        .allocation_layout(shape);
 
     for index in 0..128 {
         let shared = test
