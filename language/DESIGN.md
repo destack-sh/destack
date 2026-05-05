@@ -1,6 +1,6 @@
 # "Language"
 
-The Destack language (`.ds`) and toolchain, colloqially "TypeScript++", are a superset of "strict modern" TypeScript with support for `.ts` and `.tsx` files, native AOT compilation and a fully integrated language toolchain, _and_ it can also compile nicely to standard JS/TS targets.
+The Destack language (`.ds`) and toolchain, colloquially "TypeScript++", are a superset of "strict modern" TypeScript with support for `.ts` and `.tsx` files, native AOT compilation and a fully integrated language toolchain, _and_ it can also compile nicely to standard JS/TS targets.
 We believe that the ideal way to build correct, optimal, integrated software systems is to build a fully integrated stack (Destack), and thus by "language" ("TypeScript++") we mean much more than "just" a syntax form: a language, a runtime, a toolchain, plugins, and ultimately, a way of programming.
 
 ## "TypeScript++"
@@ -9,7 +9,7 @@ We're very early in software, and we're still figuring out how to build optimal,
 Over 50 years, we have grown more and more layers of software sediment and need ever _more_ tools to manage the get any code out the door, and yet confidence and performance have plummeted.
 
 We believe the best possible stack is the most integrated one, and it must truly span the entire lifecycle: the language itself, the toolchain with linters and formatters, a VM, compiler, runtime, and basically anything that touches the code.
-Only TypeScript is seriously close to being a universal software foundation, because it runs direclty on the web, and the web is the most ubiqutious application platform.
+Only TypeScript is seriously close to being a universal software foundation, because it runs directly on the web, and the web is the most ubiquitous application platform.
 The TypeScript ecosystem has good - if not perfect - answers to all modern software needs, from great developer tools to rich interactive frontends to quite _decent_ and performant backends.
 
 If you remove all the JS baggage and dynamic prototype mess, modern TypeScript is surprisingly close to a fully AOT-compilable language (and most browsers retrofit compilation internally already based on this assumptions).
@@ -68,7 +68,7 @@ Destack instead uses typed protocols, declared members, static members, and exte
 
 "TypeScript++" is a superset of "strict modern" TypeScript, which essentially means that existing TypeScript (and TSX!) _just works_ **if** it follows our strict TypeScript-based type system.
 Fortunately, strict TypeScript is already a best practice, and it's what you get when enabling the recommended soundness flags in TSC (mostly).
-TypeScript++ adds some new features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do for frontend-shaped softare, but for the entire software stack including "systems software".
+TypeScript++ adds some new features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do for frontend-shaped software, but for the entire software stack including "systems software".
 
 There are solid arguments that a language should be minimal (like Zig or Go or even C), but we do not believe "language minimalism" to be pragmatic for the universal language and toolchain we want.
 That said, TypeScript is already not a simple language, and any additional language features risk becoming unwieldy.
@@ -91,10 +91,14 @@ Destack extends and refines the primitive type system:
 - `never` as the explicit bottom type
 - no `any`
 
-In code:
+Following the spirit of TypeScript's widening rules, numeric literals start as exact values and can flow into any numeric type that can represent them.
+When no specific numeric context fits, the literals widen as usual to plain `number` (i.e. `float64`).
 
 ```ds
 const id: uint64 = 12345;
+7 satisfies uint3;
+7 satisfies uint2; // error
+
 const balance: float32 = 100.50;
 const n: number = 1.0;
 n satisfies float64;
@@ -157,9 +161,6 @@ Construction and projection across the backing boundary are both explicit and ze
 const id = UserId(1);
 const raw = id as number;
 ```
-
-Newtype construction always uses call syntax, even when the backing type is an object.
-That keeps nominal object wrappers visually distinct from `struct` construction.
 
 ### Newtype Interfaces
 
@@ -252,6 +253,53 @@ enum Priority {
 }
 ```
 
+### Tagged Unions
+
+Discriminated unions are very convenient and fit well into existing TypeScript, but by themselves lack nominal containers (and items) to attach behavior to.
+Using Destack's nominality `newtype` and a tiny well-known `@tagged` decorator for some syntactic sugar we can turn plain old discriminated unions into pretty presentable sum types:
+
+```ds
+@tagged
+newtype Shape =
+    | { kind: "rectangle"; width: int32; height: int32 }
+    | { kind: "circle"; radius: int32 };
+
+extension of Shape {
+    static DEFAULT = Shape.Rectangle({ width: 10, height: 20 });
+    
+    variant() {
+        match (this) {
+            Shape.Rectangle(_) => "rectangle"
+            Shape.Circle(_) => "cirlce"
+        }
+    }
+}
+
+// create values of @tagged newtype unions with <Type>.<Variant>
+const rectangle = Shape.Rectangle({ width: 10, height: 20 });
+const circle = Shape.Circle({ radius: 5 });
+```
+
+The `@tagged` annotation tells the compiler to pick out the discriminated field and use its name for a resolvable variant name. 
+The supported naming policies are:
+
+| Tagged Casing | Example |
+|--------|---------|
+| `"preserve"` | `rectangle` → `rectangle` |
+| `"camelCase"` | `rectangle_shape` → `rectangleShape` |
+| `"UpperCamelCase"` | `rectangle_shape` → `RectangleShape` |
+| `"snake_case"` | `RectangleShape` → `rectangle_shape` |
+| `"SCREAMING_SNAKE_CASE"` | `RectangleShape` → `RECTANGLE_SHAPE` |
+
+```ds
+@tagged("preserve")
+newtype Shape =
+    | { kind: "rectangle"; width: int32; height: int32 }
+    | { kind: "circle"; radius: int32 };
+
+const rectangle = Shape.rectangle( /* ... */ );
+const circle = Shape.circle( /* ... */ );
+```
 
 ### Structs
 
@@ -272,17 +320,42 @@ let x: Point = { x, y };        // ERROR: plain object is not Point
 For composition, structs support embedding other structs directly in line:
 
 ```ds
-struct Transform { 
-    position: Vec3; 
-    rotation: Quat; 
+struct Transform {
+    position: Vec3;
+    rotation: Quat;
 }
 
-struct Player { 
+struct Player {
     // embeds Transform's fields
-    ...Transform; 
-    health: int; 
-} 
+    ...Transform;
+    health: int;
+}
 ```
+
+### Classes
+
+Classes remain the TypeScript-shaped model for managed objects with identity, except of course (like all objects) without an prototype chain or dynamic class shenanigans.
+
+```ds
+class Counter {
+    value: int32;
+
+    constructor(value: int32) {
+        this.value = value;
+    }
+
+    increment(): int32 {
+        this.value += 1;
+        this.value
+    }
+}
+
+const counter: Counter = new Counter(1);
+counter.increment() satisfies int32;
+```
+
+Class fields use strict initialization: every required instance field must be initialized by its declaration, a parameter property, or every constructor path.
+(Optional fields do not need eager initialization.)
 
 ### Arrays, Slices and Tuples
 
@@ -293,7 +366,7 @@ Unfortunately, not much syntax was left here, so we had to adopt the slightly no
 | Forms | Meaning |
 |------|---------|
 | `T[]`, `Array<T>` | Dynamic, homogeneous, dense array |
-| `[T]`, `Slice<T>` | Fixed, homogeneous slice into dense array |
+| `[T]`, `Slice<T>` | Runtime-length homogeneous view into dense storage |
 | `[T; N]`, `FixedArray<T, N>` | Fixed, owned sequence of values |
 | `(A, B)` | Sequence of heterogenous, owned values |
 
@@ -352,7 +425,7 @@ const empty: () = ();
 ### Readonly
 
 TypeScript already has `readonly`, but it is shallow, so in `.ds`, `readonly T` becomes a real _deep_ read-only view of `T`.
-That is, `readonly T` forbids all mutation through that path, and `readonly T` cannot be assigned to `T`, including nested members.
+That is, `readonly T` forbids _any_ mutation through its `T`, and `readonly T` cannot be assigned to `T`, including via nested members.
 
 ```ds
 struct Profile {
@@ -375,7 +448,7 @@ As in TypeScript with `readonly` (or Rust with `mut` in inverse), `readonly` doe
 ### Generics
 
 Destack keeps TypeScript-shaped generics: inference, constraints, defaults, conditional types, mapped types, indexed access types, and the rest of the usual machinery.
-The main addition is that generic parameters can also be _values_ that are then subtsituted into expressions and are available during inference.
+The main addition is that generic parameters can also be _values_ that are then substituted into expressions and are available during inference.
 To distinguish static value parameter from static type parameters, we use the `comptime` modifier:
 
 ```ds
@@ -431,7 +504,7 @@ To do this, the "evaluation time" of the program is conceptually split into thre
 | Comptime | ordinary code explicitly evaluated by the compiler | `comptime factorial(10)` |
 | Runtime | ordinary program execution | `readFile(path)`, `worker.postMessage(msg)` |
 
-The inference-known pieces are **static terms**: static evaluation is what we do automatically during inference, and it is restricted to a small subset of the language (like TypeScript type operators), and it does _not_ execute `comptime <expr>` expressions.
+The statically known forms known to inference are called **static terms**: static evaluation is what we do automatically during inference, and it is restricted to a small subset of the language (like TypeScript type operators), and it can _not_ execute `comptime <expr>` expressions.
 Static terms can include primitive inputs, imported facts, and expressions built from other static terms:
 
 | Input | Example |
@@ -446,11 +519,11 @@ Static terms can include primitive inputs, imported facts, and expressions built
 | Static operators | `N * 2`, `Mode == "inline"` |
 | Contextual type form | `PlaceOf<this>` inside a type declaration |
 | Module and profile metadata | `import.meta.target.os` |
-| Type operators and relations | `keyof T`, `T[K]`, `T extends string` |
+| Type operators and relations | `keyof T`, `T[K]`, `T extends string`, `T implements I` |
 | Type/layout intrinsics | `sizeOf<T>()`, `alignOf<T>()` |
 
 Static terms are required wherever the language needs an inference-known answer: fixed array lengths, conditional types, associated members, static decorators, layout queries, and placement algebra.
-Type inference may flow _out_ of modules, but Destack does not support circular imports or inference across modules in any way.
+Type inference may flow _out_ of modules, but Destack does not support circular static inference or inference across modules in any way.
 
 ```ds
 type Block<comptime N: uint> = [uint8; N];
@@ -543,7 +616,7 @@ interface Matrix<Row> {
     type Bytes = [uint8; this.Width];
 }
 
-function read<M: Matrix<any>>(bytes: M.Bytes): [uint8; M.Width] { ... }
+function read<M: Matrix<unknown>>(bytes: M.Bytes): [uint8; M.Width] { ... }
 ```
 
 ### Constraints
@@ -572,8 +645,10 @@ let u: User = User { name: "Alice", age: 30 };
 
 const UserType: Type<User> = User;
 const UserType = Type.of<User>();
-displayNameOf(UserType) // "User"
-shapeOf(UserType) // ReferenceType or ObjectType, depending on the normalized type
+
+const descriptor = Type.describe(UserType);
+descriptor.displayName // "User"
+descriptor.shape // ReferenceType or ObjectType, depending on the normalized type
 ```
 
 This also works for generic APIs that operate on types as static values:
@@ -585,13 +660,6 @@ function parse<comptime T: Type>(raw: string): T {
 
 const user = parse<User>("...");
 ```
-
-The reflection shape is a stable source-facing view of the normalized type, broadly aligned with DIR type families like literals, primitives, references, objects, functions, arrays, tuples, unions, intersections, conditionals, mapped types, and storage forms.
-It is not the compiler IR.
-Compiler plugins may eventually expose AST / DIR / MIR handles directly, but ordinary reflection stays small enough to use in programs.
-
-Beyond semantic shape queries, type reflection also supports classic layout queries like `sizeOf<T>()`, `alignOf<T>()`, `strideOf<T>()`, and `layoutOf<T>()`.
-Layout queries are target/profile-sensitive and are intentionally separate from `shapeOf`.
 
 ```ds
 const userSize = comptime sizeOf<User>();
@@ -810,6 +878,7 @@ We just follow that proposal with `using` / `await using` as explicit scoped cle
 
 Resources are cleaned up at lexical scope exit in LIFO order, and `await using` runs async cleanup when required.
 Cleanup - that is, the dispose function - runs when the scope exits for any reason: fallthrough, `return`, `break`, `continue`, `throw`, or `?`.
+The same using form also works in loop form, where it applies for every iteration, just like in the TC39 proposal.
 
 ```ds
 {
@@ -824,6 +893,10 @@ async function runQuery(sql: string): Result<Row[], DatabaseError> {
 
     return await connection.query(sql);
 } // connection is disposed and awaited
+
+for (using file of files) {
+    process(file);
+} // file is disposed after each iteration
 ```
 
 ### Operators
@@ -1006,9 +1079,8 @@ read(counts, "apples") satisfies int32 | undefined;
 
 #### Unions
 
-Union receivers are resolved per variant.
-Every variant must expose the member.
-If all variants resolve to the same symbol the call is static; otherwise the result type is the union of the selected return types.
+Union receivers are resolved per variant, and every variant must expose the member (otherwise it is an error).
+If all variants resolve to the same implementation (i.e. function location) the call is static; otherwise the result type is the union of the selected return types.
 
 ```ds
 struct TcpStream {
@@ -1025,11 +1097,10 @@ function writeAll(sink: TcpStream | MemoryBuffer, chunk: [byte]) {
 }
 ```
 
-
 ### Errors
 
 Exceptions are deeply enmeshed into TypeScript, and therefore Destack supports them, too (alas).
-However, Destack also supports and strongly encourages **Result-first error handling** inspired by Rust: recoverable errors use `Result<T, E>`, nice try-catch integration, and even support for `?` and `??` coalescing.
+However, Destack also supports and strongly encourages **Result-first error handling** inspired by Rust: recoverable errors use `Result<T, E>`, integrate with `try` / `catch`, and can be opened with `?`, `??`, and postfix `!`.
 
 #### Result
 
@@ -1050,27 +1121,96 @@ export struct Err<E> {
 export newtype Result<T, E> = Ok<T> | Err<E>;
 ```
 
-We typically construct results through `Result.ok(value)` and `Result.err(error)`:
+We typically construct results through `Result.ok(value)` and `Result.err(error)`.
+The variants are ordinary nominal data, so pattern matching works directly:
 
 ```ds
-function readConfig(path: string): Result<Config, IOError> {
-    const text = readFile(path)?;    // propagate errors with ?
+declare function parseInteger(raw: string): Result<int32, ParseError>;
+
+function parsePort(raw: string): Result<uint16, ParseError> {
+    const value = parseInteger(raw);
+    if (value < 0 || value > 65535) {
+        return Result.err(ParseError(`port out of range: ${raw}`));
+    } else {
+        return Result.ok(value as uint16);
+    }
+}
+
+match (parsePort(input)) {
+    Ok { value } => connect(value)
+    Err { error } => report(error)
+}
+```
+
+#### Maybe, Must and Coalesce
+
+`?`, postfix `!`, and `??` all unwrap the same `Try`-based absence-or-failure shape.
+Opening removes outer `null` / `undefined`, opens one `Try` carrier, and removes `null` / `undefined` from the carrier's success value.
+It's much simpler than it sounds:
+
+```ds
+declare const x: Result<T | null | undefined, E | null | undefined> | null | undefined;
+
+// x?
+// -> success: T
+// -> failure: E | null | undefined
+```
+
+It should be noted that nullish values on the failure side remain in the failure side.
+The various operators act differently on the failure case:
+
+```ds
+x?      // success T, failure leaves the expression
+x!      // success T, failure traps
+x ?? y  // success T, failure evaluates y
+```
+
+The try operator `?` keeps the success value and lets absence or failure leave the current expression in whichever way the container requires.
+Inside a `try` block with `catch`, propagation transfers the failure value to the catch instead.
+
+```ds
+function readConfig(path: string): Result<Config, IOError | ParseError> {
+    const text = readFile(path)?;
     const json = parseJson(text)?;
     return Result.ok(Config.from(json));
 }
 ```
 
-For `Result<T, E>`, `?` takes the `Ok` value and lets `Err` leave the current expression.
-The same machinery also makes `??` useful for local fallback:
+The try-coalesce operator `??` handles the same shape locally with a fallback instead of letting it leave the expression.
+The result then is the non-nullish opened success type joined with the fallback type.
 
 ```ds
-const config = loadConfig() ?? defaultConfig;  // use default on error
+declare const defaultConfig: Config;
+
+declare function loadConfig(): Result<Config, IOError> | null;
+const a = loadConfig() ?? defaultConfig;
+a satisfies Config;
+
+declare function loadMaybeConfig(): Result<Config | null | undefined, IOError | null> | undefined;
+const b = loadMaybeConfig() ?? defaultConfig;
+b satisfies Config;
+```
+
+Nested `Try` values inside the success type also stay wrapped:
+
+```ds
+declare function loadNested(): Result<Result<Config, IOError>, IOError>;
+
+const c = loadNested() ?? defaultConfig;
+c satisfies Result<Config, IOError> | Config;
+```
+
+Postfix `!` is the "must" forced unwrap form: it opens the same outer nullish and single `Try` layer, but traps instead of propagating or falling back when the value is absent or failed:
+
+```ds
+const config = loadConfig()!;
+config satisfies Config;
 ```
 
 #### Try
 
-`?` and `??` are extensible operators via a standard `Try` newtype interface, which `Result<T, E>` implements just like any userland type.
-The interface has three pieces: how to build a successful value, how to branch a value, and what the failed branch carries.
+The standard `Try` interface is the extension point behind these operators.
+A carrier names its success and failure types, can branch into either case, and can rebuild itself from a success value:
 
 ```ds
 struct TryContinue<T> {
@@ -1097,9 +1237,6 @@ newtype interface Try {
 For `Result<T, E>`, `Ok { value }` branches to `TryContinue<T>` and `Err { error }` branches to `TryFailure<E>`.
 The branch names describe the operator's control flow, not the data constructors of any one type.
 
-The success constructor is mostly for generic `try`-like code which needs to finish by rebuilding the surrounding `Try` type from a plain value.
-The ordinary `?` operator does not need it on the success path because success just unwraps and keeps running.
-
 Propagation is the matching failure-side operation.
 When a failure leaves the current function, the enclosing return type must implement `FromFailure<F>` for the propagated failure type.
 
@@ -1108,10 +1245,6 @@ newtype interface FromFailure<F> {
     static fromFailure(failure: F): this;
 }
 ```
-
-Extending from TypeScript, `?` unwraps one success layer or propagates one failure layer.
-Outside a `try` block, propagation returns from the enclosing function using the return type's `FromFailure` implementation.
-Inside a `try` block with `catch`, propagation transfers the failure value to the catch instead.
 
 #### Try, Catch and Finally
 
@@ -1173,6 +1306,9 @@ Unlike in TypeScript, in Destack types can participate in custom tree tag behavi
 Essentially, `TreeTag` generalises `jsxFactory` and `TreeTagBuilder` generalises `jsxFragmentFactory`: 
  - Uppercase or qualified tags resolve as value tags through normal value lookup and the `TreeTag` interface.
  - Lowercase unqualified tags resolve as intrinsic tags through the active `TreeTagBuilder`.
+
+The global default `TreeTagBuilder` follows the established `jsxImportSource` style configuration.
+We're figuring out if there is a ergonomic way to configure this on a sub-pcakage / per-module basis, but that doesn't exist yet.
 
 ### Annotations and Decorators
 
@@ -1374,8 +1510,8 @@ Space defines where the memory is actually located in memory, and following web 
 The default *local* memory space is the current Worker's local heap, and that's where ambient types land unless otherwise specified.
 Ordinary managed objects, arrays, strings, functions, closures, and module bindings live in local space, and user and library code can almost always just pretend spaces don't exist.
 
-Often, the "space" of a type and its corresponding memory region are a purely logical separation: most computers have unified main memory, and separating local and shared (and other..) heaps is much more about corectness (and somewhat about performance) than about physical constraint.
-For non-uniform memory targets, assigning specifi cmemory spaces in one unified programming language is however quite convenient.
+Often, the "space" of a type and its corresponding memory region are a purely logical separation: most computers have unified main memory, and separating local and shared (and other..) heaps is much more about correctness (and somewhat about performance) than about physical constraint.
+For non-uniform memory targets, assigning specific memory spaces in one unified programming language is however quite convenient.
 
 ```ds
 struct Request<T> {
@@ -1387,7 +1523,9 @@ let here: Request<Body>;          // header, body are local
 let there: shared Request<Body>;  // header, body are shared
 ```
 
-Memory placement is contextual and types are ambient by default: an aggregate field with ambient placement is interpreted in the placement of the containing value, while an explicit placement on a field is preserved.
+Memory placement is contextual: all types are "ambient" by default (i.e. they come with no inherent placement).
+Accordingly, aggregates are placed wherever their container is placed until someone either explicitly specifies placement (`WithPlace<T, ..>` or `shared T` or whatever) or we reach the root, which is `local` to the Worker's own local heap by default.
+
 Some incompatible combinations of explicit placements - like local inside shared - produce an error.
 More broadly, the compiler may lower one source aggregate into distinct concrete layouts depending on its space.
 This is why the type algebra distinguishes `Place` from `Space`: `Space` is concrete, while `Place` may also be `"ambient"`.
@@ -1399,7 +1537,7 @@ Conceptually, `shared` is the typed, generalized version of the `SharedArrayBuff
 - Local values may point to shared values.
 - Shared values must not point directly into a local heap.
 
-It should be noted that shared placement - or any space placement - is **not** not a synchronization primitive in itself, and does **not** imply atomic access, locking, actor isolation, `Sync`, or anything like it.
+It should be noted that shared placement - or any space placement - is **not** a synchronization primitive in itself, and does **not** imply atomic access, locking, actor isolation, `Sync`, or anything like it _by itself_.
 It's just a name for a region of memory, nothing more.
 Libraries and strict profiles may require capabilities like `Send` and `Sync` for APIs that transfer or publish values, but `shared` itself is only placement.
 
