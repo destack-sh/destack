@@ -4,7 +4,7 @@
 
 ### type expressions can coerce to type handles
 
-> A type expression can be used where `Type<T>` is expected.
+A type expression can be used where `Type<T>` is expected.
 
 ```ds
 struct User {
@@ -17,7 +17,7 @@ handle satisfies Type<User>;
 
 ### type of creates type handles
 
-> `Type.of<T>()` returns a handle for `T`.
+`Type.of<T>()` returns a handle for `T`.
 
 ```ds
 struct User {
@@ -30,7 +30,7 @@ handle satisfies Type<User>;
 
 ### reflected types can be generic comptime arguments
 
-> `Type<T>` handles can be passed as comptime generic parameters.
+`Type<T>` handles can be passed as comptime generic parameters.
 
 ```ds
 declare function parseWithType<comptime T: Type>(raw: string): T;
@@ -47,39 +47,61 @@ const user = parse<User>("{}");
 user satisfies User;
 ```
 
-## shape
+## descriptor
 
-### shape of returns a type shape
+### type describe returns a type descriptor
 
-> `shapeOf` exposes the stable reflection shape.
+`Type.describe` exposes the stable public descriptor.
 
 ```ds
 struct User {
     name: string;
 }
 
-const shape = shapeOf(Type.of<User>());
-shape satisfies TypeShape;
+const descriptor = Type.describe(Type.of<User>());
+descriptor satisfies TypeDescriptor;
+descriptor.shape satisfies TypeShape;
 ```
 
-### display name returns a string
+### type descriptors include display names
 
-> `displayNameOf` returns a human-readable type name.
+Type descriptors include human-readable names.
 
 ```ds
 struct User {
     name: string;
 }
 
-const name = displayNameOf(Type.of<User>());
-name satisfies string;
+const descriptor = Type.describe(Type.of<User>());
+descriptor.displayName satisfies string;
+```
+
+### type descriptors expose declarations
+
+Declared types can expose retained declaration metadata.
+
+```ds
+newtype Label = { name: string };
+
+function label(name: string): Label {
+    Label({ name })
+}
+
+@label("entity")
+struct User {
+    name: string;
+}
+
+const declaration = Type.describe(Type.of<User>()).declaration!;
+declaration.kind satisfies TypeDeclarationKind;
+declaration.annotations satisfies readonly AnnotationDescriptor[];
 ```
 
 ## layout
 
 ### layout intrinsics return target sized values
 
-> Layout queries are target-sensitive reflection operations.
+Layout queries are target-sensitive reflection operations.
 
 ```ds
 struct Header {
@@ -97,7 +119,7 @@ stride satisfies usize;
 
 ### layout of returns a layout descriptor
 
-> `layoutOf<T>()` returns field layout information for the active target.
+`layoutOf<T>()` returns field layout information for the active target.
 
 ```ds
 struct Header {

@@ -58,56 +58,12 @@ const result = pair(1, "hi");
 result satisfies (int, string);
 ```
 
-### comptime dynamic parameters accept literal arguments
-
-> Dynamic parameters marked `comptime` accept compile-time-known literal arguments.
-
-```ds
-function sized(comptime width: int32): int32 {
-    return width;
-}
-
-const width = sized(4);
-width satisfies int32;
-```
-
-### comptime dynamic parameters accept const bindings with static initializers
-
-> Dynamic `comptime` parameters accept const bindings when the initializer is static.
-
-```ds
-const WIDTH = 4;
-
-function sized(comptime width: int32): int32 {
-    return width;
-}
-
-const width = sized(WIDTH);
-width satisfies int32;
-```
-
-### comptime dynamic parameters reject mutable runtime bindings
-
-> Dynamic `comptime` parameters reject mutable runtime bindings.
-
-```ds
-let width = 4;
-
-function sized(comptime value: int32): int32 {
-    return value;
-}
-
-sized(width);
-```
-
-- contains: static expression
-
 ### tuple rest destructuring supports nested defaults
 
 > Tuple rest destructuring supports nested object defaults and a tuple level fallback.
 
 ```ds:main.ds
-type SpawnArguments = [string, { syncSnapshot?: boolean }?];
+type SpawnArguments = (string, { syncSnapshot?: boolean }?);
 
 function spawnChild(...[src, { syncSnapshot = false } = {}]: SpawnArguments): boolean {
     return syncSnapshot;
@@ -132,7 +88,7 @@ function build(public value: number) {
 
 ## optional parameter rejections
 
-### optional pattern parameters are rejected in `.ts` sources
+### optional pattern parameters are rejected
 
 > Optional parameters must use identifiers, not binding patterns.
 
@@ -148,7 +104,7 @@ function handle({ value }?: Payload) {
 
 - contains: optional parameters cannot use binding patterns
 
-### optional rest parameters are rejected in `.ts` sources
+### optional rest parameters are rejected
 
 > Rest parameters cannot be optional.
 

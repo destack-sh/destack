@@ -12,8 +12,8 @@ newtype Shape =
     | { kind: "rectangle"; width: int32; height: int32 }
     | { kind: "circle"; radius: int32 };
 
-const rectangle = Shape.rectangle({ width: 10, height: 20 });
-const circle = Shape.circle({ radius: 5 });
+const rectangle = Shape.Rectangle({ width: 10, height: 20 });
+const circle = Shape.Circle({ radius: 5 });
 
 rectangle satisfies Shape;
 circle satisfies Shape;
@@ -27,7 +27,7 @@ newtype AppError =
     | { kind: "missing"; path: string }
     | { kind: "denied"; code: int32 };
 
-const error = AppError.missing({ path: "config.json" });
+const error = AppError.Missing({ path: "config.json" });
 
 match (error) {
     AppError { kind: "missing", path } => path satisfies string
@@ -157,9 +157,9 @@ rectangle satisfies Shape;
 circle satisfies Shape;
 ```
 
-### compiler taggedCase selects default naming
+### bare tagged accepts data-shaped names
 
-```ds:main.ds
+```ds
 @tagged
 newtype Event =
     | { kind: "parse-error"; line: int32 }
@@ -172,10 +172,25 @@ parse satisfies Event;
 missing satisfies Event;
 ```
 
+### compiler taggedCase overrides default naming
+
+```ds:main.ds
+@tagged
+newtype Event =
+    | { kind: "parse-error"; line: int32 }
+    | { kind: "file-missing"; path: string };
+
+const parse = Event.parseError({ line: 10 });
+const missing = Event.fileMissing({ path: "config.json" });
+
+parse satisfies Event;
+missing satisfies Event;
+```
+
 ```json:destack.json
 {
     "compiler": {
-        "taggedCase": "UpperCamelCase"
+        "taggedCase": "camelCase"
     }
 }
 ```
@@ -223,17 +238,6 @@ newtype Event =
 ```
 
 - contains: duplicate
-
-### preserve requires valid property names
-
-```ds
-@tagged
-newtype Event =
-    | { kind: "parse-error"; line: int32 }
-    | { kind: "file-missing"; path: string };
-```
-
-- contains: property
 
 ### tagged constructors require unique generated names
 

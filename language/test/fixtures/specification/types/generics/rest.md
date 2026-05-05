@@ -41,7 +41,7 @@ tail(true, 1);
 
 ### const rest inference preserves literal tuple elements
 
-> Rest inference from const tuple inputs keeps literal element types instead of widening to primitives.
+> Rest inference from const tuple inputs keeps literal element types.
 
 ```ds
 declare function collect<const T extends readonly unknown[]>(...values: T): T;

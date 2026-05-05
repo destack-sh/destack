@@ -11,11 +11,43 @@ const value: number = 42;
 value satisfies number;
 ```
 
-### numeric literals can infer number
+### const numeric literals keep exact values
 
 ```ds
 const value = 42;
+value satisfies 42;
 value satisfies number;
+value satisfies int;
+```
+
+### let numeric literals widen to number
+
+```ds
+let value = 42;
+value satisfies number;
+```
+
+### let numeric literals do not keep exact values
+
+```ds
+let value = 42;
+value satisfies 42;
+```
+
+- contains: not assignable
+
+### numeric literals fit integer contexts
+
+```ds
+const value: int = 42;
+value satisfies int;
+```
+
+### numeric literals fit float contexts
+
+```ds
+const value: float32 = 42;
+value satisfies float32;
 ```
 
 ## string

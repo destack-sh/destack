@@ -63,19 +63,6 @@ using connection = new Connection();
 
 - contains: Dispose
 
-### using accepts symbol disposal
-
-> `.ts` sources use the symbol-shaped disposal protocol.
-
-```ds:main.ds
-class File {
-    [Symbol.dispose](): void {}
-}
-
-using file = new File();
-file satisfies File;
-```
-
 ### using rejects declare
 
 > Declare bindings cannot have initializers.
