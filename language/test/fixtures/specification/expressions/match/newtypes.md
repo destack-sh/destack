@@ -2,9 +2,9 @@
 
 ## scalar newtype patterns
 
-### match scalar newtype pattern binds inner value
+### scalar newtype patterns bind values
 
-> Newtype patterns bind the underlying scalar value.
+> Scalar newtype patterns bind the wrapped value.
 
 ```ds
 newtype UserId = int64;
@@ -19,7 +19,7 @@ function next_id(id: UserId): int64 {
 }
 ```
 
-### match scalar newtype pattern rejects untagged literals
+### scalar newtype patterns reject bare literals
 
 > Untagged literals do not match nominal newtypes.
 
@@ -38,9 +38,9 @@ function next_id(id: UserId): int64 {
 
 ## tuple newtype patterns
 
-### match tuple newtype pattern binds positional values
+### tuple newtype patterns bind fields
 
-> Tuple newtype patterns bind the underlying tuple fields.
+> Tuple newtype patterns bind positional fields.
 
 ```ds
 newtype Point = (float32, float32);
@@ -58,7 +58,7 @@ function sum(point: Point): float32 {
 
 ## object newtype patterns
 
-### match object newtype pattern requires tag
+### object newtype patterns require tags
 
 > Object newtypes require tagged object patterns.
 
@@ -75,7 +75,7 @@ function read(config: Config): boolean {
 }
 ```
 
-### match object newtype pattern rejects untagged objects
+### object newtype patterns reject bare objects
 
 > Untagged object patterns do not match object newtypes.
 

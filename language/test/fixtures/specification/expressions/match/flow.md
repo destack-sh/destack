@@ -34,9 +34,9 @@ function invalid_match_continue(value: int32): int32 {
 
 - contains: invalid continue
 
-### match allows break inside nested loops
+### nested loops allow break
 
-> Break is accepted when it targets a loop nested inside a match arm.
+> Break can target a loop nested inside a match arm.
 
 ```ds
 function nested_loop_break(value: int32): int32 {
@@ -56,9 +56,9 @@ function nested_loop_break(value: int32): int32 {
 }
 ```
 
-### match allows continue inside nested loops
+### nested loops allow continue
 
-> Continue is accepted when it targets a loop nested inside a match arm.
+> Continue can target a loop nested inside a match arm.
 
 ```ds
 function nested_loop_continue(value: int32): int32 {
@@ -79,18 +79,3 @@ function nested_loop_continue(value: int32): int32 {
     result
 }
 ```
-
-### match does not allow return-like loop control outside loops
-
-> Loop control keywords remain invalid when not associated with a loop target.
-
-```ds
-function invalid_match_break_again(value: int32): int32 {
-    match (value) {
-        0 => break
-        _ => 2
-    }
-}
-```
-
-- contains: invalid break

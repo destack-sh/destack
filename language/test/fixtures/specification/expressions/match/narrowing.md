@@ -1,13 +1,13 @@
 # Match Narrowing
 
-Match arms narrow the scrutinee based on the matched pattern.
-Match expression results still use best common type rules.
+Match arms narrow the matched value from the selected pattern.
+Result typing is still handled by arm body joins.
 
 ## discriminants
 
-### match narrows discriminated unions per arm
+### discriminants narrow each arm
 
-> Patterns narrow discriminated unions inside each arm.
+> Object discriminants select the matching union member.
 
 ```ds
 type Shape =
@@ -30,9 +30,9 @@ match (shape) {
 
 ## literal unions
 
-### match narrows literal unions per arm
+### literals narrow each arm
 
-> Literal patterns narrow the matched value inside each arm.
+> Literal patterns select the matching literal member.
 
 ```ds
 type Status = "ready" | "loading";
@@ -49,9 +49,9 @@ match (status) {
 }
 ```
 
-### match narrows union literal patterns per arm
+### union literal patterns narrow covered values
 
-> Union literal patterns narrow the scrutinee to the covered subset.
+> Union patterns select the covered literal members.
 
 ```ds
 type Status = 1 | 2 | 3;
@@ -68,9 +68,9 @@ match (status) {
 }
 ```
 
-### match narrows tuple unions by literal discriminant positions
+### tuple discriminants narrow unions
 
-> Tuple discriminants narrow tuple unions to the matched branch.
+> Literal tuple positions select the matching tuple member.
 
 ```ds
 type Pair = (1, string) | (2, string);
@@ -87,9 +87,9 @@ match (pair) {
 }
 ```
 
-### match narrows heterogeneous tuple payloads by discriminant
+### tuple discriminants narrow payloads
 
-> Tuple discriminant branches narrow the payload slot to the matching member type.
+> Tuple payload slots narrow with the selected tuple member.
 
 ```ds
 type Pair = (1, string) | (2, int32);
@@ -106,9 +106,9 @@ match (pair) {
 }
 ```
 
-### match narrows tuple members that contain discriminated objects
+### tuple discriminants narrow nested objects
 
-> Tuple discriminants can narrow nested discriminated object payloads.
+> Nested object payloads narrow with the selected tuple member.
 
 ```ds
 type Event =
@@ -127,9 +127,9 @@ match (event) {
 }
 ```
 
-### match narrows discriminated object members that contain tuples
+### object payloads narrow nested tuples
 
-> Tuple discriminants in object payloads can narrow tuple member types.
+> Nested tuple payloads narrow from literal tuple positions.
 
 ```ds
 type Envelope =
@@ -148,9 +148,9 @@ match (envelope) {
 }
 ```
 
-### match object wildcard filters preserve non-discriminant unions
+### wildcard fields leave payload unions intact
 
-> Wildcard object field filters do not over-narrow unrelated payload members.
+> Ignored discriminant fields do not narrow unrelated payloads.
 
 ```ds
 type Envelope =
@@ -166,9 +166,9 @@ match (envelope) {
 }
 ```
 
-### match narrows nested discriminant fields recursively
+### nested discriminants narrow payloads
 
-> Nested object discriminants narrow payload fields recursively.
+> Nested object tags select the matching payload member.
 
 ```ds
 type Envelope =
@@ -189,9 +189,9 @@ match (envelope) {
 
 ## match results
 
-### match results use best common type
+### match results join arm bodies
 
-> Match expressions use best common type for their result.
+> Arm body types join into the match result.
 
 ```ds
 type Shape =

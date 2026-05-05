@@ -1,10 +1,10 @@
 # If Let
 
-## syntax
+## branches
 
-### if let returns union from branches
+### if let joins branches
 
-> If let yields the union of branch types when else is present.
+> If let joins then and else branch types.
 
 ```ds
 declare const value: int32;
@@ -18,9 +18,9 @@ const result = if (let 1 = value) {
 result satisfies string | int32;
 ```
 
-### if let can appear in else if chains
+### if let chains with else if
 
-> If let conditions can appear in else if branches.
+> If let conditions are valid in else if branches.
 
 ```ds
 declare const value: 1 | 2 | 3;
@@ -52,7 +52,7 @@ const result: int32 = if (let 1 = value) {
 
 ## scoping
 
-### if let bindings are scoped to the then branch
+### if let bindings stay in the then branch
 
 > Bindings introduced by if let are only visible in the then branch.
 
@@ -86,7 +86,7 @@ x
 
 ## flow
 
-### if let narrows values in both branches
+### if let narrows both branches
 
 > If let narrows the matched value in the then and else branches.
 
@@ -102,9 +102,9 @@ if (let 1 = value) {
 
 ## annotations
 
-### if let type annotations accept compatible values
+### if let annotations accept matching values
 
-> Type annotations on if let bindings accept compatible values.
+> Type annotations on if let bindings check the matched value.
 
 ```ds
 declare const value: int32;
@@ -114,9 +114,9 @@ if (let x: int32 = value) {
 }
 ```
 
-### if let type annotations constrain the value
+### if let annotations reject mismatches
 
-> Type annotations on if let bindings must be satisfied by the matched value.
+> The matched value must satisfy the binding annotation.
 
 ```ds
 declare const value: string | int32;

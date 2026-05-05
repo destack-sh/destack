@@ -21,7 +21,7 @@ _ satisfies int32;
 
 - contains: missing symbol
 
-### wildcard can appear inside tuple patterns
+### wildcard discards tuple positions
 
 > Wildcards can discard individual tuple positions.
 
@@ -30,7 +30,7 @@ let (_, value) = (1, "ok");
 value satisfies string;
 ```
 
-### wildcard can appear inside object patterns
+### wildcard discards object fields
 
 > Wildcards can discard selected object fields.
 

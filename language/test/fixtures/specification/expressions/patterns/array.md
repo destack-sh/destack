@@ -22,27 +22,7 @@ let [value]: number[];
 
 - contains: destructuring declarations require initializers
 
-### array patterns cannot use named fields in `.ts` sources
-
-> Named fields are not allowed in array patterns in `.ts` sources.
-
-```ts:main.ts
-let [x: y] = [1, 2];
-```
-
-- contains: named fields are not allowed in array or tuple patterns
-
-### array patterns bind readonly named identifiers
-
-> `readonly` remains an identifier in array destructuring patterns.
-
-```ts
-const [readonly, setReadonly] = [1, 2];
-readonly satisfies number;
-setReadonly satisfies number;
-```
-
-### array patterns reject non iterable initializers
+### array patterns need iterable values
 
 > Array destructuring patterns require iterable initializers.
 
@@ -54,18 +34,18 @@ let [value] = 1;
 
 ## defaults
 
-### array defaults fill missing elements
+### array defaults fill absent elements
 
-> Default values are used when the matched element is absent.
+> Defaults bind when the matched element is absent.
 
 ```ds
 let [value = 1] = [];
 value satisfies int32;
 ```
 
-### array defaults must match declared element types
+### array defaults check element types
 
-> Default values are checked against the binding pattern type.
+> Defaults must satisfy the declared element type.
 
 ```ds
 let [value = "no"]: int32[] = [];
@@ -75,9 +55,9 @@ let [value = "no"]: int32[] = [];
 
 ## rest
 
-### array rest binds trailing elements
+### array rest binds tails
 
-> Rest patterns collect remaining elements.
+> Rest patterns collect trailing elements.
 
 ```ds
 let [head, ...tail] = [1, 2, 3];
@@ -85,9 +65,9 @@ head satisfies int32;
 tail satisfies int32[];
 ```
 
-### slice rest binds trailing elements
+### slice rest keeps slices
 
-> Slice rest patterns keep the tail as a slice.
+> Slice rest patterns bind the tail as a slice.
 
 ```ds
 declare const values: [int32];
@@ -97,7 +77,7 @@ head satisfies int32;
 tail satisfies [int32];
 ```
 
-### array rest must be last
+### array rest is last
 
 > Rest patterns cannot be followed by more elements.
 

@@ -4,7 +4,7 @@
 
 ### switch breaks target the innermost switch
 
-> Break with value is invalid for the innermost switch, even inside loops.
+> Switch breaks cannot carry values, even inside loops.
 
 ```ds
 function invalid_switch_break_value_in_loop(value: int32): int32 {
@@ -149,7 +149,7 @@ function invalid_labeled_continue_switch(value: int32): int32 {
 
 ### switch rejects guards
 
-> Switch cases do not support guards.
+> Switch cases reject guards.
 
 ```ds
 function invalid_switch_guard(value: int32): int32 {
@@ -165,11 +165,11 @@ function invalid_switch_guard(value: int32): int32 {
 
 - contains: switch cases do not support guards
 
-## typing
+## value
 
 ### switch does not yield a value
 
-> Switch is a statement and has void type.
+> Switch is a statement.
 
 ```ds
 function invalid_switch_expression(value: int32): int32 {

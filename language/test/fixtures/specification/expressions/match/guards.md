@@ -1,13 +1,13 @@
 # Match Guards
 
-Match guards participate in control flow typing.
-Guard expressions narrow the matched value inside the guarded arm.
+Match guards refine the selected arm.
+They can use both the matched value and bindings introduced by the pattern.
 
 ## guard narrowing
 
-### match guard narrows with is
+### is guards narrow the arm
 
-> Guard expressions using `is` narrow the scrutinee inside the guarded arm.
+> `is` guards narrow the matched value.
 
 ```ds
 struct Foo {
@@ -29,9 +29,9 @@ function pick(value: Foo | Bar): int32 {
 }
 ```
 
-### match guard narrows with in
+### in guards narrow the arm
 
-> Guard expressions using `in` narrow object unions inside the guarded arm.
+> `in` guards narrow object unions.
 
 ```ds
 type WithX = { x: int32 };
@@ -48,9 +48,9 @@ function pick(value: WithX | WithY): int32 {
 }
 ```
 
-### match guard sees pattern bindings
+### guards can use pattern bindings
 
-> Guard expressions can reference pattern bindings.
+> Pattern bindings are in scope for the guard.
 
 ```ds
 struct Point {
@@ -70,9 +70,9 @@ function clamp(point: Point | Other): int32 {
 }
 ```
 
-### match guard preserves union in later arms
+### guard narrowing stays in its arm
 
-> Guard narrowing does not leak into later arms that do not match the guard.
+> Later arms see the original matched type.
 
 ```ds
 struct Foo {
@@ -94,9 +94,9 @@ function pick(value: Foo | Bar): int32 {
 }
 ```
 
-### match guard narrows on typeof checks
+### typeof guards narrow the arm
 
-> Typeof guards narrow the match value in the guarded arm.
+> `typeof` guards narrow the matched value.
 
 ```ds
 function pick(value: string | int32): int32 {
@@ -110,9 +110,9 @@ function pick(value: string | int32): int32 {
 }
 ```
 
-### match guard narrows with boolean conjunction
+### boolean guards keep narrowing facts
 
-> Boolean guards narrow in the guarded arm when the left side narrows the value.
+> `&&` keeps narrowing from its left side.
 
 ```ds
 struct Foo {
