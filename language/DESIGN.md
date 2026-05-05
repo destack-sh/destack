@@ -790,23 +790,13 @@ Logical operators (`&&`, `||`, `??`), optional chaining, assignment, and strict 
 | `*` | `*a` | `ReadonlyDereference` |
 | `* =` | `*a = v` | `Dereference` |
 
-When overflow / wrapping policy is part of the algorithm, the expression should say so directly, so Destack provides Zig-style wrapping and saturating arithmetic for integer code (which are not overloadable):
+When overflow / wrapping policy is part of the algorithm, the expression should say so directly, so Destack provides Zig-style wrapping and saturating arithmetic for integer code:
+ - `+%`, `-%`, and `*%` wrap modulo the integer's range.
+ - `+|`, `-|`, and `*|` clamp to the integer's minimum or maximum value.
+(These forms are not overloadable.)
 
-| Operation | Standard | Wrapping | Saturating |
-|-----------|----------|----------|------------|
-| Add | `a + b` | `a +% b` | `a +\| b` |
-| Subtract | `a - b` | `a -% b` | `a -\| b` |
-| Multiply | `a * b` | `a *% b` | `a *\| b` |
-
-For example, with `a: uint8 = 250` and `b: uint8 = 10`:
-
-| Operation | Standard | Wrapping | Saturating |
-|-----------|----------|----------|------------|
-| `a + b` | trap / error (overflow) | `4` (wraps past `255`) | `255` (clamped to max) |
-| `a - 255` | trap / error (underflow) | `251` (wraps below `0`) | `0` (clamped to min) |
-| `a * b` | trap / error (overflow) | `196` (wraps modulo `256`) | `255` (clamped to max) |
-
-Dereference operators are a little different from the main "value-shaped" operators: `ReadonlyDereference` and `Dereference` project one access form into another access form (quite close but inverted to `Deref` and `DerefMut` from Rust):
+Dereference operators are a little different from the main "value-shaped" operators.
+`ReadonlyDereference` and `Dereference` project one access form into another access form, preserving ownership, placement, mutability, and borrow regions.
 
 ```ds
 struct Box<T> {
@@ -828,7 +818,7 @@ extension<T> of Box<T> implements Dereference {
 ```
 
 Explicit `*box` uses `ReadonlyDereference`, while assignment through `*box` needs mutable `Dereference`.
-Member lookup and method calls may auto-dereference through `ReadonlyDereference` / `Dereference`, but only after checking the wrapper's own members first (as one would expect).
+Member lookup and method calls may autoderef through `ReadonlyDereference` / `Dereference`, but only after checking the wrapper's own members first.
 Autoderef does not make `Box<T>` generally assignable to `T`; it is just member lookup ergonomics for smart pointers and view-like wrappers.
 
 ### Dispatch
@@ -1130,7 +1120,7 @@ function oldAPI() {
     // ...
 }
 
-@derive(Clone, Serialize, Reflect)
+@derive(Clone, Debug)
 struct User {
     id: UserId;
     name: string;
