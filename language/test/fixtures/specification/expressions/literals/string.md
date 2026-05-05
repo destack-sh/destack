@@ -65,7 +65,7 @@ x satisfies number;
 
 > String literals expose string members.
 
-```ds libs=es5
+```ds
 const value = "hello";
 value.length satisfies int32;
 ```
@@ -74,7 +74,7 @@ value.length satisfies int32;
 
 > String methods preserve their declared return types.
 
-```ds libs=es5
+```ds
 const value = "hello";
 const text = value.toUpperCase();
 text satisfies string;

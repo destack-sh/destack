@@ -4,27 +4,27 @@
 
 ### import type accesses exported types
 
-```ts:main.ts
-type Alias = import("./mod").User;
+```ds:main.ds
+type Alias = import("./mod.ds").User;
 
 const value: Alias = { name: "Ada" };
 value.name satisfies string;
 ```
 
-```ts:mod.ts
+```ds:mod.ds
 export type User = { name: string };
 ```
 
 ### import type accesses default exports
 
-```ts:main.ts
-type Default = import("./mod").default;
+```ds:main.ds
+type Default = import("./mod.ds").default;
 
 const value: Default = { name: "Ada" };
 value.name satisfies string;
 ```
 
-```ts:mod.ts
+```ds:mod.ds
 export default interface User {
     name: string;
 }
@@ -32,38 +32,38 @@ export default interface User {
 
 ### import type accesses re-exported type aliases
 
-```ts:main.ts
-type Alias = import("./index").User;
+```ds:main.ds
+type Alias = import("./index.ds").User;
 
 const value: Alias = { name: "Ada" };
 value.name satisfies string;
 ```
 
-```ts:user.ts
+```ds:user.ds
 export type User = { name: string };
 ```
 
-```ts:index.ts
-export type { User } from "./user";
+```ds:index.ds
+export type { User } from "./user.ds";
 ```
 
 ### import type accesses exported generic aliases
 
-```ts:main.ts
-type Alias = import("./mod").Box<string>;
+```ds:main.ds
+type Alias = import("./mod.ds").Box<string>;
 
 const value: Alias = { value: "Ada" };
 value.value satisfies string;
 ```
 
-```ts:mod.ts
+```ds:mod.ds
 export type Box<T> = { value: T };
 ```
 
 ### import type resolves local and re-exported members
-```ts:main.ts
-type LocalAlias = import("./index").Local;
-type UserAlias = import("./index").User;
+```ds:main.ds
+type LocalAlias = import("./index.ds").Local;
+type UserAlias = import("./index.ds").User;
 
 const local: LocalAlias = { id: 1 };
 local.id satisfies number;
@@ -72,22 +72,22 @@ const user: UserAlias = { name: "Ada" };
 user.name satisfies string;
 ```
 
-```ts:user.ts
+```ds:user.ds
 export type User = { name: string };
 ```
 
-```ts:index.ts
+```ds:index.ds
 export type Local = { id: number };
-export type { User } from "./user";
+export type { User } from "./user.ds";
 ```
 
 ### import type rejects missing members
 
-```ts:main.ts
-type Alias = import("./mod").Missing;
+```ds:main.ds
+type Alias = import("./mod.ds").Missing;
 ```
 
-```ts:mod.ts
+```ds:mod.ds
 export type User = { name: string };
 ```
 

@@ -1,10 +1,10 @@
-# Struct Constructors
+# Struct Construction
 
-## tagged struct literals
+Structs use tagged literals for construction.
 
-### tagged struct literal constructs nominal type
+## literals
 
-> Tagged struct literals yield the declared struct type.
+### tagged literals construct structs
 
 ```ds
 struct Counter {
@@ -20,9 +20,7 @@ const next = counter.increment();
 next satisfies Counter;
 ```
 
-### tagged struct literal supports method calls
-
-> Tagged struct literals expose struct methods immediately.
+### tagged literals expose methods
 
 ```ds
 struct Counter {
@@ -37,9 +35,7 @@ const value = Counter { value: 1 }.increment().value;
 value satisfies int32;
 ```
 
-### tagged struct literal rejects missing fields
-
-> Tagged struct literals must provide required fields.
+### tagged literals require fields
 
 ```ds
 struct Point {
@@ -52,9 +48,7 @@ const point = Point { x: 1 };
 
 - contains: not assignable
 
-### tagged struct literal rejects extra fields
-
-> Tagged struct literals reject excess fields.
+### tagged literals reject extra fields
 
 ```ds
 struct Point {
@@ -67,11 +61,9 @@ const point = Point { x: 1, y: 2, z: 3 };
 
 - contains: excess property
 
-## new expressions
+## constructors
 
-### structs do not have positional constructors
-
-> Structs are constructed with tagged struct literals, not `new`.
+### structs reject new
 
 ```ds
 struct Point {
@@ -84,9 +76,7 @@ const point = new Point(1, 2);
 
 - contains: construct
 
-### struct methods can mutate this
-
-> Struct methods can update fields through `this`.
+### struct methods can mutate fields
 
 ```ds
 struct Counter {
@@ -103,11 +93,9 @@ const next = counter.increment();
 next satisfies int32;
 ```
 
-## untagged object literals
+## objects
 
-### untagged object literal is not a struct
-
-> Untagged object literals do not satisfy nominal struct types.
+### object literals do not construct structs
 
 ```ds
 struct Counter {

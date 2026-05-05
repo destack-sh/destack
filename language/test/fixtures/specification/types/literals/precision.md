@@ -8,7 +8,7 @@ Literal widening, freshness, and const contexts.
 
 `let` bindings without a constraining type widen scalar literals.
 
-```ts
+```ds
 let value = 1;
 
 value satisfies number;
@@ -18,7 +18,7 @@ value satisfies number;
 
 Widened `let` bindings are not assignable to the original literal type.
 
-```ts
+```ds
 let value = 1;
 
 value satisfies 1;
@@ -30,7 +30,7 @@ value satisfies 1;
 
 `const` bindings keep scalar literal types.
 
-```ts
+```ds
 const value = 1;
 
 value satisfies 1;
@@ -40,7 +40,7 @@ value satisfies 1;
 
 `const` does not implicitly freeze object members without a const context.
 
-```ts
+```ds
 const config = { version: 1 };
 
 config.version satisfies number;
@@ -50,7 +50,7 @@ config.version satisfies number;
 
 Object members still widen without a const context.
 
-```ts
+```ds
 const config = { version: 1 };
 
 config.version satisfies 1;
@@ -62,7 +62,7 @@ config.version satisfies 1;
 
 Const assertions suppress widening and preserve literal members.
 
-```ts
+```ds
 const config = { version: 1 } as const;
 
 config.version satisfies 1;
@@ -72,7 +72,7 @@ config.version satisfies 1;
 
 Const assertions are deep and preserve nested literal members.
 
-```ts
+```ds
 const config = { nested: { mode: "dev" } } as const;
 
 config.nested.mode satisfies "dev";
@@ -82,7 +82,7 @@ config.nested.mode satisfies "dev";
 
 Const assertions preserve tuple literal members.
 
-```ts
+```ds
 const pair = [1, 2] as const;
 
 pair[0] satisfies 1;
@@ -93,7 +93,7 @@ pair[1] satisfies 2;
 
 Const assertions preserve literal members in array elements.
 
-```ts
+```ds
 const values = [{ kind: "a" }, { kind: "b" }] as const;
 
 values[0].kind satisfies "a";
@@ -104,7 +104,7 @@ values[1].kind satisfies "b";
 
 Const assertions are deep for nested array literals.
 
-```ts
+```ds
 const grid = [[1, 2]] as const;
 
 grid[0][0] satisfies 1;
@@ -115,7 +115,7 @@ grid[0][1] satisfies 2;
 
 Const assertions are accepted on direct literal forms, not whole conditional expressions.
 
-```ts
+```ds
 const value = (true ? 1 : 2) as const;
 ```
 
@@ -125,7 +125,7 @@ const value = (true ? 1 : 2) as const;
 
 Array literals widen their element types without const assertions.
 
-```ts
+```ds
 const pair = [1, 2];
 
 pair[0] satisfies number;
@@ -135,7 +135,7 @@ pair[0] satisfies number;
 
 Widened array elements are not assignable to the original literal element types.
 
-```ts
+```ds
 const pair = [1, 2];
 
 pair[0] satisfies 1;
@@ -147,7 +147,7 @@ pair[0] satisfies 1;
 
 Contextual types prevent widening to primitives but do not keep literal types.
 
-```ts
+```ds
 let value: 1 | 2 = 1;
 
 value satisfies 1 | 2;
@@ -162,12 +162,12 @@ value satisfies 1;
 
 Exported `const` literals keep their literal types across module boundaries.
 
-```ts:values.ts
+```ds:values.ds
 export const version = 1;
 ```
 
-```ts:main.ts
-import { version } from "./values";
+```ds:main.ds
+import { version } from "./values.ds";
 
 version satisfies 1;
 ```
@@ -176,12 +176,12 @@ version satisfies 1;
 
 Exported `let` literals widen to their primitive types across module boundaries.
 
-```ts:values.ts
+```ds:values.ds
 export let counter = 1;
 ```
 
-```ts:main.ts
-import { counter } from "./values";
+```ds:main.ds
+import { counter } from "./values.ds";
 
 counter satisfies 1;
 ```
@@ -192,12 +192,12 @@ counter satisfies 1;
 
 Exported widened `let` literals still satisfy their primitive types.
 
-```ts:values.ts
+```ds:values.ds
 export let counter = 1;
 ```
 
-```ts:main.ts
-import { counter } from "./values";
+```ds:main.ds
+import { counter } from "./values.ds";
 
 counter satisfies number;
 ```
@@ -206,12 +206,12 @@ counter satisfies number;
 
 Const assertions on exports preserve literal members across module boundaries.
 
-```ts:values.ts
+```ds:values.ds
 export const config = { version: 1 } as const;
 ```
 
-```ts:main.ts
-import { config } from "./values";
+```ds:main.ds
+import { config } from "./values.ds";
 
 config.version satisfies 1;
 ```
@@ -220,12 +220,12 @@ config.version satisfies 1;
 
 Exported `const` object members widen without const assertions.
 
-```ts:values.ts
+```ds:values.ds
 export const config = { version: 1 };
 ```
 
-```ts:main.ts
-import { config } from "./values";
+```ds:main.ds
+import { config } from "./values.ds";
 
 config.version satisfies 1;
 ```
@@ -236,16 +236,16 @@ config.version satisfies 1;
 
 Renamed re-exports preserve exported const literal precision.
 
-```ts:values.ts
+```ds:values.ds
 export const version = 1;
 ```
 
-```ts:index.ts
-export { version as publicVersion } from "./values";
+```ds:index.ds
+export { version as publicVersion } from "./values.ds";
 ```
 
-```ts:main.ts
-import { publicVersion } from "./index";
+```ds:main.ds
+import { publicVersion } from "./index.ds";
 
 publicVersion satisfies 1;
 ```
@@ -254,16 +254,16 @@ publicVersion satisfies 1;
 
 Export-star forwarding preserves widened `let` literal types.
 
-```ts:values.ts
+```ds:values.ds
 export let counter = 1;
 ```
 
-```ts:index.ts
-export * from "./values";
+```ds:index.ds
+export * from "./values.ds";
 ```
 
-```ts:main.ts
-import { counter } from "./index";
+```ds:main.ds
+import { counter } from "./index.ds";
 
 counter satisfies number;
 ```
@@ -272,12 +272,12 @@ counter satisfies number;
 
 Namespace imports preserve const assertion literal member precision.
 
-```ts:values.ts
+```ds:values.ds
 export const config = { version: 1 } as const;
 ```
 
-```ts:main.ts
-import * as values from "./values";
+```ds:main.ds
+import * as values from "./values.ds";
 
 values.config.version satisfies 1;
 ```
@@ -325,7 +325,7 @@ value satisfies string;
 
 Parameter default literals widen to primitive parameter types in function bodies.
 
-```ts
+```ds
 function readMode(mode = "dev") {
     mode satisfies string;
 }
@@ -335,7 +335,7 @@ function readMode(mode = "dev") {
 
 Parameter default literals are not preserved as literal types by default.
 
-```ts
+```ds
 function readMode(mode = "dev") {
     mode satisfies "dev";
 }
@@ -347,7 +347,7 @@ function readMode(mode = "dev") {
 
 Function return inference widens unconstrained literal return expressions.
 
-```ts
+```ds
 function makeMode() {
     return "dev";
 }
@@ -360,7 +360,7 @@ mode satisfies string;
 
 Unconstrained return inference does not preserve literal return values for plain function declarations.
 
-```ts
+```ds
 function makeMode() {
     return "dev";
 }
@@ -377,7 +377,7 @@ mode satisfies "dev";
 
 Nested function declarations widen unconstrained literal return values.
 
-```ts
+```ds
 function outer() {
     function inner() {
         return "dev";
@@ -392,7 +392,7 @@ function outer() {
 
 Nested function declarations do not preserve literal return values by default.
 
-```ts
+```ds
 function outer() {
     function inner() {
         return "dev";

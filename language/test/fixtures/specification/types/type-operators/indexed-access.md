@@ -7,7 +7,7 @@ Fixed arrays use `[T; N]`.
 
 ### indexed access reads property types
 
-```ts
+```ds
 type User = { name: string; age: number };
 type Name = User["name"];
 
@@ -17,7 +17,7 @@ value satisfies string;
 
 ### indexed access rejects missing properties
 
-```ts
+```ds
 type User = { name: string; age: number };
 type Missing = User["missing"];
 ```
@@ -47,7 +47,7 @@ type Missing = ObjectLike[5];
 
 ### indexed access distributes across unions
 
-```ts
+```ds
 type A = { kind: "a"; value: number };
 type B = { kind: "b"; value: string };
 type Value = (A | B)["value"];
@@ -58,7 +58,7 @@ const second: Value = "hi";
 
 ### indexed access with key unions yields unioned values
 
-```ts
+```ds
 type User = { name: string; age: number };
 type Value = User["name" | "age"];
 
@@ -68,7 +68,7 @@ const second: Value = 42;
 
 ### indexed access rejects values outside selected members
 
-```ts
+```ds
 type User = { name: string; age: number };
 type Value = User["name" | "age"];
 
@@ -111,7 +111,7 @@ first satisfies string;
 
 ### dynamic array indexing yields element types
 
-```ts
+```ds
 type Element<T extends string[]> = T[number];
 
 declare const value: Element<["a", "b"]>;
@@ -133,7 +133,7 @@ value satisfies [uint8; 4];
 
 Indexed access over optional members in a union includes `undefined` in the resulting value type.
 
-```ts
+```ds
 type Input =
     | { kind: "a", value?: number }
     | { kind: "b", value: string };
@@ -148,7 +148,7 @@ maybe satisfies number | string | undefined;
 
 Those optional indexed reads reject assignment into required-only target reads.
 
-```ts
+```ds
 type Input =
     | { kind: "a", value?: number }
     | { kind: "b", value: string };
@@ -165,7 +165,7 @@ maybe satisfies number | string;
 
 Optional-union indexed reads also reject values outside the member union.
 
-```ts
+```ds
 type Input =
     | { kind: "a", value?: number }
     | { kind: "b", value: string };

@@ -6,7 +6,7 @@
 
 > Variance modifiers are accepted in type parameter lists.
 
-```ts:main.ts
+```ds:main.ds
 interface Sink<in T> {
     set(value: T): void;
 }
@@ -28,7 +28,7 @@ source.get() satisfies string;
 
 > Variance modifiers are accepted on classes and functions.
 
-```ts:main.ts
+```ds:main.ds
 declare class Box<out T> {
     value: T;
     constructor(value: T);
@@ -44,7 +44,7 @@ type Mapper = typeof map;
 
 > Defaults are applied when type arguments are omitted.
 
-```ts:main.ts
+```ds:main.ds
 interface Box<out T = string> {
     value: T;
 }
@@ -57,7 +57,7 @@ boxed.value satisfies string;
 
 > Variance modifiers are accepted on method type parameters.
 
-```ts:main.ts
+```ds:main.ds
 interface Mapper {
     map<in T, out U>(value: T, f: (value: T) => U): U;
 }
@@ -169,7 +169,7 @@ interface Bad<in, out T> {}
 
 > Variance modifiers are accepted in declaration files.
 
-```ts:main.d.ts
+```ds:main.ds
 export interface Sink<in T> {
     set(value: T): void;
 }
@@ -197,7 +197,7 @@ export declare const adapt: Adapter<string, number>;
 
 > Defaults are applied in declaration files.
 
-```ts:main.d.ts
+```ds:main.ds
 export interface Box<out T = string> {
     value: T;
 }
@@ -209,7 +209,7 @@ export declare const boxed: Box;
 
 > Defaults are applied to contravariant parameters in declaration files.
 
-```ts:main.d.ts
+```ds:main.ds
 export interface Sink<in T = string> {
     set(value: T): void;
 }

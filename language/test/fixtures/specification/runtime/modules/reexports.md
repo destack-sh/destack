@@ -8,16 +8,16 @@ Reexports expose the binding shape from the module that declares it.
 
 Reexport chains keep the original value shape.
 
-```ts:a.ts
+```ds:a.ds
 export const value = { ok: true };
 ```
 
-```ts:b.ts
-export { value } from "./a";
+```ds:b.ds
+export { value } from "./a.ds";
 ```
 
-```ts:main.ts
-import { value } from "./b";
+```ds:main.ds
+import { value } from "./b.ds";
 
 value.ok satisfies boolean;
 ```
@@ -26,20 +26,20 @@ value.ok satisfies boolean;
 
 Multi-hop reexports keep the original value shape.
 
-```ts:a.ts
+```ds:a.ds
 export const value = { ok: true };
 ```
 
-```ts:b.ts
-export { value } from "./a";
+```ds:b.ds
+export { value } from "./a.ds";
 ```
 
-```ts:c.ts
-export { value } from "./b";
+```ds:c.ds
+export { value } from "./b.ds";
 ```
 
-```ts:main.ts
-import { value } from "./c";
+```ds:main.ds
+import { value } from "./c.ds";
 
 value.ok satisfies boolean;
 ```
@@ -48,17 +48,17 @@ value.ok satisfies boolean;
 
 > Export star reexports types for type positions without runtime values.
 
-```ts:types.ts
+```ds:types.ds
 export type User = { name: string };
 export const value = 1;
 ```
 
-```ts:mod.ts
-export * from "./types";
+```ds:mod.ds
+export * from "./types.ds";
 ```
 
-```ts:main.ts
-import { value, User } from "./mod";
+```ds:main.ds
+import { value, User } from "./mod.ds";
 
 value satisfies number;
 type Alias = User;
@@ -71,16 +71,16 @@ User;
 
 Renamed reexports keep the original value shape.
 
-```ts:a.ts
+```ds:a.ds
 export const value = { ok: true };
 ```
 
-```ts:b.ts
-export { value as renamed } from "./a";
+```ds:b.ds
+export { value as renamed } from "./a.ds";
 ```
 
-```ts:main.ts
-import { renamed } from "./b";
+```ds:main.ds
+import { renamed } from "./b.ds";
 
 renamed.ok satisfies boolean;
 ```
@@ -89,16 +89,16 @@ renamed.ok satisfies boolean;
 
 Export star keeps exported value shapes.
 
-```ts:a.ts
+```ds:a.ds
 export const value = { ok: true };
 ```
 
-```ts:b.ts
-export * from "./a";
+```ds:b.ds
+export * from "./a.ds";
 ```
 
-```ts:main.ts
-import { value } from "./b";
+```ds:main.ds
+import { value } from "./b.ds";
 
 value.ok satisfies boolean;
 ```
@@ -107,16 +107,16 @@ value.ok satisfies boolean;
 
 > Export type reexports do not create runtime values.
 
-```ts:types.ts
+```ds:types.ds
 export type User = { name: string };
 ```
 
-```ts:mod.ts
-export type { User } from "./types";
+```ds:mod.ds
+export type { User } from "./types.ds";
 ```
 
-```ts:main.ts
-import { User } from "./mod";
+```ds:main.ds
+import { User } from "./mod.ds";
 
 type Alias = User;
 User;
@@ -128,16 +128,16 @@ User;
 
 > Named export type specifiers do not produce runtime values.
 
-```ts:types.ts
+```ds:types.ds
 export type User = { name: string };
 ```
 
-```ts:mod.ts
-export { type User } from "./types";
+```ds:mod.ds
+export { type User } from "./types.ds";
 ```
 
-```ts:main.ts
-import { User } from "./mod";
+```ds:main.ds
+import { User } from "./mod.ds";
 
 type Alias = User;
 User;
@@ -149,16 +149,16 @@ User;
 
 > Export type star reexports types without runtime values.
 
-```ts:types.ts
+```ds:types.ds
 export type User = { name: string };
 ```
 
-```ts:mod.ts
-export type * from "./types";
+```ds:mod.ds
+export type * from "./types.ds";
 ```
 
-```ts:main.ts
-import { User } from "./mod";
+```ds:main.ds
+import { User } from "./mod.ds";
 
 type Alias = User;
 User;
@@ -170,18 +170,18 @@ User;
 
 > Value usage from export type star imports stays type-only.
 
-```ts:types.ts
+```ds:types.ds
 export interface User {
     name: string;
 }
 ```
 
-```ts:mod.ts
-export type * from "./types";
+```ds:mod.ds
+export type * from "./types.ds";
 ```
 
-```ts:main.ts
-import { User } from "./mod";
+```ds:main.ds
+import { User } from "./mod.ds";
 
 const value = User;
 ```
@@ -192,16 +192,16 @@ const value = User;
 
 Namespace reexports keep exported value shapes.
 
-```ts:a.ts
+```ds:a.ds
 export const value = { ok: true };
 ```
 
-```ts:b.ts
-export * as ns from "./a";
+```ds:b.ds
+export * as ns from "./a.ds";
 ```
 
-```ts:main.ts
-import { ns } from "./b";
+```ds:main.ds
+import { ns } from "./b.ds";
 
 ns.value.ok satisfies boolean;
 ```
@@ -210,18 +210,18 @@ ns.value.ok satisfies boolean;
 
 Default reexports keep exported value shapes.
 
-```ts:defaults.ts
+```ds:defaults.ds
 export default function make() {
     return { ok: true };
 }
 ```
 
-```ts:reexport.ts
-export { default as make } from "./defaults";
+```ds:reexport.ds
+export { default as make } from "./defaults.ds";
 ```
 
-```ts:main.ts
-import { make } from "./reexport";
+```ds:main.ds
+import { make } from "./reexport.ds";
 
 make().ok satisfies boolean;
 ```

@@ -70,13 +70,13 @@ declare function greet(): string {
 
 > Overloads in declaration files merge into a single callable.
 
-```ds:types.d.ds
+```ds:types.ds
 export function apply(value: string): number;
 export function apply(value: number): string;
 ```
 
 ```ds:main.ds
-import { apply } from "./types.d.ds";
+import { apply } from "./types.ds";
 
 apply("ok") satisfies number;
 apply(42) satisfies string;

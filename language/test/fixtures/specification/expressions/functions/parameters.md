@@ -106,7 +106,7 @@ sized(width);
 
 > Tuple rest destructuring supports nested object defaults and a tuple level fallback.
 
-```ts:main.ts
+```ds:main.ds
 type SpawnArguments = [string, { syncSnapshot?: boolean }?];
 
 function spawnChild(...[src, { syncSnapshot = false } = {}]: SpawnArguments): boolean {
@@ -136,7 +136,7 @@ function build(public value: number) {
 
 > Optional parameters must use identifiers, not binding patterns.
 
-```ts:main.ts
+```ds:main.ds
 interface Payload {
     value: string;
 }
@@ -152,7 +152,7 @@ function handle({ value }?: Payload) {
 
 > Rest parameters cannot be optional.
 
-```ts:main.ts
+```ds:main.ds
 function collect(...items?: string[]) {
     let _ = items;
 }

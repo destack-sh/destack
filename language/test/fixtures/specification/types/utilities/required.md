@@ -1,10 +1,10 @@
 # Required
 
-`Required` is a standard TypeScript utility type.
+`Required` is a standard utility type.
 
 ### required removes optionality
 
-```ds libs=es5
+```ds
 interface Person {
     name?: string
     age?: number
@@ -18,7 +18,7 @@ ok satisfies FullPerson;
 
 ### required rejects missing fields
 
-```ds libs=es5
+```ds
 interface Person {
     name?: string
     age?: number
@@ -33,7 +33,7 @@ const bad: FullPerson = { name: "Ada" };
 
 ### required keeps undefined in property types
 
-```ds libs=es5
+```ds
 interface Person {
     name?: string | undefined
 }
@@ -46,7 +46,7 @@ ok satisfies FullPerson;
 
 ### required preserves readonly fields
 
-```ds libs=es5
+```ds
 interface Person {
     readonly name?: string
 }

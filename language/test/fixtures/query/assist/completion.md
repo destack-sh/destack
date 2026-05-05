@@ -2922,17 +2922,17 @@ top: 1
 [0] label=Widget kind=type_parameter sort=100 sort_text=0:0:0:0000:0000:0005:./lib:Widget detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import type { Widget } from \"./lib\";"
 ```
 
-### Use type only auto imports for pure type exports in .ts type position
+### Use type only auto imports for pure type exports in type position
 
-TypeScript pure type exports should also use `import type` in type position.
+Destack pure type exports should also use `import type` in type position.
 
-```ts:lib.ts
+```ds:lib.ds
 export type Widget = {
     value: string,
 };
 ```
 
-```ts:main.ts
+```ds:main.ds
 export {}
 
 type Alias = Wid$0
@@ -2940,18 +2940,18 @@ type Alias = Wid$0
 
 ```query completion $0
 top: 1
-[0] label=Widget kind=type_parameter sort=100 sort_text=0:0:0:0000:0000:0005:./lib:Widget detail=Auto import from ./lib edits=main.ts:1:1-1:1=>"import type { Widget } from \"./lib\";"
+[0] label=Widget kind=type_parameter sort=100 sort_text=0:0:0:0000:0000:0005:./lib:Widget detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import type { Widget } from \"./lib\";"
 ```
 
-### Use type only auto imports for type-value exports in .ts type position
+### Use type only auto imports for type-value exports in type position
 
-TypeScript type-position auto imports should stay type-only even for dual-space exports.
+Destack type-position auto imports should stay type-only even for dual-space exports.
 
-```ts:lib.ts
+```ds:lib.ds
 export class WobbleWidget {}
 ```
 
-```ts:main.ts
+```ds:main.ds
 export {}
 
 type Alias = Wob$0
@@ -2959,7 +2959,7 @@ type Alias = Wob$0
 
 ```query completion $0
 top: 1
-[0] label=WobbleWidget kind=class sort=100 sort_text=1:0:0:0000:0000:0005:./lib:WobbleWidget detail=Auto import from ./lib edits=main.ts:1:1-1:1=>"import type { WobbleWidget } from \"./lib\";"
+[0] label=WobbleWidget kind=class sort=100 sort_text=1:0:0:0000:0000:0005:./lib:WobbleWidget detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import type { WobbleWidget } from \"./lib\";"
 ```
 
 ### Prefer pure type exports in type position

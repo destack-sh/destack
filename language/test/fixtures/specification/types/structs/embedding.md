@@ -1,10 +1,10 @@
 # Struct Embedding
 
-## embedded fields
+Embedded structs contribute fields directly to the outer struct.
 
-### struct embedding exposes fields
+## fields
 
-> Embedded structs contribute their fields to the outer struct.
+### embedding exposes fields
 
 ```ds
 struct Transform {
@@ -19,9 +19,7 @@ const entity = Entity { x: 1 };
 entity.x satisfies int32;
 ```
 
-### struct embedding exposes fields from multiple embeds
-
-> Multiple embeds contribute fields to the outer struct.
+### multiple embeds expose fields
 
 ```ds
 struct Position {
@@ -42,9 +40,7 @@ transform.x satisfies int32;
 transform.y satisfies int32;
 ```
 
-### struct embedding chains through nested structs
-
-> Nested embeds expose fields from embedded parents.
+### nested embeds expose fields
 
 ```ds
 struct Base {
@@ -67,9 +63,7 @@ outer.name satisfies string;
 outer.active satisfies boolean;
 ```
 
-### struct embedding supports deeper chains
-
-> Deep embed chains continue to expose embedded fields.
+### deep embeds expose fields
 
 ```ds
 struct Root {
@@ -98,9 +92,7 @@ canopy.active satisfies boolean;
 canopy.count satisfies int32;
 ```
 
-### struct embedding rejects missing required embedded fields
-
-> Struct literal construction must include required fields from embeds.
+### embedded fields are required
 
 ```ds
 struct Transform {
@@ -116,9 +108,7 @@ const entity = Entity {};
 
 - contains: not assignable
 
-### struct embedding rejects duplicate field declarations
-
-> Embedding rejects conflicts when embedded and local fields share names.
+### embedding rejects duplicate fields
 
 ```ds
 struct Transform {

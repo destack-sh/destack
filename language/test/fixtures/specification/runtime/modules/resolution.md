@@ -18,25 +18,25 @@ value satisfies int32;
 export const value: int32 = 1;
 ```
 
-### resolves ts module without extension
+### resolves inferred module without extension
 
-> Extensionless specifiers resolve `.ts` modules from `.ts` sources.
+> Extensionless specifiers resolve `.ds` modules with inferred exports.
 
-```ts:main.ts
+```ds:main.ds
 import { value } from "./mod";
 
 value satisfies number;
 ```
 
-```ts:mod.ts
+```ds:mod.ds
 export const value = 1;
 ```
 
 ### resolves declaration modules without extension
 
-> Extensionless specifiers resolve `.d.ts` modules for type usage.
+> Extensionless specifiers resolve `.ds` modules for type usage.
 
-```ts:main.ts
+```ds:main.ds
 import type { User } from "./types";
 
 type Alias = User;
@@ -44,7 +44,7 @@ const value: Alias = { name: "Ada" };
 value.name satisfies string;
 ```
 
-```ts:types.d.ts
+```ds:types.ds
 export interface User {
     name: string;
 }
@@ -52,15 +52,15 @@ export interface User {
 
 ### resolves declaration value exports
 
-> Extensionless specifiers resolve declared values from `.d.ts` modules.
+> Extensionless specifiers resolve declared values from `.ds` modules.
 
-```ts:main.ts
+```ds:main.ds
 import { version } from "./types";
 
 version satisfies string;
 ```
 
-```ts:types.d.ts
+```ds:types.ds
 export const version: string;
 ```
 
@@ -79,4 +79,3 @@ value satisfies string;
 ```ds:dir/index.ds
 export const value: string = "ok";
 ```
-

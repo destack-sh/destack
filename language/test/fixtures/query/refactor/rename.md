@@ -1773,9 +1773,9 @@ for (let i = 0; i < 3; i++) {
 
 ### Rename import alias binding
 
-Renaming a TypeScript import alias should update alias declaration and local references.
+Renaming a Destack import alias should update alias declaration and local references.
 
-```ts:main.ts
+```ds:main.ds
 namespace bar {
     export const baz = 1;
 }
@@ -1789,7 +1789,7 @@ const value = Foo;
 ```query rename target:import_alias "BarValue"
 ```
 
-```expected:main.ts
+```expected:main.ds
 namespace bar {
     export const baz = 1;
 }

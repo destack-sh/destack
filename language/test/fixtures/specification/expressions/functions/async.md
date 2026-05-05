@@ -8,7 +8,7 @@ Promise<T> and await expressions.
 
 > Await unwraps the resolved value type of a promise.
 
-```ds libs=es5,es2015.promise
+```ds
 declare const value: Promise<number>;
 
 async function read(): Promise<number> {
@@ -22,7 +22,7 @@ async function read(): Promise<number> {
 
 > Await only accepts typed async values.
 
-```ds libs=es5,es2015.promise
+```ds
 async function read(): Promise<string> {
     const value = await "hello";
     value satisfies string;
@@ -36,7 +36,7 @@ async function read(): Promise<string> {
 
 > Await distributes across promise unions.
 
-```ds libs=es5,es2015.promise
+```ds
 declare const value: Promise<number> | Promise<string>;
 
 async function read(): Promise<number | string> {
@@ -50,7 +50,7 @@ async function read(): Promise<number | string> {
 
 > Await recursively unwraps nested promise values.
 
-```ds libs=es5,es2015.promise
+```ds
 declare const value: Promise<Promise<number>>;
 
 async function read(): Promise<number> {
@@ -64,7 +64,7 @@ async function read(): Promise<number> {
 
 > Await preserves `unknown` when the promise value is unknown.
 
-```ds libs=es5,es2015.promise
+```ds
 declare const value: Promise<unknown>;
 
 async function read(): Promise<unknown> {
@@ -78,7 +78,7 @@ async function read(): Promise<unknown> {
 
 > Await unwraps promise aliases through ordinary alias resolution.
 
-```ds libs=es5,es2015.promise
+```ds
 type Box<T> = Promise<T>;
 declare const value: Box<int32>;
 
@@ -93,7 +93,7 @@ async function read(): Promise<int32> {
 
 > Await unwraps Promise arguments even when the static argument is an unevaluated alias.
 
-```ds libs=es5,es2015.promise
+```ds
 type Box<T> = Promise<T>;
 type Alias = Box<string>;
 declare const value: Alias;

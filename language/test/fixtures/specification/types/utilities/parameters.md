@@ -4,36 +4,36 @@
 
 ### parameters extracts argument types
 
-```ts libs=es5
+```ds
 type Args = Parameters<(name: string, count: number) => boolean>;
 
-const ok: Args = ["Ada", 1];
-ok satisfies [string, number];
+const ok: Args = ("Ada", 1);
+ok satisfies (string, number);
 ```
 
 ### parameters rejects wrong argument types
 
-```ts libs=es5
+```ds
 type Args = Parameters<(name: string, count: number) => boolean>;
 
-const bad: Args = ["Ada", "one"];
+const bad: Args = ("Ada", "one");
 ```
 
 - contains: not assignable
 
 ### parameters preserves optional parameters
 
-```ts libs=es5
+```ds
 type Args = Parameters<(name: string, count?: number) => boolean>;
 
-const ok: Args = ["Ada"];
-const ok2: Args = ["Ada", 1];
+const ok: Args = ("Ada",);
+const ok2: Args = ("Ada", 1);
 ```
 
 ### parameters preserves rest parameters
 
-```ts libs=es5
+```ds
 type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
 
-const ok: Args = ["Ada", true, false];
+const ok: Args = ("Ada", true, false);
 ```

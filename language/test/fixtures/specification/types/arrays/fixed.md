@@ -69,7 +69,7 @@ let target: [int32; 3] = source;
 
 > `FixedArray<T, N>` is a builtin alias for `[T; N]`.
 
-```ds libs=native
+```ds
 const lane: FixedArray<int32, 2> = [1, 2];
 lane satisfies [int32; 2];
 ```
@@ -78,7 +78,7 @@ lane satisfies [int32; 2];
 
 > `FixedArray<T, N>` rejects literals whose length does not match `N`.
 
-```ds libs=native
+```ds
 const lane: FixedArray<int32, 2> = [1, 2, 3];
 ```
 

@@ -108,7 +108,7 @@ x satisfies string;
 > Number literals expose Number standard members.
 
 
-```ds libs=es5
+```ds
 const value = 12;
 const fixed = value.toFixed(2);
 fixed satisfies string;

@@ -62,7 +62,7 @@ const value: Named & Aged = { name: "Ada", age: 42 };
 
 > Fresh object literals enforce excess property checks for direct object targets.
 
-```ts
+```ds
 type Person = { name: string };
 
 const value: Person = { name: "Ada", extra: true };
@@ -74,7 +74,7 @@ const value: Person = { name: "Ada", extra: true };
 
 > Non-fresh object values do not run excess property checks when assigned later.
 
-```ts
+```ds
 type Person = { name: string };
 
 const source = { name: "Ada", extra: true };
@@ -85,7 +85,7 @@ const value: Person = source;
 
 > Generic target positions infer full source shape without excess checks.
 
-```ts
+```ds
 function keep<T extends { name: string }>(value: T): T {
     return value;
 }
@@ -100,7 +100,7 @@ value.extra satisfies boolean;
 
 > Fresh literals targeting discriminated unions reject non-member fields.
 
-```ts
+```ds
 type Shape =
     | { kind: "a"; value: number }
     | { kind: "b"; value: string };
@@ -114,7 +114,7 @@ const value: Shape = { kind: "a" as const, value: 1, extra: true };
 
 > Non-fresh values may carry extra fields when structurally assignable to a member.
 
-```ts
+```ds
 type Shape =
     | { kind: "a"; value: number }
     | { kind: "b"; value: string };
@@ -129,7 +129,7 @@ const value: Shape = source;
 
 > Fresh spread literals still reject explicit excess fields on the literal itself.
 
-```ts
+```ds
 type Person = { name: string };
 
 const base = { name: "Ada" };
@@ -142,7 +142,7 @@ const value: Person = { ...base, extra: true };
 
 > Spread-only object literals do not re-run fresh excess checks on spread-origin fields.
 
-```ts
+```ds
 type Person = { name: string };
 
 const source = { name: "Ada", extra: true };
@@ -155,7 +155,7 @@ const value: Person = { ...source };
 
 > Weak object target types reject sources that do not share required keys.
 
-```ts
+```ds
 type WeakPoint = {
     x?: number;
     y?: number;
@@ -170,7 +170,7 @@ const value: WeakPoint = { label: "origin" };
 
 > Weak object target types accept sources that share at least one target property.
 
-```ts
+```ds
 type WeakPoint = {
     x?: number;
     y?: number;
@@ -183,7 +183,7 @@ const value: WeakPoint = { x: 1, label: "origin" };
 
 > Fresh spread literals still reject weak targets when no target property is shared.
 
-```ts
+```ds
 type WeakPoint = {
     x?: number;
     y?: number;
@@ -199,7 +199,7 @@ const value: WeakPoint = { ...base };
 
 > Spread literals are accepted for weak targets when at least one target property is shared.
 
-```ts
+```ds
 type WeakPoint = {
     x?: number;
     y?: number;
@@ -213,7 +213,7 @@ const value: WeakPoint = { ...base };
 
 > Contextually typed callback returns run excess property checks on fresh returned literals.
 
-```ts
+```ds
 type Person = { name: string };
 
 function use(factory: () => Person): Person {
@@ -229,7 +229,7 @@ use(() => ({ name: "Ada", extra: true }));
 
 > Object values produced by non-contextual callbacks do not run excess checks on later assignment.
 
-```ts
+```ds
 type Person = { name: string };
 
 const make = () => ({ name: "Ada", extra: true });
@@ -240,18 +240,18 @@ const value: Person = make();
 
 > Fresh discriminant literals reject excess fields through renamed re-export paths.
 
-```ts:shape.ts
+```ds:shape.ds
 export type Shape =
     | { kind: "a"; value: number }
     | { kind: "b"; value: string };
 ```
 
-```ts:index.ts
-export type { Shape as PublicShape } from "./shape";
+```ds:index.ds
+export type { Shape as PublicShape } from "./shape.ds";
 ```
 
-```ts:main.ts
-import type { PublicShape } from "./index";
+```ds:main.ds
+import type { PublicShape } from "./index.ds";
 
 const value: PublicShape = { kind: "a" as const, value: 1, extra: true };
 ```
@@ -262,18 +262,18 @@ const value: PublicShape = { kind: "a" as const, value: 1, extra: true };
 
 > Fresh spread literals still reject explicit excess fields for discriminant union targets through renamed re-exports.
 
-```ts:shape.ts
+```ds:shape.ds
 export type Shape =
     | { kind: "a"; value: number }
     | { kind: "b"; value: string };
 ```
 
-```ts:index.ts
-export type { Shape as PublicShape } from "./shape";
+```ds:index.ds
+export type { Shape as PublicShape } from "./shape.ds";
 ```
 
-```ts:main.ts
-import type { PublicShape } from "./index";
+```ds:main.ds
+import type { PublicShape } from "./index.ds";
 
 const base = { kind: "a" as const, value: 1 };
 const value: PublicShape = { ...base, extra: true };

@@ -91,7 +91,7 @@ let ok: Select<unknown> = "no";
 
 ### infer extracts matching members
 
-```ts
+```ds
 type Box<T> = { value: T };
 type Unbox<T> = T extends Box<infer U> ? U : never;
 
@@ -100,7 +100,7 @@ const ok: Unbox<Box<"ready">> = "ready";
 
 ### infer rejects unrelated extracted values
 
-```ts
+```ds
 type Box<T> = { value: T };
 type Unbox<T> = T extends Box<infer U> ? U : never;
 
@@ -111,7 +111,7 @@ const bad: Unbox<Box<"ready">> = "no";
 
 ### infer distributes over unions
 
-```ts
+```ds
 type Box<T> = { value: T };
 type Unbox<T> = T extends Box<infer U> ? U : never;
 
@@ -121,7 +121,7 @@ const second: Unbox<Box<"a"> | Box<"b">> = "b";
 
 ### infer extracts function arguments
 
-```ts
+```ds
 type Argument<T> = T extends (value: infer A) => unknown ? A : never;
 
 type Input = Argument<((value: string) => void) | ((value: number) => void)>;
@@ -132,7 +132,7 @@ const second: Input = 1;
 
 ### inferred argument unions reject unrelated values
 
-```ts
+```ds
 type Argument<T> = T extends (value: infer A) => unknown ? A : never;
 
 type Input = Argument<((value: string) => void) | ((value: number) => void)>;

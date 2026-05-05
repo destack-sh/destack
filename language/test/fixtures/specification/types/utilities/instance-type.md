@@ -4,7 +4,7 @@
 
 ### InstanceType extracts class instances
 
-```ts libs=es5
+```ds
 class User {
     name: string = "";
 }
@@ -17,7 +17,7 @@ ok.name satisfies string;
 
 ### InstanceType rejects unrelated instances
 
-```ts libs=es5
+```ds
 class User {
     name: string = "";
 }

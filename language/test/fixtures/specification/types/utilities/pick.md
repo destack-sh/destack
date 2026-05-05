@@ -1,10 +1,10 @@
 # Pick
 
-`Pick` is a standard TypeScript utility type.
+`Pick` is a standard utility type.
 
 ### pick preserves optional properties
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age?: number
@@ -20,7 +20,7 @@ ok2 satisfies AgeOnly;
 
 ### pick rejects extra fields on optional picks
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age?: number
@@ -35,7 +35,7 @@ const bad: AgeOnly = { name: "Ada" };
 
 ### pick accepts required fields
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -49,7 +49,7 @@ ok satisfies NameOnly;
 
 ### pick accepts union keys
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -63,7 +63,7 @@ ok satisfies NameAge;
 
 ### pick merges shared union key types
 
-```ds libs=es5
+```ds
 type Mixed = { value: string } | { value: int32 };
 type Picked = Pick<Mixed, "value">;
 
@@ -73,7 +73,7 @@ const ok2: Picked = { value: 42 };
 
 ### pick rejects non member union values
 
-```ds libs=es5
+```ds
 type Mixed = { value: string } | { value: int32 };
 type Picked = Pick<Mixed, "value">;
 
@@ -84,7 +84,7 @@ const bad: Picked = { value: true };
 
 ### pick rejects missing union keys
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -99,7 +99,7 @@ const bad: NameAge = { name: "Ada" };
 
 ### pick rejects extra fields
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -114,7 +114,7 @@ const bad: NameOnly = { name: "Ada", extra: true };
 
 ### pick rejects extra fields with required keys
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -129,7 +129,7 @@ const bad: NameOnly = { name: "Ada", age: 42 };
 
 ### pick rejects missing required fields
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -144,7 +144,7 @@ const bad: NameOnly = {};
 
 ### pick rejects unknown keys
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -157,7 +157,7 @@ type NameOnly = Pick<Person, "name" | "missing">;
 
 ### pick preserves readonly properties
 
-```ds libs=es5
+```ds
 interface Person {
     readonly name: string
     age: number

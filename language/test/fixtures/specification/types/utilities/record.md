@@ -1,10 +1,10 @@
 # Record
 
-`Record` is a standard TypeScript utility type.
+`Record` is a standard utility type.
 
 ### record builds required properties
 
-```ds libs=es5
+```ds
 type Flags = Record<"a" | "b", boolean>;
 
 const ok: Flags = { a: true, b: false };
@@ -13,7 +13,7 @@ ok satisfies Flags;
 
 ### record rejects invalid key types
 
-```ds libs=es5
+```ds
 type Bad = Record<{ name: string }, boolean>;
 ```
 
@@ -21,7 +21,7 @@ type Bad = Record<{ name: string }, boolean>;
 
 ### record requires all keys
 
-```ds libs=es5
+```ds
 type Flags = Record<"a" | "b", boolean>;
 
 const bad: Flags = { a: true };
@@ -31,7 +31,7 @@ const bad: Flags = { a: true };
 
 ### record supports numeric keys
 
-```ds libs=es5
+```ds
 type NumericFlags = Record<1 | 2, string>;
 
 const ok: NumericFlags = { 1: "one", 2: "two" };
@@ -40,7 +40,7 @@ ok satisfies NumericFlags;
 
 ### record supports symbol keys
 
-```ts libs=es5
+```ds
 declare const key: unique symbol;
 
 type Flags = Record<typeof key, boolean>;
@@ -51,7 +51,7 @@ ok[key] satisfies boolean;
 
 ### record rejects missing numeric keys
 
-```ds libs=es5
+```ds
 type NumericFlags = Record<1 | 2, string>;
 
 const bad: NumericFlags = { 1: "one" };
@@ -61,7 +61,7 @@ const bad: NumericFlags = { 1: "one" };
 
 ### record rejects extra keys
 
-```ds libs=es5
+```ds
 type Flags = Record<"a" | "b", boolean>;
 
 const bad: Flags = { a: true, b: false, c: true };
@@ -71,7 +71,7 @@ const bad: Flags = { a: true, b: false, c: true };
 
 ### record with never yields empty object
 
-```ds libs=es5
+```ds
 type Empty = Record<never, boolean>;
 
 const ok: Empty = {};
@@ -79,7 +79,7 @@ const ok: Empty = {};
 
 ### record with never rejects extra fields
 
-```ds libs=es5
+```ds
 type Empty = Record<never, boolean>;
 
 const bad: Empty = { value: true };

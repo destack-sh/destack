@@ -4,27 +4,27 @@
 
 ### ConstructorParameters extracts constructor arguments
 
-```ts libs=es5
+```ds
 class User {
     constructor(name: string, age: number) {}
 }
 
 type Args = ConstructorParameters<typeof User>;
 
-const ok: Args = ["Ada", 42];
-ok satisfies [string, number];
+const ok: Args = ("Ada", 42);
+ok satisfies (string, number);
 ```
 
 ### ConstructorParameters rejects wrong argument types
 
-```ts libs=es5
+```ds
 class User {
     constructor(name: string, age: number) {}
 }
 
 type Args = ConstructorParameters<typeof User>;
 
-const bad: Args = ["Ada", "old"];
+const bad: Args = ("Ada", "old");
 ```
 
 - contains: not assignable

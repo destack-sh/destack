@@ -4,7 +4,7 @@
 
 ### uncapitalize converts first character
 
-```ts libs=es5
+```ds
 type Value = Uncapitalize<"Hello">;
 
 const ok: Value = "hello";
@@ -12,7 +12,7 @@ const ok: Value = "hello";
 
 ### uncapitalize distributes over unions
 
-```ts libs=es5
+```ds
 type Value = Uncapitalize<"Yes" | "No">;
 
 const ok: Value = "yes";
@@ -21,7 +21,7 @@ const ok2: Value = "no";
 
 ### uncapitalize rejects original casing
 
-```ts libs=es5
+```ds
 type Value = Uncapitalize<"Hello">;
 
 const bad: Value = "Hello";

@@ -6,11 +6,11 @@
 
 > Type-only imports must not mix default and named bindings.
 
-```ts:main.ts
-import type Foo, { Bar } from "./mod";
+```ds:main.ds
+import type Foo, { Bar } from "./mod.ds";
 ```
 
-```ts:mod.ts
+```ds:mod.ds
 export default class Foo {}
 export type Bar = string;
 ```
@@ -21,13 +21,13 @@ export type Bar = string;
 
 > Type-only imports are erased and cannot be used as runtime values.
 
-```ts:main.ts
-import type { Foo } from "./mod";
+```ds:main.ds
+import type { Foo } from "./mod.ds";
 
 Foo;
 ```
 
-```ts:mod.ts
+```ds:mod.ds
 export type Foo = { name: string };
 ```
 
@@ -37,15 +37,15 @@ export type Foo = { name: string };
 
 > Named type-only specifiers are permitted in value imports.
 
-```ts:main.ts
-import { type Foo } from "./mod";
+```ds:main.ds
+import { type Foo } from "./mod.ds";
 
 type Alias = Foo;
 const value: Alias = { name: "Ada" };
 value.name satisfies string;
 ```
 
-```ts:mod.ts
+```ds:mod.ds
 export type Foo = { name: string };
 ```
 
@@ -53,13 +53,13 @@ export type Foo = { name: string };
 
 > Type-only specifiers are still erased at runtime.
 
-```ts:main.ts
-import { type Foo } from "./mod";
+```ds:main.ds
+import { type Foo } from "./mod.ds";
 
 Foo;
 ```
 
-```ts:mod.ts
+```ds:mod.ds
 export type Foo = { name: string };
 ```
 
@@ -69,15 +69,15 @@ export type Foo = { name: string };
 
 > Default type-only imports can be used in type positions.
 
-```ts:main.ts
-import type Foo from "./mod";
+```ds:main.ds
+import type Foo from "./mod.ds";
 
 type Alias = Foo;
 const value: Alias = { name: "Ada" };
 value.name satisfies string;
 ```
 
-```ts:mod.ts
+```ds:mod.ds
 export default interface Foo {
     name: string;
 }
@@ -87,13 +87,13 @@ export default interface Foo {
 
 > Default type-only imports are erased at runtime.
 
-```ts:main.ts
-import type Foo from "./mod";
+```ds:main.ds
+import type Foo from "./mod.ds";
 
 Foo;
 ```
 
-```ts:mod.ts
+```ds:mod.ds
 export default interface Foo {
     name: string;
 }
@@ -105,15 +105,15 @@ export default interface Foo {
 
 > Namespace type-only imports expose types only.
 
-```ts:main.ts
-import type * as Types from "./mod";
+```ds:main.ds
+import type * as Types from "./mod.ds";
 
 type Alias = Types.User;
 const value: Alias = { name: "Ada" };
 value.name satisfies string;
 ```
 
-```ts:mod.ts
+```ds:mod.ds
 export interface User {
     name: string;
 }
@@ -123,13 +123,13 @@ export interface User {
 
 > Namespace type-only imports cannot be used as values.
 
-```ts:main.ts
-import type * as Types from "./mod";
+```ds:main.ds
+import type * as Types from "./mod.ds";
 
 Types;
 ```
 
-```ts:mod.ts
+```ds:mod.ds
 export interface User {
     name: string;
 }
@@ -141,15 +141,15 @@ export interface User {
 
 > Value imports may reference type-only exports in type positions.
 
-```ts:main.ts
-import { Foo } from "./mod";
+```ds:main.ds
+import { Foo } from "./mod.ds";
 
 type Alias = Foo;
 const value: Alias = { name: "Ada" };
 value.name satisfies string;
 ```
 
-```ts:mod.ts
+```ds:mod.ds
 export type Foo = { name: string };
 ```
 
@@ -157,13 +157,13 @@ export type Foo = { name: string };
 
 > Imported types cannot be referenced as values even without import type.
 
-```ts:main.ts
-import { Foo } from "./mod";
+```ds:main.ds
+import { Foo } from "./mod.ds";
 
 Foo;
 ```
 
-```ts:mod.ts
+```ds:mod.ds
 export type Foo = { name: string };
 ```
 
@@ -173,14 +173,14 @@ export type Foo = { name: string };
 
 > Imported generic function constraints remain active at consumer call sites.
 
-```ts:lib.ts
+```ds:lib.ds
 export function readName<T extends { name: string }>(value: T): string {
     return value.name;
 }
 ```
 
-```ts:main.ts
-import { readName } from "./lib";
+```ds:main.ds
+import { readName } from "./lib.ds";
 
 readName({ name: "ok" });
 readName({ name: 1 });
@@ -192,7 +192,7 @@ readName({ name: 1 });
 
 ### import aliases accept qualified identifiers
 
-```ts:main.ts
+```ds:main.ds
 namespace bar {
     export const baz = 1;
 }
@@ -204,7 +204,7 @@ import Foo = bar.baz;
 
 > Import aliases must target a qualified identifier path.
 
-```ts:main.ts
+```ds:main.ds
 function bar() {
     return 1;
 }

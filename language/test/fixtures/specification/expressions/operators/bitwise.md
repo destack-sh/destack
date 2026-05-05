@@ -46,7 +46,7 @@ value satisfies int32;
 
 > Sets support `|` union through the builtin `Or` implementation.
 
-```ds libs=es2015
+```ds
 declare const left: Set<int32>;
 declare const right: Set<int32>;
 
@@ -58,7 +58,7 @@ combined satisfies Set<int32>;
 
 > Maps support `|` merge through the builtin `Or` implementation.
 
-```ds libs=es2015
+```ds
 declare const left: Map<string, int32>;
 declare const right: Map<string, int32>;
 

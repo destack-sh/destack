@@ -9,7 +9,7 @@ Bigint literal type inference and checking.
 > Bigint literals can be assigned to bigint type.
 
 
-```ds libs=es2020
+```ds
 const x: bigint = 42n;
 ```
 
@@ -20,7 +20,7 @@ const x: bigint = 42n;
 > Bigint literals expose BigInt standard members.
 
 
-```ds libs=es2020
+```ds
 const value = 42n;
 const text = value.toString();
 text satisfies string;
@@ -30,7 +30,7 @@ text satisfies string;
 
 > Bigint values are not assignable to number.
 
-```ds libs=es2020
+```ds
 const value: number = 42n;
 ```
 
@@ -40,7 +40,7 @@ const value: number = 42n;
 
 > Bigint arithmetic preserves bigint results.
 
-```ds libs=es2020
+```ds
 const value = 40n + 2n;
 value satisfies bigint;
 ```
@@ -49,7 +49,7 @@ value satisfies bigint;
 
 > Bigint arithmetic rejects mixed bigint and number operands.
 
-```ds libs=es2020
+```ds
 const value = 40n + 2;
 value satisfies bigint;
 ```

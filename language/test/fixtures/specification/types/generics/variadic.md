@@ -6,7 +6,7 @@
 
 Tail extraction with a variadic tuple keeps the literal precision of preserved head elements.
 
-```ts
+```ds
 type Head<T extends readonly unknown[]> = T extends readonly [infer H, ...unknown[]] ? H : never;
 
 declare const value: Head<readonly ["a", "b", "c"]>;
@@ -17,7 +17,7 @@ value satisfies "a";
 
 Concatenating const tuples through variadic parameters retains fixed-length literal tuple precision.
 
-```ts
+```ds
 declare function concat<T extends readonly unknown[], U extends readonly unknown[]>(a: T, b: U): [...T, ...U];
 
 const value = concat([1, 2] as const, ["x"] as const);
@@ -29,7 +29,7 @@ value[2] satisfies "x";
 
 Concatenating mutable arrays through variadic tuples widens to array-compatible element types.
 
-```ts
+```ds
 declare function concat<T extends readonly unknown[], U extends readonly unknown[]>(a: T, b: U): [...T, ...U];
 
 let left = [1, 2];
@@ -45,15 +45,11 @@ value[0] satisfies 1;
 
 Rest-parameter inference over tuple inputs preserves element order in the inferred tuple result.
 
-```ts
+```ds
 declare function collect<T extends readonly unknown[]>(...values: T): T;
 
 const value = collect("a", 1, true);
 value[0] satisfies "a";
 value[1] satisfies 1;
 value[2] satisfies true;
-```
-
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
 ```

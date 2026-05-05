@@ -1,12 +1,11 @@
-# Interface Implementation (implements)
+# Class Interfaces
 
-Interface implementation using `implements`.
+Classes satisfy structural interfaces by shape.
+The `implements` clause is an explicit checked declaration.
 
 ## implementation
 
-### implementation is assignable to interface
-
-> A class that implements an interface is assignable to the interface type.
+### implementations assign to interfaces
 
 ```ds
 interface Printable {
@@ -22,9 +21,7 @@ declare function getDocument(): Document;
 const printable: Printable = getDocument();
 ```
 
-### implementation satisfies interface
-
-> A class that implements an interface satisfies the interface type.
+### implementations satisfy interfaces
 
 ```ds
 interface Printable {
@@ -40,9 +37,7 @@ declare function getDocument(): Document;
 getDocument() satisfies Printable;
 ```
 
-### interface not assignable to implementation
-
-> An interface type is not assignable to a concrete implementation type.
+### interfaces do not assign to implementations
 
 ```ds
 interface Printable {
@@ -62,9 +57,7 @@ const document: Document = getPrintable();
 
 ## function parameters
 
-### implementation passed to interface parameter
-
-> A class can be passed where its implemented interface is expected.
+### implementations pass to interface parameters
 
 ```ds
 interface Printable {
@@ -84,9 +77,7 @@ acceptPrintable(getDocument());
 
 ## multiple interfaces
 
-### multiple interfaces implemented
-
-> A class can implement multiple interfaces.
+### classes implement multiple interfaces
 
 ```ds
 interface Printable {
@@ -110,9 +101,7 @@ const saveable: Saveable = getDocument();
 
 ## mixed inheritance
 
-### class extends and implements
-
-> A class can extend a class and implement interfaces.
+### classes extend and implement together
 
 ```ds
 class Base {
@@ -135,9 +124,7 @@ const printable: Printable = getDocument();
 
 ## structural subtyping
 
-### class without implements assignable to interface
-
-> A class with the same shape as an interface is assignable without explicit `implements`.
+### classes satisfy interfaces structurally
 
 ```ds
 interface HasId {
@@ -153,9 +140,7 @@ declare function getDocument(): Document;
 const hasId: HasId = getDocument();
 ```
 
-### class missing field not assignable to interface
-
-> A class that lacks a required field is not assignable to the interface.
+### interfaces require class members
 
 ```ds
 interface HasId {
@@ -173,9 +158,7 @@ const hasId: HasId = getDocument();
 
 - contains: not assignable
 
-### struct without implements assignable to interface
-
-> Structs also support structural subtyping to interfaces.
+### structs satisfy interfaces structurally
 
 ```ds
 interface HasName {
@@ -192,9 +175,7 @@ declare function getPerson(): Person;
 const named: HasName = getPerson();
 ```
 
-### class with extra fields assignable to interface
-
-> A class with more fields than required is still assignable.
+### extra class fields are allowed
 
 ```ds
 interface Named {
@@ -214,9 +195,7 @@ const named: Named = getUser();
 
 ## rejections
 
-### classes cannot declare empty implements clauses
-
-> Classes cannot declare empty implements clauses.
+### classes reject empty implements clauses
 
 ```ds
 class Counter implements {

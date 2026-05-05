@@ -1,10 +1,10 @@
 # Omit
 
-`Omit` is a standard TypeScript utility type.
+`Omit` is a standard utility type.
 
 ### omit removes selected keys
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -18,7 +18,7 @@ ok satisfies WithoutAge;
 
 ### omit rejects removed keys
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -33,7 +33,7 @@ const bad: WithoutAge = { name: "Ada", age: 42 };
 
 ### omit with union keys removes all
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -46,7 +46,7 @@ const ok: WithoutAll = {};
 
 ### omit with union keys rejects removed fields
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -61,7 +61,7 @@ const bad: WithoutAll = { name: "Ada" };
 
 ### omit ignores unknown keys
 
-```ds libs=es5
+```ds
 interface Person {
     name: string
     age: number
@@ -75,7 +75,7 @@ ok satisfies Person;
 
 ### omit preserves readonly properties
 
-```ds libs=es5
+```ds
 interface Person {
     readonly name: string
     age: number

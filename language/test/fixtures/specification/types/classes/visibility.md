@@ -2,9 +2,7 @@
 
 ## private fields
 
-### private fields are inaccessible outside the class
-
-> Private members are only accessible inside the declaring class.
+### private fields reject outside access
 
 ```ds
 class Counter {
@@ -19,9 +17,7 @@ const out = counter.value;
 
 - contains: is private
 
-### private shorthand fields are inaccessible outside the class
-
-> The `#field` shorthand is private.
+### private shorthand fields reject outside access
 
 ```ds
 class Counter {
@@ -36,9 +32,7 @@ const out = counter.#value;
 
 - contains: is private
 
-### private shorthand fields are accessible within the class
-
-> Private shorthand fields are accessible inside the declaring class.
+### private shorthand fields allow class access
 
 ```ds
 class Counter {
@@ -51,9 +45,7 @@ const counter = new Counter();
 const out = counter.get();
 ```
 
-### private shorthand fields are inaccessible in subclasses
-
-> Private shorthand fields are not accessible from subclasses.
+### private shorthand fields reject subclass access
 
 ```ds
 class Base {
@@ -67,9 +59,7 @@ class Child extends Base {
 
 - contains: is private
 
-### private shorthand methods are accessible within the class
-
-> Private shorthand methods are callable inside the declaring class.
+### private shorthand methods allow class access
 
 ```ds
 class Counter {
@@ -82,9 +72,7 @@ const counter = new Counter();
 const out = counter.get();
 ```
 
-### private shorthand methods are inaccessible outside the class
-
-> Private shorthand methods are not callable outside the declaring class.
+### private shorthand methods reject outside access
 
 ```ds
 class Counter {
@@ -97,9 +85,7 @@ const out = counter.#next();
 
 - contains: is private
 
-### static private fields are accessible within the class
-
-> Static private fields are accessible inside the declaring class.
+### static private fields allow class access
 
 ```ds
 class Counter {
@@ -113,9 +99,7 @@ class Counter {
 Counter.get() satisfies int32;
 ```
 
-### static private fields are inaccessible outside the class
-
-> Static private fields are not accessible from the outside.
+### static private fields reject outside access
 
 ```ds
 class Counter {
@@ -129,9 +113,7 @@ Counter.#value;
 
 ## protected fields
 
-### protected fields are accessible in subclasses
-
-> Protected members are accessible in subclasses.
+### protected fields allow subclass access
 
 ```ds
 class Base {
@@ -145,9 +127,7 @@ class Child extends Base {
 }
 ```
 
-### protected fields are inaccessible outside subclasses
-
-> Protected members are not accessible from outside the class hierarchy.
+### protected fields reject outside access
 
 ```ds
 class Base {

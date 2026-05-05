@@ -257,7 +257,7 @@ let bad: Split<"a"> = ("", "a");
 
 Recursive template-literal parameter extraction keeps every parameter name discovered along the path.
 
-```ts
+```ds
 type Params<T extends string> =
     T extends `${string}:${infer Param}/${infer Rest}`
         ? Param | Params<Rest>
@@ -275,7 +275,7 @@ key satisfies "userId" | "postId";
 
 The extracted parameter-name union rejects names that never appear in the template pattern.
 
-```ts
+```ds
 type Params<T extends string> =
     T extends `${string}:${infer Param}/${infer Rest}`
         ? Param | Params<Rest>
@@ -290,7 +290,3 @@ key satisfies "userId" | "postId" | "commentId";
 ```
 
 - contains: not assignable
-
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
-```

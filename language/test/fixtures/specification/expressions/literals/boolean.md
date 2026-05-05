@@ -80,7 +80,7 @@ x satisfies string;
 > Boolean literals expose Boolean standard members.
 
 
-```ds libs=es5
+```ds
 const value = true;
 const text = value.toString();
 text satisfies string;

@@ -47,7 +47,7 @@ state.payload;
 
 > After try and catch join, only members common to all paths remain available.
 
-```ts
+```ds
 let value: string | number = "ok";
 
 try {
@@ -87,7 +87,7 @@ if (value != null) {
 
 > A write through an alias in finally invalidates earlier dotted-name narrows.
 
-```ts
+```ds
 let box: { inner: { value?: string } } = { inner: { value: "ok" } };
 
 if (box.inner.value !== undefined) {
@@ -108,7 +108,7 @@ if (box.inner.value !== undefined) {
 
 > A helper called from finally can invalidate null checks established in try.
 
-```ts
+```ds
 let value: string | null = "ok";
 
 if (value !== null) {
@@ -134,7 +134,7 @@ if (value !== null) {
 
 > Closure writes inside loops invalidate discriminant member narrows.
 
-```ts
+```ds
 type Ready = { kind: "ready"; payload: string };
 type Idle = { kind: "idle" };
 
@@ -155,7 +155,3 @@ while (true) {
 ```
 
 - contains: does not exist
-
-```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
-```

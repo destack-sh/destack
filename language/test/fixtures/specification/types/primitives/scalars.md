@@ -1,6 +1,6 @@
 # Scalars
 
-`number`, `string`, and `boolean` keep their strict TypeScript meaning.
+`number`, `string`, and `boolean` keep their strict scalar behavior.
 
 ## number
 

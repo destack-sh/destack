@@ -15,7 +15,7 @@
 ```
 
 ```ds:main.ds
-import data from "./data.json";
+import data from "./data.json.ds";
 
 data;
 ```
@@ -29,7 +29,7 @@ data;
 ```
 
 ```ds:main.ds
-import numbers from "./numbers.json";
+import numbers from "./numbers.json.ds";
 
 numbers;
 ```
@@ -45,7 +45,7 @@ numbers;
 ```
 
 ```ds:main.ds
-import text from "./data.json" with { type: "text" };
+import text from "./data.json.ds" with { type: "text" };
 
 // imported as text (string), not as JSON object
 text;
@@ -60,8 +60,8 @@ text;
 ```
 
 ```ds:main.ds
-import json from "./data.json";
-import text from "./data.json" with { type: "text" };
+import json from "./data.json.ds";
+import text from "./data.json.ds" with { type: "text" };
 
 json;
 text;
@@ -76,7 +76,7 @@ text;
 ```
 
 ```ds:forward.ds
-export { default as text } from "./data.json" with { type: "text" };
+export { default as text } from "./data.json.ds" with { type: "text" };
 ```
 
 ```ds:main.ds
@@ -94,7 +94,7 @@ text satisfies string;
 ```
 
 ```ds:main.ds
-import data from "./data.json" with { type: "jsonc" };
+import data from "./data.json.ds" with { type: "jsonc" };
 
 data;
 ```
@@ -112,7 +112,7 @@ Imported JSON properties keep literal types.
 ```
 
 ```ds:main.ds
-import data from "./data.json";
+import data from "./data.json.ds";
 
 data.name satisfies "Alice";
 data.age satisfies 30;
@@ -130,7 +130,7 @@ data.age satisfies 30;
 ```
 
 ```ds:main.ds
-import config from "./config.json";
+import config from "./config.json.ds";
 
 config.server.host satisfies "localhost";
 config.server.port satisfies 8080;
@@ -146,7 +146,7 @@ config.debug satisfies true;
 ```
 
 ```ds:main.ds
-import numbers from "./numbers.json";
+import numbers from "./numbers.json.ds";
 
 numbers satisfies readonly [1, 2, 3];
 numbers[0] satisfies 1;
@@ -167,7 +167,7 @@ interface User {
     age: number;
 }
 
-import data from "./data.json";
+import data from "./data.json.ds";
 
 const user: User = data;
 user.name satisfies string;
@@ -182,7 +182,7 @@ user.name satisfies string;
 ```
 
 ```ds:main.ds
-import data from "./data.json";
+import data from "./data.json.ds";
 
 data.nonexistent;
 ```
@@ -198,7 +198,7 @@ Hello!
 ```
 
 ```ds:main.ds
-import encoded from "./data.txt" with { type: "base64" };
+import encoded from "./data.txt.ds" with { type: "base64" };
 
 encoded satisfies string;
 ```
@@ -214,8 +214,8 @@ encoded satisfies string;
 }
 ```
 
-```ts:main.ts
-import * as data from "./data.json";
+```ds:main.ds
+import * as data from "./data.json.ds";
 
 data.name satisfies string;
 data.age satisfies number;

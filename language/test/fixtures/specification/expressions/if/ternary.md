@@ -67,7 +67,7 @@ export const route = true ? "api" : "admin";
 ```
 
 ```ds:main.ds
-import { route } from "./values";
+import { route } from "./values.ds";
 
 route satisfies "api" | "admin";
 ```
@@ -81,7 +81,7 @@ export let route = true ? "api" : "admin";
 ```
 
 ```ds:main.ds
-import { route } from "./values";
+import { route } from "./values.ds";
 
 route satisfies string;
 ```
@@ -95,7 +95,7 @@ export let route = true ? "api" : "admin";
 ```
 
 ```ds:main.ds
-import { route } from "./values";
+import { route } from "./values.ds";
 
 route satisfies "api" | "admin";
 ```
@@ -177,7 +177,7 @@ export const route = true ? { kind: "api" } : { kind: "admin" };
 ```
 
 ```ds:main.ds
-import { route } from "./values";
+import { route } from "./values.ds";
 
 route.kind satisfies string;
 ```
@@ -191,7 +191,7 @@ export const route = true ? { kind: "api" } : { kind: "admin" };
 ```
 
 ```ds:main.ds
-import { route } from "./values";
+import { route } from "./values.ds";
 
 route.kind satisfies "api" | "admin";
 ```
@@ -221,7 +221,7 @@ export const route = true
 ```
 
 ```ds:main.ds
-import { route } from "./values";
+import { route } from "./values.ds";
 
 route.kind satisfies "api" | "admin";
 ```
@@ -235,7 +235,7 @@ export const route: "api" | "admin" = true ? "api" : "admin";
 ```
 
 ```ds:main.ds
-import { route } from "./values";
+import { route } from "./values.ds";
 
 route satisfies "api" | "admin";
 ```

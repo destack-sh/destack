@@ -13,7 +13,7 @@ Hello, World!
 ```
 
 ```ds:main.ds
-import content from "./readme.txt";
+import content from "./readme.txt.ds";
 
 content satisfies string;
 ```
@@ -27,7 +27,7 @@ content satisfies string;
 ```
 
 ```ds:main.ds
-import content from "./data.json" with { type: "text" };
+import content from "./data.json.ds" with { type: "text" };
 
 content satisfies string;
 ```

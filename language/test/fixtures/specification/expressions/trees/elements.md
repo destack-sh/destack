@@ -41,7 +41,7 @@ node;
 
 > `.tsx` sources accept tree elements without extensions.
 
-```ts:main.tsx
+```tsx:main.tsx
 declare const A: unknown;
 
 const node = <A value={1} />;

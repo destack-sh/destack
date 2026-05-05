@@ -94,8 +94,8 @@ export struct Document { content: string }
 ```
 
 ```ds:main.ds
-import { Printable } from "./contracts";
-import { Document } from "./model";
+import { Printable } from "./contracts.ds";
+import { Document } from "./model.ds";
 
 extension of Document implements Printable {
     print(): string { return this.content }
@@ -126,8 +126,8 @@ export struct Document { content: string }
 ```
 
 ```ds:main.ds
-import { Printable, Serializable } from "./contracts";
-import { Document } from "./model";
+import { Printable, Serializable } from "./contracts.ds";
+import { Document } from "./model.ds";
 
 extension of Document implements Printable, Serializable {
     print(): string { return this.content }

@@ -61,19 +61,19 @@ declare let value: Remap<{ name: string }>;
 > Cross-module alias cycles reports recursion instead of stalling.
 
 ```ds:a.ds
-import type { B } from "./b";
+import type { B } from "./b.ds";
 
 export type A<T> = B<T>;
 ```
 
 ```ds:b.ds
-import type { A } from "./a";
+import type { A } from "./a.ds";
 
 export type B<T> = A<T>;
 ```
 
 ```ds:main.ds
-import type { A } from "./a";
+import type { A } from "./a.ds";
 
 declare let value: A<number>;
 ```

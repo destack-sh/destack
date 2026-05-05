@@ -13,7 +13,7 @@ fake image bytes
 ```
 
 ```ds:main.ds
-import icon from "./icon.png";
+import icon from "./icon.png.ds";
 
 icon satisfies uint8[];
 ```
@@ -27,7 +27,7 @@ hello
 ```
 
 ```ds:main.ds
-import bytes from "./file.txt" with { type: "binary" };
+import bytes from "./file.txt.ds" with { type: "binary" };
 
 bytes satisfies uint8[];
 ```

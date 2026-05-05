@@ -37,7 +37,7 @@ let value: number = `hello`;
 
 > Tagged templates use the tag function return type.
 
-```ds libs=es5,es2015
+```ds
 declare function tag(strings: TemplateStringsArray, value: int32): boolean;
 
 let result: boolean = tag`value=${1}`;
@@ -47,7 +47,7 @@ let result: boolean = tag`value=${1}`;
 
 > Tagged templates check argument types against the tag signature.
 
-```ds libs=es5,es2015
+```ds
 declare function tag(strings: TemplateStringsArray, value: string): string;
 
 let result = tag`value=${1}`;
@@ -59,7 +59,7 @@ let result = tag`value=${1}`;
 
 > Tagged templates preserve the tag return type.
 
-```ds libs=es5,es2015
+```ds
 declare function tag(strings: TemplateStringsArray): int32;
 
 let result: string = tag`value`;
