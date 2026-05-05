@@ -1,19 +1,21 @@
 # Comptime Conditions
 
-## comptime conditions
+Comptime conditions use compile-time boolean values for late branch elimination.
 
-### comptime condition selects expression type
+## conditions
 
-> Comptime conditions can drive normal if-expressions.
+### comptime conditions keep joined branch types
+
+> Comptime conditions type check like ordinary if-expressions.
 
 ```ds
-const value: int32 = if (comptime true) { 1 } else { 2 };
-value satisfies int32;
+const value = if (comptime true) { 1 } else { 2 };
+value satisfies 1 | 2;
 ```
 
-### comptime condition still type checks both branches
+### comptime conditions check both branches
 
-> Both branches of a comptime condition must type check.
+> Both branches must type check against the surrounding expectation.
 
 ```ds
 const value: int32 = if (comptime true) { 1 } else { "nope" };
@@ -21,59 +23,87 @@ const value: int32 = if (comptime true) { 1 } else { "nope" };
 
 - contains: is not assignable
 
-### comptime condition accepts type relations
+### comptime conditions use static parameters
 
-> Comptime conditions can use type relations like `T extends U`.
+> Static value parameters can choose lowering-time expression flow.
 
 ```ds
-function choose<T>(value: T): number {
-    if (comptime T extends number) {
+function choose<comptime UseFastPath: bool>(): int32 {
+    if (comptime UseFastPath) {
         return 1;
+    } else {
+        return 2;
     }
-    return 2;
 }
 
-choose<number>(1) satisfies number;
-choose<string>("hi") satisfies number;
+choose<true>() satisfies int32;
+choose<false>() satisfies int32;
 ```
 
-### comptime type condition narrows in true branch
+### comptime conditions call functions with static inputs
 
-> `comptime T extends U` narrows `T` to `T & U` in the true branch.
+> Ordinary code can compute a late-eliminated condition from static inputs.
 
 ```ds
-interface Named {
-    name: string
-}
-
-function format<T>(value: T): string {
-    if (comptime T extends Named) {
-        value.name satisfies string;
-        return value.name;
+function isPowerOfTwo(value: uint): bool {
+    if (value == 0) {
+        return false;
     }
-    return "unknown";
+
+    let n = value;
+    while (n > 1) {
+        if (n % 2 != 0) {
+            return false;
+        }
+        n /= 2;
+    }
+
+    return true;
 }
 
-format("ok");
-format({ name: "Ada" });
+function blockCost<comptime Width: uint>(): int32 {
+    if (comptime isPowerOfTwo(Width)) {
+        return 1;
+    } else {
+        return 2;
+    }
+}
+
+blockCost<16>() satisfies int32;
+blockCost<15>() satisfies int32;
 ```
 
-### comptime type condition does not narrow in false branch
+### comptime conditions use inferred static parameters
 
-> The false branch does not gain members from a failed comptime relation.
+> Inferred static values can choose lowering-time expression flow after instantiation.
 
 ```ds
-interface Named {
-    name: string
+function length<T, comptime N: uint>(values: [T; N]): N {
+    if (comptime N == 0) {
+        return 0;
+    } else {
+        return N;
+    }
 }
 
-function format<T>(value: T): string {
-    if (comptime T extends Named) {
-        return value.name;
+const rgb: [uint8; 3] = [255, 128, 0];
+const n = length(rgb);
+
+n satisfies 3;
+```
+
+### comptime conditions reject runtime values
+
+> Dynamic parameters cannot choose comptime flow.
+
+```ds
+function choose(flag: bool): int32 {
+    if (comptime flag) {
+        return 1;
+    } else {
+        return 2;
     }
-    value.name;
-    return "unknown";
 }
 ```
 
-- contains: property 'name' does not exist on type T
+- contains: static expression

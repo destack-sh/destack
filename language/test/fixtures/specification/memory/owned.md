@@ -140,3 +140,25 @@ owned.x = 2;
 ```
 
 - contains: cannot assign
+
+### readonly owned values forbid nested mutation
+
+> `^readonly T` is readonly through nested fields.
+
+```ds
+struct Profile {
+    name: string;
+}
+
+struct User {
+    profile: Profile;
+}
+
+let owned: ^readonly User = ^readonly User {
+    profile: Profile { name: "Ada" },
+};
+
+owned.profile.name = "Grace";
+```
+
+- contains: cannot assign

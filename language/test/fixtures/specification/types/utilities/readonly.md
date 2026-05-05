@@ -52,3 +52,20 @@ frozen.name = "Grace";
 ```
 
 - contains: read-only
+
+### readonly is shallow
+
+> `Readonly<T>` only marks the outer fields readonly.
+
+```ds libs=es5
+interface Person {
+    profile: {
+        name: string
+    }
+}
+
+type Frozen = Readonly<Person>;
+
+const frozen: Frozen = { profile: { name: "Ada" } };
+frozen.profile.name = "Grace";
+```

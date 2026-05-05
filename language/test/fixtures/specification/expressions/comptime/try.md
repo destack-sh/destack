@@ -1,12 +1,12 @@
 # Try
 
-Comptime `try` uses static inputs and keeps ordinary `try/catch/finally` typing.
+Comptime expressions use normal `try`, `catch`, `finally`, and `?` typing.
 
 ## typing
 
-### comptime try catch returns union body type
+### comptime try catch joins branch types
 
-In comptime `try/catch`, the expression type joins the body result with the catch fallback result.
+> `try/catch` inside comptime has normal expression typing.
 
 ```ds
 const value = comptime {
@@ -21,9 +21,9 @@ const value = comptime {
 value satisfies int | string;
 ```
 
-### comptime try finally returns the body type
+### comptime try finally keeps the body type
 
-A comptime `try/finally` expression uses the body result type.
+> `finally` does not change the expression value type.
 
 ```ds
 const value = comptime {
@@ -37,18 +37,64 @@ const value = comptime {
 value satisfies int;
 ```
 
-### comptime try result propagation rejects runtime dependencies
+### comptime try can catch propagated failures
 
-Comptime `try` propagation must fail when the propagated value depends on runtime data.
+> `?` inside a comptime try can transfer failure to the local catch.
 
 ```ds
-function read(value: int): Result<int, Error> {
+function parse(value: int): Result<int, string> {
+    if (value > 0) {
+        Result.ok(value)
+    } else {
+        Result.err("bad")
+    }
+}
+
+const value = comptime {
+    try {
+        parse(0)?
+    } catch (error) {
+        error satisfies string;
+        1
+    }
+};
+
+value satisfies int;
+```
+
+### comptime values enter runtime try propagation
+
+> Runtime `?` can consume values produced by comptime expressions.
+
+```ds
+function parse(value: int): Result<int, string> {
+    Result.ok(value)
+}
+
+function compute(value: int): Result<int, string> {
+    const current = comptime {
+        1
+    };
+
+    const parsed = parse(current)?;
+    Result.ok(parsed + value)
+}
+```
+
+## rejections
+
+### comptime try propagation rejects runtime inputs
+
+> Comptime `?` cannot depend on dynamic function parameters.
+
+```ds
+function parse(value: int): Result<int, string> {
     Result.ok(value)
 }
 
 function compute(value: int): int {
     const result = comptime {
-        read(value)?
+        parse(value)?
     };
 
     result
@@ -57,85 +103,17 @@ function compute(value: int): int {
 
 - contains: static expression
 
-## nested try
+### comptime try propagation needs an exit path
 
-### nested comptime try blocks join locally
-
-> Each nested `try/catch` joins its own body and catch results.
+> Uncaught `?` cannot leave a comptime expression without a compatible result path.
 
 ```ds
-const value = comptime {
-    try {
-        try {
-            1
-        } catch (error) {
-            2
-        }
-    } catch (error) {
-        3
-    }
-};
-
-value satisfies int;
-```
-
-### comptime try in result returning functions can feed try propagation
-
-> A comptime-produced `Result` inside a `Result`-returning function is consumable by `try`.
-
-```ds
-function parse(value: int): Result<int, Error> {
+function parse(value: int): Result<int, string> {
     Result.ok(value)
 }
 
-function compute(value: int): Result<int, Error> {
-    const current = comptime {
-        try {
-            1
-        } catch (error) {
-            2
-        }
-    };
-
-    const parsed = parse(current)?;
-    Result.ok(parsed + value)
-}
-```
-
-## runtime inputs
-
-### nested comptime lambdas reject runtime dependent try propagation
-
-> A nested comptime lambda must reject `try` propagation when any input is runtime-dependent.
-
-```ds
-function parse(value: int): Result<int, Error> {
-    Result.ok(value)
-}
-
-function compute(value: int): int {
-    const current = comptime {
-        const read = () => parse(value)?;
-        read()
-    };
-
-    current
-}
-```
-
-- contains: static expression
-
-### nested comptime lambdas reject ? outside compatible returns
-
-> `?` cannot propagate failure from a comptime block whose surrounding return type cannot carry it.
-
-```ds
 const value = comptime {
-    const read = (): Result<int, Error> => {
-        Result.ok(1)
-    };
-
-    read()?
+    parse(1)?
 };
 
 value satisfies int;

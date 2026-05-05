@@ -62,6 +62,29 @@ shared.x = 2;
 
 - contains: immutable reference
 
+### shared reference rejects nested member assignment
+
+> Shared references are readonly through nested fields.
+
+```ds
+struct Profile {
+    name: string;
+}
+
+struct User {
+    profile: Profile;
+}
+
+let user = User {
+    profile: Profile { name: "Ada" },
+};
+
+let shared = &readonly user;
+shared.profile.name = "Grace";
+```
+
+- contains: immutable reference
+
 ### shared reference rejects index assignment
 
 > Shared references cannot be used to mutate through index assignment.

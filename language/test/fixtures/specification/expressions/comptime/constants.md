@@ -4,9 +4,9 @@ Comptime expressions can produce constants for later code.
 
 ## constants
 
-### comptime values can drive const declarations
+### comptime values initialize const declarations
 
-> Comptime expressions can initialize constants used by later code.
+> Comptime constants can be used by later code.
 
 ```ds
 const scale = comptime 3;
@@ -18,9 +18,18 @@ function apply(value: int32): int32 {
 apply(4) satisfies int32;
 ```
 
-### comptime values can drive runtime expressions
+### comptime values keep exact values
 
-> Comptime results can be used like ordinary constants.
+> Comptime constants preserve literal precision when possible.
+
+```ds
+const count = comptime 2 + 2;
+count satisfies 4;
+```
+
+### comptime values appear in runtime expressions
+
+> Comptime values can be used like ordinary constants.
 
 ```ds
 const count = comptime 2 + 2;
@@ -29,7 +38,7 @@ const values = [1, 2, 3, 4];
 values[count - 1] satisfies int32;
 ```
 
-### comptime values can drive fixed array lengths
+### comptime values set fixed array lengths
 
 > Comptime constants can be used as fixed array lengths.
 
@@ -41,7 +50,7 @@ const lane: Lane = [1, 2, 3, 4];
 lane satisfies [uint8; 4];
 ```
 
-### comptime values can drive static conditionals
+### comptime values select static conditionals
 
 > Comptime expressions can include static conditional logic.
 
@@ -55,14 +64,13 @@ lane satisfies [uint8; 8];
 
 ### comptime values reject runtime dependencies
 
-> Comptime values reject expressions that require runtime execution.
+> Comptime values reject dynamic function parameters.
 
 ```ds
-function runtime_width(): int32 {
-    4
+function width(value: int32): int32 {
+    const result = comptime value + 1;
+    result
 }
-
-const width = comptime runtime_width();
 ```
 
 - contains: static expression
