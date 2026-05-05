@@ -7,14 +7,14 @@ use engine::StaticSpace;
 use serde::{Deserialize, Serialize};
 use {destack_engine as engine, destack_mir as mir};
 
-use super::{ExternalCallContext, ExternalFn, ExternalHandler, RootSink};
+use super::{BindingContext, BindingFn, RootSink};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::interpreter::{Continuation, ContinuationImage, Interpreter, InterpreterImage, Outcome};
 use crate::options::IsolateOptions;
 use crate::program::Program;
 use crate::{Result as VmResult, SharedHeap, Word};
 use destack_heap::{
-    AllocationPlan, Heap, HeapReference, HeapResult, RootSlot, SharedAllocator, SharedGcWorker,
+    AllocationShape, Heap, HeapReference, HeapResult, RootSlot, SharedAllocator, SharedGcWorker,
     SharedRawLimits,
 };
 
@@ -26,8 +26,8 @@ pub struct Isolate {
     program: Arc<Program>,
     /// Configuration options for this isolate.
     options: IsolateOptions,
-    /// External function handlers.
-    externals: HashMap<String, ExternalFn>,
+    /// Binding handlers registered for VM calls.
+    bindings: HashMap<String, BindingFn>,
     /// Interpreter engine backing this isolate.
     interpreter: Interpreter,
 }
@@ -51,7 +51,7 @@ impl fmt::Debug for Isolate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Isolate")
             .field("program", &self.program)
-            .field("externals", &format!("<{} handlers>", self.externals.len()))
+            .field("bindings", &format!("<{} handlers>", self.bindings.len()))
             .field("options", &self.options)
             .finish_non_exhaustive()
     }
@@ -67,7 +67,7 @@ impl Isolate {
             id: image.isolate_id,
             program,
             options: image.options.clone(),
-            externals: HashMap::new(),
+            bindings: HashMap::new(),
             interpreter: Interpreter::new(&image.options)?,
         };
         isolate.interpreter =
@@ -101,7 +101,7 @@ impl Isolate {
             id: isolate_id,
             program,
             options,
-            externals: HashMap::new(),
+            bindings: HashMap::new(),
             interpreter,
         })
     }
@@ -132,8 +132,14 @@ impl Isolate {
     }
 
     /// Register a VM binding handler.
-    pub fn register_vm_binding(&mut self, name: &str, handler: impl ExternalHandler + 'static) {
-        self.externals.insert(name.to_string(), Arc::new(handler));
+    pub fn register_vm_binding<F>(&mut self, name: &str, handler: F)
+    where
+        F: for<'ctx> Fn(&mut BindingContext<'ctx>, &[Word]) -> Result<Word, Error>
+            + Send
+            + Sync
+            + 'static,
+    {
+        self.bindings.insert(name.to_string(), Arc::new(handler));
     }
 
     // FUGU #Architecture: remove once generated ABI stops registering runtime payload schemas
@@ -155,11 +161,11 @@ impl Isolate {
         run: F,
     ) -> Result<R, Error>
     where
-        F: for<'ctx> FnOnce(&mut ExternalCallContext<'ctx>) -> Result<R, Error>,
+        F: for<'ctx> FnOnce(&mut BindingContext<'ctx>) -> Result<R, Error>,
     {
-        // borrow the isolate state needed by the external context
+        // borrow the isolate state needed by the binding context
         let program = self.program.as_ref();
-        let mut context = ExternalCallContext::new(program, heap, shared, shared_raw_limits);
+        let mut context = BindingContext::new(program, heap, shared, shared_raw_limits);
         let result = run(&mut context);
 
         // release pins before returning to managed code
@@ -182,7 +188,7 @@ impl Isolate {
             .get(name)
             .copied()
             .ok_or_else(|| {
-                self.runtime_error(Error::ExternalFunctionNotFound {
+                self.runtime_error(Error::BindingFunctionNotFound {
                     name: name.to_string(),
                 })
             })?;
@@ -294,7 +300,7 @@ impl Isolate {
             id: isolate_id,
             program,
             options,
-            externals,
+            bindings,
             interpreter,
             ..
         } = self;
@@ -304,7 +310,7 @@ impl Isolate {
             program.as_ref(),
             options,
             statics,
-            externals,
+            bindings,
             heap,
             shared,
             shared_allocator,
@@ -353,7 +359,7 @@ impl Isolate {
             id: isolate_id,
             program,
             options,
-            externals,
+            bindings,
             interpreter,
             ..
         } = self;
@@ -363,7 +369,7 @@ impl Isolate {
             program.as_ref(),
             options,
             statics,
-            externals,
+            bindings,
             heap,
             shared,
             shared_allocator,
@@ -388,7 +394,7 @@ impl Isolate {
             id: isolate_id,
             program,
             options,
-            externals,
+            bindings,
             interpreter,
             ..
         } = self;
@@ -398,7 +404,7 @@ impl Isolate {
             program.as_ref(),
             options,
             statics,
-            externals,
+            bindings,
             heap,
             shared,
             shared_allocator,
@@ -510,7 +516,7 @@ impl Isolate {
             id: self.id,
             program: self.program.clone(),
             options: self.options.clone(),
-            externals: self.externals.clone(),
+            bindings: self.bindings.clone(),
             interpreter: self.interpreter.fork()?,
         })
     }
@@ -560,9 +566,9 @@ impl Isolate {
         self.program.layout_id_for_type(ty)
     }
 
-    /// Return the heap allocation plan for one layout id.
-    pub fn allocation_plan(&self, layout_id: mir::LayoutId) -> VmResult<AllocationPlan<'_>> {
-        self.program.allocation_plan(layout_id)
+    /// Return the heap allocation shape for one layout id.
+    pub fn allocation_shape(&self, layout_id: mir::LayoutId) -> VmResult<AllocationShape<'_>> {
+        self.program.allocation_shape(layout_id)
     }
 
     /// Borrow the program MIR tree.
