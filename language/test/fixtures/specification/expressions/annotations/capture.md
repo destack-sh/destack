@@ -1,109 +1,122 @@
 # Capture Annotations
 
-`@capture` is a compiler-known rewrite annotation for closure capture policy.
+`@capture` controls how a closure environment captures surrounding bindings.
 
 ## policy
 
-### capture applies to named functions
+### borrow capture keeps the original binding
 
-> Function declarations can declare their closure capture policy.
+> A borrow capture gives the closure borrowed access to the captured binding.
 
 ```ds
-@capture("byValue")
-function make() {
-    return () => 1;
-}
+let count = 0;
+
+@capture("borrow")
+const next = () => {
+    count += 1;
+    return count;
+};
+
+next satisfies () => number;
 ```
 
-### capture applies to returned lambdas
+### copy capture snapshots the binding value
 
-> A returned lambda can carry its own capture policy.
+> A copy capture gives the closure its own copied value.
 
 ```ds
-function make() {
-    @capture("byReference")
-    return () => 1;
-}
+let name = "Ada";
+
+@capture("copy")
+const greet = () => `hello ${name}`;
+
+greet satisfies () => string;
 ```
 
-### capture accepts byMove
+### move capture transfers ownership into the closure
 
-> `byMove` is an accepted capture policy.
+> A move capture consumes the captured binding for the closure environment.
 
 ```ds
-@capture("byMove")
-function make() {
-    return () => 1;
-}
+declare function connect(): Result<Socket, IOError>;
+
+let socket = connect()?;
+
+@capture("move")
+const send = (message: string) => socket.write(message);
+
+send satisfies (message: string) => Result<void, IOError>;
 ```
 
-### capture can configure this
+### object directives can configure individual bindings
 
-> Capture rules can name `this`.
+> Object form sets a default and overrides selected captures.
 
 ```ds
-class Counter {
-    value: number = 0;
+class Client {
+    prefix: string = "client";
 
-    make(): () => number {
-        @capture({ this: "byValue" })
-        return () => this.value;
+    make(socket: Socket, logger: Logger): (message: string) => Result<void, IOError> {
+        @capture({
+            default: "copy",
+            socket: "move",
+            logger: "borrow",
+            this: "borrow",
+        })
+        return (message) => {
+            logger.info("sending");
+            return socket.write(`${this.prefix}: ${message}`);
+        };
     }
 }
+```
+
+### capture accepts static directives
+
+> Capture directives can come from static values.
+
+```ds
+const policy: CaptureDirective = "copy";
+
+@capture(policy)
+const read = () => "ready";
+
+read satisfies () => string;
 ```
 
 ## rejections
 
 ### capture rejects non-function targets
 
-> `@capture` only supports function-like targets.
+> `@capture` only supports declarations that create function-like values.
 
 ```ds
-@capture("byValue")
+@capture("copy")
 const value = 1;
 ```
 
-- contains: capture annotation is only supported on function declarations
+- contains: capture
 
 ### capture rejects unknown policies
 
-> Capture policies are closed string literals.
+> Capture policies are checked through `CaptureDirective`.
 
 ```ds
 @capture("maybe")
-function make() {
-    return () => 1;
-}
+const read = () => "ready";
 ```
 
-- contains: capture policy must be "byValue", "byReference", or "byMove"
+- contains: CaptureDirective
 
-### capture rejects dynamic policies
+### capture rejects unknown rule values
 
-> Capture policy arguments must be statically visible.
+> Per-binding rules use the same capture policy set.
 
 ```ds
-const kind = "byValue";
+let name = "Ada";
 
-@capture(kind)
-function make() {
-    return () => 1;
-}
+@capture({ name: "borrow" })
+const read = () => name;
 ```
 
-- contains: capture annotation argument must be a string or object literal
-
-### capture rejects non-string rule values
-
-> Capture rule values must be string literals.
-
-```ds
-@capture({ a: 1 })
-function make() {
-    const a = 1;
-
-    return () => a;
-}
-```
-
-- contains: invalid well-known annotation: capture annotation values must be string literals
+- contains: CaptureDirective

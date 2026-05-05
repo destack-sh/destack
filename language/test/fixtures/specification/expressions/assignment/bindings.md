@@ -25,7 +25,7 @@ value satisfies string;
 
 ### writes check declared types
 
-> Assignment still checks the declared type.
+> Assignment checks the declared type.
 
 ```ds
 let value: string;

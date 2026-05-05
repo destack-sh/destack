@@ -36,7 +36,7 @@ count satisfies number;
 
 ### let bindings reject incompatible assignment
 
-> Let bindings still enforce declared type rules.
+> Assignment checks the declared type.
 
 ```ds
 let value: number = 1;
@@ -56,7 +56,7 @@ value--;
 value satisfies number;
 ```
 
-### let tuple destructuring bindings remain mutable
+### let tuple destructuring stays mutable
 
 > Let tuple destructuring bindings can be reassigned after declaration.
 
