@@ -69,11 +69,11 @@ pub enum Error {
     /// Reached unreachable code.
     Unreachable = 9,
 
-    /// External function not found.
-    ExternalFunctionNotFound { name: String } = 10,
+    /// Binding function not found.
+    BindingFunctionNotFound { name: String } = 10,
 
-    /// External call forbidden by policy.
-    ExternalCallForbidden { name: String } = 32,
+    /// Binding call forbidden by policy.
+    BindingCallForbidden { name: String } = 32,
 
     /// Invalid instruction.
     InvalidInstruction = 11,
@@ -211,11 +211,11 @@ impl Error {
             }
             Self::StackOverflow => "stack overflow".to_string(),
             Self::Unreachable => "reached unreachable code".to_string(),
-            Self::ExternalFunctionNotFound { name } => {
-                format!("external function not found: {name}")
+            Self::BindingFunctionNotFound { name } => {
+                format!("binding function not found: {name}")
             }
-            Self::ExternalCallForbidden { name } => {
-                format!("external call forbidden: {name}")
+            Self::BindingCallForbidden { name } => {
+                format!("binding call forbidden: {name}")
             }
             Self::InvalidInstruction => "invalid instruction".to_string(),
             Self::AllocationFailed => "allocation failed".to_string(),
