@@ -1,8 +1,8 @@
 use std::fmt;
 
 use destack_heap::{
-    AllocationLayout as HeapAllocationLayout, AllocationPlan, Heap, HeapReference, SharedAllocator,
-    SharedGcPhase, SharedGcWorker, SharedHeapReference, SmallAllocationLayout,
+    AllocationLayout as HeapAllocationLayout, AllocationShape, Heap, HeapReference,
+    SharedAllocator, SharedGcPhase, SharedGcWorker, SharedHeapReference, SmallAllocationLayout,
 };
 use engine::StaticSpace;
 use {destack_engine as engine, destack_mir as mir};
@@ -179,26 +179,6 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         Ok(self.value_slot(value)?.is_word)
     }
 
-    /// Return the frame address for one SSA value.
-    #[inline]
-    pub(crate) fn value_address(&self, value: mir::Value) -> Result<FramePointer, Error> {
-        let slot = self.value_slot(value)?;
-        let address = unsafe { (*self.frame).slot_address(slot) };
-
-        Ok(FramePointer::from_address(address))
-    }
-
-    /// Return one value as the operand expected by pointer-style access helpers.
-    #[inline]
-    pub(crate) fn value_operand(&self, value: mir::Value) -> Result<Word, Error> {
-        let slot = self.value_slot(value)?;
-        if slot.is_word {
-            return Ok(self.get(value));
-        }
-
-        Ok(Word::frame_pointer(self.value_address(value)?))
-    }
-
     /// Borrow one SSA value's bytes.
     #[inline]
     pub(crate) fn value_bytes(&self, value: mir::Value) -> Result<&[u8], Error> {
@@ -206,19 +186,6 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let frame = unsafe { &*self.frame };
 
         Ok(frame.slot_bytes(slot))
-    }
-
-    /// Return one SSA value's frame byte range.
-    #[inline]
-    pub(crate) fn frame_value_byte_range(
-        &self,
-        value: mir::Value,
-    ) -> Result<(*const u8, usize), Error> {
-        let slot = self.value_slot(value)?;
-        let frame = unsafe { &*self.frame };
-        let bytes = frame.slot_bytes(slot);
-
-        Ok((bytes.as_ptr(), bytes.len()))
     }
 
     /// Borrow one SSA value's bytes mutably.
@@ -300,19 +267,19 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         unsafe { &mut *self.heap }
     }
 
-    /// Allocate one zeroed local heap payload from one allocation plan.
+    /// Allocate one zeroed local heap payload from one allocation shape.
     #[inline(always)]
-    pub(crate) fn allocate_zeroed_heap_plan(
+    pub(crate) fn allocate_zeroed_heap_shape(
         &mut self,
-        plan: AllocationPlan<'_>,
+        shape: AllocationShape<'_>,
     ) -> Result<HeapReference, Error> {
         let heap = unsafe { &mut *self.heap };
-        let layout = heap.allocation_layout(plan);
+        let layout = heap.allocation_layout(shape);
 
         heap.allocate_zeroed(&layout).map_err(Error::from)
     }
 
-    /// Allocate one zeroed local heap payload from one resolved allocation layout.
+    /// Allocate one zeroed local heap payload from one compiled allocation layout.
     #[inline(always)]
     pub(crate) fn allocate_zeroed_heap_layout(
         &mut self,
@@ -336,29 +303,29 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         layout_id: mir::LayoutId,
         bytes: &[u8],
     ) -> Result<HeapReference, Error> {
-        let plan = self.program.allocation_plan(layout_id)?;
+        let shape = self.program.allocation_shape(layout_id)?;
         let heap = unsafe { &mut *self.heap };
-        let layout = heap.allocation_layout(plan);
+        let layout = heap.allocation_layout(shape);
 
         heap.allocate_bytes(&layout, bytes).map_err(Error::from)
     }
 
-    /// Allocate one zeroed shared heap payload from one allocation plan.
+    /// Allocate one zeroed shared heap payload from one allocation shape.
     #[inline(always)]
-    pub(crate) fn allocate_zeroed_shared_heap_plan(
+    pub(crate) fn allocate_zeroed_shared_heap_shape(
         &mut self,
-        plan: AllocationPlan<'_>,
+        shape: AllocationShape<'_>,
     ) -> Result<SharedHeapReference, Error> {
         let shared = unsafe { &*self.shared };
         let allocator = unsafe { &mut *self.shared_allocator };
-        let layout = shared.allocation_layout(plan);
+        let layout = shared.allocation_layout(shape);
 
         shared
             .allocate_zeroed(self.shared_gc, allocator, &layout)
             .map_err(Error::from)
     }
 
-    /// Allocate one zeroed shared heap payload from one resolved allocation layout.
+    /// Allocate one zeroed shared heap payload from one compiled allocation layout.
     #[inline(always)]
     pub(crate) fn allocate_zeroed_shared_heap_layout(
         &mut self,
@@ -542,14 +509,6 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         self.statics.owns_mutable_pointer_range(pointer, byte_len)
     }
 
-    /// Borrow static bytes for one global.
-    #[inline]
-    pub(crate) fn static_bytes(&self, global: mir::LocalNodeId<mir::Global>) -> Option<&[u8]> {
-        self.statics
-            .bytes(self.program.static_id(global))
-            .or_else(|| self.program.static_bytes(global))
-    }
-
     /// Return the static pointer for one global.
     #[inline]
     pub(crate) fn static_pointer(
@@ -566,22 +525,21 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     pub(crate) fn get(&self, v: mir::Value) -> Word {
         let slot = self.value_slot_unchecked(v);
 
-        unsafe { (*self.frame).read_operand(slot) }
-    }
-
-    /// Read one word by SSA id.
-    #[inline(always)]
-    pub(crate) fn get_word(&self, v: mir::Value) -> Word {
-        let slot = self.value_slot_unchecked(v);
-
-        debug_assert!(slot.is_word, "attempted word read from frame bytes");
-        unsafe { (*self.frame).read_word(slot) }
+        unsafe { (*self.frame).read_slot_value(slot) }
     }
 
     /// Read one word by frame byte offset.
     #[inline(always)]
     pub(crate) fn get_word_at(&self, offset: u32) -> Word {
         unsafe { (*self.frame).read_word_at(offset) }
+    }
+
+    /// Return one frame pointer by frame byte offset.
+    #[inline(always)]
+    pub(crate) fn frame_pointer_at(&self, offset: u32) -> FramePointer {
+        let address = unsafe { (*self.frame).base_address() } + offset as usize;
+
+        FramePointer::from_address(address)
     }
 
     /// Return the frame slot for one SSA value without release checks.
@@ -618,124 +576,66 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         unsafe { (*self.frame).write_word_at(offset, val) }
     }
 
-    /// Move one local variable into one SSA value.
+    /// Move one local variable into a frame byte offset.
     #[inline(always)]
-    pub(crate) fn move_local_to_value(
+    pub(crate) fn move_local_to_offset(
         &mut self,
         local_index: u32,
-        value: mir::Value,
+        destination_offset: u32,
     ) -> Result<(), Error> {
         let layout = self.frame_layout();
         let local_slot = layout
             .locals()
             .get(local_index as usize)
-            .ok_or(Error::InvalidInstruction)? as *const engine::FrameSlot;
-        let value_slot =
-            layout.value(value.0).ok_or(Error::InvalidInstruction)? as *const engine::FrameSlot;
+            .ok_or(Error::InvalidInstruction)?;
+        let local_offset = local_slot.offset;
+        let byte_len = local_slot.byte_len;
 
-        self.move_frame_slot(unsafe { &*local_slot }, unsafe { &*value_slot })
+        self.copy_frame_bytes(local_offset, destination_offset, byte_len as usize);
+
+        Ok(())
     }
 
-    /// Move one SSA value into one local variable.
+    /// Move one frame byte offset into a local variable.
     #[inline(always)]
-    pub(crate) fn move_value_to_local(
+    pub(crate) fn move_offset_to_local(
         &mut self,
-        value: mir::Value,
+        source_offset: u32,
         local_index: u32,
     ) -> Result<(), Error> {
         let layout = self.frame_layout();
-        let value_slot =
-            layout.value(value.0).ok_or(Error::InvalidInstruction)? as *const engine::FrameSlot;
         let local_slot = layout
             .locals()
             .get(local_index as usize)
-            .ok_or(Error::InvalidInstruction)? as *const engine::FrameSlot;
+            .ok_or(Error::InvalidInstruction)?;
+        let local_offset = local_slot.offset;
+        let byte_len = local_slot.byte_len;
 
-        self.move_frame_slot(unsafe { &*value_slot }, unsafe { &*local_slot })
+        self.copy_frame_bytes(source_offset, local_offset, byte_len as usize);
+
+        Ok(())
     }
 
-    /// Move one SSA value into another SSA value.
+    /// Copy one byte range inside the current frame.
     #[inline(always)]
-    pub(crate) fn move_value_to_value(
+    pub(crate) fn copy_frame_bytes(
         &mut self,
-        source: mir::Value,
-        destination: mir::Value,
-    ) -> Result<(), Error> {
-        let layout = self.frame_layout();
-        let source_slot =
-            layout.value(source.0).ok_or(Error::InvalidInstruction)? as *const engine::FrameSlot;
-        let destination_slot = layout
-            .value(destination.0)
-            .ok_or(Error::InvalidInstruction)?
-            as *const engine::FrameSlot;
-
-        self.move_frame_slot(unsafe { &*source_slot }, unsafe { &*destination_slot })
-    }
-
-    /// Move one frame byte range into another frame byte range.
-    #[inline(always)]
-    pub(crate) fn move_value_range(
-        &mut self,
-        destination: mir::Value,
-        destination_offset: usize,
-        source: mir::Value,
-        source_offset: usize,
+        source_offset: u32,
+        destination_offset: u32,
         byte_len: usize,
-    ) -> Result<(), Error> {
-        let (source, source_len) = self.frame_value_byte_range(source)?;
-        let destination = self.value_bytes_mut(destination)?;
+    ) {
+        let source_offset = source_offset as usize;
+        let destination_offset = destination_offset as usize;
+        let frame = self.current_frame_mut();
 
-        let source_end = source_offset + byte_len;
-        let destination_end = destination_offset + byte_len;
-        if source_end > source_len || destination_end > destination.len() {
-            return Err(Error::InvalidInstruction);
-        }
-
+        // lower guarantees that both ranges are inside the frame layout
         unsafe {
             std::ptr::copy(
-                source.add(source_offset),
-                destination.as_mut_ptr().add(destination_offset),
+                frame.base_address().wrapping_add(source_offset) as *const u8,
+                frame.base_address().wrapping_add(destination_offset) as *mut u8,
                 byte_len,
             );
         }
-
-        Ok(())
-    }
-
-    /// Move bytes between two frame slots in the current frame.
-    #[inline(always)]
-    fn move_frame_slot(
-        &mut self,
-        source: &engine::FrameSlot,
-        destination: &engine::FrameSlot,
-    ) -> Result<(), Error> {
-        if source.byte_len != destination.byte_len || source.is_word != destination.is_word {
-            return Err(Error::TypeMismatch {
-                expected: format!(
-                    "{} bytes, word={}",
-                    destination.byte_len, destination.is_word
-                ),
-                actual: format!("{} bytes, word={}", source.byte_len, source.is_word),
-            });
-        }
-
-        let frame = self.current_frame_mut();
-        if source.is_word {
-            let value = frame.read_word(source);
-            frame.write_word(destination, value);
-
-            return Ok(());
-        }
-
-        unsafe {
-            std::ptr::copy(
-                frame.slot_address(source) as *const u8,
-                frame.slot_address(destination) as *mut u8,
-                source.byte_len as usize,
-            );
-        }
-
-        Ok(())
     }
 
     /// Get the argument slice for the given range.
