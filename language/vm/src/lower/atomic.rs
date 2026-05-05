@@ -1,54 +1,27 @@
 use destack_mir as mir;
 
-use crate::program::{Instruction, Op};
+use crate::program::{
+    AtomicCompareExchange, AtomicFence, AtomicLoad, AtomicRmw, AtomicStore, Instruction, Op,
+    WordLayout, word_layout_from_type,
+};
 use crate::{Error, Result};
 
+use super::frame::word_offset;
 use super::lower::BlockLowerer;
 use super::pool::Pool;
 use super::value::raw_pointee_type_for_value;
-
-/// Return one atomic read modify write operator operand.
-fn atomic_rmw_operator_operand(operator: mir::AtomicRmwOperator) -> u32 {
-    match operator {
-        mir::AtomicRmwOperator::Exchange => 0,
-        mir::AtomicRmwOperator::Add => 1,
-        mir::AtomicRmwOperator::Sub => 2,
-        mir::AtomicRmwOperator::And => 3,
-        mir::AtomicRmwOperator::Or => 4,
-        mir::AtomicRmwOperator::Xor => 5,
-        mir::AtomicRmwOperator::Min => 6,
-        mir::AtomicRmwOperator::Max => 7,
-        mir::AtomicRmwOperator::Umin => 8,
-        mir::AtomicRmwOperator::Umax => 9,
-        mir::AtomicRmwOperator::Fadd => 10,
-        mir::AtomicRmwOperator::Fmin => 11,
-        mir::AtomicRmwOperator::Fmax => 12,
-    }
-}
-
-/// Require an atomic pointer with a concrete raw pointee type.
-fn require_atomic_pointee(
-    tree: &mir::Tree,
-    value_types: &[mir::LocalNodeId<mir::Type>],
-    pointer: mir::Value,
-) -> Result<()> {
-    // atomics operate over raw memory in the VM interpreter
-    if raw_pointee_type_for_value(tree, value_types, pointer).is_none() {
-        return Err(Error::InvalidPointerType {
-            actual: format!("{pointer:?}"),
-        });
-    }
-
-    Ok(())
-}
 
 impl<'a> BlockLowerer<'a> {
     /// Lower one atomic load.
     pub(super) fn lower_atomic_load(
         &self,
-        _pool: &mut Pool<'_>,
+        pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         pointer: mir::ValueReference,
+        ordering: mir::MemoryOrdering,
+        scope: mir::AtomicScope,
+        memory_scope: mir::MemoryScope,
+        semantics: mir::MemorySemantics,
     ) -> Result<Instruction> {
         // require SSA values
         let destination = destination
@@ -62,23 +35,33 @@ impl<'a> BlockLowerer<'a> {
                 context: "atomic load pointer".to_string(),
             })?;
 
-        require_atomic_pointee(self.tree, self.value_type(), pointer)?;
+        let (layout, byte_len) = require_atomic_layout(self.tree, self.value_type(), pointer)?;
 
-        Ok(Instruction::new(
+        Ok(pool.instruction_with_side_record(
             Op::AtomicLoad,
-            destination.id(),
-            pointer.id(),
-            0,
-            0,
+            AtomicLoad {
+                dest_offset: word_offset(self, destination)?,
+                pointer_offset: word_offset(self, pointer)?,
+                layout,
+                byte_len,
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
+            },
         ))
     }
 
     /// Lower one atomic store.
     pub(super) fn lower_atomic_store(
         &self,
-        _pool: &mut Pool<'_>,
+        pool: &mut Pool<'_>,
         pointer: mir::ValueReference,
         value: mir::ValueReference,
+        ordering: mir::MemoryOrdering,
+        scope: mir::AtomicScope,
+        memory_scope: mir::MemoryScope,
+        semantics: mir::MemorySemantics,
     ) -> Result<Instruction> {
         // require SSA values
         let pointer = pointer
@@ -90,25 +73,36 @@ impl<'a> BlockLowerer<'a> {
             context: "atomic store value".to_string(),
         })?;
 
-        require_atomic_pointee(self.tree, self.value_type(), pointer)?;
+        let (layout, byte_len) = require_atomic_layout(self.tree, self.value_type(), pointer)?;
 
-        Ok(Instruction::new(
+        Ok(pool.instruction_with_side_record(
             Op::AtomicStore,
-            pointer.id(),
-            value.id(),
-            0,
-            0,
+            AtomicStore {
+                pointer_offset: word_offset(self, pointer)?,
+                value_offset: word_offset(self, value)?,
+                layout,
+                byte_len,
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
+            },
         ))
     }
 
     /// Lower one atomic compare exchange.
     pub(super) fn lower_atomic_compare_exchange(
         &self,
-        _pool: &mut Pool<'_>,
+        pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         pointer: mir::ValueReference,
         expected: mir::ValueReference,
         new_value: mir::ValueReference,
+        is_weak: bool,
+        ordering: mir::MemoryOrdering,
+        scope: mir::AtomicScope,
+        memory_scope: mir::MemoryScope,
+        semantics: mir::MemorySemantics,
     ) -> Result<Instruction> {
         // require SSA values
         let destination = destination
@@ -132,25 +126,38 @@ impl<'a> BlockLowerer<'a> {
                 context: "atomic compare exchange new value".to_string(),
             })?;
 
-        require_atomic_pointee(self.tree, self.value_type(), pointer)?;
+        let (layout, byte_len) = require_atomic_layout(self.tree, self.value_type(), pointer)?;
 
-        Ok(Instruction::new(
+        Ok(pool.instruction_with_side_record(
             Op::AtomicCompareExchange,
-            destination.id(),
-            pointer.id(),
-            expected.id(),
-            new_value.id(),
+            AtomicCompareExchange {
+                dest: destination,
+                pointer_offset: word_offset(self, pointer)?,
+                expected_offset: word_offset(self, expected)?,
+                new_value_offset: word_offset(self, new_value)?,
+                layout,
+                byte_len,
+                is_weak,
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
+            },
         ))
     }
 
     /// Lower one atomic read-modify-write.
     pub(super) fn lower_atomic_rmw(
         &self,
-        _pool: &mut Pool<'_>,
+        pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         operator: mir::AtomicRmwOperator,
         pointer: mir::ValueReference,
         value: mir::ValueReference,
+        ordering: mir::MemoryOrdering,
+        scope: mir::AtomicScope,
+        memory_scope: mir::MemoryScope,
+        semantics: mir::MemorySemantics,
     ) -> Result<Instruction> {
         // require SSA values
         let destination = destination
@@ -167,14 +174,83 @@ impl<'a> BlockLowerer<'a> {
             context: "atomic rmw value".to_string(),
         })?;
 
-        require_atomic_pointee(self.tree, self.value_type(), pointer)?;
+        let (layout, byte_len) = require_atomic_layout(self.tree, self.value_type(), pointer)?;
 
-        Ok(Instruction::new(
-            Op::AtomicRmw,
-            destination.id(),
-            atomic_rmw_operator_operand(operator),
-            pointer.id(),
-            value.id(),
+        Ok(pool.instruction_with_side_record(
+            atomic_rmw_op(operator),
+            AtomicRmw {
+                dest_offset: word_offset(self, destination)?,
+                pointer_offset: word_offset(self, pointer)?,
+                value_offset: word_offset(self, value)?,
+                layout,
+                byte_len,
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
+            },
         ))
     }
+
+    /// Lower one atomic fence.
+    pub(super) fn lower_atomic_fence(
+        &self,
+        pool: &mut Pool<'_>,
+        ordering: mir::MemoryOrdering,
+        scope: mir::AtomicScope,
+        memory_scope: mir::MemoryScope,
+        semantics: mir::MemorySemantics,
+    ) -> Instruction {
+        pool.instruction_with_side_record(
+            Op::AtomicFence,
+            AtomicFence {
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
+            },
+        )
+    }
+}
+
+/// Select one atomic read modify write operation.
+fn atomic_rmw_op(operator: mir::AtomicRmwOperator) -> Op {
+    match operator {
+        mir::AtomicRmwOperator::Exchange => Op::AtomicExchange,
+        mir::AtomicRmwOperator::Add => Op::AtomicAdd,
+        mir::AtomicRmwOperator::Sub => Op::AtomicSub,
+        mir::AtomicRmwOperator::And => Op::AtomicAnd,
+        mir::AtomicRmwOperator::Or => Op::AtomicOr,
+        mir::AtomicRmwOperator::Xor => Op::AtomicXor,
+        mir::AtomicRmwOperator::Min => Op::AtomicMin,
+        mir::AtomicRmwOperator::Max => Op::AtomicMax,
+        mir::AtomicRmwOperator::Umin => Op::AtomicUmin,
+        mir::AtomicRmwOperator::Umax => Op::AtomicUmax,
+        mir::AtomicRmwOperator::Fadd => Op::AtomicFadd,
+        mir::AtomicRmwOperator::Fmin => Op::AtomicFmin,
+        mir::AtomicRmwOperator::Fmax => Op::AtomicFmax,
+    }
+}
+
+/// Require an atomic pointer with a concrete word layout.
+fn require_atomic_layout(
+    tree: &mir::Tree,
+    value_types: &[mir::LocalNodeId<mir::Type>],
+    pointer: mir::Value,
+) -> Result<(WordLayout, usize)> {
+    // atomics operate over raw memory in the VM interpreter
+    let pointee = raw_pointee_type_for_value(tree, value_types, pointer).ok_or_else(|| {
+        Error::InvalidPointerType {
+            actual: format!("{pointer:?}"),
+        }
+    })?;
+
+    // compile the memory representation once
+    let layout = word_layout_from_type(tree, pointee).ok_or_else(|| Error::TypeMismatch {
+        expected: "word atomic pointee".to_string(),
+        actual: format!("{:?}", tree.get(pointee)),
+    })?;
+    let byte_len = layout.byte_len(tree.pointer_bytes() as usize);
+
+    Ok((layout, byte_len))
 }

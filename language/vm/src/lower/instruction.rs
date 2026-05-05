@@ -5,36 +5,6 @@ use crate::{Error, Result};
 
 use super::lower::BlockLowerer;
 use super::pool::Pool;
-
-/// Return whether one MIR instruction belongs to the tensor domain.
-fn is_tensor_instruction(inst: &mir::Instruction) -> bool {
-    matches!(
-        inst,
-        mir::Instruction::TensorSplat { .. }
-            | mir::Instruction::TensorLoad { .. }
-            | mir::Instruction::TensorExtract { .. }
-            | mir::Instruction::TensorStore { .. }
-            | mir::Instruction::TensorFill { .. }
-            | mir::Instruction::TensorCopy { .. }
-            | mir::Instruction::TensorReshape { .. }
-            | mir::Instruction::TensorBroadcast { .. }
-            | mir::Instruction::TensorTranspose { .. }
-            | mir::Instruction::TensorSlice { .. }
-            | mir::Instruction::TensorPad { .. }
-            | mir::Instruction::TensorConcat { .. }
-            | mir::Instruction::TensorReduce { .. }
-            | mir::Instruction::TensorDot { .. }
-            | mir::Instruction::TensorConvolution { .. }
-            | mir::Instruction::TensorGather { .. }
-            | mir::Instruction::TensorScatter { .. }
-            | mir::Instruction::TensorCompare { .. }
-            | mir::Instruction::TensorSelect { .. }
-            | mir::Instruction::TensorConvert { .. }
-            | mir::Instruction::TensorCast { .. }
-            | mir::Instruction::TensorView { .. }
-    )
-}
-
 impl<'a> BlockLowerer<'a> {
     /// Lower one MIR instruction into zero or more VM instructions.
     pub(super) fn lower_instructions(
@@ -111,7 +81,7 @@ impl<'a> BlockLowerer<'a> {
                 operator,
                 argument,
                 to_type,
-            } => self.lower_cast(pool, *destination, *operator, *argument, *to_type)?,
+            } => self.lower_cast(*destination, *operator, *argument, *to_type)?,
 
             mir::Instruction::Select {
                 destination,
@@ -205,7 +175,7 @@ impl<'a> BlockLowerer<'a> {
                 aggregate: base,
                 index,
                 ..
-            } => self.lower_field_addr(pool, *destination, *base, *index)?,
+            } => self.lower_field_addr(*destination, *base, *index)?,
 
             mir::Instruction::FieldSet { .. } => return Err(Error::InvalidInstruction),
 
@@ -314,25 +284,59 @@ impl<'a> BlockLowerer<'a> {
             mir::Instruction::AtomicLoad {
                 destination,
                 pointer,
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
                 ..
-            } => self.lower_atomic_load(pool, *destination, *pointer)?,
+            } => self.lower_atomic_load(
+                pool,
+                *destination,
+                *pointer,
+                *ordering,
+                *scope,
+                *memory_scope,
+                *semantics,
+            )?,
 
-            mir::Instruction::AtomicStore { pointer, value, .. } => {
-                self.lower_atomic_store(pool, *pointer, *value)?
-            }
+            mir::Instruction::AtomicStore {
+                pointer,
+                value,
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
+            } => self.lower_atomic_store(
+                pool,
+                *pointer,
+                *value,
+                *ordering,
+                *scope,
+                *memory_scope,
+                *semantics,
+            )?,
 
             mir::Instruction::AtomicCompareExchange {
                 destination,
                 pointer,
                 expected,
                 new_value,
-                ..
+                is_weak,
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
             } => self.lower_atomic_compare_exchange(
                 pool,
                 *destination,
                 *pointer,
                 *expected,
                 *new_value,
+                *is_weak,
+                *ordering,
+                *scope,
+                *memory_scope,
+                *semantics,
             )?,
 
             mir::Instruction::AtomicRmw {
@@ -340,17 +344,64 @@ impl<'a> BlockLowerer<'a> {
                 operator,
                 pointer,
                 value,
-                ..
-            } => self.lower_atomic_rmw(pool, *destination, *operator, *pointer, *value)?,
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
+            } => self.lower_atomic_rmw(
+                pool,
+                *destination,
+                *operator,
+                *pointer,
+                *value,
+                *ordering,
+                *scope,
+                *memory_scope,
+                *semantics,
+            )?,
 
-            mir::Instruction::AtomicFence { .. } => Instruction::new(Op::AtomicFence, 0, 0, 0, 0),
+            mir::Instruction::AtomicFence {
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
+            } => self.lower_atomic_fence(pool, *ordering, *scope, *memory_scope, *semantics),
 
             mir::Instruction::BarrierWrite {
                 object,
                 offset,
                 byte_len,
-            } => self.lower_barrier_write(pool, *object, *offset, *byte_len)?,
+            } => self.lower_barrier_write(*object, *offset, *byte_len)?,
             _ => return Err(Error::InvalidInstruction),
         })
     }
+}
+
+/// Return whether one MIR instruction belongs to the tensor domain.
+fn is_tensor_instruction(inst: &mir::Instruction) -> bool {
+    matches!(
+        inst,
+        mir::Instruction::TensorSplat { .. }
+            | mir::Instruction::TensorLoad { .. }
+            | mir::Instruction::TensorExtract { .. }
+            | mir::Instruction::TensorStore { .. }
+            | mir::Instruction::TensorFill { .. }
+            | mir::Instruction::TensorCopy { .. }
+            | mir::Instruction::TensorReshape { .. }
+            | mir::Instruction::TensorBroadcast { .. }
+            | mir::Instruction::TensorTranspose { .. }
+            | mir::Instruction::TensorSlice { .. }
+            | mir::Instruction::TensorPad { .. }
+            | mir::Instruction::TensorConcat { .. }
+            | mir::Instruction::TensorReduce { .. }
+            | mir::Instruction::TensorDot { .. }
+            | mir::Instruction::TensorConvolution { .. }
+            | mir::Instruction::TensorGather { .. }
+            | mir::Instruction::TensorScatter { .. }
+            | mir::Instruction::TensorCompare { .. }
+            | mir::Instruction::TensorSelect { .. }
+            | mir::Instruction::TensorConvert { .. }
+            | mir::Instruction::TensorCast { .. }
+            | mir::Instruction::TensorView { .. }
+    )
 }

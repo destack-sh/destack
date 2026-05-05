@@ -250,22 +250,22 @@ pub(crate) enum Op {
     // ============================================================================
     // field access
     // ============================================================================
-    /// Compute an address in frame memory.
-    AddressFrame,
+    /// Compute a fixed-offset address in frame memory.
+    AddressFrameOffset,
     /// Compute a frame element address.
     AddressFrameElement,
-    /// Compute a field address in local heap memory.
-    AddressHeapField,
-    /// Compute a field address in shared heap memory.
-    AddressSharedHeapField,
-    /// Compute a field address in local raw memory.
-    AddressRawField,
-    /// Compute a field address in shared raw memory.
-    AddressSharedRawField,
-    /// Compute a field address in stack memory.
-    AddressStackField,
-    /// Compute a field address in static memory.
-    AddressStaticField,
+    /// Compute a fixed-offset address in local heap memory.
+    AddressHeapOffset,
+    /// Compute a fixed-offset address in shared heap memory.
+    AddressSharedHeapOffset,
+    /// Compute a fixed-offset address in local raw memory.
+    AddressRawOffset,
+    /// Compute a fixed-offset address in shared raw memory.
+    AddressSharedRawOffset,
+    /// Compute a fixed-offset address in stack memory.
+    AddressStackOffset,
+    /// Compute a fixed-offset address in static memory.
+    AddressStaticOffset,
 
     // ============================================================================
     // element access
@@ -540,12 +540,58 @@ pub(crate) enum Op {
     OrBool,
     /// Xor boolean values.
     XorBool,
-    /// Add integer values.
+    /// Add 32-bit signed integer values.
+    AddI32,
+    /// Add 32-bit unsigned integer values.
+    AddU32,
+    /// Add 64-bit signed integer values.
+    AddI64,
+    /// Add 64-bit unsigned integer values.
+    AddU64,
+    /// Subtract 32-bit signed integer values.
+    SubI32,
+    /// Subtract 32-bit unsigned integer values.
+    SubU32,
+    /// Subtract 64-bit signed integer values.
+    SubI64,
+    /// Subtract 64-bit unsigned integer values.
+    SubU64,
+    /// Multiply 32-bit signed integer values.
+    MulI32,
+    /// Multiply 32-bit unsigned integer values.
+    MulU32,
+    /// Multiply 64-bit signed integer values.
+    MulI64,
+    /// Multiply 64-bit unsigned integer values.
+    MulU64,
+    /// Divide 32-bit signed integer values.
+    DivI32,
+    /// Divide 32-bit unsigned integer values.
+    DivU32,
+    /// Divide 64-bit signed integer values.
+    DivI64,
+    /// Divide 64-bit unsigned integer values.
+    DivU64,
+    /// Remainder 32-bit signed integer values.
+    RemI32,
+    /// Remainder 32-bit unsigned integer values.
+    RemU32,
+    /// Remainder 64-bit signed integer values.
+    RemI64,
+    /// Remainder 64-bit unsigned integer values.
+    RemU64,
+    /// Add signed integer values.
     AddInt,
-    /// Subtract integer values.
+    /// Add unsigned integer values.
+    AddUint,
+    /// Subtract signed integer values.
     SubInt,
-    /// Multiply integer values.
+    /// Subtract unsigned integer values.
+    SubUint,
+    /// Multiply signed integer values.
     MulInt,
+    /// Multiply unsigned integer values.
+    MulUint,
     /// Divide signed integer values.
     DivInt,
     /// Divide unsigned integer values.
@@ -554,6 +600,30 @@ pub(crate) enum Op {
     RemInt,
     /// Remainder unsigned integer values.
     RemUint,
+    /// And 32-bit integer values.
+    And32,
+    /// And 64-bit integer values.
+    And64,
+    /// Or 32-bit integer values.
+    Or32,
+    /// Or 64-bit integer values.
+    Or64,
+    /// Xor 32-bit integer values.
+    Xor32,
+    /// Xor 64-bit integer values.
+    Xor64,
+    /// Shift 32-bit integer values left.
+    Shl32,
+    /// Shift 64-bit integer values left.
+    Shl64,
+    /// Arithmetically shift 32-bit signed integer values right.
+    ShrI32,
+    /// Logically shift 32-bit unsigned integer values right.
+    ShrU32,
+    /// Arithmetically shift 64-bit signed integer values right.
+    ShrI64,
+    /// Logically shift 64-bit unsigned integer values right.
+    ShrU64,
     /// Add wide integer values.
     AddWideInt,
     /// Subtract wide integer values.
@@ -568,14 +638,14 @@ pub(crate) enum Op {
     RemWideInt,
     /// Remainder wide unsigned integer values.
     RemWideUint,
-    /// And integer values.
-    AndInt,
-    /// Or integer values.
-    OrInt,
-    /// Xor integer values.
-    XorInt,
-    /// Shift integer values left.
-    ShlInt,
+    /// And word-sized integer values.
+    AndWord,
+    /// Or word-sized integer values.
+    OrWord,
+    /// Xor word-sized integer values.
+    XorWord,
+    /// Shift word-sized integer values left.
+    ShlWord,
     /// Arithmetically shift integer values right.
     ShrInt,
     /// Logically shift integer values right.
@@ -608,6 +678,46 @@ pub(crate) enum Op {
     DivF32,
     /// Divide float64 values.
     DivF64,
+    /// Compare 32-bit integer values for equality.
+    Eq32,
+    /// Compare 64-bit integer values for equality.
+    Eq64,
+    /// Compare 32-bit integer values for inequality.
+    Ne32,
+    /// Compare 64-bit integer values for inequality.
+    Ne64,
+    /// Compare 32-bit signed integer values with less than.
+    LtI32,
+    /// Compare 32-bit unsigned integer values with less than.
+    LtU32,
+    /// Compare 64-bit signed integer values with less than.
+    LtI64,
+    /// Compare 64-bit unsigned integer values with less than.
+    LtU64,
+    /// Compare 32-bit signed integer values with less than or equal.
+    LeI32,
+    /// Compare 32-bit unsigned integer values with less than or equal.
+    LeU32,
+    /// Compare 64-bit signed integer values with less than or equal.
+    LeI64,
+    /// Compare 64-bit unsigned integer values with less than or equal.
+    LeU64,
+    /// Compare 32-bit signed integer values with greater than.
+    GtI32,
+    /// Compare 32-bit unsigned integer values with greater than.
+    GtU32,
+    /// Compare 64-bit signed integer values with greater than.
+    GtI64,
+    /// Compare 64-bit unsigned integer values with greater than.
+    GtU64,
+    /// Compare 32-bit signed integer values with greater than or equal.
+    GeI32,
+    /// Compare 32-bit unsigned integer values with greater than or equal.
+    GeU32,
+    /// Compare 64-bit signed integer values with greater than or equal.
+    GeI64,
+    /// Compare 64-bit unsigned integer values with greater than or equal.
+    GeU64,
     /// Compare integers for equality.
     EqInt,
     /// Compare integers for inequality.
@@ -672,10 +782,18 @@ pub(crate) enum Op {
     GeF32,
     /// Compare float64 values with greater than or equal.
     GeF64,
+    /// Negate a 32-bit signed integer value.
+    NegI32,
+    /// Negate a 64-bit signed integer value.
+    NegI64,
+    /// Invert a 32-bit integer value.
+    Not32,
+    /// Invert a 64-bit integer value.
+    Not64,
     /// Negate an integer value.
     NegInt,
-    /// Invert an integer value.
-    NotInt,
+    /// Invert a word-sized integer value.
+    NotWord,
     /// Negate a wide integer value.
     NegWideInt,
     /// Invert a wide integer value.
@@ -722,10 +840,14 @@ pub(crate) enum Op {
     CastFloatToSignedIntSaturating,
     /// Saturating convert one float word to an unsigned integer word.
     CastFloatToUnsignedIntSaturating,
-    /// Convert one signed integer word to a float word.
-    CastSignedIntToFloat,
-    /// Convert one unsigned integer word to a float word.
-    CastUnsignedIntToFloat,
+    /// Convert one signed integer word to a float32 word.
+    CastSignedIntToF32,
+    /// Convert one signed integer word to a float64 word.
+    CastSignedIntToF64,
+    /// Convert one unsigned integer word to a float32 word.
+    CastUnsignedIntToF32,
+    /// Convert one unsigned integer word to a float64 word.
+    CastUnsignedIntToF64,
     /// Truncate one float word.
     CastFloatTruncate,
     /// Extend one float word.
@@ -796,6 +918,46 @@ pub(crate) enum Op {
     Jump,
     /// Branch on one boolean value.
     BranchBool,
+    /// Branch when 32-bit integer values are equal.
+    BranchEq32,
+    /// Branch when 64-bit integer values are equal.
+    BranchEq64,
+    /// Branch when 32-bit integer values are not equal.
+    BranchNe32,
+    /// Branch when 64-bit integer values are not equal.
+    BranchNe64,
+    /// Branch when a 32-bit signed integer is less than another.
+    BranchLtI32,
+    /// Branch when a 32-bit unsigned integer is less than another.
+    BranchLtU32,
+    /// Branch when a 64-bit signed integer is less than another.
+    BranchLtI64,
+    /// Branch when a 64-bit unsigned integer is less than another.
+    BranchLtU64,
+    /// Branch when a 32-bit signed integer is less than or equal to another.
+    BranchLeI32,
+    /// Branch when a 32-bit unsigned integer is less than or equal to another.
+    BranchLeU32,
+    /// Branch when a 64-bit signed integer is less than or equal to another.
+    BranchLeI64,
+    /// Branch when a 64-bit unsigned integer is less than or equal to another.
+    BranchLeU64,
+    /// Branch when a 32-bit signed integer is greater than another.
+    BranchGtI32,
+    /// Branch when a 32-bit unsigned integer is greater than another.
+    BranchGtU32,
+    /// Branch when a 64-bit signed integer is greater than another.
+    BranchGtI64,
+    /// Branch when a 64-bit unsigned integer is greater than another.
+    BranchGtU64,
+    /// Branch when a 32-bit signed integer is greater than or equal to another.
+    BranchGeI32,
+    /// Branch when a 32-bit unsigned integer is greater than or equal to another.
+    BranchGeU32,
+    /// Branch when a 64-bit signed integer is greater than or equal to another.
+    BranchGeI64,
+    /// Branch when a 64-bit unsigned integer is greater than or equal to another.
+    BranchGeU64,
     /// Branch when integer values are equal.
     BranchEqInt,
     /// Branch when integer values are not equal.
@@ -840,18 +1002,30 @@ pub(crate) enum Op {
     BranchGeF32,
     /// Branch when a float64 value is greater than or equal to another.
     BranchGeF64,
-    /// Switch over 32-bit integers using direct cases.
-    Switch32,
-    /// Switch over 64-bit integers using direct cases.
-    Switch64,
-    /// Switch over wide integers using direct cases.
+    /// Switch over signed 32-bit integers using direct cases.
+    SwitchI32,
+    /// Switch over unsigned 32-bit integers using direct cases.
+    SwitchU32,
+    /// Switch over signed 64-bit integers using direct cases.
+    SwitchI64,
+    /// Switch over unsigned 64-bit integers using direct cases.
+    SwitchU64,
+    /// Switch over wide signed integers using direct cases.
     SwitchWideInt,
-    /// Switch over 32-bit integers using a dense table.
-    SwitchTable32,
-    /// Switch over 64-bit integers using a dense table.
-    SwitchTable64,
-    /// Switch over wide integers using a dense table.
+    /// Switch over wide unsigned integers using direct cases.
+    SwitchWideUint,
+    /// Switch over signed 32-bit integers using a dense table.
+    SwitchTableI32,
+    /// Switch over unsigned 32-bit integers using a dense table.
+    SwitchTableU32,
+    /// Switch over signed 64-bit integers using a dense table.
+    SwitchTableI64,
+    /// Switch over unsigned 64-bit integers using a dense table.
+    SwitchTableU64,
+    /// Switch over wide signed integers using a dense table.
     SwitchTableWideInt,
+    /// Switch over wide unsigned integers using a dense table.
+    SwitchTableWideUint,
     /// Validate one runtime constraint.
     Check,
     /// Record an assumed condition.
@@ -922,8 +1096,120 @@ pub(crate) enum Op {
     // ============================================================================
     // intrinsics
     // ============================================================================
-    /// Call one intrinsic operation.
-    Intrinsic,
+    /// Count leading zero bits.
+    IntrinsicLeadingZeroCount,
+    /// Count trailing zero bits.
+    IntrinsicTrailingZeroCount,
+    /// Count set bits.
+    IntrinsicPopulationCount,
+    /// Reverse byte order.
+    IntrinsicByteSwap,
+    /// Reverse bit order.
+    IntrinsicBitReverse,
+    /// Rotate bits left.
+    IntrinsicRotateLeft,
+    /// Rotate bits right.
+    IntrinsicRotateRight,
+    /// Add and report overflow.
+    IntrinsicAddOverflow,
+    /// Subtract and report overflow.
+    IntrinsicSubOverflow,
+    /// Multiply and report overflow.
+    IntrinsicMulOverflow,
+    /// Add without overflow checks.
+    IntrinsicAddUnchecked,
+    /// Subtract without overflow checks.
+    IntrinsicSubUnchecked,
+    /// Multiply without overflow checks.
+    IntrinsicMulUnchecked,
+    /// Divide without overflow checks.
+    IntrinsicDivUnchecked,
+    /// Compute remainder without overflow checks.
+    IntrinsicRemUnchecked,
+    /// Shift left without range checks.
+    IntrinsicShlUnchecked,
+    /// Shift right without range checks.
+    IntrinsicShrUnchecked,
+    /// Add with saturation.
+    IntrinsicSatAdd,
+    /// Subtract with saturation.
+    IntrinsicSatSub,
+    /// Copy non-overlapping raw memory.
+    IntrinsicMemcpy,
+    /// Copy possibly-overlapping raw memory.
+    IntrinsicMemmove,
+    /// Fill raw memory.
+    IntrinsicMemset,
+    /// Compare raw memory.
+    IntrinsicMemcmp,
+    /// Hint that raw memory will be read.
+    IntrinsicPrefetchRead,
+    /// Hint that raw memory will be written.
+    IntrinsicPrefetchWrite,
+    /// Reinterpret one word.
+    IntrinsicTransmute,
+    /// Cast a pointer between address spaces.
+    IntrinsicAddressSpaceCast,
+    /// Compute the byte distance between raw pointers.
+    IntrinsicPointerOffsetFrom,
+    /// Compare raw word bits.
+    IntrinsicRawEq,
+    /// Compute square root.
+    IntrinsicSqrt,
+    /// Compute absolute value.
+    IntrinsicAbs,
+    /// Compute fused multiply-add.
+    IntrinsicFma,
+    /// Copy the sign of one float to another.
+    IntrinsicCopySign,
+    /// Compute float minimum.
+    IntrinsicMin,
+    /// Compute float maximum.
+    IntrinsicMax,
+    /// Compute sine.
+    IntrinsicSin,
+    /// Compute cosine.
+    IntrinsicCos,
+    /// Compute tangent.
+    IntrinsicTan,
+    /// Compute arc sine.
+    IntrinsicAsin,
+    /// Compute arc cosine.
+    IntrinsicAcos,
+    /// Compute arc tangent.
+    IntrinsicAtan,
+    /// Compute two-argument arc tangent.
+    IntrinsicAtan2,
+    /// Compute natural exponent.
+    IntrinsicExp,
+    /// Compute base-two exponent.
+    IntrinsicExp2,
+    /// Compute natural logarithm.
+    IntrinsicLog,
+    /// Compute base-two logarithm.
+    IntrinsicLog2,
+    /// Compute base-ten logarithm.
+    IntrinsicLog10,
+    /// Compute power.
+    IntrinsicPow,
+    /// Round down.
+    IntrinsicFloor,
+    /// Round up.
+    IntrinsicCeil,
+    /// Round toward zero.
+    IntrinsicTrunc,
+    /// Round to nearest.
+    IntrinsicRound,
+    /// Trigger a debugger breakpoint.
+    IntrinsicBreakpoint,
+    /// Load the current return address.
+    IntrinsicReturnAddress,
+    /// Load the current frame address.
+    IntrinsicFrameAddress,
+    /// Preserve an expected value.
+    IntrinsicExpect,
+    /// Preserve a value through an optimization barrier.
+    IntrinsicBlackBox,
 
     // ============================================================================
     // vectors

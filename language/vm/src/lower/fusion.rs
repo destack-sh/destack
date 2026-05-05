@@ -1,258 +1,13 @@
 use destack_mir as mir;
 
-use crate::program::{Instruction, Op};
+use crate::program::Instruction;
 
-use super::access::slice_element_access;
+use super::frame::word_offset;
 use super::lower::BlockLowerer;
-use super::op::{
-    select_compare_branch_op, select_element_load_op, select_element_store_op,
-    select_field_load_op, select_field_store_op,
-};
+use super::op::select_compare_branch_op;
 use super::pool::Pool;
-use super::value::{pointer_class_for_value, reference_meta_for_value};
 
 impl<'a> BlockLowerer<'a> {
-    /// Try to fuse address formation with a following load or store.
-    pub(super) fn try_fuse_addr_access(
-        &self,
-        inst: &mir::Instruction,
-        next_inst_id: Option<mir::LocalNodeId<mir::Instruction>>,
-        pool: &mut Pool<'_>,
-    ) -> Option<(Instruction, usize)> {
-        let next_inst_id = next_inst_id?;
-        let next_inst = self.tree.get(next_inst_id);
-
-        match inst {
-            mir::Instruction::FieldAddr {
-                destination,
-                aggregate: base,
-                index,
-                ..
-            } => self.try_fuse_field_access(*destination, *base, *index, next_inst, pool),
-            mir::Instruction::ElementAddr {
-                destination,
-                array,
-                index,
-                ..
-            } => self.try_fuse_element_access(*destination, *array, *index, next_inst, pool),
-            mir::Instruction::GlobalAddr {
-                destination,
-                global,
-                ..
-            } => self.try_fuse_static_access(*destination, *global, next_inst),
-            _ => None,
-        }
-    }
-
-    /// Try to fuse field address formation with a following load or store.
-    fn try_fuse_field_access(
-        &self,
-        destination: mir::ValueReference,
-        base: mir::ValueReference,
-        index: u32,
-        next_inst: &mir::Instruction,
-        pool: &mut Pool<'_>,
-    ) -> Option<(Instruction, usize)> {
-        let destination = destination.value()?;
-        let base = base.value()?;
-
-        if !self.is_single_use(destination) {
-            return None;
-        }
-
-        let field = self.field_access_for_value(base, index).ok()?;
-
-        match next_inst {
-            mir::Instruction::Load {
-                destination: load_dest,
-                pointer,
-                ..
-            } if pointer.value()? == destination => {
-                let op = select_field_load_op(self.value_layout_map(), base, field).ok()?;
-                let instruction = if op == Op::LoadFrame {
-                    let access = pool.frame_access(field.into());
-
-                    Instruction::new(op, load_dest.value()?.id(), base.id(), access.0, 0)
-                } else {
-                    let field = pool.field_access(field);
-
-                    Instruction::new(op, load_dest.value()?.id(), base.id(), field.0, 0)
-                };
-
-                Some((instruction, 2))
-            }
-            mir::Instruction::Store { pointer, value } if pointer.value()? == destination => {
-                let op = select_field_store_op(self.value_layout_map(), base, field).ok()?;
-                let instruction = if op == Op::StoreFrame {
-                    let reference = reference_meta_for_value(self.value_layout_map(), destination);
-                    let access = pool.frame_access(field.into());
-
-                    Instruction::new(
-                        op,
-                        base.id(),
-                        value.value()?.id(),
-                        access.0,
-                        reference.bits() as u32,
-                    )
-                } else {
-                    let field = pool.field_access(field);
-                    let reference = reference_meta_for_value(self.value_layout_map(), destination);
-
-                    Instruction::new(
-                        op,
-                        base.id(),
-                        value.value()?.id(),
-                        reference.bits() as u32,
-                        field.0,
-                    )
-                };
-
-                Some((instruction, 2))
-            }
-            _ => None,
-        }
-    }
-
-    /// Try to fuse element address formation with a following load or store.
-    fn try_fuse_element_access(
-        &self,
-        destination: mir::ValueReference,
-        array: mir::ValueReference,
-        index: mir::ValueReference,
-        next_inst: &mir::Instruction,
-        pool: &mut Pool<'_>,
-    ) -> Option<(Instruction, usize)> {
-        let destination = destination.value()?;
-        let array = array.value()?;
-
-        if !self.is_single_use(destination) {
-            return None;
-        }
-
-        let pointer_class = pointer_class_for_value(self.value_layout_map(), array);
-        let projection_type = self.projection_type_for_value(array).ok().flatten();
-        let is_slice = projection_type
-            .and_then(|projection_type| {
-                slice_element_access(self.tree, self.layouts(), projection_type, pointer_class)
-            })
-            .is_some();
-        if is_slice {
-            return None;
-        }
-
-        let array_length = self.array_length_for_value(array).ok()?;
-        let mut element = self.element_access_for_value(array).ok()?;
-        let reference = reference_meta_for_value(self.value_layout_map(), destination);
-        element.reference = reference;
-
-        match next_inst {
-            mir::Instruction::Load {
-                destination: load_dest,
-                pointer,
-                ..
-            } if pointer.value()? == destination => {
-                let op = select_element_load_op(self.value_layout_map(), array, element).ok()?;
-                let instruction = if op == Op::LoadFrame {
-                    let access = pool.frame_access(element.into_frame_access(0, array_length));
-
-                    Instruction::new(
-                        Op::LoadFrameElement,
-                        load_dest.value()?.id(),
-                        array.id(),
-                        index.value()?.id(),
-                        access.0,
-                    )
-                } else {
-                    let element = pool.element_access(element);
-
-                    Instruction::new(
-                        op,
-                        load_dest.value()?.id(),
-                        array.id(),
-                        index.value()?.id(),
-                        element.0,
-                    )
-                };
-
-                Some((instruction, 2))
-            }
-            mir::Instruction::Store { pointer, value } if pointer.value()? == destination => {
-                let op = select_element_store_op(self.value_layout_map(), array, element).ok()?;
-                let instruction = if op == Op::StoreFrame {
-                    let access = pool.frame_access(element.into_frame_access(0, array_length));
-
-                    Instruction::new(
-                        Op::StoreFrameElement,
-                        array.id(),
-                        index.value()?.id(),
-                        value.value()?.id(),
-                        access.0,
-                    )
-                } else {
-                    let element = pool.element_access(element);
-
-                    Instruction::new(
-                        op,
-                        array.id(),
-                        index.value()?.id(),
-                        value.value()?.id(),
-                        element.0,
-                    )
-                };
-
-                Some((instruction, 2))
-            }
-            _ => None,
-        }
-    }
-
-    /// Try to fuse static address formation with a following word load or store.
-    fn try_fuse_static_access(
-        &self,
-        destination: mir::ValueReference,
-        global: mir::GlobalReference,
-        next_inst: &mir::Instruction,
-    ) -> Option<(Instruction, usize)> {
-        let destination = destination.value()?;
-        let global = global.global()?;
-
-        if !self.is_single_use(destination) {
-            return None;
-        }
-
-        let global_id: mir::LocalNodeId<mir::Global> = mir::LocalNodeId::new(global.id);
-        let global_def = self.tree.get(global_id);
-        let global_type = global_def.ty.ty()?;
-        let is_word = self.layout_for_type(global_type).ok()?.is_word();
-        let reference = reference_meta_for_value(self.value_layout_map(), destination);
-
-        match next_inst {
-            mir::Instruction::Load {
-                destination: load_dest,
-                pointer,
-                ..
-            } if pointer.value()? == destination && is_word => Some((
-                Instruction::new(Op::LoadStaticId, load_dest.value()?.id(), global.id, 0, 0),
-                2,
-            )),
-            mir::Instruction::Store { pointer, value }
-                if pointer.value()? == destination && is_word =>
-            {
-                Some((
-                    Instruction::new(
-                        Op::StoreStaticId,
-                        global.id,
-                        value.value()?.id(),
-                        reference.bits() as u32,
-                        0,
-                    ),
-                    2,
-                ))
-            }
-            _ => None,
-        }
-    }
-
     /// Try to fuse compare and branch.
     pub(super) fn try_fuse_compare_branch(
         &self,
@@ -318,16 +73,8 @@ impl<'a> BlockLowerer<'a> {
             .collect::<Option<Vec<_>>>()?;
         let then_index = self.block_index_by_id[&then_target_block];
         let else_index = self.block_index_by_id[&else_target_block];
-        let then_parameters = self
-            .block_parameter
-            .get(then_index)
-            .map(|params| params.as_slice())
-            .unwrap_or_default();
-        let else_parameters = self
-            .block_parameter
-            .get(else_index)
-            .map(|params| params.as_slice())
-            .unwrap_or_default();
+        let then_parameters = self.block_parameter[then_index].as_slice();
+        let else_parameters = self.block_parameter[else_index].as_slice();
         let then_moves = pool.move_range(then_parameters, &then_arguments).ok()?;
         let else_moves = pool.move_range(else_parameters, &else_arguments).ok()?;
         let then_edge = pool.edge(then_index as u32, then_moves);
@@ -338,8 +85,8 @@ impl<'a> BlockLowerer<'a> {
 
         Some(Instruction::new(
             op,
-            left.id(),
-            right.id(),
+            word_offset(self, left).ok()?,
+            word_offset(self, right).ok()?,
             then_edge.0,
             else_edge.0,
         ))

@@ -1,4 +1,4 @@
-use destack_mir as mir;
+use {destack_engine as engine, destack_mir as mir};
 
 use crate::program::{
     FrameAccess, FrameAccessId, Instruction, Op, PointeeAccess, PointerClass, word_layout_from_type,
@@ -7,44 +7,9 @@ use crate::{Error, ReferenceMeta, Result};
 
 use super::access::{element_access, field_access};
 use super::lower::BlockLowerer;
+use super::op::{select_frame_value_load_op, select_frame_value_store_op};
 use super::pool::Pool;
 use super::value::reference_meta_for_value;
-
-/// Return one word value's frame byte offset.
-pub(super) fn word_offset(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Result<u32> {
-    // resolve the value region in the lowered frame
-    let region = lowerer
-        .frame_layout
-        .value(value.0)
-        .ok_or(Error::InvalidInstruction)?;
-
-    // word instructions require single-word frame slots
-    if !region.is_word {
-        return Err(Error::TypeMismatch {
-            expected: "word value".to_string(),
-            actual: format!("frame-backed value: {value:?}"),
-        });
-    }
-
-    Ok(region.offset)
-}
-
-/// Return one frame byte move instruction.
-fn move_frame_instruction(
-    destination: mir::Value,
-    destination_access: FrameAccessId,
-    source: mir::Value,
-    source_access: FrameAccessId,
-) -> Instruction {
-    Instruction::new(
-        Op::MoveFrame,
-        destination.id(),
-        destination_access.0,
-        source.id(),
-        source_access.0,
-    )
-}
-
 impl<'a> BlockLowerer<'a> {
     /// Lower one MIR value constructor into frame stores.
     pub(super) fn lower_frame_constructor(
@@ -53,7 +18,7 @@ impl<'a> BlockLowerer<'a> {
         destination: mir::ValueReference,
         values: mir::ArgumentSlice,
     ) -> Result<Vec<Instruction>> {
-        // resolve constructor operands
+        // resolve constructor values
         let destination = destination
             .value()
             .ok_or_else(|| Error::MissingRepresentation {
@@ -111,7 +76,7 @@ impl<'a> BlockLowerer<'a> {
             return Err(Error::InvalidInstruction);
         };
 
-        // resolve operands and layout
+        // resolve values and layout
         let destination = destination
             .value()
             .ok_or_else(|| Error::MissingRepresentation {
@@ -139,13 +104,14 @@ impl<'a> BlockLowerer<'a> {
 
         // read word fields directly
         if field_layout.is_word() {
-            let access = pool.frame_access(field.into());
+            let access = FrameAccess::from(field);
+            let op = select_frame_value_load_op(access)?;
 
             return Ok(vec![Instruction::new(
-                Op::LoadFrame,
-                destination.id(),
-                base.id(),
-                access.0,
+                op,
+                word_offset(self, destination)?,
+                value_offset(self, base)?,
+                instruction_byte_offset(access.byte_offset)?,
                 0,
             )]);
         }
@@ -166,11 +132,12 @@ impl<'a> BlockLowerer<'a> {
         let source_access = pool.frame_access(source_access.into());
 
         Ok(vec![move_frame_instruction(
+            self,
             destination,
             destination_access,
             base,
             source_access,
-        )])
+        )?])
     }
 
     /// Lower one frame element read into a word load or frame move.
@@ -188,7 +155,7 @@ impl<'a> BlockLowerer<'a> {
             return Err(Error::InvalidInstruction);
         };
 
-        // resolve operands and reject dynamic slices
+        // resolve values and reject dynamic slices
         let destination = destination
             .value()
             .ok_or_else(|| Error::MissingRepresentation {
@@ -207,6 +174,15 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // resolve element layout
+        let layout = self.layout_for_type(array_type)?;
+        let element_count = layout.element_count().ok_or(Error::InvalidInstruction)?;
+        if *index as usize >= element_count {
+            return Err(Error::InvalidArrayAccess {
+                index: u64::from(*index),
+                length: element_count as u64,
+            });
+        }
+
         let element = element_access(
             self.tree,
             self.layouts(),
@@ -220,13 +196,14 @@ impl<'a> BlockLowerer<'a> {
 
         // read word elements directly
         if element_layout.is_word() {
-            let access = pool.frame_access(element.into_frame_access(element_offset, 0));
+            let access = element.into_frame_access(element_offset, 0);
+            let op = select_frame_value_load_op(access)?;
 
             return Ok(vec![Instruction::new(
-                Op::LoadFrame,
-                destination.id(),
-                array.id(),
-                access.0,
+                op,
+                word_offset(self, destination)?,
+                value_offset(self, array)?,
+                instruction_byte_offset(access.byte_offset)?,
                 0,
             )]);
         }
@@ -243,11 +220,12 @@ impl<'a> BlockLowerer<'a> {
         let source_access = pool.frame_access(source_access);
 
         Ok(vec![move_frame_instruction(
+            self,
             destination,
             destination_access,
             array,
             source_access,
-        )])
+        )?])
     }
 
     /// Lower one functional field update into frame stores.
@@ -330,6 +308,14 @@ impl<'a> BlockLowerer<'a> {
 
         // resolve original frame value and replacement element
         let layout = self.layout_for_type(destination_type)?;
+        let element_count = layout.element_count().ok_or(Error::InvalidInstruction)?;
+        if index as usize >= element_count {
+            return Err(Error::InvalidArrayAccess {
+                index: u64::from(index),
+                length: element_count as u64,
+            });
+        }
+
         let whole = FrameRange {
             value_type: destination_type,
             byte_offset: 0,
@@ -348,13 +334,14 @@ impl<'a> BlockLowerer<'a> {
         // store word elements directly
         let instruction = if element.is_word() {
             let reference = reference_meta_for_value(self.value_layout_map(), destination);
-            let access = pool.frame_access(element.into_frame_access(element_offset, 0));
+            let access = element.into_frame_access(element_offset, 0);
+            let op = select_frame_value_store_op(access)?;
 
             Instruction::new(
-                Op::StoreFrame,
-                destination.id(),
-                value.id(),
-                access.0,
+                op,
+                value_offset(self, destination)?,
+                word_offset(self, value)?,
+                instruction_byte_offset(access.byte_offset)?,
                 reference.bits() as u32,
             )
         } else {
@@ -368,7 +355,7 @@ impl<'a> BlockLowerer<'a> {
             let destination_access = pool.frame_access(destination_access);
             let source_access = pool.frame_access(source_access.into());
 
-            move_frame_instruction(destination, destination_access, value, source_access)
+            move_frame_instruction(self, destination, destination_access, value, source_access)?
         };
 
         // move the original frame value and overwrite one element
@@ -437,12 +424,13 @@ impl<'a> BlockLowerer<'a> {
                 .into(),
             );
 
-            return Ok(move_frame_instruction(
+            return move_frame_instruction(
+                self,
                 destination,
                 destination_access,
                 value,
                 source_access,
-            ));
+            );
         }
 
         // store word values through the normal frame store path
@@ -455,16 +443,22 @@ impl<'a> BlockLowerer<'a> {
         };
 
         let reference = reference_meta_for_value(self.value_layout_map(), destination);
-        let access = pool.frame_access(access.into());
+        let access = FrameAccess::from(access);
+        let op = select_frame_value_store_op(access)?;
 
         Ok(Instruction::new(
-            Op::StoreFrame,
-            destination.id(),
-            value.id(),
-            access.0,
+            op,
+            value_offset(self, destination)?,
+            word_offset(self, value)?,
+            instruction_byte_offset(access.byte_offset)?,
             reference.bits() as u32,
         ))
     }
+}
+
+/// Encode one fixed byte offset into an instruction lane.
+fn instruction_byte_offset(byte_offset: usize) -> Result<u32> {
+    u32::try_from(byte_offset).map_err(|_| Error::InvalidInstruction)
 }
 
 /// One direct byte range inside a frame value.
@@ -490,4 +484,52 @@ impl From<FrameRange> for FrameAccess {
             word_layout: None,
         }
     }
+}
+
+/// Return one word value's frame byte offset.
+pub(super) fn word_offset(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Result<u32> {
+    let region = frame_slot(lowerer, value)?;
+
+    // word instructions require single-word frame slots
+    if !region.is_word {
+        return Err(Error::TypeMismatch {
+            expected: "word value".to_string(),
+            actual: format!("frame-backed value: {value:?}"),
+        });
+    }
+
+    Ok(region.offset)
+}
+
+/// Return one value's frame byte offset.
+pub(super) fn value_offset(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Result<u32> {
+    Ok(frame_slot(lowerer, value)?.offset)
+}
+
+/// Return one lowered frame slot.
+fn frame_slot<'a>(
+    lowerer: &'a BlockLowerer<'_>,
+    value: mir::Value,
+) -> Result<&'a engine::FrameSlot> {
+    lowerer
+        .frame_layout
+        .value(value.0)
+        .ok_or(Error::InvalidInstruction)
+}
+
+/// Return one frame byte move instruction.
+fn move_frame_instruction(
+    lowerer: &BlockLowerer<'_>,
+    destination: mir::Value,
+    destination_access: FrameAccessId,
+    source: mir::Value,
+    source_access: FrameAccessId,
+) -> Result<Instruction> {
+    Ok(Instruction::new(
+        Op::MoveFrame,
+        value_offset(lowerer, destination)?,
+        destination_access.0,
+        value_offset(lowerer, source)?,
+        source_access.0,
+    ))
 }

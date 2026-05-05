@@ -6,6 +6,25 @@ use destack_mir as mir;
 
 use super::repr_type;
 
+/// Scalar value layout for typed vector and tensor operations.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ScalarLayout {
+    /// Signed or unsigned integers with a bit width.
+    Int {
+        /// The bit width.
+        width: u16,
+        /// Whether the integer is signed.
+        is_signed: bool,
+    },
+    /// Floating-point values with a bit width.
+    Float {
+        /// The bit width.
+        width: u16,
+    },
+    /// Boolean values.
+    Bool,
+}
+
 /// Runtime class for pointer-like values.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PointerClass {
@@ -435,6 +454,32 @@ pub(crate) fn word_layout_from_type(
         mir::Type::FunctionSignature { .. } | mir::Type::FunctionPointer { .. } => {
             Some(WordLayout::FunctionPointer)
         }
+        _ => None,
+    }
+}
+
+/// Return the scalar layout for one MIR type.
+pub(crate) fn scalar_layout_from_type(
+    tree: &mir::Tree,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> Option<ScalarLayout> {
+    match tree.get(ty) {
+        mir::Type::Int { width, is_signed } => Some(ScalarLayout::Int {
+            width: *width,
+            is_signed: *is_signed,
+        }),
+        mir::Type::Isize => Some(ScalarLayout::Int {
+            width: usize::BITS as u16,
+            is_signed: true,
+        }),
+        mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
+            Some(ScalarLayout::Int {
+                width: usize::BITS as u16,
+                is_signed: false,
+            })
+        }
+        mir::Type::Float { width } => Some(ScalarLayout::Float { width: *width }),
+        mir::Type::Boolean => Some(ScalarLayout::Bool),
         _ => None,
     }
 }

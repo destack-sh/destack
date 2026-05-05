@@ -11,6 +11,7 @@ mod reference;
 mod side;
 mod state;
 mod table;
+mod tensor;
 mod transfer;
 mod value;
 
@@ -26,5 +27,6 @@ pub(crate) use range::*;
 pub(crate) use side::*;
 pub(crate) use state::*;
 pub(crate) use table::*;
+pub(crate) use tensor::*;
 pub(crate) use transfer::*;
 pub(crate) use value::*;

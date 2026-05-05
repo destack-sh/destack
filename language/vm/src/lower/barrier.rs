@@ -3,14 +3,13 @@ use destack_mir as mir;
 use crate::program::{Instruction, Op, PointerClass, ValueLayout, value_layout_from_type};
 use crate::{Error, Result};
 
+use super::frame::word_offset;
 use super::lower::BlockLowerer;
-use super::pool::Pool;
 
 impl<'a> BlockLowerer<'a> {
     /// Lower one write barrier.
     pub(super) fn lower_barrier_write(
         &self,
-        _pool: &mut Pool<'_>,
         object: mir::ValueReference,
         offset: mir::ValueReference,
         byte_len: mir::ValueReference,
@@ -51,9 +50,9 @@ impl<'a> BlockLowerer<'a> {
 
         Ok(Instruction::new(
             op,
-            object.id(),
-            offset.id(),
-            byte_len.id(),
+            word_offset(self, object)?,
+            word_offset(self, offset)?,
+            word_offset(self, byte_len)?,
             0,
         ))
     }

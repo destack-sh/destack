@@ -1,10 +1,13 @@
-use {destack_engine as engine, destack_mir as mir};
+use destack_mir::{self as mir, LayoutId};
 
 use super::{
-    ArgumentRange, CallTarget, ElementAccess, ElementAccessId, FieldAccessId, MoveRange,
-    TensorConvolutionId, TensorDotId, TensorGatherId, TensorScatterId, TensorWindowId, TypeRangeId,
-    U32RangeId,
+    ArgumentRange, CallTarget, CallableObjectLayout, ElementAccess, ElementAccessId, FieldAccessId,
+    MoveRange, ScalarLayout, TensorConvolutionId, TensorDotId, TensorGatherId, TensorLayoutId,
+    TensorScatterId, TensorWindowId, U32RangeId, ValueLayout, WordLayout,
 };
+use destack_engine as engine;
+
+const INTRINSIC_ARGUMENT_CAPACITY: usize = 16;
 
 /// Frame byte select operation.
 #[derive(Clone, Copy, Debug)]
@@ -28,8 +31,10 @@ pub(crate) struct AtomicLoad {
     pub(crate) dest_offset: u32,
     /// The pointer word offset.
     pub(crate) pointer_offset: u32,
-    /// The atomic pointee type.
-    pub(crate) pointee: mir::LocalNodeId<mir::Type>,
+    /// The atomic memory layout.
+    pub(crate) layout: WordLayout,
+    /// The atomic byte width.
+    pub(crate) byte_len: usize,
     /// The memory ordering to apply.
     pub(crate) ordering: mir::MemoryOrdering,
     /// The execution scope for the operation.
@@ -47,8 +52,10 @@ pub(crate) struct AtomicStore {
     pub(crate) pointer_offset: u32,
     /// The stored value word offset.
     pub(crate) value_offset: u32,
-    /// The atomic pointee type.
-    pub(crate) pointee: mir::LocalNodeId<mir::Type>,
+    /// The atomic memory layout.
+    pub(crate) layout: WordLayout,
+    /// The atomic byte width.
+    pub(crate) byte_len: usize,
     /// The memory ordering to apply.
     pub(crate) ordering: mir::MemoryOrdering,
     /// The execution scope for the operation.
@@ -68,8 +75,10 @@ pub(crate) struct AtomicRmw {
     pub(crate) pointer_offset: u32,
     /// The operator value word offset.
     pub(crate) value_offset: u32,
-    /// The atomic pointee type.
-    pub(crate) pointee: mir::LocalNodeId<mir::Type>,
+    /// The atomic memory layout.
+    pub(crate) layout: WordLayout,
+    /// The atomic byte width.
+    pub(crate) byte_len: usize,
     /// The memory ordering to apply.
     pub(crate) ordering: mir::MemoryOrdering,
     /// The execution scope for the operation.
@@ -91,8 +100,10 @@ pub(crate) struct AtomicCompareExchange {
     pub(crate) expected_offset: u32,
     /// The replacement value word offset.
     pub(crate) new_value_offset: u32,
-    /// The atomic pointee type.
-    pub(crate) pointee: mir::LocalNodeId<mir::Type>,
+    /// The atomic memory layout.
+    pub(crate) layout: WordLayout,
+    /// The atomic byte width.
+    pub(crate) byte_len: usize,
     /// Whether the compare exchange is weak.
     pub(crate) is_weak: bool,
     /// The memory ordering to apply.
@@ -161,8 +172,8 @@ pub(crate) struct VectorBinary {
     pub(crate) left_element: ElementAccess,
     /// The right source element access.
     pub(crate) right_element: ElementAccess,
-    /// The vector element type.
-    pub(crate) element: mir::LocalNodeId<mir::Type>,
+    /// The vector element scalar layout.
+    pub(crate) element_layout: ScalarLayout,
     /// The destination element count.
     pub(crate) element_count: u32,
 }
@@ -172,14 +183,14 @@ pub(crate) struct VectorBinary {
 pub(crate) struct VectorUnary {
     /// The destination frame offset.
     pub(crate) dest_offset: u32,
-    /// The operand vector frame offset.
+    /// The argument vector frame offset.
     pub(crate) argument_offset: u32,
     /// The destination element access.
     pub(crate) dest_element: ElementAccess,
-    /// The operand element access.
+    /// The argument element access.
     pub(crate) argument_element: ElementAccess,
-    /// The vector element type.
-    pub(crate) element: mir::LocalNodeId<mir::Type>,
+    /// The vector element scalar layout.
+    pub(crate) element_layout: ScalarLayout,
     /// The destination element count.
     pub(crate) element_count: u32,
 }
@@ -258,8 +269,8 @@ pub(crate) struct VectorReduce {
     pub(crate) vector_offset: u32,
     /// The source element access.
     pub(crate) vector_element: ElementAccess,
-    /// The vector element type.
-    pub(crate) element: mir::LocalNodeId<mir::Type>,
+    /// The vector element scalar layout.
+    pub(crate) element_layout: ScalarLayout,
     /// The source vector element count.
     pub(crate) element_count: u32,
 }
@@ -275,12 +286,40 @@ pub(crate) struct VectorConvert {
     pub(crate) dest_element: ElementAccess,
     /// The source element access.
     pub(crate) source_element: ElementAccess,
-    /// The destination element type.
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
-    /// The source element type.
-    pub(crate) source_type: mir::LocalNodeId<mir::Type>,
+    /// The destination element scalar layout.
+    pub(crate) dest_layout: ScalarLayout,
+    /// The source element scalar layout.
+    pub(crate) source_layout: ScalarLayout,
     /// The destination element count.
     pub(crate) element_count: u32,
+}
+
+/// Callable environment representation.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum CallableEnvironment {
+    /// Environment stored in one VM word.
+    Word {
+        /// The environment word layout.
+        layout: WordLayout,
+    },
+    /// Environment stored in frame bytes.
+    Frame {
+        /// The environment heap layout.
+        layout: LayoutId,
+        /// The environment byte length.
+        byte_len: usize,
+    },
+}
+
+/// Callable bind operation.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct CallableBind {
+    /// The callable heap layout.
+    pub(crate) callable_layout: LayoutId,
+    /// The callable object field layout.
+    pub(crate) object_layout: CallableObjectLayout,
+    /// The environment representation.
+    pub(crate) environment: CallableEnvironment,
 }
 
 /// Direct function call.
@@ -373,8 +412,8 @@ pub(crate) struct TensorLoad {
     pub(crate) view_offset: u32,
     /// The index frame offsets.
     pub(crate) indices: U32RangeId,
-    /// The tensor view type.
-    pub(crate) view_type: mir::LocalNodeId<mir::Type>,
+    /// The tensor view layout.
+    pub(crate) view_layout: TensorLayoutId,
     /// The tensor element access.
     pub(crate) element: ElementAccessId,
 }
@@ -385,7 +424,7 @@ pub(crate) struct TensorExtract {
     pub(crate) dest_offset: u32,
     pub(crate) tensor_offset: u32,
     pub(crate) indices: U32RangeId,
-    pub(crate) tensor_type: mir::LocalNodeId<mir::Type>,
+    pub(crate) tensor_layout: TensorLayoutId,
 }
 
 /// Elementwise tensor binary operation.
@@ -397,12 +436,14 @@ pub(crate) struct TensorBinary {
     pub(crate) left_offset: u32,
     /// The right tensor frame offset.
     pub(crate) right_offset: u32,
-    /// The left tensor type.
-    pub(crate) left_type: mir::LocalNodeId<mir::Type>,
-    /// The right tensor type.
-    pub(crate) right_type: mir::LocalNodeId<mir::Type>,
-    /// The destination tensor type.
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
+    /// The left tensor layout.
+    pub(crate) left_layout: TensorLayoutId,
+    /// The right tensor layout.
+    pub(crate) right_layout: TensorLayoutId,
+    /// The destination tensor layout.
+    pub(crate) dest_layout: TensorLayoutId,
+    /// The tensor element scalar layout.
+    pub(crate) element_layout: ScalarLayout,
 }
 
 /// Elementwise tensor unary operation.
@@ -412,12 +453,12 @@ pub(crate) struct TensorUnary {
     pub(crate) dest_offset: u32,
     /// The source tensor frame offset.
     pub(crate) argument_offset: u32,
-    /// The operand tensor type.
-    pub(crate) argument_type: mir::LocalNodeId<mir::Type>,
-    /// The tensor element type.
-    pub(crate) element: mir::LocalNodeId<mir::Type>,
-    /// The destination tensor type.
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
+    /// The argument tensor layout.
+    pub(crate) argument_layout: TensorLayoutId,
+    /// The tensor element scalar layout.
+    pub(crate) element_layout: ScalarLayout,
+    /// The destination tensor layout.
+    pub(crate) dest_layout: TensorLayoutId,
 }
 
 /// Store a tensor element into a view.
@@ -429,8 +470,8 @@ pub(crate) struct TensorStore {
     pub(crate) indices: U32RangeId,
     /// The stored scalar.
     pub(crate) value_offset: u32,
-    /// The tensor view type.
-    pub(crate) view_type: mir::LocalNodeId<mir::Type>,
+    /// The tensor view layout.
+    pub(crate) view_layout: TensorLayoutId,
     /// The tensor element access.
     pub(crate) element: ElementAccessId,
 }
@@ -442,8 +483,8 @@ pub(crate) struct TensorFill {
     pub(crate) view_offset: u32,
     /// The scalar fill value.
     pub(crate) value_offset: u32,
-    /// The tensor view type.
-    pub(crate) view_type: mir::LocalNodeId<mir::Type>,
+    /// The tensor view layout.
+    pub(crate) view_layout: TensorLayoutId,
     /// The tensor element access.
     pub(crate) element: ElementAccessId,
 }
@@ -455,10 +496,10 @@ pub(crate) struct TensorCopy {
     pub(crate) target_offset: u32,
     /// The source tensor view.
     pub(crate) source_offset: u32,
-    /// The target tensor view type.
-    pub(crate) target_type: mir::LocalNodeId<mir::Type>,
-    /// The source tensor view type.
-    pub(crate) source_type: mir::LocalNodeId<mir::Type>,
+    /// The target tensor view layout.
+    pub(crate) target_layout: TensorLayoutId,
+    /// The source tensor view layout.
+    pub(crate) source_layout: TensorLayoutId,
     /// The target element access.
     pub(crate) target_element: ElementAccessId,
     /// The source element access.
@@ -471,9 +512,10 @@ pub(crate) struct TensorReshape {
     pub(crate) dest_offset: u32,
     pub(crate) tensor_offset: u32,
     pub(crate) shape: U32RangeId,
-    /// The source tensor type.
-    pub(crate) source_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
+    /// The source tensor layout.
+    pub(crate) source_layout: TensorLayoutId,
+    /// The destination tensor layout.
+    pub(crate) dest_layout: TensorLayoutId,
 }
 
 /// Broadcast a tensor into a larger shape.
@@ -482,8 +524,8 @@ pub(crate) struct TensorBroadcast {
     pub(crate) dest_offset: u32,
     pub(crate) tensor_offset: u32,
     pub(crate) dimensions: U32RangeId,
-    pub(crate) source_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
+    pub(crate) source_layout: TensorLayoutId,
+    pub(crate) dest_layout: TensorLayoutId,
 }
 
 /// Permute tensor dimensions.
@@ -492,8 +534,8 @@ pub(crate) struct TensorTranspose {
     pub(crate) dest_offset: u32,
     pub(crate) tensor_offset: u32,
     pub(crate) permutation: U32RangeId,
-    pub(crate) source_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
+    pub(crate) source_layout: TensorLayoutId,
+    pub(crate) dest_layout: TensorLayoutId,
 }
 
 /// Slice a tensor by offsets, sizes, and strides.
@@ -505,8 +547,8 @@ pub(crate) struct TensorSlice {
     pub(crate) offsets_count: u16,
     pub(crate) sizes_count: u16,
     pub(crate) strides_count: u16,
-    pub(crate) source_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
+    pub(crate) source_layout: TensorLayoutId,
+    pub(crate) dest_layout: TensorLayoutId,
 }
 
 /// Pad a tensor with low, high, and interior padding.
@@ -519,8 +561,8 @@ pub(crate) struct TensorPad {
     pub(crate) high_count: u16,
     pub(crate) interior_count: u16,
     pub(crate) value_offset: u32,
-    pub(crate) source_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
+    pub(crate) source_layout: TensorLayoutId,
+    pub(crate) dest_layout: TensorLayoutId,
 }
 
 /// Concatenate tensors along a dimension.
@@ -528,9 +570,9 @@ pub(crate) struct TensorPad {
 pub(crate) struct TensorConcat {
     pub(crate) dest_offset: u32,
     pub(crate) tensors: U32RangeId,
-    pub(crate) tensor_types: TypeRangeId,
+    pub(crate) tensor_layouts: U32RangeId,
     pub(crate) axis: u32,
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
+    pub(crate) dest_layout: TensorLayoutId,
 }
 
 /// Reduce a tensor along axes.
@@ -540,8 +582,8 @@ pub(crate) struct TensorReduce {
     pub(crate) tensor_offset: u32,
     pub(crate) initial_offset: u32,
     pub(crate) axes: U32RangeId,
-    pub(crate) source_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
+    pub(crate) source_layout: TensorLayoutId,
+    pub(crate) dest_layout: TensorLayoutId,
 }
 
 /// Dot product of two tensors.
@@ -551,9 +593,10 @@ pub(crate) struct TensorDot {
     pub(crate) left_offset: u32,
     pub(crate) right_offset: u32,
     pub(crate) dimensions: TensorDotId,
-    pub(crate) left_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) right_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
+    pub(crate) left_layout: TensorLayoutId,
+    pub(crate) right_layout: TensorLayoutId,
+    pub(crate) dest_layout: TensorLayoutId,
+    pub(crate) element_layout: ScalarLayout,
 }
 
 /// Convolution between an input tensor and a kernel tensor.
@@ -566,36 +609,38 @@ pub(crate) struct TensorConvolution {
     pub(crate) window: TensorWindowId,
     pub(crate) feature_group_count: u32,
     pub(crate) batch_group_count: u32,
-    pub(crate) input_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) kernel_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
+    pub(crate) input_layout: TensorLayoutId,
+    pub(crate) kernel_layout: TensorLayoutId,
+    pub(crate) dest_layout: TensorLayoutId,
+    pub(crate) element_layout: ScalarLayout,
 }
 
 /// Gather slices from a tensor based on indices.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct TensorGather {
     pub(crate) dest_offset: u32,
-    pub(crate) operand_offset: u32,
+    pub(crate) source_offset: u32,
     pub(crate) indices_offset: u32,
     pub(crate) dimensions: TensorGatherId,
     pub(crate) slice_sizes: U32RangeId,
-    pub(crate) operand_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) indices_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
+    pub(crate) source_layout: TensorLayoutId,
+    pub(crate) indices_layout: TensorLayoutId,
+    pub(crate) dest_layout: TensorLayoutId,
 }
 
 /// Scatter updates into a tensor based on indices.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct TensorScatter {
     pub(crate) dest_offset: u32,
-    pub(crate) operand_offset: u32,
+    pub(crate) source_offset: u32,
     pub(crate) indices_offset: u32,
     pub(crate) updates_offset: u32,
     pub(crate) dimensions: TensorScatterId,
-    pub(crate) operand_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) indices_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) updates_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
+    pub(crate) source_layout: TensorLayoutId,
+    pub(crate) indices_layout: TensorLayoutId,
+    pub(crate) updates_layout: TensorLayoutId,
+    pub(crate) dest_layout: TensorLayoutId,
+    pub(crate) element_layout: ScalarLayout,
 }
 
 /// Select tensor elements based on a boolean mask.
@@ -605,13 +650,13 @@ pub(crate) struct TensorSelect {
     pub(crate) mask_offset: u32,
     pub(crate) then_offset: u32,
     pub(crate) else_offset: u32,
-    /// The mask tensor type.
-    pub(crate) mask_type: mir::LocalNodeId<mir::Type>,
-    /// The true branch tensor type.
-    pub(crate) then_type: mir::LocalNodeId<mir::Type>,
-    /// The false branch tensor type.
-    pub(crate) else_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
+    /// The mask tensor layout.
+    pub(crate) mask_layout: TensorLayoutId,
+    /// The true branch tensor layout.
+    pub(crate) then_layout: TensorLayoutId,
+    /// The false branch tensor layout.
+    pub(crate) else_layout: TensorLayoutId,
+    pub(crate) dest_layout: TensorLayoutId,
 }
 
 /// Convert a tensor element type.
@@ -619,8 +664,10 @@ pub(crate) struct TensorSelect {
 pub(crate) struct TensorConvert {
     pub(crate) dest_offset: u32,
     pub(crate) tensor_offset: u32,
-    pub(crate) source_type: mir::LocalNodeId<mir::Type>,
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
+    pub(crate) source_layout: TensorLayoutId,
+    pub(crate) dest_layout: TensorLayoutId,
+    pub(crate) source_scalar: ScalarLayout,
+    pub(crate) dest_scalar: ScalarLayout,
 }
 
 /// Create a view into a tensor reference.
@@ -638,20 +685,64 @@ pub(crate) struct TensorView {
     pub(crate) sizes_count: u16,
     /// The number of stride values.
     pub(crate) strides_count: u16,
-    /// The source tensor view type.
-    pub(crate) source_type: mir::LocalNodeId<mir::Type>,
-    /// The destination tensor view type.
-    pub(crate) dest_type: mir::LocalNodeId<mir::Type>,
+    /// The source tensor view layout.
+    pub(crate) source_layout: TensorLayoutId,
+    /// The destination tensor view layout.
+    pub(crate) dest_layout: TensorLayoutId,
     /// The tensor element access.
     pub(crate) element: ElementAccessId,
+}
+
+/// Intrinsic destination.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum IntrinsicDest {
+    /// No destination.
+    None,
+    /// Word destination frame offset.
+    Word(u32),
+    /// Frame destination value.
+    Frame(mir::Value),
 }
 
 /// Intrinsic call.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Intrinsic {
-    pub(crate) dest: Option<mir::Value>,
-    pub(crate) intrinsic: mir::Intrinsic,
+    /// The destination shape.
+    pub(crate) dest: IntrinsicDest,
+    /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
+    /// The lowered layout for each argument.
+    pub(crate) layouts: [ValueLayout; INTRINSIC_ARGUMENT_CAPACITY],
+    /// The argument count.
+    pub(crate) layout_count: u8,
+}
+
+impl Intrinsic {
+    /// Return an intrinsic record with static argument layouts.
+    pub(crate) fn new(
+        dest: IntrinsicDest,
+        arguments: ArgumentRange,
+        layouts: &[ValueLayout],
+    ) -> Option<Self> {
+        if layouts.len() > INTRINSIC_ARGUMENT_CAPACITY {
+            return None;
+        }
+
+        let mut stored = [ValueLayout::Void; INTRINSIC_ARGUMENT_CAPACITY];
+        stored[..layouts.len()].copy_from_slice(layouts);
+
+        Some(Self {
+            dest,
+            arguments,
+            layouts: stored,
+            layout_count: layouts.len() as u8,
+        })
+    }
+
+    /// Return the lowered argument layouts.
+    pub(crate) fn layouts(&self) -> &[ValueLayout] {
+        &self.layouts[..self.layout_count as usize]
+    }
 }
 
 /// Tail call to a function.

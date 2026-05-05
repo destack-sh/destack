@@ -32,6 +32,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
         >,
         call_targets: &'a HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &'a HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+        layout_id_by_type: &'a HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
         heap_options: &'a heap::HeapOptions,
         shared_heap_options: &'a heap::HeapOptions,
         value_types: &'a [ValueType],
@@ -71,6 +72,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             value_layout_map,
             value_type,
             layouts,
+            layout_id_by_type,
             heap_options,
             shared_heap_options,
             block_index_by_id: block_order.index_by_id,
@@ -210,6 +212,7 @@ pub(crate) fn lower_function(
     >,
     call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
     heap_options: &heap::HeapOptions,
     shared_heap_options: &heap::HeapOptions,
     value_types: &[ValueType],
@@ -223,6 +226,7 @@ pub(crate) fn lower_function(
         exceptional_call_frame_states,
         call_targets,
         layouts,
+        layout_id_by_type,
         heap_options,
         shared_heap_options,
         value_types,
@@ -264,18 +268,6 @@ impl<'a> BlockLowerer<'a> {
         while inst_index < self.block.instructions.len() {
             let inst_id = self.block.instructions[inst_index];
             let inst = self.tree.get(inst_id);
-
-            // fuse address formation into direct memory access
-            if let Some((instruction, skip)) = self.try_fuse_addr_access(
-                inst,
-                self.block.instructions.get(inst_index + 1).copied(),
-                pool,
-            ) {
-                instructions.push(instruction);
-                inst_index += skip;
-                source_boundary_by_pc.push(inst_index as u32);
-                continue;
-            }
 
             // lower the remaining instruction shape
             let lowered = self.lower_instructions(inst, pool)?;
@@ -319,11 +311,6 @@ impl<'a> BlockLowerer<'a> {
         self.function.value_use_count.get(value.0 as usize).copied()
     }
 
-    /// Return whether a lowered value has exactly one use.
-    pub(super) fn is_single_use(&self, value: mir::Value) -> bool {
-        self.value_use_count(value) == Some(1)
-    }
-
     /// Return one call target for one function id.
     pub(super) fn call_target(
         &self,
@@ -358,6 +345,20 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn layouts(&self) -> &HashMap<mir::LocalNodeId<mir::Type>, Layout> {
         self.function.layouts
     }
+
+    /// Return the MIR layout id for one type.
+    pub(super) fn layout_id_for_type(
+        &self,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> Result<mir::LayoutId> {
+        self.function
+            .layout_id_by_type
+            .get(&ty)
+            .copied()
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!("missing layout id for type: {ty:?}"),
+            })
+    }
 }
 
 /// Compute SSA value use counts across the function.
@@ -372,7 +373,7 @@ fn compute_value_use_counts(
     // record a single use safely
     let mut record_use = |value: mir::Value| {
         if let Some(count) = uses.get_mut(value.0 as usize) {
-            *count = count.saturating_add(1);
+            *count += 1;
         }
     };
 

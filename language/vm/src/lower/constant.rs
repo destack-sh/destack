@@ -5,9 +5,78 @@ use destack_heap::{HeapReference, RawPointer, SharedHeapReference, SharedRawPoin
 use crate::program::{ConstValue, Instruction, Op};
 use crate::{Error, ReferenceAddressSpace, Result, Word};
 
+use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
 use super::pool::Pool;
 use super::value::reference_meta_for_type;
+impl<'a> BlockLowerer<'a> {
+    /// Lower one constant instruction.
+    pub(super) fn lower_const(
+        &self,
+        pool: &mut Pool<'_>,
+        destination: mir::ValueReference,
+        value: &mir::Constant,
+    ) -> Result<Instruction> {
+        // resolve the destination frame layout
+        let destination = destination
+            .value()
+            .ok_or_else(|| Error::MissingRepresentation {
+                context: "const destination".to_string(),
+            })?;
+        let destination_type = self.value_type_for_value(destination)?;
+        let layout = self.layout_for_type(destination_type)?;
+
+        // inline word constants directly in the instruction
+        if layout.is_word() {
+            let value = if matches!(value, mir::Constant::Null) {
+                self.null_word(destination_type)
+            } else {
+                Word::from(value)
+            };
+            let bits = value.bits();
+
+            return Ok(Instruction::new(
+                Op::LoadConstWord,
+                word_offset(self, destination)?,
+                bits as u32,
+                (bits >> 32) as u32,
+                0,
+            ));
+        }
+
+        // pool frame-backed constants
+        let value = ConstValue::Bytes(constant_bytes(value, layout.byte_len)?);
+        let value = pool.constant(value);
+
+        Ok(Instruction::new(
+            Op::LoadConstBytes,
+            value_offset(self, destination)?,
+            value.0,
+            0,
+            0,
+        ))
+    }
+
+    /// Return the null word for one reference-like type.
+    fn null_word(&self, value_type: mir::LocalNodeId<mir::Type>) -> Word {
+        let reference = reference_meta_for_type(self.tree, value_type);
+
+        match reference.kind() {
+            Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Owned)
+                if matches!(reference.address_space(), ReferenceAddressSpace::Shared) =>
+            {
+                Word::shared_heap_reference(SharedHeapReference::NULL)
+            }
+            Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Owned) => {
+                Word::heap_reference(HeapReference::NULL)
+            }
+            _ if matches!(reference.address_space(), ReferenceAddressSpace::Shared) => {
+                Word::shared_raw_pointer(SharedRawPointer::NULL)
+            }
+            _ => Word::raw_pointer(RawPointer::NULL),
+        }
+    }
+}
 
 /// Encode a constant into its frame bytes.
 fn constant_bytes(value: &mir::Constant, byte_len: usize) -> Result<Box<[u8]>> {
@@ -52,61 +121,4 @@ fn constant_bytes(value: &mir::Constant, byte_len: usize) -> Result<Box<[u8]>> {
     }
 
     Ok(bytes.into_boxed_slice())
-}
-
-impl<'a> BlockLowerer<'a> {
-    /// Lower one constant instruction.
-    pub(super) fn lower_const(
-        &self,
-        pool: &mut Pool<'_>,
-        destination: mir::ValueReference,
-        value: &mir::Constant,
-    ) -> Result<Instruction> {
-        // resolve the destination frame layout
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "const destination".to_string(),
-            })?;
-        let destination_type = self.value_type_for_value(destination)?;
-        let layout = self.layout_for_type(destination_type)?;
-
-        // encode the constant for its lowered frame representation
-        let value = if matches!(value, mir::Constant::Null) {
-            ConstValue::Word(self.null_word(destination_type))
-        } else if layout.is_word() {
-            ConstValue::Word(Word::from(value))
-        } else {
-            ConstValue::Bytes(constant_bytes(value, layout.byte_len)?)
-        };
-        let value = pool.constant(value);
-
-        Ok(Instruction::new(
-            Op::LoadConst,
-            destination.id(),
-            value.0,
-            0,
-            0,
-        ))
-    }
-
-    /// Return the null word for one reference-like type.
-    fn null_word(&self, value_type: mir::LocalNodeId<mir::Type>) -> Word {
-        let reference = reference_meta_for_type(self.tree, value_type);
-
-        match reference.kind() {
-            Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Owned)
-                if matches!(reference.address_space(), ReferenceAddressSpace::Shared) =>
-            {
-                Word::shared_heap_reference(SharedHeapReference::NULL)
-            }
-            Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Owned) => {
-                Word::heap_reference(HeapReference::NULL)
-            }
-            _ if matches!(reference.address_space(), ReferenceAddressSpace::Shared) => {
-                Word::shared_raw_pointer(SharedRawPointer::NULL)
-            }
-            _ => Word::raw_pointer(RawPointer::NULL),
-        }
-    }
 }

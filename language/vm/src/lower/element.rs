@@ -4,6 +4,7 @@ use crate::program::{Instruction, Op};
 use crate::{Error, Result};
 
 use super::access::slice_element_access;
+use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
 use super::op::{select_element_addr_op, select_slice_element_addr_op};
 use super::pool::Pool;
@@ -44,9 +45,9 @@ impl<'a> BlockLowerer<'a> {
 
             return Ok(Instruction::new(
                 op,
-                destination.id(),
-                array.id(),
-                index.id(),
+                word_offset(self, destination)?,
+                value_offset(self, array)?,
+                word_offset(self, index)?,
                 access.0,
             ));
         }
@@ -57,14 +58,14 @@ impl<'a> BlockLowerer<'a> {
         let array_length = self.array_length_for_value(array)?;
         let reference = reference_meta_for_value(self.value_layout_map(), destination);
         element.reference = reference;
-        if op == Op::AddressFrame {
+        if op == Op::AddressFrameElement {
             let access = pool.frame_access(element.into_frame_access(0, array_length));
 
             return Ok(Instruction::new(
-                Op::AddressFrameElement,
-                destination.id(),
-                array.id(),
-                index.id(),
+                op,
+                word_offset(self, destination)?,
+                value_offset(self, array)?,
+                word_offset(self, index)?,
                 access.0,
             ));
         }
@@ -74,9 +75,9 @@ impl<'a> BlockLowerer<'a> {
 
         Ok(Instruction::new(
             op,
-            destination.id(),
-            array.id(),
-            index.id(),
+            word_offset(self, destination)?,
+            word_offset(self, array)?,
+            word_offset(self, index)?,
             element.0,
         ))
     }
