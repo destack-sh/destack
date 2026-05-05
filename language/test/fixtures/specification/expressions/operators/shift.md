@@ -41,7 +41,9 @@ value satisfies int32;
 struct Bits { value: int }
 
 extension of Bits implements ShiftLeft<Bits> {
-    shiftLeft(other: Bits): Bits { return this }
+    type Output = Bits;
+
+    shiftLeft(other: Bits): this.Output { return this }
 }
 
 declare function getBits(): Bits;
@@ -61,7 +63,9 @@ value satisfies Bits;
 struct Bits { value: int }
 
 extension of Bits implements ShiftRight<Bits> {
-    shiftRight(other: Bits): Bits { return this }
+    type Output = Bits;
+
+    shiftRight(other: Bits): this.Output { return this }
 }
 
 declare function getBits(): Bits;
@@ -81,7 +85,9 @@ value satisfies Bits;
 struct Bits { value: int }
 
 extension of Bits implements ShiftRightUnsigned<Bits> {
-    shiftRightUnsigned(other: Bits): Bits { return this }
+    type Output = Bits;
+
+    shiftRightUnsigned(other: Bits): this.Output { return this }
 }
 
 declare function getBits(): Bits;
@@ -95,14 +101,16 @@ value satisfies Bits;
 
 ### shift requires the right operand type
 
-> `ShiftLeft<R>` only accepts right operands assignable to `R`.
+> `ShiftLeft<T>` only accepts right operands assignable to `T`.
 
 ```ds
 struct Bits { value: int }
 struct OtherBits { value: int }
 
 extension of Bits implements ShiftLeft<Bits> {
-    shiftLeft(other: Bits): Bits { return this }
+    type Output = Bits;
+
+    shiftLeft(other: Bits): this.Output { return this }
 }
 
 declare function getBits(): Bits;

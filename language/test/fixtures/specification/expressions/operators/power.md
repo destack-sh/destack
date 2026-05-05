@@ -26,7 +26,9 @@ value satisfies number;
 struct Scalar { value: int }
 
 extension of Scalar implements Power<Scalar> {
-    power(other: Scalar): Scalar { return this }
+    type Output = Scalar;
+
+    power(other: Scalar): this.Output { return this }
 }
 
 declare function getScalar(): Scalar;
@@ -46,7 +48,9 @@ value satisfies Scalar;
 struct Scalar { value: int }
 
 extension of Scalar implements Multiply<Scalar> {
-    multiply(other: Scalar): Scalar { return this }
+    type Output = Scalar;
+
+    multiply(other: Scalar): this.Output { return this }
 }
 
 declare function getScalar(): Scalar;

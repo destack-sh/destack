@@ -50,7 +50,9 @@ combined satisfies int32[];
 struct Signed { value: int }
 
 extension of Signed implements Plus {
-    plus(): Signed { return this }
+    type Output = Signed;
+
+    plus(): this.Output { return this }
 }
 
 declare function getSigned(): Signed;
@@ -67,7 +69,9 @@ value satisfies Signed;
 struct Signed { value: int }
 
 extension of Signed implements Negate {
-    negate(): Signed { return this }
+    type Output = Signed;
+
+    negate(): this.Output { return this }
 }
 
 declare function getSigned(): Signed;
@@ -86,7 +90,9 @@ value satisfies Signed;
 struct Vector2 { x: number; y: number }
 
 extension of Vector2 implements Add<Vector2> {
-    add(other: Vector2): Vector2 {
+    type Output = Vector2;
+
+    add(other: Vector2): this.Output {
         return Vector2 { x: 0, y: 0 }
     }
 }
@@ -125,14 +131,16 @@ left + right;
 
 ### plus requires the right operand type
 
-> `Add<R>` only accepts right operands assignable to `R`.
+> `Add<T>` only accepts right operands assignable to `T`.
 
 ```ds
 struct Scalar { value: int }
 struct Other { value: int }
 
 extension of Scalar implements Add<Scalar> {
-    add(other: Scalar): Scalar { return this }
+    type Output = Scalar;
+
+    add(other: Scalar): this.Output { return this }
 }
 
 declare function getScalar(): Scalar;
@@ -181,7 +189,9 @@ saturated satisfies uint8;
 struct Scalar { value: int }
 
 extension of Scalar implements Add<Scalar> {
-    add(other: Scalar): Scalar { return this }
+    type Output = Scalar;
+
+    add(other: Scalar): this.Output { return this }
 }
 
 declare function getScalar(): Scalar;

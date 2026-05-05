@@ -11,8 +11,10 @@ Subscript operators use builtin indexed access and receiver interfaces for overl
 ```ds
 struct Bag { value: int }
 
-extension of Bag implements Index<int, int> {
-    index(key: int): int { return key }
+extension of Bag implements Index<int> {
+    type Output = int;
+
+    index(key: int): this.Output { return key }
 }
 
 declare function getBag(): Bag;
@@ -98,8 +100,10 @@ bag[1] = 2;
 ```ds
 struct Bag { value: int }
 
-extension of Bag implements Index<int, int> {
-    index(key: int): int { return key }
+extension of Bag implements Index<int> {
+    type Output = int;
+
+    index(key: int): this.Output { return key }
 }
 
 declare function getBag(): Bag;

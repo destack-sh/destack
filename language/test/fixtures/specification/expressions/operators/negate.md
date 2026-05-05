@@ -12,7 +12,9 @@ Unary `-` uses numeric rules for builtin numbers and `Negate` for receiver overl
 struct Signed { value: int }
 
 extension of Signed implements Negate {
-    negate(): Signed { return this }
+    type Output = Signed;
+
+    negate(): this.Output { return this }
 }
 
 declare function getSigned(): Signed;
@@ -29,7 +31,9 @@ value satisfies Signed;
 struct Signed { value: int }
 
 extension of Signed implements Plus {
-    plus(): Signed { return this }
+    type Output = Signed;
+
+    plus(): this.Output { return this }
 }
 
 declare function getSigned(): Signed;
