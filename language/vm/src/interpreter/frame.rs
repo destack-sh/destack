@@ -174,7 +174,7 @@ impl Frame {
 
     /// Read one word or frame address from a slot.
     #[inline(always)]
-    pub(crate) fn read_operand(&self, slot: &engine::FrameSlot) -> Word {
+    pub(crate) fn read_slot_value(&self, slot: &engine::FrameSlot) -> Word {
         if slot.is_word {
             return self.read_word(slot);
         }
