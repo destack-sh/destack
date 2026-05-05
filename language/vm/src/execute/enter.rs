@@ -11,7 +11,7 @@ use super::frame::{
 use crate::SharedHeap;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::interpreter::{ExceptionalCall, Frame, Interpreter, Outcome};
-use crate::isolate::{ExternalCallContext, ExternalFn};
+use crate::isolate::{BindingContext, BindingFn};
 use crate::options::IsolateOptions;
 use crate::program::{ArgumentRange, CallTarget, Function, MoveRange, Program};
 use destack_heap::{Heap, SharedRawLimits};
@@ -43,23 +43,23 @@ impl Interpreter {
         Ok(function_ptr)
     }
 
-    /// Call one imported function with pre-collected argument values.
-    fn call_imported_function(
+    /// Call one binding function with pre-collected argument values.
+    fn call_binding_function(
         &mut self,
         program: &Program,
         function_id: mir::LocalNodeId<mir::Function>,
-        externals: &HashMap<String, ExternalFn>,
+        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         arguments: &[FrameValue],
     ) -> RuntimeResult<Word> {
-        // load the external handler first
+        // load the binding handler first
         let function = program.tree.get(function_id);
         let name = program.strings.get(function.name).to_string();
-        let handler = externals
+        let handler = bindings
             .get(&name)
             .cloned()
-            .ok_or_else(|| self.runtime_error(program, Error::ExternalFunctionNotFound { name }))?;
+            .ok_or_else(|| self.runtime_error(program, Error::BindingFunctionNotFound { name }))?;
 
         // encode argument values before crossing the runtime boundary
         let arguments = arguments
@@ -68,10 +68,10 @@ impl Interpreter {
             .map(|argument| argument.into_word().map_err(RuntimeError::new))
             .collect::<RuntimeResult<Vec<_>>>()?;
 
-        // call through the external context
+        // call through the binding context
         let result = {
             let mut context =
-                ExternalCallContext::new(program, heap, shared, SharedRawLimits::default());
+                BindingContext::new(program, heap, shared, SharedRawLimits::default());
             let result = handler(&mut context, &arguments);
             context
                 .release_pins()
@@ -223,7 +223,7 @@ impl Interpreter {
         &mut self,
         program: &Program,
         options: &IsolateOptions,
-        externals: &HashMap<String, ExternalFn>,
+        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         current_func: &Function,
@@ -238,7 +238,7 @@ impl Interpreter {
         // classify the call target
         let function_id = mir::LocalNodeId::<mir::Function>::new(function);
 
-        // complete imported calls immediately in the caller frame
+        // complete binding calls immediately in the caller frame
         if matches!(target, CallTarget::Import) {
             let caller = self
                 .frames
@@ -264,11 +264,11 @@ impl Interpreter {
                 )?
             };
 
-            // call the imported callee outside the lowered machine
-            let result = self.call_imported_function(
+            // call the binding callee outside the lowered machine
+            let result = self.call_binding_function(
                 program,
                 function_id,
-                externals,
+                bindings,
                 heap,
                 shared,
                 &arguments,
@@ -291,7 +291,7 @@ impl Interpreter {
                     .map_err(RuntimeError::new)?;
             }
 
-            // leave the caller positioned after the imported call
+            // leave the caller positioned after the binding call
             frame.pc = resume_pc;
             return Ok(());
         }
@@ -316,7 +316,7 @@ impl Interpreter {
         &mut self,
         program: &Program,
         options: &IsolateOptions,
-        externals: &HashMap<String, ExternalFn>,
+        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         current_func: &Function,
@@ -346,11 +346,11 @@ impl Interpreter {
                 arguments,
             )?;
 
-            // call the imported callee and continue through the normal branch
-            let result = self.call_imported_function(
+            // call the binding callee and continue through the normal branch
+            let result = self.call_binding_function(
                 program,
                 function_id,
-                externals,
+                bindings,
                 heap,
                 shared,
                 &arguments,
@@ -394,7 +394,7 @@ impl Interpreter {
     pub(crate) fn complete_tail_call(
         &mut self,
         program: &Program,
-        externals: &HashMap<String, ExternalFn>,
+        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         current_func: &Function,
@@ -430,12 +430,12 @@ impl Interpreter {
         // classify the call target after arguments are collected
         let function_id = mir::LocalNodeId::<mir::Function>::new(function);
 
-        // complete imported tail calls before returning to the caller
+        // complete binding tail calls before returning to the caller
         if matches!(target, CallTarget::Import) {
-            let result = self.call_imported_function(
+            let result = self.call_binding_function(
                 program,
                 function_id,
-                externals,
+                bindings,
                 heap,
                 shared,
                 &argument_values,

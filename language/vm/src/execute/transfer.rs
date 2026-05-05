@@ -3,7 +3,7 @@ use std::mem;
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::interpreter::{Continuation, Interpreter, Outcome, Stack};
-use crate::isolate::ExternalFn;
+use crate::isolate::BindingFn;
 use crate::options::IsolateOptions;
 use crate::program::{Function, MoveRange, Program, Transfer};
 use crate::{SharedHeap, Word};
@@ -74,32 +74,30 @@ impl Interpreter {
         shared_gc: &SharedGcWorker,
         isolate_id: engine::EngineId,
         value: Word,
-        source: mir::Value,
+        source_type: mir::LocalNodeId<mir::Type>,
         frame_state: engine::FrameStateId,
     ) -> RuntimeResult<Outcome> {
         // capture the logical yield position first
         let resume_frame_index = self.frames.len() - 1;
 
         // capture the yielded result before moving the stack into the continuation
-        let frame = self
-            .frames
-            .last()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let yield_type =
-            super::frame::frame_value_type(program, frame, source).map_err(RuntimeError::new)?;
-        let value =
-            super::frame::frame_value_from_word(program, self.frames.as_slice(), yield_type, value)
-                .and_then(|value| {
-                    super::frame::materialize_value(
-                        program,
-                        heap,
-                        shared,
-                        shared_allocator,
-                        shared_gc,
-                        value,
-                    )
-                })
-                .map_err(RuntimeError::new)?;
+        let value = super::frame::frame_value_from_word(
+            program,
+            self.frames.as_slice(),
+            source_type,
+            value,
+        )
+        .and_then(|value| {
+            super::frame::materialize_value(
+                program,
+                heap,
+                shared,
+                shared_allocator,
+                shared_gc,
+                value,
+            )
+        })
+        .map_err(RuntimeError::new)?;
 
         // capture the continuation after packaging the yielded result
         let continuation =
@@ -117,7 +115,7 @@ impl Interpreter {
         isolate_id: engine::EngineId,
         program: &Program,
         options: &IsolateOptions,
-        externals: &HashMap<String, ExternalFn>,
+        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
@@ -145,7 +143,7 @@ impl Interpreter {
                 self.complete_call(
                     program,
                     options,
-                    externals,
+                    bindings,
                     heap,
                     shared,
                     current_func,
@@ -170,7 +168,7 @@ impl Interpreter {
                 self.complete_call_branch(
                     program,
                     options,
-                    externals,
+                    bindings,
                     heap,
                     shared,
                     current_func,
@@ -191,7 +189,7 @@ impl Interpreter {
                 moves,
             } => self.complete_tail_call(
                 program,
-                externals,
+                bindings,
                 heap,
                 shared,
                 current_func,
@@ -203,7 +201,7 @@ impl Interpreter {
             ),
             Transfer::Yield {
                 value,
-                source,
+                source_type,
                 frame_state,
             } => self
                 .complete_yield(
@@ -215,7 +213,7 @@ impl Interpreter {
                     shared_gc,
                     isolate_id,
                     value,
-                    source,
+                    source_type,
                     frame_state,
                 )
                 .map(Some),

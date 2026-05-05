@@ -225,9 +225,9 @@ b0(v0: ref<int32, raw, space(stack)>):
     assert_runtime_error_matches!(result, Error::InvalidAddressSpace { .. });
 }
 
-/// External VM contexts can allocate and mutate explicit shared raw-space allocations.
+/// Binding contexts can allocate and mutate explicit shared raw-space allocations.
 #[test]
-fn test_external_context_shared_bytes_roundtrip() {
+fn test_binding_context_shared_bytes_roundtrip() {
     let mut isolate = create_isolate(
         r#"
 function noop(): void {

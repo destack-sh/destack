@@ -6,7 +6,7 @@ use super::frame::{dematerialize_value, frame_value_type, function_return_type, 
 use super::{dispatch_block, dispatch_block_counted};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::interpreter::{Continuation, Frame, Interpreter, Machine, Outcome};
-use crate::isolate::{ExternalCallContext, ExternalFn};
+use crate::isolate::{BindingContext, BindingFn};
 use crate::options::IsolateOptions;
 use crate::program::{CallTarget, Function, Program};
 use crate::{SharedHeap, Word};
@@ -23,7 +23,7 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        externals: &HashMap<String, ExternalFn>,
+        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
@@ -36,7 +36,7 @@ impl Interpreter {
             program,
             options,
             statics,
-            externals,
+            bindings,
             heap,
             shared,
             shared_allocator,
@@ -60,7 +60,7 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        externals: &HashMap<String, ExternalFn>,
+        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
@@ -76,12 +76,12 @@ impl Interpreter {
                 // call imports directly without entering the lowered machine
                 let function = program.tree.get(function_id);
                 let name = program.strings.get(function.name).to_string();
-                let handler = externals.get(&name).cloned().ok_or_else(|| {
-                    self.runtime_error(program, Error::ExternalFunctionNotFound { name })
+                let handler = bindings.get(&name).cloned().ok_or_else(|| {
+                    self.runtime_error(program, Error::BindingFunctionNotFound { name })
                 })?;
                 let value = {
                     let mut context =
-                        ExternalCallContext::new(program, heap, shared, SharedRawLimits::default());
+                        BindingContext::new(program, heap, shared, SharedRawLimits::default());
                     let value = handler(&mut context, arguments);
                     context
                         .release_pins()
@@ -115,7 +115,7 @@ impl Interpreter {
             program,
             options,
             statics,
-            externals,
+            bindings,
             heap,
             shared,
             shared_allocator,
@@ -134,7 +134,7 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        externals: &HashMap<String, ExternalFn>,
+        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
@@ -158,7 +158,7 @@ impl Interpreter {
             program,
             options,
             statics,
-            externals,
+            bindings,
             heap,
             shared,
             shared_allocator,
@@ -176,7 +176,7 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        externals: &HashMap<String, ExternalFn>,
+        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
@@ -222,7 +222,7 @@ impl Interpreter {
             program,
             options,
             statics,
-            externals,
+            bindings,
             heap,
             shared,
             shared_allocator,
@@ -242,7 +242,7 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        externals: &HashMap<String, ExternalFn>,
+        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
@@ -334,7 +334,7 @@ impl Interpreter {
             program,
             options,
             statics,
-            externals,
+            bindings,
             heap,
             shared,
             shared_allocator,
@@ -349,7 +349,7 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        externals: &HashMap<String, ExternalFn>,
+        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
@@ -434,7 +434,7 @@ impl Interpreter {
                 isolate_id,
                 program,
                 options,
-                externals,
+                bindings,
                 heap,
                 shared,
                 shared_allocator,
