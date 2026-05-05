@@ -1,14 +1,3 @@
-/// Interface for the `==` and `!=` operators.
-///
-/// `a == b` becomes `a.equal(b)`.
-/// `a != b` becomes `!a.equal(b)`.
-///
-/// `===` and `!==` (strict identity) are not overloadable.
-/// They always compare by reference identity (where allowed).
-export newtype interface Equal<T = this> {
-    equal(other: T): boolean;
-}
-
 /// Result of a comparison operation.
 ///
 /// Used by the `Compare` interface.
@@ -40,11 +29,4 @@ export newtype interface Compare<T = this> {
 /// - Otherwise, checks if result is `Ordering.Less`
 export newtype interface PartialCompare<T = this> {
     partialCompare(other: T): Ordering | null;
-}
-
-/// Interface for partial equality (when equality might fail).
-///
-/// For types where `a == a` might be false (like float NaN).
-export newtype interface PartialEqual<T = this> {
-    partialEqual(other: T): boolean | null;
 }

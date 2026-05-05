@@ -1,9 +1,0 @@
-/// Interface for serializing a value to a JSON value.
-export newtype interface Serialize {
-    serialize(): JsonValue;
-}
-
-/// Interface for deserializing a value from a JSON value.
-export newtype interface Deserialize {
-    deserialize(json: JsonValue): T;
-}

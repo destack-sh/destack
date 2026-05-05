@@ -83,12 +83,15 @@ macro_rules! define_language_symbols {
 
 define_language_symbols! {
     /// Operator interfaces.
-    arithmetic {
+    operator {
         /// `+` operator: `a + b` => `a.add(b)`
         Add => (Interface, "operator/plus", "Add"),
 
         /// `-` operator: `a - b` => `a.subtract(b)`
         Subtract => (Interface, "operator/minus", "Subtract"),
+
+        /// Unary `-`: `-a` => `a.negate()`
+        Negate => (Interface, "operator/negate", "Negate"),
 
         /// `*` operator: `a * b` => `a.multiply(b)`
         Multiply => (Interface, "operator/multiply", "Multiply"),
@@ -101,9 +104,6 @@ define_language_symbols! {
 
         /// `**` operator: `a ** b` => `a.power(b)`
         Power => (Interface, "operator/power", "Power"),
-
-        /// Unary `-`: `-a` => `a.negate()`
-        Negate => (Interface, "operator/minus", "Negate"),
 
         /// Unary `+`: `+a` => `a.plus()`
         Plus => (Interface, "operator/plus", "Plus"),
@@ -128,24 +128,24 @@ define_language_symbols! {
 
         /// `>>>` operator
         ShiftRightUnsigned => (Interface, "operator/shift", "ShiftRightUnsigned"),
+    }
 
-        /// `++` or `+` for sequences
-        Concatenate => (Interface, "operator/concatenate", "Concatenate"),
+    /// Equality operator interfaces.
+    equality {
+        /// `==` and `!=` operators
+        Equal => (Interface, "operator/equality", "Equal"),
+
+        /// Partial equality for types like float
+        PartialEqual => (Interface, "operator/equality", "PartialEqual"),
     }
 
     /// Comparison operator interfaces.
     comparison {
-        /// `==` and `!=` operators
-        Equal => (Interface, "operator/comparison", "Equal"),
-
         /// `<`, `<=`, `>`, `>=` operators
         Compare => (Interface, "operator/comparison", "Compare"),
 
         /// Comparison result enum (Less, Equal, Greater)
         Ordering => (Enum, "operator/comparison", "Ordering"),
-
-        /// Partial equality for types like float
-        PartialEqual => (Interface, "operator/comparison", "PartialEqual"),
 
         /// Partial comparison for types like float
         PartialCompare => (Interface, "operator/comparison", "PartialCompare"),
@@ -153,10 +153,10 @@ define_language_symbols! {
 
     /// Formatting operator interfaces.
     format {
-        /// Interface for the `Display` trait
+        /// Interface for the `Display` trait.
         Display => (Interface, "operator/format", "Display"),
 
-        /// Interface for the `Debug` trait
+        /// Interface for the `Debug` trait.
         Debug => (Interface, "operator/format", "Debug"),
     }
 

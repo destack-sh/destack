@@ -1,0 +1,14 @@
+/// Interface for the `==` and `!=` operators.
+///
+/// `a == b` becomes `a.equal(b)`.
+/// `a != b` becomes `!a.equal(b)`.
+export newtype interface Equal<T = this> {
+    equal(other: T): boolean;
+}
+
+/// Interface for partial equality.
+///
+/// Some values, like floating-point NaN, do not have total equality.
+export newtype interface PartialEqual<T = this> {
+    partialEqual(other: T): boolean | null;
+}
