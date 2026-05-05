@@ -68,16 +68,17 @@ builtin_source!(MEMORY_OWNERSHIP, "memory", "ownership.ds");
 // operator
 builtin_source!(OPERATOR_PLUS, "operator", "plus.ds");
 builtin_source!(OPERATOR_MINUS, "operator", "minus.ds");
+builtin_source!(OPERATOR_NEGATE, "operator", "negate.ds");
 builtin_source!(OPERATOR_MULTIPLY, "operator", "multiply.ds");
 builtin_source!(OPERATOR_DIVIDE, "operator", "divide.ds");
 builtin_source!(OPERATOR_REMAINDER, "operator", "remainder.ds");
 builtin_source!(OPERATOR_POWER, "operator", "power.ds");
 builtin_source!(OPERATOR_BITWISE, "operator", "bitwise.ds");
 builtin_source!(OPERATOR_SHIFT, "operator", "shift.ds");
-builtin_source!(OPERATOR_CONCATENATE, "operator", "concatenate.ds");
+builtin_source!(OPERATOR_EQUALITY, "operator", "equality.ds");
 builtin_source!(OPERATOR_COMPARISON, "operator", "comparison.ds");
-builtin_source!(OPERATOR_INDEX, "operator", "index.ds");
 builtin_source!(OPERATOR_FORMAT, "operator", "format.ds");
+builtin_source!(OPERATOR_INDEX, "operator", "index.ds");
 builtin_source!(OPERATOR_SUBSCRIPT, "operator", "subscript.ds");
 builtin_source!(OPERATOR_DEREFERENCE, "operator", "dereference.ds");
 
@@ -121,17 +122,18 @@ pub const INTRINSIC_SOURCES: &[BuiltinSource] = &[
     // operator
     OPERATOR_PLUS,
     OPERATOR_MINUS,
+    OPERATOR_NEGATE,
     OPERATOR_MULTIPLY,
     OPERATOR_DIVIDE,
     OPERATOR_REMAINDER,
     OPERATOR_POWER,
     OPERATOR_BITWISE,
     OPERATOR_SHIFT,
-    OPERATOR_CONCATENATE,
+    OPERATOR_EQUALITY,
     OPERATOR_COMPARISON,
+    OPERATOR_FORMAT,
     OPERATOR_SUBSCRIPT,
     OPERATOR_DEREFERENCE,
-    OPERATOR_FORMAT,
     OPERATOR_INDEX,
     // control
     CONTROL_TRY,

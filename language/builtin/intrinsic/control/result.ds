@@ -28,7 +28,7 @@
 /// }
 /// ```
 import { type FromFailure, type Try, type TryBranch, TryContinue, TryFailure } from "./try.ds";
-import { type Equal } from "../operator/comparison.ds";
+import { type Equal } from "../operator/equality.ds";
 import { type Display, type Debug } from "../operator/format.ds";
 
 /// Success variant of Result.

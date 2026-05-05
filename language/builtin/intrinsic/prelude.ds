@@ -139,7 +139,8 @@ export {
 
 // operator interfaces
 export { type Add, type Plus } from "./operator/plus.ds";
-export { type Subtract, type Negate } from "./operator/minus.ds";
+export { type Subtract } from "./operator/minus.ds";
+export { type Negate } from "./operator/negate.ds";
 export { type Multiply } from "./operator/multiply.ds";
 export { type Divide } from "./operator/divide.ds";
 export { type Remainder } from "./operator/remainder.ds";
@@ -150,18 +151,16 @@ export {
     type ShiftRight,
     type ShiftRightUnsigned,
 } from "./operator/shift.ds";
-export { type Concatenate } from "./operator/concatenate.ds";
 
-// comparison operators
+// equality and comparison operators
+export { type Equal, type PartialEqual } from "./operator/equality.ds";
 export {
-    type Equal,
-    type PartialEqual,
     type Compare,
     type PartialCompare,
     Ordering,
 } from "./operator/comparison.ds";
 
-// formatting operators
+// formatting
 export { type Display, type Debug } from "./operator/format.ds";
 
 // subscript operators

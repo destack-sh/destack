@@ -4,8 +4,8 @@ export {
 } from "./plus.ds";
 export {
     type Subtract,
-    type Negate,
 } from "./minus.ds";
+export { type Negate } from "./negate.ds";
 export {
     type Multiply,
 } from "./multiply.ds";
@@ -29,16 +29,12 @@ export {
     type ShiftRight,
     type ShiftRightUnsigned,
 } from "./shift.ds";
+export { type Equal, type PartialEqual } from "./equality.ds";
 export {
-    type Concatenate,
-} from "./concatenate.ds";
-export {
-    type Equal,
-    type PartialEqual,
     type Compare,
     type PartialCompare,
     Ordering,
 } from "./comparison.ds";
+export { type Display, type Debug } from "./format.ds";
 export { type Index, type IndexSet } from "./subscript.ds";
 export { type ReadonlyDereference, type Dereference } from "./dereference.ds";
-export { type Display, type Debug } from "./format.ds";
