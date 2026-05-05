@@ -1,6 +1,6 @@
 # Readonly
 
-`Readonly` is a standard utility type.
+`Readonly<T>` is the named utility alias for deep `readonly T`.
 
 ### readonly keeps field types
 
@@ -45,7 +45,7 @@ frozen.name = "Grace";
 
 - contains: read-only
 
-### readonly is shallow
+### readonly rejects nested property writes
 
 ```ds
 interface Person {
@@ -59,3 +59,5 @@ type Frozen = Readonly<Person>;
 const frozen: Frozen = { profile: { name: "Ada" } };
 frozen.profile.name = "Grace";
 ```
+
+- contains: read-only

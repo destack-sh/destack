@@ -481,7 +481,7 @@ declare let value: Buffer<SIZE>;
 
 ### value parameter inference preserves literal values
 
-> Inferred value parameters preserve literal precision rather than widening.
+> Inferred value parameters keep literal precision.
 
 ```ds
 type Buffer<comptime N: number> = [uint8; N];

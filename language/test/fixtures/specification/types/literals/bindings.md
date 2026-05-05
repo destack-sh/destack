@@ -4,7 +4,7 @@
 
 ### const assertions keep nested literals through satisfies
 
-> `as const` values checked with `satisfies` keep nested literal precision instead of widening.
+> `as const` values checked with `satisfies` keep nested literal precision.
 
 ```ds
 const value = ({ env: { mode: "dev" } } as const) satisfies { env: { mode: string } };
