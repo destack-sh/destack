@@ -3,7 +3,7 @@ use std::sync::{Arc, Barrier};
 use std::time::{Duration, Instant};
 
 use criterion::{BenchmarkId, Criterion, Throughput};
-use destack_heap::AllocationPlan;
+use destack_heap::AllocationShape;
 use destack_mir::ReferenceMap;
 
 use crate::common::{
@@ -25,9 +25,9 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("heap_allocation");
     let reference_map = ReferenceMap::None;
     let payload = [0xAB; SMALL_BYTES];
-    let plan = AllocationPlan::new(SMALL_BYTES, 1, &reference_map);
+    let shape = AllocationShape::new(SMALL_BYTES, 1, &reference_map);
     let large_payload = vec![0xAB; LARGE_BYTES];
-    let large_plan = AllocationPlan::new(LARGE_BYTES, 1, &reference_map);
+    let large_shape = AllocationShape::new(LARGE_BYTES, 1, &reference_map);
 
     // small objects exercise the cached allocator path
     group.throughput(Throughput::Elements(SMALL_ALLOCATIONS as u64));
@@ -39,7 +39,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
             // isolate heap setup from the timed allocation run
             for _ in 0..iterations {
                 let mut heap = local_heap();
-                let layout = heap.allocation_layout(plan);
+                let layout = heap.allocation_layout(shape);
 
                 // prime the allocation run outside the timed loop
                 let warm_reference = heap
@@ -72,7 +72,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
             // isolate heap setup from the timed allocation run
             for _ in 0..iterations {
                 let mut heap = local_heap();
-                let layout = heap.allocation_layout(plan);
+                let layout = heap.allocation_layout(shape);
 
                 // prime the allocation run outside the timed loop
                 let warm_reference = heap
@@ -105,7 +105,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
             // isolate heap setup from the timed allocation run
             for _ in 0..iterations {
                 let mut fixture = shared_fixture();
-                let layout = fixture.heap.allocation_layout(plan);
+                let layout = fixture.heap.allocation_layout(shape);
 
                 // prime the allocation run outside the timed loop
                 let warm_reference = fixture
@@ -140,7 +140,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
             // isolate heap setup from the timed allocation run
             for _ in 0..iterations {
                 let mut fixture = shared_fixture();
-                let layout = fixture.heap.allocation_layout(plan);
+                let layout = fixture.heap.allocation_layout(shape);
 
                 // prime the allocation run outside the timed loop
                 let warm_reference = fixture
@@ -178,7 +178,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
             // isolate heap setup from the timed allocation run
             for _ in 0..iterations {
                 let mut heap = local_heap();
-                let layout = heap.allocation_layout(large_plan);
+                let layout = heap.allocation_layout(large_shape);
                 let start = Instant::now();
 
                 // measure large zeroed allocations through the public path
@@ -204,7 +204,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
             // isolate heap setup from the timed allocation run
             for _ in 0..iterations {
                 let mut heap = local_heap();
-                let layout = heap.allocation_layout(large_plan);
+                let layout = heap.allocation_layout(large_shape);
                 let start = Instant::now();
 
                 // measure large initialized allocations through the public path
@@ -230,7 +230,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
             // isolate heap setup from the timed allocation run
             for _ in 0..iterations {
                 let mut fixture = shared_fixture();
-                let layout = fixture.heap.allocation_layout(large_plan);
+                let layout = fixture.heap.allocation_layout(large_shape);
                 let start = Instant::now();
 
                 // measure shared large zeroed allocations through one worker cache
@@ -257,7 +257,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
             // isolate heap setup from the timed allocation run
             for _ in 0..iterations {
                 let mut fixture = shared_fixture();
-                let layout = fixture.heap.allocation_layout(large_plan);
+                let layout = fixture.heap.allocation_layout(large_shape);
                 let start = Instant::now();
 
                 // measure shared large initialized allocations through one worker cache
@@ -299,7 +299,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("local_zeroed", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let plan = AllocationPlan::new(*byte_len, 1, &reference_map);
+                let shape = AllocationShape::new(*byte_len, 1, &reference_map);
 
                 bencher.iter_custom(|iterations| {
                     let mut elapsed = Duration::ZERO;
@@ -307,7 +307,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                     // isolate heap setup from the timed allocation run
                     for _ in 0..iterations {
                         let mut heap = local_heap();
-                        let layout = heap.allocation_layout(plan);
+                        let layout = heap.allocation_layout(shape);
 
                         // prime the allocation run outside the timed loop
                         let warm_reference = heap
@@ -338,7 +338,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("local_bytes", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let plan = AllocationPlan::new(*byte_len, 1, &reference_map);
+                let shape = AllocationShape::new(*byte_len, 1, &reference_map);
                 let payload = vec![0xAB; *byte_len];
 
                 bencher.iter_custom(|iterations| {
@@ -347,7 +347,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                     // isolate heap setup from the timed allocation run
                     for _ in 0..iterations {
                         let mut heap = local_heap();
-                        let layout = heap.allocation_layout(plan);
+                        let layout = heap.allocation_layout(shape);
 
                         // prime the allocation run outside the timed loop
                         let warm_reference = heap
@@ -378,7 +378,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("shared_zeroed", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let plan = AllocationPlan::new(*byte_len, 1, &reference_map);
+                let shape = AllocationShape::new(*byte_len, 1, &reference_map);
 
                 bencher.iter_custom(|iterations| {
                     let mut elapsed = Duration::ZERO;
@@ -386,7 +386,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                     // isolate heap setup from the timed allocation run
                     for _ in 0..iterations {
                         let mut fixture = shared_fixture();
-                        let layout = fixture.heap.allocation_layout(plan);
+                        let layout = fixture.heap.allocation_layout(shape);
 
                         // prime the allocation run outside the timed loop
                         let warm_reference = fixture
@@ -419,7 +419,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("shared_bytes", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let plan = AllocationPlan::new(*byte_len, 1, &reference_map);
+                let shape = AllocationShape::new(*byte_len, 1, &reference_map);
                 let payload = vec![0xAB; *byte_len];
 
                 bencher.iter_custom(|iterations| {
@@ -428,7 +428,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                     // isolate heap setup from the timed allocation run
                     for _ in 0..iterations {
                         let mut fixture = shared_fixture();
-                        let layout = fixture.heap.allocation_layout(plan);
+                        let layout = fixture.heap.allocation_layout(shape);
 
                         // prime the allocation run outside the timed loop
                         let warm_reference = fixture
@@ -475,7 +475,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
 pub(crate) fn bench_shared_parallel_allocation(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("heap_shared_parallel_allocation");
     let reference_map = ReferenceMap::None;
-    let plan = AllocationPlan::new(SMALL_BYTES, 1, &reference_map);
+    let shape = AllocationShape::new(SMALL_BYTES, 1, &reference_map);
     group.throughput(Throughput::Elements(
         (PARALLEL_ALLOCATIONS_PER_WORKER * PARALLEL_WORKERS[0]) as u64,
     ));
@@ -497,7 +497,7 @@ pub(crate) fn bench_shared_parallel_allocation(criterion: &mut Criterion) {
                     for _ in 0..iterations {
                         let fixture = shared_fixture();
                         let shared = Arc::new(fixture.heap);
-                        let layout = shared.allocation_layout(plan);
+                        let layout = shared.allocation_layout(shape);
                         let barrier = Arc::new(Barrier::new(*worker_count + 1));
 
                         let start = Instant::now();

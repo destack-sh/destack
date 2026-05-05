@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_heap::{
-    AddressSpace, AllocationPlan, Allocator, DEFAULT_PAGE_BYTES, Heap, HeapLimits, HeapOptions,
+    AddressSpace, AllocationShape, Allocator, DEFAULT_PAGE_BYTES, Heap, HeapLimits, HeapOptions,
     HeapReference, SharedAllocator, SharedGcWorker, SharedHeap, SharedHeapLimits,
     SharedHeapReference,
 };
@@ -143,8 +143,7 @@ pub(crate) fn local_reference_array_map() -> ReferenceMap {
     ReferenceMap::Repeat {
         count: WORKLOAD_OBJECTS as u32,
         stride: REFERENCE_BYTES as u32,
-        local_offsets: Box::new([0]),
-        shared_offsets: Box::new([]),
+        element: Box::new(local_record_reference_map()),
     }
 }
 
@@ -153,8 +152,7 @@ pub(crate) fn shared_reference_array_map() -> ReferenceMap {
     ReferenceMap::Repeat {
         count: WORKLOAD_OBJECTS as u32,
         stride: REFERENCE_BYTES as u32,
-        local_offsets: Box::new([]),
-        shared_offsets: Box::new([0]),
+        element: Box::new(shared_record_reference_map()),
     }
 }
 
@@ -163,10 +161,10 @@ pub(crate) fn allocate_local_object_graph(heap: &mut Heap) -> Vec<HeapReference>
     // prepare scan maps and resolved layouts once
     let leaf_map = ReferenceMap::None;
     let record_map = local_record_reference_map();
-    let leaf_plan = AllocationPlan::new(LEAF_BYTES, 1, &leaf_map);
-    let record_plan = AllocationPlan::new(RECORD_BYTES, REFERENCE_BYTES, &record_map);
-    let leaf_layout = heap.allocation_layout(leaf_plan);
-    let record_layout = heap.allocation_layout(record_plan);
+    let leaf_shape = AllocationShape::new(LEAF_BYTES, 1, &leaf_map);
+    let record_shape = AllocationShape::new(RECORD_BYTES, REFERENCE_BYTES, &record_map);
+    let leaf_layout = heap.allocation_layout(leaf_shape);
+    let record_layout = heap.allocation_layout(record_shape);
     let mut records = Vec::with_capacity(WORKLOAD_OBJECTS);
 
     // allocate leaf and record pairs
@@ -191,21 +189,22 @@ pub(crate) fn allocate_local_object_graph(heap: &mut Heap) -> Vec<HeapReference>
 /// Allocate one shared object graph shaped like records pointing at leaf records.
 pub(crate) fn allocate_shared_object_graph(
     shared: &SharedHeap,
+    worker: &SharedGcWorker,
     allocator: &mut SharedAllocator,
 ) -> Vec<SharedHeapReference> {
     // prepare scan maps and resolved layouts once
     let leaf_map = ReferenceMap::None;
     let record_map = shared_record_reference_map();
-    let leaf_plan = AllocationPlan::new(LEAF_BYTES, 1, &leaf_map);
-    let record_plan = AllocationPlan::new(RECORD_BYTES, REFERENCE_BYTES, &record_map);
-    let leaf_layout = shared.allocation_layout(leaf_plan);
-    let record_layout = shared.allocation_layout(record_plan);
+    let leaf_shape = AllocationShape::new(LEAF_BYTES, 1, &leaf_map);
+    let record_shape = AllocationShape::new(RECORD_BYTES, REFERENCE_BYTES, &record_map);
+    let leaf_layout = shared.allocation_layout(leaf_shape);
+    let record_layout = shared.allocation_layout(record_shape);
     let mut records = Vec::with_capacity(WORKLOAD_OBJECTS);
 
     // allocate leaf and record pairs through one worker cache
     for index in 0..WORKLOAD_OBJECTS {
         let leaf = shared
-            .allocate_zeroed(allocator, &leaf_layout)
+            .allocate_zeroed(worker, allocator, &leaf_layout)
             .expect("shared leaf allocation should succeed");
         let mut record = [0u8; RECORD_BYTES];
         write_word(&mut record, 0, leaf.bits());
@@ -213,7 +212,7 @@ pub(crate) fn allocate_shared_object_graph(
 
         // copy the initialized record payload into managed memory
         let reference = shared
-            .allocate_bytes(allocator, &record_layout, &record)
+            .allocate_bytes(worker, allocator, &record_layout, &record)
             .expect("shared record allocation should succeed");
         records.push(reference);
     }
@@ -226,14 +225,14 @@ pub(crate) fn allocate_local_reference_array(heap: &mut Heap) -> HeapReference {
     // prepare the leaf layout and repeated reference layout
     let leaf_map = ReferenceMap::None;
     let array_map = local_reference_array_map();
-    let leaf_plan = AllocationPlan::new(LEAF_BYTES, 1, &leaf_map);
-    let array_plan = AllocationPlan::new(
+    let leaf_shape = AllocationShape::new(LEAF_BYTES, 1, &leaf_map);
+    let array_shape = AllocationShape::new(
         WORKLOAD_OBJECTS * REFERENCE_BYTES,
         REFERENCE_BYTES,
         &array_map,
     );
-    let leaf_layout = heap.allocation_layout(leaf_plan);
-    let array_layout = heap.allocation_layout(array_plan);
+    let leaf_layout = heap.allocation_layout(leaf_shape);
+    let array_layout = heap.allocation_layout(array_shape);
     let mut payload = vec![0u8; WORKLOAD_OBJECTS * REFERENCE_BYTES];
 
     // build the array payload from fresh leaf references
@@ -252,32 +251,33 @@ pub(crate) fn allocate_local_reference_array(heap: &mut Heap) -> HeapReference {
 /// Allocate one shared reference array backed by a repeated reference map.
 pub(crate) fn allocate_shared_reference_array(
     shared: &SharedHeap,
+    worker: &SharedGcWorker,
     allocator: &mut SharedAllocator,
 ) -> SharedHeapReference {
     // prepare the leaf layout and repeated reference layout
     let leaf_map = ReferenceMap::None;
     let array_map = shared_reference_array_map();
-    let leaf_plan = AllocationPlan::new(LEAF_BYTES, 1, &leaf_map);
-    let array_plan = AllocationPlan::new(
+    let leaf_shape = AllocationShape::new(LEAF_BYTES, 1, &leaf_map);
+    let array_shape = AllocationShape::new(
         WORKLOAD_OBJECTS * REFERENCE_BYTES,
         REFERENCE_BYTES,
         &array_map,
     );
-    let leaf_layout = shared.allocation_layout(leaf_plan);
-    let array_layout = shared.allocation_layout(array_plan);
+    let leaf_layout = shared.allocation_layout(leaf_shape);
+    let array_layout = shared.allocation_layout(array_shape);
     let mut payload = vec![0u8; WORKLOAD_OBJECTS * REFERENCE_BYTES];
 
     // build the array payload from fresh leaf references
     for index in 0..WORKLOAD_OBJECTS {
         let leaf = shared
-            .allocate_zeroed(allocator, &leaf_layout)
+            .allocate_zeroed(worker, allocator, &leaf_layout)
             .expect("shared leaf allocation should succeed");
         write_word(&mut payload, index * REFERENCE_BYTES, leaf.bits());
     }
 
     // copy the completed repeated-reference payload into the heap
     shared
-        .allocate_bytes(allocator, &array_layout, &payload)
+        .allocate_bytes(worker, allocator, &array_layout, &payload)
         .expect("shared reference array allocation should succeed")
 }
 

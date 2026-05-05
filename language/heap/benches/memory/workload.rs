@@ -44,6 +44,7 @@ pub(crate) fn bench_heap_workload(criterion: &mut Criterion) {
             |mut fixture| {
                 black_box(allocate_shared_object_graph(
                     &fixture.heap,
+                    &fixture.worker,
                     &mut fixture.allocator,
                 ))
             },
@@ -67,6 +68,7 @@ pub(crate) fn bench_heap_workload(criterion: &mut Criterion) {
             |mut fixture| {
                 black_box(allocate_shared_reference_array(
                     &fixture.heap,
+                    &fixture.worker,
                     &mut fixture.allocator,
                 ))
             },

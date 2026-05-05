@@ -10,7 +10,7 @@ use super::{
 use crate::allocator::{AddressSpace, Allocator, PageRun, PageRunCache, SizeClassTable};
 use crate::shared::gc::{SharedGcPhase, SharedGcState};
 use crate::{
-    AllocationLayout, AllocationPlan, GcState, HeapError, HeapOptions, HeapResult,
+    AllocationLayout, AllocationShape, GcState, HeapError, HeapOptions, HeapResult,
     SharedHeapReference, SharedHeapSpaceUsage, SmallSpanClass, allocation_layout,
 };
 
@@ -136,13 +136,13 @@ impl SharedHeapSpace {
         self.allocator.page_bytes()
     }
 
-    /// Resolve one allocation plan against this shared heap space.
+    /// Resolve one allocation shape against this shared heap space.
     #[inline(always)]
-    pub(crate) fn allocation_layout<'a>(&self, plan: AllocationPlan<'a>) -> AllocationLayout<'a> {
+    pub(crate) fn allocation_layout<'a>(&self, shape: AllocationShape<'a>) -> AllocationLayout<'a> {
         let store = self.state.read();
 
         allocation_layout(
-            plan,
+            shape,
             &store.small.size_classes,
             self.allocator.page_bytes(),
             store.small.span_bytes,

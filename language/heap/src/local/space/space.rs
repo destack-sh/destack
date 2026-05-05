@@ -9,7 +9,7 @@ use super::{
 };
 use crate::allocator::{AddressSpace, Allocator, PageRun, PageRunCache, SizeClassTable};
 use crate::{
-    AllocationLayout, AllocationPlan, CowTable, HeapError, HeapOptions, HeapReference, HeapResult,
+    AllocationLayout, AllocationShape, CowTable, HeapError, HeapOptions, HeapReference, HeapResult,
     HeapSpaceUsage, SmallSpanClass, TraceQueue, TraceReference, allocation_layout,
     allocation_reference_map, slot_reference_map,
 };
@@ -688,11 +688,11 @@ impl HeapSpace {
         class.bucket_index(&self.small.size_classes)
     }
 
-    /// Resolve one allocation plan against this heap space.
+    /// Resolve one allocation shape against this heap space.
     #[inline(always)]
-    pub(crate) fn allocation_layout<'a>(&self, plan: AllocationPlan<'a>) -> AllocationLayout<'a> {
+    pub(crate) fn allocation_layout<'a>(&self, shape: AllocationShape<'a>) -> AllocationLayout<'a> {
         allocation_layout(
-            plan,
+            shape,
             &self.small.size_classes,
             self.allocator.page_bytes(),
             self.small.span_bytes,
