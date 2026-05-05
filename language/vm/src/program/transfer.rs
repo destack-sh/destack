@@ -68,8 +68,8 @@ pub(crate) enum Transfer {
     Yield {
         /// The value yielded to the caller.
         value: Word,
-        /// The MIR value that produced the yielded value.
-        source: mir::Value,
+        /// The yielded value type.
+        source_type: mir::LocalNodeId<mir::Type>,
         /// The frame state captured in the continuation.
         frame_state: engine::FrameStateId,
     },

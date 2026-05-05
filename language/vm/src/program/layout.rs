@@ -7,6 +7,8 @@ use crate::{Error, Result, Word};
 
 const SLICE_DATA_FIELD: u32 = 0;
 const SLICE_LENGTH_FIELD: u32 = 1;
+const BYTE_BITS: usize = 8;
+const WORD_BITS: usize = Word::BYTE_LEN * BYTE_BITS;
 
 /// One compiled layout for one MIR type.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -222,15 +224,18 @@ impl LayoutIndex {
         self.layout_id_by_type.get(&ty).copied()
     }
 
-    /// Return one heap allocation plan.
-    pub(crate) fn allocation_plan(&self, layout_id: LayoutId) -> Result<heap::AllocationPlan<'_>> {
+    /// Return one heap allocation shape.
+    pub(crate) fn allocation_shape(
+        &self,
+        layout_id: LayoutId,
+    ) -> Result<heap::AllocationShape<'_>> {
         let Some(layout) = self.table.layouts.get(layout_id.index()) else {
             return Err(Error::InvariantViolation {
                 context: format!("missing allocation layout {layout_id:?}"),
             });
         };
 
-        Ok(heap::AllocationPlan::new(
+        Ok(heap::AllocationShape::new(
             layout.size as usize,
             layout.alignment as usize,
             &layout.reference_map,
@@ -469,7 +474,7 @@ fn raw_scalar_size_alignment(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) 
         mir::Type::Void => (0, 1),
         mir::Type::Boolean => (1, 1),
         mir::Type::Int { width, .. } => {
-            let byte_len = (*width as usize).div_ceil(8);
+            let byte_len = scalar_byte_len(*width as usize);
 
             (byte_len, byte_len.clamp(1, 8))
         }
@@ -495,6 +500,27 @@ fn raw_scalar_size_alignment(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) 
         }
         _ => unreachable!("raw scalar layout requested for non scalar type"),
     }
+}
+
+/// Return the canonical byte width for one scalar bit width.
+fn scalar_byte_len(bit_width: usize) -> usize {
+    if bit_width <= 8 {
+        return 1;
+    }
+
+    if bit_width <= 16 {
+        return 2;
+    }
+
+    if bit_width <= 32 {
+        return 4;
+    }
+
+    if bit_width <= WORD_BITS {
+        return Word::BYTE_LEN;
+    }
+
+    bit_width.div_ceil(BYTE_BITS)
 }
 
 /// Build one record layout from one ordered field type list.
