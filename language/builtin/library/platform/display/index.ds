@@ -1,9 +1,0 @@
-export declare namespace display {}
-
-export * from "./backend.ds";
-export * from "./drag.ds";
-export * from "./frame.ds";
-export * from "./monitor.ds";
-export * from "./monitor_event.ds";
-export * from "./window.ds";
-export * from "./window_event.ds";

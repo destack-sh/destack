@@ -1,6 +1,0 @@
-export * from "./intrinsic/index.ds";
-export * from "./memory/index.ds";
-export * from "./operator/index.ds";
-export * from "./reflect/index.ds";
-export * from "./control/index.ds";
-export * from "./primitive/index.ds";

@@ -1,9 +1,0 @@
-/// Interface for user-facing string representation.
-export newtype interface Display {
-    display(): string;
-}
-
-/// Interface for developer-facing string representation.
-export newtype interface Debug {
-    debug(): string;
-}

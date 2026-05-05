@@ -1,2 +1,0 @@
-/// Filesystem API for the Destack runtime.
-export declare namespace fs {}

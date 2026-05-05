@@ -1,7 +1,0 @@
-export declare namespace audio {}
-
-export * from "./backend.ds";
-export * from "./clock.ds";
-export * from "./device.ds";
-export * from "./event.ds";
-export * from "./stream.ds";

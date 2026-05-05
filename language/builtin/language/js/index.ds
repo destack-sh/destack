@@ -1,6 +1,0 @@
-// core collections (ambient)
-export { Slice } from "./collections/index.ds";
-export type { FixedArray } from "./collections/index.ds";
-
-// simd (ambient)
-export type { Vector } from "native";
