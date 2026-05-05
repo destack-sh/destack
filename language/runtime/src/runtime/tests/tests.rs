@@ -306,8 +306,8 @@ impl TestWorld {
             .expect("runtime should keep its primary worker");
         let bytes = value.to_byte_array();
         let reference_map = ReferenceMap::empty();
-        let plan = heap::AllocationPlan::new(bytes.len(), 1, &reference_map);
-        let layout = worker.heap.allocation_layout(plan);
+        let shape = heap::AllocationShape::new(bytes.len(), 1, &reference_map);
+        let layout = worker.heap.allocation_layout(shape);
 
         worker
             .heap
