@@ -2,7 +2,7 @@ use crate::LintMeta;
 use std::sync::LazyLock;
 
 use destack_ast as ast;
-use destack_builtin::LanguageSymbol;
+use destack_dir::LanguageSymbol;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 

@@ -5,8 +5,7 @@ use destack_artifact::{
     WellKnownSymbols,
 };
 use destack_ast::{StringId, StringPool};
-use destack_builtin::LanguageSymbol;
-use destack_dir::WellKnownSymbol;
+use destack_dir::{LanguageSymbol, WellKnownSymbol};
 use destack_source::{EditBuilder, File, FileId, ModuleId, PackageId, Span};
 use destack_workspace::{
     LintSeverity, LinterOptions, Module, Package, Profile, ProfileId, Repository, Revision,
@@ -18,7 +17,7 @@ use crate::linter::artifact::{
     read_ambient_environment, read_ast, read_dir_checked, read_dir_declared, read_dir_exported,
     read_language_environment,
 };
-use crate::linter::library::is_builtin_library_module;
+use crate::linter::library::is_library_module;
 use crate::{
     ConstValue, GLOBAL_QUALIFIER_SYMBOLS, LintDirAnalysisCache, LintMeta, LintReport,
     LintRequirement,
@@ -364,7 +363,7 @@ impl<'a> LintModuleDirContext<'a> {
             .ambient_modules
             .iter()
             .filter_map(|module_id| self.repository_module(*module_id))
-            .any(|module| is_builtin_library_module(module.as_ref(), libs))
+            .any(|module| is_library_module(module.as_ref(), libs))
     }
 
     /// Check if a rule is supported.

@@ -14,7 +14,6 @@ doctest = false
 [dependencies]
 destack_artifact = { workspace = true }
 destack_ast = { workspace = true }
-destack_builtin = { path = "../builtin", default-features = false }
 destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_linter_macros = { workspace = true }
