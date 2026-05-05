@@ -32,9 +32,9 @@ Some JS/TS syntax and legacy behavior is either ambiguous, obsolete, or just not
   Where Flow and TS overlap we obviously support both, but we do no special JSDoc analysis.
 - **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript.
   Non-strict ("sloppy mode") behaviors like duplicate function declarations, `arguments` magic, `caller` / `callee`, or `yield` as an identifier are not supported.
-- **`any`**: Portable `.ds` uses `unknown` as the top type.
+- **`any`**: `.ds` uses `unknown` as the top type.
   TypeScript `any` is rejected because it makes arbitrary property access, calls, and assignments appear valid without proof.
-  Existing TS code must narrow through `unknown`, use explicit casts at interop boundaries, or stay outside portable Destack.
+  Existing TS code must narrow through `unknown` or use explicit casts at interop boundaries.
 - **Definite assignment assertions**: `let x!: T` and `field!: T` are rejected in `.ds`.
   Locals and fields must be actually initialized before use, either by an initializer or by ordinary definite assignment analysis.
 - **XML namespace resolution**: Destack does not implement XML `xmlns` namespace binding semantics.
@@ -60,7 +60,7 @@ Destack instead uses typed protocols, declared members, static members, and exte
 
 - **Thenables**: `await` does not mean "anything with a `.then` property". It targets `Promise<T>` or another typed async protocol.
 - **Coercion hooks**: `valueOf`, `toString`, and `Symbol.toPrimitive` do not participate in implicit object coercion. Use explicit conversions, formatting/display protocols, interpolation, or operator overloads.
-- **Loose equality coercion**: Object coercion through `==` and `!=` is not part of portable `.ds`.
+- **Loose equality coercion**: Object coercion through `==` and `!=` is not part of `.ds`.
 - **Well-known symbol magic**: `Symbol.hasInstance`, `Symbol.species`, `Symbol.isConcatSpreadable`, and similar hooks are not language semantics. Iteration can still exist as a typed `Iterable<T>` protocol, even if a JS target lowers it to symbols.
 - **Implicit call and construct hooks**: Arbitrary `[[Call]]`, `[[Construct]]`, and `Function.prototype.call` / `apply` / `bind` are not implicit members. Callable and constructable values must have declared callable or constructable types.
 
@@ -81,17 +81,27 @@ Destack extends TypeScript's type system with precise primitives, nominal types 
 ### Primitives
 
 TypeScript inherits its primitive types from JavaScript: `object`, `string`, `boolean`, `number`, `bigint`, and `symbol`, plus the `null` and `undefined` sentinels.
-Destack adds precise numeric types beyond `number` with variable width signed and unsigned integers (`int8`, `uint32`, `int17`) as well as single and double precision floats (`float32`, `float64`).
-`number` is just an alias to `float64`.
+Destack extends and refines the primitive type system:
+
+- precise numeric types beyond `number`, with variable-width signed and unsigned integers (`int8`, `uint32`, `int17`) as well as single and double precision floats (`float32`, `float64`)
+- pointer-sized integers, i.e. integers as wide as the target pointer size, spelled `isize` and `usize`
+- `number` as an alias to `float64`
+- `character` as a single Unicode scalar value, distinct from `string`
+- `unknown` as the explicit top type
+- `never` as the explicit bottom type
+- no `any`
+
+In code:
 
 ```ds
 const id: uint64 = 12345;
 const balance: float32 = 100.50;
 const n: number = 1.0;
 n satisfies float64;
-```
 
-Pointer-sized integers - that integers that are as wide as the target's pointer size - are spelled `isize` and `usize`, respectively.
+const initial: character = 'A';
+const input: unknown = readInput();
+```
 
 ### Newtypes
 
@@ -108,16 +118,18 @@ type OrderTag = string;
 "invalid" satisfies OrderTag; // OK, TS still happy, also ouch
 ```
 
-With explicit `newtype`, receiver types must be explicitly cast into their nominal form:
+With explicit `newtype`, backing values do not satisfy the nominal type on their own:
+
 ```ds
 newtype UserId = number;
-0 satisfies number; // ERROR!
+const userId: UserId = 0; // error
 
 newtype OrderTag = string;
-"invalid" satisfies OrderTag; // ERROR!
+const orderTag: OrderTag = "invalid"; // error
 ```
 
-To actually cast a value to a newtype we use explicit `T(..)` style construction, like:
+To construct a newtype value, use explicit `T(..)` call syntax:
+
 ```ds
 newtype UserId = number;
 UserId(1) satisfies UserId;
@@ -129,8 +141,8 @@ newtype Point = (number, number);
 Point(1, 2) satisfies Point;
 
 newtype Rectangle = {
-    start: Point,
-    end: Point,
+    start: Point;
+    end: Point;
 }
 Rectangle({ start: Point(0, 0), end: Point(1, 1) }) satisfies Rectangle;
 
@@ -138,9 +150,20 @@ newtype AuthenticatedUser = User;
 AuthenticatedUser(user) satisfies AuthenticatedUser;
 ```
 
+Newtypes are representation-transparent to the compiler but opaque to the type system.
+Construction and projection across the backing boundary are both explicit and zero-cost:
+
+```ds
+const id = UserId(1);
+const raw = id as number;
+```
+
+Newtype construction always uses call syntax, even when the backing type is an object.
+That keeps nominal object wrappers visually distinct from `struct` construction.
+
 ### Newtype Interfaces
 
-Newtype aliases add nominality to any type, and Destack thus also supports **nominal interfaces** using the `newtype` modifier on `interface` declarations as a convience.
+Newtype aliases add nominality to any type, and Destack thus also supports **nominal interfaces** using the `newtype` modifier on `interface` declarations as a convenience.
 This makes newtype interfaces behave essentially like traits in other languages.
 
 ```ds
@@ -730,7 +753,6 @@ let Some(value) = maybe else {
 
 Guards are boolean expressions that can refine types in the branch where they are known.
 That includes the familiar TypeScript forms whose meaning the compiler can check directly: `typeof value == "string"`, `"name" in value`, and `instanceof`.
-(Predicate functions like `function isUser(user: any): asserts value is T` are not supported since they are not definitively sound.)
 Destack also adds an additional `value is T`, which asks whether the current runtime representation of `value` carries the case or identity for `T`:
 
 ```ds
