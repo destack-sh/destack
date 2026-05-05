@@ -78,9 +78,9 @@ clone({ merge() {} });
 
 ## values
 
-### comptime value parameters accept matching arguments
+### static value parameters accept matching arguments
 
-> Comptime value parameters can also declare constraints.
+> Static value parameters can also declare constraints.
 
 ```ds
 function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {
@@ -91,9 +91,9 @@ const bytes = take<4>([1, 2, 3, 4]);
 bytes satisfies [uint8; 4];
 ```
 
-### comptime value parameters reject mismatched arguments
+### static value parameters reject mismatched arguments
 
-> Comptime value arguments must satisfy their declared constraint.
+> Static value arguments must satisfy their declared constraint.
 
 ```ds
 function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {

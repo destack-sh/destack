@@ -1,34 +1,34 @@
 # Static If Classes
 
-Static if gating on class members.
+Class members can be gated with `@if`.
 
 ## gating
 
-### static if gates class members
+### when false, `@if` removes class members
 
-> Class members gated by static if are removed before resolution.
+When false, `@if` removes class members.
 
 ```ds
 class Box {
-    @if(import.meta.emit == "js" && import.meta.emit == "native")
+    @if(false)
     missing: MissingType;
 
-    @if(import.meta.emit == "js" && import.meta.emit == "native")
+    @if(false)
     missingMethod(): MissingType {
         return missingSymbol;
     }
 
-    @if(import.meta.emit == "js" && import.meta.emit == "native")
+    @if(false)
     get missingAccessor(): MissingType {
         return missingSymbol;
     }
 
-    @if(import.meta.emit == "js" && import.meta.emit == "native")
+    @if(false)
     set missingSetter(value: MissingType) {
         missingSymbol;
     }
 
-    @if(import.meta.emit == "js" && import.meta.emit == "native")
+    @if(false)
     static missingStatic(): MissingType {
         return missingSymbol;
     }
@@ -37,9 +37,9 @@ class Box {
 }
 ```
 
-### static if keeps class members when true
+### when true, `@if` includes class members
 
-> Class members gated by true static if conditions remain available.
+When true, `@if` includes class members.
 
 ```ds
 class Box {
@@ -57,9 +57,9 @@ const total = box.increment();
 total satisfies number;
 ```
 
-### static if gated class members are not visible
+### when false, `@if` hides class members
 
-> Members removed by static if are not available during member access.
+When false, members behind `@if` are not available during member access.
 
 ```ds
 class Box {
@@ -75,9 +75,9 @@ box.missing satisfies number;
 
 - contains: does not exist
 
-### static if also gates static class members
+### when false, `@if` hides static class members
 
-> Static class members removed by static if are not available on the constructor.
+When false, static members behind `@if` are not available on the constructor.
 
 ```ds
 class Box {
@@ -91,4 +91,3 @@ Box.missing() satisfies number;
 ```
 
 - contains: does not exist
-

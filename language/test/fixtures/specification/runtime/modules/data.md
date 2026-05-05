@@ -105,7 +105,7 @@ data;
 
 ### property access on imported JSON is typed
 
-Imported JSON properties expose their inferred types.
+Imported JSON properties keep literal types.
 
 ```json:data.json
 { "name": "Alice", "age": 30 }
@@ -114,13 +114,13 @@ Imported JSON properties expose their inferred types.
 ```ds:main.ds
 import data from "./data.json";
 
-data.name satisfies string;
-data.age satisfies number;
+data.name satisfies "Alice";
+data.age satisfies 30;
 ```
 
 ### nested object property access is typed
 
-> Nested object properties are typed.
+> Nested object properties keep literal types.
 
 ```json:config.json
 {
@@ -132,14 +132,14 @@ data.age satisfies number;
 ```ds:main.ds
 import config from "./config.json";
 
-config.server.host satisfies string;
-config.server.port satisfies number;
-config.debug satisfies boolean;
+config.server.host satisfies "localhost";
+config.server.port satisfies 8080;
+config.debug satisfies true;
 ```
 
-### array import has element type
+### array imports are tuples
 
-> Array imports expose their element type.
+> Array imports keep literal tuple shape.
 
 ```json:numbers.json
 [1, 2, 3]
@@ -148,7 +148,29 @@ config.debug satisfies boolean;
 ```ds:main.ds
 import numbers from "./numbers.json";
 
-numbers[0] satisfies number;
+numbers satisfies readonly [1, 2, 3];
+numbers[0] satisfies 1;
+numbers[2] satisfies 3;
+```
+
+### imported JSON can be widened
+
+Imported JSON can flow into a broader annotated type.
+
+```json:data.json
+{ "name": "Alice", "age": 30 }
+```
+
+```ds:main.ds
+interface User {
+    name: string;
+    age: number;
+}
+
+import data from "./data.json";
+
+const user: User = data;
+user.name satisfies string;
 ```
 
 ### nonexistent property access is error

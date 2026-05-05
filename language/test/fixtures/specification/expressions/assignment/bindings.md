@@ -2,33 +2,33 @@
 
 ## definite assignment
 
-### let bindings allow definite assignment assertions
+### reads require prior assignment
 
-> Definite assignment assertions allow a binding to be written before first use.
-
-```ds
-let value!: string;
-value = "ready";
-value satisfies string;
-```
-
-### definite assignment assertions require writes before reads
-
-> A definite assignment assertion does not make an unwritten binding readable.
+> A declared local must be assigned before it is read.
 
 ```ds
-let value!: string;
+let value: string;
 value satisfies string;
 ```
 
 - contains: definitely assigned
 
-### definite assignment assertions still enforce declared types
+### writes make locals readable
 
-> Definite assignment assertions do not weaken declared type rules.
+> A declared local becomes readable after assignment.
 
 ```ds
-let value!: string;
+let value: string;
+value = "ready";
+value satisfies string;
+```
+
+### writes check declared types
+
+> Assignment still checks the declared type.
+
+```ds
+let value: string;
 value = 1;
 ```
 

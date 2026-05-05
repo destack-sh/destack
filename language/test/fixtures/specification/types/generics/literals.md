@@ -336,3 +336,73 @@ parse(value);
 ```
 
 - contains: not assignable
+
+## source bindings
+
+### constrained calls do not change later let bindings
+
+A constrained generic call keeps its own literal result, but a later `let` from the same source still widens.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+const seed = "users";
+const kept = as_lit(seed);
+let widened = seed;
+
+kept satisfies "users";
+widened satisfies string;
+```
+
+### later let bindings do not regain literals
+
+The widened binding is not assignable to the original literal type.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+const seed = "users";
+const kept = as_lit(seed);
+let widened = seed;
+
+widened satisfies "users";
+```
+
+- contains: not assignable
+
+### imported constrained calls keep local widening
+
+Cross-module calls use the imported signature, and the later `let` is still inferred locally.
+
+```ds:lib.ds
+export function as_lit<T extends string>(value: T): T {
+    return value;
+}
+```
+
+```ds:main.ds
+import { as_lit } from "./lib";
+
+const seed = "users";
+const kept = as_lit(seed);
+let widened = seed;
+
+kept satisfies "users";
+widened satisfies string;
+```
+
+### parameter defaults are widened sources
+
+Default parameter values infer the parameter type, not a fresh literal.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+function read(mode = "users") {
+    const kept = as_lit(mode);
+    let widened = mode;
+
+    kept satisfies string;
+    widened satisfies string;
+}
+```

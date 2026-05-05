@@ -1,12 +1,12 @@
 # Static If Extensions
 
-Static if gating on extension members.
+Extension members can be gated with `@if`.
 
 ## gating
 
-### static if gates extension members
+### when false, `@if` removes extension members
 
-> Extension members gated by static if are removed before resolution.
+When false, `@if` removes extension members.
 
 ```ds
 struct Box {
@@ -14,7 +14,7 @@ struct Box {
 }
 
 extension of Box {
-    @if(import.meta.emit == "js" && import.meta.emit == "native")
+    @if(false)
     missing(): MissingType {
         return missingSymbol;
     }
@@ -30,9 +30,9 @@ const box = makeBox();
 box.get() satisfies number;
 ```
 
-### static if keeps extension members when true
+### when true, `@if` includes extension members
 
-> Extension members gated by true static if conditions remain available.
+When true, `@if` includes extension members.
 
 ```ds
 struct Box {
@@ -52,9 +52,9 @@ const box = makeBox();
 box.get() satisfies number;
 ```
 
-### static if gated extension members are not visible
+### when false, `@if` hides extension members
 
-> Extension members removed by static if are not available during member resolution.
+When false, extension members behind `@if` are not available during member resolution.
 
 ```ds
 struct Box {
@@ -80,9 +80,9 @@ box.missing() satisfies number;
 
 - contains: does not exist
 
-### static if gated extension members do not interfere with remaining members
+### when false, `@if` leaves other extension members alone
 
-> Disabled extension members do not change resolution of enabled members.
+Disabled extension members do not change resolution of enabled members.
 
 ```ds
 struct Box {
@@ -111,9 +111,9 @@ box.get() satisfies number;
 box.increment() satisfies number;
 ```
 
-### static if true extension members remain resolvable
+### when true, `@if` keeps extension members resolvable
 
-> Extension members gated with true remain available in member resolution.
+When true, extension members behind `@if` remain available in member resolution.
 
 ```ds
 struct Box {

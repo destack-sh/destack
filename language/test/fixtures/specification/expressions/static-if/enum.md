@@ -1,24 +1,24 @@
 # Static If Enums
 
-Static if gating on enum fields.
+Enum fields can be gated with `@if`.
 
 ## gating
 
-### static if gates enum fields
+### when false, `@if` removes enum fields
 
-> Enum fields gated by static if are removed before resolution.
+When false, `@if` removes enum fields.
 
 ```ds
 enum Status {
-    @if(import.meta.emit == "js" && import.meta.emit == "native")
+    @if(false)
     Missing = missingSymbol,
     Visible = 1,
 }
 ```
 
-### static if keeps enum fields when true
+### when true, `@if` includes enum fields
 
-> Enum fields gated by true static if conditions remain available.
+When true, `@if` includes enum fields.
 
 ```ds
 enum Status {
@@ -31,9 +31,9 @@ const active = Status.Active;
 active satisfies Status;
 ```
 
-### static if gated enum fields are not visible
+### when false, `@if` hides enum fields
 
-> Enum fields removed by static if are not available by name.
+When false, enum fields behind `@if` are not available by name.
 
 ```ds
 enum Status {
@@ -48,9 +48,9 @@ value satisfies Status;
 
 - contains: does not exist
 
-### static if gated enum members do not affect remaining members
+### when false, `@if` leaves other enum fields alone
 
-> Disabled enum members do not affect lookup of enabled members.
+Disabled enum fields do not affect lookup of enabled fields.
 
 ```ds
 enum Status {
@@ -64,9 +64,9 @@ const ready = Status.Ready;
 ready satisfies Status;
 ```
 
-### static if true enum members remain available
+### when true, `@if` keeps enum fields available
 
-> Enum members gated with true remain available by name.
+When true, enum fields behind `@if` remain available by name.
 
 ```ds
 enum Status {

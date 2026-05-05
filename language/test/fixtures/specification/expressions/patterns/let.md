@@ -2,7 +2,7 @@
 
 ## literals
 
-### let else accepts literal patterns
+### let else matches literals
 
 > Literal patterns can be used when the failure branch exits.
 
@@ -16,7 +16,7 @@ function parse(value: "ok" | "bad"): int32 {
 }
 ```
 
-### let else narrows after the binding
+### let else narrows after success
 
 > After a literal pattern succeeds, the source value is narrowed.
 
@@ -32,7 +32,7 @@ function parse(value: "ok" | "bad"): "ok" {
 
 ## newtypes
 
-### let else destructures scalar newtypes
+### let else destructures newtypes
 
 > Newtype patterns can bind their inner value.
 
@@ -50,7 +50,7 @@ function read(id: UserId): int64 {
 
 ## structs
 
-### let else destructures tagged structs
+### let else destructures structs
 
 > Struct patterns use the nominal tag.
 
@@ -69,7 +69,7 @@ function read(point: Point): int32 {
 }
 ```
 
-### let else requires an else branch for refutable patterns
+### refutable let patterns need else
 
 > Refutable patterns need an else continuation.
 
@@ -81,3 +81,68 @@ function parse(value: "ok" | "bad"): int32 {
 ```
 
 - contains: else
+
+## tuples
+
+### let else destructures tuples
+
+Tuple patterns bind after the pattern succeeds.
+
+```ds
+function read(value: (int32, string) | null): int32 {
+    let (count, label) = value else {
+        return 0;
+    };
+
+    label satisfies string;
+    count
+}
+```
+
+## arrays
+
+### let else destructures fixed arrays
+
+Array patterns bind after the pattern succeeds.
+
+```ds
+function read(values: [int32; 2] | null): int32 {
+    let [first, second] = values else {
+        return 0;
+    };
+
+    first + second
+}
+```
+
+### let else destructures array rest
+
+Rest patterns keep the remaining fixed array elements.
+
+```ds
+function read(values: [int32; 3] | null): int32 {
+    let [first, ...rest] = values else {
+        return 0;
+    };
+
+    rest satisfies [int32; 2];
+    first
+}
+```
+
+## objects
+
+### let else destructures objects
+
+Object patterns bind after the pattern succeeds.
+
+```ds
+function read(value: { id: int32, name: string } | null): int32 {
+    let { id, name } = value else {
+        return 0;
+    };
+
+    name satisfies string;
+    id
+}
+```

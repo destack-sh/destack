@@ -36,6 +36,6 @@ y satisfies float32;
 ```ds
 newtype Config = { debug: boolean };
 
-let Config { debug } = Config { debug: true };
+let Config { debug } = Config({ debug: true });
 debug satisfies boolean;
 ```

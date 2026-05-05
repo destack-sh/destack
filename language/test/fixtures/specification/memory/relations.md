@@ -87,6 +87,21 @@ declare const ownership: OwnershipOf<WithSpace<^Cell, "shared">>;
 ownership satisfies "owned";
 ```
 
+### WithSpace accepts static spaces
+
+`WithSpace` can use a static space parameter.
+
+```ds
+struct Cell {
+    value: int32;
+}
+
+type CellIn<comptime S: Space> = WithSpace<Cell, S>;
+
+declare const cell: CellIn<"shared">;
+cell satisfies shared Cell;
+```
+
 ### WithOwnership preserves placement
 
 Changing ownership does not change placement.

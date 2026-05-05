@@ -26,7 +26,7 @@ const raw: int64 = UserId(42);
 
 - contains: not assignable
 
-## nominal identity
+## nominality
 
 ### matching newtype aliases remain assignable to themselves
 
@@ -49,6 +49,27 @@ newtype OrderId = int64;
 
 const user = UserId(42);
 const order: OrderId = user;
+```
+
+- contains: not assignable
+
+### imported newtypes remain distinct
+
+> Imported newtypes remain distinct even when their backing types match.
+
+```ds:left.ds
+export newtype UserId = int64;
+```
+
+```ds:right.ds
+export newtype UserId = int64;
+```
+
+```ds:main.ds
+import { UserId as LeftUserId } from "./left.ds";
+import { UserId as RightUserId } from "./right.ds";
+
+const id: LeftUserId = RightUserId(42);
 ```
 
 - contains: not assignable

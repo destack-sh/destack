@@ -6,13 +6,13 @@ Function annotations are resolved expressions on function-like declarations and 
 
 ### function metadata preserves the call signature
 
-> Metadata on a function does not wrap or replace the function.
+> Metadata on a function attaches a static value and leaves the function itself unchanged.
 
 ```ds
 newtype Label = { value: string };
 
 function label(value: string): Label {
-    Label({ value })
+    return Label({ value });
 }
 
 @label("filesystem")

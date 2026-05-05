@@ -24,6 +24,7 @@ extension of Point implements Describable {
 declare function getPoint(): Point;
 
 const point = getPoint();
+point satisfies Describable;
 point.describe() satisfies string;
 ```
 
@@ -50,6 +51,8 @@ extension of Document implements Printable, Serializable {
 declare function getDocument(): Document;
 
 const document = getDocument();
+document satisfies Printable;
+document satisfies Serializable;
 document.print();
 document.serialize() satisfies string;
 ```

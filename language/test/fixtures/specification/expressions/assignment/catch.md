@@ -32,7 +32,7 @@ try {
 
 ### catch annotations allow unknown
 
-> Catch annotations accept `unknown`.
+`unknown` is the only allowed catch annotation.
 
 ```ts:main.ts
 try {
@@ -44,7 +44,7 @@ try {
 
 ### catch annotations reject concrete types
 
-> Catch annotations only allow `unknown`.
+Concrete catch annotations are not filters.
 
 ```ts:main.ts
 try {
