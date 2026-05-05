@@ -269,8 +269,8 @@ Unfortunately, not much syntax was left here, so we had to adopt the slightly no
 
 | Forms | Meaning |
 |------|---------|
-| `T[]`, `Array<T>` | Dynamic, homnogenous, dense array |
-| `[T]`, `Slice<T>` | Fixed, homogenous slice into dense array |
+| `T[]`, `Array<T>` | Dynamic, homogeneous, dense array |
+| `[T]`, `Slice<T>` | Fixed, homogeneous slice into dense array |
 | `[T; N]`, `FixedArray<T, N>` | Fixed, owned sequence of values |
 | `(A, B)` | Sequence of heterogenous, owned values |
 
@@ -328,27 +328,108 @@ const empty: () = ();
 
 ### Generics
 
-Destack keeps TypeScript-shaped generics and extends generic parameter lists with compile-time value parameters.
-Type parameters still use TypeScript-style inference, constraints, defaults, conditional types, mapped types, and indexed access types.
-Compile-time value parameters are ordinary generic parameters whose values are known during static evaluation.
+Destack keeps TypeScript-shaped generics: inference, constraints, defaults, conditional types, mapped types, indexed access types, and the rest of the usual machinery.
+The main addition is that generic parameters can also be _values_ that are then subtsituted into expressions and are available during inference.
+To distinguish static value parameter from static type parameters, we use the `comptime` modifier:
 
 ```ds
 type Buffer<comptime N: uint> = [uint8; N];
+```
 
-function repeat<comptime N: uint>(value: string): string {
-    let result = "";
+Note that generic bounds in Destack can use the cleaner `<T: Constraint>` form, just like dynamic parameters.
+Unlike with `comptime <expr>` (discussed later), the `comptime` modifier merely means that `N` is a generic value parameter that has to be evaluatable during inference.
+
+```ds
+function copy<T, comptime N: uint>(src: [T; N]): [T; N] {
+    let dst: [T; N];
+
     @unroll(N)
     for (let i = 0; i < N; i++) {
-        result += value;
+        dst[i] = src[i];
     }
-    result
+    dst
 }
 ```
+
+Type inference is local and flows outward.
+A module can infer static facts from its own declarations and imports, and downstream modules can use those exported facts.
+Downstream uses do not feed back into upstream inference.
+
+```ds:a.ds
+declare function length<T, comptime N: uint>(xs: [T; N]): N;
+
+export const RGB: [uint8; 3] = [255, 128, 0];
+export const N = length(RGB);
+
+N satisfies 3;
+```
+
+```ds:b.ds
+import { N } from "./a.ds";
+
+declare function double<comptime N: uint>(): N * 2;
+
+export const M = double<N>();
+
+N satisfies 3;
+M satisfies 6;
+```
+
+### Static
+
+One fundamental task of the language is turning text into something executable, and along the way we have to decide what every symbol actually means.
+More specifically, since unlike TypeScript, Destack actually _compiles_, we need to figure out during "compile time" the final type of each value and fill in values for all the known constants.
+To do this, the "evaluation time" of the program is conceptually split into three worlds (that only flow forward):
+
+| World | Meaning | Example |
+|-------|---------|---------|
+| Static | compiler-known types, values, and relations | `T`, `N`, `this.Width`, `T extends string` |
+| Comptime | ordinary code explicitly evaluated by the compiler | `comptime factorial(10)` |
+| Runtime | ordinary program execution | `readFile(path)`, `worker.postMessage(msg)` |
+
+The inference-known pieces are **static terms**: static evaluation is what we do automatically during inference, and it is restricted to a small subset of the language (like TypeScript type operators), and it does _not_ execute `comptime <expr>` expressions.
+Static terms can include primitive inputs, imported facts, and expressions built from other static terms:
+
+| Input | Example |
+|-------|---------|
+| Type parameters | `T` |
+| Static value parameters | `N` in `function f<comptime N: uint>()` |
+| Type aliases and generic applications | `Buffer<N>`, `Payload<T>` |
+| Associated types and constants | `I.Item`, `Register.Width` |
+| Static `const`s and imported static terms | `N` imported from `./a.ds` |
+| Enum members and nominal constants | `OperatingSystem.Windows` |
+| Literal values | `4`, `"shared"`, `true` |
+| Static operators | `N * 2`, `Space == "shared"` |
+| Module and profile metadata | `import.meta.target.os` |
+| Type operators and relations | `keyof T`, `T[K]`, `T extends string` |
+| Type/layout intrinsics | `sizeOf<T>()`, `alignOf<T>()` |
+
+Static terms are required wherever the language needs an inference-known answer: fixed array lengths, conditional types, associated members, static decorators, layout queries, and placement algebra.
+Type inference may flow _out_ of modules, but Destack does not support circular imports or inference across modules in any way.
+
+```ds
+type Block<comptime N: uint> = [uint8; N];
+type Payload<T> = T extends string ? Utf8Payload : BinaryPayload;
+
+struct Buffer<T, comptime Space: Space> {
+    @if(Space == "shared")
+    lock: SharedLock;
+
+    @if(Space == "local")
+    lock: LocalLock;
+
+    data: T[];
+}
+```
+
+All static terms in this example are local. 
+When inference substitutes the explicit and inferred generic arguments, the static terms are evaluated at "static time" into some concrete shape.
 
 ### Associated Types and Constants
 
 Associated types and constants contribute static members to a type that can be reused within the type and implementors but does not need to be exposed to every single caller.
-Both associated types and constants also work in abstract types, in much the way we would expect.
+Both associated types and constants also work in abstract types, and they do not occupy any instance space on the type.
+As described above, all statically known types and constants use the same static evaluation logic, and thus associated types and constants also mix with generic parameters, conditional types, decorators, and so on.
 
 ```ds
 interface Iterator {
@@ -372,21 +453,22 @@ interface Allocator {
 }
 ```
 
-Associated types can have their _own_ generic parameters with the same generic parameter forms as ordinary declarations, including type parameters and `comptime` value parameters.
-That matters for APIs where the implementor chooses a whole type family, not just one output type.
+Associated types can have their _own_ generic parameters with the same generic parameter forms as ordinary declarations, including type parameters and `comptime` value parameters (these are generic associated types, often called GATs.)
 
 ```ds
 interface Storage {
     type Handle<T>;
+    type Page<comptime Size: uint>;
 }
 
 struct SharedStorage implements Storage {
     type Handle<T> = shared StorageHandle<T>;
+    type Page<comptime Size: uint> = shared StoragePage<Size>;
 }
 ```
 
-In addition to associated types, nominal type declarations also support associated constants as static compile-time values.
-Unlike `static` members, `comptime const`s require no instance storage and are statically evaluated during compilation.
+In addition to associated types, nominal type declarations also support associated constant members as static compile-time values.
+Like `static` members, `comptime const`s require no instance storage, but unlike `static` members, `comptime const` are statically evaluated during compilation.
 
 ```ds
 interface RegisterBlock {
@@ -395,6 +477,17 @@ interface RegisterBlock {
     read(): [uint8; this.Width];
     write(bytes: &[uint8; this.Width]): void;
 }
+```
+
+As described above, associated members participate in the same static evaluation world, and so associated members can express dependent types and values.
+
+```ds
+interface Matrix<Row> {
+    comptime const Width: uint = Row extends string ? 8 : 4;
+    type Bytes = [uint8; this.Width];
+}
+
+function read<M: Matrix<any>>(bytes: M.Bytes): [uint8; M.Width] { ... }
 ```
 
 ### Constraints
@@ -878,8 +971,8 @@ match (result) {
 
 #### Static If
 
-There is a another special decorated: `@if` gates the inclusion of certain nodes based on some statically evaluatable expression.
-When the condition is false, the annotated item is (in effect) removed and removed from analysis and the final shape.
+There is another special decorator: `@if` gates the inclusion of certain nodes based on a static term.
+When the condition is false, the annotated item is removed from the instantiated shape.
 
 ```ds
 enum OperatingSystem {
@@ -890,7 +983,19 @@ enum OperatingSystem {
 }
 ```
 
-`@if` works on module declarations, class and struct members, interface members, enum fields, and other declaration-shaped nodes.
+`@if` works on module declarations, class and struct members, interface members, enum fields, and other declaration-shaped nodes:
+
+```ds
+struct Buffer<T, comptime Space: Space> {
+    @if(Space == "shared")
+    lock: SharedLock;
+
+    @if(Space == "local")
+    lock: LocalLock;
+
+    data: T[];
+}
+```
 
 ### Globals
 
@@ -911,7 +1016,8 @@ Of course, because these globals are real values, duplicate global value names a
 ### Comptime
 
 Inspired by Zig and Jai, Destack supports compile-time evaluation with `comptime`.
-The `comptime` keyword and modifier requires that an expression be evaluated at compile time (otherwise it is a compile error).
+The `comptime` expression form requires that an expression be evaluated at compile time (otherwise it is a compile error).
+This is the evaluation side of the static phase, not a separate class of functions.
 
 ```ds
 const LOOKUP_TABLE: uint8[] = comptime {
@@ -939,6 +1045,7 @@ const COMPTIME_CONST = comptime factorial(10);    // compile time
 const RUNTIME_CONST = factorial(getUserInput()); // runtime (in this case, at module initialization time)
 ```
 
+Comptime expressions can only depend on static inputs or on ordinary code that can itself be evaluated from static inputs.
 Comptime conditions enable branch elimination and, for type relations like `T extends U`, type narrowing:
 
 ```ds
@@ -949,7 +1056,19 @@ function process<T, Context: CacheContext<T>>(ctx: Context, key: T) {
 }
 ```
 
-Comptime blocks can also appear as members on object-like types for `comptime` associated logic, much like `static` blocks are runtime associated logic.
+The same condition can also be written as a static guard when it controls declaration shape instead of expression flow:
+
+```ds
+struct CacheEntry<T, Context: CacheContext<T>> {
+    @if(Context extends EvictableContext<T>)
+    lastEvictedAt: Instant;
+
+    value: T;
+}
+```
+
+Comptime blocks can also appear as members on object-like types for static assertions and generated associated logic, much like `static` blocks are runtime associated logic.
+They run in the static environment of the declaration or instantiation where they appear post-inference.
 
 ```ds
 struct Buffer<comptime size: uint> {
