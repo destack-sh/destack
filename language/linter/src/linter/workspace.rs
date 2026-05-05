@@ -9,7 +9,7 @@ use destack_workspace::{
 };
 
 use crate::linter::artifact::{read_ambient_environment, read_ast, read_dir_exported};
-use crate::linter::library::is_builtin_library_module;
+use crate::linter::library::is_library_module;
 use crate::{LintMeta, LintReport, LintRequirement};
 
 /// Context for AST-level workspace linting.
@@ -368,5 +368,5 @@ fn is_lib_available(ctx: &LintWorkspaceDirContext, libs: &[&str]) -> bool {
         .ambient_modules
         .iter()
         .filter_map(|module_id| ctx.repository_module(*module_id))
-        .any(|module| is_builtin_library_module(module.as_ref(), libs))
+        .any(|module| is_library_module(module.as_ref(), libs))
 }

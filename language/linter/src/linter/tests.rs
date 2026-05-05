@@ -505,7 +505,7 @@ pub(crate) struct TestProgram {
     runner: LintRunner,
     /// Linter options for tests (all rules enabled by default).
     linter_options: LinterOptions,
-    /// Whether builtin and lib resolution has been enqueued.
+    /// Whether library resolution has been enqueued.
     has_enqueued_profile_resolution: AtomicBool,
 }
 
@@ -805,13 +805,13 @@ impl TestProgram {
         self.replace_latest_diagnostics(self.current_workspace_diagnostics());
     }
 
-    /// Resolve builtin libs for the current profile.
+    /// Resolve library packages for the current profile.
     pub(crate) fn resolve_libs(&self) {
         self.provide_compiler_artifacts(&[ArtifactKey::ambient_environment(self.profile_id())]);
         self.replace_latest_diagnostics(self.current_workspace_diagnostics());
     }
 
-    /// Enqueue builtin and lib resolution once for this test repository.
+    /// Enqueue library resolution once for this test repository.
     pub(crate) fn enqueue_profile_resolution_once(&self) {
         let has_enqueued = self
             .has_enqueued_profile_resolution

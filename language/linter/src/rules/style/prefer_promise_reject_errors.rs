@@ -1,5 +1,4 @@
-use destack_builtin::LanguageSymbol;
-use destack_dir::{self as dir, WellKnownSymbol};
+use destack_dir::{self as dir, LanguageSymbol, WellKnownSymbol};
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
