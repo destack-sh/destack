@@ -44,27 +44,23 @@ Dynamic shapes and strict native compilation do not like to mix.
 In `.ds`, values have statically known shape, and classes have a fixed static object model instead of some mutable JS constructor object.
 
 - **Declaration expressions**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with proper AOT compilation.
-- **Dynamic code generation**: Runtime `eval`, runtime `new Function`, and dynamic class generation are in conflict with a strict AOT model and unsupported.
-  We do however support `comptime` forms _during_ compilation for certain use cases.
+- **Dynamic code generation**: Runtime `eval`, runtime `new Function`, and dynamic class generation are in conflict with a strict AOT model and unsupported. We do however support `comptime` forms _during_ compilation for certain use cases.
 - **Prototype objects**: `.prototype`, `.__proto__`, `.constructor`, `Object.getPrototypeOf`, `Object.setPrototypeOf`, and `Object.create(proto)` all rely on the prototype-based object model and are not supported.
 - **Shape mutation**: `delete`, `Object.defineProperty`, `Object.defineProperties`, `Reflect.defineProperty`, `Reflect.deleteProperty`, and shape-changing `Object.assign` are forbidden.
 - **Metaobject dispatch**: `Proxy` and most `Reflect.*` APIs exist to intercept or emulate dynamic object behavior, so they are also unsupported.
 - **CommonJS mutation**: `require`, `module.exports`, and require-cache monkeypatching are dynamic module-shape features, and are also (mostly) unsupported.
+- **Circular inference**: Destack does not support circular inference _across_ modules. Modules may export types they can establish from local declarations _and_ imports, and downstream modules may build on those exports, but downstream uses do not refine upstream declarations.
 
 ### Protocols
 
 JS also has a lot of behavior where the runtime secretly calls user code through special names or symbols.
 Destack instead uses typed protocols, declared members, static members, and extensions instead.
 
-- **Thenables**: `await` does not mean "anything with a `.then` property".
-  It targets `Promise<T>` or another typed async protocol.
-- **Coercion hooks**: `valueOf`, `toString`, and `Symbol.toPrimitive` do not participate in implicit object coercion.
-  Use explicit conversions, formatting/display protocols, interpolation, or operator overloads.
+- **Thenables**: `await` does not mean "anything with a `.then` property". It targets `Promise<T>` or another typed async protocol.
+- **Coercion hooks**: `valueOf`, `toString`, and `Symbol.toPrimitive` do not participate in implicit object coercion. Use explicit conversions, formatting/display protocols, interpolation, or operator overloads.
 - **Loose equality coercion**: Object coercion through `==` and `!=` is not part of portable `.ds`.
-- **Well-known symbol magic**: `Symbol.hasInstance`, `Symbol.species`, `Symbol.isConcatSpreadable`, and similar hooks are not language semantics.
-  Iteration can still exist as a typed `Iterable<T>` protocol, even if a JS target lowers it to symbols.
-- **Implicit call and construct hooks**: Arbitrary `[[Call]]`, `[[Construct]]`, and `Function.prototype.call` / `apply` / `bind` are not implicit members.
-  Callable and constructable values must have declared callable or constructable types.
+- **Well-known symbol magic**: `Symbol.hasInstance`, `Symbol.species`, `Symbol.isConcatSpreadable`, and similar hooks are not language semantics. Iteration can still exist as a typed `Iterable<T>` protocol, even if a JS target lowers it to symbols.
+- **Implicit call and construct hooks**: Arbitrary `[[Call]]`, `[[Construct]]`, and `Function.prototype.call` / `apply` / `bind` are not implicit members. Callable and constructable values must have declared callable or constructable types.
 
 # Language
 
@@ -351,9 +347,8 @@ function copy<T, comptime N: uint>(src: [T; N]): [T; N] {
 }
 ```
 
-Type inference is local and flows outward.
-A module can infer static facts from its own declarations and imports, and downstream modules can use those exported facts.
-Downstream uses do not feed back into upstream inference.
+Type inference is local and flows outward - you can "import" inference from other modules, but this only goes one way: each module can infer static types and values from its own declarations and imports, and downstream modules can use what it exports.
+Downstream uses do not feed back into upstream inference in any way.
 
 ```ds:a.ds
 declare function length<T, comptime N: uint>(xs: [T; N]): N;
@@ -383,7 +378,7 @@ To do this, the "evaluation time" of the program is conceptually split into thre
 
 | World | Meaning | Example |
 |-------|---------|---------|
-| Static | compiler-known types, values, and relations | `T`, `N`, `this.Width`, `T extends string` |
+| Static | types, values, and relations known while checking | `T`, `N`, `this.Width`, `T extends string` |
 | Comptime | ordinary code explicitly evaluated by the compiler | `comptime factorial(10)` |
 | Runtime | ordinary program execution | `readFile(path)`, `worker.postMessage(msg)` |
 
@@ -396,7 +391,7 @@ Static terms can include primitive inputs, imported facts, and expressions built
 | Static value parameters | `N` in `function f<comptime N: uint>()` |
 | Type aliases and generic applications | `Buffer<N>`, `Payload<T>` |
 | Associated types and constants | `I.Item`, `Register.Width` |
-| Static `const`s and imported static terms | `N` imported from `./a.ds` |
+| Static `const`s and imports | `N` imported from `./a.ds` |
 | Enum members and nominal constants | `OperatingSystem.Windows` |
 | Literal values | `4`, `"shared"`, `true` |
 | Static operators | `N * 2`, `Space == "shared"` |
@@ -422,8 +417,8 @@ struct Buffer<T, comptime Space: Space> {
 }
 ```
 
-All static terms in this example are local. 
-When inference substitutes the explicit and inferred generic arguments, the static terms are evaluated at "static time" into some concrete shape.
+In the `Buffer` example, `Space` is carried as a generic value until `Buffer<T, "shared">` or `Buffer<T, "local">` is instantiated.
+At that point the `@if` guards become ordinary yes/no decisions and the concrete shape is known.
 
 ### Associated Types and Constants
 
@@ -1045,7 +1040,23 @@ const COMPTIME_CONST = comptime factorial(10);    // compile time
 const RUNTIME_CONST = factorial(getUserInput()); // runtime (in this case, at module initialization time)
 ```
 
-Comptime expressions can only depend on static inputs or on ordinary code that can itself be evaluated from static inputs.
+Comptime expressions may only depend on static inputs or on ordinary code that can itself be evaluated from static inputs (or call other comptime expressions, as long as there is no circle).
+The evaluation scope for each comptime is isolated and cannot mutate module bindings, associated members, runtime objects, or anything outside the block.
+That is, the only way to get a value out of a comptime block is to use it as an expression.
+
+```ds
+const WIDTH = comptime {
+    let width = 4;
+    width *= 2;
+    width
+};
+
+let counter = 0;
+comptime {
+    counter += 1; // ERROR: outer mutation
+}
+```
+
 Comptime conditions enable branch elimination and, for type relations like `T extends U`, type narrowing:
 
 ```ds
@@ -1222,9 +1233,9 @@ Borrowed<T, "a">
 
 ### Algebra
 
-Okay, "algebra" here is just a fancy way of saying Destack supports querying and manipulating ownership and placement in its type system. 
+Type "algebra" here is just a fancy way of saying Destack supports querying and manipulating ownership and placement in its type system, because _they_ are part of the type system. 
 Qualified surface forms like `^T`, `&T`, `*T`, and `shared T` are sugar over a single normalized `Form`.
-Plain `T` may remain unqualified, but algebra operators treat it as managed ambient when they need a default:
+Plain `T` may remain unqualified, but algebra operators treat it as managed ambient when they need a default.
 
 ```ds
 newtype Form<
@@ -1235,6 +1246,7 @@ newtype Form<
 > = unknown;
 ```
 
+All these `Form`s are based on the common static evaluation machinery, and code can be generic over `Form<T, O, P, R>`, `WithSpace<T, S>`, or `PlaceIn<T, S>` without choosing a final address space or ownership.
 Each qualified surface form maps to a `Form<...>` with its specific ownership tag and placement:
 
 ```ds
@@ -1277,6 +1289,11 @@ PlaceIn<^User, "shared"> satisfies "shared";
 PlaceOf<shared User> satisfies "shared";
 SpaceOf<shared User> satisfies "shared";
 PlaceIn<shared User, "local"> satisfies "shared";
+
+PlaceOf<User | shared User> satisfies "ambient" | "shared";
+SpaceOf<User | shared User> satisfies "shared";
+PlaceIn<User | shared User, "local"> satisfies "local" | "shared";
+PlaceIn<User | shared User, "shared"> satisfies "shared";
 ```
 
 Predicates with `Is*` are convenience wrappers around those same accessors:
@@ -1323,7 +1340,7 @@ Like many JS/TS runtimes, Destack supports importing additional file types beyon
 
 ### Data Modules
 
-Data files are parsed at compile time and typed structurally:
+Data files are parsed at compile time and typed as exact readonly literals by default:
 
 ```json:config.json
 {
@@ -1338,18 +1355,24 @@ Data files are parsed at compile time and typed structurally:
 ```ds:main.ds
 import config from "./config.json";
 
-config.server.host satisfies string;
-config.server.port satisfies number;
-config.debug satisfies boolean;
+config.server.host satisfies "127.0.0.1";
+config.server.port satisfies 8080;
+config.debug satisfies false;
 ```
 
 Types are inferred from the data:
 - `null` → `null`
-- `true`/`false` → `boolean`
-- Numbers → `number`
-- Strings → `string`
-- Arrays → `T[]` (union for mixed elements: `(T | U)[]`)
-- Objects → `{ key: Type, ... }` (readonly fields)
+- `true`/`false` → `true` / `false`
+- Numbers → numeric literal types
+- Strings → string literal types
+- Arrays → readonly tuples
+- Objects → readonly object literals
+
+Consumers can widen explicitly with an annotation or conversion:
+
+```ds
+const general: Config = config;
+```
 
 ### Text Modules
 
