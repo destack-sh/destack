@@ -30,7 +30,7 @@ impl FunctionLowerer<'_> {
     ///
     /// This bridges DIR type information to MIR types during value lowering.
     /// For scalar types, returns cached primitive types directly.
-    /// For aggregate types, looks up the type in the primitive type index.
+    /// For aggregate types, looks up the type in the primitive type cache.
     pub(crate) fn lower_type_for_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,

@@ -314,7 +314,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
         self.builder
             .tree_mut()
             .metadata
-            .layout
+            .types
             .ensure_display_name(mir_type, name_id);
     }
 
