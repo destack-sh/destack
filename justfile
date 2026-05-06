@@ -26,20 +26,6 @@ update:
     bun update
     cargo update
 
-# builtin libs
-
-# typescript lib version is pinned in language/builtin/scripts/versions.sh
-fetch-builtin-libs-version:
-    just language/fetch-builtin-libs-version
-
-# fetch builtin libs
-fetch-builtin-libs:
-    just language/fetch-builtin-libs
-
-# generate builtin lib registry
-generate-builtin-libs:
-    just language/generate-builtin-libs
-
 # --- build ---
 
 # build everything
