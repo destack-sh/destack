@@ -2,40 +2,34 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
-use crate::ReferenceMeta;
 use crate::program::{
-    ElementAccess, FieldAccess, Layout, PointeeAccess, PointerClass, SliceElementAccess,
-    ValueLayout, WordLayout, pointer_class_from_reference, repr_type, word_layout_from_type,
+    Layout, PointerClass, Projection, SliceProjection, ValueLayout, WordLayout,
+    pointer_class_from_reference, repr_type, word_layout_from_type,
 };
 
 const VTABLE_FIELD_INDEX: u32 = 0;
 const ITABLE_FIELD_INDEX: u32 = 1;
 
-/// Build one field access from one compiled layout.
-pub(super) fn field_access(
+/// Build one field projection from one compiled layout.
+pub(super) fn field_projection(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     pointee_type: mir::LocalNodeId<mir::Type>,
-    pointer_class: PointerClass,
     index: u32,
-) -> Option<FieldAccess> {
+) -> Option<Projection> {
     // resolve the pointee field layout first
     let layout = layouts.get(&pointee_type)?;
     let field = layout.field(index)?;
-    let field_count = layout.field_count()? as u32;
 
     // cache scalar layout for lowered memory ops
     let word_layout = access_word_layout(tree, layouts, field.ty);
 
-    Some(FieldAccess {
-        pointer_class,
-        value_type: field.ty,
-        index,
-        field_count,
-        byte_offset: field.offset,
-        byte_len: field.byte_len,
+    Some(Projection::fixed(
+        field.ty,
+        field.offset,
+        field.byte_len,
         word_layout,
-    })
+    ))
 }
 
 /// Build the vtable field for one virtual receiver.
@@ -43,17 +37,10 @@ pub(super) fn virtual_table_field(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     receiver_type: Option<mir::LocalNodeId<mir::Type>>,
-    pointer_class: PointerClass,
-) -> Option<FieldAccess> {
+) -> Option<Projection> {
     let receiver_type = receiver_type?;
 
-    field_access(
-        tree,
-        layouts,
-        receiver_type,
-        pointer_class,
-        VTABLE_FIELD_INDEX,
-    )
+    field_projection(tree, layouts, receiver_type, VTABLE_FIELD_INDEX)
 }
 
 /// Build the itab field for one interface receiver.
@@ -61,27 +48,18 @@ pub(super) fn interface_table_field(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     receiver_type: Option<mir::LocalNodeId<mir::Type>>,
-    pointer_class: PointerClass,
-) -> Option<FieldAccess> {
+) -> Option<Projection> {
     let receiver_type = receiver_type?;
 
-    field_access(
-        tree,
-        layouts,
-        receiver_type,
-        pointer_class,
-        ITABLE_FIELD_INDEX,
-    )
+    field_projection(tree, layouts, receiver_type, ITABLE_FIELD_INDEX)
 }
 
-/// Build one element access from one compiled layout.
-pub(super) fn element_access(
+/// Build one element projection from one compiled layout.
+pub(super) fn element_projection(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     pointee_type: mir::LocalNodeId<mir::Type>,
-    pointer_class: PointerClass,
-    reference: ReferenceMeta,
-) -> Option<ElementAccess> {
+) -> Option<Projection> {
     // resolve the pointee element layout first
     let layout = layouts.get(&pointee_type)?;
     let element = layout.element()?;
@@ -90,29 +68,26 @@ pub(super) fn element_access(
     // cache scalar layout for lowered memory ops
     let word_layout = access_word_layout(tree, layouts, element.ty);
 
-    Some(ElementAccess {
-        pointer_class,
-        reference,
-        value_type: element.ty,
+    Some(Projection::indexed(
+        element.ty,
         length,
-        byte_stride: element.stride,
-        byte_len: element.byte_len,
+        element.stride,
+        element.byte_len,
         word_layout,
-    })
+    ))
 }
 
-/// Build one slice element access from one slice descriptor type.
-pub(super) fn slice_element_access(
+/// Build one slice projection from one slice descriptor type.
+pub(super) fn slice_projection(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     slice_type: mir::LocalNodeId<mir::Type>,
-    descriptor_class: PointerClass,
-) -> Option<SliceElementAccess> {
+) -> Option<SliceProjection> {
     let mir::Type::Slice {
-        kind,
         element,
-        address_space,
-        mutability,
+        kind: _,
+        address_space: _,
+        mutability: _,
         ..
     } = tree.get(repr_type(tree, slice_type))
     else {
@@ -122,82 +97,83 @@ pub(super) fn slice_element_access(
     let layout = layouts.get(&slice_type)?;
     let slice = layout.slice()?;
     let element_layout = layouts.get(&element_type)?;
-    let element_class = pointer_class_from_reference(address_space.clone(), *kind);
-    let element_reference = ReferenceMeta::new(*kind, address_space.clone(), *mutability, false);
     let element_word_layout = access_word_layout(tree, layouts, element_type);
 
-    Some(SliceElementAccess {
-        reference: element_reference,
-        data: FieldAccess {
-            pointer_class: descriptor_class,
-            value_type: slice.data.ty,
-            index: 0,
-            field_count: 2,
-            byte_offset: slice.data.offset,
-            byte_len: slice.data.byte_len,
-            word_layout: word_layout_from_type(tree, slice.data.ty),
-        },
-        length: FieldAccess {
-            pointer_class: descriptor_class,
-            value_type: slice.length.ty,
-            index: 1,
-            field_count: 2,
-            byte_offset: slice.length.offset,
-            byte_len: slice.length.byte_len,
-            word_layout: word_layout_from_type(tree, slice.length.ty),
-        },
-        element: ElementAccess {
-            pointer_class: element_class,
-            reference: element_reference,
-            value_type: element_type,
-            length: 0,
-            byte_stride: element_layout.stride(),
-            byte_len: element_layout.byte_len,
-            word_layout: element_word_layout,
-        },
+    Some(SliceProjection {
+        data: Projection::fixed(
+            slice.data.ty,
+            slice.data.offset,
+            slice.data.byte_len,
+            word_layout_from_type(tree, slice.data.ty),
+        ),
+        length: Projection::fixed(
+            slice.length.ty,
+            slice.length.offset,
+            slice.length.byte_len,
+            word_layout_from_type(tree, slice.length.ty),
+        ),
+        element: Projection::indexed(
+            element_type,
+            0,
+            element_layout.stride(),
+            element_layout.byte_len,
+            element_word_layout,
+        ),
     })
 }
 
-/// Build one pointee access from one compiled layout.
-pub(super) fn pointee_access(
+/// Resolve the backing pointer class for one slice descriptor type.
+pub(super) fn slice_element_pointer_class(
+    tree: &mir::Tree,
+    slice_type: mir::LocalNodeId<mir::Type>,
+) -> Option<PointerClass> {
+    let mir::Type::Slice {
+        kind,
+        address_space,
+        ..
+    } = tree.get(repr_type(tree, slice_type))
+    else {
+        return None;
+    };
+
+    Some(pointer_class_from_reference(address_space.clone(), *kind))
+}
+
+/// Build one pointee projection from one compiled layout.
+pub(super) fn pointee_projection(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     pointee_type: mir::LocalNodeId<mir::Type>,
-    pointer_class: PointerClass,
-) -> Option<PointeeAccess> {
+) -> Option<Projection> {
     // resolve the pointee layout directly
     let layout = layouts.get(&pointee_type)?;
     let word_layout = access_word_layout(tree, layouts, pointee_type);
 
-    Some(PointeeAccess {
-        pointer_class,
-        value_type: pointee_type,
-        byte_offset: 0,
-        byte_len: layout.byte_len,
+    Some(Projection::fixed(
+        pointee_type,
+        0,
+        layout.byte_len,
         word_layout,
-    })
+    ))
 }
 
-/// Build one tensor element access from one compiled element layout.
-pub(super) fn tensor_element_access(
+/// Build one tensor element projection from one compiled element layout.
+pub(super) fn tensor_element_projection(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     element_type: mir::LocalNodeId<mir::Type>,
-    pointer_class: PointerClass,
-) -> Option<ElementAccess> {
+) -> Option<Projection> {
     // resolve the lowered tensor element layout directly
     let layout = layouts.get(&element_type)?;
     let word_layout = access_word_layout(tree, layouts, element_type);
 
-    Some(ElementAccess {
-        pointer_class,
-        reference: ReferenceMeta::NONE,
-        value_type: element_type,
-        length: 0,
-        byte_stride: layout.stride(),
-        byte_len: layout.byte_len,
+    Some(Projection::indexed(
+        element_type,
+        0,
+        layout.stride(),
+        layout.byte_len,
         word_layout,
-    })
+    ))
 }
 
 /// Resolve the pointer class for one tensor value type.

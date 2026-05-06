@@ -1,4 +1,4 @@
-use std::{ptr, slice};
+use std::ptr;
 
 use smallvec::SmallVec;
 use {destack_engine as engine, destack_mir as mir};
@@ -6,32 +6,25 @@ use {destack_engine as engine, destack_mir as mir};
 use crate::diagnostic::Error;
 use crate::interpreter::{Frame, Machine};
 use crate::program::{
-    ArgumentRange, FrameAccess, FrameAccessId, Instruction, MovePair, MoveRange, MoveSource,
-    PointerClass, Program, Transfer, ValueLayout, encode_word_bytes, pointer_class_from_reference,
+    ArgumentRange, Instruction, MovePair, MoveRange, MoveSlot, MoveSource, PointerClass, Program,
+    Projection, ProjectionId, ValueLayout, encode_word_bytes, pointer_class_from_reference,
     repr_type, value_layout_from_type,
 };
-use crate::{FramePointer, ReferenceMeta, SharedHeap, Word};
+use crate::{FramePointer, SharedHeap, Word};
 use destack_heap::{Heap, SharedAllocator, SharedGcWorker};
 
 use super::access;
-use super::reference::{check_reference_address_space, check_reference_mutability};
 
-/// Return the byte offset for one frame element access.
+/// Return the byte offset for one frame element projection.
 #[inline(always)]
 pub(super) fn frame_element_offset(
     machine: &Machine<'_, '_>,
-    access: FrameAccess,
+    access: Projection,
     index: u32,
-) -> Result<usize, Error> {
+) -> usize {
     let index = machine.get_word_at(index).as_u64();
-    if machine.bounds_checks && index >= access.length {
-        return Err(Error::InvalidArrayAccess {
-            index,
-            length: access.length,
-        });
-    }
 
-    Ok(access.byte_offset + access.byte_stride * index as usize)
+    access.byte_offset + access.byte_stride * index as usize
 }
 
 /// Execute fixed-offset frame address calculation.
@@ -39,22 +32,17 @@ pub(super) fn frame_element_offset(
 pub(crate) fn execute_address_frame_offset(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let base = instruction.b;
-    let reference = ReferenceMeta::from_bits(instruction.c as u8);
     let byte_offset = instruction.d as usize;
 
     let pointer = machine.frame_pointer_at(base).add_bytes(byte_offset);
     let value = Word::frame_pointer(pointer);
 
-    if let Err(error) = check_reference_address_space(machine, reference) {
-        return Transfer::Error(error);
-    }
-
     machine.set_word_at(dest, value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute frame element address calculation.
@@ -62,27 +50,20 @@ pub(crate) fn execute_address_frame_offset(
 pub(crate) fn execute_address_frame_element(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let base = instruction.b;
     let index = instruction.c;
-    let access = FrameAccessId(instruction.d);
+    let access = ProjectionId(instruction.d);
 
-    let access = machine.frame_access(access);
-    let offset = match frame_element_offset(machine, access, index) {
-        Ok(offset) => offset,
-        Err(error) => return Transfer::Error(error),
-    };
+    let access = machine.projection(access);
+    let offset = frame_element_offset(machine, access, index);
     let pointer = machine.frame_pointer_at(base).add_bytes(offset);
     let value = Word::frame_pointer(pointer);
 
-    if let Err(error) = check_reference_address_space(machine, access.reference) {
-        return Transfer::Error(error);
-    }
-
     machine.set_word_at(dest, value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute fixed frame scalar load.
@@ -90,23 +71,16 @@ pub(crate) fn execute_address_frame_element(
 pub(crate) fn execute_load_frame_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let base = machine.get_word_at(instruction.b);
     let byte_offset = instruction.c as usize;
     let pointer = base.as_frame_pointer().add_bytes(byte_offset);
 
-    if !machine.owns_frame_range(pointer, BYTE_LEN) {
-        return Transfer::Error(Error::InvalidAddressSpace {
-            expected: "frame".to_string(),
-            actual: format!("0x{:x}", pointer.address()),
-        });
-    }
-
     let value = access::load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(pointer.address());
     machine.set_word_at(dest, value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute fixed frame value scalar load.
@@ -114,23 +88,16 @@ pub(crate) fn execute_load_frame_scalar<const BYTE_LEN: usize, const IS_SIGNED: 
 pub(crate) fn execute_load_frame_value_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let base = instruction.b;
     let byte_offset = instruction.c as usize;
     let pointer = machine.frame_pointer_at(base).add_bytes(byte_offset);
 
-    if !machine.owns_frame_range(pointer, BYTE_LEN) {
-        return Transfer::Error(Error::InvalidAddressSpace {
-            expected: "frame".to_string(),
-            actual: format!("0x{:x}", pointer.address()),
-        });
-    }
-
     let value = access::load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(pointer.address());
     machine.set_word_at(dest, value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute fixed frame scalar store.
@@ -138,32 +105,17 @@ pub(crate) fn execute_load_frame_value_scalar<const BYTE_LEN: usize, const IS_SI
 pub(crate) fn execute_store_frame_scalar<const BYTE_LEN: usize>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let base = machine.get_word_at(instruction.a);
     let value = instruction.b;
     let byte_offset = instruction.c as usize;
-    let reference = ReferenceMeta::from_bits(instruction.d as u8);
-
-    if let Err(error) = check_reference_address_space(machine, reference) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = check_reference_mutability(machine, reference) {
-        return Transfer::Error(error);
-    }
 
     let pointer = base.as_frame_pointer().add_bytes(byte_offset);
     let value = machine.get_word_at(value);
 
-    if !machine.owns_frame_range(pointer, BYTE_LEN) {
-        return Transfer::Error(Error::InvalidAddressSpace {
-            expected: "frame".to_string(),
-            actual: format!("0x{:x}", pointer.address()),
-        });
-    }
-
     access::store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute fixed frame value scalar store.
@@ -171,32 +123,17 @@ pub(crate) fn execute_store_frame_scalar<const BYTE_LEN: usize>(
 pub(crate) fn execute_store_frame_value_scalar<const BYTE_LEN: usize>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let base = instruction.a;
     let value = instruction.b;
     let byte_offset = instruction.c as usize;
-    let reference = ReferenceMeta::from_bits(instruction.d as u8);
-
-    if let Err(error) = check_reference_address_space(machine, reference) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = check_reference_mutability(machine, reference) {
-        return Transfer::Error(error);
-    }
 
     let pointer = machine.frame_pointer_at(base).add_bytes(byte_offset);
     let value = machine.get_word_at(value);
 
-    if !machine.owns_frame_range(pointer, BYTE_LEN) {
-        return Transfer::Error(Error::InvalidAddressSpace {
-            expected: "frame".to_string(),
-            actual: format!("0x{:x}", pointer.address()),
-        });
-    }
-
     access::store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// One owned frame value body.
@@ -488,6 +425,18 @@ fn load_frame_value(
     frame_value_from_word(program, frames, ty, value)
 }
 
+/// Load one lowered frame slot into an owned value.
+fn load_frame_slot_value(program: &Program, frame: &Frame, slot: MoveSlot) -> FrameValue {
+    let ty = program.type_for_layout(slot.layout);
+    if slot.is_word {
+        return FrameValue::word(ty, frame.read_word_at(slot.offset));
+    }
+
+    let bytes = move_slot_bytes(frame, slot).to_vec().into_boxed_slice();
+
+    FrameValue::bytes(ty, bytes)
+}
+
 /// Store one owned frame value into a destination frame slot.
 pub(crate) fn store_frame_value(
     program: &Program,
@@ -534,6 +483,14 @@ pub(crate) fn store_frame_value(
     }
 
     Ok(())
+}
+
+/// One buffered same-frame move value.
+enum FrameMoveValue {
+    /// One word value.
+    Word(Word),
+    /// One byte value.
+    Bytes(SmallVec<[u8; 32]>),
 }
 
 /// Materialize one owned frame value into one engine boundary value.
@@ -861,6 +818,36 @@ pub(crate) fn move_frame_value(
     Ok(())
 }
 
+/// Move one lowered frame slot into another frame.
+fn move_frame_slot(
+    source_frame: &Frame,
+    source: MoveSlot,
+    dest_frame: &mut Frame,
+    destination: MoveSlot,
+) -> Result<(), Error> {
+    if source.byte_len != destination.byte_len || source.is_word != destination.is_word {
+        return Err(Error::TypeMismatch {
+            expected: format!(
+                "{} bytes, word={}",
+                destination.byte_len, destination.is_word
+            ),
+            actual: format!("{} bytes, word={}", source.byte_len, source.is_word),
+        });
+    }
+
+    if destination.is_word {
+        let value = source_frame.read_word_at(source.offset);
+        dest_frame.write_word_at(destination.offset, value);
+
+        return Ok(());
+    }
+
+    let bytes = move_slot_bytes(source_frame, source);
+    move_slot_bytes_mut(dest_frame, destination).copy_from_slice(bytes);
+
+    Ok(())
+}
+
 /// Write void to one frame value.
 fn store_void_value(
     program: &Program,
@@ -883,6 +870,33 @@ fn store_void_value(
     frame.slot_bytes_mut(slot).fill(0);
 
     Ok(())
+}
+
+/// Write void into one lowered frame slot.
+fn store_void_slot(frame: &mut Frame, destination: MoveSlot) {
+    if destination.is_word {
+        frame.write_word_at(destination.offset, Word::VOID);
+
+        return;
+    }
+
+    move_slot_bytes_mut(frame, destination).fill(0);
+}
+
+/// Borrow one lowered frame slot.
+fn move_slot_bytes(frame: &Frame, slot: MoveSlot) -> &[u8] {
+    let start = slot.offset as usize;
+    let end = start + slot.byte_len as usize;
+
+    &frame.bytes()[start..end]
+}
+
+/// Borrow one lowered frame slot mutably.
+fn move_slot_bytes_mut(frame: &mut Frame, slot: MoveSlot) -> &mut [u8] {
+    let start = slot.offset as usize;
+    let end = start + slot.byte_len as usize;
+
+    &mut frame.bytes_mut()[start..end]
 }
 
 /// Move call arguments between two frames.
@@ -913,7 +927,6 @@ pub(crate) fn move_arguments_between_frames(
 
 /// Move frame values using one lowered move range.
 pub(crate) fn move_values(
-    program: &Program,
     source_frame: &Frame,
     dest_frame: &mut Frame,
     moves: MoveRange,
@@ -922,11 +935,11 @@ pub(crate) fn move_values(
     let pairs = moves.slice(move_pool);
     for pair in pairs {
         match pair.source {
-            MoveSource::Value(source) => {
-                move_frame_value(program, source_frame, source, dest_frame, pair.dest)?;
+            MoveSource::Slot(source) => {
+                move_frame_slot(source_frame, source, dest_frame, pair.dest)?;
             }
             MoveSource::Void => {
-                store_void_value(program, dest_frame, pair.dest)?;
+                store_void_slot(dest_frame, pair.dest);
             }
         }
     }
@@ -936,28 +949,87 @@ pub(crate) fn move_values(
 
 /// Move frame values within one frame.
 pub(crate) fn move_values_within_frame(
-    program: &Program,
     frame: &mut Frame,
     moves: MoveRange,
     move_pool: &[MovePair],
 ) -> Result<(), Error> {
     let pairs = moves.slice(move_pool);
-    if move_words_within_frame(program, frame, pairs)? {
+    if pairs.is_empty() {
         return Ok(());
     }
 
-    let mut values = SmallVec::<[FrameValue; 16]>::with_capacity(pairs.len());
+    // keep scalar edge moves on the word-only path
+    let mut is_word_move = true;
+    for pair in pairs {
+        if !pair.dest.is_word {
+            is_word_move = false;
+            break;
+        }
+
+        if let MoveSource::Slot(source) = pair.source
+            && !source.is_word
+        {
+            is_word_move = false;
+            break;
+        }
+    }
+
+    if is_word_move {
+        let mut values = SmallVec::<[Word; 16]>::with_capacity(pairs.len());
+
+        // collect sources before writing destinations
+        for pair in pairs {
+            let value = match pair.source {
+                MoveSource::Slot(source) => frame.read_word_at(source.offset),
+                MoveSource::Void => Word::VOID,
+            };
+
+            values.push(value);
+        }
+
+        // store destinations after preserving parallel move semantics
+        for (pair, value) in pairs.iter().zip(values) {
+            frame.write_word_at(pair.dest.offset, value);
+        }
+
+        return Ok(());
+    }
+
+    let mut values = SmallVec::<[FrameMoveValue; 16]>::with_capacity(pairs.len());
 
     // collect sources before writing destinations
     for pair in pairs {
         let value = match pair.source {
-            MoveSource::Value(source) => {
-                load_frame_value(program, slice::from_ref(frame), frame, source)?
+            MoveSource::Slot(source) => {
+                if source.byte_len != pair.dest.byte_len || source.is_word != pair.dest.is_word {
+                    return Err(Error::TypeMismatch {
+                        expected: format!(
+                            "{} bytes, word={}",
+                            pair.dest.byte_len, pair.dest.is_word
+                        ),
+                        actual: format!("{} bytes, word={}", source.byte_len, source.is_word),
+                    });
+                }
+
+                if source.is_word {
+                    FrameMoveValue::Word(frame.read_word_at(source.offset))
+                } else {
+                    let mut bytes = SmallVec::<[u8; 32]>::with_capacity(source.byte_len as usize);
+                    bytes.extend_from_slice(move_slot_bytes(frame, source));
+
+                    FrameMoveValue::Bytes(bytes)
+                }
             }
             MoveSource::Void => {
-                let destination_type = frame_value_type(program, frame, pair.dest)?;
+                if pair.dest.is_word {
+                    FrameMoveValue::Word(Word::VOID)
+                } else {
+                    let mut bytes =
+                        SmallVec::<[u8; 32]>::with_capacity(pair.dest.byte_len as usize);
+                    bytes.resize(pair.dest.byte_len as usize, 0);
 
-                FrameValue::word(destination_type, Word::VOID)
+                    FrameMoveValue::Bytes(bytes)
+                }
             }
         };
 
@@ -966,54 +1038,17 @@ pub(crate) fn move_values_within_frame(
 
     // store destinations after preserving parallel move semantics
     for (pair, value) in pairs.iter().zip(values) {
-        store_frame_value(program, frame, pair.dest, value)?;
+        match value {
+            FrameMoveValue::Word(value) => {
+                frame.write_word_at(pair.dest.offset, value);
+            }
+            FrameMoveValue::Bytes(bytes) => {
+                move_slot_bytes_mut(frame, pair.dest).copy_from_slice(&bytes);
+            }
+        }
     }
 
     Ok(())
-}
-
-/// Move word frame values within one frame.
-#[inline(always)]
-fn move_words_within_frame(
-    program: &Program,
-    frame: &mut Frame,
-    pairs: &[MovePair],
-) -> Result<bool, Error> {
-    let layout = program
-        .frame_layout_by_id(frame.frame_layout)
-        .ok_or(Error::InvalidInstruction)?;
-    let mut values = SmallVec::<[Word; 16]>::with_capacity(pairs.len());
-
-    // collect word sources before writing destinations
-    for pair in pairs {
-        let destination = layout.value(pair.dest.0).ok_or(Error::InvalidInstruction)?;
-        if !destination.is_word {
-            return Ok(false);
-        }
-
-        let value = match pair.source {
-            MoveSource::Value(source) => {
-                let source = layout.value(source.0).ok_or(Error::InvalidInstruction)?;
-                if !source.is_word {
-                    return Ok(false);
-                }
-
-                frame.read_word(source)
-            }
-            MoveSource::Void => Word::VOID,
-        };
-
-        values.push(value);
-    }
-
-    // store destinations after preserving parallel move semantics
-    for (pair, value) in pairs.iter().zip(values) {
-        let destination = layout.value(pair.dest.0).ok_or(Error::InvalidInstruction)?;
-
-        frame.write_word(destination, value);
-    }
-
-    Ok(true)
 }
 
 /// Copy one ordered argument list out of the current frame.
@@ -1038,7 +1073,6 @@ pub(crate) fn load_arguments(
 /// Copy one lowered argument move range out of the current frame.
 pub(crate) fn load_moved_arguments(
     program: &Program,
-    frames: &[Frame],
     frame: &Frame,
     move_pool: &[MovePair],
     moves: MoveRange,
@@ -1047,9 +1081,9 @@ pub(crate) fn load_moved_arguments(
     let mut arguments = SmallVec::with_capacity(pairs.len());
     for pair in pairs {
         let value = match pair.source {
-            MoveSource::Value(source) => load_frame_value(program, frames, frame, source)?,
+            MoveSource::Slot(source) => load_frame_slot_value(program, frame, source),
             MoveSource::Void => {
-                let destination_type = frame_value_type(program, frame, pair.dest)?;
+                let destination_type = program.type_for_layout(pair.dest.layout);
 
                 FrameValue::word(destination_type, Word::VOID)
             }

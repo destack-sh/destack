@@ -8,10 +8,10 @@ use crate::program::{
 };
 use crate::{Error, Result};
 
-use super::access::{interface_table_field, virtual_table_field};
 use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
 use super::pool::Pool;
+use super::projection::{interface_table_field, virtual_table_field};
 use super::value::{
     heap_pointee_type_for_value, heap_pointee_type_for_value_layout, pointer_class_for_value,
 };
@@ -21,7 +21,7 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_call_terminator(
         &self,
         term: &mir::Terminator,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         Ok(match term {
             mir::Terminator::Invoke { function, call, .. } => {
@@ -70,7 +70,7 @@ impl<'a> BlockLowerer<'a> {
         destination: Option<mir::ValueReference>,
         function: mir::FunctionReference,
         call: &mir::Call<mir::ArgumentSlice>,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         // resolve callee and arguments
         let function = function
@@ -97,7 +97,7 @@ impl<'a> BlockLowerer<'a> {
         let target = self.call_target(function)?;
 
         // emit the compact call instruction
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             Op::Call,
             Call {
                 dest: self.optional_value(destination, "call destination")?,
@@ -116,7 +116,7 @@ impl<'a> BlockLowerer<'a> {
         receiver: mir::ValueReference,
         method: mir::VtableSlotId,
         call: &mir::Call<mir::ArgumentSlice>,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         // resolve arguments and receiver
         let arguments = pool.argument_reference_range(
@@ -135,15 +135,14 @@ impl<'a> BlockLowerer<'a> {
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
-            pointer_class,
         )
         .ok_or_else(|| Error::MissingRepresentation {
             context: "virtual call table field".to_string(),
         })?;
-        let table_field = pool.field_access(table_field);
+        let table_field = pool.projection(table_field);
 
         // emit the receiver-space-specific opcode
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             virtual_call_op(pointer_class)?,
             CallVirtual {
                 dest: self.optional_value(destination, "virtual call destination")?,
@@ -162,7 +161,7 @@ impl<'a> BlockLowerer<'a> {
         receiver: mir::ValueReference,
         method: mir::InterfaceSlotId,
         call: &mir::Call<mir::ArgumentSlice>,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         // resolve arguments and receiver
         let arguments = pool.argument_reference_range(
@@ -181,15 +180,14 @@ impl<'a> BlockLowerer<'a> {
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
-            pointer_class,
         )
         .ok_or_else(|| Error::MissingRepresentation {
             context: "interface call table field".to_string(),
         })?;
-        let table_field = pool.field_access(table_field);
+        let table_field = pool.projection(table_field);
 
         // emit the receiver-space-specific opcode
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             interface_call_op(pointer_class)?,
             CallInterface {
                 dest: self.optional_value(destination, "interface call destination")?,
@@ -207,7 +205,7 @@ impl<'a> BlockLowerer<'a> {
         destination: Option<mir::ValueReference>,
         callee: mir::ValueReference,
         call: &mir::Call<mir::ArgumentSlice>,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         // resolve call arguments
         let arguments = pool.argument_reference_range(
@@ -222,7 +220,7 @@ impl<'a> BlockLowerer<'a> {
         let callee = self.indirect_callee(callee)?;
 
         // emit the function-pointer or callable opcode
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             indirect_call_op(&callee),
             CallIndirect {
                 dest: self.optional_value(destination, "indirect call destination")?,
@@ -236,7 +234,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one callable binding.
     pub(super) fn lower_callable_bind(
         &self,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
         destination: mir::ValueReference,
         function: mir::FunctionReference,
         environment: mir::ValueReference,
@@ -286,7 +284,7 @@ impl<'a> BlockLowerer<'a> {
         };
         let callable = pool.side_record(callable);
 
-        // put the hot operands in the instruction lanes
+        // put the hot operands in the instruction payload
         Ok(Instruction::new(
             op,
             word_offset(self, destination)?,
@@ -378,7 +376,7 @@ impl<'a> BlockLowerer<'a> {
         &self,
         function: mir::FunctionReference,
         call: &mir::Call<Vec<mir::ValueReference>>,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         let function = function
             .function()
@@ -389,7 +387,7 @@ impl<'a> BlockLowerer<'a> {
             pool.argument_reference_range(call.arguments.as_slice(), "invoke argument")?;
         let (normal_state, unwind_state) = self.exceptional_call_states()?;
 
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             Op::Invoke,
             CallBranch {
                 function: function.id,
@@ -406,7 +404,7 @@ impl<'a> BlockLowerer<'a> {
         &self,
         callee: mir::ValueReference,
         call: &mir::Call<Vec<mir::ValueReference>>,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         let callee = callee.value().ok_or_else(|| Error::MissingRepresentation {
             context: "invoke indirect callee".to_string(),
@@ -416,7 +414,7 @@ impl<'a> BlockLowerer<'a> {
         let (normal_state, unwind_state) = self.exceptional_call_states()?;
         let callee = self.indirect_callee(callee)?;
 
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             indirect_invoke_op(&callee),
             CallIndirectBranch {
                 callee_offset: callee.offset,
@@ -434,7 +432,7 @@ impl<'a> BlockLowerer<'a> {
         receiver: mir::ValueReference,
         method: mir::VtableSlotId,
         call: &mir::Call<Vec<mir::ValueReference>>,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         let receiver = receiver
             .value()
@@ -449,14 +447,13 @@ impl<'a> BlockLowerer<'a> {
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
-            pointer_class,
         )
         .ok_or_else(|| Error::MissingRepresentation {
             context: "invoke virtual table field".to_string(),
         })?;
-        let table_field = pool.field_access(table_field);
+        let table_field = pool.projection(table_field);
 
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             virtual_invoke_op(pointer_class)?,
             CallVirtualBranch {
                 receiver_offset: word_offset(self, receiver)?,
@@ -475,7 +472,7 @@ impl<'a> BlockLowerer<'a> {
         receiver: mir::ValueReference,
         method: mir::InterfaceSlotId,
         call: &mir::Call<Vec<mir::ValueReference>>,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         let receiver = receiver
             .value()
@@ -490,14 +487,13 @@ impl<'a> BlockLowerer<'a> {
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
-            pointer_class,
         )
         .ok_or_else(|| Error::MissingRepresentation {
             context: "invoke interface table field".to_string(),
         })?;
-        let table_field = pool.field_access(table_field);
+        let table_field = pool.projection(table_field);
 
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             interface_invoke_op(pointer_class)?,
             CallInterfaceBranch {
                 receiver_offset: word_offset(self, receiver)?,
@@ -515,7 +511,7 @@ impl<'a> BlockLowerer<'a> {
         &self,
         function: mir::FunctionReference,
         call: &mir::Call<Vec<mir::ValueReference>>,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         let function = function
             .function()
@@ -550,7 +546,7 @@ impl<'a> BlockLowerer<'a> {
         let moves = pool.parameter_move_range(&callee.parameters, &arguments)?;
         let target = self.call_target(function)?;
 
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             Op::TailCall,
             TailCall {
                 function: function.id,
@@ -565,7 +561,7 @@ impl<'a> BlockLowerer<'a> {
         &self,
         callee: mir::ValueReference,
         call: &mir::Call<Vec<mir::ValueReference>>,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         let callee = callee.value().ok_or_else(|| Error::MissingRepresentation {
             context: "tail indirect callee".to_string(),
@@ -574,7 +570,7 @@ impl<'a> BlockLowerer<'a> {
             pool.argument_reference_range(call.arguments.as_slice(), "tail indirect argument")?;
         let callee = self.indirect_callee(callee)?;
 
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             indirect_tail_call_op(&callee),
             TailCallIndirect {
                 callee_offset: callee.offset,
@@ -590,7 +586,7 @@ impl<'a> BlockLowerer<'a> {
         receiver: mir::ValueReference,
         method: mir::VtableSlotId,
         call: &mir::Call<Vec<mir::ValueReference>>,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         let receiver = receiver
             .value()
@@ -604,14 +600,13 @@ impl<'a> BlockLowerer<'a> {
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value_layout(self.value_layout_map(), receiver),
-            pointer_class,
         )
         .ok_or_else(|| Error::MissingRepresentation {
             context: "tail virtual table field".to_string(),
         })?;
-        let table_field = pool.field_access(table_field);
+        let table_field = pool.projection(table_field);
 
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             virtual_tail_call_op(pointer_class)?,
             TailCallVirtual {
                 receiver_offset: word_offset(self, receiver)?,
@@ -628,7 +623,7 @@ impl<'a> BlockLowerer<'a> {
         receiver: mir::ValueReference,
         method: mir::InterfaceSlotId,
         call: &mir::Call<Vec<mir::ValueReference>>,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         let receiver = receiver
             .value()
@@ -642,14 +637,13 @@ impl<'a> BlockLowerer<'a> {
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value_layout(self.value_layout_map(), receiver),
-            pointer_class,
         )
         .ok_or_else(|| Error::MissingRepresentation {
             context: "tail interface table field".to_string(),
         })?;
-        let table_field = pool.field_access(table_field);
+        let table_field = pool.projection(table_field);
 
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             interface_tail_call_op(pointer_class)?,
             TailCallInterface {
                 receiver_offset: word_offset(self, receiver)?,

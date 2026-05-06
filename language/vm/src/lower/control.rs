@@ -8,8 +8,8 @@ use crate::{Error, Result};
 
 use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
-use super::op::{select_switch_op, select_switch_table_op};
 use super::pool::Pool;
+
 impl<'a> BlockLowerer<'a> {
     /// Lower one MIR check into VM data.
     fn lower_check(&self, constraint: &mir::CheckConstraint) -> Result<Check> {
@@ -132,7 +132,7 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_terminator(
         &self,
         term: &mir::Terminator,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         Ok(match term {
             mir::Terminator::Error => {
@@ -332,8 +332,8 @@ impl<'a> BlockLowerer<'a> {
                 let default_moves = pool.edge_moves(default_parameters, &default_arguments)?;
                 let default_edge = pool.edge(default_index as u32, default_moves);
 
-                let (is_word, width) = switch_layout(self.value_layout_map().get(value));
-                let switch_layout = switch_layout_field(width);
+                let (is_word, width, is_signed) = switch_layout(self.value_layout_map().get(value));
+                let switch_layout = switch_layout_field(width, is_signed);
                 if is_word
                     && let Some(table) = pool.switch_table_range(
                         &self.block_index_by_id,
@@ -344,7 +344,7 @@ impl<'a> BlockLowerer<'a> {
                     )?
                 {
                     Instruction::new(
-                        select_switch_table_op(self.value_layout_map(), value),
+                        Op::SwitchTable,
                         word_offset(self, value)?,
                         table.0,
                         default_edge.0,
@@ -363,7 +363,7 @@ impl<'a> BlockLowerer<'a> {
                     };
 
                     Instruction::new(
-                        select_switch_op(self.value_layout_map(), value),
+                        Op::Switch,
                         value_offset,
                         cases.0,
                         default_edge.0,
@@ -455,21 +455,25 @@ impl<'a> BlockLowerer<'a> {
     }
 }
 
-/// Return the word integer shape for one checked value.
-fn switch_layout(layout: Option<ValueLayout>) -> (bool, u16) {
+/// Return the lowered switch integer layout.
+fn switch_layout(layout: Option<ValueLayout>) -> (bool, u16, bool) {
     match layout {
-        Some(ValueLayout::Int { width, .. }) if width <= u64::BITS as u16 => (true, width),
-        Some(ValueLayout::Int { width, .. }) => (false, width),
-        _ => (false, 0),
+        Some(ValueLayout::Int { width, signed }) if width <= u64::BITS as u16 => {
+            (true, width, signed)
+        }
+        Some(ValueLayout::Int { width, signed }) => (false, width, signed),
+        _ => (false, 0, false),
     }
 }
 
-/// Resolve one value reference used by a runtime check.
-fn switch_layout_field(width: u16) -> u32 {
-    u32::from(width)
+/// Pack one switch integer layout into an instruction operand.
+fn switch_layout_field(width: u16, is_signed: bool) -> u32 {
+    let sign = if is_signed { 1 << 16 } else { 0 };
+
+    u32::from(width) | sign
 }
 
-/// Select one concrete overflow check.
+/// Return one checked word integer layout.
 fn checked_integer(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Result<(u8, bool)> {
     let value_type = lowerer.value_type_for_value(value)?;
     let value_type = repr_type(lowerer.tree, value_type);
@@ -486,14 +490,14 @@ fn checked_integer(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Result<(u8,
     }
 }
 
-/// Select one concrete bounds check.
+/// Resolve one value reference used by a runtime check.
 fn check_value(value: mir::ValueReference, context: &'static str) -> Result<mir::Value> {
     value.value().ok_or_else(|| Error::MissingRepresentation {
         context: context.to_string(),
     })
 }
 
-/// Select one concrete div-zero check.
+/// Select one concrete overflow check.
 fn overflow_check(
     operator: mir::BinaryOperator,
     is_signed: bool,
@@ -516,7 +520,7 @@ fn overflow_check(
     }
 }
 
-/// Select one concrete shift range check.
+/// Select one concrete bounds check.
 fn bounds_check(index_signed: bool, length_signed: bool, check: BoundsCheck) -> Check {
     match (index_signed, length_signed) {
         (true, true) => Check::BoundsIntInt(check),
@@ -526,7 +530,7 @@ fn bounds_check(index_signed: bool, length_signed: bool, check: BoundsCheck) -> 
     }
 }
 
-/// Select one concrete narrow check.
+/// Select one concrete div-zero check.
 fn div_zero_check(is_signed: bool, divisor: u32) -> Check {
     if is_signed {
         return Check::DivZeroInt { divisor };
@@ -535,7 +539,7 @@ fn div_zero_check(is_signed: bool, divisor: u32) -> Check {
     Check::DivZeroUint { divisor }
 }
 
-/// Select one concrete union check.
+/// Select one concrete shift range check.
 fn shift_range_check(is_signed: bool, check: ShiftRangeCheck) -> Check {
     if is_signed {
         return Check::ShiftRangeInt(check);
@@ -544,7 +548,7 @@ fn shift_range_check(is_signed: bool, check: ShiftRangeCheck) -> Check {
     Check::ShiftRangeUint(check)
 }
 
-/// Return one lowered switch value layout.
+/// Select one concrete narrow check.
 fn narrow_check(is_signed: bool, check: NarrowCheck) -> Check {
     if is_signed {
         return Check::NarrowInt(check);
@@ -553,7 +557,7 @@ fn narrow_check(is_signed: bool, check: NarrowCheck) -> Check {
     Check::NarrowUint(check)
 }
 
-/// Pack one switch integer layout into an instruction field.
+/// Select one concrete union check.
 fn union_check(is_signed: bool, check: UnionCheck) -> Check {
     if is_signed {
         return Check::UnionInt(check);

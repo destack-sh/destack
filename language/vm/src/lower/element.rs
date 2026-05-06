@@ -3,18 +3,17 @@ use destack_mir as mir;
 use crate::program::{Instruction, Op};
 use crate::{Error, Result};
 
-use super::access::slice_element_access;
 use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
 use super::op::{select_element_addr_op, select_slice_element_addr_op};
 use super::pool::Pool;
-use super::value::{pointer_class_for_value, reference_meta_for_value};
+use super::projection::{slice_element_pointer_class, slice_projection};
 
 impl<'a> BlockLowerer<'a> {
     /// Lower one element address.
     pub(super) fn lower_element_addr(
         &self,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
         destination: mir::ValueReference,
         array: mir::ValueReference,
         index: mir::ValueReference,
@@ -33,15 +32,15 @@ impl<'a> BlockLowerer<'a> {
         })?;
 
         // slice descriptors have a distinct address path
-        let pointer_class = pointer_class_for_value(self.value_layout_map(), array);
         let pointee_type = self.projection_type_for_value(array)?;
-        if let Some(mut access) = pointee_type.and_then(|pointee_type| {
-            slice_element_access(self.tree, self.layouts(), pointee_type, pointer_class)
-        }) {
-            let reference = reference_meta_for_value(self.value_layout_map(), destination);
-            access.reference = reference;
-            let op = select_slice_element_addr_op(access.element.pointer_class)?;
-            let access = pool.slice_element_access(access);
+        if let Some(access) = pointee_type
+            .and_then(|pointee_type| slice_projection(self.tree, self.layouts(), pointee_type))
+        {
+            let pointer_class = pointee_type
+                .and_then(|pointee_type| slice_element_pointer_class(self.tree, pointee_type))
+                .ok_or(Error::InvalidInstruction)?;
+            let op = select_slice_element_addr_op(pointer_class)?;
+            let access = pool.slice_projection(access);
 
             return Ok(Instruction::new(
                 op,
@@ -54,12 +53,10 @@ impl<'a> BlockLowerer<'a> {
 
         // frame projections keep the dynamic index in frame metadata
         let op = select_element_addr_op(self.value_layout_map(), array)?;
-        let mut element = self.element_access_for_value(array)?;
+        let element = self.element_projection_for_value(array)?;
         let array_length = self.array_length_for_value(array)?;
-        let reference = reference_meta_for_value(self.value_layout_map(), destination);
-        element.reference = reference;
         if op == Op::AddressFrameElement {
-            let access = pool.frame_access(element.into_frame_access(0, array_length));
+            let access = pool.projection(element.with_length(array_length));
 
             return Ok(Instruction::new(
                 op,
@@ -71,7 +68,7 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // memory projections use the selected address family
-        let element = pool.element_access(element);
+        let element = pool.projection(element);
 
         Ok(Instruction::new(
             op,

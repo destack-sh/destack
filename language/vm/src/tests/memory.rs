@@ -1,8 +1,7 @@
 use crate::diagnostic::Error;
 use crate::tests::{
-    assert_runtime_error, assert_runtime_error_matches, create_isolate,
-    create_isolate_with_storage, run_mir, run_mir_expect, run_mir_ok, run_mir_with_frame,
-    run_mir_with_frame_ok,
+    assert_runtime_error_matches, create_isolate, create_isolate_with_storage, run_mir,
+    run_mir_expect, run_mir_ok, run_mir_with_frame_ok,
 };
 use crate::{SharedHeap, Value, Word};
 use destack_heap::{
@@ -193,36 +192,6 @@ b0:
     return v2
 }"#;
     run_mir_expect(mir, "loadStore", &[], Value::int32(42));
-}
-
-/// Store rejects mismatched shared address space pointers.
-#[test]
-fn test_store_shared_invalid_address_space() {
-    let mir = r#"
-function storeShared(v0: ref<int32, raw, space(shared)>): void {
-b0(v0: ref<int32, raw, space(shared)>):
-    v1: int32 = 1int32
-    store v0, v1
-    return
-}"#;
-    let pointer = Value::raw_pointer(RawPointer::new(1));
-    let result = run_mir(mir, "storeShared", &[pointer]);
-    assert_runtime_error_matches!(result, Error::InvalidSharedRawPointer);
-}
-
-/// Store rejects mismatched address space pointers.
-#[test]
-fn test_store_invalid_address_space() {
-    let mir = r#"
-function storeStack(v0: ref<int32, raw, space(stack)>): void {
-b0(v0: ref<int32, raw, space(stack)>):
-    v1: int32 = 1int32
-    store v0, v1
-    return
-}"#;
-    let pointer = Value::raw_pointer(RawPointer::new(1));
-    let result = run_mir(mir, "storeStack", &[pointer]);
-    assert_runtime_error_matches!(result, Error::InvalidAddressSpace { .. });
 }
 
 /// Binding contexts can allocate and mutate explicit shared raw-space allocations.
@@ -436,31 +405,6 @@ b0:
 }"#;
 
     run_mir_expect(mir, "accessSlice", &[], Value::int32(42));
-}
-
-/// Slice element addresses reject out-of-bounds indices.
-#[test]
-fn test_slice_element_address_rejects_out_of_bounds_index() {
-    let mir = r#"
-function badSliceAccess(): int32 {
-b0:
-    v0: int64 = 1int64
-    v1: slice<int32> = new.slice int32, v0
-    v2: int64 = 1int64
-    v3: ref<int32, managed> = element.address v1, v2
-    v4: int32 = load v3
-    return v4
-}"#;
-
-    let result = run_mir(mir, "badSliceAccess", &[]);
-
-    assert_runtime_error(
-        result,
-        Error::InvalidArrayAccess {
-            index: 1,
-            length: 1,
-        },
-    );
 }
 
 /// Field get reads a field from a tuple value.
@@ -934,33 +878,6 @@ b0(v0: (int32,)):
     );
 }
 
-/// Out-of-bounds array access produces an error.
-#[test]
-fn test_invalid_array_access() {
-    let mir = r#"
-function badElem(v0: int32[3], v1: int64): int32 {
-b0(v0: int32[3], v1: int64):
-    v2: ref<int32, raw, readonly, space(frame)> = element.address v0, v1
-    v3: int32 = load v2
-    return v3
-}"#;
-    let result = run_mir_with_frame(mir, "badElem", |interp| {
-        let ty = interp.parameter_type("badElem", 0);
-        let arr = interp.materialize_value_for_type(
-            ty,
-            vec![Word::int32(10), Word::int32(20), Word::int32(30)],
-        );
-        vec![arr, Word::uint64(100)]
-    });
-    assert_runtime_error(
-        result,
-        Error::InvalidArrayAccess {
-            index: 100,
-            length: 3,
-        },
-    );
-}
-
 /// Raw allocation creates one raw allocation and returns a raw pointer.
 #[test]
 fn test_raw_allocate() {
@@ -976,6 +893,24 @@ b0:
     };
 
     assert!(!pointer.is_null());
+}
+
+/// Shared raw allocation creates one shared raw allocation.
+#[test]
+fn test_raw_allocate_shared() {
+    let mir = r#"
+function rawAllocShared(): int32 {
+b0:
+    v0: ref<int32, raw, readonly, space(shared)> = raw.alloc int32
+    v1: int32 = 42int32
+    store v0, v1
+    v2: int32 = load v0
+    raw.free v0
+    return v2
+}"#;
+    let output = run_mir_ok(mir, "rawAllocShared", &[]);
+
+    assert_eq!(output, Value::int32(42));
 }
 
 /// Raw free deallocates a raw pointer.
@@ -1083,49 +1018,31 @@ b0:
     );
 }
 
-/// Null raw pointer dereference produces an error.
+/// Explicit null checks branch before dereference.
 #[test]
-fn test_null_pointer_load() {
+fn test_null_pointer_check_branches() {
     let mir = r#"
-function nullLoad(v0: ref<int32, raw, readonly>): int32 {
+function nullCheck(v0: ref<int32, raw, readonly>): int32 {
 b0(v0: ref<int32, raw, readonly>):
-    v1: int32 = load v0
+    check null v0 -> b1, b2
+b1:
+    v1: int32 = 1int32
     return v1
-}"#;
-    let result = run_mir(mir, "nullLoad", &[Value::raw_pointer(RawPointer::NULL)]);
-    assert_runtime_error_matches!(result, Error::NullPointerDereference);
-}
-
-/// Null raw pointer store produces an error.
-#[test]
-fn test_null_pointer_store() {
-    let mir = r#"
-function nullStore(v0: ref<int32, raw>, v1: int32): void {
-b0(v0: ref<int32, raw>, v1: int32):
-    store v0, v1
-    return
-}"#;
-    let result = run_mir(
-        mir,
-        "nullStore",
-        &[Value::raw_pointer(RawPointer::NULL), Value::int32(42)],
-    );
-    assert_runtime_error_matches!(result, Error::NullPointerDereference);
-}
-
-/// Use-after-free on raw pointer surfaces the underlying heap error.
-#[test]
-fn test_use_after_free() {
-    let mir = r#"
-function useAfterFree(): int32 {
-b0:
-    v0: ref<int32, raw, readonly> = raw.alloc int32
-    v1: int32 = 42int32
-    store v0, v1
-    raw.free v0
-    v2: int32 = load v0
+b2:
+    v2: int32 = 0int32
     return v2
 }"#;
-    let result = run_mir(mir, "useAfterFree", &[]);
-    assert_runtime_error_matches!(result, Error::InvalidRawPointer);
+    run_mir_expect(
+        mir,
+        "nullCheck",
+        &[Value::raw_pointer(RawPointer::NULL)],
+        Value::int32(0),
+    );
+
+    run_mir_expect(
+        mir,
+        "nullCheck",
+        &[Value::raw_pointer(RawPointer::from_bits(8))],
+        Value::int32(1),
+    );
 }

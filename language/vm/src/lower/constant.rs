@@ -9,11 +9,12 @@ use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
 use super::pool::Pool;
 use super::value::reference_meta_for_type;
+
 impl<'a> BlockLowerer<'a> {
     /// Lower one constant instruction.
     pub(super) fn lower_const(
         &self,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
         destination: mir::ValueReference,
         value: &mir::Constant,
     ) -> Result<Instruction> {

@@ -170,17 +170,6 @@ impl<'a> ValueLayoutMapBuilder<'a> {
     }
 }
 
-/// Get reference metadata for a value when available.
-pub(super) fn reference_meta_for_value(
-    value_layout_map: &ValueLayoutMap,
-    value: mir::Value,
-) -> ReferenceMeta {
-    match value_layout_map.get(value) {
-        Some(ValueLayout::Pointer { reference, .. }) => reference,
-        _ => ReferenceMeta::NONE,
-    }
-}
-
 /// Get the pointer class for a value when available.
 pub(super) fn pointer_class_for_value(
     value_layout_map: &ValueLayoutMap,

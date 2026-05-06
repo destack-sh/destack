@@ -1,6 +1,7 @@
+use crate::diagnostic::Error;
 use crate::interpreter::Machine;
 use crate::program::{
-    AtomicCompareExchange, AtomicFence, AtomicLoad, AtomicRmw, AtomicStore, Instruction, Transfer,
+    AtomicCompareExchange, AtomicFence, AtomicLoad, AtomicRmw, AtomicStore, Instruction,
 };
 
 macro_rules! atomic_rmw_executor {
@@ -9,7 +10,7 @@ macro_rules! atomic_rmw_executor {
         pub(crate) fn $function(
             machine: &mut Machine<'_, '_>,
             instruction: &Instruction,
-        ) -> Transfer {
+        ) -> Result<(), Error> {
             let AtomicRmw {
                 dest_offset,
                 pointer_offset,
@@ -36,13 +37,13 @@ macro_rules! atomic_rmw_executor {
                 *semantics,
             ) {
                 Ok(result) => result,
-                Err(error) => return Transfer::Error(error.error),
+                Err(error) => return Err(error.error),
             };
 
             // store the result
             machine.set_word_at(*dest_offset, result);
 
-            Transfer::Continue
+            Ok(())
         }
     };
 }
@@ -51,7 +52,7 @@ macro_rules! atomic_rmw_executor {
 pub(crate) fn execute_atomic_load(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let AtomicLoad {
         dest_offset,
         pointer_offset,
@@ -75,20 +76,20 @@ pub(crate) fn execute_atomic_load(
         *semantics,
     ) {
         Ok(value) => value,
-        Err(error) => return Transfer::Error(error.error),
+        Err(error) => return Err(error.error),
     };
 
     // store the result
     machine.set_word_at(*dest_offset, value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute atomic store.
 pub(crate) fn execute_atomic_store(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let AtomicStore {
         pointer_offset,
         value_offset,
@@ -113,17 +114,17 @@ pub(crate) fn execute_atomic_store(
         *memory_scope,
         *semantics,
     ) {
-        return Transfer::Error(error.error);
+        return Err(error.error);
     }
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute atomic compare exchange.
 pub(crate) fn execute_atomic_compare_exchange(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     // decode fixed fields
     let AtomicCompareExchange {
         dest,
@@ -156,10 +157,10 @@ pub(crate) fn execute_atomic_compare_exchange(
         *memory_scope,
         *semantics,
     ) {
-        return Transfer::Error(error.error);
+        return Err(error.error);
     }
 
-    Transfer::Continue
+    Ok(())
 }
 
 atomic_rmw_executor!(
@@ -216,7 +217,7 @@ atomic_rmw_executor!(
 pub(crate) fn execute_atomic_fence(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let AtomicFence {
         ordering,
         scope,
@@ -226,8 +227,8 @@ pub(crate) fn execute_atomic_fence(
 
     // execute the fence
     if let Err(error) = machine.atomic_fence(*ordering, *scope, *memory_scope, *semantics) {
-        return Transfer::Error(error.error);
+        return Err(error.error);
     }
 
-    Transfer::Continue
+    Ok(())
 }

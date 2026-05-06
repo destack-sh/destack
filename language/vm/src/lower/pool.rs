@@ -1,32 +1,37 @@
 use std::collections::HashMap;
 
-use destack_mir as mir;
+use {destack_engine as engine, destack_mir as mir};
 
 use crate::program::{
     AllocationClassId, AllocationLayout, AllocationLayoutId, ArgumentRange, CallTarget, Check,
-    CheckId, ConstValue, ConstValueId, Edge, EdgeId, ElementAccess, ElementAccessId, FieldAccess,
-    FieldAccessId, FrameAccess, FrameAccessId, Instruction, MovePair, MoveRange, MoveSource, Op,
-    PointeeAccess, PointeeAccessId, ReferenceMapId, SideRecord, SideTableBuilder,
-    SliceElementAccess, SliceElementAccessId, SmallAllocationLayoutId, SwitchCase, SwitchCasesId,
-    SwitchTable, SwitchTableId, TensorConvolutionId, TensorDotId, TensorGatherId, TensorLayout,
-    TensorLayoutId, TensorScatterId, TensorWindowId, U32RangeId,
+    CheckId, ConstValue, ConstValueId, Edge, EdgeId, Instruction, MovePair, MoveRange, MoveSlot,
+    MoveSource, Op, Projection, ProjectionId, ReferenceMapId, SideRecord, SideTableBuilder,
+    SliceProjection, SliceProjectionId, SwitchCase, SwitchCasesId, SwitchTable, SwitchTableId,
+    TensorConvolutionId, TensorDotId, TensorGatherId, TensorLayout, TensorLayoutId,
+    TensorScatterId, TensorWindowId, U32RangeId,
 };
 use crate::{Error, Result};
 
 /// One lowering pool for shared variable-length lowering data.
-pub(super) struct Pool<'a> {
+pub(super) struct Pool<'layout, 'table> {
+    /// The frame layout being lowered.
+    frame_layout: &'layout engine::FrameLayout,
     /// The pooled argument values.
     argument: Vec<mir::Value>,
     /// The pooled move pairs.
     move_pair: Vec<MovePair>,
     /// The program side table.
-    side_table: &'a mut SideTableBuilder,
+    side_table: &'table mut SideTableBuilder,
 }
 
-impl<'a> Pool<'a> {
+impl<'layout, 'table> Pool<'layout, 'table> {
     /// Create one empty lowering pool.
-    pub(super) fn new(side_table: &'a mut SideTableBuilder) -> Self {
+    pub(super) fn new(
+        side_table: &'table mut SideTableBuilder,
+        frame_layout: &'layout engine::FrameLayout,
+    ) -> Self {
         Self {
+            frame_layout,
             argument: Vec::new(),
             move_pair: Vec::new(),
             side_table,
@@ -38,8 +43,8 @@ impl<'a> Pool<'a> {
         T::push(self.side_table, record)
     }
 
-    /// Return one lowered instruction backed entirely by a pooled side record.
-    pub(super) fn instruction_with_side_record<T: SideRecord>(
+    /// Return one lowered instruction backed entirely by side-table data.
+    pub(super) fn instruction_with_side<T: SideRecord>(
         &mut self,
         op: Op,
         record: T,
@@ -72,45 +77,19 @@ impl<'a> Pool<'a> {
         self.side_table.push_allocation_class(allocation_class)
     }
 
-    /// Return one pooled small allocation layout id.
-    pub(super) fn small_allocation_layout(
-        &mut self,
-        small: destack_heap::SmallAllocationLayout,
-    ) -> SmallAllocationLayoutId {
-        self.side_table.push_small_allocation_layout(small)
-    }
-
     /// Return one pooled reference map id.
     pub(super) fn reference_map(&mut self, reference_map: mir::ReferenceMap) -> ReferenceMapId {
         self.side_table.push_reference_map(reference_map)
     }
 
-    /// Return one pooled field access id.
-    pub(super) fn field_access(&mut self, access: FieldAccess) -> FieldAccessId {
-        self.side_table.push_field_access(access)
+    /// Return one pooled projection id.
+    pub(super) fn projection(&mut self, projection: Projection) -> ProjectionId {
+        self.side_table.push_projection(projection)
     }
 
-    /// Return one pooled frame access id.
-    pub(super) fn frame_access(&mut self, access: FrameAccess) -> FrameAccessId {
-        self.side_table.push_frame_access(access)
-    }
-
-    /// Return one pooled element access id.
-    pub(super) fn element_access(&mut self, access: ElementAccess) -> ElementAccessId {
-        self.side_table.push_element_access(access)
-    }
-
-    /// Return one pooled slice element access id.
-    pub(super) fn slice_element_access(
-        &mut self,
-        access: SliceElementAccess,
-    ) -> SliceElementAccessId {
-        self.side_table.push_slice_element_access(access)
-    }
-
-    /// Return one pooled pointee access id.
-    pub(super) fn pointee_access(&mut self, access: PointeeAccess) -> PointeeAccessId {
-        self.side_table.push_pointee_access(access)
+    /// Return one pooled slice projection id.
+    pub(super) fn slice_projection(&mut self, access: SliceProjection) -> SliceProjectionId {
+        self.side_table.push_slice_projection(access)
     }
 
     /// Return one argument range from the pool.
@@ -144,7 +123,9 @@ impl<'a> Pool<'a> {
         parameters: &[mir::Value],
         arguments: &[mir::Value],
     ) -> Result<MoveRange> {
-        move_range(&mut self.move_pair, parameters, arguments)
+        let frame_layout = self.frame_layout;
+
+        move_range(frame_layout, &mut self.move_pair, parameters, arguments)
     }
 
     /// Return one parameter move range from the pool.
@@ -153,7 +134,9 @@ impl<'a> Pool<'a> {
         parameters: &[mir::Parameter],
         arguments: &[mir::Value],
     ) -> Result<MoveRange> {
-        parameter_move_range(&mut self.move_pair, parameters, arguments)
+        let frame_layout = self.frame_layout;
+
+        parameter_move_range(frame_layout, &mut self.move_pair, parameters, arguments)
     }
 
     /// Return one block edge move range from the pool.
@@ -162,7 +145,9 @@ impl<'a> Pool<'a> {
         parameters: &[mir::Value],
         arguments: &[mir::Value],
     ) -> Result<MoveRange> {
-        move_range(&mut self.move_pair, parameters, arguments)
+        let frame_layout = self.frame_layout;
+
+        move_range(frame_layout, &mut self.move_pair, parameters, arguments)
     }
 
     /// Return one pooled control edge id.
@@ -177,8 +162,14 @@ impl<'a> Pool<'a> {
         block_parameter: &[Vec<mir::Value>],
         cases: &[mir::SwitchCase],
     ) -> Result<SwitchCasesId> {
-        let cases =
-            switch_case_range(&mut self.move_pair, block_index_map, block_parameter, cases)?;
+        let frame_layout = self.frame_layout;
+        let cases = switch_case_range(
+            frame_layout,
+            &mut self.move_pair,
+            block_index_map,
+            block_parameter,
+            cases,
+        )?;
 
         Ok(self.side_table.push_switch_cases(cases))
     }
@@ -192,7 +183,9 @@ impl<'a> Pool<'a> {
         default_target: u32,
         default_moves: MoveRange,
     ) -> Result<Option<SwitchTableId>> {
+        let frame_layout = self.frame_layout;
         let table = switch_table_range(
+            frame_layout,
             &mut self.move_pair,
             block_index_map,
             block_parameter,
@@ -285,6 +278,7 @@ fn argument_range(pool: &mut Vec<mir::Value>, arguments: &[mir::Value]) -> Argum
 
 /// Return one move range from the pool.
 fn move_range(
+    frame_layout: &engine::FrameLayout,
     pool: &mut Vec<MovePair>,
     parameters: &[mir::Value],
     arguments: &[mir::Value],
@@ -305,11 +299,10 @@ fn move_range(
 
     // append move pairs
     for (index, param) in parameters.iter().enumerate() {
-        let source = move_source(arguments, index);
-        pool.push(MovePair {
-            dest: *param,
-            source,
-        });
+        let source = move_source(frame_layout, arguments, index)?;
+        let dest = move_slot(frame_layout, *param)?;
+
+        pool.push(MovePair { dest, source });
     }
 
     // return range
@@ -321,6 +314,7 @@ fn move_range(
 
 /// Return one parameter move range from the pool.
 fn parameter_move_range(
+    frame_layout: &engine::FrameLayout,
     pool: &mut Vec<MovePair>,
     parameters: &[mir::Parameter],
     arguments: &[mir::Value],
@@ -346,11 +340,10 @@ fn parameter_move_range(
             .ok_or_else(|| Error::MissingRepresentation {
                 context: "function parameter value".to_string(),
             })?;
-        let source = move_source(arguments, index);
-        pool.push(MovePair {
-            dest: parameter,
-            source,
-        });
+        let source = move_source(frame_layout, arguments, index)?;
+        let dest = move_slot(frame_layout, parameter)?;
+
+        pool.push(MovePair { dest, source });
     }
 
     // return range
@@ -370,6 +363,7 @@ pub(super) fn lookup_call_target(
 
 /// Return one switch-case range from the pool.
 fn switch_case_range(
+    frame_layout: &engine::FrameLayout,
     move_pool: &mut Vec<MovePair>,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     block_parameters: &[Vec<mir::Value>],
@@ -398,7 +392,7 @@ fn switch_case_range(
                     })
             })
             .collect::<Result<Vec<_>>>()?;
-        let moves = move_range(move_pool, target_parameters, &arguments)?;
+        let moves = move_range(frame_layout, move_pool, target_parameters, &arguments)?;
         lowered_cases.push(SwitchCase {
             value: (case.value)
                 .integer()
@@ -415,6 +409,7 @@ fn switch_case_range(
 
 /// Return one switch-table range when density is high enough.
 fn switch_table_range(
+    frame_layout: &engine::FrameLayout,
     move_pool: &mut Vec<MovePair>,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     block_parameters: &[Vec<mir::Value>],
@@ -444,7 +439,7 @@ fn switch_table_range(
         max_value = max_value.max(value);
     }
 
-    // compute range length with overflow protection
+    // compute dense table range
     let range_len = max_value - min_value + 1;
     if range_len <= 0 {
         return Ok(None);
@@ -498,7 +493,7 @@ fn switch_table_range(
                     })
             })
             .collect::<Result<Vec<_>>>()?;
-        let moves = move_range(move_pool, target_parameters, &arguments)?;
+        let moves = move_range(frame_layout, move_pool, target_parameters, &arguments)?;
         let offset = (case_value - min_value) as usize;
         let entry = &mut table[offset];
         entry.value = case_value;
@@ -511,9 +506,28 @@ fn switch_table_range(
 }
 
 /// Return the lowered move source for one argument index.
-fn move_source(arguments: &[mir::Value], index: usize) -> MoveSource {
-    match arguments.get(index) {
-        Some(value) => MoveSource::Value(*value),
-        None => MoveSource::Void,
-    }
+fn move_source(
+    frame_layout: &engine::FrameLayout,
+    arguments: &[mir::Value],
+    index: usize,
+) -> Result<MoveSource> {
+    let Some(value) = arguments.get(index) else {
+        return Ok(MoveSource::Void);
+    };
+
+    Ok(MoveSource::Slot(move_slot(frame_layout, *value)?))
+}
+
+/// Return the lowered frame slot for one SSA value.
+fn move_slot(frame_layout: &engine::FrameLayout, value: mir::Value) -> Result<MoveSlot> {
+    let slot = frame_layout
+        .value(value.0)
+        .ok_or(Error::InvalidInstruction)?;
+
+    Ok(MoveSlot {
+        layout: slot.layout,
+        offset: slot.offset,
+        byte_len: slot.byte_len,
+        is_word: slot.is_word,
+    })
 }

@@ -15,7 +15,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one atomic load.
     pub(super) fn lower_atomic_load(
         &self,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
         destination: mir::ValueReference,
         pointer: mir::ValueReference,
         ordering: mir::MemoryOrdering,
@@ -37,7 +37,7 @@ impl<'a> BlockLowerer<'a> {
 
         let (layout, byte_len) = require_atomic_layout(self.tree, self.value_type(), pointer)?;
 
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             Op::AtomicLoad,
             AtomicLoad {
                 dest_offset: word_offset(self, destination)?,
@@ -55,7 +55,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one atomic store.
     pub(super) fn lower_atomic_store(
         &self,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
         pointer: mir::ValueReference,
         value: mir::ValueReference,
         ordering: mir::MemoryOrdering,
@@ -75,7 +75,7 @@ impl<'a> BlockLowerer<'a> {
 
         let (layout, byte_len) = require_atomic_layout(self.tree, self.value_type(), pointer)?;
 
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             Op::AtomicStore,
             AtomicStore {
                 pointer_offset: word_offset(self, pointer)?,
@@ -93,7 +93,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one atomic compare exchange.
     pub(super) fn lower_atomic_compare_exchange(
         &self,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
         destination: mir::ValueReference,
         pointer: mir::ValueReference,
         expected: mir::ValueReference,
@@ -128,7 +128,7 @@ impl<'a> BlockLowerer<'a> {
 
         let (layout, byte_len) = require_atomic_layout(self.tree, self.value_type(), pointer)?;
 
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             Op::AtomicCompareExchange,
             AtomicCompareExchange {
                 dest: destination,
@@ -149,7 +149,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one atomic read-modify-write.
     pub(super) fn lower_atomic_rmw(
         &self,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
         destination: mir::ValueReference,
         operator: mir::AtomicRmwOperator,
         pointer: mir::ValueReference,
@@ -176,7 +176,7 @@ impl<'a> BlockLowerer<'a> {
 
         let (layout, byte_len) = require_atomic_layout(self.tree, self.value_type(), pointer)?;
 
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             atomic_rmw_op(operator),
             AtomicRmw {
                 dest_offset: word_offset(self, destination)?,
@@ -195,13 +195,13 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one atomic fence.
     pub(super) fn lower_atomic_fence(
         &self,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
         semantics: mir::MemorySemantics,
     ) -> Instruction {
-        pool.instruction_with_side_record(
+        pool.instruction_with_side(
             Op::AtomicFence,
             AtomicFence {
                 ordering,

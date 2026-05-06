@@ -17,7 +17,6 @@ mod frame;
 mod index;
 mod intrinsic;
 mod memory;
-mod reference;
 mod resume;
 mod run;
 mod scalar;

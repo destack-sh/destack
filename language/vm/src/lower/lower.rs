@@ -16,7 +16,7 @@ struct FunctionLowerer<'a, 'table> {
     context: FunctionContext<'a>,
     func: &'a mir::Function,
     frame_layout: &'a engine::FrameLayout,
-    pool: Pool<'table>,
+    pool: Pool<'a, 'table>,
 }
 
 impl<'a, 'table> FunctionLowerer<'a, 'table> {
@@ -85,7 +85,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             context,
             func,
             frame_layout,
-            pool: Pool::new(side_table),
+            pool: Pool::new(side_table, frame_layout),
         }))
     }
 
@@ -258,7 +258,7 @@ impl<'a> BlockLowerer<'a> {
     }
 
     /// Lower the block into program form.
-    fn lower(self, pool: &mut Pool<'_>) -> Result<BlockCode> {
+    fn lower(self, pool: &mut Pool<'_, '_>) -> Result<BlockCode> {
         let mut instructions = Vec::with_capacity(self.block.instructions.len() + 1);
         let mut source_boundary_by_pc = Vec::with_capacity(self.block.instructions.len() + 2);
         source_boundary_by_pc.push(0);

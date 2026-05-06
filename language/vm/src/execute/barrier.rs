@@ -1,12 +1,12 @@
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
-use crate::program::{Instruction, Transfer};
+use crate::program::Instruction;
 
 /// Execute a local heap barrier write.
 pub(crate) fn execute_barrier_write_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let object = instruction.a;
     let offset = instruction.b;
     let byte_len = instruction.c;
@@ -23,17 +23,17 @@ pub(crate) fn execute_barrier_write_heap(
 
     // report invalid heap ranges
     if let Err(error) = result {
-        return Transfer::Error(Error::from(error));
+        return Err(Error::from(error));
     }
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute a shared heap barrier write.
 pub(crate) fn execute_barrier_write_shared_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let object = instruction.a;
     let offset = instruction.b;
     let byte_len = instruction.c;
@@ -51,8 +51,8 @@ pub(crate) fn execute_barrier_write_shared_heap(
 
     // report invalid heap ranges
     if let Err(error) = result {
-        return Transfer::Error(Error::from(error));
+        return Err(Error::from(error));
     }
 
-    Transfer::Continue
+    Ok(())
 }

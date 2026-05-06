@@ -7,6 +7,9 @@ use crate::program::{
 };
 use {destack_engine as engine, destack_mir as mir};
 
+const SWITCH_SIGN_BIT: u32 = 1 << 16;
+const SWITCH_WIDTH_MASK: u32 = SWITCH_SIGN_BIT - 1;
+
 /// Return one pooled control edge.
 #[inline(always)]
 fn control_edge(machine: &Machine<'_, '_>, id: u32) -> Edge {
@@ -141,6 +144,15 @@ fn integer_bytes_to_case_value<const IS_SIGNED: bool>(
     let value = u128::from_le_bytes(value);
 
     Ok(i128::try_from(value).ok())
+}
+
+/// Return one packed switch layout.
+#[inline(always)]
+fn switch_layout(field: u32) -> (u32, bool) {
+    let width = field & SWITCH_WIDTH_MASK;
+    let is_signed = field & SWITCH_SIGN_BIT != 0;
+
+    (width, is_signed)
 }
 
 /// Load one word as a signed integer.
@@ -411,10 +423,10 @@ fn evaluate_check(machine: &Machine<'_, '_>, constraint: &Check) -> Result<bool,
 pub(crate) fn execute_assume(
     _machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let _ = instruction;
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Return an address from a lowered frame offset.
@@ -578,7 +590,7 @@ pub(crate) fn execute_check(machine: &mut Machine<'_, '_>, instruction: &Instruc
 
 /// Execute integer equality branch.
 #[inline(always)]
-pub(crate) fn execute_branch_eq_int(
+pub(crate) fn execute_branch_eq_word(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -590,7 +602,7 @@ pub(crate) fn execute_branch_eq_int(
 
 /// Execute integer inequality branch.
 #[inline(always)]
-pub(crate) fn execute_branch_ne_int(
+pub(crate) fn execute_branch_ne_word(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -602,7 +614,7 @@ pub(crate) fn execute_branch_ne_int(
 
 /// Execute signed integer less-than branch.
 #[inline(always)]
-pub(crate) fn execute_branch_lt_int(
+pub(crate) fn execute_branch_lt_word_int(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -614,7 +626,7 @@ pub(crate) fn execute_branch_lt_int(
 
 /// Execute signed integer less-or-equal branch.
 #[inline(always)]
-pub(crate) fn execute_branch_le_int(
+pub(crate) fn execute_branch_le_word_int(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -626,7 +638,7 @@ pub(crate) fn execute_branch_le_int(
 
 /// Execute signed integer greater-than branch.
 #[inline(always)]
-pub(crate) fn execute_branch_gt_int(
+pub(crate) fn execute_branch_gt_word_int(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -638,7 +650,7 @@ pub(crate) fn execute_branch_gt_int(
 
 /// Execute signed integer greater-or-equal branch.
 #[inline(always)]
-pub(crate) fn execute_branch_ge_int(
+pub(crate) fn execute_branch_ge_word_int(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -650,7 +662,7 @@ pub(crate) fn execute_branch_ge_int(
 
 /// Execute unsigned integer less-than branch.
 #[inline(always)]
-pub(crate) fn execute_branch_lt_uint(
+pub(crate) fn execute_branch_lt_word_uint(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -662,7 +674,7 @@ pub(crate) fn execute_branch_lt_uint(
 
 /// Execute unsigned integer less-or-equal branch.
 #[inline(always)]
-pub(crate) fn execute_branch_le_uint(
+pub(crate) fn execute_branch_le_word_uint(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -674,7 +686,7 @@ pub(crate) fn execute_branch_le_uint(
 
 /// Execute unsigned integer greater-than branch.
 #[inline(always)]
-pub(crate) fn execute_branch_gt_uint(
+pub(crate) fn execute_branch_gt_word_uint(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -686,7 +698,7 @@ pub(crate) fn execute_branch_gt_uint(
 
 /// Execute unsigned integer greater-or-equal branch.
 #[inline(always)]
-pub(crate) fn execute_branch_ge_uint(
+pub(crate) fn execute_branch_ge_word_uint(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -840,8 +852,41 @@ pub(crate) fn execute_branch_ge_f64(
     compare_branch_transfer(then_edge, else_edge, is_truthy)
 }
 
+/// Execute an integer switch.
+pub(crate) fn execute_switch(machine: &mut Machine<'_, '_>, instruction: &Instruction) -> Transfer {
+    let (width, is_signed) = switch_layout(instruction.d);
+
+    if width <= u64::BITS && is_signed {
+        return execute_switch_word::<true>(machine, instruction);
+    }
+
+    if width <= u64::BITS {
+        return execute_switch_word::<false>(machine, instruction);
+    }
+
+    if is_signed {
+        return execute_switch_wide::<true>(machine, instruction);
+    }
+
+    execute_switch_wide::<false>(machine, instruction)
+}
+
+/// Execute an integer switch via dense jump table.
+pub(crate) fn execute_switch_table(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let (_, is_signed) = switch_layout(instruction.d);
+
+    if is_signed {
+        return execute_switch_table_word::<true>(machine, instruction);
+    }
+
+    execute_switch_table_word::<false>(machine, instruction)
+}
+
 /// Execute a word switch.
-pub(crate) fn execute_switch_word<const IS_SIGNED: bool>(
+fn execute_switch_word<const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -864,7 +909,7 @@ pub(crate) fn execute_switch_word<const IS_SIGNED: bool>(
 }
 
 /// Execute a wide integer switch.
-pub(crate) fn execute_switch_wide<const IS_SIGNED: bool>(
+fn execute_switch_wide<const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -873,7 +918,8 @@ pub(crate) fn execute_switch_wide<const IS_SIGNED: bool>(
     let default_edge = control_edge(machine, instruction.c);
 
     // load switch value
-    let int_val = match load_wide_switch_value::<IS_SIGNED>(machine, instruction.a, instruction.d) {
+    let (width, _) = switch_layout(instruction.d);
+    let int_val = match load_wide_switch_value::<IS_SIGNED>(machine, instruction.a, width) {
         Ok(Some(int_val)) => int_val,
         Ok(None) => return default_switch_transfer(default_edge),
         Err(error) => return Transfer::Error(error),
@@ -895,7 +941,7 @@ pub(crate) fn execute_switch_wide<const IS_SIGNED: bool>(
 }
 
 /// Execute a word switch via dense jump table.
-pub(crate) fn execute_switch_table_word<const IS_SIGNED: bool>(
+fn execute_switch_table_word<const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -913,38 +959,6 @@ pub(crate) fn execute_switch_table_word<const IS_SIGNED: bool>(
         return default_switch_transfer(default_edge);
     };
 
-    Transfer::Jump {
-        block: case.target,
-        moves: case.moves,
-    }
-}
-
-/// Execute a wide integer switch via dense jump table.
-pub(crate) fn execute_switch_table_wide<const IS_SIGNED: bool>(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Transfer {
-    let side_table = machine.side_table_ptr();
-    let table = unsafe { (*side_table).switch_table(SwitchTableId(instruction.b)) };
-    let default_edge = control_edge(machine, instruction.c);
-
-    // load switch value
-    let int_val = match load_wide_switch_value::<IS_SIGNED>(machine, instruction.a, instruction.d) {
-        Ok(Some(int_val)) => int_val,
-        Ok(None) => return default_switch_transfer(default_edge),
-        Err(error) => return Transfer::Error(error),
-    };
-
-    // resolve jump table entry
-    if int_val < table.min {
-        return default_switch_transfer(default_edge);
-    }
-    let offset = (int_val - table.min) as usize;
-    let Some(case) = table.cases.get(offset) else {
-        return default_switch_transfer(default_edge);
-    };
-
-    // jump to the selected case
     Transfer::Jump {
         block: case.target,
         moves: case.moves,

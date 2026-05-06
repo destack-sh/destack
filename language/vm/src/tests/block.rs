@@ -39,6 +39,52 @@ b2:
     run_mir_expect(mir, "select", &[Value::bool(false)], Value::int32(0));
 }
 
+/// Bounds check branches to the success block for an in-range index.
+#[test]
+fn test_check_bounds_accepts_in_range_index() {
+    let mir = r#"
+function bounds(v0: int64, v1: int64): int32 {
+b0(v0: int64, v1: int64):
+    check bounds.s v0, v1, v0 -> b1, b2
+b1:
+    v2: int32 = 1int32
+    return v2
+b2:
+    v3: int32 = 0int32
+    return v3
+}"#;
+
+    run_mir_expect(
+        mir,
+        "bounds",
+        &[Value::int64(2), Value::int64(3)],
+        Value::int32(1),
+    );
+}
+
+/// Bounds check branches to the failure block for an out-of-range index.
+#[test]
+fn test_check_bounds_rejects_out_of_range_index() {
+    let mir = r#"
+function bounds(v0: int64, v1: int64): int32 {
+b0(v0: int64, v1: int64):
+    check bounds.s v0, v1, v0 -> b1, b2
+b1:
+    v2: int32 = 1int32
+    return v2
+b2:
+    v3: int32 = 0int32
+    return v3
+}"#;
+
+    run_mir_expect(
+        mir,
+        "bounds",
+        &[Value::int64(3), Value::int64(3)],
+        Value::int32(0),
+    );
+}
+
 /// Jump instruction transfers control to target block.
 #[test]
 fn test_jump() {

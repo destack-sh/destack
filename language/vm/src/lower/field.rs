@@ -6,9 +6,8 @@ use crate::{Error, Result};
 use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
 use super::op::select_field_addr_op;
-use super::value::reference_meta_for_value;
 
-/// Encode one fixed byte offset into an instruction lane.
+/// Encode one fixed byte offset into an instruction operand.
 fn instruction_byte_offset(byte_offset: usize) -> Result<u32> {
     u32::try_from(byte_offset).map_err(|_| Error::InvalidInstruction)
 }
@@ -33,8 +32,7 @@ impl<'a> BlockLowerer<'a> {
 
         // lower fixed projections as base plus byte offset
         let op = select_field_addr_op(self.value_layout_map(), base)?;
-        let field = self.field_access_for_value(base, index)?;
-        let reference = reference_meta_for_value(self.value_layout_map(), destination);
+        let field = self.field_projection_for_value(base, index)?;
         let base = if op == Op::AddressFrameOffset {
             value_offset(self, base)?
         } else {
@@ -45,7 +43,7 @@ impl<'a> BlockLowerer<'a> {
             op,
             word_offset(self, destination)?,
             base,
-            reference.bits() as u32,
+            0,
             instruction_byte_offset(field.byte_offset)?,
         ))
     }
