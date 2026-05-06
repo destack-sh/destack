@@ -1426,6 +1426,44 @@ fn test_dynamic_call_declared_target_is_inline() {
     );
 }
 
+/// Reject atomic operations on non-atomic storage.
+#[test]
+fn test_reject_atomic_load_with_plain_storage() {
+    let error = assert_validate_error(
+        r#"
+function atomicBad(value0: ref<int32, raw>): int32 {
+entry0(value0: ref<int32, raw>):
+    value1: int32 = atomic.load value0, acquire
+    return value1
+}
+"#,
+    );
+
+    assert_eq!(
+        error.to_string(),
+        "parse error at 91: metadata invariant violation: atomic.load pointer must address atomic storage"
+    );
+}
+
+/// Reject plain load on atomic storage.
+#[test]
+fn test_reject_load_with_atomic_storage() {
+    let error = assert_validate_error(
+        r#"
+function loadBad(value0: ref<atomic<int32>, raw>): int32 {
+entry0(value0: ref<atomic<int32>, raw>):
+    value1: int32 = load value0
+    return value1
+}
+"#,
+    );
+
+    assert_eq!(
+        error.to_string(),
+        "parse error at 105: metadata invariant violation: load cannot read atomic storage"
+    );
+}
+
 /// Reject heap allocation instructions when noManaged is required.
 #[test]
 fn test_reject_new_with_no_managed_mode() {

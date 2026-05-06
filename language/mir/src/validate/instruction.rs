@@ -415,6 +415,65 @@ impl<'a> Validator<'a> {
         Ok(pointee)
     }
 
+    /// Resolve the value type inside one atomic storage pointer.
+    fn atomic_value_type_or_error(
+        &self,
+        pointer_type: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
+        operation: &'static str,
+    ) -> ValidateResult<LocalNodeId<Type>> {
+        let storage_type = self.reference_pointee_type_or_error(
+            pointer_type,
+            anchor,
+            "atomic pointer must be a reference type",
+        )?;
+
+        let Type::Atomic { value } = self.tree.get(storage_type) else {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: format!("{operation} pointer must address atomic storage"),
+                anchor,
+            });
+        };
+
+        let value = self.concrete_type_reference(*value).ok_or_else(|| {
+            self.metadata_error(
+                anchor,
+                format!("{operation} atomic value type is not concrete"),
+            )
+        })?;
+
+        self.validate_atomic_value_type(value, anchor, operation)?;
+
+        Ok(value)
+    }
+
+    /// Validate one atomic payload type.
+    fn validate_atomic_value_type(
+        &self,
+        value_type: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
+        operation: &'static str,
+    ) -> ValidateResult<()> {
+        if !matches!(
+            self.tree.get(value_type),
+            Type::Boolean
+                | Type::Int { .. }
+                | Type::Isize
+                | Type::Usize
+                | Type::Float { .. }
+                | Type::TypeId
+                | Type::Reference { .. }
+                | Type::FunctionPointer { .. }
+        ) {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: format!("{operation} atomic value must be scalar storage"),
+                anchor,
+            });
+        }
+
+        Ok(())
+    }
+
     /// Ensure one type is integer-like.
     fn expect_integer_like_type(
         &self,
@@ -1563,6 +1622,67 @@ impl<'a> Validator<'a> {
             Instruction::Unpin { value } => {
                 self.validate_heap_reference_value(function, *value, anchor, "unpin value")?;
             }
+            Instruction::Load {
+                destination,
+                pointer,
+                result_type,
+            } => {
+                let pointer_type =
+                    self.value_type_or_error(function, *pointer, anchor, "load pointer")?;
+                let destination_type =
+                    self.value_type_or_error(function, *destination, anchor, "load result")?;
+
+                let pointee_type = self.reference_pointee_type_or_error(
+                    pointer_type,
+                    anchor,
+                    "load pointer must be a reference type",
+                )?;
+
+                if matches!(self.tree.get(pointee_type), Type::Atomic { .. }) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "load cannot read atomic storage".to_string(),
+                        anchor,
+                    });
+                }
+
+                let result_type =
+                    self.require_type_reference(*result_type, anchor, "load result type")?;
+
+                if !self.types_equivalent(pointee_type, result_type)
+                    || !self.types_equivalent(destination_type, result_type)
+                {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "load result type must match the pointer pointee".to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::Store { pointer, value } => {
+                let pointer_type =
+                    self.value_type_or_error(function, *pointer, anchor, "store pointer")?;
+                let value_type =
+                    self.value_type_or_error(function, *value, anchor, "store value")?;
+
+                let pointee_type = self.reference_pointee_type_or_error(
+                    pointer_type,
+                    anchor,
+                    "store pointer must be a reference type",
+                )?;
+
+                if matches!(self.tree.get(pointee_type), Type::Atomic { .. }) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "store cannot write atomic storage".to_string(),
+                        anchor,
+                    });
+                }
+
+                if !self.is_store_compatible_type(value_type, pointee_type) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "store value type must match the pointer pointee".to_string(),
+                        anchor,
+                    });
+                }
+            }
             Instruction::AtomicLoad {
                 destination,
                 pointer,
@@ -1574,21 +1694,17 @@ impl<'a> Validator<'a> {
                 let destination_type =
                     self.value_type_or_error(function, *destination, anchor, "atomic.load result")?;
 
-                let pointee_type = self.reference_pointee_type_or_error(
-                    pointer_type,
-                    anchor,
-                    "atomic.load pointer must be a reference type",
-                )?;
+                let value_type =
+                    self.atomic_value_type_or_error(pointer_type, anchor, "atomic.load")?;
 
                 let result_type =
                     self.require_type_reference(*result_type, anchor, "atomic.load result type")?;
 
-                if !self.types_equivalent(pointee_type, result_type)
+                if !self.types_equivalent(value_type, result_type)
                     || !self.types_equivalent(destination_type, result_type)
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "atomic.load result type must match the pointer pointee"
-                            .to_string(),
+                        message: "atomic.load result type must match the atomic value".to_string(),
                         anchor,
                     });
                 }
@@ -1599,16 +1715,12 @@ impl<'a> Validator<'a> {
                 let value_type =
                     self.value_type_or_error(function, *value, anchor, "atomic.store value")?;
 
-                let pointee_type = self.reference_pointee_type_or_error(
-                    pointer_type,
-                    anchor,
-                    "atomic.store pointer must be a reference type",
-                )?;
+                let value_type_expected =
+                    self.atomic_value_type_or_error(pointer_type, anchor, "atomic.store")?;
 
-                if !self.is_store_compatible_type(value_type, pointee_type) {
+                if !self.is_store_compatible_type(value_type, value_type_expected) {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "atomic.store value type must match the pointer pointee"
-                            .to_string(),
+                        message: "atomic.store value type must match the atomic value".to_string(),
                         anchor,
                     });
                 }
@@ -1645,17 +1757,17 @@ impl<'a> Validator<'a> {
                     "atomic.compare_exchange result",
                 )?;
 
-                let pointee_type = self.reference_pointee_type_or_error(
+                let value_type = self.atomic_value_type_or_error(
                     pointer_type,
                     anchor,
-                    "atomic.compare_exchange pointer must be a reference type",
+                    "atomic.compare_exchange",
                 )?;
 
-                if !self.types_equivalent(expected_type, pointee_type)
-                    || !self.types_equivalent(new_value_type, pointee_type)
+                if !self.types_equivalent(expected_type, value_type)
+                    || !self.types_equivalent(new_value_type, value_type)
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "atomic.compare_exchange values must match the pointer pointee"
+                        message: "atomic.compare_exchange values must match the atomic value"
                             .to_string(),
                         anchor,
                     });
@@ -1670,6 +1782,15 @@ impl<'a> Validator<'a> {
                     });
                 };
 
+                if elements.len() != 2 {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message:
+                            "atomic.compare_exchange result must be a tuple of (old_value, boolean)"
+                                .to_string(),
+                        anchor,
+                    });
+                }
+
                 let Some(first) = self.concrete_type_reference(elements[0]) else {
                     return Err(self.metadata_error(
                         anchor,
@@ -1683,8 +1804,7 @@ impl<'a> Validator<'a> {
                     ));
                 };
 
-                if elements.len() != 2
-                    || !self.types_equivalent(first, pointee_type)
+                if !self.types_equivalent(first, value_type)
                     || !matches!(self.tree.get(second), Type::Boolean)
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
@@ -1708,17 +1828,14 @@ impl<'a> Validator<'a> {
                 let destination_type =
                     self.value_type_or_error(function, *destination, anchor, "atomic.rmw result")?;
 
-                let pointee_type = self.reference_pointee_type_or_error(
-                    pointer_type,
-                    anchor,
-                    "atomic.rmw pointer must be a reference type",
-                )?;
+                let value_type_expected =
+                    self.atomic_value_type_or_error(pointer_type, anchor, "atomic.rmw")?;
 
-                if !self.types_equivalent(value_type, pointee_type)
-                    || !self.types_equivalent(destination_type, pointee_type)
+                if !self.types_equivalent(value_type, value_type_expected)
+                    || !self.types_equivalent(destination_type, value_type_expected)
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "atomic.rmw value and result must match the pointer pointee"
+                        message: "atomic.rmw value and result must match the atomic value"
                             .to_string(),
                         anchor,
                     });
@@ -2467,6 +2584,17 @@ impl<'a> Validator<'a> {
             ) => left_width == right_width && left_signed == right_signed,
             (Type::Float { width: left_width }, Type::Float { width: right_width }) => {
                 left_width == right_width
+            }
+            (Type::Atomic { value: left_value }, Type::Atomic { value: right_value }) => {
+                match (
+                    self.concrete_type_reference(*left_value),
+                    self.concrete_type_reference(*right_value),
+                ) {
+                    (Some(left_value), Some(right_value)) => {
+                        self.types_equivalent_inner(left_value, right_value, seen_pairs)
+                    }
+                    _ => false,
+                }
             }
             (
                 Type::Reference {

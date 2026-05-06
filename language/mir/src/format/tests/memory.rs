@@ -48,11 +48,11 @@ entry0(value0: ref<int32, raw>):
 fn test_format_atomic_load_store_and_fence_family() {
     assert_format(
         r#"
-function atomics(value0: ref<int32, raw>): int32 {
-entry0(value0: ref<int32, raw>):
-    value1: int32 = atomic.load value0, acquire, device, device, [static, makeVisible]
-    atomic.store value0, value1, release, device, device, static
-    atomic.fence sequentiallyConsistent, device, device, any
+function atomics(value0: ref<atomic<int32>, raw>): int32 {
+entry0(value0: ref<atomic<int32>, raw>):
+    value1: int32 = atomic.load value0, acquire, scope(device), memory(device), [static, makeVisible]
+    atomic.store value0, value1, release, scope(device), memory(device), static
+    atomic.fence sequentiallyConsistent
     return value1
 }
 "#,
@@ -64,12 +64,12 @@ entry0(value0: ref<int32, raw>):
 fn test_format_atomic_compare_exchange_and_rmw_family() {
     assert_format(
         r#"
-function atomics(value0: ref<uint32, raw>): uint32 {
-entry0(value0: ref<uint32, raw>):
+function atomics(value0: ref<atomic<uint32>, raw>): uint32 {
+entry0(value0: ref<atomic<uint32>, raw>):
     value1: uint32 = 1uint32
     value2: uint32 = 2uint32
-    value3: (uint32, boolean) = atomic.cas value0, value1, value2, relaxed, device, device, any
-    value4: uint32 = atomic.rmw.umin value0, value2, relaxed, device, device, any
+    value3: (uint32, boolean) = atomic.cas value0, value1, value2, relaxed
+    value4: uint32 = atomic.rmw.umin value0, value2, relaxed
     return value4
 }
 "#,

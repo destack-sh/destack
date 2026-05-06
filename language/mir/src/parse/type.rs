@@ -91,6 +91,14 @@ impl Parser {
                         address_space,
                         mutability,
                     }
+                } else if token_text == "atomic" {
+                    self.bump();
+                    self.eat_token(TokenType::LessThan)?;
+                    let value = self.parse_type()?;
+                    self.eat_token(TokenType::GreaterThan)?;
+                    Type::Atomic {
+                        value: value.into(),
+                    }
                 } else if let Some(alias_id) = self.type_alias_map.get(&token_text).copied() {
                     self.bump();
 

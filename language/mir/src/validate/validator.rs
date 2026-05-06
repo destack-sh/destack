@@ -357,6 +357,7 @@ impl<'a> Validator<'a> {
             Type::Float { .. } => "float",
             Type::TypeDescriptor => "typeDescriptor",
             Type::TypeId => "typeId",
+            Type::Atomic { .. } => "atomic",
             Type::Reference { .. } => "ref",
             Type::Array { .. } => "array",
             Type::Slice { .. } => "slice",
