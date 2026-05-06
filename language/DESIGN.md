@@ -1129,8 +1129,7 @@ However, Destack also supports and strongly encourages **Result-first error hand
 
 #### Result
 
-Destack provides `Result<T, E>` as the primary error handling mechanism.
-The `Result` type is defined as regular code:
+Destack provides `Result<T, E>` as the primary error handling mechanism:
 
 ```ds
 export struct Ok<T> {
@@ -1164,6 +1163,21 @@ function parsePort(raw: string): Result<uint16, ParseError> {
 match (parsePort(input)) {
     Ok { value } => connect(value)
     Err { error } => report(error)
+}
+```
+
+`Result` is great for synchronous error handling, and `AsyncResult` extends the exact same idea to `Promise`-based asynchronous error handling.
+`AsyncResult<T, E>` is really just a newtype wrapper around `Promise<Result<T, E>>` with some additional helpers:
+
+```ds
+export newtype AsyncResult<T, E> = Promise<Result<T, E>>;
+
+declare function fetchUser(id: UserId): AsyncResult<User, NetworkError>;
+
+async function loadProfile(id: UserId): AsyncResult<Profile, NetworkError | DecodeError> {
+    const user = await? fetchUser(id);
+    const profile = decodeProfile(user)?;
+    return Result.ok(profile);
 }
 ```
 
