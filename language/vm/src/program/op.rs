@@ -8,6 +8,8 @@ pub(crate) enum Op {
     LoadConstWord,
     /// Load a byte constant into a frame value.
     LoadConstBytes,
+    /// Move one word between frame offsets.
+    MoveWord,
     /// Move bytes between frame values.
     MoveFrame,
     /// Load bytes from local heap memory into a frame value.
@@ -46,10 +48,6 @@ pub(crate) enum Op {
     // ============================================================================
     // locals, statics, functions
     // ============================================================================
-    /// Load a local value.
-    LoadLocal,
-    /// Store a local value.
-    StoreLocal,
     /// Compute a local address.
     AddressLocal,
     /// Compute a static address.
@@ -248,7 +246,7 @@ pub(crate) enum Op {
     StoreStatic64,
 
     // ============================================================================
-    // field access
+    // field projection
     // ============================================================================
     /// Compute a fixed-offset address in frame memory.
     AddressFrameOffset,
@@ -268,7 +266,7 @@ pub(crate) enum Op {
     AddressStaticOffset,
 
     // ============================================================================
-    // element access
+    // element projection
     // ============================================================================
     /// Compute an element address in local heap memory.
     AddressHeapElement,
@@ -314,6 +312,8 @@ pub(crate) enum Op {
     AllocateSharedSlice,
     /// Allocate local raw memory.
     AllocateRaw,
+    /// Allocate shared raw memory.
+    AllocateSharedRaw,
     /// Free local raw memory.
     FreeRaw,
     /// Free shared raw memory.
@@ -342,198 +342,64 @@ pub(crate) enum Op {
     // ============================================================================
     // arithmetic and casts
     // ============================================================================
-    /// And vector booleans.
-    VectorAndBool,
-    /// And tensor booleans.
-    TensorAndBool,
-    /// Or vector booleans.
-    VectorOrBool,
-    /// Or tensor booleans.
-    TensorOrBool,
-    /// Xor vector booleans.
-    VectorXorBool,
-    /// Xor tensor booleans.
-    TensorXorBool,
-    /// Add vector integers.
-    VectorAddInt,
-    /// Add tensor integers.
-    TensorAddInt,
-    /// Subtract vector integers.
-    VectorSubInt,
-    /// Subtract tensor integers.
-    TensorSubInt,
-    /// Multiply vector integers.
-    VectorMulInt,
-    /// Multiply tensor integers.
-    TensorMulInt,
-    /// Divide vector signed integers.
-    VectorDivInt,
-    /// Divide tensor signed integers.
-    TensorDivInt,
-    /// Divide vector unsigned integers.
-    VectorDivUint,
-    /// Divide tensor unsigned integers.
-    TensorDivUint,
-    /// Remainder vector signed integers.
-    VectorRemInt,
-    /// Remainder tensor signed integers.
-    TensorRemInt,
-    /// Remainder vector unsigned integers.
-    VectorRemUint,
-    /// Remainder tensor unsigned integers.
-    TensorRemUint,
-    /// And vector integers.
-    VectorAndInt,
-    /// And tensor integers.
-    TensorAndInt,
-    /// Or vector integers.
-    VectorOrInt,
-    /// Or tensor integers.
-    TensorOrInt,
-    /// Xor vector integers.
-    VectorXorInt,
-    /// Xor tensor integers.
-    TensorXorInt,
-    /// Shift vector integers left.
-    VectorShlInt,
-    /// Shift tensor integers left.
-    TensorShlInt,
-    /// Arithmetically shift vector integers right.
-    VectorShrInt,
-    /// Arithmetically shift tensor integers right.
-    TensorShrInt,
-    /// Logically shift vector integers right.
-    VectorShrUint,
-    /// Logically shift tensor integers right.
-    TensorShrUint,
-    /// Add vector float32 values.
-    VectorAddF32,
-    /// Add tensor float32 values.
-    TensorAddF32,
-    /// Add vector float64 values.
-    VectorAddF64,
-    /// Add tensor float64 values.
-    TensorAddF64,
-    /// Subtract vector float32 values.
-    VectorSubF32,
-    /// Subtract tensor float32 values.
-    TensorSubF32,
-    /// Subtract vector float64 values.
-    VectorSubF64,
-    /// Subtract tensor float64 values.
-    TensorSubF64,
-    /// Multiply vector float32 values.
-    VectorMulF32,
-    /// Multiply tensor float32 values.
-    TensorMulF32,
-    /// Multiply vector float64 values.
-    VectorMulF64,
-    /// Multiply tensor float64 values.
-    TensorMulF64,
-    /// Divide vector float32 values.
-    VectorDivF32,
-    /// Divide tensor float32 values.
-    TensorDivF32,
-    /// Divide vector float64 values.
-    VectorDivF64,
-    /// Divide tensor float64 values.
-    TensorDivF64,
-    /// Compare vector integers for equality.
-    VectorEqInt,
-    /// Compare tensor integers for equality.
-    TensorEqInt,
-    /// Compare vector booleans for equality.
-    VectorEqBool,
-    /// Compare tensor booleans for equality.
-    TensorEqBool,
-    /// Compare vector integers for inequality.
-    VectorNeInt,
-    /// Compare tensor integers for inequality.
-    TensorNeInt,
-    /// Compare vector booleans for inequality.
-    VectorNeBool,
-    /// Compare tensor booleans for inequality.
-    TensorNeBool,
-    /// Compare vector signed integers with less than.
-    VectorLtInt,
-    /// Compare tensor signed integers with less than.
-    TensorLtInt,
-    /// Compare vector unsigned integers with less than.
-    VectorLtUint,
-    /// Compare tensor unsigned integers with less than.
-    TensorLtUint,
-    /// Compare vector signed integers with less than or equal.
-    VectorLeInt,
-    /// Compare tensor signed integers with less than or equal.
-    TensorLeInt,
-    /// Compare vector unsigned integers with less than or equal.
-    VectorLeUint,
-    /// Compare tensor unsigned integers with less than or equal.
-    TensorLeUint,
-    /// Compare vector signed integers with greater than.
-    VectorGtInt,
-    /// Compare tensor signed integers with greater than.
-    TensorGtInt,
-    /// Compare vector unsigned integers with greater than.
-    VectorGtUint,
-    /// Compare tensor unsigned integers with greater than.
-    TensorGtUint,
-    /// Compare vector signed integers with greater than or equal.
-    VectorGeInt,
-    /// Compare tensor signed integers with greater than or equal.
-    TensorGeInt,
-    /// Compare vector unsigned integers with greater than or equal.
-    VectorGeUint,
-    /// Compare tensor unsigned integers with greater than or equal.
-    TensorGeUint,
-    /// Compare vector float32 values for equality.
-    VectorEqF32,
-    /// Compare tensor float32 values for equality.
-    TensorEqF32,
-    /// Compare vector float64 values for equality.
-    VectorEqF64,
-    /// Compare tensor float64 values for equality.
-    TensorEqF64,
-    /// Compare vector float32 values for inequality.
-    VectorNeF32,
-    /// Compare tensor float32 values for inequality.
-    TensorNeF32,
-    /// Compare vector float64 values for inequality.
-    VectorNeF64,
-    /// Compare tensor float64 values for inequality.
-    TensorNeF64,
-    /// Compare vector float32 values with less than.
-    VectorLtF32,
-    /// Compare tensor float32 values with less than.
-    TensorLtF32,
-    /// Compare vector float64 values with less than.
-    VectorLtF64,
-    /// Compare tensor float64 values with less than.
-    TensorLtF64,
-    /// Compare vector float32 values with less than or equal.
-    VectorLeF32,
-    /// Compare tensor float32 values with less than or equal.
-    TensorLeF32,
-    /// Compare vector float64 values with less than or equal.
-    VectorLeF64,
-    /// Compare tensor float64 values with less than or equal.
-    TensorLeF64,
-    /// Compare vector float32 values with greater than.
-    VectorGtF32,
-    /// Compare tensor float32 values with greater than.
-    TensorGtF32,
-    /// Compare vector float64 values with greater than.
-    VectorGtF64,
-    /// Compare tensor float64 values with greater than.
-    TensorGtF64,
-    /// Compare vector float32 values with greater than or equal.
-    VectorGeF32,
-    /// Compare tensor float32 values with greater than or equal.
-    TensorGeF32,
-    /// Compare vector float64 values with greater than or equal.
-    VectorGeF64,
-    /// Compare tensor float64 values with greater than or equal.
-    TensorGeF64,
+    /// Execute one vector binary kernel.
+    VectorBinary,
+    /// Add four packed 32-bit integer elements.
+    PackedAdd32x4,
+    /// Subtract four packed 32-bit integer elements.
+    PackedSub32x4,
+    /// Multiply four packed 32-bit integer elements.
+    PackedMul32x4,
+    /// And four packed 32-bit integer elements.
+    PackedAnd32x4,
+    /// Or four packed 32-bit integer elements.
+    PackedOr32x4,
+    /// Xor four packed 32-bit integer elements.
+    PackedXor32x4,
+    /// Shift four packed 32-bit integer elements left.
+    PackedShl32x4,
+    /// Arithmetically shift four packed 32-bit integer elements right.
+    PackedShrI32x4,
+    /// Logically shift four packed 32-bit integer elements right.
+    PackedShrU32x4,
+    /// Add two packed 64-bit integer elements.
+    PackedAdd64x2,
+    /// Subtract two packed 64-bit integer elements.
+    PackedSub64x2,
+    /// Multiply two packed 64-bit integer elements.
+    PackedMul64x2,
+    /// And two packed 64-bit integer elements.
+    PackedAnd64x2,
+    /// Or two packed 64-bit integer elements.
+    PackedOr64x2,
+    /// Xor two packed 64-bit integer elements.
+    PackedXor64x2,
+    /// Shift two packed 64-bit integer elements left.
+    PackedShl64x2,
+    /// Arithmetically shift two packed 64-bit integer elements right.
+    PackedShrI64x2,
+    /// Logically shift two packed 64-bit integer elements right.
+    PackedShrU64x2,
+    /// Add four packed float32 elements.
+    PackedAddF32x4,
+    /// Subtract four packed float32 elements.
+    PackedSubF32x4,
+    /// Multiply four packed float32 elements.
+    PackedMulF32x4,
+    /// Divide four packed float32 elements.
+    PackedDivF32x4,
+    /// Add two packed float64 elements.
+    PackedAddF64x2,
+    /// Subtract two packed float64 elements.
+    PackedSubF64x2,
+    /// Multiply two packed float64 elements.
+    PackedMulF64x2,
+    /// Divide two packed float64 elements.
+    PackedDivF64x2,
+    /// Execute one tensor binary kernel.
+    TensorBinary,
+    /// Execute one contiguous tensor binary kernel.
+    TensorContiguousBinary,
     /// And boolean values.
     AndBool,
     /// Or boolean values.
@@ -580,26 +446,26 @@ pub(crate) enum Op {
     RemI64,
     /// Remainder 64-bit unsigned integer values.
     RemU64,
-    /// Add signed integer values.
-    AddInt,
-    /// Add unsigned integer values.
-    AddUint,
-    /// Subtract signed integer values.
-    SubInt,
-    /// Subtract unsigned integer values.
-    SubUint,
-    /// Multiply signed integer values.
-    MulInt,
-    /// Multiply unsigned integer values.
-    MulUint,
-    /// Divide signed integer values.
-    DivInt,
-    /// Divide unsigned integer values.
-    DivUint,
-    /// Remainder signed integer values.
-    RemInt,
-    /// Remainder unsigned integer values.
-    RemUint,
+    /// Add word-stored signed integer values.
+    AddWordInt,
+    /// Add word-stored unsigned integer values.
+    AddWordUint,
+    /// Subtract word-stored signed integer values.
+    SubWordInt,
+    /// Subtract word-stored unsigned integer values.
+    SubWordUint,
+    /// Multiply word-stored signed integer values.
+    MulWordInt,
+    /// Multiply word-stored unsigned integer values.
+    MulWordUint,
+    /// Divide word-stored signed integer values.
+    DivWordInt,
+    /// Divide word-stored unsigned integer values.
+    DivWordUint,
+    /// Remainder word-stored signed integer values.
+    RemWordInt,
+    /// Remainder word-stored unsigned integer values.
+    RemWordUint,
     /// And 32-bit integer values.
     And32,
     /// And 64-bit integer values.
@@ -646,10 +512,10 @@ pub(crate) enum Op {
     XorWord,
     /// Shift word-sized integer values left.
     ShlWord,
-    /// Arithmetically shift integer values right.
-    ShrInt,
-    /// Logically shift integer values right.
-    ShrUint,
+    /// Arithmetically shift word-stored signed integer values right.
+    ShrWordInt,
+    /// Logically shift word-stored unsigned integer values right.
+    ShrWordUint,
     /// And wide integer values.
     AndWideInt,
     /// Or wide integer values.
@@ -718,26 +584,26 @@ pub(crate) enum Op {
     GeI64,
     /// Compare 64-bit unsigned integer values with greater than or equal.
     GeU64,
-    /// Compare integers for equality.
-    EqInt,
-    /// Compare integers for inequality.
-    NeInt,
-    /// Compare signed integers with less than.
-    LtInt,
-    /// Compare unsigned integers with less than.
-    LtUint,
-    /// Compare signed integers with less than or equal.
-    LeInt,
-    /// Compare unsigned integers with less than or equal.
-    LeUint,
-    /// Compare signed integers with greater than.
-    GtInt,
-    /// Compare unsigned integers with greater than.
-    GtUint,
-    /// Compare signed integers with greater than or equal.
-    GeInt,
-    /// Compare unsigned integers with greater than or equal.
-    GeUint,
+    /// Compare word-stored scalar values for equality.
+    EqWord,
+    /// Compare word-stored scalar values for inequality.
+    NeWord,
+    /// Compare word-stored signed integers with less than.
+    LtWordInt,
+    /// Compare word-stored unsigned integers with less than.
+    LtWordUint,
+    /// Compare word-stored signed integers with less than or equal.
+    LeWordInt,
+    /// Compare word-stored unsigned integers with less than or equal.
+    LeWordUint,
+    /// Compare word-stored signed integers with greater than.
+    GtWordInt,
+    /// Compare word-stored unsigned integers with greater than.
+    GtWordUint,
+    /// Compare word-stored signed integers with greater than or equal.
+    GeWordInt,
+    /// Compare word-stored unsigned integers with greater than or equal.
+    GeWordUint,
     /// Compare wide integers for equality.
     EqWideInt,
     /// Compare wide integers for inequality.
@@ -790,8 +656,8 @@ pub(crate) enum Op {
     Not32,
     /// Invert a 64-bit integer value.
     Not64,
-    /// Negate an integer value.
-    NegInt,
+    /// Negate a word-stored signed integer value.
+    NegWordInt,
     /// Invert a word-sized integer value.
     NotWord,
     /// Negate a wide integer value.
@@ -804,26 +670,24 @@ pub(crate) enum Op {
     NegF64,
     /// Invert a boolean value.
     NotBool,
-    /// Negate vector integers.
-    VectorNegInt,
-    /// Negate tensor integers.
-    TensorNegInt,
-    /// Invert vector integers.
-    VectorNotInt,
-    /// Invert tensor integers.
-    TensorNotInt,
-    /// Negate vector float32 values.
-    VectorNegF32,
-    /// Negate tensor float32 values.
-    TensorNegF32,
-    /// Negate vector float64 values.
-    VectorNegF64,
-    /// Negate tensor float64 values.
-    TensorNegF64,
-    /// Invert vector booleans.
-    VectorNotBool,
-    /// Invert tensor booleans.
-    TensorNotBool,
+    /// Execute one vector unary kernel.
+    VectorUnary,
+    /// Execute one tensor unary kernel.
+    TensorUnary,
+    /// Negate four packed 32-bit integer elements.
+    PackedNegI32x4,
+    /// Invert four packed 32-bit integer elements.
+    PackedNot32x4,
+    /// Negate two packed 64-bit integer elements.
+    PackedNegI64x2,
+    /// Invert two packed 64-bit integer elements.
+    PackedNot64x2,
+    /// Negate four packed float32 elements.
+    PackedNegF32x4,
+    /// Negate two packed float64 elements.
+    PackedNegF64x2,
+    /// Execute one contiguous tensor unary kernel.
+    TensorContiguousUnary,
     /// Reinterpret one word value.
     CastBitcast,
     /// Truncate one integer word.
@@ -958,26 +822,26 @@ pub(crate) enum Op {
     BranchGeI64,
     /// Branch when a 64-bit unsigned integer is greater than or equal to another.
     BranchGeU64,
-    /// Branch when integer values are equal.
-    BranchEqInt,
-    /// Branch when integer values are not equal.
-    BranchNeInt,
-    /// Branch when a signed integer is less than another.
-    BranchLtInt,
-    /// Branch when an unsigned integer is less than another.
-    BranchLtUint,
-    /// Branch when a signed integer is less than or equal to another.
-    BranchLeInt,
-    /// Branch when an unsigned integer is less than or equal to another.
-    BranchLeUint,
-    /// Branch when a signed integer is greater than another.
-    BranchGtInt,
-    /// Branch when an unsigned integer is greater than another.
-    BranchGtUint,
-    /// Branch when a signed integer is greater than or equal to another.
-    BranchGeInt,
-    /// Branch when an unsigned integer is greater than or equal to another.
-    BranchGeUint,
+    /// Branch when word-stored scalar values are equal.
+    BranchEqWord,
+    /// Branch when word-stored scalar values are not equal.
+    BranchNeWord,
+    /// Branch when a word-stored signed integer is less than another.
+    BranchLtWordInt,
+    /// Branch when a word-stored unsigned integer is less than another.
+    BranchLtWordUint,
+    /// Branch when a word-stored signed integer is less than or equal to another.
+    BranchLeWordInt,
+    /// Branch when a word-stored unsigned integer is less than or equal to another.
+    BranchLeWordUint,
+    /// Branch when a word-stored signed integer is greater than another.
+    BranchGtWordInt,
+    /// Branch when a word-stored unsigned integer is greater than another.
+    BranchGtWordUint,
+    /// Branch when a word-stored signed integer is greater than or equal to another.
+    BranchGeWordInt,
+    /// Branch when a word-stored unsigned integer is greater than or equal to another.
+    BranchGeWordUint,
     /// Branch when float32 values are equal.
     BranchEqF32,
     /// Branch when float64 values are equal.
@@ -1002,30 +866,10 @@ pub(crate) enum Op {
     BranchGeF32,
     /// Branch when a float64 value is greater than or equal to another.
     BranchGeF64,
-    /// Switch over signed 32-bit integers using direct cases.
-    SwitchI32,
-    /// Switch over unsigned 32-bit integers using direct cases.
-    SwitchU32,
-    /// Switch over signed 64-bit integers using direct cases.
-    SwitchI64,
-    /// Switch over unsigned 64-bit integers using direct cases.
-    SwitchU64,
-    /// Switch over wide signed integers using direct cases.
-    SwitchWideInt,
-    /// Switch over wide unsigned integers using direct cases.
-    SwitchWideUint,
-    /// Switch over signed 32-bit integers using a dense table.
-    SwitchTableI32,
-    /// Switch over unsigned 32-bit integers using a dense table.
-    SwitchTableU32,
-    /// Switch over signed 64-bit integers using a dense table.
-    SwitchTableI64,
-    /// Switch over unsigned 64-bit integers using a dense table.
-    SwitchTableU64,
-    /// Switch over wide signed integers using a dense table.
-    SwitchTableWideInt,
-    /// Switch over wide unsigned integers using a dense table.
-    SwitchTableWideUint,
+    /// Switch over integer cases.
+    Switch,
+    /// Switch over a dense integer case table.
+    SwitchTable,
     /// Validate one runtime constraint.
     Check,
     /// Record an assumed condition.
@@ -1090,132 +934,24 @@ pub(crate) enum Op {
     AtomicFmin,
     /// Atomically max one float word.
     AtomicFmax,
-    /// Apply an atomic fence.
+    /// Execute an atomic fence.
     AtomicFence,
 
     // ============================================================================
     // intrinsics
     // ============================================================================
-    /// Count leading zero bits.
-    IntrinsicLeadingZeroCount,
-    /// Count trailing zero bits.
-    IntrinsicTrailingZeroCount,
-    /// Count set bits.
-    IntrinsicPopulationCount,
-    /// Reverse byte order.
-    IntrinsicByteSwap,
-    /// Reverse bit order.
-    IntrinsicBitReverse,
-    /// Rotate bits left.
-    IntrinsicRotateLeft,
-    /// Rotate bits right.
-    IntrinsicRotateRight,
-    /// Add and report overflow.
-    IntrinsicAddOverflow,
-    /// Subtract and report overflow.
-    IntrinsicSubOverflow,
-    /// Multiply and report overflow.
-    IntrinsicMulOverflow,
-    /// Add without overflow checks.
-    IntrinsicAddUnchecked,
-    /// Subtract without overflow checks.
-    IntrinsicSubUnchecked,
-    /// Multiply without overflow checks.
-    IntrinsicMulUnchecked,
-    /// Divide without overflow checks.
-    IntrinsicDivUnchecked,
-    /// Compute remainder without overflow checks.
-    IntrinsicRemUnchecked,
-    /// Shift left without range checks.
-    IntrinsicShlUnchecked,
-    /// Shift right without range checks.
-    IntrinsicShrUnchecked,
-    /// Add with saturation.
-    IntrinsicSatAdd,
-    /// Subtract with saturation.
-    IntrinsicSatSub,
-    /// Copy non-overlapping raw memory.
-    IntrinsicMemcpy,
-    /// Copy possibly-overlapping raw memory.
-    IntrinsicMemmove,
-    /// Fill raw memory.
-    IntrinsicMemset,
-    /// Compare raw memory.
-    IntrinsicMemcmp,
-    /// Hint that raw memory will be read.
-    IntrinsicPrefetchRead,
-    /// Hint that raw memory will be written.
-    IntrinsicPrefetchWrite,
-    /// Reinterpret one word.
-    IntrinsicTransmute,
-    /// Cast a pointer between address spaces.
-    IntrinsicAddressSpaceCast,
-    /// Compute the byte distance between raw pointers.
-    IntrinsicPointerOffsetFrom,
-    /// Compare raw word bits.
-    IntrinsicRawEq,
-    /// Compute square root.
-    IntrinsicSqrt,
-    /// Compute absolute value.
-    IntrinsicAbs,
-    /// Compute fused multiply-add.
-    IntrinsicFma,
-    /// Copy the sign of one float to another.
-    IntrinsicCopySign,
-    /// Compute float minimum.
-    IntrinsicMin,
-    /// Compute float maximum.
-    IntrinsicMax,
-    /// Compute sine.
-    IntrinsicSin,
-    /// Compute cosine.
-    IntrinsicCos,
-    /// Compute tangent.
-    IntrinsicTan,
-    /// Compute arc sine.
-    IntrinsicAsin,
-    /// Compute arc cosine.
-    IntrinsicAcos,
-    /// Compute arc tangent.
-    IntrinsicAtan,
-    /// Compute two-argument arc tangent.
-    IntrinsicAtan2,
-    /// Compute natural exponent.
-    IntrinsicExp,
-    /// Compute base-two exponent.
-    IntrinsicExp2,
-    /// Compute natural logarithm.
-    IntrinsicLog,
-    /// Compute base-two logarithm.
-    IntrinsicLog2,
-    /// Compute base-ten logarithm.
-    IntrinsicLog10,
-    /// Compute power.
-    IntrinsicPow,
-    /// Round down.
-    IntrinsicFloor,
-    /// Round up.
-    IntrinsicCeil,
-    /// Round toward zero.
-    IntrinsicTrunc,
-    /// Round to nearest.
-    IntrinsicRound,
-    /// Trigger a debugger breakpoint.
-    IntrinsicBreakpoint,
-    /// Load the current return address.
-    IntrinsicReturnAddress,
-    /// Load the current frame address.
-    IntrinsicFrameAddress,
-    /// Preserve an expected value.
-    IntrinsicExpect,
-    /// Preserve a value through an optimization barrier.
-    IntrinsicBlackBox,
+    /// Execute one intrinsic kernel.
+    Intrinsic,
 
     // ============================================================================
     // vectors
     // ============================================================================
     /// Broadcast a scalar to a vector.
     VectorSplat,
+    /// Broadcast one 32-bit scalar to four packed elements.
+    PackedSplat32x4,
+    /// Broadcast one 64-bit scalar to two packed elements.
+    PackedSplat64x2,
     /// Extract one vector element.
     VectorExtract,
     /// Insert one vector element.
@@ -1224,48 +960,158 @@ pub(crate) enum Op {
     VectorShuffle,
     /// Select vector elements.
     VectorSelect,
-    /// Reduce vector elements with addition.
-    VectorReduceAdd,
-    /// Reduce vector elements with multiplication.
-    VectorReduceMultiply,
-    /// Reduce vector elements with minimum.
-    VectorReduceMin,
-    /// Reduce vector elements with maximum.
-    VectorReduceMax,
-    /// Reduce vector elements with bitwise and.
-    VectorReduceAnd,
-    /// Reduce vector elements with bitwise or.
-    VectorReduceOr,
-    /// Reduce vector elements with bitwise xor.
-    VectorReduceXor,
-    /// Convert vector elements exactly.
-    VectorConvertExact,
-    /// Convert vector elements with round to nearest even.
-    VectorConvertRoundTiesEven,
-    /// Convert vector elements with round toward zero.
-    VectorConvertRoundTowardZero,
-    /// Convert vector elements with round toward negative infinity.
-    VectorConvertRoundFloor,
-    /// Convert vector elements with round toward positive infinity.
-    VectorConvertRoundCeil,
-    /// Convert vector elements with saturation.
-    VectorConvertSaturate,
+    /// Reduce vector elements with one kernel.
+    VectorReduce,
+    /// Convert vector elements with one kernel.
+    VectorConvert,
 
     // ============================================================================
     // tensors
     // ============================================================================
     /// Broadcast a scalar to a tensor.
     TensorSplat,
-    /// Load one tensor element from a view.
-    TensorLoad,
+    /// Load one tensor element from a local heap view.
+    TensorLoadHeap,
+    /// Load one tensor element from a shared heap view.
+    TensorLoadSharedHeap,
+    /// Load one tensor element from a local raw view.
+    TensorLoadRaw,
+    /// Load one tensor element from a shared raw view.
+    TensorLoadSharedRaw,
+    /// Load one tensor element from a stack view.
+    TensorLoadStack,
+    /// Load one tensor element from a frame view.
+    TensorLoadFrame,
+    /// Load one tensor element from a static view.
+    TensorLoadStatic,
     /// Extract one tensor element from a tensor value.
     TensorExtract,
-    /// Store one tensor element into a view.
-    TensorStore,
-    /// Fill a tensor view.
-    TensorFill,
-    /// Copy tensor elements between views.
-    TensorCopy,
+    /// Store one tensor element into a local heap view.
+    TensorStoreHeap,
+    /// Store one tensor element into a shared heap view.
+    TensorStoreSharedHeap,
+    /// Store one tensor element into a local raw view.
+    TensorStoreRaw,
+    /// Store one tensor element into a shared raw view.
+    TensorStoreSharedRaw,
+    /// Store one tensor element into a stack view.
+    TensorStoreStack,
+    /// Store one tensor element into a frame view.
+    TensorStoreFrame,
+    /// Store one tensor element into a static view.
+    TensorStoreStatic,
+    /// Fill a local heap tensor view.
+    TensorFillHeap,
+    /// Fill a shared heap tensor view.
+    TensorFillSharedHeap,
+    /// Fill a local raw tensor view.
+    TensorFillRaw,
+    /// Fill a shared raw tensor view.
+    TensorFillSharedRaw,
+    /// Fill a stack tensor view.
+    TensorFillStack,
+    /// Fill a frame tensor view.
+    TensorFillFrame,
+    /// Fill a static tensor view.
+    TensorFillStatic,
+    /// Copy tensor elements from local heap memory into local heap memory.
+    TensorCopyHeapFromHeap,
+    /// Copy tensor elements from shared heap memory into local heap memory.
+    TensorCopyHeapFromSharedHeap,
+    /// Copy tensor elements from local raw memory into local heap memory.
+    TensorCopyHeapFromRaw,
+    /// Copy tensor elements from shared raw memory into local heap memory.
+    TensorCopyHeapFromSharedRaw,
+    /// Copy tensor elements from stack memory into local heap memory.
+    TensorCopyHeapFromStack,
+    /// Copy tensor elements from frame memory into local heap memory.
+    TensorCopyHeapFromFrame,
+    /// Copy tensor elements from static memory into local heap memory.
+    TensorCopyHeapFromStatic,
+    /// Copy tensor elements from local heap memory into shared heap memory.
+    TensorCopySharedHeapFromHeap,
+    /// Copy tensor elements from shared heap memory into shared heap memory.
+    TensorCopySharedHeapFromSharedHeap,
+    /// Copy tensor elements from local raw memory into shared heap memory.
+    TensorCopySharedHeapFromRaw,
+    /// Copy tensor elements from shared raw memory into shared heap memory.
+    TensorCopySharedHeapFromSharedRaw,
+    /// Copy tensor elements from stack memory into shared heap memory.
+    TensorCopySharedHeapFromStack,
+    /// Copy tensor elements from frame memory into shared heap memory.
+    TensorCopySharedHeapFromFrame,
+    /// Copy tensor elements from static memory into shared heap memory.
+    TensorCopySharedHeapFromStatic,
+    /// Copy tensor elements from local heap memory into local raw memory.
+    TensorCopyRawFromHeap,
+    /// Copy tensor elements from shared heap memory into local raw memory.
+    TensorCopyRawFromSharedHeap,
+    /// Copy tensor elements from local raw memory into local raw memory.
+    TensorCopyRawFromRaw,
+    /// Copy tensor elements from shared raw memory into local raw memory.
+    TensorCopyRawFromSharedRaw,
+    /// Copy tensor elements from stack memory into local raw memory.
+    TensorCopyRawFromStack,
+    /// Copy tensor elements from frame memory into local raw memory.
+    TensorCopyRawFromFrame,
+    /// Copy tensor elements from static memory into local raw memory.
+    TensorCopyRawFromStatic,
+    /// Copy tensor elements from local heap memory into shared raw memory.
+    TensorCopySharedRawFromHeap,
+    /// Copy tensor elements from shared heap memory into shared raw memory.
+    TensorCopySharedRawFromSharedHeap,
+    /// Copy tensor elements from local raw memory into shared raw memory.
+    TensorCopySharedRawFromRaw,
+    /// Copy tensor elements from shared raw memory into shared raw memory.
+    TensorCopySharedRawFromSharedRaw,
+    /// Copy tensor elements from stack memory into shared raw memory.
+    TensorCopySharedRawFromStack,
+    /// Copy tensor elements from frame memory into shared raw memory.
+    TensorCopySharedRawFromFrame,
+    /// Copy tensor elements from static memory into shared raw memory.
+    TensorCopySharedRawFromStatic,
+    /// Copy tensor elements from local heap memory into stack memory.
+    TensorCopyStackFromHeap,
+    /// Copy tensor elements from shared heap memory into stack memory.
+    TensorCopyStackFromSharedHeap,
+    /// Copy tensor elements from local raw memory into stack memory.
+    TensorCopyStackFromRaw,
+    /// Copy tensor elements from shared raw memory into stack memory.
+    TensorCopyStackFromSharedRaw,
+    /// Copy tensor elements from stack memory into stack memory.
+    TensorCopyStackFromStack,
+    /// Copy tensor elements from frame memory into stack memory.
+    TensorCopyStackFromFrame,
+    /// Copy tensor elements from static memory into stack memory.
+    TensorCopyStackFromStatic,
+    /// Copy tensor elements from local heap memory into frame memory.
+    TensorCopyFrameFromHeap,
+    /// Copy tensor elements from shared heap memory into frame memory.
+    TensorCopyFrameFromSharedHeap,
+    /// Copy tensor elements from local raw memory into frame memory.
+    TensorCopyFrameFromRaw,
+    /// Copy tensor elements from shared raw memory into frame memory.
+    TensorCopyFrameFromSharedRaw,
+    /// Copy tensor elements from stack memory into frame memory.
+    TensorCopyFrameFromStack,
+    /// Copy tensor elements from frame memory into frame memory.
+    TensorCopyFrameFromFrame,
+    /// Copy tensor elements from static memory into frame memory.
+    TensorCopyFrameFromStatic,
+    /// Copy tensor elements from local heap memory into static memory.
+    TensorCopyStaticFromHeap,
+    /// Copy tensor elements from shared heap memory into static memory.
+    TensorCopyStaticFromSharedHeap,
+    /// Copy tensor elements from local raw memory into static memory.
+    TensorCopyStaticFromRaw,
+    /// Copy tensor elements from shared raw memory into static memory.
+    TensorCopyStaticFromSharedRaw,
+    /// Copy tensor elements from stack memory into static memory.
+    TensorCopyStaticFromStack,
+    /// Copy tensor elements from frame memory into static memory.
+    TensorCopyStaticFromFrame,
+    /// Copy tensor elements from static memory into static memory.
+    TensorCopyStaticFromStatic,
     /// Reshape a tensor value.
     TensorReshape,
     /// Broadcast a tensor value.
@@ -1278,60 +1124,36 @@ pub(crate) enum Op {
     TensorPad,
     /// Concatenate tensor values.
     TensorConcat,
-    /// Reduce tensor elements with addition.
-    TensorReduceAdd,
-    /// Reduce tensor elements with multiplication.
-    TensorReduceMultiply,
-    /// Reduce tensor elements with minimum.
-    TensorReduceMin,
-    /// Reduce tensor elements with maximum.
-    TensorReduceMax,
-    /// Reduce tensor elements with bitwise and.
-    TensorReduceAnd,
-    /// Reduce tensor elements with bitwise or.
-    TensorReduceOr,
-    /// Reduce tensor elements with bitwise xor.
-    TensorReduceXor,
+    /// Reduce tensor elements with one kernel.
+    TensorReduce,
     /// Compute a tensor dot product.
     TensorDot,
     /// Compute a tensor convolution.
     TensorConvolution,
     /// Gather tensor slices.
     TensorGather,
-    /// Scatter tensor slices by replacing elements.
-    TensorScatterReplace,
-    /// Scatter tensor slices with addition.
-    TensorScatterAdd,
-    /// Scatter tensor slices with multiplication.
-    TensorScatterMultiply,
-    /// Scatter tensor slices with minimum.
-    TensorScatterMin,
-    /// Scatter tensor slices with maximum.
-    TensorScatterMax,
-    /// Scatter tensor slices with bitwise and.
-    TensorScatterAnd,
-    /// Scatter tensor slices with bitwise or.
-    TensorScatterOr,
-    /// Scatter tensor slices with bitwise xor.
-    TensorScatterXor,
+    /// Scatter tensor slices with one kernel.
+    TensorScatter,
     /// Select tensor elements.
     TensorSelect,
-    /// Convert tensor elements exactly.
-    TensorConvertExact,
-    /// Convert tensor elements with round to nearest even.
-    TensorConvertRoundTiesEven,
-    /// Convert tensor elements with round toward zero.
-    TensorConvertRoundTowardZero,
-    /// Convert tensor elements with round toward negative infinity.
-    TensorConvertRoundFloor,
-    /// Convert tensor elements with round toward positive infinity.
-    TensorConvertRoundCeil,
-    /// Convert tensor elements with saturation.
-    TensorConvertSaturate,
+    /// Convert tensor elements with one kernel.
+    TensorConvert,
     /// Cast tensor storage.
     TensorCast,
-    /// Create a tensor view.
-    TensorView,
+    /// Create a local heap tensor view.
+    TensorViewHeap,
+    /// Create a shared heap tensor view.
+    TensorViewSharedHeap,
+    /// Create a local raw tensor view.
+    TensorViewRaw,
+    /// Create a shared raw tensor view.
+    TensorViewSharedRaw,
+    /// Create a stack tensor view.
+    TensorViewStack,
+    /// Create a frame tensor view.
+    TensorViewFrame,
+    /// Create a static tensor view.
+    TensorViewStatic,
 }
 
 // op should fit in 2 bytes

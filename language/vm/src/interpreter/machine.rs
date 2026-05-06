@@ -1,8 +1,8 @@
-use std::fmt;
+use std::{fmt, mem, ptr};
 
 use destack_heap::{
     AllocationLayout as HeapAllocationLayout, AllocationShape, Heap, HeapReference,
-    SharedAllocator, SharedGcPhase, SharedGcWorker, SharedHeapReference, SmallAllocationLayout,
+    SharedAllocator, SharedGcWorker, SharedHeapReference,
 };
 use engine::StaticSpace;
 use {destack_engine as engine, destack_mir as mir};
@@ -11,9 +11,8 @@ use super::{Frame, Interpreter};
 use crate::diagnostic::{Error, RuntimeError};
 use crate::options::IsolateOptions;
 use crate::program::{
-    ArgumentRange, ElementAccess, ElementAccessId, FieldAccess, FieldAccessId, FrameAccess,
-    FrameAccessId, Function, Instruction, Layout, PointeeAccess, PointeeAccessId, Program,
-    SideRecord, SideTable, SliceElementAccess, SliceElementAccessId,
+    ArgumentRange, Function, Instruction, Layout, Program, Projection, ProjectionId, SideRecord,
+    SideTable, SliceProjection, SliceProjectionId,
 };
 use crate::{FramePointer, SharedHeap, StackPointer, StaticPointer, Word};
 
@@ -38,16 +37,10 @@ pub(crate) struct Machine<'ctx, 'iso> {
 
     /// Index of the current frame in the stack.
     pub frame_index: usize,
-    /// Whether bounds checks are enabled.
-    pub bounds_checks: bool,
-    /// Whether null checks are enabled.
-    pub null_checks: bool,
-    /// Whether reference address-space checks are enabled.
-    pub reference_kind_checks: bool,
-    /// Whether reference mutability checks are enabled.
-    pub reference_mutability_checks: bool,
     /// Pointer to the current frame.
     frame: *mut Frame,
+    /// Native address of the current frame bytes.
+    frame_base: usize,
     /// Pointer to the current frame layout.
     frame_layout: *const engine::FrameLayout,
     /// Pointer to the program side table.
@@ -63,13 +56,6 @@ impl fmt::Debug for Machine<'_, '_> {
         f.debug_struct("Machine")
             .field("frame_index", &self.frame_index)
             .field("argument_pool_len", &self.argument_pool_len)
-            .field("bounds_checks", &self.bounds_checks)
-            .field("null_checks", &self.null_checks)
-            .field("reference_kind_checks", &self.reference_kind_checks)
-            .field(
-                "reference_mutability_checks",
-                &self.reference_mutability_checks,
-            )
             .finish()
     }
 }
@@ -88,12 +74,6 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         frame_index: usize,
         function: &'iso Function,
     ) -> Result<Self, Error> {
-        // resolve check policies
-        let bounds_checks = options.checks.bounds;
-        let null_checks = options.checks.null;
-        let reference_kind_checks = options.checks.reference_kind;
-        let reference_mutability_checks = options.checks.reference_mutability;
-
         // get frame pointer
         debug_assert!(
             frame_index < interpreter.frames.len(),
@@ -101,6 +81,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         );
         // safety: frame_index always points at the current frame
         let frame = unsafe { interpreter.frames.get_unchecked_mut(frame_index) as *mut Frame };
+        let frame_base = unsafe { (*frame).base_address() };
 
         let frame_layout = unsafe { (*frame).frame_layout };
         let frame_layout = program
@@ -118,11 +99,8 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             shared_allocator: shared_allocator as *mut SharedAllocator,
             interpreter,
             frame_index,
-            bounds_checks,
-            null_checks,
-            reference_kind_checks,
-            reference_mutability_checks,
             frame,
+            frame_base,
             frame_layout,
             side_table: &program.side_table,
             argument_pool: function.argument_pool.as_ptr(),
@@ -217,6 +195,8 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
     /// Refresh cached frame data after moving to another function.
     pub(crate) fn refresh_frame(&mut self, function: &Function) -> Result<(), Error> {
+        self.frame_base = unsafe { (*self.frame).base_address() };
+
         let frame_layout = unsafe { (*self.frame).frame_layout };
         let frame_layout = self
             .program
@@ -237,34 +217,16 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         self.side_table
     }
 
-    /// Return one pooled field access.
+    /// Return one pooled address projection.
     #[inline(always)]
-    pub(crate) fn field_access(&self, id: FieldAccessId) -> FieldAccess {
-        *unsafe { (*self.side_table).field_access(id) }
+    pub(crate) fn projection(&self, id: ProjectionId) -> Projection {
+        *unsafe { (*self.side_table).projection(id) }
     }
 
-    /// Return one pooled frame access.
+    /// Return one pooled slice projection.
     #[inline(always)]
-    pub(crate) fn frame_access(&self, id: FrameAccessId) -> FrameAccess {
-        *unsafe { (*self.side_table).frame_access(id) }
-    }
-
-    /// Return one pooled element access.
-    #[inline(always)]
-    pub(crate) fn element_access(&self, id: ElementAccessId) -> ElementAccess {
-        *unsafe { (*self.side_table).element_access(id) }
-    }
-
-    /// Return one pooled slice element access.
-    #[inline(always)]
-    pub(crate) fn slice_element_access(&self, id: SliceElementAccessId) -> SliceElementAccess {
-        *unsafe { (*self.side_table).slice_element_access(id) }
-    }
-
-    /// Return one pooled pointee access.
-    #[inline(always)]
-    pub(crate) fn pointee_access(&self, id: PointeeAccessId) -> PointeeAccess {
-        *unsafe { (*self.side_table).pointee_access(id) }
+    pub(crate) fn slice_projection(&self, id: SliceProjectionId) -> SliceProjection {
+        *unsafe { (*self.side_table).slice_projection(id) }
     }
 
     /// Borrow the worker heap mutably.
@@ -298,8 +260,8 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
     /// Reserve one zeroed no-scan local heap allocation from the active young run.
     #[inline(always)]
-    pub(crate) fn reserve_young(&mut self, small: SmallAllocationLayout) -> Option<HeapReference> {
-        unsafe { &mut *self.heap }.reserve_young(small)
+    pub(crate) fn reserve_young(&mut self, slot_bytes: usize) -> Option<HeapReference> {
+        unsafe { &mut *self.heap }.reserve_young(slot_bytes)
     }
 
     /// Allocate one byte-initialized local heap payload from one program layout id.
@@ -349,14 +311,13 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     #[inline(always)]
     pub(crate) fn reserve_shared_small(
         &mut self,
-        small: SmallAllocationLayout,
+        bucket_index: usize,
+        slot_bytes: usize,
     ) -> Option<SharedHeapReference> {
-        let shared = unsafe { &*self.shared };
-        if shared.gc_phase() != SharedGcPhase::Idle {
-            return None;
+        unsafe {
+            (&mut *self.shared_allocator)
+                .reserve_zeroed_run_slot_unchecked(bucket_index, slot_bytes)
         }
-
-        unsafe { &mut *self.shared_allocator }.reserve_small_zeroed(small)
     }
 
     /// Borrow the worker heap immutably.
@@ -404,6 +365,12 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         unsafe { &mut *self.frame }
     }
 
+    /// Borrow the current frame.
+    #[inline(always)]
+    pub(crate) fn current_frame(&self) -> &Frame {
+        unsafe { &*self.frame }
+    }
+
     /// Borrow the current frame layout.
     #[inline(always)]
     pub(crate) fn frame_layout(&self) -> &engine::FrameLayout {
@@ -417,24 +384,6 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             .frames
             .get(frame_index)
             .ok_or(Error::InvalidInstruction)
-    }
-
-    /// Return whether the interpreter owns one stack byte range.
-    #[inline]
-    pub(crate) fn owns_stack_range(&self, pointer: StackPointer, byte_len: usize) -> bool {
-        self.owns_stack_address_range(pointer.address(), byte_len)
-    }
-
-    /// Return whether the interpreter owns one frame byte range.
-    #[inline]
-    pub(crate) fn owns_frame_range(&self, pointer: FramePointer, byte_len: usize) -> bool {
-        self.owns_stack_address_range(pointer.address(), byte_len)
-    }
-
-    /// Return whether the interpreter owns one stack address range.
-    #[inline]
-    fn owns_stack_address_range(&self, address: usize, byte_len: usize) -> bool {
-        self.interpreter.stack.contains_address(address, byte_len)
     }
 
     /// Allocate bytes owned by the current frame.
@@ -498,23 +447,6 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         Ok(())
     }
 
-    /// Return whether one static pointer targets VM-owned static memory.
-    #[inline]
-    pub(crate) fn owns_static_range(&self, pointer: StaticPointer, byte_len: usize) -> bool {
-        self.statics.owns_pointer_range(pointer, byte_len)
-            || self.program.owns_static_range(pointer, byte_len)
-    }
-
-    /// Return whether one static pointer targets mutable worker static memory.
-    #[inline]
-    pub(crate) fn owns_mutable_static_range(
-        &self,
-        pointer: StaticPointer,
-        byte_len: usize,
-    ) -> bool {
-        self.statics.owns_mutable_pointer_range(pointer, byte_len)
-    }
-
     /// Return the static pointer for one global.
     #[inline]
     pub(crate) fn static_pointer(
@@ -531,24 +463,41 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     pub(crate) fn get(&self, v: mir::Value) -> Word {
         let slot = self.value_slot_unchecked(v);
 
-        unsafe { (*self.frame).read_slot_value(slot) }
+        // word values live inline in the frame
+        if slot.is_word {
+            return self.read_frame_word(slot.offset);
+        }
+
+        // aggregate SSA values are represented by their frame address
+        Word::frame_pointer(FramePointer::from_address(
+            self.frame_base + slot.offset as usize,
+        ))
     }
 
     /// Read one word by frame byte offset.
     #[inline(always)]
     pub(crate) fn get_word_at(&self, offset: u32) -> Word {
-        unsafe { (*self.frame).read_word_at(offset) }
+        self.read_frame_word(offset)
     }
 
     /// Return one frame pointer by frame byte offset.
     #[inline(always)]
     pub(crate) fn frame_pointer_at(&self, offset: u32) -> FramePointer {
-        let address = unsafe { (*self.frame).base_address() } + offset as usize;
+        let address = self.frame_base + offset as usize;
 
         FramePointer::from_address(address)
     }
 
-    /// Return the frame slot for one SSA value without release checks.
+    /// Read one aligned word from the current frame.
+    #[inline(always)]
+    fn read_frame_word(&self, offset: u32) -> Word {
+        let address = self.frame_base + offset as usize;
+        debug_assert_eq!(address % mem::align_of::<Word>(), 0);
+
+        unsafe { ptr::read(address as *const Word) }
+    }
+
+    /// Return the frame slot for one SSA value without bounds checks.
     #[inline(always)]
     fn value_slot_unchecked(&self, v: mir::Value) -> &engine::FrameSlot {
         let index = v.0 as usize;
@@ -573,53 +522,24 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let slot = unsafe { layout.values().get_unchecked(index) };
 
         debug_assert!(slot.is_word, "attempted word write into frame bytes");
-        unsafe { (*self.frame).write_word(slot, val) }
+        self.write_frame_word(slot.offset, val);
     }
 
     /// Write one word by frame byte offset.
     #[inline(always)]
     pub(crate) fn set_word_at(&mut self, offset: u32, val: Word) {
-        unsafe { (*self.frame).write_word_at(offset, val) }
+        self.write_frame_word(offset, val);
     }
 
-    /// Move one local variable into a frame byte offset.
+    /// Write one aligned word into the current frame.
     #[inline(always)]
-    pub(crate) fn move_local_to_offset(
-        &mut self,
-        local_index: u32,
-        destination_offset: u32,
-    ) -> Result<(), Error> {
-        let layout = self.frame_layout();
-        let local_slot = layout
-            .locals()
-            .get(local_index as usize)
-            .ok_or(Error::InvalidInstruction)?;
-        let local_offset = local_slot.offset;
-        let byte_len = local_slot.byte_len;
+    fn write_frame_word(&mut self, offset: u32, value: Word) {
+        let address = self.frame_base + offset as usize;
+        debug_assert_eq!(address % mem::align_of::<Word>(), 0);
 
-        self.copy_frame_bytes(local_offset, destination_offset, byte_len as usize);
-
-        Ok(())
-    }
-
-    /// Move one frame byte offset into a local variable.
-    #[inline(always)]
-    pub(crate) fn move_offset_to_local(
-        &mut self,
-        source_offset: u32,
-        local_index: u32,
-    ) -> Result<(), Error> {
-        let layout = self.frame_layout();
-        let local_slot = layout
-            .locals()
-            .get(local_index as usize)
-            .ok_or(Error::InvalidInstruction)?;
-        let local_offset = local_slot.offset;
-        let byte_len = local_slot.byte_len;
-
-        self.copy_frame_bytes(source_offset, local_offset, byte_len as usize);
-
-        Ok(())
+        unsafe {
+            ptr::write(address as *mut Word, value);
+        }
     }
 
     /// Copy one byte range inside the current frame.
@@ -632,13 +552,12 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     ) {
         let source_offset = source_offset as usize;
         let destination_offset = destination_offset as usize;
-        let frame = self.current_frame_mut();
 
         // lower guarantees that both ranges are inside the frame layout
         unsafe {
-            std::ptr::copy(
-                frame.base_address().wrapping_add(source_offset) as *const u8,
-                frame.base_address().wrapping_add(destination_offset) as *mut u8,
+            ptr::copy(
+                self.frame_base.wrapping_add(source_offset) as *const u8,
+                self.frame_base.wrapping_add(destination_offset) as *mut u8,
                 byte_len,
             );
         }

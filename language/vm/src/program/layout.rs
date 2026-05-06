@@ -47,12 +47,12 @@ pub(crate) enum LayoutShape {
         /// The static element count.
         length: usize,
     },
-    /// One vector with a fixed lane count and element width.
+    /// One vector with a fixed element count and element width.
     Vector {
         /// The element layout.
         element: ElementLayout,
-        /// The lane count.
-        lanes: usize,
+        /// The element count.
+        element_count: usize,
     },
     /// One tensor with a static flattened shape.
     Tensor {
@@ -163,7 +163,7 @@ impl Layout {
     pub(crate) fn element_count(&self) -> Option<usize> {
         match &self.shape {
             LayoutShape::Array { length, .. } => Some(*length),
-            LayoutShape::Vector { lanes, .. } => Some(*lanes),
+            LayoutShape::Vector { element_count, .. } => Some(*element_count),
             LayoutShape::Tensor { element_count, .. } => Some(*element_count),
             LayoutShape::Scalar | LayoutShape::Fields(_) => None,
         }
@@ -417,17 +417,25 @@ fn build_layout(
         mir::Type::Callable { .. } => {
             scalar_layout(tree.pointer_bytes() as usize, tree.pointer_bytes() as usize)
         }
-        mir::Type::Vector { element, lanes, .. } => build_vector_layout(
-            tree,
-            layouts,
-            ty,
-            (*element)
-                .ty()
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "vector element type".to_string(),
-                })?,
-            *lanes as usize,
-        )?,
+        mir::Type::Vector {
+            element,
+            lanes: mir_element_count,
+            ..
+        } => {
+            let element_count = *mir_element_count as usize;
+
+            build_vector_layout(
+                tree,
+                layouts,
+                ty,
+                (*element)
+                    .ty()
+                    .ok_or_else(|| Error::MissingRepresentation {
+                        context: "vector element type".to_string(),
+                    })?,
+                element_count,
+            )?
+        }
         mir::Type::Tensor {
             element,
             shape,
@@ -603,7 +611,7 @@ fn build_vector_layout(
     layouts: &mut HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
     element_type: mir::LocalNodeId<mir::Type>,
-    lanes: usize,
+    element_count: usize,
 ) -> Result<Layout> {
     let element_layout = build_layout(tree, layouts, element_type)?;
     let stride = element_layout.stride();
@@ -614,17 +622,20 @@ fn build_vector_layout(
             element_type,
             &element_layout,
             stride,
-            lanes,
-            stride_byte_len(lanes, stride)?,
+            element_count,
+            stride_byte_len(element_count, stride)?,
             element_layout.alignment,
-            |element| LayoutShape::Vector { element, lanes },
+            |element| LayoutShape::Vector {
+                element,
+                element_count,
+            },
         ));
     }
 
     // otherwise prefer canonical MIR vector size and alignment when available
     let byte_len = match tree.type_layout(ty) {
         Some(layout) => layout.size as usize,
-        None => stride_byte_len(lanes, stride)?,
+        None => stride_byte_len(element_count, stride)?,
     };
     let alignment = tree
         .type_layout(ty)
@@ -635,10 +646,13 @@ fn build_vector_layout(
         element_type,
         &element_layout,
         stride,
-        lanes,
+        element_count,
         byte_len,
         alignment,
-        |element| LayoutShape::Vector { element, lanes },
+        |element| LayoutShape::Vector {
+            element,
+            element_count,
+        },
     ))
 }
 
@@ -990,7 +1004,7 @@ fn append_reference_offsets(
         LayoutShape::Array { element, length }
         | LayoutShape::Vector {
             element,
-            lanes: length,
+            element_count: length,
         }
         | LayoutShape::Tensor {
             element,

@@ -2,12 +2,9 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
-use crate::{Error, ReferenceMeta, Result};
+use crate::{Error, Result};
 
-use super::{
-    ElementAccess, Layout, PointerClass, ScalarLayout, scalar_layout_from_type,
-    word_layout_from_type,
-};
+use super::{Layout, Projection, ScalarLayout, scalar_layout_from_type, word_layout_from_type};
 
 /// Flattened tensor layout compiled for VM execution.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -18,12 +15,16 @@ pub(crate) struct TensorLayout {
     pub(crate) shape: Box<[u64]>,
     /// The per-dimension strides in element units.
     pub(crate) strides: Box<[u64]>,
+    /// The number of logical tensor elements.
+    pub(crate) element_count: usize,
     /// The number of addressable element positions.
     pub(crate) element_span_len: usize,
+    /// Whether logical elements are stored contiguously.
+    pub(crate) is_contiguous: bool,
     /// The scalar layout of each element.
     pub(crate) element_layout: ScalarLayout,
-    /// The frame access for each element.
-    pub(crate) element: ElementAccess,
+    /// The frame projection for each element.
+    pub(crate) element: Projection,
 }
 
 impl TensorLayout {
@@ -65,20 +66,20 @@ impl TensorLayout {
             mir::TensorLayout::ColumnMajor => Ok(column_major_strides(&shape)),
             mir::TensorLayout::Strided { strides } => static_strides(strides),
         }?;
+        let element_count = tensor_element_count(&shape);
         let element_span_len = tensor_element_span_len(&shape, &strides)?;
+        let is_contiguous = element_count == element_span_len;
 
-        // compile frame storage access
+        // compile frame element projection
         let value_layout = layouts.get(&ty).ok_or(Error::InvalidInstruction)?;
         let element_layout = layouts.get(&element).ok_or(Error::InvalidInstruction)?;
-        let element_access = ElementAccess {
-            pointer_class: PointerClass::Frame,
-            reference: ReferenceMeta::NONE,
-            value_type: element,
-            length: element_span_len as u64,
-            byte_stride: element_layout.stride(),
-            byte_len: element_layout.byte_len,
-            word_layout: word_layout_from_type(tree, element),
-        };
+        let element_projection = Projection::indexed(
+            element,
+            element_span_len as u64,
+            element_layout.stride(),
+            element_layout.byte_len,
+            word_layout_from_type(tree, element),
+        );
         let element_layout =
             scalar_layout_from_type(tree, element).ok_or_else(|| Error::TypeMismatch {
                 expected: "tensor scalar element".to_string(),
@@ -89,9 +90,11 @@ impl TensorLayout {
             byte_len: value_layout.byte_len,
             shape: shape.into_boxed_slice(),
             strides: strides.into_boxed_slice(),
+            element_count,
             element_span_len,
+            is_contiguous,
             element_layout,
-            element: element_access,
+            element: element_projection,
         })
     }
 }
@@ -152,6 +155,16 @@ pub(crate) fn column_major_strides(shape: &[u64]) -> Vec<u64> {
     }
 
     strides
+}
+
+/// Compute the logical element count for a static tensor shape.
+pub(crate) fn tensor_element_count(shape: &[u64]) -> usize {
+    let mut count = 1usize;
+    for dim in shape {
+        count *= *dim as usize;
+    }
+
+    count
 }
 
 /// Compute the addressable element span for a shape and stride list.

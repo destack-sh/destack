@@ -7,13 +7,13 @@ use super::Op;
 pub(crate) struct Instruction {
     /// The instruction operation.
     pub op: Op,
-    /// First instruction field.
+    /// First 32-bit operand.
     pub a: u32,
-    /// Second instruction field.
+    /// Second 32-bit operand.
     pub b: u32,
-    /// Third instruction field.
+    /// Third 32-bit operand.
     pub c: u32,
-    /// Fourth instruction field.
+    /// Fourth 32-bit operand.
     pub d: u32,
 }
 

@@ -197,11 +197,6 @@ impl Program {
         self.statics.region(self.static_id(global)).is_some()
     }
 
-    /// Return whether one static byte range belongs to program static space.
-    pub(crate) fn owns_static_range(&self, pointer: StaticPointer, byte_len: usize) -> bool {
-        self.statics.owns_pointer_range(pointer, byte_len)
-    }
-
     /// Return the interface method target for one itab method index.
     pub(crate) fn interface_method(
         &self,
