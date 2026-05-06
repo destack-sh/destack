@@ -9,11 +9,11 @@ use crate::{LowerError, LowerResult};
 pub(crate) struct InterfaceRefLayout {
     /// Field index for the object pointer.
     pub(crate) object_field_index: u32,
-    /// Field index for the itab handle.
+    /// Field index for the itab pointer.
     pub(crate) itab_field_index: u32,
     /// The MIR type of the object pointer field.
     pub(crate) object_type: mir::LocalNodeId<mir::Type>,
-    /// The MIR type of the itab handle field.
+    /// The MIR type of the itab pointer field.
     pub(crate) itab_type: mir::LocalNodeId<mir::Type>,
 }
 
@@ -62,7 +62,13 @@ impl TypeLowerer {
         let object_name = builder.intern("@object");
         let itab_name = builder.intern("@itab");
         let object_type = builder.type_managed_reference(self.ty_void);
-        let itab_type = self.ty_usize;
+        let itab_type = builder.type_reference(
+            mir::ReferenceKind::Raw,
+            self.ty_void,
+            mir::Mutability::Immutable,
+            mir::AddressSpace::Static,
+            false,
+        );
 
         // compute field sizes and alignments
         let (object_size, object_alignment) = self

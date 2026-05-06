@@ -1,7 +1,7 @@
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::ModuleLowerer;
-use crate::{LowerError, LowerResult, StructLayout};
+use crate::{FieldLayoutKind, LowerError, LowerResult, StructLayout};
 
 impl ModuleLowerer<'_> {
     /// Return layout metadata for a cached aggregate layout.
@@ -296,6 +296,16 @@ impl ModuleLowerer<'_> {
             mir::LayoutKind::Interface {
                 object_offset: object_field.offset,
                 table_offset: itab_field.offset,
+            }
+        }
+        // preserve object dispatch headers as first-class layout metadata
+        else if let Some(vtable_field) = layout
+            .fields
+            .iter()
+            .find(|field| field.kind == FieldLayoutKind::VtableHeader)
+        {
+            mir::LayoutKind::Object {
+                vtable_offset: vtable_field.offset,
             }
         }
         // use function value layouts for function types

@@ -10,8 +10,8 @@ pub(crate) enum DispatchTarget {
     Interface {
         /// The declaring interface type id.
         declaring_type: mir::LocalNodeId<mir::Type>,
-        /// The itab slot id for the method.
-        slot_id: mir::InterfaceSlotId,
+        /// The dispatch slot for the method.
+        slot: mir::DispatchSlot,
         /// The declared target function id for the method.
         function_id: mir::LocalNodeId<mir::Function>,
     },
@@ -19,8 +19,8 @@ pub(crate) enum DispatchTarget {
     Virtual {
         /// The declaring class type id.
         declaring_type: mir::LocalNodeId<mir::Type>,
-        /// The vtable slot id for the method.
-        slot_id: mir::VtableSlotId,
+        /// The dispatch slot for the method.
+        slot: mir::DispatchSlot,
         /// The declared target function id for the method.
         function_id: mir::LocalNodeId<mir::Function>,
     },
@@ -47,25 +47,24 @@ impl FunctionLowerer<'_> {
 
         // prefer interface dispatch when available
         if let Some(interface_symbol) = interface_symbol {
-            let slot_id =
-                self.interface_method_slot_id(expression_id, interface_symbol, method_key)?;
+            let slot = self.interface_method_slot(expression_id, interface_symbol, method_key)?;
             let declaring_type = self.interface_declaring_type(expression_id, interface_symbol)?;
             return Ok(Some(DispatchTarget::Interface {
                 declaring_type,
-                slot_id: mir::InterfaceSlotId::new(slot_id),
+                slot: mir::DispatchSlot::new(slot),
                 function_id,
             }));
         }
 
         // resolve virtual dispatch when a slot is present
         if let Some(class_symbol) = class_symbol
-            && let Some(slot_id) = self.virtual_method_slot_id(class_symbol, method_key)
+            && let Some(slot) = self.virtual_method_slot(class_symbol, method_key)
         {
             let declaring_type =
                 self.declaring_type_for_virtual_call(expression_id, receiver_type_id)?;
             return Ok(Some(DispatchTarget::Virtual {
                 declaring_type,
-                slot_id: mir::VtableSlotId::new(slot_id),
+                slot: mir::DispatchSlot::new(slot),
                 function_id,
             }));
         }
@@ -92,8 +91,8 @@ impl FunctionLowerer<'_> {
         }
     }
 
-    /// Resolve the interface dispatch slot id for a method key.
-    fn interface_method_slot_id(
+    /// Resolve the interface dispatch slot for a method key.
+    fn interface_method_slot(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         interface_symbol: dir::GlobalSymbolId,
@@ -252,8 +251,8 @@ impl FunctionLowerer<'_> {
         ))
     }
 
-    /// Resolve the vtable slot id for a virtual method symbol.
-    fn virtual_method_slot_id(
+    /// Resolve the vtable slot for a virtual method symbol.
+    fn virtual_method_slot(
         &self,
         class_symbol: dir::GlobalSymbolId,
         method_key: MethodKey,

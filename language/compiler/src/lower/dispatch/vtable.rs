@@ -7,18 +7,6 @@ use crate::{LowerError, LowerResult};
 
 use crate::lower::ModuleLowerer;
 
-/// Suffix for vtable global names.
-const VTABLE_GLOBAL_SUFFIX: &str = "#vtable";
-
-/// Predeclared vtable global information for lowering.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct VtableGlobal {
-    /// The global id that backs the vtable data.
-    pub(crate) global_id: mir::LocalNodeId<mir::Global>,
-    /// The raw pointer type for addressing the vtable global.
-    pub(crate) address_type: mir::LocalNodeId<mir::Type>,
-}
-
 /// A key that identifies a virtual method slot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct MethodKey {
@@ -58,7 +46,7 @@ impl MethodKey {
 /// A virtual method candidate for vtable construction.
 #[derive(Debug, Clone)]
 pub(crate) struct VtableMethod {
-    /// The slot identity for overrides.
+    /// The dispatch slot for overrides.
     key: MethodKey,
     /// Whether this method is declared as an override.
     is_override: bool,
@@ -81,22 +69,20 @@ impl VtableMethod {
 }
 
 impl ModuleLowerer<'_> {
-    /// Return vtables for classes that require virtual dispatch.
-    pub(crate) fn emit_vtables(&mut self) -> LowerResult<Vec<mir::VtableId>> {
-        // generate vtables for each class
-        let mut tables = Vec::new();
+    /// Write virtual dispatch tables.
+    pub(crate) fn emit_vtables(&mut self) -> LowerResult<()> {
+        // classes with object dispatch headers
         for symbol in self.vtable_class_symbols.clone() {
-            let table_id = self.vtable_for_symbol(symbol)?;
-            tables.push(table_id);
+            self.vtable_for_symbol(symbol)?;
         }
 
-        Ok(tables)
+        Ok(())
     }
 
-    /// Return the vtable for a single class symbol.
-    fn vtable_for_symbol(&mut self, symbol: dir::GlobalSymbolId) -> LowerResult<mir::VtableId> {
-        if let Some(table_id) = self.vtable_by_symbol.get(&symbol).copied() {
-            return Ok(table_id);
+    /// Write one virtual dispatch table.
+    fn vtable_for_symbol(&mut self, symbol: dir::GlobalSymbolId) -> LowerResult<()> {
+        if self.lowered_vtables.contains(&symbol) {
+            return Ok(());
         }
 
         // check for cycles
@@ -151,8 +137,8 @@ impl ModuleLowerer<'_> {
             entries.push(mir::VtableEntry::Method { function });
         }
 
-        // insert the dispatch table
-        let table_id = {
+        // table metadata and static storage
+        {
             let vtable_global = self
                 .vtable_globals_by_symbol
                 .get(&symbol)
@@ -161,70 +147,29 @@ impl ModuleLowerer<'_> {
                     module: self.module_id,
                     message: format!("missing vtable global for class {symbol:?}"),
                 })?;
-            let table_id = self.require_vtable_id(symbol)?;
+            let initializer = vtable_initializer(&entries);
+            self.builder
+                .tree_mut()
+                .get_mut(vtable_global.global_id)
+                .initializer = Some(initializer);
+
             let table = mir::Vtable {
                 ty: mir_type,
-                storage: mir::VtableStorage::Global(vtable_global.global_id),
+                global: vtable_global.global_id,
                 entries,
             };
             self.builder
                 .tree_mut()
                 .metadata
                 .dispatch
-                .insert_vtable_at(table_id, table);
-            table_id
-        };
+                .insert_vtable(table);
+        }
 
-        // register the lowered vtable table
-        self.insert_vtable_table(symbol, table_id)?;
+        // lowered table guard
+        self.record_vtable(symbol)?;
         self.vtable_in_progress.shift_remove(&symbol);
 
-        Ok(table_id)
-    }
-
-    /// Create the global backing storage for a class vtable.
-    pub(crate) fn create_vtable_global(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        slot_count: u64,
-        anchor: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<VtableGlobal> {
-        // build the qualified name for the vtable global
-        let base_name =
-            self.qualified_symbol_name(symbol)
-                .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: anchor,
-                    message: "missing qualified name for vtable global".to_string(),
-                })?;
-        let name = format!("{base_name}{VTABLE_GLOBAL_SUFFIX}");
-
-        // allocate the vtable storage as an array of nullable raw pointers
-        let slot_type = self.builder.type_reference(
-            mir::ReferenceKind::Raw,
-            self.type_lowerer.ty_void,
-            mir::Mutability::Immutable,
-            mir::AddressSpace::Static,
-            true,
-        );
-        let vtable_type = self
-            .builder
-            .type_array(slot_type, slot_count, mir::Copy::Yes);
-        let global_id =
-            self.builder
-                .global_constant(&name, vtable_type, mir::GlobalInitializer::zero());
-        let address_type = self.builder.type_reference(
-            mir::ReferenceKind::Raw,
-            vtable_type,
-            mir::Mutability::Immutable,
-            mir::AddressSpace::Static,
-            false,
-        );
-        self.builder.tree_mut().get_mut(global_id).space = mir::AddressSpace::Static;
-
-        Ok(VtableGlobal {
-            global_id,
-            address_type,
-        })
+        Ok(())
     }
 
     /// Collect the class lineage from base to derived.
@@ -446,4 +391,22 @@ impl ModuleLowerer<'_> {
             | dir::Member::Error { .. } => false,
         }
     }
+}
+
+/// Build the static initializer for one vtable.
+fn vtable_initializer(entries: &[mir::VtableEntry]) -> mir::GlobalInitializer {
+    let elements = entries
+        .iter()
+        .map(|entry| match entry {
+            mir::VtableEntry::Method { function }
+            | mir::VtableEntry::Destructor {
+                function: Some(function),
+            } => mir::GlobalInitializer::function_address((*function).into()),
+            mir::VtableEntry::TypeDescriptor | mir::VtableEntry::Destructor { function: None } => {
+                mir::GlobalInitializer::zero()
+            }
+        })
+        .collect();
+
+    mir::GlobalInitializer::aggregate(elements)
 }
