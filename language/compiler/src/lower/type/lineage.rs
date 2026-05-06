@@ -17,7 +17,7 @@ impl ModuleLowerer<'_> {
             .builder
             .tree()
             .metadata
-            .layout
+            .types
             .lineage(mir_type)
             .cloned()
         {
@@ -93,7 +93,7 @@ impl ModuleLowerer<'_> {
         self.builder
             .tree_mut()
             .metadata
-            .layout
+            .types
             .set_lineage(mir_type, type_lineage.clone());
 
         Ok(type_lineage)

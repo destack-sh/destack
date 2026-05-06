@@ -107,7 +107,7 @@ impl ModuleLowerer<'_> {
         self.builder
             .tree_mut()
             .metadata
-            .layout
+            .types
             .ensure_display_name(env_type, metadata_name);
 
         // record layout metadata for the env type
@@ -214,7 +214,7 @@ impl ModuleLowerer<'_> {
         self.builder
             .tree_mut()
             .metadata
-            .layout
+            .types
             .ensure_display_name(env_type, metadata_name);
 
         self.type_lowerer.set_layout(env_type, layout);

@@ -6,7 +6,7 @@ use destack_core::{StringId, StringPool};
 use destack_workspace::{Module, Package};
 use rustc_hash::FxHasher;
 
-use crate::lower::ModuleLowerer;
+use crate::lower::{ModuleLowerer, TypeCacheEntry};
 use crate::{LowerError, LowerResult};
 
 /// Suffix for object metadata names.
@@ -97,7 +97,7 @@ impl ModuleLowerer<'_> {
         let dir_type = self.types.get_type(type_id);
 
         // skip if metadata already exists
-        if let Some(name) = self.builder.tree().metadata.layout.display_name(mir_type) {
+        if let Some(name) = self.builder.tree().metadata.types.display_name(mir_type) {
             return Ok(name);
         }
 
@@ -121,7 +121,7 @@ impl ModuleLowerer<'_> {
             self.builder
                 .tree_mut()
                 .metadata
-                .layout
+                .types
                 .ensure_display_name(mir_type, reference_name);
 
             return Ok(reference_name);
@@ -144,7 +144,7 @@ impl ModuleLowerer<'_> {
             self.builder
                 .tree_mut()
                 .metadata
-                .layout
+                .types
                 .ensure_display_name(mir_type, instance_name);
             return Ok(instance_name);
         }
@@ -169,7 +169,7 @@ impl ModuleLowerer<'_> {
         self.builder
             .tree_mut()
             .metadata
-            .layout
+            .types
             .ensure_display_name(mir_type, name_id);
 
         Ok(name_id)
@@ -302,7 +302,7 @@ impl ModuleLowerer<'_> {
                 self.builder
                     .tree_mut()
                     .metadata
-                    .layout
+                    .types
                     .ensure_display_name(mir_type, name_id);
             }
 
@@ -312,7 +312,7 @@ impl ModuleLowerer<'_> {
                 self.builder
                     .tree_mut()
                     .metadata
-                    .layout
+                    .types
                     .ensure_display_name(mir_type, instance_name_id);
             }
 
@@ -330,7 +330,7 @@ impl ModuleLowerer<'_> {
             self.builder
                 .tree_mut()
                 .metadata
-                .layout
+                .types
                 .ensure_display_name(mir_type, reference_name_id);
         }
 
@@ -346,7 +346,7 @@ impl ModuleLowerer<'_> {
         self.builder
             .tree_mut()
             .metadata
-            .layout
+            .types
             .ensure_display_name(mir_type, name_id);
 
         names.instance = Some(name_id);
@@ -356,12 +356,13 @@ impl ModuleLowerer<'_> {
 
     /// Validate that every MIR type has a metadata name assigned.
     pub(crate) fn validate_metadata_names_assigned(&self) -> LowerResult<()> {
-        // read the mir type table
+        // read the mir type metadata
         let layout = &self.builder.tree().metadata.layout;
+        let types = &self.builder.tree().metadata.types;
 
         // require names for existing metadata entries
         for type_id in layout.layout_by_type.keys() {
-            if layout.display_name(*type_id).is_some() {
+            if types.display_name(*type_id).is_some() {
                 continue;
             }
 
@@ -375,8 +376,8 @@ impl ModuleLowerer<'_> {
         // require names for cached dir types
         for entry in self.type_lowerer.type_cache.values() {
             let mir_type = match entry {
-                crate::lower::TypeCacheEntry::Ready(mir_type) => *mir_type,
-                crate::lower::TypeCacheEntry::InProgress => {
+                TypeCacheEntry::Ready(mir_type) => *mir_type,
+                TypeCacheEntry::InProgress => {
                     return Err(LowerError::Internal {
                         module: self.module_id,
                         message: "type lowering cache left in progress".to_string(),
@@ -384,7 +385,7 @@ impl ModuleLowerer<'_> {
                 }
             };
 
-            let has_name = layout.display_name(mir_type).is_some();
+            let has_name = types.display_name(mir_type).is_some();
             if has_name {
                 continue;
             }
@@ -422,7 +423,7 @@ impl ModuleLowerer<'_> {
         self.builder
             .tree_mut()
             .metadata
-            .layout
+            .types
             .ensure_display_name(mir_type, name_id);
         Ok(())
     }
