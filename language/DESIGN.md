@@ -1768,27 +1768,108 @@ page satisfies Allocation<"shared">;
 When working with owned and borrowed values, lifetimes are the compiler-known validity relations for borrowed access.
 In Destack, lifetimes are ordinary static parameters, and most code never names one: every `&T` gets an inferred lifetime from the expression being borrowed.
 Explicit lifetimes are only needed when a signature or type stores a borrow or relates an output borrow to an input borrow.
+Lifetime parameters are inferred from borrowed inputs and field initializers, but they do not create validity by themselves.
+
+Borrow checking - that is, ensuring a borrow to some reference remains valid - is mostly Rust-shaped and follows the same simple rules:
+
+1. many `&readonly T` borrows of the same place may overlap;
+2. one `&T` borrow of a place may exist when no overlapping borrow of that place is live;
+3. a place cannot move or drop while an overlapping borrow is live;
+4. a borrow cannot outlive the owner or access path it came from.
+
+The rules are applied to access paths, so disjoint fields can be borrowed independently when the compiler can prove they do not overlap.
+Borrow lifetimes are also based on use, not block scope: once the last use of a borrow has passed, the original place can be borrowed differently, moved, or dropped again.
 
 ```ds
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+class User {
+    name: string = "";
+}
+
+let user: User = new User();
+
+// `&user.name` borrows through the managed `User` handle
+let name = &user.name;
+
+// `name` is borrowed access into managed storage
+name satisfies &string;
+
+let point = ^Point { x: 1, y: 2 };
+
+// `&readonly point.x` borrows from owned storage without moving `point`
+let readX = &readonly point.x;
+
+// another readonly borrow of `point.x` may overlap
+let readAgain = &readonly point.x;
+
+// `&point.y` mutably borrows a disjoint field
+let writeY = &point.y;
+writeY = 3;
+
+// both readonly borrows are still valid here
+readX satisfies &readonly int32;
+readAgain satisfies &readonly int32;
+
+// the readonly borrows of `point.x` are no longer live
+let writeX = &point.x;
+writeX = 4;
+```
+
+Escaping borrowed access must be tied to the input it came from:
+
+```ds
+function read(user: &User): string {
+    // common borrowed parameters can use the surface `&T` form
+    return user.name;
+}
+
 function first<T, L: Lifetime>(items: Borrowed<[T], L>): Borrowed<T, L> {
+    // returned borrowed access is tied to the `items` lifetime
     return &items[0];
 }
 
 struct View<T, L: Lifetime> {
+    // stored borrowed access makes the type carry the lifetime
     items: Borrowed<[T], L>;
 }
 ```
 
-Borrow checking - that is, ensuring a borrow to some reference remains valid - is mostly Rust-shaped:
-- many `&readonly T` borrows may overlap;
-- one `&T` borrow may exist when no other borrow overlaps;
-- a value cannot move, drop, or be mutably borrowed while an overlapping borrow is live;
-- a borrow cannot outlive the owner or access path it came from.
+The usual failure cases have straightforward fixes, and sometimes simpler than in Rust since we can just bail out to managed ownership:
+
+```ds
+/* INVALID: borrow of a local owned Point cannot escape */
+function escapedPoint(): &Point {
+    let point = ^Point { x: 1, y: 2 };
+    return &point;
+}
+
+/* VALID: managed Point can be returned instead of borrowed access */
+function ownedPoint(): Point {
+    let point = Point { x: 1, y: 2 };
+    return point;
+}
+
+/* VALID: owned Point is returned instead of borrowed access */
+function ownedPoint(): ^Point {
+    let point = ^Point { x: 1, y: 2 };
+    return point;
+}
+
+/* VALID: borrow into a lifetime provided by the caller */
+function borrowInput<L: Lifetime>(point: Borrowed<Point, L>): Borrowed<Point, L> {
+    // return borrowed access tied to an input lifetime
+    return point;
+}
+```
 
 ### Synchronisation
 
 The standard library provides the usual memory and synchronisation primitives on top of all of the above which we won't list out completely here.
-Basically, the important split is between:
+Basically, the important axis are:
  - **ownership sharing**: `Rc`, `Arc`
  - **interior mutability**: `Cell`, `RefCell`
  - **single-location atomic access**: `Atomic`
