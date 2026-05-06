@@ -326,6 +326,7 @@ impl RuntimeGenerator {
             None,
             None,
             vec!["core".to_string(), "platform".to_string()],
+            None,
             Vec::new(),
             false,
             false,
