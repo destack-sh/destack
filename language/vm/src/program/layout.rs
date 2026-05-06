@@ -1137,21 +1137,24 @@ mod tests {
     use super::*;
     use destack_core::ImmutableStringPool;
     use destack_mir::parse::{ParseOptions, Parser};
-    use destack_mir::{Storage, Tree, Type, TypeAlias};
+    use destack_mir::{DataLayout, Tree, Type, TypeAlias};
     use destack_source::FileId;
 
-    /// Parse one MIR program with the given storage metadata.
-    fn parse_tree_with_layout(mir_text: &str, storage: Storage) -> (Tree, ImmutableStringPool) {
+    /// Parse one MIR program with the given target metadata.
+    fn parse_tree_with_layout(
+        mir_text: &str,
+        data_layout: DataLayout,
+    ) -> (Tree, ImmutableStringPool) {
         let (mut tree, strings) = Parser::parse(
             FileId::new(0),
             mir_text,
             ParseOptions {
-                pointer_bytes: storage.native_pointer_bytes,
+                pointer_bytes: data_layout.pointer_bytes,
             },
         )
         .validate()
         .expect("failed to parse MIR");
-        tree.metadata.layout.storage = storage;
+        tree.metadata.data_layout = data_layout;
         (tree, strings)
     }
 
@@ -1182,7 +1185,7 @@ type Mixed {
     second: int64;
     third: uint8;
 }"#;
-        let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
+        let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Mixed");
         let layouts = build_layouts(&tree).expect("failed to build layouts");
         let layout = layouts.get(&ty).expect("missing layout");
@@ -1207,7 +1210,7 @@ type Packed {
     inner: ref<int32, managed, readonly>;
     third: uint8;
 }"#;
-        let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
+        let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Packed");
         let layouts = build_layouts(&tree).expect("failed to build layouts");
         let layout = layouts.get(&ty).expect("missing layout");
@@ -1233,7 +1236,7 @@ type Packed {
     fn test_build_layout_uses_canonical_vector_stride() {
         let mir_text = r#"
 type Vec = vector<ref<int32, managed, readonly>, 2>"#;
-        let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
+        let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Vec");
         let layouts = build_layouts(&tree).expect("failed to build layouts");
         let layout = layouts.get(&ty).expect("missing layout");
@@ -1262,7 +1265,7 @@ type Handle = newtype<ref<int32, managed, readonly>>;
 type Holder {
     value: Handle;
 }"#;
-        let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
+        let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Holder");
         let layouts = build_layouts(&tree).expect("failed to build layouts");
         let layout = layouts.get(&ty).expect("missing layout");
@@ -1282,7 +1285,7 @@ type Holder {
     fn test_build_layout_boxes_callable() {
         let mir_text = r#"
 type Callable = () => int32"#;
-        let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
+        let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Callable");
         let layouts = build_layouts(&tree).expect("failed to build layouts");
         let layout = layouts.get(&ty).expect("missing layout");
@@ -1308,7 +1311,7 @@ type Holder {
     pad: uint8;
     action: Callable;
 }"#;
-        let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
+        let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Holder");
         let layouts = build_layouts(&tree).expect("failed to build layouts");
         let layout = layouts.get(&ty).expect("missing layout");

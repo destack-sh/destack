@@ -12,7 +12,7 @@ use crate::program::{
     ArgumentRange, Call, CallBranch, CallIndirect, CallIndirectBranch, CallInterface,
     CallInterfaceBranch, CallTarget, CallVirtual, CallVirtualBranch, CallableBind, Function,
     Instruction, MoveRange, Projection, TailCall, TailCallIndirect, TailCallInterface,
-    TailCallVirtual, Transfer,
+    TailCallVirtual, Transfer, WordLayout,
 };
 use crate::{FunctionPointer, Word};
 use destack_mir as mir;
@@ -38,25 +38,51 @@ fn load_receiver_field<const IS_SHARED: bool>(
     ))
 }
 
+/// Load one function target from an immutable dispatch table.
+fn load_dispatch_slot(
+    machine: &Machine<'_, '_>,
+    table_pointer: engine::StaticPointer,
+    slot: u32,
+) -> Result<mir::LocalNodeId<mir::Function>, Error> {
+    // dispatch table slots are target pointers
+    let pointer_bytes = machine.program.tree.pointer_bytes() as usize;
+    let byte_offset = slot as usize * pointer_bytes;
+    let entry_pointer = table_pointer.add_bytes(byte_offset);
+
+    // static dispatch tables contain function addresses
+    let function = load_function_pointer(entry_pointer.address(), pointer_bytes)?;
+    let function = function.as_function_pointer();
+    let function = mir::LocalNodeId::new(function.function_index());
+
+    Ok(function)
+}
+
+/// Load one function address from static memory.
+fn load_function_pointer(address: usize, pointer_bytes: usize) -> Result<Word, Error> {
+    // read static bytes without assuming stronger alignment
+    let raw = unsafe {
+        match pointer_bytes {
+            4 => u32::from_le((address as *const u32).read_unaligned()) as u64,
+            8 => u64::from_le((address as *const u64).read_unaligned()),
+            _ => return Err(Error::InvalidInstruction),
+        }
+    };
+
+    Ok(WordLayout::FunctionPointer.decode(raw))
+}
+
 /// Resolve the callee for one virtual call.
 fn resolve_virtual_callee<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     receiver: Word,
     table_field: Projection,
-    method_index: u32,
+    slot: u32,
 ) -> Result<mir::LocalNodeId<mir::Function>, Error> {
     // load the vtable pointer from the receiver
     let vtable_value = load_receiver_field::<IS_SHARED>(machine, receiver, table_field)?;
     let vtable_pointer = vtable_value.as_static_pointer();
 
-    // load the function pointer from static table data
-    let byte_offset = method_index as usize * Word::BYTE_LEN;
-    let entry_address = vtable_pointer.address() + byte_offset;
-    let function = unsafe { *(entry_address as *const Word) };
-    let function = function.as_function_pointer();
-    let function = mir::LocalNodeId::new(function.function_index());
-
-    Ok(function)
+    load_dispatch_slot(machine, vtable_pointer, slot)
 }
 
 /// Resolve the callee for one interface call.
@@ -64,21 +90,13 @@ fn resolve_interface_callee<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     receiver: Word,
     table_field: Projection,
-    method_index: u32,
+    slot: u32,
 ) -> Result<mir::LocalNodeId<mir::Function>, Error> {
-    // load the itab id from the interface reference
+    // load the itab pointer from the interface reference
     let itab_value = load_receiver_field::<IS_SHARED>(machine, receiver, table_field)?;
+    let itab_pointer = itab_value.as_static_pointer();
 
-    // decode the itab id
-    let raw_id = itab_value.as_u64();
-    let raw_id = u32::try_from(raw_id).map_err(|_| Error::InvalidInstruction)?;
-    let table_id = mir::ItabId::new(raw_id);
-
-    // load the lowered interface method target
-    machine
-        .program
-        .interface_method(table_id, method_index)
-        .ok_or(Error::InvalidInstruction)
+    load_dispatch_slot(machine, itab_pointer, slot)
 }
 
 /// Resolve the callee for one indirect call.
@@ -422,22 +440,18 @@ fn execute_call_virtual<const IS_SHARED: bool>(
         dest,
         receiver_offset,
         table_field,
-        method_index,
+        slot,
         arguments,
     } = machine.side::<CallVirtual>(instruction);
 
     // resolve dynamic callee
     let receiver_value = machine.get_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
-    let function_id = match resolve_virtual_callee::<IS_SHARED>(
-        machine,
-        receiver_value,
-        table_field,
-        *method_index,
-    ) {
-        Ok(function_id) => function_id,
-        Err(error) => return Transfer::Error(error),
-    };
+    let function_id =
+        match resolve_virtual_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+            Ok(function_id) => function_id,
+            Err(error) => return Transfer::Error(error),
+        };
     let target = match require_call_target(machine, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
@@ -485,7 +499,7 @@ fn execute_invoke_virtual<const IS_SHARED: bool>(
     let CallVirtualBranch {
         receiver_offset,
         table_field,
-        method_index,
+        slot,
         arguments,
         normal_state,
         unwind_state,
@@ -493,15 +507,11 @@ fn execute_invoke_virtual<const IS_SHARED: bool>(
 
     let receiver_value = machine.get_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
-    let function_id = match resolve_virtual_callee::<IS_SHARED>(
-        machine,
-        receiver_value,
-        table_field,
-        *method_index,
-    ) {
-        Ok(function_id) => function_id,
-        Err(error) => return Transfer::Error(error),
-    };
+    let function_id =
+        match resolve_virtual_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+            Ok(function_id) => function_id,
+            Err(error) => return Transfer::Error(error),
+        };
     let target = match require_call_target(machine, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
@@ -544,22 +554,18 @@ fn execute_call_interface<const IS_SHARED: bool>(
         dest,
         receiver_offset,
         table_field,
-        method_index,
+        slot,
         arguments,
     } = machine.side::<CallInterface>(instruction);
 
     // resolve dynamic callee
     let receiver_value = machine.get_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
-    let function_id = match resolve_interface_callee::<IS_SHARED>(
-        machine,
-        receiver_value,
-        table_field,
-        *method_index,
-    ) {
-        Ok(function_id) => function_id,
-        Err(error) => return Transfer::Error(error),
-    };
+    let function_id =
+        match resolve_interface_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+            Ok(function_id) => function_id,
+            Err(error) => return Transfer::Error(error),
+        };
     let target = match require_call_target(machine, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
@@ -607,7 +613,7 @@ fn execute_invoke_interface<const IS_SHARED: bool>(
     let CallInterfaceBranch {
         receiver_offset,
         table_field,
-        method_index,
+        slot,
         arguments,
         normal_state,
         unwind_state,
@@ -615,15 +621,11 @@ fn execute_invoke_interface<const IS_SHARED: bool>(
 
     let receiver_value = machine.get_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
-    let function_id = match resolve_interface_callee::<IS_SHARED>(
-        machine,
-        receiver_value,
-        table_field,
-        *method_index,
-    ) {
-        Ok(function_id) => function_id,
-        Err(error) => return Transfer::Error(error),
-    };
+    let function_id =
+        match resolve_interface_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+            Ok(function_id) => function_id,
+            Err(error) => return Transfer::Error(error),
+        };
     let target = match require_call_target(machine, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
@@ -1005,22 +1007,18 @@ fn execute_tail_call_virtual<const IS_SHARED: bool>(
     let TailCallVirtual {
         receiver_offset,
         table_field,
-        method_index,
+        slot,
         arguments,
     } = machine.side::<TailCallVirtual>(instruction);
 
     // resolve dynamic callee
     let receiver_value = machine.get_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
-    let function_id = match resolve_virtual_callee::<IS_SHARED>(
-        machine,
-        receiver_value,
-        table_field,
-        *method_index,
-    ) {
-        Ok(function_id) => function_id,
-        Err(error) => return Transfer::Error(error),
-    };
+    let function_id =
+        match resolve_virtual_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+            Ok(function_id) => function_id,
+            Err(error) => return Transfer::Error(error),
+        };
     let target = match require_call_target(machine, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
@@ -1060,22 +1058,18 @@ fn execute_tail_call_interface<const IS_SHARED: bool>(
     let TailCallInterface {
         receiver_offset,
         table_field,
-        method_index,
+        slot,
         arguments,
     } = machine.side::<TailCallInterface>(instruction);
 
     // resolve dynamic callee
     let receiver_value = machine.get_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
-    let function_id = match resolve_interface_callee::<IS_SHARED>(
-        machine,
-        receiver_value,
-        table_field,
-        *method_index,
-    ) {
-        Ok(function_id) => function_id,
-        Err(error) => return Transfer::Error(error),
-    };
+    let function_id =
+        match resolve_interface_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+            Ok(function_id) => function_id,
+            Err(error) => return Transfer::Error(error),
+        };
     let target = match require_call_target(machine, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),

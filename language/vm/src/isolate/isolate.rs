@@ -542,13 +542,13 @@ impl Isolate {
 
     /// Require a host pointer width compatible with the program layout.
     fn require_host_pointer_width(program: &Program) -> RuntimeResult<()> {
-        let native_pointer_bytes = program.tree.metadata.layout.storage.native_pointer_bytes;
+        let pointer_bytes = program.tree.metadata.data_layout.pointer_bytes;
         let host_pointer_bytes = HeapReference::BYTE_LEN as u8;
 
         // host execution only supports native-width pointers
-        if native_pointer_bytes != host_pointer_bytes {
+        if pointer_bytes != host_pointer_bytes {
             return Err(RuntimeError::new(Error::IncompatiblePointerWidth {
-                bytes: native_pointer_bytes,
+                bytes: pointer_bytes,
                 host_bytes: host_pointer_bytes,
             }));
         }
