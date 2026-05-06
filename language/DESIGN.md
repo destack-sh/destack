@@ -632,8 +632,8 @@ function merge<T: int, U>(): T where (
 ### Reflection
 
 TypeScript types are - by design - erased at runtime, which means we can't easily perform runtime type checks or any meaningful reflection.
-Destack supports type reflection both at runtime and at compile time with opaque handles of type `Type<T>`.
-A type expression can be turned into its handle with (implicit or explicit) casting to its `Type` representation:
+Destack supports type reflection both at runtime and at compile time with `Type<T>` as a normalized view.
+Any type expression can be turned into its reflected type with (implicit or explicit) casting to its `Type` representation:
 
 ```ds
 struct User {
@@ -645,10 +645,6 @@ let u: User = User { name: "Alice", age: 30 };
 
 const UserType: Type<User> = User;
 const UserType = Type.of<User>();
-
-const descriptor = Type.describe(UserType);
-descriptor.displayName // "User"
-descriptor.shape // ReferenceType or ObjectType, depending on the normalized type
 ```
 
 This also works for generic APIs that operate on types as static values:
@@ -710,7 +706,7 @@ Use `match` when you want patterns, exhaustiveness, guards, or a value.
 ### Closures
 
 Closures generally work like TypeScript closures: capture the surrounding lexical environment and preserve lexical `this`.
-Destack supports an additional `@capture` annotation for controlling how the environment is captured (both as a broad policy and per binding):
+Destack supports an additional `@capture` annotation for controlling how the environment is captured (both per closure and per binding):
  - `"borrow"`: captures borrowed access to the original binding (same as `&expr`)
  - `"copy"`: captures a copied value of the original binding (same as `expr.copy()` where `expr: Copy`)
  - `"move"`: transfer the binding into the closure, original becomes unavailable afterwards (same as `^expr`)
@@ -754,6 +750,34 @@ class Client {
             return socket.write(`${this.prefix}: ${message}`);
         };
     }
+}
+```
+
+### Continuations
+
+Async functions and generators are closures that can pause and be resumed at a later point via `Continuation`s.
+When paused, the runtime parks the live frame in a Worker-local continuation handle.
+`Promise`, `Generator`, and `AsyncGenerator` are (well known) standard library types around the simpler `Continuation` primitive:
+
+| Form | Meaning |
+|------|---------|
+| `ContinuationHandle` | Worker-local handle to a parked frame |
+| `Promise<T>` | Worker-local async result object |
+| `Generator<Y, R, N>` | Worker-local suspended generator |
+| `AsyncGenerator<Y, R, N>` | Worker-local suspended async generator |
+| produced `T` | value eventually produced by async code |
+
+As in TypeScript, `await` and `yield` are the suspension points for the `Promise`s and `Generator` (and `AsyncGenerator`) coroutines.
+When using standard managed values, these coroutines work exactly as before with no special regard for memory ownership.
+When using owned and borrowed values, beware that borrows cannot live safely across suspension points:
+
+```ds
+async function read(user: User): Promise<string> {
+    const id = user.id;
+    await tick();
+
+    const name = &user.name; // borrow after suspension
+    return name.clone();
 }
 ```
 
@@ -1643,8 +1667,6 @@ Memory placement is contextual: all types are "ambient" by default, i.e., they c
 Aggregates are placed wherever their container is placed until someone either specifies placement explicitly (e.g., `WithPlace<T, ..>`, `shared T`) or we reach the root, which is `local` to the Worker's own local heap by default.
 This is why we distinguish `Place` from `Space`: `Space` is concrete, while `Place` may also be `"ambient"`.
 
-Some incompatible combinations of explicit placements - like local inside shared - produce an error.
-
 #### Shared Space
 
 The "shared space" is shared memory visible to all `Worker`s in the same `Runtime`.
@@ -1673,8 +1695,10 @@ Userland APIs such as channels, Worker pools, atomics, locks, and actors can req
 
 ### Conversions
 
-The rules for who can convert into what mostly follow from two facts: references must always be valid, and shared memory must not point into a Worker-local heap.
-(Raw pointers are your own dangerous business.)
+The rules for who can convert into what mostly follow from two facts:
+    - References must always be valid,
+    - Shared memory must not point into local memory.
+(Raw pointers are your own dirty business.)
 
 | From \ To | `T` | `&T` | `^T` | `*T` |
 |-----------|-----|------|------|------|
@@ -1682,8 +1706,6 @@ The rules for who can convert into what mostly follow from two facts: references
 | `&T` | no | - | no | unsafe |
 | `^T` | no | yes | - | unsafe |
 | `*T` | no | reborrow | no | - |
-
-"unsafe" conversions require an explicit `unsafe` block, and "reborrow" from `*T` to `&T` requires an unsafe checked reborrow that asserts validity.
 
 ### Statics
 
@@ -1699,8 +1721,7 @@ For genuinely shared process-global state, the binding _itself_ can be declared 
 
 ### Allocation
 
-The primary typed construction path is `new`, which allocates heap storage, initializes a `T`, and produces the ownership form required by the destination type and the base type's affinity.
-`new` is destination-typed: the expected type decides whether construction produces a managed or owned value, with affine base types preferring owned forms in unconstrained positions.
+The primary typed construction path is `new`, which allocates heap storage, initializes a `T`, and produces the ownership form required by the destination type.
 
 ```ds
 let a: User = new User();   // managed
