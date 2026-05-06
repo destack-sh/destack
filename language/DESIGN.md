@@ -1617,18 +1617,17 @@ Each ownership form has a corresponding normalized representation in our little 
 ```ds
 let a: User = new User();  // managed handle
 let b: ^User = new User(); // owned handle
-let c: &User = &a;         // borrow
-let d: *User = &a;         // raw pointer by destination type
+let c: &User = &a;         // borrowed handle
+let d: *User = &a;         // raw handle (unchecked)
 ```
 
 ### Space
 
-Space defines where the memory is actually located in memory, and following web standards, Destack uses `Worker`-local heap as the main memory space.
-The default *local* memory space is the current Worker's local heap, and that's where ambient types land unless otherwise specified.
+Space defines where some value is actually located in memory, and since Destack follows web and JS/TS convention, we use the `Worker`-local heap as the default main memory space.
 Ordinary managed objects, arrays, strings, functions, closures, and module bindings live in local space, and user and library code can almost always just pretend spaces don't exist.
 
-Often, the "space" of a type and its corresponding memory region are a purely logical separation: most computers have unified main memory, and separating local and shared (and other..) heaps is much more about correctness (and somewhat about performance) than about physical constraint.
-For non-uniform memory targets, assigning specific memory spaces in one unified programming language is however quite convenient.
+The "space" of a type and its corresponding memory region are often just a purely logical separation that is much more about correctness (and somewhat about performance) than about physical representation.
+For non-uniform memory targets, assigning specific memory spaces in one unified memory placement system is however quite convenient.
 
 ```ds
 struct Request<T> {
@@ -1636,16 +1635,15 @@ struct Request<T> {
     body: T,
 }
 
-let here: Request<Body>;          // header, body are local
-let there: shared Request<Body>;  // header, body are shared
+let localRequest: Request<Body>;          // ambient, default -> Request is worker-local heap
+let sharedRequest: shared Request<Body>;  // explicit, shared -> Request is shared heap
 ```
 
-Memory placement is contextual: all types are "ambient" by default (i.e. they come with no inherent placement).
-Accordingly, aggregates are placed wherever their container is placed until someone either explicitly specifies placement (`WithPlace<T, ..>` or `shared T` or whatever) or we reach the root, which is `local` to the Worker's own local heap by default.
+Memory placement is contextual: all types are "ambient" by default, i.e., they come with no inherent placement.
+Aggregates are placed wherever their container is placed until someone either specifies placement explicitly (e.g., `WithPlace<T, ..>`, `shared T`) or we reach the root, which is `local` to the Worker's own local heap by default.
+This is why we distinguish `Place` from `Space`: `Space` is concrete, while `Place` may also be `"ambient"`.
 
 Some incompatible combinations of explicit placements - like local inside shared - produce an error.
-More broadly, the compiler may lower one source aggregate into distinct concrete layouts depending on its space.
-This is why the type algebra distinguishes `Place` from `Space`: `Space` is concrete, while `Place` may also be `"ambient"`.
 
 #### Shared Space
 
