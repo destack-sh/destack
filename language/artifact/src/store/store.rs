@@ -8,8 +8,8 @@ use super::pin::ArtifactPin;
 use crate::{
     AmbientEnvironment, ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload,
     ArtifactVersion, Ast, Data, DirChecked, DirDeclared, DirElaborated, DirExported,
-    LanguageEnvironment, MirLowered, MirOptimized, ModuleLinted, ModuleOutput, PackageLinted,
-    PackageOutput, WorkspaceLinted,
+    LanguageEnvironment, MirLowered, MirOptimized, ModuleLinted, ModuleOutput, ModuleQueryIndex,
+    PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
 };
 
 /// One versioned artifact family map.
@@ -46,6 +46,11 @@ pub struct ArtifactStore {
     mir_lowered: ArtifactMap<MirLowered>,
     /// Optimized MIR artifacts by module, profile, and target.
     mir_optimized: ArtifactMap<MirOptimized>,
+
+    /// Query indexes by module and profile.
+    module_query_index: ArtifactMap<ModuleQueryIndex>,
+    /// Query indexes by workspace and profile.
+    workspace_query_index: ArtifactMap<WorkspaceQueryIndex>,
 
     /// Generated module outputs by module and target.
     module_output: ArtifactMap<ModuleOutput>,
@@ -150,6 +155,10 @@ impl ArtifactStore {
             ArtifactKey::DirElaborated { .. } => self.dir_elaborated.contains_key(version),
             ArtifactKey::MirLowered { .. } => self.mir_lowered.contains_key(version),
             ArtifactKey::MirOptimized { .. } => self.mir_optimized.contains_key(version),
+            ArtifactKey::ModuleQueryIndex { .. } => self.module_query_index.contains_key(version),
+            ArtifactKey::WorkspaceQueryIndex { .. } => {
+                self.workspace_query_index.contains_key(version)
+            }
             ArtifactKey::ModuleOutput { .. } => self.module_output.contains_key(version),
             ArtifactKey::PackageOutput { .. } => self.package_output.contains_key(version),
             ArtifactKey::ModuleLinted { .. } => self.module_linted.contains_key(version),
@@ -253,6 +262,20 @@ impl ArtifactStore {
                 payload,
                 matches!(&version.key, ArtifactKey::MirOptimized { .. }),
                 "MirOptimized",
+            ),
+            ArtifactPayload::ModuleQueryIndex(payload) => Self::insert_payload(
+                &self.module_query_index,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::ModuleQueryIndex { .. }),
+                "ModuleQueryIndex",
+            ),
+            ArtifactPayload::WorkspaceQueryIndex(payload) => Self::insert_payload(
+                &self.workspace_query_index,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::WorkspaceQueryIndex { .. }),
+                "WorkspaceQueryIndex",
             ),
             ArtifactPayload::ModuleOutput(payload) => Self::insert_payload(
                 &self.module_output,
@@ -379,6 +402,23 @@ impl ArtifactStore {
     /// Get one optimized MIR artifact.
     pub fn mir_optimized(&self, version: &ArtifactVersion) -> Option<Arc<MirOptimized>> {
         self.mir_optimized
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Get one module query index artifact.
+    pub fn module_query_index(&self, version: &ArtifactVersion) -> Option<Arc<ModuleQueryIndex>> {
+        self.module_query_index
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Get one workspace query index artifact.
+    pub fn workspace_query_index(
+        &self,
+        version: &ArtifactVersion,
+    ) -> Option<Arc<WorkspaceQueryIndex>> {
+        self.workspace_query_index
             .get(version)
             .map(|entry| entry.value().clone())
     }
