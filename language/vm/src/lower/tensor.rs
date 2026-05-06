@@ -1,28 +1,32 @@
 use destack_mir as mir;
 
 use crate::program::{
-    ElementAccess, Instruction, Op, ScalarLayout, TensorBinary, TensorBroadcast, TensorConcat,
-    TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill,
-    TensorGather, TensorLayout, TensorLayoutId, TensorLoad, TensorPad, TensorReduce, TensorReshape,
-    TensorScatter, TensorSelect, TensorSlice, TensorStore, TensorTranspose, TensorView, U32RangeId,
-    scalar_layout_from_type, value_layout_from_type,
+    Instruction, Op, PointerClass, Projection, ScalarLayout, TensorBinary, TensorBroadcast,
+    TensorConcat, TensorContiguousBinary, TensorConvert, TensorConvolution, TensorCopy, TensorDot,
+    TensorExtract, TensorFill, TensorGather, TensorLayout, TensorLayoutId, TensorLoad, TensorPad,
+    TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore,
+    TensorTranspose, TensorView, U32RangeId, scalar_layout_from_type, value_layout_from_type,
 };
 use crate::{Error, Result};
 
-use super::access::{tensor_element_access, tensor_element_type, tensor_view_pointer_class};
-use super::arithmetic::tensor_binary_op;
+use super::arithmetic::{element_binary_kernel, same_contiguous_tensor_order};
 use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
 use super::pool::Pool;
+use super::projection::{
+    tensor_element_projection as build_tensor_element_projection, tensor_element_type,
+    tensor_view_pointer_class,
+};
 
 impl<'a> BlockLowerer<'a> {
     /// Lower one tensor instruction.
     pub(super) fn lower_tensor(
         &self,
         inst: &mir::Instruction,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         Ok(match inst {
+            // tensor.splat
             mir::Instruction::TensorSplat { destination, value } => {
                 let destination = tensor_value(*destination, "tensor splat destination")?;
                 let value = tensor_value(*value, "tensor splat value")?;
@@ -37,6 +41,7 @@ impl<'a> BlockLowerer<'a> {
                     0,
                 )
             }
+            // tensor.load
             mir::Instruction::TensorLoad {
                 destination,
                 view,
@@ -51,10 +56,12 @@ impl<'a> BlockLowerer<'a> {
                     self.tree.get_arguments(*indices),
                     "tensor load index",
                 )?;
-                let element = pool.element_access(self.tensor_element_access(view_type)?);
+                let (pointer_class, element) = self.tensor_element_projection(view_type)?;
+                let op = tensor_load_op(pointer_class)?;
+                let element = pool.projection(element);
 
-                pool.instruction_with_side_record(
-                    Op::TensorLoad,
+                pool.instruction_with_side(
+                    op,
                     TensorLoad {
                         dest_offset: word_offset(self, destination)?,
                         view_offset: word_offset(self, view)?,
@@ -64,6 +71,7 @@ impl<'a> BlockLowerer<'a> {
                     },
                 )
             }
+            // tensor.extract
             mir::Instruction::TensorExtract {
                 destination,
                 tensor,
@@ -79,7 +87,7 @@ impl<'a> BlockLowerer<'a> {
                     "tensor extract index",
                 )?;
 
-                pool.instruction_with_side_record(
+                pool.instruction_with_side(
                     Op::TensorExtract,
                     TensorExtract {
                         dest_offset: word_offset(self, destination)?,
@@ -89,6 +97,7 @@ impl<'a> BlockLowerer<'a> {
                     },
                 )
             }
+            // tensor.store
             mir::Instruction::TensorStore {
                 view,
                 indices,
@@ -103,10 +112,12 @@ impl<'a> BlockLowerer<'a> {
                     self.tree.get_arguments(*indices),
                     "tensor store index",
                 )?;
-                let element = pool.element_access(self.tensor_element_access(view_type)?);
+                let (pointer_class, element) = self.tensor_element_projection(view_type)?;
+                let op = tensor_store_op(pointer_class)?;
+                let element = pool.projection(element);
 
-                pool.instruction_with_side_record(
-                    Op::TensorStore,
+                pool.instruction_with_side(
+                    op,
                     TensorStore {
                         view_offset: word_offset(self, view)?,
                         indices,
@@ -116,15 +127,18 @@ impl<'a> BlockLowerer<'a> {
                     },
                 )
             }
+            // tensor.fill
             mir::Instruction::TensorFill { view, value } => {
                 let view = tensor_value(*view, "tensor fill view")?;
                 let value = tensor_value(*value, "tensor fill value")?;
                 let view_type = self.value_type_for_value(view)?;
                 let view_layout = self.tensor_layout(pool, view_type)?;
-                let element = pool.element_access(self.tensor_element_access(view_type)?);
+                let (pointer_class, element) = self.tensor_element_projection(view_type)?;
+                let op = tensor_fill_op(pointer_class)?;
+                let element = pool.projection(element);
 
-                pool.instruction_with_side_record(
-                    Op::TensorFill,
+                pool.instruction_with_side(
+                    op,
                     TensorFill {
                         view_offset: word_offset(self, view)?,
                         value_offset: word_offset(self, value)?,
@@ -133,6 +147,7 @@ impl<'a> BlockLowerer<'a> {
                     },
                 )
             }
+            // tensor.copy
             mir::Instruction::TensorCopy { target, source } => {
                 let target = tensor_value(*target, "tensor copy target")?;
                 let source = tensor_value(*source, "tensor copy source")?;
@@ -140,11 +155,14 @@ impl<'a> BlockLowerer<'a> {
                 let source_type = self.value_type_for_value(source)?;
                 let target_layout = self.tensor_layout(pool, target_type)?;
                 let source_layout = self.tensor_layout(pool, source_type)?;
-                let target_element = pool.element_access(self.tensor_element_access(target_type)?);
-                let source_element = pool.element_access(self.tensor_element_access(source_type)?);
+                let (target_class, target_element) = self.tensor_element_projection(target_type)?;
+                let (source_class, source_element) = self.tensor_element_projection(source_type)?;
+                let op = tensor_copy_op(target_class, source_class)?;
+                let target_element = pool.projection(target_element);
+                let source_element = pool.projection(source_element);
 
-                pool.instruction_with_side_record(
-                    Op::TensorCopy,
+                pool.instruction_with_side(
+                    op,
                     TensorCopy {
                         target_offset: word_offset(self, target)?,
                         source_offset: word_offset(self, source)?,
@@ -155,6 +173,7 @@ impl<'a> BlockLowerer<'a> {
                     },
                 )
             }
+            // tensor.reshape
             mir::Instruction::TensorReshape {
                 destination,
                 tensor,
@@ -172,7 +191,7 @@ impl<'a> BlockLowerer<'a> {
                     "tensor reshape shape",
                 )?;
 
-                pool.instruction_with_side_record(
+                pool.instruction_with_side(
                     Op::TensorReshape,
                     TensorReshape {
                         dest_offset: value_offset(self, destination)?,
@@ -183,6 +202,7 @@ impl<'a> BlockLowerer<'a> {
                     },
                 )
             }
+            // tensor.broadcast
             mir::Instruction::TensorBroadcast {
                 destination,
                 tensor,
@@ -196,7 +216,7 @@ impl<'a> BlockLowerer<'a> {
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
                 let dimensions = pool.u32_range(dimensions);
 
-                pool.instruction_with_side_record(
+                pool.instruction_with_side(
                     Op::TensorBroadcast,
                     TensorBroadcast {
                         dest_offset: value_offset(self, destination)?,
@@ -207,6 +227,7 @@ impl<'a> BlockLowerer<'a> {
                     },
                 )
             }
+            // tensor.transpose
             mir::Instruction::TensorTranspose {
                 destination,
                 tensor,
@@ -220,7 +241,7 @@ impl<'a> BlockLowerer<'a> {
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
                 let permutation = pool.u32_range(permutation);
 
-                pool.instruction_with_side_record(
+                pool.instruction_with_side(
                     Op::TensorTranspose,
                     TensorTranspose {
                         dest_offset: value_offset(self, destination)?,
@@ -231,6 +252,7 @@ impl<'a> BlockLowerer<'a> {
                     },
                 )
             }
+            // tensor.slice
             mir::Instruction::TensorSlice {
                 destination,
                 tensor,
@@ -251,7 +273,7 @@ impl<'a> BlockLowerer<'a> {
                 let source_layout = self.tensor_layout(pool, source_type)?;
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
 
-                pool.instruction_with_side_record(
+                pool.instruction_with_side(
                     Op::TensorSlice,
                     TensorSlice {
                         dest_offset: value_offset(self, destination)?,
@@ -265,6 +287,7 @@ impl<'a> BlockLowerer<'a> {
                     },
                 )
             }
+            // tensor.pad
             mir::Instruction::TensorPad {
                 destination,
                 tensor,
@@ -287,7 +310,7 @@ impl<'a> BlockLowerer<'a> {
                 let source_layout = self.tensor_layout(pool, source_type)?;
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
 
-                pool.instruction_with_side_record(
+                pool.instruction_with_side(
                     Op::TensorPad,
                     TensorPad {
                         dest_offset: value_offset(self, destination)?,
@@ -302,6 +325,7 @@ impl<'a> BlockLowerer<'a> {
                     },
                 )
             }
+            // tensor.concat
             mir::Instruction::TensorConcat {
                 destination,
                 tensors,
@@ -321,7 +345,7 @@ impl<'a> BlockLowerer<'a> {
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
                 let tensor_layouts = pool.u32_range(&tensor_layouts);
 
-                pool.instruction_with_side_record(
+                pool.instruction_with_side(
                     Op::TensorConcat,
                     TensorConcat {
                         dest_offset: value_offset(self, destination)?,
@@ -332,6 +356,7 @@ impl<'a> BlockLowerer<'a> {
                     },
                 )
             }
+            // tensor.reduce
             mir::Instruction::TensorReduce {
                 destination,
                 operator,
@@ -348,8 +373,8 @@ impl<'a> BlockLowerer<'a> {
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
                 let axes = pool.u32_range(axes);
 
-                pool.instruction_with_side_record(
-                    tensor_reduce_op(*operator),
+                pool.instruction_with_side(
+                    Op::TensorReduce,
                     TensorReduce {
                         dest_offset: value_offset(self, destination)?,
                         tensor_offset: value_offset(self, tensor)?,
@@ -357,9 +382,11 @@ impl<'a> BlockLowerer<'a> {
                         axes,
                         source_layout,
                         dest_layout,
+                        kernel: *operator,
                     },
                 )
             }
+            // tensor.dot
             mir::Instruction::TensorDot {
                 destination,
                 left,
@@ -372,9 +399,9 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let left_type = self.value_type_for_value(left)?;
                 let right_type = self.value_type_for_value(right)?;
-                let dest_layout = self.tensor_layout(pool, dest_type)?;
-                let left_layout = self.tensor_layout(pool, left_type)?;
-                let right_layout = self.tensor_layout(pool, right_type)?;
+                let dest_layout = TensorLayout::from_type(self.tree, self.layouts(), dest_type)?;
+                let left_layout = TensorLayout::from_type(self.tree, self.layouts(), left_type)?;
+                let right_layout = TensorLayout::from_type(self.tree, self.layouts(), right_type)?;
                 let dimensions = pool.tensor_dot(dimensions.clone());
                 let element = tensor_element_type(self.tree, dest_type).ok_or_else(|| {
                     Error::MissingRepresentation {
@@ -383,7 +410,11 @@ impl<'a> BlockLowerer<'a> {
                 })?;
                 let element_layout = tensor_scalar_layout(self.tree, element)?;
 
-                pool.instruction_with_side_record(
+                let dest_layout = pool.tensor_layout(dest_layout);
+                let left_layout = pool.tensor_layout(left_layout);
+                let right_layout = pool.tensor_layout(right_layout);
+
+                pool.instruction_with_side(
                     Op::TensorDot,
                     TensorDot {
                         dest_offset: value_offset(self, destination)?,
@@ -397,6 +428,7 @@ impl<'a> BlockLowerer<'a> {
                     },
                 )
             }
+            // tensor.convolution
             mir::Instruction::TensorConvolution {
                 destination,
                 input,
@@ -424,7 +456,7 @@ impl<'a> BlockLowerer<'a> {
                 })?;
                 let element_layout = tensor_scalar_layout(self.tree, element)?;
 
-                pool.instruction_with_side_record(
+                pool.instruction_with_side(
                     Op::TensorConvolution,
                     TensorConvolution {
                         dest_offset: value_offset(self, destination)?,
@@ -441,6 +473,7 @@ impl<'a> BlockLowerer<'a> {
                     },
                 )
             }
+            // tensor.gather
             mir::Instruction::TensorGather {
                 destination,
                 operand: source,
@@ -460,7 +493,7 @@ impl<'a> BlockLowerer<'a> {
                 let dimensions = pool.tensor_gather(dimensions.clone());
                 let slice_sizes = pool.u32_range(slice_sizes);
 
-                pool.instruction_with_side_record(
+                pool.instruction_with_side(
                     Op::TensorGather,
                     TensorGather {
                         dest_offset: value_offset(self, destination)?,
@@ -474,6 +507,7 @@ impl<'a> BlockLowerer<'a> {
                     },
                 )
             }
+            // tensor.scatter
             mir::Instruction::TensorScatter {
                 destination,
                 operand: source,
@@ -502,8 +536,8 @@ impl<'a> BlockLowerer<'a> {
                 })?;
                 let element_layout = tensor_scalar_layout(self.tree, element)?;
 
-                pool.instruction_with_side_record(
-                    tensor_scatter_op(*mode),
+                pool.instruction_with_side(
+                    Op::TensorScatter,
                     TensorScatter {
                         dest_offset: value_offset(self, destination)?,
                         source_offset: value_offset(self, source)?,
@@ -515,9 +549,11 @@ impl<'a> BlockLowerer<'a> {
                         updates_layout,
                         dest_layout,
                         element_layout,
+                        mode: *mode,
                     },
                 )
             }
+            // tensor.compare
             mir::Instruction::TensorCompare {
                 destination,
                 operator,
@@ -530,21 +566,39 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let left_type = self.value_type_for_value(left)?;
                 let right_type = self.value_type_for_value(right)?;
-                let dest_layout = self.tensor_layout(pool, dest_type)?;
-                let left_layout = self.tensor_layout(pool, left_type)?;
-                let right_layout = self.tensor_layout(pool, right_type)?;
+                let dest_layout = TensorLayout::from_type(self.tree, self.layouts(), dest_type)?;
+                let left_layout = TensorLayout::from_type(self.tree, self.layouts(), left_type)?;
+                let right_layout = TensorLayout::from_type(self.tree, self.layouts(), right_type)?;
                 let element = tensor_element_type(self.tree, left_type).ok_or_else(|| {
                     Error::MissingRepresentation {
                         context: "tensor compare element".to_string(),
                     }
                 })?;
                 let element_layout = value_layout_from_type(self.tree, element);
-                let op = tensor_binary_op(*operator, element_layout)
-                    .filter(is_tensor_compare_op)
+                let kernel = element_binary_kernel(*operator, element_layout)
                     .ok_or(Error::InvalidInstruction)?;
+                if same_contiguous_tensor_order(&dest_layout, &left_layout, &right_layout) {
+                    let dest_layout = pool.tensor_layout(dest_layout);
 
-                pool.instruction_with_side_record(
-                    op,
+                    return Ok(pool.instruction_with_side(
+                        Op::TensorContiguousBinary,
+                        TensorContiguousBinary {
+                            dest_offset: value_offset(self, destination)?,
+                            left_offset: value_offset(self, left)?,
+                            right_offset: value_offset(self, right)?,
+                            dest_layout,
+                            element_layout: tensor_scalar_layout(self.tree, element)?,
+                            kernel,
+                        },
+                    ));
+                }
+
+                let left_layout = pool.tensor_layout(left_layout);
+                let right_layout = pool.tensor_layout(right_layout);
+                let dest_layout = pool.tensor_layout(dest_layout);
+
+                pool.instruction_with_side(
+                    Op::TensorBinary,
                     TensorBinary {
                         dest_offset: value_offset(self, destination)?,
                         left_offset: value_offset(self, left)?,
@@ -552,10 +606,12 @@ impl<'a> BlockLowerer<'a> {
                         left_layout,
                         right_layout,
                         dest_layout,
+                        kernel,
                         element_layout: tensor_scalar_layout(self.tree, element)?,
                     },
                 )
             }
+            // tensor.select
             mir::Instruction::TensorSelect {
                 destination,
                 mask,
@@ -575,7 +631,7 @@ impl<'a> BlockLowerer<'a> {
                 let then_layout = self.tensor_layout(pool, then_type)?;
                 let else_layout = self.tensor_layout(pool, else_type)?;
 
-                pool.instruction_with_side_record(
+                pool.instruction_with_side(
                     Op::TensorSelect,
                     TensorSelect {
                         dest_offset: value_offset(self, destination)?,
@@ -589,6 +645,7 @@ impl<'a> BlockLowerer<'a> {
                     },
                 )
             }
+            // tensor.convert
             mir::Instruction::TensorConvert {
                 destination,
                 mode,
@@ -612,8 +669,8 @@ impl<'a> BlockLowerer<'a> {
                     }
                 })?;
 
-                pool.instruction_with_side_record(
-                    tensor_convert_op(*mode),
+                pool.instruction_with_side(
+                    Op::TensorConvert,
                     TensorConvert {
                         dest_offset: value_offset(self, destination)?,
                         tensor_offset: value_offset(self, tensor)?,
@@ -621,9 +678,11 @@ impl<'a> BlockLowerer<'a> {
                         dest_layout,
                         source_scalar: tensor_scalar_layout(self.tree, source_element)?,
                         dest_scalar: tensor_scalar_layout(self.tree, dest_element)?,
+                        mode: *mode,
                     },
                 )
             }
+            // tensor.cast
             mir::Instruction::TensorCast {
                 destination,
                 tensor,
@@ -641,6 +700,7 @@ impl<'a> BlockLowerer<'a> {
                     (byte_len >> 32) as u32,
                 )
             }
+            // tensor.view
             mir::Instruction::TensorView {
                 destination,
                 view,
@@ -660,10 +720,12 @@ impl<'a> BlockLowerer<'a> {
                 let source_type = self.value_type_for_value(view)?;
                 let source_layout = self.tensor_layout(pool, source_type)?;
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
-                let element = pool.element_access(self.tensor_element_access(source_type)?);
+                let (pointer_class, element) = self.tensor_element_projection(source_type)?;
+                let op = tensor_view_op(pointer_class)?;
+                let element = pool.projection(element);
 
-                pool.instruction_with_side_record(
-                    Op::TensorView,
+                pool.instruction_with_side(
+                    op,
                     TensorView {
                         dest_offset: word_offset(self, destination)?,
                         view_offset: word_offset(self, view)?,
@@ -681,24 +743,25 @@ impl<'a> BlockLowerer<'a> {
         })
     }
 
-    /// Return the element access for one tensor view.
-    fn tensor_element_access(
+    /// Return the backing pointer class and element projection for one tensor view.
+    fn tensor_element_projection(
         &self,
         view_type: mir::LocalNodeId<mir::Type>,
-    ) -> Result<ElementAccess> {
+    ) -> Result<(PointerClass, Projection)> {
         let element_type =
             tensor_element_type(self.tree, view_type).ok_or(Error::InvalidInstruction)?;
         let pointer_class =
             tensor_view_pointer_class(self.tree, view_type).ok_or(Error::InvalidInstruction)?;
+        let projection = build_tensor_element_projection(self.tree, self.layouts(), element_type)
+            .ok_or(Error::InvalidInstruction)?;
 
-        tensor_element_access(self.tree, self.layouts(), element_type, pointer_class)
-            .ok_or(Error::InvalidInstruction)
+        Ok((pointer_class, projection))
     }
 
     /// Return the compiled tensor layout for one tensor type.
     fn tensor_layout(
         &self,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
         tensor_type: mir::LocalNodeId<mir::Type>,
     ) -> Result<TensorLayoutId> {
         let layout = TensorLayout::from_type(self.tree, self.layouts(), tensor_type)?;
@@ -709,7 +772,7 @@ impl<'a> BlockLowerer<'a> {
     /// Return one side-table range of word frame offsets.
     fn word_offset_reference_range(
         &self,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
         values: &[mir::ValueReference],
         context: &'static str,
     ) -> Result<U32RangeId> {
@@ -725,7 +788,7 @@ impl<'a> BlockLowerer<'a> {
     /// Return one side-table range of value frame offsets.
     fn value_offset_reference_range(
         &self,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
         values: &[mir::ValueReference],
         context: &'static str,
     ) -> Result<U32RangeId> {
@@ -739,73 +802,169 @@ impl<'a> BlockLowerer<'a> {
     }
 }
 
-/// Return whether one tensor binary opcode produces a boolean tensor.
-fn is_tensor_compare_op(op: &Op) -> bool {
-    matches!(
-        op,
-        Op::TensorEqInt
-            | Op::TensorEqBool
-            | Op::TensorNeInt
-            | Op::TensorNeBool
-            | Op::TensorLtInt
-            | Op::TensorLtUint
-            | Op::TensorLeInt
-            | Op::TensorLeUint
-            | Op::TensorGtInt
-            | Op::TensorGtUint
-            | Op::TensorGeInt
-            | Op::TensorGeUint
-            | Op::TensorEqF32
-            | Op::TensorEqF64
-            | Op::TensorNeF32
-            | Op::TensorNeF64
-            | Op::TensorLtF32
-            | Op::TensorLtF64
-            | Op::TensorLeF32
-            | Op::TensorLeF64
-            | Op::TensorGtF32
-            | Op::TensorGtF64
-            | Op::TensorGeF32
-            | Op::TensorGeF64
-    )
-}
-
-/// Return the tensor reduction operation for one operator.
-fn tensor_reduce_op(operator: mir::TensorReduceOperator) -> Op {
-    match operator {
-        mir::TensorReduceOperator::Add => Op::TensorReduceAdd,
-        mir::TensorReduceOperator::Multiply => Op::TensorReduceMultiply,
-        mir::TensorReduceOperator::Min => Op::TensorReduceMin,
-        mir::TensorReduceOperator::Max => Op::TensorReduceMax,
-        mir::TensorReduceOperator::And => Op::TensorReduceAnd,
-        mir::TensorReduceOperator::Or => Op::TensorReduceOr,
-        mir::TensorReduceOperator::Xor => Op::TensorReduceXor,
+/// Select the tensor load op for one view pointer class.
+fn tensor_load_op(pointer_class: PointerClass) -> Result<Op> {
+    match pointer_class {
+        PointerClass::Heap | PointerClass::HeapAddress => Ok(Op::TensorLoadHeap),
+        PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Ok(Op::TensorLoadSharedHeap),
+        PointerClass::Raw => Ok(Op::TensorLoadRaw),
+        PointerClass::SharedRaw => Ok(Op::TensorLoadSharedRaw),
+        PointerClass::Stack => Ok(Op::TensorLoadStack),
+        PointerClass::Frame => Ok(Op::TensorLoadFrame),
+        PointerClass::Static => Ok(Op::TensorLoadStatic),
+        PointerClass::Unknown => Err(Error::InvalidInstruction),
     }
 }
 
-/// Return the tensor scatter operation for one mode.
-fn tensor_scatter_op(mode: mir::TensorScatterMode) -> Op {
-    match mode {
-        mir::TensorScatterMode::Replace => Op::TensorScatterReplace,
-        mir::TensorScatterMode::Add => Op::TensorScatterAdd,
-        mir::TensorScatterMode::Multiply => Op::TensorScatterMultiply,
-        mir::TensorScatterMode::Min => Op::TensorScatterMin,
-        mir::TensorScatterMode::Max => Op::TensorScatterMax,
-        mir::TensorScatterMode::And => Op::TensorScatterAnd,
-        mir::TensorScatterMode::Or => Op::TensorScatterOr,
-        mir::TensorScatterMode::Xor => Op::TensorScatterXor,
+/// Select the tensor store op for one view pointer class.
+fn tensor_store_op(pointer_class: PointerClass) -> Result<Op> {
+    match pointer_class {
+        PointerClass::Heap | PointerClass::HeapAddress => Ok(Op::TensorStoreHeap),
+        PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Ok(Op::TensorStoreSharedHeap),
+        PointerClass::Raw => Ok(Op::TensorStoreRaw),
+        PointerClass::SharedRaw => Ok(Op::TensorStoreSharedRaw),
+        PointerClass::Stack => Ok(Op::TensorStoreStack),
+        PointerClass::Frame => Ok(Op::TensorStoreFrame),
+        PointerClass::Static => Ok(Op::TensorStoreStatic),
+        PointerClass::Unknown => Err(Error::InvalidInstruction),
     }
 }
 
-/// Return the tensor conversion operation for one mode.
-fn tensor_convert_op(mode: mir::TensorConvertMode) -> Op {
-    match mode {
-        mir::TensorConvertMode::Exact => Op::TensorConvertExact,
-        mir::TensorConvertMode::RoundTiesEven => Op::TensorConvertRoundTiesEven,
-        mir::TensorConvertMode::RoundTowardZero => Op::TensorConvertRoundTowardZero,
-        mir::TensorConvertMode::RoundFloor => Op::TensorConvertRoundFloor,
-        mir::TensorConvertMode::RoundCeil => Op::TensorConvertRoundCeil,
-        mir::TensorConvertMode::Saturate => Op::TensorConvertSaturate,
+/// Select the tensor fill op for one view pointer class.
+fn tensor_fill_op(pointer_class: PointerClass) -> Result<Op> {
+    match pointer_class {
+        PointerClass::Heap | PointerClass::HeapAddress => Ok(Op::TensorFillHeap),
+        PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Ok(Op::TensorFillSharedHeap),
+        PointerClass::Raw => Ok(Op::TensorFillRaw),
+        PointerClass::SharedRaw => Ok(Op::TensorFillSharedRaw),
+        PointerClass::Stack => Ok(Op::TensorFillStack),
+        PointerClass::Frame => Ok(Op::TensorFillFrame),
+        PointerClass::Static => Ok(Op::TensorFillStatic),
+        PointerClass::Unknown => Err(Error::InvalidInstruction),
+    }
+}
+
+/// Select the tensor copy op for one target and source pointer class.
+fn tensor_copy_op(target: PointerClass, source: PointerClass) -> Result<Op> {
+    match (target, source) {
+        (
+            PointerClass::Heap | PointerClass::HeapAddress,
+            PointerClass::Heap | PointerClass::HeapAddress,
+        ) => Ok(Op::TensorCopyHeapFromHeap),
+        (
+            PointerClass::Heap | PointerClass::HeapAddress,
+            PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
+        ) => Ok(Op::TensorCopyHeapFromSharedHeap),
+        (PointerClass::Heap | PointerClass::HeapAddress, PointerClass::Raw) => {
+            Ok(Op::TensorCopyHeapFromRaw)
+        }
+        (PointerClass::Heap | PointerClass::HeapAddress, PointerClass::SharedRaw) => {
+            Ok(Op::TensorCopyHeapFromSharedRaw)
+        }
+        (PointerClass::Heap | PointerClass::HeapAddress, PointerClass::Stack) => {
+            Ok(Op::TensorCopyHeapFromStack)
+        }
+        (PointerClass::Heap | PointerClass::HeapAddress, PointerClass::Frame) => {
+            Ok(Op::TensorCopyHeapFromFrame)
+        }
+        (PointerClass::Heap | PointerClass::HeapAddress, PointerClass::Static) => {
+            Ok(Op::TensorCopyHeapFromStatic)
+        }
+        (
+            PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
+            PointerClass::Heap | PointerClass::HeapAddress,
+        ) => Ok(Op::TensorCopySharedHeapFromHeap),
+        (
+            PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
+            PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
+        ) => Ok(Op::TensorCopySharedHeapFromSharedHeap),
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, PointerClass::Raw) => {
+            Ok(Op::TensorCopySharedHeapFromRaw)
+        }
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, PointerClass::SharedRaw) => {
+            Ok(Op::TensorCopySharedHeapFromSharedRaw)
+        }
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, PointerClass::Stack) => {
+            Ok(Op::TensorCopySharedHeapFromStack)
+        }
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, PointerClass::Frame) => {
+            Ok(Op::TensorCopySharedHeapFromFrame)
+        }
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, PointerClass::Static) => {
+            Ok(Op::TensorCopySharedHeapFromStatic)
+        }
+        (PointerClass::Raw, PointerClass::Heap | PointerClass::HeapAddress) => {
+            Ok(Op::TensorCopyRawFromHeap)
+        }
+        (PointerClass::Raw, PointerClass::SharedHeap | PointerClass::SharedHeapAddress) => {
+            Ok(Op::TensorCopyRawFromSharedHeap)
+        }
+        (PointerClass::Raw, PointerClass::Raw) => Ok(Op::TensorCopyRawFromRaw),
+        (PointerClass::Raw, PointerClass::SharedRaw) => Ok(Op::TensorCopyRawFromSharedRaw),
+        (PointerClass::Raw, PointerClass::Stack) => Ok(Op::TensorCopyRawFromStack),
+        (PointerClass::Raw, PointerClass::Frame) => Ok(Op::TensorCopyRawFromFrame),
+        (PointerClass::Raw, PointerClass::Static) => Ok(Op::TensorCopyRawFromStatic),
+        (PointerClass::SharedRaw, PointerClass::Heap | PointerClass::HeapAddress) => {
+            Ok(Op::TensorCopySharedRawFromHeap)
+        }
+        (PointerClass::SharedRaw, PointerClass::SharedHeap | PointerClass::SharedHeapAddress) => {
+            Ok(Op::TensorCopySharedRawFromSharedHeap)
+        }
+        (PointerClass::SharedRaw, PointerClass::Raw) => Ok(Op::TensorCopySharedRawFromRaw),
+        (PointerClass::SharedRaw, PointerClass::SharedRaw) => {
+            Ok(Op::TensorCopySharedRawFromSharedRaw)
+        }
+        (PointerClass::SharedRaw, PointerClass::Stack) => Ok(Op::TensorCopySharedRawFromStack),
+        (PointerClass::SharedRaw, PointerClass::Frame) => Ok(Op::TensorCopySharedRawFromFrame),
+        (PointerClass::SharedRaw, PointerClass::Static) => Ok(Op::TensorCopySharedRawFromStatic),
+        (PointerClass::Stack, PointerClass::Heap | PointerClass::HeapAddress) => {
+            Ok(Op::TensorCopyStackFromHeap)
+        }
+        (PointerClass::Stack, PointerClass::SharedHeap | PointerClass::SharedHeapAddress) => {
+            Ok(Op::TensorCopyStackFromSharedHeap)
+        }
+        (PointerClass::Stack, PointerClass::Raw) => Ok(Op::TensorCopyStackFromRaw),
+        (PointerClass::Stack, PointerClass::SharedRaw) => Ok(Op::TensorCopyStackFromSharedRaw),
+        (PointerClass::Stack, PointerClass::Stack) => Ok(Op::TensorCopyStackFromStack),
+        (PointerClass::Stack, PointerClass::Frame) => Ok(Op::TensorCopyStackFromFrame),
+        (PointerClass::Stack, PointerClass::Static) => Ok(Op::TensorCopyStackFromStatic),
+        (PointerClass::Frame, PointerClass::Heap | PointerClass::HeapAddress) => {
+            Ok(Op::TensorCopyFrameFromHeap)
+        }
+        (PointerClass::Frame, PointerClass::SharedHeap | PointerClass::SharedHeapAddress) => {
+            Ok(Op::TensorCopyFrameFromSharedHeap)
+        }
+        (PointerClass::Frame, PointerClass::Raw) => Ok(Op::TensorCopyFrameFromRaw),
+        (PointerClass::Frame, PointerClass::SharedRaw) => Ok(Op::TensorCopyFrameFromSharedRaw),
+        (PointerClass::Frame, PointerClass::Stack) => Ok(Op::TensorCopyFrameFromStack),
+        (PointerClass::Frame, PointerClass::Frame) => Ok(Op::TensorCopyFrameFromFrame),
+        (PointerClass::Frame, PointerClass::Static) => Ok(Op::TensorCopyFrameFromStatic),
+        (PointerClass::Static, PointerClass::Heap | PointerClass::HeapAddress) => {
+            Ok(Op::TensorCopyStaticFromHeap)
+        }
+        (PointerClass::Static, PointerClass::SharedHeap | PointerClass::SharedHeapAddress) => {
+            Ok(Op::TensorCopyStaticFromSharedHeap)
+        }
+        (PointerClass::Static, PointerClass::Raw) => Ok(Op::TensorCopyStaticFromRaw),
+        (PointerClass::Static, PointerClass::SharedRaw) => Ok(Op::TensorCopyStaticFromSharedRaw),
+        (PointerClass::Static, PointerClass::Stack) => Ok(Op::TensorCopyStaticFromStack),
+        (PointerClass::Static, PointerClass::Frame) => Ok(Op::TensorCopyStaticFromFrame),
+        (PointerClass::Static, PointerClass::Static) => Ok(Op::TensorCopyStaticFromStatic),
+        (PointerClass::Unknown, _) | (_, PointerClass::Unknown) => Err(Error::InvalidInstruction),
+    }
+}
+
+/// Select the tensor view op for one view pointer class.
+fn tensor_view_op(pointer_class: PointerClass) -> Result<Op> {
+    match pointer_class {
+        PointerClass::Heap | PointerClass::HeapAddress => Ok(Op::TensorViewHeap),
+        PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Ok(Op::TensorViewSharedHeap),
+        PointerClass::Raw => Ok(Op::TensorViewRaw),
+        PointerClass::SharedRaw => Ok(Op::TensorViewSharedRaw),
+        PointerClass::Stack => Ok(Op::TensorViewStack),
+        PointerClass::Frame => Ok(Op::TensorViewFrame),
+        PointerClass::Static => Ok(Op::TensorViewStatic),
+        PointerClass::Unknown => Err(Error::InvalidInstruction),
     }
 }
 

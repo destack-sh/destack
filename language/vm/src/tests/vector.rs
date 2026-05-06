@@ -1,7 +1,7 @@
 use crate::Value;
 use crate::tests::run_mir_expect;
 
-/// Vector splat and extract return the selected lane value.
+/// Vector splat and extract return the selected element value.
 #[test]
 fn test_vector_splat_extract() {
     let mir = r#"
@@ -15,11 +15,11 @@ b0(v0: int32):
     run_mir_expect(mir, "splatExtract", &[Value::int32(7)], Value::int32(7));
 }
 
-/// Vector insert replaces the specified lane.
+/// Vector insert replaces the specified element.
 #[test]
 fn test_vector_insert() {
     let mir = r#"
-function insertLane(v0: int32, v1: int32): int32 {
+function insertElement(v0: int32, v1: int32): int32 {
 b0(v0: int32, v1: int32):
     v2: vector<int32, 4> = vector.splat v0
     v3: int32 = 1int32
@@ -29,7 +29,7 @@ b0(v0: int32, v1: int32):
 }"#;
     run_mir_expect(
         mir,
-        "insertLane",
+        "insertElement",
         &[Value::int32(1), Value::int32(9)],
         Value::int32(9),
     );
@@ -55,11 +55,11 @@ b0(v0: int32, v1: int32):
     );
 }
 
-/// Vector compare produces boolean lane results.
+/// Vector compare produces boolean element results.
 #[test]
 fn test_vector_compare() {
     let mir = r#"
-function compareLanes(v0: int32, v1: int32): boolean {
+function compareElements(v0: int32, v1: int32): boolean {
 b0(v0: int32, v1: int32):
     v2: vector<int32, 4> = vector.splat v0
     v3: vector<int32, 4> = vector.splat v1
@@ -70,7 +70,7 @@ b0(v0: int32, v1: int32):
 }"#;
     run_mir_expect(
         mir,
-        "compareLanes",
+        "compareElements",
         &[Value::int32(7), Value::int32(7)],
         Value::bool(true),
     );
@@ -80,7 +80,7 @@ b0(v0: int32, v1: int32):
 #[test]
 fn test_vector_convert() {
     let mir = r#"
-function convertLanes(v0: float64): int32 {
+function convertElements(v0: float64): int32 {
 b0(v0: float64):
     v1: vector<float64, 2> = vector.splat v0
     v2: vector<int32, 2> = vector.convert roundTowardZero, v1
@@ -88,5 +88,10 @@ b0(v0: float64):
     v4: int32 = vector.extract v2, v3
     return v4
 }"#;
-    run_mir_expect(mir, "convertLanes", &[Value::float64(3.9)], Value::int32(3));
+    run_mir_expect(
+        mir,
+        "convertElements",
+        &[Value::float64(3.9)],
+        Value::int32(3),
+    );
 }

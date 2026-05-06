@@ -1,3 +1,8 @@
+#[cfg(target_arch = "aarch64")]
+use core::arch::aarch64::{vaddq_u32, vld1q_u32, vst1q_u32};
+#[cfg(target_arch = "x86_64")]
+use core::arch::x86_64::{__m128i, _mm_add_epi32, _mm_loadu_si128, _mm_storeu_si128};
+
 use super::access;
 use super::index::word_to_usize;
 use super::scalar::{
@@ -9,61 +14,180 @@ use crate::Word;
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
 use crate::program::{
-    ElementAccess, Instruction, ScalarLayout, Transfer, VectorBinary, VectorConvert, VectorExtract,
-    VectorInsert, VectorReduce, VectorSelect, VectorShuffle, VectorSplat, VectorUnary,
+    ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, ScalarLayout, VectorBinary,
+    VectorConvert, VectorExtract, VectorInsert, VectorReduce, VectorSelect, VectorShuffle,
+    VectorSplat, VectorUnary,
 };
+use destack_mir as mir;
 
-macro_rules! vector_binary_executor {
-    ($function:ident, $operation:ident, $doc:literal) => {
+macro_rules! packed_binary_executor {
+    ($function:ident, $ty:ty, $count:literal, $operation:expr, $doc:literal) => {
         #[doc = $doc]
         pub(crate) fn $function(
             machine: &mut Machine<'_, '_>,
             instruction: &Instruction,
-        ) -> Transfer {
-            execute_vector_binary(machine, instruction, super::scalar::$operation)
+        ) -> Result<(), Error> {
+            execute_vector_binary_packed::<$ty, $count, _>(machine, instruction, $operation)
         }
     };
 }
 
-macro_rules! vector_unary_executor {
-    ($function:ident, $operation:ident, $doc:literal) => {
+macro_rules! packed_unary_executor {
+    ($function:ident, $ty:ty, $count:literal, $operation:expr, $doc:literal) => {
         #[doc = $doc]
         pub(crate) fn $function(
             machine: &mut Machine<'_, '_>,
             instruction: &Instruction,
-        ) -> Transfer {
-            execute_vector_unary(machine, instruction, super::scalar::$operation)
+        ) -> Result<(), Error> {
+            execute_vector_unary_packed::<$ty, $count, _>(machine, instruction, $operation)
         }
     };
 }
 
-/// Load one vector element through a precomputed element access.
+/// Read one packed frame vector.
+#[inline(always)]
+fn read_packed<T: Copy, const N: usize>(machine: &Machine<'_, '_>, offset: u32) -> [T; N] {
+    let pointer = machine.frame_pointer_at(offset).address() as *const [T; N];
+
+    unsafe { std::ptr::read(pointer) }
+}
+
+/// Write one packed frame vector.
+#[inline(always)]
+fn write_packed<T, const N: usize>(machine: &mut Machine<'_, '_>, offset: u32, value: [T; N]) {
+    let pointer = machine.frame_pointer_at(offset).address() as *mut [T; N];
+
+    unsafe {
+        std::ptr::write(pointer, value);
+    }
+}
+
+/// Store one 32-bit vector add result.
+#[inline(always)]
+fn store_add_u32x4(dest: *mut u32, left: *const u32, right: *const u32) {
+    unsafe {
+        store_add_u32x4_unchecked(dest, left, right);
+    }
+}
+
+/// Store one 32-bit vector add result on AArch64.
+#[cfg(target_arch = "aarch64")]
+#[inline(always)]
+unsafe fn store_add_u32x4_unchecked(dest: *mut u32, left: *const u32, right: *const u32) {
+    // load both packed operands directly from the frame
+    let left = unsafe { vld1q_u32(left) };
+    let right = unsafe { vld1q_u32(right) };
+
+    // add and write one 128-bit result
+    let result = unsafe { vaddq_u32(left, right) };
+    unsafe {
+        vst1q_u32(dest, result);
+    }
+}
+
+/// Store one 32-bit vector add result on x86-64.
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+unsafe fn store_add_u32x4_unchecked(dest: *mut u32, left: *const u32, right: *const u32) {
+    // load both packed operands directly from the frame
+    let left = unsafe { _mm_loadu_si128(left.cast::<__m128i>()) };
+    let right = unsafe { _mm_loadu_si128(right.cast::<__m128i>()) };
+
+    // add and write one 128-bit result
+    let result = unsafe { _mm_add_epi32(left, right) };
+    unsafe {
+        _mm_storeu_si128(dest.cast::<__m128i>(), result);
+    }
+}
+
+/// Store one 32-bit vector add result on scalar targets.
+#[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
+#[inline(always)]
+unsafe fn store_add_u32x4_unchecked(dest: *mut u32, left: *const u32, right: *const u32) {
+    // preserve the same element semantics without target SIMD
+    for index in 0..4 {
+        let left = unsafe { left.add(index).read() };
+        let right = unsafe { right.add(index).read() };
+        unsafe {
+            dest.add(index).write(left.wrapping_add(right));
+        }
+    }
+}
+
+/// Execute one packed vector binary operation.
+#[inline(always)]
+fn execute_vector_binary_packed<T: Copy, const N: usize, F>(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+    operation: F,
+) -> Result<(), Error>
+where
+    F: Fn(T, T) -> T,
+{
+    // read both packed operands from frame bytes
+    let left = read_packed::<T, N>(machine, instruction.b);
+    let right = read_packed::<T, N>(machine, instruction.c);
+
+    // execute the element kernel in register storage
+    let result: [T; N] = std::array::from_fn(|i| operation(left[i], right[i]));
+
+    write_packed(machine, instruction.a, result);
+
+    Ok(())
+}
+
+/// Execute one packed vector unary operation.
+#[inline(always)]
+fn execute_vector_unary_packed<T: Copy, const N: usize, F>(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+    operation: F,
+) -> Result<(), Error>
+where
+    F: Fn(T) -> T,
+{
+    // read the packed operand from frame bytes
+    let value = read_packed::<T, N>(machine, instruction.b);
+
+    // execute the element kernel in register storage
+    let result: [T; N] = std::array::from_fn(|i| operation(value[i]));
+
+    write_packed(machine, instruction.a, result);
+
+    Ok(())
+}
+
+/// Load one vector element through a precomputed element projection.
 #[inline(always)]
 fn load_vector_element(
     machine: &mut Machine<'_, '_>,
     vector_offset: u32,
-    element: ElementAccess,
+    element: Projection,
     element_index: usize,
 ) -> Result<Word, Error> {
+    // compute the exact element address
     let element_offset = element.byte_stride * element_index;
     let pointer = machine
         .frame_pointer_at(vector_offset)
         .add_bytes(element_offset);
 
-    access::load_frame_scalar_by_layout(machine, pointer, element.into())
+    Ok(access::load_frame_scalar_by_layout(
+        machine, pointer, element,
+    ))
 }
 
 /// Store one vector result into frame bytes.
 fn store_vector_elements<F>(
     machine: &mut Machine<'_, '_>,
     dest_offset: u32,
-    dest_element: ElementAccess,
+    dest_element: Projection,
     element_count: u32,
     mut element_value: F,
 ) -> Result<(), Error>
 where
     F: FnMut(&mut Machine<'_, '_>, usize) -> Result<Word, Error>,
 {
+    // write each result element by lowered frame layout
     for element_index in 0..element_count as usize {
         let value = element_value(machine, element_index)?;
         let element_offset = dest_element.byte_stride * element_index;
@@ -71,22 +195,19 @@ where
             .frame_pointer_at(dest_offset)
             .add_bytes(element_offset);
 
-        access::store_frame_scalar_by_layout(machine, pointer, dest_element.into(), value)?;
+        access::store_frame_scalar_by_layout(machine, pointer, dest_element, value);
     }
 
     Ok(())
 }
 
-/// Execute a vector binary operation.
-fn execute_vector_binary<F>(
+/// Execute one vector binary element loop.
+fn execute_vector_binary_elements(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-    operation: F,
-) -> Transfer
-where
-    F: Fn(ScalarLayout, Word, Word) -> Result<Word, Error>,
-{
-    // decode fixed fields
+    operation: fn(ScalarLayout, Word, Word) -> Result<Word, Error>,
+) -> Result<(), Error> {
+    // decode the precomputed vector descriptor
     let VectorBinary {
         dest_offset,
         left_offset,
@@ -94,12 +215,13 @@ where
         dest_element,
         left_element,
         right_element,
+        kernel: _,
         element_layout,
         element_count,
     } = machine.side::<VectorBinary>(instruction);
 
-    // apply the scalar operation to each vector element
-    if let Err(error) = store_vector_elements(
+    // execute the scalar operation on each vector element
+    store_vector_elements(
         machine,
         *dest_offset,
         *dest_element,
@@ -110,34 +232,97 @@ where
 
             operation(*element_layout, left, right)
         },
-    ) {
-        return Transfer::Error(error);
-    }
+    )?;
 
-    Transfer::Continue
+    Ok(())
 }
 
-/// Execute a vector unary operation.
-fn execute_vector_unary<F>(
+/// Execute a vector binary operation.
+pub(crate) fn execute_vector_binary(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-    operation: F,
-) -> Transfer
-where
-    F: Fn(ScalarLayout, Word) -> Result<Word, Error>,
-{
-    // decode fixed fields
+) -> Result<(), Error> {
+    let kernel = machine.side::<VectorBinary>(instruction).kernel;
+    let operation = vector_binary_operation(kernel);
+
+    execute_vector_binary_elements(machine, instruction, operation)
+}
+
+/// Return the scalar operation for one vector binary kernel.
+fn vector_binary_operation(
+    kernel: ElementBinaryKernel,
+) -> fn(ScalarLayout, Word, Word) -> Result<Word, Error> {
+    match kernel {
+        ElementBinaryKernel::AndBool => super::scalar::and_bool,
+        ElementBinaryKernel::OrBool => super::scalar::or_bool,
+        ElementBinaryKernel::XorBool => super::scalar::xor_bool,
+        ElementBinaryKernel::EqBool => super::scalar::eq_bool,
+        ElementBinaryKernel::NeBool => super::scalar::ne_bool,
+        ElementBinaryKernel::AddInt => super::scalar::add_int,
+        ElementBinaryKernel::SubInt => super::scalar::sub_int,
+        ElementBinaryKernel::MulInt => super::scalar::mul_int,
+        ElementBinaryKernel::DivInt => super::scalar::div_int,
+        ElementBinaryKernel::DivUint => super::scalar::div_uint,
+        ElementBinaryKernel::RemInt => super::scalar::rem_int,
+        ElementBinaryKernel::RemUint => super::scalar::rem_uint,
+        ElementBinaryKernel::AndInt => super::scalar::and_int,
+        ElementBinaryKernel::OrInt => super::scalar::or_int,
+        ElementBinaryKernel::XorInt => super::scalar::xor_int,
+        ElementBinaryKernel::ShlInt => super::scalar::shl_int,
+        ElementBinaryKernel::ShrInt => super::scalar::shr_int,
+        ElementBinaryKernel::ShrUint => super::scalar::shr_uint,
+        ElementBinaryKernel::EqInt => super::scalar::eq_int,
+        ElementBinaryKernel::NeInt => super::scalar::ne_int,
+        ElementBinaryKernel::LtInt => super::scalar::lt_int,
+        ElementBinaryKernel::LtUint => super::scalar::lt_uint,
+        ElementBinaryKernel::LeInt => super::scalar::le_int,
+        ElementBinaryKernel::LeUint => super::scalar::le_uint,
+        ElementBinaryKernel::GtInt => super::scalar::gt_int,
+        ElementBinaryKernel::GtUint => super::scalar::gt_uint,
+        ElementBinaryKernel::GeInt => super::scalar::ge_int,
+        ElementBinaryKernel::GeUint => super::scalar::ge_uint,
+        ElementBinaryKernel::AddF32 => super::scalar::add_f32,
+        ElementBinaryKernel::AddF64 => super::scalar::add_f64,
+        ElementBinaryKernel::SubF32 => super::scalar::sub_f32,
+        ElementBinaryKernel::SubF64 => super::scalar::sub_f64,
+        ElementBinaryKernel::MulF32 => super::scalar::mul_f32,
+        ElementBinaryKernel::MulF64 => super::scalar::mul_f64,
+        ElementBinaryKernel::DivF32 => super::scalar::div_f32,
+        ElementBinaryKernel::DivF64 => super::scalar::div_f64,
+        ElementBinaryKernel::EqF32 => super::scalar::eq_f32,
+        ElementBinaryKernel::EqF64 => super::scalar::eq_f64,
+        ElementBinaryKernel::NeF32 => super::scalar::ne_f32,
+        ElementBinaryKernel::NeF64 => super::scalar::ne_f64,
+        ElementBinaryKernel::LtF32 => super::scalar::lt_f32,
+        ElementBinaryKernel::LtF64 => super::scalar::lt_f64,
+        ElementBinaryKernel::LeF32 => super::scalar::le_f32,
+        ElementBinaryKernel::LeF64 => super::scalar::le_f64,
+        ElementBinaryKernel::GtF32 => super::scalar::gt_f32,
+        ElementBinaryKernel::GtF64 => super::scalar::gt_f64,
+        ElementBinaryKernel::GeF32 => super::scalar::ge_f32,
+        ElementBinaryKernel::GeF64 => super::scalar::ge_f64,
+    }
+}
+
+/// Execute one vector unary element loop.
+fn execute_vector_unary_elements(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+    operation: fn(ScalarLayout, Word) -> Result<Word, Error>,
+) -> Result<(), Error> {
+    // decode the precomputed vector descriptor
     let VectorUnary {
         dest_offset,
         argument_offset,
         dest_element,
         argument_element,
+        kernel: _,
         element_layout,
         element_count,
     } = machine.side::<VectorUnary>(instruction);
 
-    // apply the scalar operation to each vector element
-    if let Err(error) = store_vector_elements(
+    // execute the scalar operation on each vector element
+    store_vector_elements(
         machine,
         *dest_offset,
         *dest_element,
@@ -148,280 +333,300 @@ where
 
             operation(*element_layout, value)
         },
-    ) {
-        return Transfer::Error(error);
-    }
+    )?;
 
-    Transfer::Continue
+    Ok(())
 }
 
-vector_binary_executor!(
-    execute_vector_and_bool,
-    and_bool,
-    "Execute vector boolean and."
+/// Execute a vector unary operation.
+pub(crate) fn execute_vector_unary(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let kernel = machine.side::<VectorUnary>(instruction).kernel;
+    let operation = vector_unary_operation(kernel);
+
+    execute_vector_unary_elements(machine, instruction, operation)
+}
+
+/// Return the scalar operation for one vector unary kernel.
+fn vector_unary_operation(
+    kernel: ElementUnaryKernel,
+) -> fn(ScalarLayout, Word) -> Result<Word, Error> {
+    match kernel {
+        ElementUnaryKernel::NotBool => super::scalar::not_bool,
+        ElementUnaryKernel::NegInt => super::scalar::neg_int,
+        ElementUnaryKernel::NotInt => super::scalar::not_int,
+        ElementUnaryKernel::NegF32 => super::scalar::neg_f32,
+        ElementUnaryKernel::NegF64 => super::scalar::neg_f64,
+    }
+}
+
+/// Execute packed 32-bit element add.
+pub(crate) fn execute_packed_add_32x4(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    // compute frame addresses for the SIMD kernel
+    let dest = machine.frame_pointer_at(instruction.a).address() as *mut u32;
+    let left = machine.frame_pointer_at(instruction.b).address() as *const u32;
+    let right = machine.frame_pointer_at(instruction.c).address() as *const u32;
+
+    store_add_u32x4(dest, left, right);
+
+    Ok(())
+}
+
+packed_binary_executor!(
+    execute_packed_sub_32x4,
+    u32,
+    4,
+    u32::wrapping_sub,
+    "Execute packed 32-bit element subtract."
 );
-vector_binary_executor!(
-    execute_vector_or_bool,
-    or_bool,
-    "Execute vector boolean or."
+packed_binary_executor!(
+    execute_packed_mul_32x4,
+    u32,
+    4,
+    u32::wrapping_mul,
+    "Execute packed 32-bit element multiply."
 );
-vector_binary_executor!(
-    execute_vector_xor_bool,
-    xor_bool,
-    "Execute vector boolean xor."
+packed_binary_executor!(
+    execute_packed_and_32x4,
+    u32,
+    4,
+    |left, right| left & right,
+    "Execute packed 32-bit element and."
 );
-vector_binary_executor!(
-    execute_vector_add_int,
-    add_int,
-    "Execute vector integer add."
+packed_binary_executor!(
+    execute_packed_or_32x4,
+    u32,
+    4,
+    |left, right| left | right,
+    "Execute packed 32-bit element or."
 );
-vector_binary_executor!(
-    execute_vector_sub_int,
-    sub_int,
-    "Execute vector integer subtract."
+packed_binary_executor!(
+    execute_packed_xor_32x4,
+    u32,
+    4,
+    |left, right| left ^ right,
+    "Execute packed 32-bit element xor."
 );
-vector_binary_executor!(
-    execute_vector_mul_int,
-    mul_int,
-    "Execute vector integer multiply."
+packed_binary_executor!(
+    execute_packed_shl_32x4,
+    u32,
+    4,
+    |left: u32, right: u32| left.wrapping_shl(right),
+    "Execute packed 32-bit element shift left."
 );
-vector_binary_executor!(
-    execute_vector_div_int,
-    div_int,
-    "Execute vector signed integer divide."
+packed_binary_executor!(
+    execute_packed_shr_i32x4,
+    i32,
+    4,
+    |left: i32, right: i32| left.wrapping_shr(right as u32),
+    "Execute packed signed 32-bit element shift right."
 );
-vector_binary_executor!(
-    execute_vector_div_uint,
-    div_uint,
-    "Execute vector unsigned integer divide."
+packed_binary_executor!(
+    execute_packed_shr_u32x4,
+    u32,
+    4,
+    |left: u32, right: u32| left.wrapping_shr(right),
+    "Execute packed unsigned 32-bit element shift right."
 );
-vector_binary_executor!(
-    execute_vector_rem_int,
-    rem_int,
-    "Execute vector signed integer remainder."
+packed_binary_executor!(
+    execute_packed_add_64x2,
+    u64,
+    2,
+    u64::wrapping_add,
+    "Execute packed 64-bit element add."
 );
-vector_binary_executor!(
-    execute_vector_rem_uint,
-    rem_uint,
-    "Execute vector unsigned integer remainder."
+packed_binary_executor!(
+    execute_packed_sub_64x2,
+    u64,
+    2,
+    u64::wrapping_sub,
+    "Execute packed 64-bit element subtract."
 );
-vector_binary_executor!(
-    execute_vector_and_int,
-    and_int,
-    "Execute vector integer and."
+packed_binary_executor!(
+    execute_packed_mul_64x2,
+    u64,
+    2,
+    u64::wrapping_mul,
+    "Execute packed 64-bit element multiply."
 );
-vector_binary_executor!(execute_vector_or_int, or_int, "Execute vector integer or.");
-vector_binary_executor!(
-    execute_vector_xor_int,
-    xor_int,
-    "Execute vector integer xor."
+packed_binary_executor!(
+    execute_packed_and_64x2,
+    u64,
+    2,
+    |left, right| left & right,
+    "Execute packed 64-bit element and."
 );
-vector_binary_executor!(
-    execute_vector_shl_int,
-    shl_int,
-    "Execute vector integer shift left."
+packed_binary_executor!(
+    execute_packed_or_64x2,
+    u64,
+    2,
+    |left, right| left | right,
+    "Execute packed 64-bit element or."
 );
-vector_binary_executor!(
-    execute_vector_shr_int,
-    shr_int,
-    "Execute vector signed integer shift right."
+packed_binary_executor!(
+    execute_packed_xor_64x2,
+    u64,
+    2,
+    |left, right| left ^ right,
+    "Execute packed 64-bit element xor."
 );
-vector_binary_executor!(
-    execute_vector_shr_uint,
-    shr_uint,
-    "Execute vector unsigned integer shift right."
+packed_binary_executor!(
+    execute_packed_shl_64x2,
+    u64,
+    2,
+    |left: u64, right: u64| left.wrapping_shl(right as u32),
+    "Execute packed 64-bit element shift left."
 );
-vector_binary_executor!(
-    execute_vector_add_f32,
-    add_f32,
-    "Execute vector float32 add."
+packed_binary_executor!(
+    execute_packed_shr_i64x2,
+    i64,
+    2,
+    |left: i64, right: i64| left.wrapping_shr(right as u32),
+    "Execute packed signed 64-bit element shift right."
 );
-vector_binary_executor!(
-    execute_vector_add_f64,
-    add_f64,
-    "Execute vector float64 add."
+packed_binary_executor!(
+    execute_packed_shr_u64x2,
+    u64,
+    2,
+    |left: u64, right: u64| left.wrapping_shr(right as u32),
+    "Execute packed unsigned 64-bit element shift right."
 );
-vector_binary_executor!(
-    execute_vector_sub_f32,
-    sub_f32,
-    "Execute vector float32 subtract."
+packed_binary_executor!(
+    execute_packed_add_f32x4,
+    f32,
+    4,
+    |left, right| left + right,
+    "Execute packed float32 element add."
 );
-vector_binary_executor!(
-    execute_vector_sub_f64,
-    sub_f64,
-    "Execute vector float64 subtract."
+packed_binary_executor!(
+    execute_packed_sub_f32x4,
+    f32,
+    4,
+    |left, right| left - right,
+    "Execute packed float32 element subtract."
 );
-vector_binary_executor!(
-    execute_vector_mul_f32,
-    mul_f32,
-    "Execute vector float32 multiply."
+packed_binary_executor!(
+    execute_packed_mul_f32x4,
+    f32,
+    4,
+    |left, right| left * right,
+    "Execute packed float32 element multiply."
 );
-vector_binary_executor!(
-    execute_vector_mul_f64,
-    mul_f64,
-    "Execute vector float64 multiply."
+packed_binary_executor!(
+    execute_packed_div_f32x4,
+    f32,
+    4,
+    |left, right| left / right,
+    "Execute packed float32 element divide."
 );
-vector_binary_executor!(
-    execute_vector_div_f32,
-    div_f32,
-    "Execute vector float32 divide."
+packed_binary_executor!(
+    execute_packed_add_f64x2,
+    f64,
+    2,
+    |left, right| left + right,
+    "Execute packed float64 element add."
 );
-vector_binary_executor!(
-    execute_vector_div_f64,
-    div_f64,
-    "Execute vector float64 divide."
+packed_binary_executor!(
+    execute_packed_sub_f64x2,
+    f64,
+    2,
+    |left, right| left - right,
+    "Execute packed float64 element subtract."
 );
-vector_binary_executor!(
-    execute_vector_eq_int,
-    eq_int,
-    "Execute vector integer equality."
+packed_binary_executor!(
+    execute_packed_mul_f64x2,
+    f64,
+    2,
+    |left, right| left * right,
+    "Execute packed float64 element multiply."
 );
-vector_binary_executor!(
-    execute_vector_eq_bool,
-    eq_bool,
-    "Execute vector boolean equality."
+packed_binary_executor!(
+    execute_packed_div_f64x2,
+    f64,
+    2,
+    |left, right| left / right,
+    "Execute packed float64 element divide."
 );
-vector_binary_executor!(
-    execute_vector_ne_int,
-    ne_int,
-    "Execute vector integer inequality."
+packed_unary_executor!(
+    execute_packed_neg_i32x4,
+    i32,
+    4,
+    i32::wrapping_neg,
+    "Execute packed signed 32-bit element negation."
 );
-vector_binary_executor!(
-    execute_vector_ne_bool,
-    ne_bool,
-    "Execute vector boolean inequality."
+packed_unary_executor!(
+    execute_packed_not_32x4,
+    u32,
+    4,
+    |value| !value,
+    "Execute packed 32-bit element inversion."
 );
-vector_binary_executor!(
-    execute_vector_lt_int,
-    lt_int,
-    "Execute vector signed integer less than."
+packed_unary_executor!(
+    execute_packed_neg_i64x2,
+    i64,
+    2,
+    i64::wrapping_neg,
+    "Execute packed signed 64-bit element negation."
 );
-vector_binary_executor!(
-    execute_vector_lt_uint,
-    lt_uint,
-    "Execute vector unsigned integer less than."
+packed_unary_executor!(
+    execute_packed_not_64x2,
+    u64,
+    2,
+    |value| !value,
+    "Execute packed 64-bit element inversion."
 );
-vector_binary_executor!(
-    execute_vector_le_int,
-    le_int,
-    "Execute vector signed integer less than or equal."
+packed_unary_executor!(
+    execute_packed_neg_f32x4,
+    f32,
+    4,
+    |value| -value,
+    "Execute packed float32 element negation."
 );
-vector_binary_executor!(
-    execute_vector_le_uint,
-    le_uint,
-    "Execute vector unsigned integer less than or equal."
+packed_unary_executor!(
+    execute_packed_neg_f64x2,
+    f64,
+    2,
+    |value| -value,
+    "Execute packed float64 element negation."
 );
-vector_binary_executor!(
-    execute_vector_gt_int,
-    gt_int,
-    "Execute vector signed integer greater than."
-);
-vector_binary_executor!(
-    execute_vector_gt_uint,
-    gt_uint,
-    "Execute vector unsigned integer greater than."
-);
-vector_binary_executor!(
-    execute_vector_ge_int,
-    ge_int,
-    "Execute vector signed integer greater than or equal."
-);
-vector_binary_executor!(
-    execute_vector_ge_uint,
-    ge_uint,
-    "Execute vector unsigned integer greater than or equal."
-);
-vector_binary_executor!(
-    execute_vector_eq_f32,
-    eq_f32,
-    "Execute vector float32 equality."
-);
-vector_binary_executor!(
-    execute_vector_eq_f64,
-    eq_f64,
-    "Execute vector float64 equality."
-);
-vector_binary_executor!(
-    execute_vector_ne_f32,
-    ne_f32,
-    "Execute vector float32 inequality."
-);
-vector_binary_executor!(
-    execute_vector_ne_f64,
-    ne_f64,
-    "Execute vector float64 inequality."
-);
-vector_binary_executor!(
-    execute_vector_lt_f32,
-    lt_f32,
-    "Execute vector float32 less than."
-);
-vector_binary_executor!(
-    execute_vector_lt_f64,
-    lt_f64,
-    "Execute vector float64 less than."
-);
-vector_binary_executor!(
-    execute_vector_le_f32,
-    le_f32,
-    "Execute vector float32 less than or equal."
-);
-vector_binary_executor!(
-    execute_vector_le_f64,
-    le_f64,
-    "Execute vector float64 less than or equal."
-);
-vector_binary_executor!(
-    execute_vector_gt_f32,
-    gt_f32,
-    "Execute vector float32 greater than."
-);
-vector_binary_executor!(
-    execute_vector_gt_f64,
-    gt_f64,
-    "Execute vector float64 greater than."
-);
-vector_binary_executor!(
-    execute_vector_ge_f32,
-    ge_f32,
-    "Execute vector float32 greater than or equal."
-);
-vector_binary_executor!(
-    execute_vector_ge_f64,
-    ge_f64,
-    "Execute vector float64 greater than or equal."
-);
-vector_unary_executor!(
-    execute_vector_neg_int,
-    neg_int,
-    "Execute vector integer negation."
-);
-vector_unary_executor!(
-    execute_vector_not_int,
-    not_int,
-    "Execute vector integer inversion."
-);
-vector_unary_executor!(
-    execute_vector_neg_f32,
-    neg_f32,
-    "Execute vector float32 negation."
-);
-vector_unary_executor!(
-    execute_vector_neg_f64,
-    neg_f64,
-    "Execute vector float64 negation."
-);
-vector_unary_executor!(
-    execute_vector_not_bool,
-    not_bool,
-    "Execute vector boolean inversion."
-);
+
+/// Execute packed 32-bit splat.
+pub(crate) fn execute_packed_splat_32x4(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    // broadcast one word-sized scalar into packed frame bytes
+    let value = machine.get_word_at(instruction.b).bits() as u32;
+
+    write_packed(machine, instruction.a, [value; 4]);
+
+    Ok(())
+}
+
+/// Execute packed 64-bit splat.
+pub(crate) fn execute_packed_splat_64x2(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    // broadcast one word-sized scalar into packed frame bytes
+    let value = machine.get_word_at(instruction.b).bits();
+
+    write_packed(machine, instruction.a, [value; 2]);
+
+    Ok(())
+}
 
 /// Execute vector.splat.
 pub(crate) fn execute_vector_splat(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
+    // decode the precomputed vector descriptor
     let VectorSplat {
         dest_offset,
         value_offset,
@@ -432,25 +637,23 @@ pub(crate) fn execute_vector_splat(
     let element_value = machine.get_word_at(*value_offset);
 
     // store the same value into each element
-    if let Err(error) = store_vector_elements(
+    store_vector_elements(
         machine,
         *dest_offset,
         *dest_element,
         *element_count,
         |_machine, _element_index| Ok(element_value),
-    ) {
-        return Transfer::Error(error);
-    }
+    )?;
 
-    // continue to next instruction
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute vector.extract.
 pub(crate) fn execute_vector_extract(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
+    // decode the precomputed vector descriptor
     let VectorExtract {
         dest_offset,
         vector_offset,
@@ -459,35 +662,29 @@ pub(crate) fn execute_vector_extract(
         element_count,
     } = machine.side::<VectorExtract>(instruction);
 
-    // resolve inputs
-    let index_value = match word_to_usize(machine.get_word_at(*index_offset)) {
-        Ok(index) => index,
-        Err(error) => return Transfer::Error(error),
-    };
+    // resolve and validate the dynamic element index
+    let index_value = word_to_usize(machine.get_word_at(*index_offset))?;
     let element_count = *element_count as usize;
     if index_value >= element_count {
-        return Transfer::Error(Error::IndexOutOfBounds {
+        return Err(Error::IndexOutOfBounds {
             index: index_value as u64,
             length: element_count as u64,
         });
     }
 
-    // extract element
-    let result = match load_vector_element(machine, *vector_offset, *vector_element, index_value) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
+    // load the selected element into the destination word
+    let result = load_vector_element(machine, *vector_offset, *vector_element, index_value)?;
     machine.set_word_at(*dest_offset, result);
 
-    // continue to next instruction
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute vector.insert.
 pub(crate) fn execute_vector_insert(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
+    // decode the precomputed vector descriptor
     let VectorInsert {
         dest_offset,
         vector_offset,
@@ -498,26 +695,24 @@ pub(crate) fn execute_vector_insert(
         element_count,
     } = machine.side::<VectorInsert>(instruction);
 
-    // resolve inputs
-    let index_value = match word_to_usize(machine.get_word_at(*index_offset)) {
-        Ok(index) => index,
-        Err(error) => return Transfer::Error(error),
-    };
+    // resolve and validate the dynamic element index
+    let index_value = word_to_usize(machine.get_word_at(*index_offset))?;
     let element_count = *element_count;
     let element_count_usize = element_count as usize;
 
     // reject out of bounds element indices
     if index_value >= element_count_usize {
-        return Transfer::Error(Error::IndexOutOfBounds {
+        return Err(Error::IndexOutOfBounds {
             index: index_value as u64,
             length: element_count as u64,
         });
     }
 
+    // read the inserted scalar once
     let inserted_value = machine.get_word_at(*value_offset);
 
     // write the updated vector one element at a time
-    if let Err(error) = store_vector_elements(
+    store_vector_elements(
         machine,
         *dest_offset,
         *dest_element,
@@ -529,19 +724,17 @@ pub(crate) fn execute_vector_insert(
 
             load_vector_element(machine, *vector_offset, *vector_element, element_index)
         },
-    ) {
-        return Transfer::Error(error);
-    }
+    )?;
 
-    // continue to next instruction
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute vector.shuffle.
 pub(crate) fn execute_vector_shuffle(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
+    // decode the precomputed vector descriptor
     let VectorShuffle {
         dest_offset,
         left_offset,
@@ -556,12 +749,12 @@ pub(crate) fn execute_vector_shuffle(
     let table = machine.side_table_ptr();
     let mask = unsafe { (*table).u32_range(*mask) };
 
-    // resolve element sources
+    // resolve source ranges
     let left_count = *left_count as usize;
     let right_count = *right_count as usize;
 
     // write the shuffled elements directly
-    if let Err(error) = store_vector_elements(
+    store_vector_elements(
         machine,
         *dest_offset,
         *dest_element,
@@ -586,19 +779,17 @@ pub(crate) fn execute_vector_shuffle(
 
             load_vector_element(machine, *right_offset, *right_element, right_index)
         },
-    ) {
-        return Transfer::Error(error);
-    }
+    )?;
 
-    // continue to next instruction
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute vector.select.
 pub(crate) fn execute_vector_select(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
+    // decode the precomputed vector descriptor
     let VectorSelect {
         dest_offset,
         mask_offset,
@@ -612,7 +803,7 @@ pub(crate) fn execute_vector_select(
     } = machine.side::<VectorSelect>(instruction);
 
     // write the selected elements directly
-    if let Err(error) = store_vector_elements(
+    store_vector_elements(
         machine,
         *dest_offset,
         *dest_element,
@@ -627,112 +818,91 @@ pub(crate) fn execute_vector_select(
 
             Ok(if select { then_value } else { else_value })
         },
-    ) {
-        return Transfer::Error(error);
-    }
-    Transfer::Continue
+    )?;
+
+    Ok(())
 }
 
-macro_rules! vector_reduce_executor {
-    ($function:ident, $operation:ident, $doc:literal) => {
-        #[doc = $doc]
-        pub(crate) fn $function(
-            machine: &mut Machine<'_, '_>,
-            instruction: &Instruction,
-        ) -> Transfer {
-            execute_vector_reduce(machine, instruction, $operation)
-        }
-    };
-}
-
-/// Execute vector reduction.
-fn execute_vector_reduce(
+/// Execute one vector reduction loop.
+fn execute_vector_reduce_elements(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
     operation: fn(ScalarLayout, Word, Word) -> Result<Word, Error>,
-) -> Transfer {
+) -> Result<(), Error> {
+    // decode the precomputed vector descriptor
     let VectorReduce {
         dest_offset,
         vector_offset,
+        kernel: _,
         vector_element,
         element_layout,
         element_count,
     } = machine.side::<VectorReduce>(instruction);
 
+    // reject empty reductions
     let element_count = *element_count as usize;
     if element_count == 0 {
-        return Transfer::Error(Error::InvalidInstruction);
+        return Err(Error::InvalidInstruction);
     }
 
-    let mut result = match load_vector_element(machine, *vector_offset, *vector_element, 0) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
+    // fold elements from left to right
+    let mut result = load_vector_element(machine, *vector_offset, *vector_element, 0)?;
     for element_index in 1..element_count {
-        let value =
-            match load_vector_element(machine, *vector_offset, *vector_element, element_index) {
-                Ok(value) => value,
-                Err(error) => return Transfer::Error(error),
-            };
+        let value = load_vector_element(machine, *vector_offset, *vector_element, element_index)?;
         match operation(*element_layout, result, value) {
             Ok(value) => result = value,
-            Err(error) => return Transfer::Error(error),
+            Err(error) => return Err(error),
         }
     }
 
-    // store result
     machine.set_word_at(*dest_offset, result);
 
-    // continue to next instruction
-    Transfer::Continue
+    Ok(())
 }
 
-vector_reduce_executor!(
-    execute_vector_reduce_add,
-    reduce_add,
-    "Execute vector add reduction."
-);
-vector_reduce_executor!(
-    execute_vector_reduce_multiply,
-    reduce_multiply,
-    "Execute vector multiply reduction."
-);
-vector_reduce_executor!(
-    execute_vector_reduce_min,
-    reduce_min,
-    "Execute vector minimum reduction."
-);
-vector_reduce_executor!(
-    execute_vector_reduce_max,
-    reduce_max,
-    "Execute vector maximum reduction."
-);
-vector_reduce_executor!(
-    execute_vector_reduce_and,
-    reduce_and,
-    "Execute vector bitwise and reduction."
-);
-vector_reduce_executor!(
-    execute_vector_reduce_or,
-    reduce_or,
-    "Execute vector bitwise or reduction."
-);
-vector_reduce_executor!(
-    execute_vector_reduce_xor,
-    reduce_xor,
-    "Execute vector bitwise xor reduction."
-);
+/// Execute vector.reduce.
+pub(crate) fn execute_vector_reduce(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let kernel = machine.side::<VectorReduce>(instruction).kernel;
 
-/// Execute vector.convert.
-fn execute_vector_convert(
+    match kernel {
+        mir::VectorReduceOperator::Add => {
+            execute_vector_reduce_elements(machine, instruction, reduce_add)
+        }
+        mir::VectorReduceOperator::Multiply => {
+            execute_vector_reduce_elements(machine, instruction, reduce_multiply)
+        }
+        mir::VectorReduceOperator::Min => {
+            execute_vector_reduce_elements(machine, instruction, reduce_min)
+        }
+        mir::VectorReduceOperator::Max => {
+            execute_vector_reduce_elements(machine, instruction, reduce_max)
+        }
+        mir::VectorReduceOperator::And => {
+            execute_vector_reduce_elements(machine, instruction, reduce_and)
+        }
+        mir::VectorReduceOperator::Or => {
+            execute_vector_reduce_elements(machine, instruction, reduce_or)
+        }
+        mir::VectorReduceOperator::Xor => {
+            execute_vector_reduce_elements(machine, instruction, reduce_xor)
+        }
+    }
+}
+
+/// Execute one vector conversion loop.
+fn execute_vector_convert_elements(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
     convert: fn(Word, ScalarLayout, ScalarLayout) -> Result<Word, Error>,
-) -> Transfer {
-    // decode fixed fields
+) -> Result<(), Error> {
+    // decode the precomputed vector descriptor
     let VectorConvert {
         dest_offset,
         vector_offset,
+        mode: _,
         dest_element,
         source_element,
         dest_layout,
@@ -741,7 +911,7 @@ fn execute_vector_convert(
     } = machine.side::<VectorConvert>(instruction);
 
     // convert the elements one by one
-    if let Err(error) = store_vector_elements(
+    store_vector_elements(
         machine,
         *dest_offset,
         *dest_element,
@@ -752,58 +922,36 @@ fn execute_vector_convert(
 
             convert(value, *source_layout, *dest_layout)
         },
-    ) {
-        return Transfer::Error(error);
+    )?;
+
+    Ok(())
+}
+
+/// Execute vector.convert.
+pub(crate) fn execute_vector_convert(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let mode = machine.side::<VectorConvert>(instruction).mode;
+
+    match mode {
+        mir::VectorConvertMode::Exact => {
+            execute_vector_convert_elements(machine, instruction, convert_scalar_exact)
+        }
+        mir::VectorConvertMode::RoundTiesEven => {
+            execute_vector_convert_elements(machine, instruction, convert_scalar_round_ties_even)
+        }
+        mir::VectorConvertMode::RoundTowardZero => {
+            execute_vector_convert_elements(machine, instruction, convert_scalar_round_toward_zero)
+        }
+        mir::VectorConvertMode::RoundFloor => {
+            execute_vector_convert_elements(machine, instruction, convert_scalar_round_floor)
+        }
+        mir::VectorConvertMode::RoundCeil => {
+            execute_vector_convert_elements(machine, instruction, convert_scalar_round_ceil)
+        }
+        mir::VectorConvertMode::Saturate => {
+            execute_vector_convert_elements(machine, instruction, convert_scalar_saturate)
+        }
     }
-
-    // continue to next instruction
-    Transfer::Continue
-}
-
-/// Execute exact vector conversion.
-pub(crate) fn execute_vector_convert_exact(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_vector_convert(machine, instruction, convert_scalar_exact)
-}
-
-/// Execute vector conversion with round to nearest even.
-pub(crate) fn execute_vector_convert_round_ties_even(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_vector_convert(machine, instruction, convert_scalar_round_ties_even)
-}
-
-/// Execute vector conversion with round toward zero.
-pub(crate) fn execute_vector_convert_round_toward_zero(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_vector_convert(machine, instruction, convert_scalar_round_toward_zero)
-}
-
-/// Execute vector conversion with round toward negative infinity.
-pub(crate) fn execute_vector_convert_round_floor(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_vector_convert(machine, instruction, convert_scalar_round_floor)
-}
-
-/// Execute vector conversion with round toward positive infinity.
-pub(crate) fn execute_vector_convert_round_ceil(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_vector_convert(machine, instruction, convert_scalar_round_ceil)
-}
-
-/// Execute vector conversion with saturation.
-pub(crate) fn execute_vector_convert_saturate(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_vector_convert(machine, instruction, convert_scalar_saturate)
 }
