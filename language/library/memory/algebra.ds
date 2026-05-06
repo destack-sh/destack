@@ -49,11 +49,12 @@ export type OwnershipOf<T> =
 /// Extract the placement of `T`.
 export type PlaceOf<T> =
     T extends Form<infer U, infer O, infer P, infer L, infer A> ? P :
-    never;
+    "ambient";
 
 /// Extract the explicit concrete space of `T`.
 export type SpaceOf<T> =
-    PlaceOf<T> extends Space ? PlaceOf<T> :
+    PlaceOf<T> extends infer P ?
+        P extends Space ? P : never :
     never;
 
 /// Extract the borrow lifetime of `T`.
@@ -85,8 +86,11 @@ export type SpaceOr<T, D: Space> =
 
 /// Resolve ambient placement in concrete space `S`.
 export type PlaceIn<T, S: Space> =
-    PlaceOr<T, "ambient"> extends "ambient" ? S :
-    SpaceOf<T>;
+    PlaceOf<T> extends infer P ?
+        P extends "ambient" ? S :
+        P extends Space ? P :
+        never :
+    never;
 
 /// Return whether `T` is managed.
 export type IsManaged<T> =

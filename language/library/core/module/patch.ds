@@ -50,6 +50,43 @@ export newtype Patch =
     | PatchRename
     | PatchRemove;
 
+extension of Patch {
+    /// Create an add patch.
+    static add(input: { scope: Scope; declaration: Declaration }): Patch {
+        Patch(PatchAdd({
+            kind: "add",
+            scope: input.scope,
+            declaration: input.declaration,
+        }))
+    }
+
+    /// Create a replace patch.
+    static replace(input: { symbol: Symbol; declaration: Declaration }): Patch {
+        Patch(PatchReplace({
+            kind: "replace",
+            symbol: input.symbol,
+            declaration: input.declaration,
+        }))
+    }
+
+    /// Create a rename patch.
+    static rename(input: { symbol: Symbol; name: string }): Patch {
+        Patch(PatchRename({
+            kind: "rename",
+            symbol: input.symbol,
+            name: input.name,
+        }))
+    }
+
+    /// Create a remove patch.
+    static remove(input: { symbol: Symbol }): Patch {
+        Patch(PatchRemove({
+            kind: "remove",
+            symbol: input.symbol,
+        }))
+    }
+}
+
 /// Protocol for decorator values that provide patches.
 export newtype interface Patcher<Target> {
     /// Return the patches for the decorated target.
