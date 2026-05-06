@@ -1,11 +1,9 @@
-use std::num::NonZero;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::thread;
 
 use clap::{Args, ValueEnum};
 use destack_artifact::MemoryCacheStore;
-use destack_session::open_repository_from_fs;
+use destack_session::{Session, open_repository_from_fs};
 use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
 use destack_workspace::{
     ArrowParentheses, FormatterOptions, HostEnvironment, ImportSortOrder, LintPreset, LintSeverity,
@@ -18,9 +16,7 @@ use crate::common::{ReportArgs, report_error};
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
 pub fn default_workers() -> u16 {
-    thread::available_parallelism()
-        .unwrap_or(NonZero::new(1).unwrap())
-        .get() as u16
+    Session::default_worker_limit() as u16
 }
 
 /// File system override for CLI testing.
@@ -440,18 +436,6 @@ pub struct ProgramArgs {
         global = true
     )]
     pub workers: u16,
-
-    /// Skip loading standard library types (es*, dom, etc.).
-    #[arg(long = "no-libs", visible_alias = "no-lib", global = true)]
-    pub no_libs: bool,
-
-    /// Skip injecting prelude items (Add, Type, deprecated, etc.).
-    #[arg(long = "no-prelude", global = true)]
-    pub no_prelude: bool,
-
-    /// Libraries to load (e.g., es2020, dom, node). Overrides automatic detection.
-    #[arg(long = "lib", value_delimiter = ',', global = true)]
-    pub lib: Vec<String>,
 
     /// Enable watch mode for supported commands.
     #[arg(long = "watch", global = true)]
