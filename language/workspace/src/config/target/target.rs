@@ -46,6 +46,10 @@ pub struct Target {
     pub entry: Vec<PathBuf>,
     /// Global modules added as discovery roots.
     pub globals: Vec<PathBuf>,
+    /// Target tree tag builder override.
+    pub tree: Option<String>,
+    /// Target derive providers.
+    pub derive: Vec<String>,
     /// Glob patterns for files to include (for include-based discovery).
     pub include: Vec<String>,
     /// Glob patterns for files to exclude.
@@ -228,6 +232,8 @@ impl std::hash::Hash for Target {
         self.discovery.hash(state);
         self.entry.hash(state);
         self.globals.hash(state);
+        self.tree.hash(state);
+        self.derive.hash(state);
         self.include.hash(state);
         self.exclude.hash(state);
         self.module.hash(state);
@@ -524,6 +530,13 @@ impl Target {
     pub fn compiler_options(&self, compiler_options: &CompilerOptions) -> CompilerOptions {
         let mut compiler_options = compiler_options.clone();
         let is_native_output = self.emit.is_wasm() || self.emit.is_native();
+
+        // target semantic defaults
+        if self.tree.is_some() {
+            compiler_options.tree = self.tree.clone();
+        }
+        compiler_options.globals.extend(self.globals.clone());
+        compiler_options.derive.extend(self.derive.clone());
 
         // native outputs force stricter semantics
         if is_native_output {
@@ -1028,6 +1041,10 @@ pub struct TargetOptions {
     pub entry: Vec<PathBuf>,
     /// Global provider modules added as discovery roots.
     pub globals: Vec<PathBuf>,
+    /// Target tree tag builder override.
+    pub tree: Option<String>,
+    /// Target derive providers.
+    pub derive: Vec<String>,
     /// Glob patterns for files to include (for include-based discovery).
     pub include: Vec<String>,
     /// Glob patterns for files to exclude.
@@ -1214,6 +1231,8 @@ impl Default for TargetOptions {
             discovery: TargetDiscovery::default(),
             entry: Vec::new(),
             globals: Vec::new(),
+            tree: None,
+            derive: Vec::new(),
             include: Vec::new(),
             exclude: Vec::new(),
             emit: EmitFormat::default(),
@@ -1329,6 +1348,8 @@ impl TargetOptions {
             discovery: self.discovery,
             entry: self.entry.clone(),
             globals: self.globals.clone(),
+            tree: self.tree.clone(),
+            derive: self.derive.clone(),
             include: self.include.clone(),
             exclude: self.exclude.clone(),
             emit: self.emit,
@@ -1533,6 +1554,8 @@ impl TargetOptions {
             discovery,
             entry,
             globals,
+            tree: json.tree.clone(),
+            derive: json.derive.clone().unwrap_or_default(),
             include: json.include.clone().unwrap_or_default(),
             exclude: json.exclude.clone().unwrap_or_default(),
             emit,
@@ -1703,6 +1726,10 @@ pub struct TargetJson {
     pub entry: Option<Vec<String>>,
     /// Global modules added as discovery roots.
     pub globals: Option<Vec<String>>,
+    /// Target tree tag builder override.
+    pub tree: Option<String>,
+    /// Target derive providers.
+    pub derive: Option<Vec<String>>,
     /// Glob patterns for files to include (for include-based discovery).
     pub include: Option<Vec<String>>,
     /// Glob patterns for files to exclude.

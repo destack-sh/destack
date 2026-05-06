@@ -186,6 +186,15 @@ impl DestackDeclaration {
         if compiler.comptime_env.is_none() {
             compiler.comptime_env = parent_compiler.comptime_env.clone();
         }
+        if compiler.tree.is_none() {
+            compiler.tree = parent_compiler.tree.clone();
+        }
+        if self.json.compiler.globals.is_none() {
+            compiler.globals = parent_compiler.globals.clone();
+        }
+        if self.json.compiler.derive.is_none() {
+            compiler.derive = parent_compiler.derive.clone();
+        }
         if parent_compiler
             .no_managed
             .is_stricter_than(compiler.no_managed)

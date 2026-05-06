@@ -456,6 +456,33 @@
             "type": "string"
           }
         },
+        "tree": {
+          "description": "Default tree tag builder provider.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "globals": {
+          "description": "Global provider modules added to every target profile.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "derive": {
+          "description": "Derive providers automatically considered for nominal declarations.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "noManaged": {
           "description": "Policy for GC-managed defaults and allocations.",
           "anyOf": [
@@ -5010,6 +5037,23 @@
             "type": "string"
           }
         },
+        "tree": {
+          "description": "Target tree tag builder override.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "derive": {
+          "description": "Target derive providers.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "include": {
           "description": "Glob patterns for files to include (for include-based discovery).",
           "type": [
@@ -7686,6 +7730,33 @@
         },
         "comptimeEnv": {
           "description": "Comptime environment whitelist (if omitted, all env keys are visible).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "tree": {
+          "description": "Default tree tag builder provider.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "globals": {
+          "description": "Global provider modules for this profile.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "derive": {
+          "description": "Derive providers automatically considered in this profile.",
           "type": [
             "array",
             "null"
