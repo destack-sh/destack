@@ -1368,8 +1368,8 @@ struct User {
 
 #### Patch
 
-Decorators are just nominal values, like annotations, but they implement the `Patcher` protocol for the target they are applied to.
-This also means that decorator configuration is just regular values:
+Decorators are just nominal values, like annotations, but they implement the `Patcher` protocol for the target they are applied to to produce `Patch`es that can rewrite the target's declaration and surrounding scope.
+This also means that decorator configuration is just regular values, which is convenient:
 
 ```ds
 newtype memoize = {
@@ -1382,30 +1382,46 @@ function load(id: UserId): Result<User, Error> {
 }
 ```
 
-The `Patcher` algebra uses small bounded `Patch`es: add, replace, rename, remove.
+Patchers edit the visible declaration set with four basic operations: add, replace, rename, remove:
+
+| Operation | Example | Meaning |
+|-----------|---------|---------|
+| `add` | `Patch.add({ scope, declaration })` | add a generated declaration to a scope |
+| `replace` | `Patch.replace({ symbol, declaration })` | redirect a symbol to a generated declaration |
+| `rename` | `Patch.rename({ symbol, name })` | keep a declaration but change its visible name |
+| `remove` | `Patch.remove({ symbol })` | remove a symbol from the visible declaration set |
+
+Most basic wrapper-shaped decorators are just `rename` plus `add`:
 
 ```ds
 extension<F> of memoize implements Patcher<F>
     where F extends (...args: unknown[]) => unknown
 {
-    static patch(target: F, context: PatchContext<F>, options: this): Patch[] {
-        const replacement = comptime eval<Declaration>(ds`
-            function ${context.name}(...args) {
-                ...
+    static patch(target: F, context: PatchContext, config: this): Patch[] {
+        const innerName = `${context.name}Inner`;
+        const wrapper = comptime eval<Declaration>(ds`
+            function ${context.name}(id: UserId): Result<User, Error> {
+                const cached = cache.get(id);
+                if (cached != undefined) {
+                    return cached;
+                }
+
+                const user = ${innerName}(id)?;
+                cache.set(id, user, config.capacity ?? 256);
+                return Result.ok(user);
             }
         `);
 
         return [
-            PatchReplace({
-                symbol: context.target,
-                declaration: replacement,
-            }),
+            Patch.rename({ symbol: context.symbol, name: innerName }),
+            Patch.add({ scope: context.scope, declaration: wrapper }),
         ];
     }
 }
 ```
 
-Patch expansion is not recursive: declarations that implement `Patcher` are analyzed before patching, and cannot themselves be changed by patchers or derive.
+Patch expansion is not recursive.
+Declarations that implement `Patcher` are analyzed before patching, and cannot themselves be changed by patchers or derive.
 
 #### Derive
 
@@ -1429,7 +1445,7 @@ At the library level, a derive provider is just a nominal provider value returni
 
 ```ds
 newtype interface Patcher<Target> {
-    static patch(target: Target, context: PatchContext<Target>, config: this): Patch[];
+    static patch(target: Target, context: PatchContext, config: this): Patch[];
 }
 
 newtype Tagged = () | {
@@ -1439,7 +1455,7 @@ newtype Tagged = () | {
 
 extension<Target> of Tagged implements Patcher<Target> {
     @intrinsic
-    static patch(target: Target, context: PatchContext<Target>, config: this): Patch[];
+    static patch(target: Target, context: PatchContext, config: this): Patch[];
 }
 ```
 
