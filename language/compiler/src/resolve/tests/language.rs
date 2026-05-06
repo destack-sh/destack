@@ -10,7 +10,7 @@ use destack_source::DiagnosticSeverity;
 fn analyze_library_summary(library: &LibraryPackage) -> Option<String> {
     // selected library package
     let test =
-        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&[library.name]);
+        TestProgram::memory_sequential_with_prelude();
     let profile = test.default_profile_id_for_root();
 
     let resolved = run_to_completion(
@@ -107,7 +107,7 @@ fn test_analyze_library_packages_clean() {
 #[test]
 fn test_resolve_well_known_symbols() {
     let test =
-        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["core"]);
+        TestProgram::memory_sequential_with_prelude();
     test.resolve_language_environment();
     test.resolve_libs();
     test.compile();
@@ -162,7 +162,7 @@ fn test_resolve_well_known_symbols() {
 #[test]
 fn test_resolve_core_well_known_fixed_array_symbol() {
     let test =
-        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["core"]);
+        TestProgram::memory_sequential_with_prelude();
     test.resolve_language_environment();
     test.resolve_libs();
     test.compile();
@@ -184,7 +184,7 @@ fn test_resolve_core_well_known_fixed_array_symbol() {
 #[test]
 fn test_resolve_bare_core_globals() {
     let test =
-        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["core"]);
+        TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "main.ts",
         r#"
@@ -203,7 +203,7 @@ export const appValue = [infinityValue, nanValue, rootValue];
 /// Resolve the core String well-known symbol for an implicit target profile.
 #[test]
 fn test_resolve_core_well_known_string_symbol_from_target_profile() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -244,7 +244,7 @@ function main(): int32 {
 /// Resolve the core String well-known symbol to one concrete struct declaration.
 #[test]
 fn test_resolve_native_well_known_string_concrete_symbol() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"

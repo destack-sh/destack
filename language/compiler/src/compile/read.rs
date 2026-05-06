@@ -11,7 +11,7 @@ use destack_workspace::{
     TargetDiscoveryOptions,
 };
 
-use crate::{Compiler, ImportOptions, LowerOptions};
+use crate::{Compiler, LowerOptions};
 
 const TARGET_CONFIGURATION_DOMAIN: &[u8] = b"destack.compiler.target-configuration.v1";
 
@@ -141,17 +141,6 @@ impl Compiler {
     ) -> Option<CompilerOptions> {
         self.package_options(context, module.package_id)
             .map(|options| options.compiler)
-    }
-
-    /// Resolve import options for one module.
-    pub(crate) fn import_options(
-        &self,
-        context: &dyn ProviderContext,
-        module: &Module,
-    ) -> ImportOptions {
-        self.workspace_compiler_options(context, module)
-            .map(|options| ImportOptions::from_workspace(&options))
-            .unwrap_or_default()
     }
 
     /// Resolve lower options for one module.

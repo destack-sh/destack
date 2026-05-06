@@ -33,7 +33,7 @@ pub(crate) struct TestProgram {
 
 impl TestProgram {
     /// Create an in-memory compiler test harness.
-    fn memory(inject_prelude: bool, load_libraries: bool) -> Self {
+    fn memory(inject_prelude: bool) -> Self {
         init_tracing();
 
         // repository
@@ -45,7 +45,7 @@ impl TestProgram {
         );
         let repository = Arc::new(repository);
 
-        let _ = (inject_prelude, load_libraries);
+        let _ = inject_prelude;
 
         // compiler
         let compiler = Arc::new(Compiler::new(repository.clone()));
@@ -64,37 +64,22 @@ impl TestProgram {
 
     /// Create a sequential in-memory harness without ambient language injection.
     pub(crate) fn memory_sequential() -> Self {
-        Self::memory(false, false)
+        Self::memory(false)
     }
 
     /// Create a sequential in-memory harness with prelude injection.
     pub(crate) fn memory_sequential_with_prelude() -> Self {
-        Self::memory(true, false)
-    }
-
-    /// Create a sequential in-memory harness with prelude and library injection.
-    pub(crate) fn memory_sequential_with_prelude_and_libs() -> Self {
-        Self::memory(true, true)
+        Self::memory(true)
     }
 
     /// Create a parallel in-memory harness without ambient language injection.
     pub(crate) fn memory_parallel() -> Self {
-        Self::memory(false, false)
+        Self::memory(false)
     }
 
     /// Create a parallel in-memory harness with prelude injection.
-    pub(crate) fn memory_parallel_with_builtins() -> Self {
-        Self::memory(true, false)
-    }
-
-    /// Create a parallel in-memory harness with prelude and library injection.
-    pub(crate) fn memory_parallel_with_prelude_and_libs() -> Self {
-        Self::memory(true, true)
-    }
-
-    /// Return this harness with an ignored profile library override.
-    pub(crate) fn with_profile_libs(self, _libs: &[&str]) -> Self {
-        self
+    pub(crate) fn memory_parallel_with_prelude() -> Self {
+        Self::memory(true)
     }
 
     /// Return this harness with an ignored profile emit override.

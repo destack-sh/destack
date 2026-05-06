@@ -9,14 +9,14 @@ fn builtin_module_id_with_uri_suffix(test: &TestProgram, suffix: &str) -> Module
             let module = module.as_ref();
             module.uri.as_ref().ends_with(suffix).then_some(module.id)
         })
-        .unwrap_or_else(|| panic!("missing builtin module ending with {suffix}"))
+        .unwrap_or_else(|| panic!("missing library module ending with {suffix}"))
 }
 
 /// Execute comptime addition and patch it into DIR.
 #[test]
 fn test_execute_comptime_literal_add() {
     let test =
-        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["native"]);
+        TestProgram::memory_sequential_with_prelude();
     test.add_package("test", None);
     let module_id = test.add_module(
         "test.ds",
@@ -39,7 +39,7 @@ const VALUE = 6;
 #[test]
 fn test_execute_comptime_string_literal() {
     let test =
-        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["native"]);
+        TestProgram::memory_sequential_with_prelude();
     test.add_package("test", None);
     let module_id = test.add_module(
         "test.ds",
@@ -61,9 +61,8 @@ const VALUE = "hello";
 /// Execute the builtin ipc unix module cleanly through the patched DIR boundary.
 #[test]
 fn test_execute_builtin_platform_ipc_unix_module() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_lib("platform")
-        .with_profile_libs(&["native", "platform"]);
+    let test = TestProgram::memory_sequential_with_prelude()
+        ;
     let module_id = builtin_module_id_with_uri_suffix(&test, "platform/ipc/unix.ds");
 
     test.execute_module(module_id);
