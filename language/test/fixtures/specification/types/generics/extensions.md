@@ -4,7 +4,7 @@
 
 ### extension type parameters
 
-> Generic parameters on extensions flow into member signatures.
+Generic parameters on extensions flow into member signatures.
 
 ```ds
 struct Box<T> { value: T }
@@ -23,7 +23,7 @@ boxed.get() satisfies number;
 
 ### extension static value parameters
 
-> Static value parameters on extensions are validated.
+Static value parameters on extensions are validated.
 
 ```ds
 struct Buffer<T, comptime N: number> { value: T }
@@ -42,7 +42,7 @@ buffer.get() satisfies string;
 
 ### extension generic parameters map by target argument order
 
-> Extension parameters follow the target type argument order.
+Extension parameters follow the target type argument order.
 
 ```ds
 struct Pair<A, B> {
@@ -67,7 +67,7 @@ pair.swap() satisfies Pair<string, number>;
 
 ### extension static value parameters use defaults
 
-> Extensions inherit default comptime arguments from target type references.
+Extensions inherit default comptime arguments from target type references.
 
 ```ds
 struct Buffer<T, comptime N: number = 4> {
@@ -88,7 +88,7 @@ buffer.get() satisfies string;
 
 ### extension generic parameter mismatch rejects incompatible calls
 
-> Extension methods still enforce substituted generic parameter contracts.
+Extension methods still enforce substituted generic parameter contracts.
 
 ```ds
 struct Buffer<T, comptime N: number> {
@@ -112,7 +112,7 @@ buffer.requireSize([1, 2]);
 
 ### extension defaults keep concrete member types
 
-> Defaulted comptime arguments are visible inside extension methods.
+Defaulted comptime arguments are visible inside extension methods.
 
 ```ds
 struct Registry<T, comptime N: number = 2> {

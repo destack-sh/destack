@@ -4,7 +4,7 @@
 
 ### scalar newtype patterns bind values
 
-> Scalar newtype patterns bind the wrapped value.
+Scalar newtype patterns bind the wrapped value.
 
 ```ds
 newtype UserId = int64;
@@ -17,7 +17,7 @@ value satisfies int64;
 
 ### tuple newtype patterns bind fields
 
-> Tuple newtype patterns bind positional fields.
+Tuple newtype patterns bind positional fields.
 
 ```ds
 newtype Point = (float32, float32);
@@ -31,7 +31,7 @@ y satisfies float32;
 
 ### object newtype patterns bind fields
 
-> Object newtypes use tagged object patterns.
+Object newtypes use tagged object patterns.
 
 ```ds
 newtype Config = { debug: boolean };

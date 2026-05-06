@@ -6,7 +6,7 @@ Unary `-` uses numeric rules for builtin numbers and `Negate` for receiver overl
 
 ### negate dispatches to Negate
 
-> Unary `-` dispatches to `Negate` on the receiver.
+Unary `-` dispatches to `Negate` on the receiver.
 
 ```ds
 struct Signed { value: int }
@@ -25,7 +25,7 @@ value satisfies Signed;
 
 ### negate requires Negate
 
-> Unary `-` requires a matching `Negate` implementation.
+Unary `-` requires a matching `Negate` implementation.
 
 ```ds
 struct Signed { value: int }

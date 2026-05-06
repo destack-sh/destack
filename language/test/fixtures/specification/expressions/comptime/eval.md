@@ -39,14 +39,3 @@ const makeName = comptime new Function<(target: string, suffix: string) => strin
 
 makeName("user", "Id") satisfies string;
 ```
-
-## rejections
-
-### eval rejects untyped source
-
-```ds
-const source = comptime "1 + 1";
-const value = comptime eval(source);
-```
-
-- contains: eval

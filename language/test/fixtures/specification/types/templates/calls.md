@@ -4,7 +4,7 @@
 
 ### template literal infers from call arguments
 
-> Template literal parameters can drive generic inference.
+Template literal parameters can drive generic inference.
 
 ```ds
 declare function take<T>(value: `${T}`): T;
@@ -15,7 +15,7 @@ value satisfies "hello";
 
 ### template literal infers from template literal arguments
 
-> Template literal arguments can infer span types.
+Template literal arguments can infer span types.
 
 ```ds
 declare function take<T extends string>(value: `prefix-${T}`): T;
@@ -27,7 +27,7 @@ result satisfies "a" | "b";
 
 ### template literal infers from template literal arguments rejects narrowed result
 
-> Inferred spans preserve union members.
+Inferred spans preserve union members.
 
 ```ds
 declare function take<T extends string>(value: `prefix-${T}`): T;
@@ -41,7 +41,7 @@ let bad: "a" = result;
 
 ### template literal infers constrained spans from call arguments
 
-> Call inference respects constrained template spans.
+Call inference respects constrained template spans.
 
 ```ds
 declare function take<T extends "a" | "b">(value: `prefix-${T}`): T;
@@ -52,7 +52,7 @@ ok satisfies "a";
 
 ### template literal rejects call arguments outside constraint
 
-> Constrained spans reject values outside the union.
+Constrained spans reject values outside the union.
 
 ```ds
 declare function take<T extends "a" | "b">(value: `prefix-${T}`): T;
@@ -64,7 +64,7 @@ let bad = take("prefix-c");
 
 ### template literal infers from template literal parameters
 
-> Template literal arguments flow into generic spans.
+Template literal arguments flow into generic spans.
 
 ```ds
 declare function takeAny<T extends string>(value: `${T}`): T;
@@ -76,7 +76,7 @@ result satisfies `prefix-${"a"}`;
 
 ### template literal infers from template literal parameters rejects narrowed result
 
-> Inference preserves the full template literal shape.
+Inference preserves the full template literal shape.
 
 ```ds
 declare function takeAny<T extends string>(value: `${T}`): T;
@@ -90,7 +90,7 @@ let bad: "a" = result;
 
 ### template literal infers empty span with literal boundary
 
-> Literal boundaries allow empty captures for call inference.
+Literal boundaries allow empty captures for call inference.
 
 ```ds
 declare function take<T>(value: `a${T}`): T;

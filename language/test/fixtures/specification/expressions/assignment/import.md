@@ -6,7 +6,7 @@ Imported bindings are immutable.
 
 ### imported bindings are immutable
 
-> Imported bindings cannot be reassigned.
+Imported bindings cannot be reassigned.
 
 ```ds:counter.ds
 export let counter: number = 0;
@@ -22,7 +22,7 @@ counter = 1;
 
 ### imported aliases are immutable
 
-> Renaming an import does not make it assignable.
+Renaming an import does not make it assignable.
 
 ```ds:counter.ds
 export let counter: number = 0;
@@ -38,7 +38,7 @@ localCounter = 1;
 
 ### imported namespace bindings are immutable
 
-> Namespace imports cannot be reassigned.
+Namespace imports cannot be reassigned.
 
 ```ds:counter.ds
 export let counter: number = 0;
@@ -54,7 +54,7 @@ counter = { counter: 1 };
 
 ### imported namespace members are immutable
 
-> Namespace import members are immutable aliases of exported bindings.
+Namespace import members are immutable aliases of exported bindings.
 
 ```ds:counter.ds
 export let counter: number = 0;
@@ -70,7 +70,7 @@ namespaceCounter.counter = 1;
 
 ### imported bindings reject updates
 
-> Imported bindings cannot be updated.
+Imported bindings cannot be updated.
 
 ```ds:counter.ds
 export let counter: number = 0;

@@ -6,7 +6,7 @@ Symbol values and member access.
 
 ### symbol constructor
 
-> Symbols can be created via Symbol().
+Symbols can be created via Symbol().
 
 
 ```ds
@@ -17,7 +17,7 @@ const x: symbol = Symbol("id");
 
 ### symbol toString resolves
 
-> Symbols expose Symbol standard members.
+Symbols expose Symbol standard members.
 
 ```ds
 const value: symbol = Symbol("id");
@@ -27,7 +27,7 @@ text satisfies string;
 
 ### symbols are not assignable to strings
 
-> Symbol values are not assignable to string.
+Symbol values are not assignable to string.
 
 ```ds
 const value: string = Symbol("id");
@@ -35,9 +35,9 @@ const value: string = Symbol("id");
 
 - contains: not assignable
 
-### symbol values compose with symbol unions
+### symbol values work with symbol unions
 
-> Symbol values can flow into unions that include symbol.
+Symbol values can flow into unions that include symbol.
 
 ```ds
 const value: symbol | string = Symbol("id");
@@ -46,7 +46,7 @@ value satisfies symbol | string;
 
 ### symbol values reject numeric annotations
 
-> Symbol values are not assignable to number.
+Symbol values are not assignable to number.
 
 ```ds
 const value: number = Symbol("id");

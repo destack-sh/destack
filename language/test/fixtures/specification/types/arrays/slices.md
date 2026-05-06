@@ -6,7 +6,7 @@ Slices are runtime-length homogeneous views.
 
 ### bracket slice syntax names slice types
 
-> `[T]` is a slice of `T`.
+`[T]` is a slice of `T`.
 
 ```ds
 declare const values: [int32];
@@ -15,7 +15,7 @@ values satisfies Slice<int32>;
 
 ### slice alias matches bracket syntax
 
-> `Slice<T>` is the library alias for `[T]`.
+`Slice<T>` is the library alias for `[T]`.
 
 ```ds
 declare const values: Slice<int32>;
@@ -26,7 +26,7 @@ values satisfies [int32];
 
 ### slice indexing yields element types
 
-> Indexing a slice yields its element type.
+Indexing a slice yields its element type.
 
 ```ds
 declare const values: [int32];
@@ -37,7 +37,7 @@ first satisfies int32;
 
 ### slices are not fixed arrays
 
-> Runtime-length slices do not satisfy compile-time fixed arrays.
+Runtime-length slices do not satisfy compile-time fixed arrays.
 
 ```ds
 declare const values: [int32];

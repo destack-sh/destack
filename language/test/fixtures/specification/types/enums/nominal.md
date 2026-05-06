@@ -6,7 +6,7 @@ Enums are distinct by declaration, not by shape.
 
 ### imported enums with matching members remain distinct
 
-> Enums declared in different modules remain distinct even when their members match.
+Enums declared in different modules remain distinct even when their members match.
 
 ```ds:left.ds
 export enum Status {

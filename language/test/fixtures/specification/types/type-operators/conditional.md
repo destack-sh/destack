@@ -63,7 +63,7 @@ let bad: OnlyStrings<string | int32> = 1;
 ### tuple wrapping disables distribution
 
 ```ds
-type Wrapped<T> = [T] extends [string] ? "yes" : "no";
+type Wrapped<T> = (T,) extends (string,) ? "yes" : "no";
 
 let ok: Wrapped<string | int32> = "no";
 ```

@@ -6,7 +6,7 @@
 
 ### shift left yields the left numeric type
 
-> `<<` preserves the left numeric type.
+`<<` preserves the left numeric type.
 
 ```ds
 const value = 1 << 2;
@@ -15,7 +15,7 @@ value satisfies int32;
 
 ### shift right yields the left numeric type
 
-> `>>` preserves the left numeric type.
+`>>` preserves the left numeric type.
 
 ```ds
 const value = 8 >> 1;
@@ -24,7 +24,7 @@ value satisfies int32;
 
 ### unsigned shift right yields the left numeric type
 
-> `>>>` preserves the left numeric type.
+`>>>` preserves the left numeric type.
 
 ```ds
 const value = 8 >>> 1;
@@ -35,7 +35,7 @@ value satisfies int32;
 
 ### shift left dispatches to ShiftLeft
 
-> `<<` dispatches to `ShiftLeft` on the receiver.
+`<<` dispatches to `ShiftLeft` on the receiver.
 
 ```ds
 struct Bits { value: int }
@@ -57,7 +57,7 @@ value satisfies Bits;
 
 ### shift right dispatches to ShiftRight
 
-> `>>` dispatches to `ShiftRight` on the receiver.
+`>>` dispatches to `ShiftRight` on the receiver.
 
 ```ds
 struct Bits { value: int }
@@ -79,7 +79,7 @@ value satisfies Bits;
 
 ### unsigned shift right dispatches to ShiftRightUnsigned
 
-> `>>>` dispatches to `ShiftRightUnsigned` on the receiver.
+`>>>` dispatches to `ShiftRightUnsigned` on the receiver.
 
 ```ds
 struct Bits { value: int }
@@ -101,7 +101,7 @@ value satisfies Bits;
 
 ### shift requires the right operand type
 
-> `ShiftLeft<T>` only accepts right operands assignable to `T`.
+`ShiftLeft<T>` only accepts right operands assignable to `T`.
 
 ```ds
 struct Bits { value: int }

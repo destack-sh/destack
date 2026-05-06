@@ -6,7 +6,7 @@ Tuple types use parenthesized syntax in `.ds`: `(T, U)`.
 
 ### parenthesized tuple positions carry declared element types
 
-> Tuple positions carry their declared element types.
+Tuple positions carry their declared element types.
 
 ```ds
 const pair: (int32, string) = (1, "hello");
@@ -14,7 +14,7 @@ const pair: (int32, string) = (1, "hello");
 
 ### parenthesized tuple arity is enforced on assignment
 
-> Tuple assignments must satisfy fixed positional arity.
+Tuple assignments must satisfy fixed positional arity.
 
 ```ds
 const pair: (int32, string) = (1);
@@ -24,7 +24,7 @@ const pair: (int32, string) = (1);
 
 ### parenthesized tuple positional element types are enforced
 
-> Tuple assignments must satisfy each positional element type.
+Tuple assignments must satisfy each positional element type.
 
 ```ds
 const pair: (int32, string) = ("one", 2);
@@ -34,7 +34,7 @@ const pair: (int32, string) = ("one", 2);
 
 ### bracket tuple syntax is rejected in ds sources
 
-> Bracket tuple syntax is not the `.ds` tuple form.
+Bracket tuple syntax is not the `.ds` tuple form.
 
 ```ds
 const pair: [int32, string] = [1, "hello"];
@@ -44,7 +44,7 @@ const pair: [int32, string] = [1, "hello"];
 
 ### nested tuples preserve nested element types
 
-> Nested tuples preserve nested element types.
+Nested tuples preserve nested element types.
 
 ```ds
 const value: (int32, (string, boolean)) = (1, ("hello", true));
@@ -54,7 +54,7 @@ const value: (int32, (string, boolean)) = (1, ("hello", true));
 
 ### parenthesized tuples are assignable to dynamic arrays when elements are compatible
 
-> Tuples are assignable to dynamic arrays when element types are compatible.
+Tuples are assignable to dynamic arrays when element types are compatible.
 
 ```ds
 const pair: (int32, int32) = (1, 2);
@@ -63,7 +63,7 @@ const values: int32[] = pair;
 
 ### tuples reject assignment to incompatible dynamic arrays
 
-> Tuples reject assignment to dynamic arrays with incompatible element types.
+Tuples reject assignment to dynamic arrays with incompatible element types.
 
 ```ds
 const pair: (int32, int32) = (1, 2);
@@ -74,7 +74,7 @@ const values: string[] = pair;
 
 ### dynamic arrays are not assignable to fixed tuples
 
-> Dynamic arrays are not assignable to fixed tuples.
+Dynamic arrays are not assignable to fixed tuples.
 
 ```ds
 const values: int32[] = [1, 2];

@@ -1,12 +1,12 @@
 # Dereference
 
-Dereference projects one access form into another.
+Dereference turns wrapper values into borrowed access.
 
-## projection
+## read
 
-### readonly projection
+### readonly dereference
 
-> `*value` returns `ReadonlyOutput`.
+`*value` returns `ReadonlyOutput`.
 
 ```ds
 struct Ref<T> {
@@ -27,9 +27,9 @@ const value = *getRef();
 value satisfies &readonly int32;
 ```
 
-### missing projection
+### missing dereference
 
-> `*value` requires `ReadonlyDereference`.
+`*value` requires `ReadonlyDereference`.
 
 ```ds
 struct Ref<T> {
@@ -45,9 +45,9 @@ const value = *getRef();
 
 ## assignment
 
-### mutable projection
+### mutable dereference
 
-> Assignment through `*value` requires `Dereference`.
+Assignment through `*value` requires `Dereference`.
 
 ```ds
 struct Ref<T> {
@@ -73,9 +73,9 @@ let value = getRef();
 *value = 2;
 ```
 
-### readonly projection
+### readonly dereference
 
-> `ReadonlyDereference` is not enough for assignment.
+`ReadonlyDereference` is not enough for assignment.
 
 ```ds
 struct Ref<T> {
@@ -102,7 +102,7 @@ let value = getRef();
 
 ### lookup
 
-> Member lookup checks the wrapper before readonly autoderef.
+Member lookup checks the wrapper before readonly autoderef.
 
 ```ds
 struct User {
@@ -138,7 +138,7 @@ age satisfies int32;
 
 ### mutation
 
-> Member assignment through autoderef requires `Dereference`.
+Member assignment through autoderef requires `Dereference`.
 
 ```ds
 struct User {
@@ -170,7 +170,7 @@ user.name = "Ada";
 
 ### readonly mutation
 
-> Readonly autoderef does not allow member assignment.
+Readonly autoderef does not allow member assignment.
 
 ```ds
 struct User {

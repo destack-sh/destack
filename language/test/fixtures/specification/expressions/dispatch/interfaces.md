@@ -6,7 +6,7 @@ Interface dispatch uses a witness table when a concrete value is viewed through 
 
 ### field order does not matter
 
-> Interface field access uses member names, not concrete layout order.
+Interface field access uses member names, not concrete layout order.
 
 ```ds
 interface PointLike {
@@ -27,7 +27,7 @@ total satisfies int32;
 
 ### structural fields do not require implements
 
-> Structural interfaces accept matching fields.
+Structural interfaces accept matching fields.
 
 ```ds
 interface Named {
@@ -44,7 +44,7 @@ user.name satisfies string;
 
 ### mutable fields are read-write
 
-> Interface fields are mutable by default.
+Interface fields are mutable by default.
 
 ```ds
 interface PointLike {
@@ -62,7 +62,7 @@ point.x satisfies int32;
 
 ### readonly fields can widen
 
-> Readonly interface fields can use ordinary read casts.
+Readonly interface fields can use ordinary read casts.
 
 ```ds
 interface PointLike {
@@ -79,7 +79,7 @@ point.x satisfies int32 | float32;
 
 ### mutable fields reject widened writes
 
-> Mutable interface fields must accept writes through the interface type.
+Mutable interface fields must accept writes through the interface type.
 
 ```ds
 interface PointLike {
@@ -97,7 +97,7 @@ const point: PointLike = Point { x: 1 };
 
 ### accessors can adapt mutable views
 
-> Accessors can provide explicit read-write adaptation.
+Accessors can provide explicit read-write adaptation.
 
 ```ds
 interface PointLike {
@@ -124,7 +124,7 @@ point.x satisfies int32 | float32;
 
 ### nested fields can widen
 
-> Nested readonly fields use the same interface view rules.
+Nested readonly fields use the same interface view rules.
 
 ```ds
 interface PointLike {
@@ -151,7 +151,7 @@ shape.origin.x satisfies int32 | float32;
 
 ### methods dispatch through interfaces
 
-> Interface method calls use the concrete method target.
+Interface method calls use the concrete method target.
 
 ```ds
 interface Writer {
@@ -173,7 +173,7 @@ written satisfies usize;
 
 ### nominal interfaces require implements
 
-> Newtype interfaces are not satisfied structurally.
+Newtype interfaces are not satisfied structurally.
 
 ```ds
 newtype interface Writer {
@@ -195,7 +195,7 @@ const writer: Writer = Buffer {};
 
 ### index signatures dispatch through interfaces
 
-> Interface index access keeps the index signature result type.
+Interface index access keeps the index signature result type.
 
 ```ds
 interface Bag<T> {
@@ -211,7 +211,7 @@ value satisfies int32 | undefined;
 
 ### records satisfy string index signatures
 
-> Records can be viewed through structural index signatures.
+Records can be viewed through structural index signatures.
 
 ```ds
 interface Bag<T> {
@@ -226,7 +226,7 @@ value satisfies int32 | undefined;
 
 ### structs satisfy readonly index signatures
 
-> Fixed object-shaped values can provide readonly index views.
+Fixed object-shaped values can provide readonly index views.
 
 ```ds
 interface Bag<T> {
@@ -246,7 +246,7 @@ value satisfies int32 | undefined;
 
 ### classes satisfy readonly index signatures
 
-> Class fields can provide readonly index views.
+Class fields can provide readonly index views.
 
 ```ds
 interface Bag<T> {
@@ -266,7 +266,7 @@ value satisfies int32 | undefined;
 
 ### structs reject mutable index signatures
 
-> Fixed object-shaped values do not provide indexed writes.
+Fixed object-shaped values do not provide indexed writes.
 
 ```ds
 interface Bag<T> {
@@ -285,7 +285,7 @@ const bag: Bag<int32> = Point { x: 1, y: 2 };
 
 ### classes reject mutable index signatures
 
-> Class fields do not provide indexed writes.
+Class fields do not provide indexed writes.
 
 ```ds
 interface Bag<T> {

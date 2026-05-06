@@ -6,7 +6,7 @@ Callbacks receive contextual parameter types from their call site.
 
 ### contextual parameters flow into callbacks
 
-> Callback parameters use the declared parameter type.
+Callback parameters use the declared parameter type.
 
 ```ds
 declare function drive(callback: (value: string) => void): void;
@@ -18,7 +18,7 @@ drive(value => {
 
 ### nested callbacks preserve contextual parameter types
 
-> Nested callback calls keep contextual parameter types.
+Nested callback calls keep contextual parameter types.
 
 ```ds
 declare function drive<T>(value: T, callback: (value: T) => void): void;
@@ -39,7 +39,7 @@ result satisfies string;
 
 ### contextual callbacks select overloads in declaration order
 
-> Contextual callback typing uses overload declaration order.
+Contextual callback typing uses overload declaration order.
 
 ```ds
 declare function choose(value: string): "string";
@@ -52,7 +52,7 @@ result satisfies "ok";
 
 ### contextual callbacks do not select later overloads
 
-> Later overload branches do not replace an earlier contextual match.
+Later overload branches do not replace an earlier contextual match.
 
 ```ds
 declare function choose(value: string): "string";
@@ -69,7 +69,7 @@ result satisfies "number";
 
 ### mutable callback inputs widen
 
-> Mutable callback inputs do not retain literal precision.
+Mutable callback inputs do not retain literal precision.
 
 ```ds
 declare function drive<T>(value: T, callback: (value: T) => void): void;

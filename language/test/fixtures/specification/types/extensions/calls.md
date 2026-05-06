@@ -6,7 +6,7 @@ Extension methods call like ordinary methods once the extension is visible.
 
 ### extension methods return primitives
 
-> Extension methods can return primitive types.
+Extension methods can return primitive types.
 
 ```ds
 struct Point { x: number; y: number }
@@ -25,7 +25,7 @@ point.length() satisfies number;
 
 ### extension methods return void
 
-> Extension methods can return void.
+Extension methods can return void.
 
 ```ds
 struct Logger { prefix: string }
@@ -42,7 +42,7 @@ logger.log("hello");
 
 ### extension methods return the receiver type
 
-> Extension methods can return the same type they extend.
+Extension methods can return the same type they extend.
 
 ```ds
 struct Vector2 { x: number; y: number }
@@ -61,7 +61,7 @@ vector.normalized() satisfies Vector2;
 
 ### extension methods return other types
 
-> Extension methods can return a different type.
+Extension methods can return a different type.
 
 ```ds
 struct Point { x: number; y: number }
@@ -82,7 +82,7 @@ point.toString() satisfies string;
 
 ### extension methods accept parameters
 
-> Extension methods can take ordinary parameters.
+Extension methods can take ordinary parameters.
 
 ```ds
 struct Point { x: number; y: number }
@@ -101,7 +101,7 @@ point.scale(2) satisfies Point;
 
 ### extension methods accept multiple parameters
 
-> Extension methods can take multiple parameters.
+Extension methods can take multiple parameters.
 
 ```ds
 struct Point { x: number; y: number }
@@ -120,7 +120,7 @@ point.translate(10, 20) satisfies Point;
 
 ### extension methods accept optional parameters
 
-> Extension methods can take optional parameters.
+Extension methods can take optional parameters.
 
 ```ds
 struct Logger { prefix: string }
@@ -138,7 +138,7 @@ logger.log("warn", 2);
 
 ### extension methods can constrain this
 
-> Extension methods can declare an explicit this parameter to constrain the receiver.
+Extension methods can declare an explicit this parameter to constrain the receiver.
 
 ```ds
 struct Counter { value: number }
@@ -157,7 +157,7 @@ counter.increment();
 
 ### extension methods chain through return types
 
-> Extension methods returning the receiver type can be chained.
+Extension methods returning the receiver type can be chained.
 
 ```ds
 struct StringBuilder { value: string }

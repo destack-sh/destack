@@ -264,7 +264,7 @@ function write(point: &exclusive Point): void {
 
 ### borrowed generics preserve type arguments
 
-Borrowed access composes with generic types.
+Borrowed access works with generic types.
 
 ```ds
 class Box<T> {
@@ -282,10 +282,10 @@ function read<T>(box: &Box<T>): T {
 
 ### borrowed fixed arrays keep their length
 
-Borrowed access composes with fixed arrays.
+Borrowed access works with fixed arrays.
 
 ```ds
-function readLane<comptime N: number>(value: &[uint8; N]): uint8 {
+function readLane<comptime N: uint>(value: &[uint8; N]): uint8 {
     return value[0];
 }
 ```

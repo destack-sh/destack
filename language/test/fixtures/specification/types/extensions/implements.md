@@ -6,7 +6,7 @@ Extensions that implement interfaces.
 
 ### extension implements interface
 
-> Extensions can implement interfaces for types.
+Extensions can implement interfaces for types.
 
 ```ds
 interface Describable {
@@ -30,7 +30,7 @@ point.describe() satisfies string;
 
 ### extension implements multiple interfaces
 
-> Extensions can implement multiple interfaces.
+Extensions can implement multiple interfaces.
 
 ```ds
 interface Printable {
@@ -59,7 +59,7 @@ document.serialize() satisfies string;
 
 ### extension rejects missing interface members
 
-> Extensions that implement interfaces must provide all required members.
+Extensions that implement interfaces must provide all required members.
 
 ```ds
 interface Printable {
@@ -81,7 +81,7 @@ extension of Document implements Printable, Serializable {
 
 ### extension can implement imported interfaces across modules
 
-> Extensions can satisfy imported interface contracts across module boundaries.
+Extensions can satisfy imported interface contracts across module boundaries.
 
 ```ds:contracts.ds
 export interface Printable {
@@ -109,7 +109,7 @@ document.print() satisfies string;
 
 ### extension implementing imported contracts rejects missing members
 
-> Imported interface contracts still require all members in extension implementations.
+Imported interface contracts still require all members in extension implementations.
 
 ```ds:contracts.ds
 export interface Printable {

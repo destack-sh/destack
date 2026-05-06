@@ -7,7 +7,7 @@ Writes and joins remove facts that no longer hold.
 
 ### assignment invalidates a prior null check narrow
 
-> A local reassignment invalidates a previously established narrow.
+A local reassignment invalidates a previously established narrow.
 
 ```ds
 let value: string | null = "ok";
@@ -23,7 +23,7 @@ if (value != null) {
 
 ### assignment invalidates discriminant member availability
 
-> Reassigning a discriminated union value removes member access from the previous branch.
+Reassigning a discriminated union value removes member access from the previous branch.
 
 ```ds
 type Ready = { kind: "ready", payload: string };
@@ -45,7 +45,7 @@ box.state.payload;
 
 ### loop back-edges rejoin and widen narrowed locals
 
-> Loop joins do not preserve one-iteration narrow facts outside the loop.
+Loop joins do not preserve one-iteration narrow facts outside the loop.
 
 ```ds
 let value: "a" | "b" = "a";
@@ -66,7 +66,7 @@ value satisfies "a";
 
 ### branch joins preserve only intersection of branch guarantees
 
-> Facts after a branch join include only what both branches guarantee.
+Facts after a branch join include only what both branches guarantee.
 
 ```ds
 let value: string | int32 = "ok";
@@ -86,7 +86,7 @@ value satisfies string;
 
 ### writes through aliases invalidate discriminant narrows
 
-> Writes through an alias invalidate discriminant member availability on the original value.
+Writes through an alias invalidate discriminant member availability on the original value.
 
 ```ds
 type Ready = { kind: "ready", payload: string };
@@ -105,7 +105,7 @@ if (box.state.kind == "ready") {
 
 ### index writes invalidate prior tuple element narrows
 
-> Writes through index expressions invalidate previously established tuple element narrows.
+Writes through index expressions invalidate previously established tuple element narrows.
 
 ```ds
 let pair: (string | null, int32) = ("ok", 1);

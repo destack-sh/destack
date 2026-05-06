@@ -6,7 +6,7 @@ Type aliases can bind type parameters and static value parameters.
 
 ### aliases accept explicit type arguments
 
-> Type aliases accept explicit type arguments.
+Type aliases accept explicit type arguments.
 
 ```ds
 type Box<T> = { value: T }
@@ -19,7 +19,7 @@ value satisfies Box<number>;
 
 ### aliases reject type argument mismatches
 
-> Type arguments must satisfy declared bounds.
+Type arguments must satisfy declared bounds.
 
 ```ds
 type Box<T: number> = { value: T }
@@ -33,7 +33,7 @@ let value: Box<string> = makeBox();
 
 ### aliases accept static value arguments
 
-> Static value arguments are checked against declared types.
+Static value arguments are checked against declared types.
 
 ```ds
 type Buffer<T, comptime N: number> = { value: T }
@@ -46,7 +46,7 @@ buffer satisfies Buffer<string, 4>;
 
 ### aliases require static value arguments
 
-> Static value arguments must be static expressions.
+Static value arguments must be static expressions.
 
 ```ds
 type Buffer<T, comptime N: number> = { value: T }
@@ -60,7 +60,7 @@ let buffer: Buffer<string, comptime 4> = makeBuffer();
 
 ### aliases reject static value argument mismatches
 
-> Static value arguments must satisfy declared types.
+Static value arguments must satisfy declared types.
 
 ```ds
 type Buffer<T, comptime N: number> = { value: T }
@@ -76,7 +76,7 @@ let buffer: Buffer<string, true> = makeBuffer();
 
 ### aliases accept default type parameters
 
-> Type parameters fall back to defaults when omitted.
+Type parameters fall back to defaults when omitted.
 
 ```ds
 type Box<T = number> = { value: T }
@@ -89,7 +89,7 @@ value satisfies Box<number>;
 
 ### aliases accept default static values
 
-> Static value arguments fall back to defaults when omitted.
+Static value arguments fall back to defaults when omitted.
 
 ```ds
 type Buffer<T, comptime N: number = 4> = { value: T }
@@ -102,7 +102,7 @@ buffer satisfies Buffer<string, 4>;
 
 ### alias static defaults must be static
 
-> Static value defaults must be static expressions.
+Static value defaults must be static expressions.
 
 ```ds
 type Buffer<T, comptime N: number = comptime 4> = { value: T }
@@ -118,12 +118,13 @@ let buffer: Buffer<string> = makeBuffer();
 
 ### tuple arguments stay grouped for direct aliases
 
-> Tuple static arguments stay grouped when passed through aliases.
+Tuple static arguments stay grouped when passed through aliases.
 
 ```ds
-type And<Types extends boolean[]> = Types[number] extends true ? true : false;
+type And<Types extends (boolean, boolean)> =
+    Types[0] extends true ? (Types[1] extends true ? true : false) : false;
 type MutuallyExtends<Left, Right> = And<
-  [Left extends Right ? true : false, Right extends Left ? true : false]
+  (Left extends Right ? true : false, Right extends Left ? true : false)
 >;
 
 type Result = MutuallyExtends<number, number>;
@@ -134,7 +135,7 @@ value satisfies true;
 
 ### tuple type arguments stay grouped
 
-> Tuple type arguments remain grouped for direct aliases.
+Tuple type arguments remain grouped for direct aliases.
 
 ```ds
 type Wrap<T> = T;
@@ -146,16 +147,17 @@ value satisfies (number, string);
 
 ### imported tuple arguments stay grouped
 
-> Tuple static arguments stay grouped across imported aliases.
+Tuple static arguments stay grouped across imported aliases.
 
 ```ds:utils.ds
-export type And<Types extends boolean[]> = Types[number] extends true ? true : false;
+export type And<Types extends (boolean, boolean)> =
+    Types[0] extends true ? (Types[1] extends true ? true : false) : false;
 ```
 
 ```ds:branding.ds
 import type { And } from "./utils.ds";
 
-export type Alias = And<[true, true]>;
+export type Alias = And<(true, true)>;
 ```
 
 ```ds:main.ds
@@ -167,7 +169,7 @@ value satisfies true;
 
 ### imported tuple types stay grouped
 
-> Tuple type arguments stay grouped across imported aliases.
+Tuple type arguments stay grouped across imported aliases.
 
 ```ds:utils.ds
 export type Wrap<T> = T;
@@ -183,12 +185,13 @@ value satisfies (number, string);
 
 ### nested tuple arguments stay grouped
 
-> Tuple static arguments remain grouped through nested alias wrappers.
+Tuple static arguments remain grouped through nested alias wrappers.
 
 ```ds
-type And<Types extends boolean[]> = Types[number] extends true ? true : false;
+type And<Types extends (boolean, boolean)> =
+    Types[0] extends true ? (Types[1] extends true ? true : false) : false;
 type Wrap<T> = T;
-type Alias = Wrap<And<[true, true]>>;
+type Alias = Wrap<And<(true, true)>>;
 
 declare let value: Alias;
 value satisfies true;
@@ -196,13 +199,14 @@ value satisfies true;
 
 ### imported alias chains preserve tuple arguments
 
-> Type alias references preserve tuple static arguments across imports.
+Type alias references preserve tuple static arguments across imports.
 
 ```ds:utils.ds
-export type And<Types extends boolean[]> = Types[number] extends true ? true : false;
+export type And<Types extends (boolean, boolean)> =
+    Types[0] extends true ? (Types[1] extends true ? true : false) : false;
 
 export type MutuallyExtends<Left, Right> = And<
-  [Left extends Right ? true : false, Right extends Left ? true : false]
+  (Left extends Right ? true : false, Right extends Left ? true : false)
 >;
 ```
 

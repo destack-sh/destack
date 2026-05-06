@@ -6,7 +6,7 @@
 
 ### borrow keeps the original binding
 
-> A borrow capture gives the closure borrowed access and keeps the original binding live.
+Borrow captures give the closure borrowed access and keep the original binding live.
 
 ```ds
 struct Packet {
@@ -30,7 +30,7 @@ function run(): void {
 
 ### borrow keeps a borrow active
 
-> Moving a borrowed capture is rejected while the closure can still use it.
+Moving a borrowed capture is rejected while the closure can still use it.
 
 ```ds
 struct Packet {
@@ -58,7 +58,7 @@ function run(): void {
 
 ### copy snapshots the binding value
 
-> A copy capture duplicates the value and keeps the original binding usable.
+Copy captures duplicate values that implement `Copy` and keep the original binding usable.
 
 ```ds
 let count: int32 = 1;
@@ -73,7 +73,7 @@ read() satisfies int32;
 
 ### copy requires Copy
 
-> Copy capture can only duplicate values that implement `Copy`.
+Copy captures can only duplicate values that implement `Copy`.
 
 ```ds
 struct Socket {
@@ -94,7 +94,7 @@ function run(): void {
 
 ### move transfers ownership into the closure
 
-> A move capture consumes the captured binding for the closure environment.
+Move captures consume captured bindings for the closure environment.
 
 ```ds
 struct Packet {
@@ -112,7 +112,7 @@ function run(): () => int32 {
 
 ### move can capture explicit owned values
 
-> Explicit owned forms can also move into the closure environment.
+Explicit owned forms can also move into the closure environment.
 
 ```ds
 struct Packet {
@@ -130,7 +130,7 @@ function run(): () => int32 {
 
 ### move consumes the original binding
 
-> A moved capture cannot be used through the original binding afterwards.
+Moved captures cannot be used through the original binding afterwards.
 
 ```ds
 struct Packet {
@@ -152,9 +152,9 @@ function run(): void {
 
 - contains: use of moved value
 
-### directives configure individual bindings
+### object directives configure individual bindings
 
-> Object form sets a default and overrides selected captures.
+Object directives set a default policy and override selected captures.
 
 ```ds
 struct Socket {
@@ -176,7 +176,7 @@ function run(): () => int32 {
 
 ### static directives are allowed
 
-> Capture directives can come from static values.
+Capture directives can come from static values.
 
 ```ds
 const policy: CaptureDirective = "copy";

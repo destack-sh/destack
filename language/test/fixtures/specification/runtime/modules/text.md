@@ -6,7 +6,7 @@ Text modules import as strings.
 
 ### text files import as strings
 
-> Text file extensions use the text loader by default.
+Text file extensions use the text loader by default.
 
 ```text:readme.txt
 Hello, World!
@@ -20,7 +20,7 @@ content satisfies string;
 
 ### text import attributes override data defaults
 
-> The text loader can be selected explicitly with an import attribute.
+The text loader can be selected explicitly with an import attribute.
 
 ```json:data.json
 { "key": "value" }

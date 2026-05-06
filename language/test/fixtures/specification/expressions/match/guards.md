@@ -7,7 +7,7 @@ They can use both the matched value and bindings introduced by the pattern.
 
 ### is guards narrow the arm
 
-> `is` guards narrow the matched value.
+`is` guards narrow the matched value.
 
 ```ds
 struct Foo {
@@ -31,7 +31,7 @@ function pick(value: Foo | Bar): int32 {
 
 ### in guards narrow the arm
 
-> `in` guards narrow object unions.
+`in` guards narrow object unions.
 
 ```ds
 type WithX = { x: int32 };
@@ -50,7 +50,7 @@ function pick(value: WithX | WithY): int32 {
 
 ### guards can use pattern bindings
 
-> Pattern bindings are in scope for the guard.
+Pattern bindings are in scope for the guard.
 
 ```ds
 struct Point {
@@ -72,7 +72,7 @@ function clamp(point: Point | Other): int32 {
 
 ### guard narrowing stays in its arm
 
-> Later arms see the original matched type.
+Later arms see the original matched type.
 
 ```ds
 struct Foo {
@@ -96,7 +96,7 @@ function pick(value: Foo | Bar): int32 {
 
 ### typeof guards narrow the arm
 
-> `typeof` guards narrow the matched value.
+`typeof` guards narrow the matched value.
 
 ```ds
 function pick(value: string | int32): int32 {
@@ -112,7 +112,7 @@ function pick(value: string | int32): int32 {
 
 ### boolean guards keep narrowing facts
 
-> `&&` keeps narrowing from its left side.
+`&&` keeps narrowing from its left side.
 
 ```ds
 struct Foo {

@@ -6,7 +6,7 @@ Associated members stay attached to the imported type.
 
 ### imports keep type members
 
-> A type member can be used through an imported type.
+A type member can be used through an imported type.
 
 ```ds:layout.ds
 export struct Box<T> {
@@ -24,7 +24,7 @@ value satisfies string;
 
 ### imports keep constant members
 
-> A constant member can be used through an imported type.
+A constant member can be used through an imported type.
 
 ```ds:layout.ds
 export class FrameLayout {
@@ -45,7 +45,7 @@ bytes satisfies 4096;
 
 ### imported requirements keep defaults
 
-> Interface defaults still apply when the interface and implementation are imported from different modules.
+Interface defaults still apply when the interface and implementation are imported from different modules.
 
 ```ds:profile.ds
 export interface RegisterBlock {
@@ -71,7 +71,7 @@ bytes satisfies [uint8; 4];
 
 ### namespace imports keep associated members
 
-> Associated members remain available through namespace imports.
+Associated members remain available through namespace imports.
 
 ```ds:layout.ds
 export class Segment<Row> {

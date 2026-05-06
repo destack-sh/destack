@@ -4,7 +4,7 @@
 
 ### JSON object imports resolve
 
-> JSON files can be imported as data modules.
+JSON files can be imported as data modules.
 
 ```json:data.json
 {
@@ -22,7 +22,7 @@ data;
 
 ### JSON array imports resolve
 
-> Arrays can be imported from JSON files.
+Arrays can be imported from JSON files.
 
 ```json:numbers.json
 [1, 2, 3, 4, 5]
@@ -38,7 +38,7 @@ numbers;
 
 ### override loader with type attribute
 
-> The `type` attribute overrides the default loader for a file.
+The `type` attribute overrides the default loader for a file.
 
 ```json:data.json
 { "key": "value" }
@@ -53,7 +53,7 @@ text;
 
 ### same file with different loaders produces different modules
 
-> The same file can be imported multiple times with different loaders.
+The same file can be imported multiple times with different loaders.
 
 ```json:data.json
 { "key": "value" }
@@ -69,7 +69,7 @@ text;
 
 ### re-export supports type attribute loader overrides
 
-> Re-export declarations apply the same loader override semantics as imports.
+Re-export declarations apply the same loader override semantics as imports.
 
 ```json:data.json
 { "key": "value" }
@@ -87,7 +87,7 @@ text satisfies string;
 
 ### unknown type attribute reports an error
 
-> Unknown loader type attributes are rejected.
+Unknown loader type attributes are rejected.
 
 ```json:data.json
 { "key": "value" }
@@ -120,7 +120,7 @@ data.age satisfies 30;
 
 ### nested object property access is typed
 
-> Nested object properties keep literal types.
+Nested object properties keep literal types.
 
 ```json:config.json
 {
@@ -137,9 +137,9 @@ config.server.port satisfies 8080;
 config.debug satisfies true;
 ```
 
-### array imports are tuples
+### array imports keep tuple shape
 
-> Array imports keep literal tuple shape.
+Array imports keep literal tuple shape.
 
 ```json:numbers.json
 [1, 2, 3]
@@ -148,7 +148,7 @@ config.debug satisfies true;
 ```ds:main.ds
 import numbers from "./numbers.json.ds";
 
-numbers satisfies readonly [1, 2, 3];
+numbers satisfies readonly (1, 2, 3);
 numbers[0] satisfies 1;
 numbers[2] satisfies 3;
 ```
@@ -175,7 +175,7 @@ user.name satisfies string;
 
 ### nonexistent property access is error
 
-> Accessing a property that doesn't exist on imported data is a type error.
+Accessing a property that doesn't exist on imported data is a type error.
 
 ```json:data.json
 { "name": "Alice" }
@@ -191,7 +191,7 @@ data.nonexistent;
 
 ### base64 import is typed as string
 
-> Files imported with base64 loader are encoded and typed as string.
+Files imported with base64 loader are encoded and typed as string.
 
 ```text:data.txt
 Hello!
@@ -205,7 +205,7 @@ encoded satisfies string;
 
 ### namespace import from JSON is typed
 
-> Namespace JSON imports resolve and expose JSON object members directly.
+Namespace JSON imports resolve and expose JSON object members directly.
 
 ```json:data.json
 {
@@ -217,6 +217,6 @@ encoded satisfies string;
 ```ds:main.ds
 import * as data from "./data.json.ds";
 
-data.name satisfies string;
-data.age satisfies number;
+data.name satisfies "Alice";
+data.age satisfies 30;
 ```

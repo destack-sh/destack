@@ -114,7 +114,7 @@ first satisfies string;
 ```ds
 type Element<T extends string[]> = T[number];
 
-declare const value: Element<["a", "b"]>;
+declare const value: Element<string[]>;
 value satisfies string;
 ```
 

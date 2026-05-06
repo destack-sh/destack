@@ -6,7 +6,7 @@ Comptime conditions use compile-time boolean values for late branch elimination.
 
 ### comptime conditions keep joined branch types
 
-> Comptime conditions type check like ordinary if-expressions.
+Comptime conditions type check like ordinary if-expressions.
 
 ```ds
 const value = if (comptime true) { 1 } else { 2 };
@@ -15,7 +15,7 @@ value satisfies 1 | 2;
 
 ### comptime conditions check both branches
 
-> Both branches must type check against the surrounding expectation.
+Both branches must type check against the surrounding expectation.
 
 ```ds
 const value: int32 = if (comptime true) { 1 } else { "nope" };
@@ -25,7 +25,7 @@ const value: int32 = if (comptime true) { 1 } else { "nope" };
 
 ### comptime conditions use static parameters
 
-> Static value parameters can choose lowering-time expression flow.
+Static value parameters can choose lowering-time expression flow.
 
 ```ds
 function choose<comptime UseFastPath: bool>(): int32 {
@@ -42,7 +42,7 @@ choose<false>() satisfies int32;
 
 ### comptime conditions call functions with static inputs
 
-> Ordinary code can compute a late-eliminated condition from static inputs.
+Ordinary code can compute a late-eliminated condition from static inputs.
 
 ```ds
 function isPowerOfTwo(value: uint): bool {
@@ -75,7 +75,7 @@ blockCost<15>() satisfies int32;
 
 ### comptime conditions use inferred static parameters
 
-> Inferred static values can choose lowering-time expression flow after instantiation.
+Inferred static values can choose lowering-time expression flow after instantiation.
 
 ```ds
 function length<T, comptime N: uint>(values: [T; N]): N {
@@ -94,7 +94,7 @@ n satisfies 3;
 
 ### comptime conditions reject runtime values
 
-> Dynamic parameters cannot choose comptime flow.
+Dynamic parameters cannot choose comptime flow.
 
 ```ds
 function choose(flag: bool): int32 {

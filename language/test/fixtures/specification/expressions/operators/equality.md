@@ -6,7 +6,7 @@
 
 ### number equals number
 
-> Numeric equality produces boolean.
+Numeric equality produces boolean.
 
 ```ds
 const value = 1 == 1;
@@ -15,7 +15,7 @@ value satisfies boolean;
 
 ### string equals string
 
-> String equality produces boolean.
+String equality produces boolean.
 
 ```ds
 const value = "a" == "b";
@@ -24,7 +24,7 @@ value satisfies boolean;
 
 ### not equal produces boolean
 
-> `!=` produces boolean.
+`!=` produces boolean.
 
 ```ds
 const value = 1 != 2;
@@ -35,7 +35,7 @@ value satisfies boolean;
 
 ### strict equality accepts primitives
 
-> `===` and `!==` are accepted on primitive identity-compatible values.
+`===` and `!==` are accepted on primitive identity-compatible values.
 
 ```ds
 const same = 1 === 1;
@@ -47,7 +47,7 @@ different satisfies boolean;
 
 ### strict equality rejects structs
 
-> Struct values do not have identity equality.
+Struct values do not have identity equality.
 
 ```ds
 struct Point { x: int }
@@ -65,7 +65,7 @@ left !== right;
 
 ### strict equality allows classes
 
-> Class instances have identity equality.
+Class instances have identity equality.
 
 ```ds
 class Box {}
@@ -81,7 +81,7 @@ same satisfies boolean;
 
 ### equality dispatches to Equal
 
-> `==` and `!=` dispatch to `Equal` on the receiver.
+`==` and `!=` dispatch to `Equal` on the receiver.
 
 ```ds
 struct Measure { value: int }
@@ -104,7 +104,7 @@ isNotEqual satisfies boolean;
 
 ### equality requires Equal
 
-> Value equality requires `Equal` for non-builtin value types.
+Value equality requires `Equal` for non-builtin value types.
 
 ```ds
 struct Measure { value: int }

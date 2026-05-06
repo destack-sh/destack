@@ -6,7 +6,7 @@ Implicit numeric conversions only widen.
 
 ### int8 to int16
 
-> Smaller signed integers can be assigned to larger signed integers.
+Smaller signed integers can be assigned to larger signed integers.
 
 ```ds
 function takeInt16(value: int16): void {}
@@ -16,7 +16,7 @@ takeInt16(smallInteger);
 
 ### int32 to int64
 
-> Int32 can widen to int64.
+Int32 can widen to int64.
 
 ```ds
 function takeInt64(value: int64): void {}
@@ -26,7 +26,7 @@ takeInt64(mediumInteger);
 
 ### int16 to int8 rejects narrowing
 
-> Larger integers cannot narrow to smaller integers.
+Larger integers cannot narrow to smaller integers.
 
 ```ds
 function takeInt8(value: int8): void {}
@@ -38,7 +38,7 @@ takeInt8(mediumInteger);
 
 ### uint8 to int16
 
-> Unsigned integers can widen to larger signed integers.
+Unsigned integers can widen to larger signed integers.
 
 ```ds
 function takeInt16(value: int16): void {}
@@ -48,7 +48,7 @@ takeInt16(smallUnsigned);
 
 ### int8 to uint8 rejects sign changes
 
-> Signed integers cannot widen to unsigned (may lose negative values).
+Signed integers cannot widen to unsigned (may lose negative values).
 
 ```ds
 function takeUint8(value: uint8): void {}
@@ -62,7 +62,7 @@ takeUint8(signedInteger);
 
 ### float32 to float64
 
-> Smaller floats can widen to larger floats.
+Smaller floats can widen to larger floats.
 
 ```ds
 function takeFloat64(value: float64): void {}
@@ -72,7 +72,7 @@ takeFloat64(smallFloat);
 
 ### float64 to float32 rejects narrowing
 
-> Larger floats cannot narrow to smaller floats.
+Larger floats cannot narrow to smaller floats.
 
 ```ds
 function takeFloat32(value: float32): void {}
@@ -86,7 +86,7 @@ takeFloat32(largeFloat);
 
 ### int32 to float64
 
-> Integers can widen to floats.
+Integers can widen to floats.
 
 ```ds
 function takeFloat64(value: float64): void {}
@@ -98,7 +98,7 @@ takeFloat64(integer);
 
 ### int32 to number
 
-> Any integer type can widen to number.
+Any integer type can widen to number.
 
 ```ds
 function takeNumber(value: number): void {}
@@ -108,7 +108,7 @@ takeNumber(integer);
 
 ### float64 to number
 
-> Any float type can widen to number.
+Any float type can widen to number.
 
 ```ds
 function takeNumber(value: number): void {}

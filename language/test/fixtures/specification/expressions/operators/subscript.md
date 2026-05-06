@@ -6,7 +6,7 @@ Subscript operators use builtin indexed access and receiver interfaces for overl
 
 ### index access dispatches to Index
 
-> Index access uses the Index interface when implemented.
+Index access uses the Index interface when implemented.
 
 ```ds
 struct Bag { value: int }
@@ -28,7 +28,7 @@ value satisfies int;
 
 ### index assignment dispatches to IndexSet
 
-> Index assignment uses the IndexSet interface when implemented.
+Index assignment uses the IndexSet interface when implemented.
 
 ```ds
 struct Bag { value: int }
@@ -45,7 +45,7 @@ bag[1] = 2;
 
 ### index assignment checks value type
 
-> Index assignment requires the value to match the index set parameter type.
+Index assignment requires the value to match the index set parameter type.
 
 ```ds
 struct Bag { value: int }
@@ -64,7 +64,7 @@ bag[1] = "nope";
 
 ### index access rejects missing Index
 
-> Index access requires an `Index` implementation.
+Index access requires an `Index` implementation.
 
 ```ds
 struct Bag { value: int }
@@ -80,7 +80,7 @@ value satisfies int;
 
 ### index assignment rejects missing IndexSet
 
-> Index assignment requires an `IndexSet` implementation.
+Index assignment requires an `IndexSet` implementation.
 
 ```ds
 struct Bag { value: int }
@@ -95,7 +95,7 @@ bag[1] = 2;
 
 ### index access checks key type rules
 
-> Index access rejects keys that do not match the index key type.
+Index access rejects keys that do not match the index key type.
 
 ```ds
 struct Bag { value: int }

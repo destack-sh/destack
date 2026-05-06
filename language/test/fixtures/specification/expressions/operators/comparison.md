@@ -6,7 +6,7 @@
 
 ### less than produces boolean
 
-> `<` produces boolean.
+`<` produces boolean.
 
 ```ds
 const value = 1 < 2;
@@ -15,7 +15,7 @@ value satisfies boolean;
 
 ### greater than produces boolean
 
-> `>` produces boolean.
+`>` produces boolean.
 
 ```ds
 const value = 2 > 1;
@@ -24,7 +24,7 @@ value satisfies boolean;
 
 ### less than or equal produces boolean
 
-> `<=` produces boolean.
+`<=` produces boolean.
 
 ```ds
 const value = 1 <= 2;
@@ -33,7 +33,7 @@ value satisfies boolean;
 
 ### greater than or equal produces boolean
 
-> `>=` produces boolean.
+`>=` produces boolean.
 
 ```ds
 const value = 2 >= 1;
@@ -44,7 +44,7 @@ value satisfies boolean;
 
 ### comparison dispatches to Compare
 
-> Ordering operators dispatch to `Compare` on the receiver.
+Ordering operators dispatch to `Compare` on the receiver.
 
 ```ds
 struct Measure { value: int }
@@ -73,7 +73,7 @@ isGreaterEqual satisfies boolean;
 
 ### comparison requires Compare
 
-> Ordering operators require `Compare` for non-builtin value types.
+Ordering operators require `Compare` for non-builtin value types.
 
 ```ds
 struct Measure { value: int }
@@ -94,7 +94,7 @@ left < right;
 
 ### comparison requires the right operand type
 
-> `Compare<R>` only accepts right operands assignable to `R`.
+`Compare<R>` only accepts right operands assignable to `R`.
 
 ```ds
 struct Measure { value: int }

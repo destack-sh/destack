@@ -4,7 +4,7 @@
 
 ### enum matches need full coverage
 
-> Enum matches must cover every field or use a fallback arm.
+Enum matches must cover every field or use a fallback arm.
 
 ```ds
 enum State {
@@ -25,7 +25,7 @@ function label(state: State): string {
 
 ### enum matches cover every field
 
-> Covering every enum field is exhaustive.
+Covering every enum field is exhaustive.
 
 ```ds
 enum State {
@@ -45,7 +45,7 @@ function label(state: State): string {
 
 ### fallback arms cover enums
 
-> A fallback arm covers the remaining enum fields.
+A fallback arm covers the remaining enum fields.
 
 ```ds
 enum State {
@@ -67,7 +67,7 @@ function label(state: State): string {
 
 ### literal unions need full coverage
 
-> Literal unions must cover every literal or use a fallback arm.
+Literal unions must cover every literal or use a fallback arm.
 
 ```ds
 type Status = "ready" | "loading" | "error";
@@ -84,7 +84,7 @@ function label(status: Status): string {
 
 ### boolean matches cover true and false
 
-> `true` and `false` cover `boolean`.
+`true` and `false` cover `boolean`.
 
 ```ds
 function label(value: boolean): int32 {
@@ -97,7 +97,7 @@ function label(value: boolean): int32 {
 
 ### boolean unions keep other literals
 
-> Boolean literals and other literals must all be covered.
+Boolean literals and other literals must all be covered.
 
 ```ds
 type Status = boolean | "pending";
@@ -113,7 +113,7 @@ function label(status: Status): number {
 
 ### string literal unions cover every member
 
-> String literal unions are exhaustive when every literal is covered.
+String literal unions are exhaustive when every literal is covered.
 
 ```ds
 type Mode = "open" | "closed";
@@ -128,7 +128,7 @@ function label(mode: Mode): string {
 
 ### number literal unions cover every member
 
-> Number literal unions are exhaustive when every literal is covered.
+Number literal unions are exhaustive when every literal is covered.
 
 ```ds
 type Level = 1 | 2 | 3;
@@ -144,7 +144,7 @@ function label(level: Level): string {
 
 ### bigint literal unions cover every member
 
-> Bigint literal unions are exhaustive when every literal is covered.
+Bigint literal unions are exhaustive when every literal is covered.
 
 ```ds
 type Bits = 1n | 2n;
@@ -159,7 +159,7 @@ function label(bits: Bits): int32 {
 
 ### nullish unions cover null and undefined
 
-> `null` and `undefined` both need coverage.
+`null` and `undefined` both need coverage.
 
 ```ds
 type Maybe = null | undefined;
@@ -174,7 +174,7 @@ function label(value: Maybe): string {
 
 ### fallback arms cover literal unions
 
-> A fallback arm covers the remaining literal members.
+A fallback arm covers the remaining literal members.
 
 ```ds
 type Status = "ready" | "loading" | "error";
@@ -190,7 +190,7 @@ function label(status: Status): string {
 
 ### union patterns cover multiple literals
 
-> Union patterns cover each listed literal.
+Union patterns cover each listed literal.
 
 ```ds
 type Status = 1 | 2 | 3;
@@ -205,7 +205,7 @@ function label(status: Status): int32 {
 
 ### tuple discriminants cover tuple unions
 
-> Literal tuple positions cover tuple union members.
+Literal tuple positions cover tuple union members.
 
 ```ds
 type Pair = (1, string) | (2, string);
@@ -226,7 +226,7 @@ function normalize(pair: Pair): int32 {
 
 ### tuple union patterns cover multiple discriminants
 
-> Union patterns cover multiple tuple discriminants.
+Union patterns cover multiple tuple discriminants.
 
 ```ds
 type Pair = (1, string) | (2, string) | (3, string);
@@ -243,7 +243,7 @@ function normalize(pair: Pair): int32 {
 
 ### open unions need fallback arms
 
-> Unions with open members need a fallback arm.
+Unions with open members need a fallback arm.
 
 ```ds
 type Mixed = string | number;
@@ -260,7 +260,7 @@ function label(value: Mixed): string {
 
 ### missing tuple discriminants are non-exhaustive
 
-> Tuple unions are non-exhaustive when a discriminant literal is missing.
+Tuple unions are non-exhaustive when a discriminant literal is missing.
 
 ```ds
 type Pair = (1, string) | (2, string);
@@ -279,7 +279,7 @@ function normalize(pair: Pair): int32 {
 
 ### guarded tuple arms need fallback arms
 
-> Guarded arms do not prove tuple coverage.
+Guarded arms do not prove tuple coverage.
 
 ```ds
 type Pair = (1, string) | (2, string);
@@ -300,7 +300,7 @@ function normalize(pair: Pair): int32 {
 
 ### discriminated unions need full coverage
 
-> Discriminated unions must cover every tag or use a fallback arm.
+Discriminated unions must cover every tag or use a fallback arm.
 
 ```ds
 type Shape =
@@ -318,7 +318,7 @@ function area(shape: Shape): int32 {
 
 ### discriminated unions cover every tag
 
-> Discriminated unions are exhaustive when every discriminant is covered.
+Discriminated unions are exhaustive when every discriminant is covered.
 
 ```ds
 type Shape =
@@ -335,7 +335,7 @@ function area(shape: Shape): int32 {
 
 ### union tag patterns cover multiple variants
 
-> Union patterns on tag fields cover each listed variant.
+Union patterns on tag fields cover each listed variant.
 
 ```ds
 type Shape =
@@ -353,7 +353,7 @@ function area(shape: Shape): int32 {
 
 ### fallback arms cover discriminated unions
 
-> A fallback arm covers the remaining variants.
+A fallback arm covers the remaining variants.
 
 ```ds
 type Shape =
@@ -370,7 +370,7 @@ function area(shape: Shape): int32 {
 
 ### nested discriminants still need full coverage
 
-> Nested object discriminant matches must still cover every union variant.
+Nested object discriminant matches must still cover every union variant.
 
 ```ds
 type Envelope =
@@ -388,7 +388,7 @@ function label(envelope: Envelope): int32 {
 
 ### wildcard tags cover remaining variants
 
-> Wildcard tag fields cover the remaining variants.
+Wildcard tag fields cover the remaining variants.
 
 ```ds
 type Envelope =
@@ -407,7 +407,7 @@ function label(envelope: Envelope): int32 {
 
 ### irrefutable bindings cover the value
 
-> Binding patterns are irrefutable and satisfy exhaustiveness.
+Binding patterns are irrefutable and satisfy exhaustiveness.
 
 ```ds
 function identity(value: number): number {
@@ -421,7 +421,7 @@ function identity(value: number): number {
 
 ### guarded arms need fallback arms
 
-> Guarded arms do not prove exhaustiveness.
+Guarded arms do not prove exhaustiveness.
 
 ```ds
 function pick(value: int32): int32 {
@@ -435,7 +435,7 @@ function pick(value: int32): int32 {
 
 ### open array patterns need fallback arms
 
-> Array patterns over open arrays require a fallback.
+Array patterns over open arrays require a fallback.
 
 ```ds
 function firstTwo(values: number[]): number {

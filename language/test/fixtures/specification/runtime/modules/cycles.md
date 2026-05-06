@@ -6,7 +6,7 @@ Module cycles must not require cross-module inference.
 
 ### unannotated cycles require type annotations
 
-> Exported bindings do not infer through module cycles.
+Exported bindings do not infer through module cycles.
 
 ```ds:a.ds
 import { y } from "./b.ds";
@@ -24,7 +24,7 @@ export const y = x;
 
 ### partially annotated cycles still require local annotations
 
-> One annotation does not infer the rest of a module cycle.
+One annotation does not infer the rest of a module cycle.
 
 ```ds:a.ds
 import { y } from "./b.ds";
@@ -42,7 +42,7 @@ export const y = x;
 
 ### fully annotated cycles are allowed
 
-> Fully annotated exports do not require cycle inference.
+Fully annotated exports do not require cycle inference.
 
 ```ds:a.ds
 import { y } from "./b.ds";
@@ -58,7 +58,7 @@ export const y: number = x;
 
 ### unannotated three-module cycles require type annotations
 
-> Longer cycles follow the same local inference rule.
+Longer cycles follow the same local inference rule.
 
 ```ds:a.ds
 import { y } from "./b.ds";
@@ -82,7 +82,7 @@ export const z = x;
 
 ### three-module cycles need all inferred exports annotated
 
-> A single annotation does not solve downstream exports in the cycle.
+A single annotation does not solve downstream exports in the cycle.
 
 ```ds:a.ds
 import { y } from "./b.ds";
@@ -106,7 +106,7 @@ export const z = x;
 
 ### namespace cycles require type annotations
 
-> Namespace-based export cycles still require local annotations.
+Namespace-based export cycles still require local annotations.
 
 ```ds:a.ds
 import * as b from "./b.ds";
@@ -124,7 +124,7 @@ export const y = a.x;
 
 ### namespace cycles need all inferred exports annotated
 
-> One annotation does not infer namespace-imported cycle members.
+One annotation does not infer namespace-imported cycle members.
 
 ```ds:a.ds
 import * as b from "./b.ds";
@@ -142,7 +142,7 @@ export const y = a.x;
 
 ### reexported cycles require type annotations
 
-> Reexport chains inside a cycle still require local annotations.
+Reexport chains inside a cycle still require local annotations.
 
 ```ds:a.ds
 import { y } from "./forward.ds";
@@ -164,7 +164,7 @@ export const y = x;
 
 ### reexported cycles need all inferred exports annotated
 
-> One annotation does not solve an inferred export behind a reexport.
+One annotation does not solve an inferred export behind a reexport.
 
 ```ds:a.ds
 import { y } from "./forward.ds";

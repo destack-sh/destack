@@ -4,7 +4,7 @@
 
 ### associated aliases can use outer generic arguments
 
-> Associated aliases can refer to generic parameters from their type.
+Associated aliases can refer to generic parameters from their type.
 
 ```ds
 class Topic<T extends string> {
@@ -17,7 +17,7 @@ channel satisfies `topic:${"orders"}`;
 
 ### interface defaults can use outer and member parameters
 
-> Implementors inherit associated defaults that mention both parameter lists.
+Implementors inherit associated defaults that mention both parameter lists.
 
 ```ds
 interface Envelope<T extends string> {
@@ -32,8 +32,8 @@ label satisfies `${"orders"}:${"created"}`;
 
 ### associated aliases can remap keys
 
-> Associated aliases can include mapped key remapping with template literals.
-> The resulting object keeps the remapped keys and value types.
+Associated aliases can include mapped key remapping with template literals.
+The resulting object keeps the remapped keys and value types.
 
 ```ds
 interface EventShape<T> {
@@ -51,7 +51,7 @@ handlers satisfies { "on-ready": boolean, "on-message": string };
 
 ### associated aliases can infer template spans
 
-> Conditional aliases can infer spans from template literals.
+Conditional aliases can infer spans from template literals.
 
 ```ds
 class EventName<T extends string> {
@@ -64,7 +64,7 @@ kind satisfies "login";
 
 ### constrained generics can use associated aliases
 
-> Generic constraints make associated aliases available in parameter types.
+Generic constraints make associated aliases available in parameter types.
 
 ```ds
 interface Envelope<T extends string> {

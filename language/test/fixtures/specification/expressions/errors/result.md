@@ -45,17 +45,16 @@ value satisfies Result<int, ParseError>;
 
 ## narrowing
 
-### discriminant narrows result variants
+### patterns narrow result variants
 
-Discriminant checks narrow to `Ok` and `Err` variants.
+Result patterns narrow to `Ok` and `Err` variants.
 
 ```ds
 const value: Result<int, string> = Result.ok(1);
 
-if (value.kind == "Ok") {
-    value.value satisfies int;
-} else {
-    value.error satisfies string;
+match (value) {
+    Ok { value } => value satisfies int
+    Err { error } => error satisfies string
 }
 ```
 

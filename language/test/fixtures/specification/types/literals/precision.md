@@ -83,7 +83,7 @@ config.nested.mode satisfies "dev";
 Const assertions preserve tuple literal members.
 
 ```ds
-const pair = [1, 2] as const;
+const pair = (1, 2) as const;
 
 pair[0] satisfies 1;
 pair[1] satisfies 2;

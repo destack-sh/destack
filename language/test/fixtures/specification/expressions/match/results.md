@@ -5,9 +5,9 @@ Arm bodies then join like other expression branches.
 
 ## pattern bindings
 
-### const tuples keep literal elements
+### const arrays keep literal elements
 
-> Const tuple patterns bind literal elements.
+Const array patterns bind literal elements.
 
 ```ds
 const pair = [1, 2] as const;
@@ -22,8 +22,8 @@ match (pair) {
 
 ### plain arrays widen elements
 
-> Array element bindings widen without a const context.
-> Open arrays need a fallback arm.
+Array element bindings widen without a const context.
+Open arrays need a fallback arm.
 
 ```ds
 const pair = [1, 2];
@@ -39,7 +39,7 @@ match (pair) {
 
 ### fixed arrays are exhaustive by length
 
-> Fixed array patterns cover every element position.
+Fixed array patterns cover every element position.
 
 ```ds
 declare const pair: [int32; 2];
@@ -54,7 +54,7 @@ match (pair) {
 
 ### let bindings widen match results
 
-> Let bindings widen match results without an annotation.
+Let bindings widen match results without an annotation.
 
 ```ds
 let value = match (1) {
@@ -67,7 +67,7 @@ value satisfies number;
 
 ### literal scrutinees still use binding widening
 
-> Exhaustive literal matches still widen at let bindings.
+Exhaustive literal matches still widen at let bindings.
 
 ```ds
 let value = match (1) {
@@ -79,7 +79,7 @@ value satisfies number;
 
 ### fresh literal results widen in let bindings
 
-> Let bindings widen fresh literal results to their primitive types.
+Let bindings widen fresh literal results to their primitive types.
 
 ```ds
 let value = match (1) {
@@ -96,7 +96,7 @@ value satisfies 1;
 
 ### result annotations check arms
 
-> Each arm must satisfy the annotated result type.
+Each arm must satisfy the annotated result type.
 
 ```ds
 function choose(value: int32): string {
@@ -112,7 +112,7 @@ function choose(value: int32): string {
 
 ### const bindings keep literal unions
 
-> Const bindings keep literal unions.
+Const bindings keep literal unions.
 
 ```ds
 const value = match (1) {

@@ -6,7 +6,7 @@ The `never` type (bottom type).
 
 ### never to number
 
-> Never is the bottom type, assignable to any type.
+Never is the bottom type, assignable to any type.
 
 ```ds
 function fail(): never { throw "error" }
@@ -15,7 +15,7 @@ const x: number = fail()
 
 ### never to string
 
-> A function returning never can be assigned to any type.
+A function returning never can be assigned to any type.
 
 ```ds
 function fail(): never { throw "error" }
@@ -26,7 +26,7 @@ const x: string = fail()
 
 ### number to never is rejected
 
-> Concrete values are not assignable to never.
+Concrete values are not assignable to never.
 
 ```ds
 const x: never = 1;
@@ -36,7 +36,7 @@ const x: never = 1;
 
 ### string to never is rejected
 
-> String values are not assignable to never.
+String values are not assignable to never.
 
 ```ds
 const x: never = "no";
@@ -46,7 +46,7 @@ const x: never = "no";
 
 ### union with never simplifies to the other member
 
-> Unions with never simplifies to the non-never member.
+Unions with never simplifies to the non-never member.
 
 ```ds
 type Value = never | string;
@@ -57,7 +57,7 @@ x satisfies string;
 
 ### intersection with never rejects all concrete values
 
-> Intersections with never collapse to never and reject concrete values.
+Intersections with never collapse to never and reject concrete values.
 
 ```ds
 type Value = never & string;

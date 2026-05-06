@@ -1,8 +1,8 @@
-# Directives
+# Limits
 
 ## managed
 
-### no managed rejects managed allocations
+### noManaged rejects managed allocations
 
 `@noManaged` forbids managed allocations inside the annotated body.
 
@@ -19,7 +19,7 @@ function run(): void {
 
 - contains: managed memory is disabled
 
-### no managed allows owned values
+### noManaged allows owned values
 
 `@noManaged` allows owned value construction.
 
@@ -35,7 +35,7 @@ function run(): void {
 }
 ```
 
-### stack only rejects managed allocations
+### stackOnly rejects managed allocations
 
 `@stackOnly` forbids managed allocations inside the annotated body.
 
@@ -52,7 +52,7 @@ function run(): void {
 
 - contains: managed memory is disabled
 
-### no managed rejects managed parameters
+### noManaged rejects managed parameters
 
 `@noManaged` forbids managed types in signatures.
 
@@ -68,7 +68,7 @@ function take(value: Box): void {
 
 - contains: managed memory is disabled
 
-### no managed rejects managed returns
+### noManaged rejects managed returns
 
 `@noManaged` forbids managed return types.
 

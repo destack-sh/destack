@@ -6,7 +6,7 @@ Functions declare parameters, return types, and declaration-only signatures.
 
 ### functions can have no parameters
 
-> Functions can be declared with no parameters.
+Functions can be declared with no parameters.
 
 ```ds
 function f(): void {}
@@ -14,7 +14,7 @@ function f(): void {}
 
 ### functions can have parameters
 
-> Functions can have typed parameters.
+Functions can have typed parameters.
 
 ```ds
 function add(a: number, b: number): void {
@@ -25,7 +25,7 @@ function add(a: number, b: number): void {
 
 ### functions can have return types
 
-> Functions specify their return type after the parameter list.
+Functions specify their return type after the parameter list.
 
 ```ds
 function greet(name: string): string {
@@ -38,23 +38,23 @@ function greet(name: string): string {
 
 ### declared async functions are allowed
 
-> Declared function signatures can use async markers.
+Declared function signatures can use async markers.
 
 ```ds
-declare async function load(): void
+declare async function load(): Promise<void>
 ```
 
 ### declared generator functions are allowed
 
-> Declared function signatures can use generator markers.
+Declared function signatures can use generator markers.
 
 ```ds
-declare function* ids(): void
+declare function* ids(): Generator<int32, void, unknown>
 ```
 
 ### declared functions cannot have bodies
 
-> Declared functions cannot include bodies.
+Declared functions cannot include bodies.
 
 ```ds
 declare function greet(): string {
@@ -68,7 +68,7 @@ declare function greet(): string {
 
 ### declaration file overloads merge
 
-> Overloads in declaration files merge into a single callable.
+Overloads in declaration files merge into a single callable.
 
 ```ds:types.ds
 export function apply(value: string): number;

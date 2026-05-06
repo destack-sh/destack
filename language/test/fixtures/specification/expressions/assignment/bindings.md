@@ -4,7 +4,7 @@
 
 ### reads require prior assignment
 
-> A declared local must be assigned before it is read.
+A declared local must be assigned before it is read.
 
 ```ds
 let value: string;
@@ -15,7 +15,7 @@ value satisfies string;
 
 ### writes make locals readable
 
-> A declared local becomes readable after assignment.
+A declared local becomes readable after assignment.
 
 ```ds
 let value: string;
@@ -25,7 +25,7 @@ value satisfies string;
 
 ### writes check declared types
 
-> Assignment checks the declared type.
+Assignment checks the declared type.
 
 ```ds
 let value: string;

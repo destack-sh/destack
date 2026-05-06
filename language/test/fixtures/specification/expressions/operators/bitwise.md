@@ -6,7 +6,7 @@ Bitwise operators use numeric rules for builtin numbers and receiver overloads f
 
 ### bitwise and yields the left numeric type
 
-> `&` preserves the left numeric type.
+`&` preserves the left numeric type.
 
 ```ds
 const value = 5 & 3;
@@ -15,7 +15,7 @@ value satisfies int32;
 
 ### bitwise or yields the left numeric type
 
-> `|` preserves the left numeric type.
+`|` preserves the left numeric type.
 
 ```ds
 const value = 5 | 3;
@@ -24,7 +24,7 @@ value satisfies int32;
 
 ### bitwise xor yields the left numeric type
 
-> `^` preserves the left numeric type.
+`^` preserves the left numeric type.
 
 ```ds
 const value = 5 ^ 3;
@@ -33,7 +33,7 @@ value satisfies int32;
 
 ### bitwise not yields the operand numeric type
 
-> `~` preserves the operand numeric type.
+`~` preserves the operand numeric type.
 
 ```ds
 const value = ~5;
@@ -44,7 +44,7 @@ value satisfies int32;
 
 ### sets use bitwise or for union
 
-> Sets support `|` union through the builtin `Or` implementation.
+Sets support `|` union through the builtin `Or` implementation.
 
 ```ds
 declare const left: Set<int32>;
@@ -56,7 +56,7 @@ combined satisfies Set<int32>;
 
 ### maps use bitwise or for merge
 
-> Maps support `|` merge through the builtin `Or` implementation.
+Maps support `|` merge through the builtin `Or` implementation.
 
 ```ds
 declare const left: Map<string, int32>;
@@ -70,7 +70,7 @@ combined satisfies Map<string, int32>;
 
 ### bitwise and dispatches to And
 
-> `&` dispatches to `And` on the receiver.
+`&` dispatches to `And` on the receiver.
 
 ```ds
 struct Bits { value: int }
@@ -92,7 +92,7 @@ value satisfies Bits;
 
 ### bitwise or dispatches to Or
 
-> `|` dispatches to `Or` on the receiver.
+`|` dispatches to `Or` on the receiver.
 
 ```ds
 struct Bits { value: int }
@@ -114,7 +114,7 @@ value satisfies Bits;
 
 ### bitwise xor dispatches to Xor
 
-> `^` dispatches to `Xor` on the receiver.
+`^` dispatches to `Xor` on the receiver.
 
 ```ds
 struct Bits { value: int }
@@ -136,7 +136,7 @@ value satisfies Bits;
 
 ### bitwise not dispatches to Not
 
-> `~` dispatches to `Not` on the receiver.
+`~` dispatches to `Not` on the receiver.
 
 ```ds
 struct Bits { value: int }
@@ -155,7 +155,7 @@ value satisfies Bits;
 
 ### bitwise and requires And
 
-> `&` requires a matching `And` implementation.
+`&` requires a matching `And` implementation.
 
 ```ds
 struct Bits { value: int }
@@ -178,7 +178,7 @@ left & right;
 
 ### bitwise or requires Or
 
-> `|` requires a matching `Or` implementation.
+`|` requires a matching `Or` implementation.
 
 ```ds
 struct Bits { value: int }
@@ -201,7 +201,7 @@ left | right;
 
 ### bitwise xor requires Xor
 
-> `^` requires a matching `Xor` implementation.
+`^` requires a matching `Xor` implementation.
 
 ```ds
 struct Bits { value: int }
@@ -224,7 +224,7 @@ left ^ right;
 
 ### bitwise not requires Not
 
-> `~` requires a matching `Not` implementation.
+`~` requires a matching `Not` implementation.
 
 ```ds
 struct Bits { value: int }
@@ -245,7 +245,7 @@ value satisfies Bits;
 
 ### bitwise and requires the right operand type
 
-> `And<T>` only accepts right operands assignable to `T`.
+`And<T>` only accepts right operands assignable to `T`.
 
 ```ds
 struct Bits { value: int }

@@ -4,7 +4,7 @@
 
 ### mapped keys can use templates
 
-> Key remapping can use template literal keys while preserving each field type.
+Key remapping can use template literal keys while preserving each field type.
 
 ```ds
 type HandlerMap<T> = {
@@ -24,7 +24,7 @@ const handlers: HandlerMap<Events> = {
 
 ### mapped keys keep value types
 
-> A remapped key still uses the original field type.
+A remapped key still uses the original field type.
 
 ```ds
 type HandlerMap<T> = {
@@ -44,8 +44,8 @@ const handlers: HandlerMap<Events> = {
 
 ### indexed access can use generated keys
 
-> A generated key can be used in indexed access.
-> The result is the original field type.
+A generated key can be used in indexed access.
+The result is the original field type.
 
 ```ds
 type HandlerMap<T> = {
@@ -60,7 +60,7 @@ value satisfies string;
 
 ### remapped keys can use inferred parts
 
-> A remapped key can use a template part inferred from the original key.
+A remapped key can use a template part inferred from the original key.
 
 ```ds
 type PayloadName<E> = E extends `evt:${infer Name}` ? Name : never;
@@ -80,7 +80,7 @@ order satisfies "order";
 
 ### satisfies checks remapped keys
 
-> `satisfies` checks remapped key spelling and value types.
+`satisfies` checks remapped key spelling and value types.
 
 ```ds
 type HandlerMap<T> = {

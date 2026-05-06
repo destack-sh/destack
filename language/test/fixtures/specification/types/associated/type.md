@@ -6,7 +6,7 @@ Associated types are type members on nominal types and interfaces.
 
 ### type members can use enclosing type generics
 
-> A type member can refer to generic parameters from its enclosing type.
+A type member can refer to generic parameters from its enclosing type.
 
 ```ds
 struct Box<T> {
@@ -20,7 +20,7 @@ value satisfies string;
 
 ### type members can use other type members
 
-> `this` names other static members on the same type.
+`this` names other static members on the same type.
 
 ```ds
 class Pair<T> {
@@ -34,7 +34,7 @@ value satisfies (string, string);
 
 ### type members are not runtime properties
 
-> Associated types can only be used in type positions.
+Associated types can only be used in type positions.
 
 ```ds
 class Packet {
@@ -50,7 +50,7 @@ const size = Packet.Size;
 
 ### type members can have generic parameters
 
-> Associated type members use the same generic parameter forms as ordinary type declarations.
+Associated type members use the same generic parameter forms as ordinary type declarations.
 
 ```ds
 class StorageHandle<T> {}
@@ -70,7 +70,7 @@ handle satisfies shared StorageHandle<User>;
 
 ### type members can have static value parameters
 
-> Associated type parameters can include `comptime` values.
+Associated type parameters can include `comptime` values.
 
 ```ds
 interface PacketLayout {
@@ -87,7 +87,7 @@ bytes satisfies [uint8; 16];
 
 ### generic type members require arguments
 
-> A generic type member must be applied before it names a concrete type.
+A generic type member must be applied before it names a concrete type.
 
 ```ds
 class StorageHandle<T> {}

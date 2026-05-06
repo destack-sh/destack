@@ -4,7 +4,7 @@
 
 ### let else matches literal patterns
 
-> Literal patterns are valid when the else branch exits.
+Literal patterns are valid when the else branch exits.
 
 ```ds
 function parse(value: "ok" | "bad"): int32 {
@@ -18,7 +18,7 @@ function parse(value: "ok" | "bad"): int32 {
 
 ### let else narrows after success
 
-> After a literal pattern succeeds, the source value is narrowed.
+After a literal pattern succeeds, the source value is narrowed.
 
 ```ds
 function parse(value: "ok" | "bad"): "ok" {
@@ -34,7 +34,7 @@ function parse(value: "ok" | "bad"): "ok" {
 
 ### let else binds newtypes
 
-> Newtype patterns bind the wrapped value.
+Newtype patterns bind the wrapped value.
 
 ```ds
 newtype UserId = int64;
@@ -52,7 +52,7 @@ function read(id: UserId): int64 {
 
 ### let else binds structs
 
-> Struct patterns use the nominal tag.
+Struct patterns use the nominal tag.
 
 ```ds
 struct Point {
@@ -71,7 +71,7 @@ function read(point: Point): int32 {
 
 ### refutable let patterns need else
 
-> Refutable patterns need an else continuation.
+Refutable patterns need an else continuation.
 
 ```ds
 function parse(value: "ok" | "bad"): int32 {

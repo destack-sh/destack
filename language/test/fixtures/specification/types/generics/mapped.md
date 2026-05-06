@@ -4,7 +4,7 @@
 
 ### mapped types build object fields
 
-> Mapped types produce fields for each key.
+Mapped types produce fields for each key.
 
 ```ds
 type Flags<T> = { [K in keyof T]: boolean };
@@ -19,7 +19,7 @@ const ok: Flags<Person> = { name: true, age: false };
 
 ### mapped types reject incompatible field types
 
-> Mapped fields must satisfy the mapped value type.
+Mapped fields must satisfy the mapped value type.
 
 ```ds
 type Flags<T> = { [K in keyof T]: boolean };
@@ -36,7 +36,7 @@ const bad: Flags<Person> = { name: true, age: "no" };
 
 ### mapped types support optional modifiers
 
-> Optional modifiers allow missing fields.
+Optional modifiers allow missing fields.
 
 ```ds
 type Optional<T> = { [K in keyof T]?: T[K] };
@@ -52,7 +52,7 @@ const ok2: Optional<Person> = { name: "Ada" };
 
 ### mapped types reject incompatible optional fields
 
-> Optional fields still require compatible types.
+Optional fields still require compatible types.
 
 ```ds
 type Optional<T> = { [K in keyof T]?: T[K] };
@@ -69,7 +69,7 @@ const bad: Optional<Person> = { name: "Ada", age: "no" };
 
 ### mapped types can remove optional modifiers
 
-> Optional removal forces required fields.
+Optional removal forces required fields.
 
 ```ds
 type RequiredKeys<T> = { [K in keyof T]-?: T[K] };
@@ -85,7 +85,7 @@ const bad: RequiredKeys<Person> = {};
 
 ### mapped types can remap keys
 
-> Key remaps can merge fields into new keys.
+Key remaps can merge fields into new keys.
 
 ```ds
 type Renamed<T> = { [K in keyof T as "value"]: T[K] };
@@ -101,7 +101,7 @@ const ok2: Renamed<Person> = { value: 1 };
 
 ### mapped types reject incompatible remapped values
 
-> Remapped fields must still satisfy the mapped value type.
+Remapped fields must still satisfy the mapped value type.
 
 ```ds
 type Renamed<T> = { [K in keyof T as "value"]: T[K] };
@@ -118,7 +118,7 @@ const bad: Renamed<Person> = { value: true };
 
 ### mapped types add readonly modifiers
 
-> Readonly modifiers make fields immutable.
+Readonly modifiers make fields immutable.
 
 ```ds
 type Frozen<T> = { readonly [K in keyof T]: T[K] };
@@ -136,7 +136,7 @@ const bad: Person = frozen;
 
 ### mapped types remove readonly modifiers
 
-> Removing readonly yields mutable fields.
+Removing readonly yields mutable fields.
 
 ```ds
 type Frozen<T> = { readonly [K in keyof T]: T[K] };
@@ -152,7 +152,7 @@ const ok: Mutable<Person> = { name: "Ada", age: 42 };
 
 ### mapped types remove optional modifiers
 
-> Removing optional yields required fields.
+Removing optional yields required fields.
 
 ```ds
 type Optional<T> = { [K in keyof T]?: T[K] };

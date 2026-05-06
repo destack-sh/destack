@@ -5,7 +5,6 @@ use std::time::{Duration, Instant};
 
 use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
-use destack_query::RepositoryQueryIndexExt;
 use destack_source::{FileId, FileType, MemoryFileSystem, ModuleId};
 use destack_workspace::{ProfileId, Ref, Repository, Revision};
 
@@ -504,12 +503,24 @@ fn compile_and_index_query_modules(
     // checked depends on declared and exported DIR, so this materializes both
     // artifacts for query_context consumers
     let mut artifact_keys = Vec::new();
+    let mut profile_ids = HashSet::new();
     for (module_id, profiles) in &profiles_by_module {
         for profile in profiles {
+            profile_ids.insert(*profile);
             artifact_keys.push(ArtifactKey::DirChecked {
                 module: *module_id,
                 profile: *profile,
             });
+
+            if index_requirements.needs_module_indexes {
+                artifact_keys.push(ArtifactKey::module_query_index(*module_id, *profile));
+            }
+        }
+    }
+
+    if index_requirements.needs_import_indexes {
+        for profile in profile_ids {
+            artifact_keys.push(ArtifactKey::workspace_query_index(profile));
         }
     }
 
@@ -518,18 +529,6 @@ fn compile_and_index_query_modules(
     let compile_start = Instant::now();
     let revision = provide_workspace_artifacts(repository.clone(), compiler, &artifact_keys);
     timings.compile = compile_start.elapsed();
-
-    if index_requirements.needs_module_indexes {
-        let index_modules_start = Instant::now();
-        repository.index_query_modules(revision, module_ids.iter().copied());
-        timings.index_modules = index_modules_start.elapsed();
-    }
-
-    if index_requirements.needs_import_indexes {
-        let index_imports_start = Instant::now();
-        repository.index_query_imports(revision);
-        timings.index_imports = index_imports_start.elapsed();
-    }
 
     (revision, modules_by_path)
 }

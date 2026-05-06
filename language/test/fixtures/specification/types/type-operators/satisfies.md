@@ -53,7 +53,7 @@ const value = { a: 1, b: 2 } satisfies Shape;
 
 - contains: excess property
 
-### satisfies does not widen without const context
+### satisfies keeps contextual literal members
 
 ```ds
 type Shape = { mode: "dev" | "prod" };

@@ -1,12 +1,12 @@
 # Match Patterns
 
-Match arms use the same pattern families as bindings and if let.
+Match arms use the same pattern families as bindings and if (let ...).
 
 ## tuple patterns
 
 ### match tuple patterns bind tuple elements
 
-> Tuple patterns bind tuple elements by position.
+Tuple patterns bind tuple elements by position.
 
 ```ds
 declare const pair: (int32, int32);
@@ -21,7 +21,7 @@ match (pair) {
 
 ### match nested tuple patterns bind nested tuple elements
 
-> Nested tuple patterns destructure recursively by position.
+Nested tuple patterns destructure recursively by position.
 
 ```ds
 declare const pair: ((int32, int32), int32);
@@ -39,7 +39,7 @@ match (pair) {
 
 ### match fixed array patterns bind elements
 
-> Fixed array patterns bind element types.
+Fixed array patterns bind element types.
 
 ```ds
 declare const pair: [int32; 2];
@@ -56,7 +56,7 @@ match (pair) {
 
 ### match slice patterns bind heads
 
-> Slice patterns bind known positions and keep rest tails as slices.
+Slice patterns bind known positions and keep rest tails as slices.
 
 ```ds
 declare const values: [int32];
@@ -74,7 +74,7 @@ match (values) {
 
 ### match object patterns bind named fields
 
-> Object patterns bind named fields from structural objects.
+Object patterns bind named fields from structural objects.
 
 ```ds
 type Config = { enabled: boolean, retries: int32 };
@@ -91,7 +91,7 @@ match (config) {
 
 ### match nested object patterns bind nested fields
 
-> Nested object patterns bind nested object fields.
+Nested object patterns bind nested object fields.
 
 ```ds
 type Config = { runtime: { retries: int32 }, enabled: boolean };
@@ -108,7 +108,7 @@ match (config) {
 
 ### match wildcards ignore object fields
 
-> Wildcards ignore selected fields while other fields bind.
+Wildcards ignore selected fields while other fields bind.
 
 ```ds
 type Config =
@@ -128,7 +128,7 @@ match (config) {
 
 ### match struct patterns bind fields
 
-> Struct patterns require the type name.
+Struct patterns require the type name.
 
 ```ds
 struct Point {
@@ -145,7 +145,7 @@ function sum(value: Point): int32 {
 
 ### match struct patterns reject bare object patterns
 
-> Bare object patterns do not match nominal structs.
+Bare object patterns do not match nominal structs.
 
 ```ds
 struct Point {
@@ -167,7 +167,7 @@ function sum(value: Point): int32 {
 
 ### match tuple rest binds tails
 
-> Tuple rest patterns bind the tail as a tuple.
+Tuple rest patterns bind the tail as a tuple.
 
 ```ds
 declare const values: (int32, int32, int32);
@@ -182,7 +182,7 @@ match (values) {
 
 ### match fixed array rest binds tails
 
-> Fixed array rest patterns bind the tail as a fixed array.
+Fixed array rest patterns bind the tail as a fixed array.
 
 ```ds
 declare const values: [int32; 3];
@@ -197,7 +197,7 @@ match (values) {
 
 ### match object rest binds tails
 
-> Object rest patterns bind the remaining fields.
+Object rest patterns bind the remaining fields.
 
 ```ds
 type Config = { enabled: boolean, retries: int32 };
@@ -216,7 +216,7 @@ match (config) {
 
 ### match must patterns bind non-nullish values
 
-> Must patterns bind the non-nullish value.
+Must patterns bind the non-nullish value.
 
 ```ds
 declare const value: int32 | null;
@@ -233,7 +233,7 @@ match (value) {
 
 ### match value patterns bind owned values
 
-> Owned patterns bind an owned view.
+Owned patterns bind an owned view.
 
 ```ds
 declare const value: ^int32;
@@ -247,7 +247,7 @@ match (value) {
 
 ### match reference patterns bind references
 
-> Borrow patterns bind a borrowed view.
+Borrow patterns bind a borrowed view.
 
 ```ds
 declare const value: &int32;
@@ -263,7 +263,7 @@ match (value) {
 
 ### match union patterns cover multiple literals
 
-> Union patterns match any of their literal values.
+Union patterns match any of their literal values.
 
 ```ds
 declare const value: 1 | 2 | 3;
@@ -278,7 +278,7 @@ match (value) {
 
 ### literal patterns must fit the matched type
 
-> Literal patterns must be assignable to the matched type.
+Literal patterns must be assignable to the matched type.
 
 ```ds
 function invalidMatchPattern(value: int32): int32 {

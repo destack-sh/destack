@@ -6,7 +6,7 @@ Number literal type inference and checking.
 
 ### integer literal
 
-> Integer literals can be assigned to number type.
+Integer literals can be assigned to number type.
 
 ```ds
 const x: number = 42;
@@ -14,7 +14,7 @@ const x: number = 42;
 
 ### negative integer
 
-> Negative integers are accepted number literals.
+Negative integers are accepted number literals.
 
 ```ds
 const x: number = -42;
@@ -22,7 +22,7 @@ const x: number = -42;
 
 ### zero
 
-> Zero is an accepted number literal.
+Zero is an accepted number literal.
 
 ```ds
 const x: number = 0;
@@ -30,7 +30,7 @@ const x: number = 0;
 
 ### hex literal
 
-> Hex literals are accepted number literals.
+Hex literals are accepted number literals.
 
 ```ds
 const x: number = 0xff;
@@ -38,7 +38,7 @@ const x: number = 0xff;
 
 ### octal literal
 
-> Octal literals are accepted number literals.
+Octal literals are accepted number literals.
 
 ```ds
 const x: number = 0o17;
@@ -46,7 +46,7 @@ const x: number = 0o17;
 
 ### binary literal
 
-> Binary literals are accepted number literals.
+Binary literals are accepted number literals.
 
 ```ds
 const x: number = 0b1010;
@@ -56,7 +56,7 @@ const x: number = 0b1010;
 
 ### float literal
 
-> Float literals can be assigned to number type.
+Float literals can be assigned to number type.
 
 ```ds
 const x: number = 3.14;
@@ -64,7 +64,7 @@ const x: number = 3.14;
 
 ### negative float
 
-> Negative floats are accepted number literals.
+Negative floats are accepted number literals.
 
 ```ds
 const x: number = -3.14;
@@ -72,27 +72,29 @@ const x: number = -3.14;
 
 ## inference
 
-### inferred integer type
+### integer literals stay exact
 
-> Integer literals without annotation infer to number.
+Integer literals without annotation keep their literal value and satisfy wider numeric types.
 
 ```ds
 const x = 123;
+x satisfies 123;
 x satisfies number;
 ```
 
-### inferred float type
+### float literals stay exact
 
-> Float literals without annotation infer to number.
+Float literals without annotation keep their literal value and satisfy wider numeric types.
 
 ```ds
 const x = 3.14;
+x satisfies 3.14;
 x satisfies number;
 ```
 
 ### number does not satisfy string
 
-> Number literal cannot satisfy string type.
+Number literal cannot satisfy string type.
 
 ```ds
 const x = 123;
@@ -105,7 +107,7 @@ x satisfies string;
 
 ### number toFixed resolves
 
-> Number literals expose Number standard members.
+Number literals expose Number standard members.
 
 
 ```ds

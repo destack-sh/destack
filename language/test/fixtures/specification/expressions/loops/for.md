@@ -4,7 +4,7 @@
 
 ### for yields void
 
-> For expressions evaluate to void.
+For expressions evaluate to void.
 
 ```ds
 let value: void = for (let i = 0; i < 1; i++) {
@@ -14,7 +14,7 @@ let value: void = for (let i = 0; i < 1; i++) {
 
 ### for is not assignable to number
 
-> For expressions are not assignable to non-void targets.
+For expressions are not assignable to non-void targets.
 
 ```ds
 let value: number = for (let i = 0; i < 1; i++) {
@@ -26,7 +26,7 @@ let value: number = for (let i = 0; i < 1; i++) {
 
 ### for allows continue in the loop body
 
-> Continue is accepted in for loop bodies.
+Continue is accepted in for loop bodies.
 
 ```ds
 for (let i = 0; i < 3; i++) {
@@ -38,7 +38,7 @@ for (let i = 0; i < 3; i++) {
 
 ### for allows break in the loop body
 
-> Break is accepted in for loop bodies.
+Break is accepted in for loop bodies.
 
 ```ds
 for (let i = 0; i < 3; i++) {
@@ -50,7 +50,7 @@ for (let i = 0; i < 3; i++) {
 
 ### for loop initializer bindings do not escape loop scope
 
-> For-loop initializer bindings are scoped to the loop.
+For-loop initializer bindings are scoped to the loop.
 
 ```ds
 for (let i = 0; i < 1; i++) {}

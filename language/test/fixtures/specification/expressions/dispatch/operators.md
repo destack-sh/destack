@@ -6,7 +6,7 @@ Operator overloads use the left operand as the receiver.
 
 ### binary operators use the left receiver
 
-> Receiver dispatch only searches the left operand.
+Receiver dispatch only searches the left operand.
 
 ```ds
 struct Left {}
@@ -28,7 +28,7 @@ left + right;
 
 ### reversed operands need reversed implementations
 
-> Reversed operand order uses the reversed receiver.
+Reversed operand order uses the reversed receiver.
 
 ```ds
 struct Vector2 { x: int32; y: int32 }
@@ -58,7 +58,7 @@ scaled satisfies Vector2;
 
 ### operator implementations use declaration order
 
-> The first compatible operator implementation wins.
+The first compatible operator implementation wins.
 
 ```ds
 struct Counter {}
@@ -85,7 +85,7 @@ value satisfies "number";
 
 ### imported operator order is stable
 
-> Imports do not reorder operator implementations.
+Imports do not reorder operator implementations.
 
 ```ds:counter.ds
 export struct Counter {}
@@ -119,7 +119,7 @@ value satisfies "number";
 
 ### overlapping imported operators are ambiguous
 
-> Distinct imported operator implementations cannot silently order overlapping candidates.
+Distinct imported operator implementations cannot silently order overlapping candidates.
 
 ```ds:counter.ds
 export struct Counter {}

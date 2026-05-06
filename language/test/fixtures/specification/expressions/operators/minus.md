@@ -6,7 +6,7 @@
 
 ### number minus number
 
-> Subtracting two numbers produces a number.
+Subtracting two numbers produces a number.
 
 ```ds
 const value = 5 - 3;
@@ -18,7 +18,7 @@ value satisfies number;
 
 ### minus rejects boolean operands
 
-> `-` rejects operand pairs without a numeric or overload rule.
+`-` rejects operand pairs without a numeric or overload rule.
 
 ```ds
 const value = true - 2;
@@ -30,7 +30,7 @@ const value = true - 2;
 
 ### minus dispatches to Subtract
 
-> `-` dispatches to `Subtract` on the receiver.
+`-` dispatches to `Subtract` on the receiver.
 
 ```ds
 struct Scalar { value: int }
@@ -52,7 +52,7 @@ value satisfies Scalar;
 
 ### minus requires Subtract
 
-> `-` requires a matching `Subtract` implementation.
+`-` requires a matching `Subtract` implementation.
 
 ```ds
 struct Scalar { value: int }
@@ -77,7 +77,7 @@ left - right;
 
 ### wrapping minus is builtin integer arithmetic
 
-> `-%` wraps modulo the integer range.
+`-%` wraps modulo the integer range.
 
 ```ds
 const a: uint8 = 5;
@@ -89,7 +89,7 @@ value satisfies uint8;
 
 ### saturating minus is builtin integer arithmetic
 
-> `-|` clamps to the integer range.
+`-|` clamps to the integer range.
 
 ```ds
 const a: uint8 = 5;
@@ -101,7 +101,7 @@ value satisfies uint8;
 
 ### wrapping minus rejects user types
 
-> `-%` is not an overloadable operator.
+`-%` is not an overloadable operator.
 
 ```ds
 struct Scalar { value: int }

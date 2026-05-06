@@ -43,7 +43,6 @@ import { make } from "./factory.ds";
 make().ok satisfies boolean;
 ```
 
-
 ### exported values use local inference
 
 Exported values keep the types inferred in their declaring module.
@@ -65,13 +64,11 @@ counter satisfies number;
 pinned satisfies 0;
 ```
 
-
-
 ## local chains
 
 ### generic chains export concrete result types
 
-> Exported values keep the type produced by a local generic chain.
+Exported values keep the type produced by a local generic chain.
 
 ```ds:registry-chain.ds
 export interface Registry<R> {
@@ -108,7 +105,7 @@ registry.get("count") satisfies number;
 
 ### generic chains export key constraints
 
-> Exported values keep key constraints produced by a local generic chain.
+Exported values keep key constraints produced by a local generic chain.
 
 ```ds:registry-chain.ds
 export interface Registry<R> {
@@ -143,7 +140,6 @@ registry.get("missing");
 
 - contains: not assignable
 
-
 ## default exports
 
 ### default exports keep inferred return types
@@ -161,7 +157,6 @@ import make from "./defaults.ds";
 
 make().ok satisfies boolean;
 ```
-
 
 ## declared imports
 
@@ -186,7 +181,6 @@ import { count } from "./counter.ds";
 
 count satisfies number;
 ```
-
 
 ## dependencies
 

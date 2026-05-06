@@ -4,7 +4,7 @@
 
 ### keyof preserves symbol index signatures
 
-> Keyof on a symbol index signature yields symbol.
+Keyof on a symbol index signature yields symbol.
 
 ```ds
 interface SymbolBag {
@@ -22,7 +22,7 @@ const bad: Keys = "name";
 
 ### keyof preserves well-known symbol keys
 
-> Keyof includes the specific well-known symbol.
+Keyof includes the specific well-known symbol.
 
 ```ds
 interface IterableBox {
@@ -42,7 +42,7 @@ const badSymbol: Keys = other;
 
 ### Symbol.for keys are accepted
 
-> Registry symbol keys can be used in object types.
+Registry symbol keys can be used in object types.
 
 ```ds
 interface RegistryBox {
@@ -55,7 +55,7 @@ box[Symbol.for("token")] satisfies string
 
 ### unique symbol keys are accepted
 
-> Unique symbols can be used as object keys.
+Unique symbols can be used as object keys.
 
 ```ds
 const token: unique symbol = Symbol("token")
@@ -70,7 +70,7 @@ box[token] satisfies int32
 
 ### keyof preserves unique symbol keys
 
-> Keyof preserves the unique symbol key.
+Keyof preserves the unique symbol key.
 
 ```ds
 const token: unique symbol = Symbol("token")
@@ -86,7 +86,7 @@ const ok: Keys = token;
 
 ### keyof rejects unrelated symbols
 
-> Keyof does not accept unrelated symbols.
+Keyof does not accept unrelated symbols.
 
 ```ds
 const token: unique symbol = Symbol("token")

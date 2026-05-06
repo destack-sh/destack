@@ -4,7 +4,7 @@
 
 ### member access returns the shared field type
 
-> Union member access returns a single type when all variants agree.
+Union member access returns a single type when all variants agree.
 
 ```ds
 struct User {
@@ -23,7 +23,7 @@ name satisfies string;
 
 ### aliases preserve union member access
 
-> Type aliases do not change union member access.
+Type aliases do not change union member access.
 
 ```ds
 struct User {
@@ -44,7 +44,7 @@ id satisfies int32 | string;
 
 ### missing members are rejected
 
-> Every union variant must expose the accessed member.
+Every union variant must expose the accessed member.
 
 ```ds
 struct User {
@@ -66,7 +66,7 @@ getPerson().name;
 
 ### nullable variants reject member access
 
-> Nullable variants do not expose ordinary members.
+Nullable variants do not expose ordinary members.
 
 ```ds
 struct User {
@@ -84,7 +84,7 @@ getPerson().name;
 
 ### optional members stay optional
 
-> Optional members keep `undefined` in the result type.
+Optional members keep `undefined` in the result type.
 
 ```ds
 struct User {
@@ -103,7 +103,7 @@ nickname satisfies string | undefined;
 
 ### nested access still checks every variant
 
-> Nested member access is rejected when a nested variant is missing the member.
+Nested member access is rejected when a nested variant is missing the member.
 
 ```ds
 struct User {
@@ -125,7 +125,7 @@ getPerson().profile.displayName;
 
 ### union method calls select compatible overloads
 
-> Overload selection uses signatures compatible with the argument.
+Overload selection uses signatures compatible with the argument.
 
 ```ds
 struct Cat {
@@ -156,7 +156,7 @@ sound satisfies string | int32;
 
 ### union method calls honor overload order
 
-> Overloads resolve in declaration order for each union variant.
+Overloads resolve in declaration order for each union variant.
 
 ```ds
 struct Cat {
@@ -183,7 +183,7 @@ sound satisfies string;
 
 ### union method calls include extension members
 
-> Member lookup accounts for inherent and extension members together.
+Member lookup accounts for inherent and extension members together.
 
 ```ds
 struct Cat {
@@ -210,7 +210,7 @@ sound satisfies string;
 
 ### union method calls reject unmatched union arguments
 
-> Union arguments must match a single compatible overload.
+Union arguments must match a single compatible overload.
 
 ```ds
 struct Cat {
@@ -244,7 +244,7 @@ getPet().speak(volume);
 
 ### union method calls do not distribute arguments
 
-> Union arguments must be accepted by a single overload.
+Union arguments must be accepted by a single overload.
 
 ```ds
 struct Cat {
@@ -278,7 +278,7 @@ getPet().speak(volume);
 
 ### union method calls accept union overloads
 
-> Union arguments are allowed when an overload accepts the union.
+Union arguments are allowed when an overload accepts the union.
 
 ```ds
 struct Cat {
@@ -303,7 +303,7 @@ sound satisfies string | int32;
 
 ### extension methods return unions
 
-> Extension overloads contribute their selected return types.
+Extension overloads contribute their selected return types.
 
 ```ds
 struct Cat { name: string }

@@ -4,7 +4,7 @@
 
 ### int uses the default signed integer width
 
-> `int` uses the default signed integer width.
+`int` uses the default signed integer width.
 
 ```ds
 declare const value: int32;
@@ -15,7 +15,7 @@ alias satisfies int32;
 
 ### uint uses the default unsigned integer width
 
-> `uint` uses the default unsigned integer width.
+`uint` uses the default unsigned integer width.
 
 ```ds
 declare const value: uint32;
@@ -26,7 +26,7 @@ alias satisfies uint32;
 
 ### number uses float64
 
-> `number` is the `float64` alias.
+`number` is the `float64` alias.
 
 ```ds
 declare const value: float64;
@@ -37,7 +37,7 @@ alias satisfies float64;
 
 ### number accepts precise numerics
 
-> Number accepts precise numeric types but does not narrow back automatically.
+Number accepts precise numeric types but does not narrow back automatically.
 
 ```ds
 declare const precise: int32;
@@ -50,7 +50,7 @@ let narrow: int32 = value;
 
 ### int alias rejects unsigned values
 
-> `int` aliases signed default width and rejects unsigned assignments.
+`int` aliases signed default width and rejects unsigned assignments.
 
 ```ds
 declare const value: uint32;

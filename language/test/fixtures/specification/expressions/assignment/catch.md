@@ -4,7 +4,7 @@
 
 ### catch bindings are mutable
 
-> Catch bindings can be reassigned.
+Catch bindings can be reassigned.
 
 ```ds
 try {
@@ -16,7 +16,7 @@ try {
 
 ### catch bindings stay mutable after narrowing
 
-> Narrowing does not make a catch binding immutable.
+Narrowing does not make a catch binding immutable.
 
 ```ds
 try {
@@ -32,7 +32,7 @@ try {
 
 ### catch annotations allow unknown
 
-> Catch bindings can be annotated as `unknown`.
+Catch bindings can be annotated as `unknown`.
 
 ```ds
 try {
@@ -44,7 +44,7 @@ try {
 
 ### catch annotations reject concrete types
 
-> Concrete catch annotations are not filters.
+Concrete catch annotations are not filters.
 
 ```ds
 try {

@@ -4,10 +4,10 @@
 
 ### match does not allow break
 
-> Break is invalid inside match arms.
+Break is invalid inside match arms.
 
 ```ds
-function invalid_match_break(value: int32): int32 {
+function invalidMatchBreak(value: int32): int32 {
     const result = match (value) {
         0 => break
         _ => 1
@@ -20,10 +20,10 @@ function invalid_match_break(value: int32): int32 {
 
 ### match does not allow continue
 
-> Continue is invalid inside match arms.
+Continue is invalid inside match arms.
 
 ```ds
-function invalid_match_continue(value: int32): int32 {
+function invalidMatchContinue(value: int32): int32 {
     const result = match (value) {
         0 => continue
         _ => 1
@@ -36,10 +36,10 @@ function invalid_match_continue(value: int32): int32 {
 
 ### nested loops allow break
 
-> Break can target a loop nested inside a match arm.
+Break can target a loop nested inside a match arm.
 
 ```ds
-function nested_loop_break(value: int32): int32 {
+function nestedLoopBreak(value: int32): int32 {
     let result: int32 = 0;
     match (value) {
         0 => {
@@ -58,10 +58,10 @@ function nested_loop_break(value: int32): int32 {
 
 ### nested loops allow continue
 
-> Continue can target a loop nested inside a match arm.
+Continue can target a loop nested inside a match arm.
 
 ```ds
-function nested_loop_continue(value: int32): int32 {
+function nestedLoopContinue(value: int32): int32 {
     let result: int32 = 0;
     match (value) {
         0 => {

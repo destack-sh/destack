@@ -4,10 +4,10 @@
 
 ### switch breaks target the innermost switch
 
-> Switch breaks cannot carry values, even inside loops.
+Switch breaks cannot carry values, even inside loops.
 
 ```ds
-function invalid_switch_break_value_in_loop(value: int32): int32 {
+function invalidSwitchBreakValueInLoop(value: int32): int32 {
     loop {
         switch (value) {
             case 0:
@@ -25,10 +25,10 @@ function invalid_switch_break_value_in_loop(value: int32): int32 {
 
 ### labeled break can target a switch
 
-> Labeled breaks can exit the labeled switch.
+Labeled breaks can exit the labeled switch.
 
 ```ds
-function labeled_break_switch(value: int32): int32 {
+function labeledBreakSwitch(value: int32): int32 {
     let count: int32 = 0;
     outer: switch (value) {
         case 0:
@@ -44,10 +44,10 @@ function labeled_break_switch(value: int32): int32 {
 
 ### labeled break can target a loop
 
-> Labeled breaks can exit a loop from inside a switch.
+Labeled breaks can exit a loop from inside a switch.
 
 ```ds
-function labeled_break_loop_from_switch(value: int32): int32 {
+function labeledBreakLoopFromSwitch(value: int32): int32 {
     let count: int32 = 0;
     outer: loop {
         switch (value) {
@@ -69,10 +69,10 @@ function labeled_break_loop_from_switch(value: int32): int32 {
 
 ### switch does not allow continue
 
-> Continue is only accepted in loops.
+Continue is only accepted in loops.
 
 ```ds
-function invalid_switch_continue(value: int32): int32 {
+function invalidSwitchContinue(value: int32): int32 {
     switch (value) {
         case 0:
             continue;
@@ -87,10 +87,10 @@ function invalid_switch_continue(value: int32): int32 {
 
 ### continue inside switch targets the loop
 
-> Continue inside a switch within a loop continues the loop.
+Continue inside a switch within a loop continues the loop.
 
 ```ds
-function continue_in_switch(value: int32): int32 {
+function continueInSwitch(value: int32): int32 {
     let count: int32 = 0;
     loop {
         switch (value) {
@@ -108,10 +108,10 @@ function continue_in_switch(value: int32): int32 {
 
 ### labeled continue can target a loop
 
-> Labeled continues can target loops from inside a switch.
+Labeled continues can target loops from inside a switch.
 
 ```ds
-function labeled_continue_loop_from_switch(value: int32): int32 {
+function labeledContinueLoopFromSwitch(value: int32): int32 {
     let count: int32 = 0;
     outer: loop {
         switch (value) {
@@ -129,10 +129,10 @@ function labeled_continue_loop_from_switch(value: int32): int32 {
 
 ### labeled continue cannot target a switch
 
-> Continue requires a loop label, even when a switch is labeled.
+Continue requires a loop label, even when a switch is labeled.
 
 ```ds
-function invalid_labeled_continue_switch(value: int32): int32 {
+function invalidLabeledContinueSwitch(value: int32): int32 {
     outer: switch (value) {
         case 0:
             continue outer;
@@ -149,10 +149,10 @@ function invalid_labeled_continue_switch(value: int32): int32 {
 
 ### switch rejects guards
 
-> Switch cases reject guards.
+Switch cases reject guards.
 
 ```ds
-function invalid_switch_guard(value: int32): int32 {
+function invalidSwitchGuard(value: int32): int32 {
     switch (value) {
         case 0 if value > 0:
             break;
@@ -169,10 +169,10 @@ function invalid_switch_guard(value: int32): int32 {
 
 ### switch does not yield a value
 
-> Switch is a statement.
+Switch is a statement.
 
 ```ds
-function invalid_switch_expression(value: int32): int32 {
+function invalidSwitchExpression(value: int32): int32 {
     const result: int32 = switch (value) {
         case 0:
             break;

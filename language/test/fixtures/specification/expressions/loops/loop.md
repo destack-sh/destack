@@ -4,7 +4,7 @@
 
 ### loop yields void
 
-> Loop expressions evaluate to void.
+Loop expressions evaluate to void.
 
 ```ds
 let value: void = loop {
@@ -14,7 +14,7 @@ let value: void = loop {
 
 ### loop is not assignable to number
 
-> Loop expressions are not assignable to non-void targets.
+Loop expressions are not assignable to non-void targets.
 
 ```ds
 let value: number = loop {
@@ -26,7 +26,7 @@ let value: number = loop {
 
 ### labeled loop break is allowed
 
-> Labeled loops can be exited with a matching break.
+Labeled loops can be exited with a matching break.
 
 ```ds
 let value: void = outer: loop {
@@ -36,7 +36,7 @@ let value: void = outer: loop {
 
 ### loop break values determine the result type
 
-> Loop expressions use break values to determine their result type.
+Loop expressions use break values to determine their result type.
 
 ```ds
 let value: number = loop {
@@ -46,7 +46,7 @@ let value: number = loop {
 
 ### loop break values are required to satisfy the target type
 
-> Loop break values must satisfy the expected type.
+Loop break values must satisfy the expected type.
 
 ```ds
 let value: string = loop {
@@ -58,7 +58,7 @@ let value: string = loop {
 
 ### loop breaks without values contribute void
 
-> Breaks without values contribute void to the loop result.
+Breaks without values contribute void to the loop result.
 
 ```ds
 let value: number | void = loop {

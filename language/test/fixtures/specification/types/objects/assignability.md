@@ -4,7 +4,7 @@
 
 ### object literal satisfies interface
 
-> Object literals are assignable to compatible interfaces.
+Object literals are assignable to compatible interfaces.
 
 ```ds
 interface Person {
@@ -17,7 +17,7 @@ person satisfies Person;
 
 ### missing required field is not assignable
 
-> Object literals missing required fields are not assignable.
+Object literals missing required fields are not assignable.
 
 ```ds
 interface Person {
@@ -33,7 +33,7 @@ person satisfies Person;
 
 ### excess property reports error
 
-> Extra fields are rejected for object literals assigned to interfaces.
+Extra fields are rejected for object literals assigned to interfaces.
 
 ```ds
 interface Person {
@@ -47,7 +47,7 @@ const person: Person = { name: "Ada", age: 42 };
 
 ### extra fields allowed for non-literals
 
-> Non-literal values are structurally assignable even with extra fields.
+Non-literal values are structurally assignable even with extra fields.
 
 ```ds
 interface Person {
@@ -60,7 +60,7 @@ raw satisfies Person;
 
 ### optional fields allow omission
 
-> Optional fields can be omitted in object literals.
+Optional fields can be omitted in object literals.
 
 ```ds
 interface Person {
@@ -85,7 +85,7 @@ const value: Target = { value: undefined }
 
 ### optional fields are not assignable to required
 
-> Optional fields are not assignable to required fields.
+Optional fields are not assignable to required fields.
 
 ```ds
 interface Target {
@@ -104,7 +104,7 @@ source satisfies Target;
 
 ### required fields are assignable to optional
 
-> Required fields are assignable to optional fields.
+Required fields are assignable to optional fields.
 
 ```ds
 interface Target {
@@ -121,7 +121,7 @@ source satisfies Target;
 
 ### assignment rejects optional to required
 
-> Assignments reject optional fields when required is expected.
+Assignments reject optional fields when required is expected.
 
 ```ds
 interface Target {
@@ -142,7 +142,7 @@ const target: Target = source
 
 ### assignment allows required to optional
 
-> Assignments allow required fields when optional is expected.
+Assignments allow required fields when optional is expected.
 
 ```ds
 interface Target {
@@ -159,7 +159,7 @@ const target: Target = source;
 
 ### interface declarations merge in declaration files
 
-> Declarations in .ds merge into a single interface.
+Declarations in .ds merge into a single interface.
 
 ```ds:types.ds
 export interface Widget {
@@ -182,7 +182,7 @@ widget.value satisfies number;
 
 ### duplicate interface names are rejected in .ds
 
-> Duplicate interface declarations are rejected outside declaration files.
+Duplicate interface declarations are rejected outside declaration files.
 
 ```ds
 interface Duplicate {
@@ -198,7 +198,7 @@ interface Duplicate {
 
 ### interface assignability is structural
 
-> Compatible interfaces are assignable based on shape.
+Compatible interfaces are assignable based on shape.
 
 ```ds
 interface Named {
@@ -217,7 +217,7 @@ person satisfies Named;
 
 ### nominal interface requires explicit implements
 
-> Nominal interfaces are not satisfied structurally.
+Nominal interfaces are not satisfied structurally.
 
 ```ds
 newtype interface Add<T> {
@@ -242,7 +242,7 @@ const value: Add<Vec2> = Vec2 { x: 1, y: 2 };
 
 ### nominal interface accepts explicit implements
 
-> Nominal interfaces require an explicit implements clause.
+Nominal interfaces require an explicit implements clause.
 
 ```ds
 newtype interface Add<T> {

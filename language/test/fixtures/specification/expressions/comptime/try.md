@@ -6,7 +6,7 @@ Comptime expressions use normal `try`, `catch`, `finally`, and `?` typing.
 
 ### comptime try catch joins branch types
 
-> `try/catch` inside comptime has normal expression typing.
+`try/catch` inside comptime has normal expression typing.
 
 ```ds
 const value = comptime {
@@ -23,7 +23,7 @@ value satisfies int | string;
 
 ### comptime try finally keeps the body type
 
-> `finally` does not change the expression value type.
+`finally` does not change the expression value type.
 
 ```ds
 const value = comptime {
@@ -39,7 +39,7 @@ value satisfies int;
 
 ### comptime try can catch propagated failures
 
-> `?` inside a comptime try can transfer failure to the local catch.
+`?` inside a comptime try can transfer failure to the local catch.
 
 ```ds
 function parse(value: int): Result<int, string> {
@@ -64,7 +64,7 @@ value satisfies int;
 
 ### comptime values enter runtime try propagation
 
-> Runtime `?` can consume values produced by comptime expressions.
+Runtime `?` can consume values produced by comptime expressions.
 
 ```ds
 function parse(value: int): Result<int, string> {
@@ -85,7 +85,7 @@ function compute(value: int): Result<int, string> {
 
 ### comptime try propagation rejects runtime inputs
 
-> Comptime `?` cannot depend on dynamic function parameters.
+Comptime `?` cannot depend on dynamic function parameters.
 
 ```ds
 function parse(value: int): Result<int, string> {
@@ -105,7 +105,7 @@ function compute(value: int): int {
 
 ### comptime try propagation needs an exit path
 
-> Uncaught `?` cannot leave a comptime expression without a compatible result path.
+Uncaught `?` cannot leave a comptime expression without a compatible result path.
 
 ```ds
 function parse(value: int): Result<int, string> {

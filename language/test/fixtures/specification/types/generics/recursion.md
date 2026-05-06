@@ -7,7 +7,7 @@ Recursive instantiation produces a clear error when it does not converge.
 
 ### direct recursive aliases are rejected
 
-> Direct recursive aliases are rejected with a recursion error.
+Direct recursive aliases are rejected with a recursion error.
 
 ```ds
 type Loop<T> = Loop<T>;
@@ -21,7 +21,7 @@ declare let value: Loop<number>;
 
 ### recursive conditionals report depth errors
 
-> Recursive conditional instantiation reports a recursion or depth error.
+Recursive conditional instantiation reports a recursion or depth error.
 
 ```ds
 type Recurse<T> = T extends string ? Recurse<T> : never;
@@ -33,7 +33,7 @@ declare let value: Recurse<"x">;
 
 ### mutually recursive aliases are rejected
 
-> Mutually recursive aliases report recursion.
+Mutually recursive aliases report recursion.
 
 ```ds
 type A<T> = B<T>;
@@ -46,7 +46,7 @@ declare let value: A<number>;
 
 ### recursive aliases through mapped aliases are rejected
 
-> Recursive mapped aliases report recursion.
+Recursive mapped aliases report recursion.
 
 ```ds
 type Remap<T> = { [K in keyof T]: Remap<T[K]> };
@@ -58,7 +58,7 @@ declare let value: Remap<{ name: string }>;
 
 ### recursive aliases across modules are rejected
 
-> Cross-module alias cycles report recursion.
+Cross-module alias cycles report recursion.
 
 ```ds:a.ds
 import type { B } from "./b.ds";

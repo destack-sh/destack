@@ -6,7 +6,7 @@
 
 ### number remainder number
 
-> Remainder of two numbers produces a number.
+Remainder of two numbers produces a number.
 
 ```ds
 const value = 10 % 3;
@@ -20,7 +20,7 @@ value satisfies number;
 
 ### remainder dispatches to Remainder
 
-> `%` dispatches to `Remainder` on the receiver.
+`%` dispatches to `Remainder` on the receiver.
 
 ```ds
 struct Scalar { value: int }
@@ -42,7 +42,7 @@ value satisfies Scalar;
 
 ### remainder requires Remainder
 
-> `%` requires a matching `Remainder` implementation.
+`%` requires a matching `Remainder` implementation.
 
 ```ds
 struct Scalar { value: int }

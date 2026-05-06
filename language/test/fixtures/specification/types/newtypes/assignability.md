@@ -24,7 +24,7 @@ const raw: int64 = UserId(42);
 
 - contains: not assignable
 
-### backing projection is explicit
+### backing casts are explicit
 
 ```ds
 newtype UserId = int64;

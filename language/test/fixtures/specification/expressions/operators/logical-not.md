@@ -6,7 +6,7 @@
 
 ### logical not yields boolean
 
-> `!` produces boolean.
+`!` produces boolean.
 
 ```ds
 let value: boolean = !true;

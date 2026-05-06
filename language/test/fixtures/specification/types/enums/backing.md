@@ -6,7 +6,7 @@ Enum backing values do not implicitly cross the enum boundary.
 
 ### integer enums do not coerce to integers
 
-> Integer enums are nominal and do not implicitly coerce to integers.
+Integer enums are nominal and do not implicitly coerce to integers.
 
 ```ds
 enum Status {
@@ -22,7 +22,7 @@ const raw: int32 = status;
 
 ### integer enums cast to integers explicitly
 
-> Casting to the integer backing type is explicit.
+Casting to the integer backing type is explicit.
 
 ```ds
 enum Status {
@@ -37,7 +37,7 @@ raw satisfies int32;
 
 ### integers cast to enums explicitly
 
-> Casting from the integer backing type to the enum is explicit.
+Casting from the integer backing type to the enum is explicit.
 
 ```ds
 enum Status {
@@ -51,7 +51,7 @@ status satisfies Status;
 
 ### integers do not coerce to enums
 
-> Integer values do not implicitly coerce to enums.
+Integer values do not implicitly coerce to enums.
 
 ```ds
 enum Status {
@@ -68,7 +68,7 @@ const status: Status = 1;
 
 ### string enums do not coerce to strings
 
-> String enums are nominal and do not implicitly coerce to string.
+String enums are nominal and do not implicitly coerce to string.
 
 ```ds
 enum Flavor {
@@ -84,7 +84,7 @@ const raw: string = flavor;
 
 ### string enums cast to strings explicitly
 
-> Casting to string is explicit.
+Casting to string is explicit.
 
 ```ds
 enum Flavor {
@@ -99,7 +99,7 @@ raw satisfies string;
 
 ### strings cast to enums explicitly
 
-> Casting from string to the enum is explicit.
+Casting from string to the enum is explicit.
 
 ```ds
 enum Flavor {
@@ -113,7 +113,7 @@ flavor satisfies Flavor;
 
 ### enum members share one backing type
 
-> Enum members must agree on backing type.
+Enum members must agree on backing type.
 
 ```ds
 enum Mixed {
