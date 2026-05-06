@@ -41,8 +41,8 @@ struct AtomicMetadata {
     scope: mir::AtomicScope,
     /// The memory scope.
     memory_scope: mir::MemoryScope,
-    /// The memory semantics flags.
-    semantics: mir::MemorySemantics,
+    /// The memory flags.
+    flags: mir::MemoryFlags,
 }
 
 /// The atomic instruction to emit for one intrinsic binding.
@@ -491,7 +491,7 @@ impl FunctionLowerer<'_> {
         if arguments.len() != base_args + metadata_args {
             return Err(self.error(
                 expression_id,
-                "atomic intrinsic arguments must include explicit ordering and semantics",
+                "atomic intrinsic arguments must include explicit ordering and flags",
             ));
         }
 
@@ -510,7 +510,7 @@ impl FunctionLowerer<'_> {
                     metadata.ordering,
                     metadata.scope,
                     metadata.memory_scope,
-                    metadata.semantics,
+                    metadata.flags,
                     result_type,
                 ))
             }
@@ -525,7 +525,7 @@ impl FunctionLowerer<'_> {
                     metadata.ordering,
                     metadata.scope,
                     metadata.memory_scope,
-                    metadata.semantics,
+                    metadata.flags,
                 );
                 None
             }
@@ -545,7 +545,7 @@ impl FunctionLowerer<'_> {
                     metadata.ordering,
                     metadata.scope,
                     metadata.memory_scope,
-                    metadata.semantics,
+                    metadata.flags,
                     result_type,
                 ))
             }
@@ -561,7 +561,7 @@ impl FunctionLowerer<'_> {
                     metadata.ordering,
                     metadata.scope,
                     metadata.memory_scope,
-                    metadata.semantics,
+                    metadata.flags,
                     result_type,
                 ))
             }
@@ -570,7 +570,7 @@ impl FunctionLowerer<'_> {
                     metadata.ordering,
                     metadata.scope,
                     metadata.memory_scope,
-                    metadata.semantics,
+                    metadata.flags,
                 );
                 None
             }
@@ -611,8 +611,8 @@ impl FunctionLowerer<'_> {
         let mut memory_scope = None;
         let mut spaces = None;
         let mut is_volatile = None;
-        let mut is_make_available = None;
-        let mut is_make_visible = None;
+        let mut makes_available = None;
+        let mut makes_visible = None;
 
         for (slot, argument_id) in ATOMIC_METADATA_SLOTS.iter().zip(metadata_args.iter()) {
             let expression = self.argument_expression(expression_id, *argument_id)?;
@@ -633,11 +633,10 @@ impl FunctionLowerer<'_> {
                     is_volatile = Some(self.parse_boolean_literal(expression_id, expression)?);
                 }
                 AtomicMetadataSlot::IsMakeAvailable => {
-                    is_make_available =
-                        Some(self.parse_boolean_literal(expression_id, expression)?);
+                    makes_available = Some(self.parse_boolean_literal(expression_id, expression)?);
                 }
                 AtomicMetadataSlot::IsMakeVisible => {
-                    is_make_visible = Some(self.parse_boolean_literal(expression_id, expression)?);
+                    makes_visible = Some(self.parse_boolean_literal(expression_id, expression)?);
                 }
             }
         }
@@ -653,28 +652,24 @@ impl FunctionLowerer<'_> {
         })?;
         let is_volatile = is_volatile
             .ok_or_else(|| self.error(expression_id, "atomic intrinsic missing volatile flag"))?;
-        let is_make_available = is_make_available.ok_or_else(|| {
+        let makes_available = makes_available.ok_or_else(|| {
             self.error(
                 expression_id,
                 "atomic intrinsic missing make-available flag",
             )
         })?;
-        let is_make_visible = is_make_visible.ok_or_else(|| {
+        let makes_visible = makes_visible.ok_or_else(|| {
             self.error(expression_id, "atomic intrinsic missing make-visible flag")
         })?;
 
-        let semantics = mir::MemorySemantics::with_flags(
-            spaces,
-            is_volatile,
-            is_make_available,
-            is_make_visible,
-        );
+        let flags =
+            mir::MemoryFlags::with_flags(spaces, is_volatile, makes_available, makes_visible);
 
         Ok(AtomicMetadata {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         })
     }
 
