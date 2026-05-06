@@ -256,7 +256,7 @@ enum Priority {
 ### Tagged Unions
 
 Discriminated unions are very convenient and fit well into existing TypeScript, but by themselves lack nominal containers (and items) to attach behavior to.
-Using Destack's nominality `newtype` and the builtin `Tagged` `derive`, plain old discriminated unions become pretty presentable sum types:
+Using Destack's nominality `newtype` and the builtin `Tagged` derive provider, plain old discriminated unions become pretty presentable sum types:
 
 ```ds
 @derive(Tagged)
@@ -292,7 +292,7 @@ By default, string discriminants are exposed as `UpperCamelCase` constructor nam
 | `"SCREAMING_SNAKE_CASE"` | `RectangleShape` → `RECTANGLE_SHAPE` |
 
 ```ds
-@derive(Tagged<"preserve">)
+@derive(Tagged({ case: "preserve" }))
 newtype Shape =
     | { kind: "rectangle"; width: int32; height: int32 }
     | { kind: "circle"; radius: int32 };
@@ -1321,35 +1321,72 @@ module {
 
 Like TypeScript, Destack uses `@` for decorator-like constructs, but Destack supports both "annotations" and "decorators", and many more things can be decorated.
 The syntax is unified, the form - the thing pointed to in `@<expr>` - decides:
- - **Annotations** are nominal values, like `newtype`s. They add typed metadata to the target.
- - **Decorators** are language forms or protocol values that are allowed to contribute code or change the analyzed shape in some bounded specific way.
+ - **Annotations** are _values_ like `newtype`s. They add typed metadata to the target, but don't directly change the target's behavior.
+ - **Decorators** are _logic_ following some protocol that contribute code or change the analyzed shape in some bounded way.
 
 Annotations are "inert" by default, that is, they don't do anything until either some userland construct or the toolchain give them special meaning (like with `@capture`).
 
 ```ds
 newtype deprecated = () | (string,);
 
-@deprecated("use newAPI instead") // metadata annotation
+@deprecated("use newAPI instead") // metadata annotation, doesn't do anything
 function oldAPI() {
     // ...
 }
 
-@derive(Clone, Debug) // special built-in derive decorator
+@tracked
+@derive(Clone, Debug)
 struct User {
     id: UserId;
     name: string;
 }
 ```
 
-#### Rewriting
+#### Patch
 
-...?
+Decorators are just nominal values, like annotations, but they implement the `Patcher` protocol for the target they are applied to.
+This also means that decorator configuration is just regular values:
+
+```ds
+newtype memoize = {
+    capacity?: uint;
+};
+
+@memoize({ capacity: 1024 })
+function load(id: UserId): Result<User, Error> {
+    ...
+}
+```
+
+The `Patcher` algebra uses small bounded `Patch`es: add, replace, rename, remove.
+
+```ds
+extension<F> of memoize implements Patcher<F>
+    where F extends (...args: unknown[]) => unknown
+{
+    static patch(target: F, context: PatchContext<F>, options: this): Patch[] {
+        const replacement = comptime eval<Declaration>(ds`
+            function ${context.name}(...args) {
+                ...
+            }
+        `);
+
+        return [
+            PatchReplace({
+                symbol: context.target,
+                declaration: replacement,
+            }),
+        ];
+    }
+}
+```
+
+Patch expansion is not recursive: declarations that implement `Patcher` are analyzed before patching, and cannot themselves be changed by patchers or derive.
 
 #### Derive
 
-Similar to Rust, Destack supports a special `@derive` decorator form for generating ordinary declarations.
-Each argument to `@derive` references a `Derive` provider that implements the builtin `Derive<T>` protocol and may contribute declarations for the annotated nominal type, usually via extensions.
-The `@derive` does _not_ mutate the original declaration directly (it's purely additive).
+Similar to Rust, Destack supports `@derive` providers for extending certain declarations at compile time.
+Unlike in Rust, a derive provider is just a nominal decorator that happens to implement the `Patcher<Target>` interface, and `derive`-like "macros" do not need to be implemented in a different package (or "crate") or in any special syntax.
 
 ```ds
 @derive(Clone, Debug)
@@ -1358,36 +1395,44 @@ struct User {
     name: string;
 }
 
-@derive(Tagged<"UpperCamelCase">)
+@derive(Tagged({ case: "UpperCamelCase" }))
 newtype Shape =
     | { kind: "rectangle"; width: int32; height: int32 }
     | { kind: "circle"; radius: int32 };
 ```
 
-At the library level, a derive provider is just a static provider type:
+At the library level, a derive provider is just a nominal provider value returning patches:
 
 ```ds
-newtype interface Derive<Target> {
-    type Declarations;
+newtype interface Patcher<Target> {
+    static patch(target: Target, context: PatchContext<Target>, config: this): Patch[];
 }
 
-newtype Tagged<
-    comptime Case: TaggedCase = "UpperCamelCase",
-    comptime Names: TaggedNames = {},
->;
+newtype Tagged = () | {
+    case?: TaggedCase;
+    names?: TaggedNames;
+};
+
+extension<Target> of Tagged implements Patcher<Target> {
+    @intrinsic
+    static patch(target: Target, context: PatchContext<Target>, config: this): Patch[];
+}
 ```
 
 #### Static If
 
-There is another special decorator: `@if` gates the inclusion of certain nodes based on a static term.
+Destack also supports a special `@if` decorator that gates the inclusion of certain nodes based on a static term.
 When the condition is false, the annotated item is (in effect) removed from the instantiated shape.
 
 ```ds
-enum OperatingSystem {
+interface FileSystem {
+    open(path: string): Result<File, IOError>;
+
+    @if(import.meta.target.os != "windows")
+    chmod(path: string, mode: uint16): Result<void, IOError>;
+
     @if(import.meta.target.os == "windows")
-    Windows,
-    @if(import.meta.target.os == "macos")
-    Mac,
+    setAttributes(path: string, attrs: WindowsFileAttributes): Result<void, IOError>;
 }
 ```
 
