@@ -46,7 +46,7 @@ Dynamic shapes and strict native compilation do not like to mix.
 In `.ds`, values have statically known shape, and classes have a fixed static object model instead of some mutable JS constructor object.
 
 - **Declaration expressions**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with proper AOT compilation.
-- **Dynamic code generation**: Runtime `eval`, runtime `new Function`, and dynamic class generation are in conflict with a strict AOT model and unsupported. We do however support `comptime` forms _during_ compilation for certain use cases.
+- **Dynamic code generation**: Dynamic _runtime_ `eval` / `new Function` / class generation are in conflict with a strict AOT model and unsupported, **but** Destack supports explicit `comptime eval` / `new Function`.
 - **Prototype objects**: `.prototype`, `.__proto__`, `.constructor`, `Object.getPrototypeOf`, `Object.setPrototypeOf`, and `Object.create(proto)` all rely on the prototype-based object model and are not supported.
 - **Shape mutation**: `delete`, `Object.defineProperty`, `Object.defineProperties`, `Reflect.defineProperty`, `Reflect.deleteProperty`, and shape-changing `Object.assign` are forbidden.
 - **Metaobject dispatch**: `Proxy` and most `Reflect.*` APIs exist to intercept or emulate dynamic object behavior, so they are also unsupported.
@@ -256,10 +256,10 @@ enum Priority {
 ### Tagged Unions
 
 Discriminated unions are very convenient and fit well into existing TypeScript, but by themselves lack nominal containers (and items) to attach behavior to.
-Using Destack's nominality `newtype` and a tiny well-known `@tagged` decorator for some syntactic sugar we can turn plain old discriminated unions into pretty presentable sum types:
+Using Destack's nominality `newtype` and the builtin `Tagged` `derive`, plain old discriminated unions become pretty presentable sum types:
 
 ```ds
-@tagged
+@derive(Tagged)
 newtype Shape =
     | { kind: "rectangle"; width: int32; height: int32 }
     | { kind: "circle"; radius: int32 };
@@ -270,18 +270,18 @@ extension of Shape {
     variant() {
         match (this) {
             Shape.Rectangle(_) => "rectangle"
-            Shape.Circle(_) => "cirlce"
+            Shape.Circle(_) => "circle"
         }
     }
 }
 
-// create values of @tagged newtype unions with <Type>.<Variant>
+// create values of tagged newtype unions with <Type>.<Variant>
 const rectangle = Shape.Rectangle({ width: 10, height: 20 });
 const circle = Shape.Circle({ radius: 5 });
 ```
 
-The `@tagged` annotation tells the compiler to pick out the discriminated field and use its name for a resolvable variant name. 
-The supported naming policies are:
+The discriminant field is inferred from the union: it must be the unique common field whose variants carry distinct literal values.
+By default, string discriminants are exposed as `UpperCamelCase` constructor names, the other supported naming policies are:
 
 | Tagged Casing | Example |
 |--------|---------|
@@ -292,7 +292,7 @@ The supported naming policies are:
 | `"SCREAMING_SNAKE_CASE"` | `RectangleShape` → `RECTANGLE_SHAPE` |
 
 ```ds
-@tagged("preserve")
+@derive(Tagged<"preserve">)
 newtype Shape =
     | { kind: "rectangle"; width: int32; height: int32 }
     | { kind: "circle"; radius: int32 };
@@ -1303,39 +1303,84 @@ Destack (`.ds`) files natively support `.tsx` like constructs:
 ```
 
 Unlike in TypeScript, in Destack types can participate in custom tree tag behavior by implementing the `TreeTag` interface, and custom intrinsic types (lowercase tags like `<div>`) are programmable via `TreeTagBuilder`.
-Essentially, `TreeTag` generalises `jsxFactory` and `TreeTagBuilder` generalises `jsxFragmentFactory`: 
+Essentially, the familiar split remains, with `TreeTag` generalising `jsxFactory` and `TreeTagBuilder` generalising `jsxFragmentFactory`:
  - Uppercase or qualified tags resolve as value tags through normal value lookup and the `TreeTag` interface.
  - Lowercase unqualified tags resolve as intrinsic tags through the active `TreeTagBuilder`.
 
-The global default `TreeTagBuilder` follows the established `jsxImportSource` style configuration.
-We're figuring out if there is a ergonomic way to configure this on a sub-pcakage / per-module basis, but that doesn't exist yet.
+The active `TreeTagBuilder` comes from the compiler / target / profile options by default, but can be locally overriden via the `module { ... }` directive block.
+
+```ds
+import { HtmlTree } from "destack:ui/html";
+
+module {
+    tree: HtmlTree;
+}
+```
 
 ### Annotations and Decorators
 
-Like TypeScript, Destack uses `@` for decorators. 
-Unlike in TypeScript, Destack decorators can appear basically on any declaration, item and statement, much like Rust attributes.
+Like TypeScript, Destack uses `@` for decorator-like constructs, but Destack supports both "annotations" and "decorators", and many more things can be decorated.
+The syntax is unified, the form - the thing pointed to in `@<expr>` - decides:
+ - **Annotations** are nominal values, like `newtype`s. They add typed metadata to the target.
+ - **Decorators** are language forms or protocol values that are allowed to contribute code or change the analyzed shape in some bounded specific way.
+
+Annotations are "inert" by default, that is, they don't do anything until either some userland construct or the toolchain give them special meaning (like with `@capture`).
 
 ```ds
-@deprecated("use newAPI instead")
+newtype deprecated = () | (string,);
+
+@deprecated("use newAPI instead") // metadata annotation
 function oldAPI() {
     // ...
 }
 
+@derive(Clone, Debug) // special built-in derive decorator
+struct User {
+    id: UserId;
+    name: string;
+}
+```
+
+#### Rewriting
+
+...?
+
+#### Derive
+
+Similar to Rust, Destack supports a special `@derive` decorator form for generating ordinary declarations.
+Each argument to `@derive` references a `Derive` provider that implements the builtin `Derive<T>` protocol and may contribute declarations for the annotated nominal type, usually via extensions.
+The `@derive` does _not_ mutate the original declaration directly (it's purely additive).
+
+```ds
 @derive(Clone, Debug)
 struct User {
     id: UserId;
     name: string;
 }
 
-function kernel(data: @space("shared") &Point) { }
+@derive(Tagged<"UpperCamelCase">)
+newtype Shape =
+    | { kind: "rectangle"; width: int32; height: int32 }
+    | { kind: "circle"; radius: int32 };
+```
+
+At the library level, a derive provider is just a static provider type:
+
+```ds
+newtype interface Derive<Target> {
+    type Declarations;
+}
+
+newtype Tagged<
+    comptime Case: TaggedCase = "UpperCamelCase",
+    comptime Names: TaggedNames = {},
+>;
 ```
 
 #### Static If
 
 There is another special decorator: `@if` gates the inclusion of certain nodes based on a static term.
-When the condition is false, the annotated item is removed from the instantiated shape.
-If the condition depends on generic static inputs, the compiler keeps the item guarded until the declaration is instantiated.
-That is still static inclusion, not runtime control flow.
+When the condition is false, the annotated item is (in effect) removed from the instantiated shape.
 
 ```ds
 enum OperatingSystem {
@@ -1360,21 +1405,36 @@ struct Buffer<T, comptime Mode: "inline" | "external"> {
 }
 ```
 
-### Globals
+### Module
 
-TypeScript supports ambient global typings, which were designed for typing the "magic" global objects provided by embedders, but there is no way to contribute _value_ globals in userland, which is sometimes quite convenient.
-In addition to ambient global typings, Destack therefore supports "real" `global { ... }` value declarations that contribute to the ambient environment without explicit imports.
+Destack modules can contain (up to) one static `module { ... }` directive block for source-level configuration that needs to be specific to a module.
+Usually, we would configure this with the compiler / target / profile options, but sometimes it's helpful to override these options locally:
 
 ```ds
-global { // just omit the `declare`!
-    const console: Console = runtime.console();
-    const runtimeId = Runtime.current.id;
-    shared const registry = new Registry();
+import { HtmlTree } from "destack:ui/html";
+
+module {
+    tree: HtmlTree; // configure the current tree tag builder
+    derive: [Debug, Clone]; // configure the default auto derives
 }
 ```
 
-A `global` block is active when its containing module is in the closure reached from the target's entrypoints, includes, configured global provider roots, or profile/prelude modules.
-Of course, because these globals are real values, duplicate global value names are errors.
+The fields must be static terms, may reference imports, and are resolved before ordinary analysis of the module body.
+
+### Globals
+
+TypeScript supports ambient global typings, which were designed for typing the "magic" global objects provided by embedders, but it has no way to contribute _value_ globals in userland.
+Destack supports "real" value `global { ... }` declarations that can then be automatically included everywhere by (explicit) reference in the compiler / target configuration.
+
+```ds
+// browser-globals.ds
+global { // just omit the `declare`!
+    const window: Window = runtime.browser.window();
+    const document: Document = runtime.browser.document();
+}
+```
+
+Because these globals are real values, duplicate visible global value names are errors.
 
 ### Comptime
 
@@ -1402,7 +1462,10 @@ function factorial(n: int): int {
 }
 
 const COMPTIME_CONST = comptime factorial(10);    // compile time
+COMPTIME_CONST satisfies int;
+
 const RUNTIME_CONST = factorial(getUserInput()); // runtime (in this case, at module initialization time)
+RUNTIME_CONST satisfies int;
 ```
 
 The evaluation scope for each comptime expression is isolated to its declaration site, and the only way to get a value "out" is to use comptime as an expression - no reaching into statics or globals allowed.
@@ -1466,18 +1529,32 @@ function blockCost<comptime Width: uint>(): int32 {
 Of course, comptime results must also be lowerable into the target artifact.
 Plain data such as numbers, strings, arrays, tuples, objects, structs, and enums are all fine, but dynamic runtime resources like pointers and handles and such are not allowed.
 
+#### Dynamic Code
+
+Generating and evaluating arbitrary code is supported via `eval` and `new Function` at _compile-time_, just by passing the static term of a string to a comptime-scoped `eval` or `new Function` call:
+
+```ds
+const source = comptime renderParser(grammar);
+const parser = comptime eval(source);
+
+const makeRoute = comptime new Function("request", "context", routeSource);
+```
+
+The source passed to `eval` or `new Function` must itself be available to comptime evaluation.
+Generated code is parsed and typechecked as `.ds`, attached to the same module graph as a virtual source file, and tracked for diagnostics and artifact caching.
+
 ## Memory
 
 TypeScript, like most managed high level languages, does not encode memory "ownership" in its type system: all reference types are implicitly GC-managed on some local heap, and all value types are copied by default.
 That is convenient, but sometimes we need to take direct control of memory, whether for better performance, or just to express invariants in the code.
 
-Destack adds explicit, optional modifiers for controlling memory ownership and placement, inspired by Rust and Mojo with `^T` as the "owned" signifier.
-Plain `T` keeps the base type's default representation: value types are values, object types are managed references.
-Memory in Destack lives on two orthogonal axes:
+Destack supports explicit, optional modifiers for controlling memory ownership and placement, inspired by Rust and Mojo with `^T` as the "owned" signifier.
+Specifically, memory can be controlled along two axes:
 - **Ownership**: who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`), or raw (`*T`).
 - **Placement**: where the value is located: ambient by default, `shared` across Workers, explicit `"local"` in the type algebra, or some other target-defined space.
 
-The two axes compose freely, e.g. `^shared T` is an owned handle to a value in shared space, and `&shared T` is a borrow of a shared value.
+Plain `T` still behaves as the type's default representation, of course: value types are values, object types are managed references.
+The two axes compose and commute freely, e.g. `shared ^T` and `^shared T` both mean an owned handle to a value in shared space, and `shared &T` is a borrow of a shared value.
 
 ### Ownership
 
@@ -1493,16 +1570,11 @@ Each ownership form has a corresponding normalized representation in our little 
 | `*T` | raw | does not keep anything alive | unsafe typed pointer |
 
 ```ds
-let a: User = new User();         // managed handle
-let b: ^User = new User();        // owned handle
-let c: &User = &a;                // borrow
-let d: *User = unsafe { &raw a }; // raw pointer
+let a: User = new User();  // managed handle
+let b: ^User = new User(); // owned handle
+let c: &User = &a;         // borrow
+let d: *User = &a;         // raw pointer by destination type
 ```
-
-Plain `T` is the default and matches what TypeScript already does: value types are values, object types are managed references.
-`^T` denotes unique ownership, like Rust's `Box<T>` or Mojo's `^T`.
-`&T` is a borrow that must remain valid for some region; see [Borrows, Regions And Suspension](#borrows-regions-and-suspension).
-`*T` is an unchecked raw pointer; it does not keep anything alive and can only be used inside `unsafe` blocks.
 
 ### Space
 
@@ -1561,16 +1633,12 @@ Userland APIs such as channels, Worker pools, atomics, locks, and actors can req
 The rules for who can convert into what mostly follow from two facts: references must always be valid, and shared memory must not point into a Worker-local heap.
 (Raw pointers are your own dangerous business.)
 
-| From \ To | `T` | `shared T` | `&T` | `&shared T` | `^T` | `^shared T` | `*T` | `*shared T` |
-|-----------|-----|------------|------|-------------|------|-------------|------|-------------|
-| `T` | - | yes | yes | no | no | no | unsafe | no |
-| `shared T` | no | - | no | yes | no | no | no | unsafe |
-| `&T` | no | no | - | no | no | no | unsafe | no |
-| `&shared T` | no | no | no | - | no | no | no | unsafe |
-| `^T` | no | yes | yes | no | - | no | unsafe | no |
-| `^shared T` | no | no | no | yes | no | - | no | unsafe |
-| `*T` | no | no | reborrow | no | no | no | - | no |
-| `*shared T` | no | no | no | reborrow | no | no | no | - |
+| From \ To | `T` | `&T` | `^T` | `*T` |
+|-----------|-----|------|------|------|
+| `T` | - | yes | no | unsafe |
+| `&T` | no | - | no | unsafe |
+| `^T` | no | yes | - | unsafe |
+| `*T` | no | reborrow | no | - |
 
 "unsafe" conversions require an explicit `unsafe` block, and "reborrow" from `*T` to `&T` requires an unsafe checked reborrow that asserts validity.
 
@@ -1627,11 +1695,12 @@ newtype Form<
 All these `Form`s are based on the common static evaluation machinery, and code can be generic over `Form<T, O, P, R>`, `WithSpace<T, S>`, or `PlaceIn<T, S>` without choosing a final address space or ownership.
 
 ```ds
-User            // unqualified, interpreted as managed ambient
+User            // unqualified, defaults to managed ambient
 ^User           // Form<User, "owned", "ambient">
 &User           // Form<User, "borrowed", "ambient", R>
 *User           // Form<User, "raw", "ambient">
 shared User     // Form<User, "managed", "shared">
+shared ^User    // Form<User, "owned", "shared">
 ^shared User    // Form<User, "owned", "shared">
 ```
 
@@ -1651,7 +1720,7 @@ Shared<^User> satisfies Form<User, "owned", "shared">;
 Accessors pull the axes back out.
 The `*Of` family returns `never` when that axis is not explicit on the input, while `*Or` applies a default:
 ```ds
-BaseOf<^shared User> satisfies User;
+BaseOf<shared ^User> satisfies User;
 OwnershipOf<^User> satisfies "owned";
 OwnershipOr<User, "managed"> satisfies "managed";
 RegionOf<Borrowed<User, "a">> satisfies "a";
