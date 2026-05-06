@@ -1,0 +1,695 @@
+import { type StaticArgument } from "./argument.ds";
+import { type Path } from "./path.ds";
+import { type ScalarLiteral } from "./literal.ds";
+import { type Asynchrony, type Mutability } from "./node.ds";
+import { type FunctionCardinality } from "./function.ds";
+import { type StaticKey } from "./key.ds";
+import { type Symbol } from "./symbol.ds";
+import { type TypeExpression } from "./type-expression.ds";
+
+/// Session-local identity for one normalized type.
+export newtype TypeId = intrinsic;
+
+/// Common view shared by reflected semantic types.
+export interface TypeBase {
+    /// The type identity.
+    id: TypeId;
+}
+
+/// A primitive type.
+export type PrimitiveType =
+    | BooleanPrimitiveType
+    | CharacterPrimitiveType
+    | StringPrimitiveType
+    | BigintPrimitiveType
+    | NumberPrimitiveType
+    | IntPrimitiveType
+    | FloatPrimitiveType
+    | SymbolPrimitiveType
+    | UniqueSymbolPrimitiveType;
+
+/// Boolean primitive type.
+export interface BooleanPrimitiveType {
+    /// The primitive kind.
+    kind: "boolean";
+}
+
+/// Character primitive type.
+export interface CharacterPrimitiveType {
+    /// The primitive kind.
+    kind: "character";
+}
+
+/// String primitive type.
+export interface StringPrimitiveType {
+    /// The primitive kind.
+    kind: "string";
+}
+
+/// Bigint primitive type.
+export interface BigintPrimitiveType {
+    /// The primitive kind.
+    kind: "bigint";
+}
+
+/// Number primitive type.
+export interface NumberPrimitiveType {
+    /// The primitive kind.
+    kind: "number";
+}
+
+/// Integer primitive type.
+export interface IntPrimitiveType {
+    /// The primitive kind.
+    kind: "int";
+    /// The integer type.
+    int: IntType;
+}
+
+/// Floating-point primitive type.
+export interface FloatPrimitiveType {
+    /// The primitive kind.
+    kind: "float";
+    /// The float type.
+    float: FloatType;
+}
+
+/// Symbol primitive type.
+export interface SymbolPrimitiveType {
+    /// The primitive kind.
+    kind: "symbol";
+}
+
+/// Unique symbol primitive type.
+export interface UniqueSymbolPrimitiveType {
+    /// The primitive kind.
+    kind: "uniqueSymbol";
+}
+
+/// An integer type.
+export type IntType =
+    | "int8"
+    | "int16"
+    | "int32"
+    | "int64"
+    | "int128"
+    | "int256"
+    | "isize"
+    | "uint8"
+    | "uint16"
+    | "uint32"
+    | "uint64"
+    | "uint128"
+    | "uint256"
+    | "usize"
+    | ArbitraryIntType;
+
+/// Arbitrary-width integer type.
+export interface ArbitraryIntType {
+    /// The bit width.
+    width: uint16;
+    /// Whether the integer is signed.
+    isSigned: boolean;
+}
+
+/// A floating-point type.
+export type FloatType =
+    | "float32"
+    | "float64"
+    | ArbitraryFloatType;
+
+/// Arbitrary-width floating-point type.
+export interface ArbitraryFloatType {
+    /// The bit width.
+    width: uint16;
+}
+
+/// A scalar type literal.
+export type TypeLiteral =
+    | NeverTypeLiteral
+    | AnyTypeLiteral
+    | InferTypeLiteral
+    | UndefinedTypeLiteral
+    | UnknownTypeLiteral
+    | ObjectTypeLiteral
+    | VoidTypeLiteral
+    | NullTypeLiteral
+    | PrimitiveTypeLiteral
+    | IntrinsicTypeLiteral
+    | ScalarLiteralTypeLiteral;
+
+/// `never`.
+export interface NeverTypeLiteral {
+    /// The type literal kind.
+    kind: "never";
+}
+
+/// `any`.
+export interface AnyTypeLiteral {
+    /// The type literal kind.
+    kind: "any";
+}
+
+/// Infer placeholder.
+export interface InferTypeLiteral {
+    /// The type literal kind.
+    kind: "infer";
+}
+
+/// `undefined`.
+export interface UndefinedTypeLiteral {
+    /// The type literal kind.
+    kind: "undefined";
+}
+
+/// `unknown`.
+export interface UnknownTypeLiteral {
+    /// The type literal kind.
+    kind: "unknown";
+}
+
+/// `object`.
+export interface ObjectTypeLiteral {
+    /// The type literal kind.
+    kind: "object";
+}
+
+/// `void`.
+export interface VoidTypeLiteral {
+    /// The type literal kind.
+    kind: "void";
+}
+
+/// `null`.
+export interface NullTypeLiteral {
+    /// The type literal kind.
+    kind: "null";
+}
+
+/// Primitive type literal.
+export interface PrimitiveTypeLiteral {
+    /// The type literal kind.
+    kind: "primitive";
+    /// The primitive type.
+    primitive: PrimitiveType;
+}
+
+/// Intrinsic type literal.
+export interface IntrinsicTypeLiteral {
+    /// The type literal kind.
+    kind: "intrinsic";
+    /// The intrinsic type.
+    intrinsic: IntrinsicType;
+}
+
+/// Scalar literal type literal.
+export interface ScalarLiteralTypeLiteral {
+    /// The type literal kind.
+    kind: "scalarLiteral";
+    /// The scalar literal.
+    literal: ScalarLiteral;
+}
+
+/// Compiler-provided intrinsic type.
+export enum IntrinsicType {
+    /// Uppercase string intrinsic.
+    Uppercase,
+    /// Lowercase string intrinsic.
+    Lowercase,
+    /// Capitalize string intrinsic.
+    Capitalize,
+    /// Uncapitalize string intrinsic.
+    Uncapitalize,
+    /// NoInfer intrinsic.
+    NoInfer,
+    /// Builtin iterator return intrinsic.
+    BuiltinIteratorReturn,
+}
+
+/// A mapped-type modifier in evaluated type space.
+export enum MappedTypeModifier {
+    /// The plain modifier without an explicit sign.
+    Present,
+    /// Add a modifier with an explicit `+` sign.
+    Add,
+    /// Remove a modifier.
+    Remove,
+    /// No modifier specified.
+    None,
+}
+
+/// Evaluated mapped-type modifiers.
+export interface MappedTypeModifiers {
+    /// The readonly modifier.
+    readonly: MappedTypeModifier;
+    /// The optional modifier.
+    optional: MappedTypeModifier;
+}
+
+/// An evaluated mapped-type parameter.
+export interface MappedTypeParameter {
+    /// The parameter name.
+    name: string;
+    /// The parameter symbol.
+    symbol: Symbol;
+    /// The constraint type.
+    constraint: Type;
+    /// The optional key remap.
+    keyRemap?: Type;
+}
+
+/// A predicate subject in evaluated type space.
+export type PredicateSubject =
+    | UnresolvedPredicateSubject
+    | SymbolPredicateSubject
+    | ThisPredicateSubject;
+
+/// Unresolved identifier predicate subject.
+export interface UnresolvedPredicateSubject {
+    /// The subject kind.
+    kind: "unresolved";
+    /// The subject name.
+    name: string;
+}
+
+/// Resolved symbol predicate subject.
+export interface SymbolPredicateSubject {
+    /// The subject kind.
+    kind: "symbol";
+    /// The subject symbol.
+    symbol: Symbol;
+}
+
+/// `this` predicate subject.
+export interface ThisPredicateSubject {
+    /// The subject kind.
+    kind: "this";
+}
+
+/// An index signature in an object type.
+export interface TypeIndexSignature {
+    /// The parameter name.
+    name: string;
+    /// The key type.
+    keyType: Type;
+    /// The value type.
+    valueType: Type;
+    /// Whether the index signature is optional.
+    isOptional: boolean;
+    /// Whether the index signature is readonly.
+    isReadonly: boolean;
+}
+
+/// A reflected semantic type.
+export type Type<T = unknown> = TypeBase & (
+    TypeLiteralType
+    | InferVarType
+    | ValueType
+    | ThisType
+    | ReferenceType
+    | UnevaluatedType
+    | ConditionalType
+    | MappedType
+    | IndexType
+    | TemplateLiteralType
+    | ImportType
+    | InferType
+    | PredicateType
+    | ReadonlyType
+    | KeyOfType
+    | MustType
+    | AsComptimeType
+    | NotType
+    | ValueOfType
+    | ReferenceOfType
+    | PointerOfType
+    | InType
+    | ExtendsType
+    | ImplementsType
+    | ArraySizedType
+    | ArrayType
+    | TupleType
+    | ObjectType
+    | FunctionType
+    | UnionType
+    | IntersectionType
+    | ErrorType
+);
+
+/// Scalar type literal.
+export interface TypeLiteralType {
+    /// The type kind.
+    kind: "typeLiteral";
+    /// The type literal.
+    value: TypeLiteral;
+}
+
+/// Inference variable used during analysis.
+export interface InferVarType {
+    /// The type kind.
+    kind: "inferVar";
+}
+
+/// Type-as-value.
+export interface ValueType {
+    /// The type kind.
+    kind: "value";
+    /// The represented type.
+    value: Type;
+}
+
+/// `this` type.
+export interface ThisType {
+    /// The type kind.
+    kind: "this";
+}
+
+/// Reference to a declared type.
+export interface ReferenceType {
+    /// The type kind.
+    kind: "reference";
+    /// The referenced symbol.
+    symbol: Symbol;
+    /// The generic arguments when present.
+    genericArguments?: readonly StaticArgument[];
+}
+
+/// Unevaluated type expression.
+export interface UnevaluatedType {
+    /// The type kind.
+    kind: "unevaluated";
+    /// The unevaluated type expression.
+    expression: TypeExpression;
+}
+
+/// Type conditional expression.
+export interface ConditionalType {
+    /// The type kind.
+    kind: "conditional";
+    /// The distributive symbol when present.
+    distributiveSymbol?: Symbol;
+    /// The left type.
+    left: Type;
+    /// The right type.
+    right: Type;
+    /// The type when true.
+    thenType: Type;
+    /// The type when false.
+    elseType: Type;
+}
+
+/// Type mapped expression.
+export interface MappedType {
+    /// The type kind.
+    kind: "mapped";
+    /// The mapped parameter.
+    parameter: MappedTypeParameter;
+    /// The mapped modifiers.
+    modifiers: MappedTypeModifiers;
+    /// The mapped value type.
+    value: Type;
+}
+
+/// Type index expression.
+export interface IndexType {
+    /// The type kind.
+    kind: "index";
+    /// The indexed type.
+    left: Type;
+    /// The index type.
+    index: Type;
+}
+
+/// Type template literal expression.
+export interface TemplateLiteralType {
+    /// The type kind.
+    kind: "templateLiteral";
+    /// The fixed strings.
+    strings: readonly string[];
+    /// The type spans.
+    spans: readonly Type[];
+}
+
+/// Type import expression.
+export interface ImportType {
+    /// The type kind.
+    kind: "import";
+    /// The module target.
+    target: string;
+    /// The optional qualifier.
+    qualifier?: Path;
+    /// The generic arguments when present.
+    genericArguments?: readonly StaticArgument[];
+}
+
+/// Type infer binding.
+export interface InferType {
+    /// The type kind.
+    kind: "infer";
+    /// The inferred name.
+    name: string;
+    /// The constraint when present.
+    constraint?: Type;
+}
+
+/// Type predicate expression.
+export interface PredicateType {
+    /// The type kind.
+    kind: "predicate";
+    /// Whether the predicate asserts the subject.
+    asserts: boolean;
+    /// The predicate subject.
+    subject: PredicateSubject;
+    /// The predicate target when present.
+    target?: Type;
+}
+
+/// Type wrapper with a target type.
+export interface UnaryType {
+    /// The target type.
+    targetType: Type;
+}
+
+/// `readonly T`.
+export interface ReadonlyType extends UnaryType {
+    /// The type kind.
+    kind: "readonly";
+}
+
+/// `keyof T`.
+export interface KeyOfType extends UnaryType {
+    /// The type kind.
+    kind: "keyOf";
+}
+
+/// `T!`.
+export interface MustType extends UnaryType {
+    /// The type kind.
+    kind: "must";
+}
+
+/// `T as comptime`.
+export interface AsComptimeType extends UnaryType {
+    /// The type kind.
+    kind: "asComptime";
+}
+
+/// `!T`.
+export interface NotType extends UnaryType {
+    /// The type kind.
+    kind: "not";
+}
+
+/// Reference-operation variance bound.
+export enum VarianceBound {
+    /// Implements a type.
+    Implements,
+    /// Extends a type.
+    Extends,
+    /// Supertype relation.
+    Super,
+}
+
+/// `^T`.
+export interface ValueOfType {
+    /// The type kind.
+    kind: "valueOf";
+    /// The explicit mutability when present.
+    mutability?: Mutability;
+    /// The variance bound when present.
+    variance?: VarianceBound;
+    /// The target type.
+    right: Type;
+}
+
+/// `&T`.
+export interface ReferenceOfType {
+    /// The type kind.
+    kind: "referenceOf";
+    /// The explicit mutability when present.
+    mutability?: Mutability;
+    /// The variance bound when present.
+    variance?: VarianceBound;
+    /// The target type.
+    right: Type;
+}
+
+/// `*T`.
+export interface PointerOfType {
+    /// The type kind.
+    kind: "pointerOf";
+    /// The explicit mutability when present.
+    mutability?: Mutability;
+    /// The target type.
+    right: Type;
+}
+
+/// `left in right`.
+export interface InType {
+    /// The type kind.
+    kind: "in";
+    /// The left type.
+    left: Type;
+    /// The right type.
+    right: Type;
+}
+
+/// `left extends right`.
+export interface ExtendsType {
+    /// The type kind.
+    kind: "extends";
+    /// The left type.
+    left: Type;
+    /// The right type.
+    right: Type;
+}
+
+/// `left implements right`.
+export interface ImplementsType {
+    /// The type kind.
+    kind: "implements";
+    /// The left type.
+    left: Type;
+    /// The right type.
+    right: Type;
+}
+
+/// Fixed-size array type.
+export interface ArraySizedType {
+    /// The type kind.
+    kind: "arraySized";
+    /// The element type.
+    element: Type;
+    /// The count type.
+    count: Type;
+    /// Whether the array is readonly.
+    isReadonly: boolean;
+}
+
+/// Dynamic array type.
+export interface ArrayType {
+    /// The type kind.
+    kind: "array";
+    /// The element type when known.
+    element?: Type;
+    /// Whether the array is readonly.
+    isReadonly: boolean;
+}
+
+/// Tuple type.
+export interface TupleType {
+    /// The type kind.
+    kind: "tuple";
+    /// The tuple elements.
+    elements: readonly TypeElement[];
+    /// Whether the tuple is readonly.
+    isReadonly: boolean;
+}
+
+/// Object type.
+export interface ObjectType {
+    /// The type kind.
+    kind: "object";
+    /// The object fields.
+    fields: readonly TypeField[];
+    /// The call signatures.
+    callSignatures: readonly Type[];
+    /// The construct signatures.
+    constructSignatures: readonly Type[];
+    /// The index signatures.
+    indexSignatures: readonly TypeIndexSignature[];
+}
+
+/// Function type.
+export interface FunctionType {
+    /// The type kind.
+    kind: "function";
+    /// The function asynchrony.
+    asynchrony: Asynchrony;
+    /// The function cardinality.
+    cardinality: FunctionCardinality;
+    /// The generic parameter types.
+    genericParameters: readonly Type[];
+    /// The `this` parameter type when present.
+    thisParameter?: Type;
+    /// The parameter types.
+    parameters: readonly Type[];
+    /// The return type when present.
+    returnType?: Type;
+}
+
+/// Union type.
+export interface UnionType {
+    /// The type kind.
+    kind: "union";
+    /// The union elements.
+    elements: readonly Type[];
+}
+
+/// Intersection type.
+export interface IntersectionType {
+    /// The type kind.
+    kind: "intersection";
+    /// The intersection elements.
+    elements: readonly Type[];
+}
+
+/// Error type.
+export interface ErrorType {
+    /// The type kind.
+    kind: "error";
+}
+
+/// Type fields in an object-like type.
+export interface TypeField {
+    /// The field key.
+    key: StaticKey;
+    /// The field type.
+    type: Type;
+    /// Whether the field is optional.
+    isOptional: boolean;
+    /// Whether the field is readonly.
+    isReadonly: boolean;
+}
+
+/// A tuple element in a type tuple.
+export interface TypeElement {
+    /// The optional label for the element.
+    label?: string;
+    /// The element type.
+    type: Type;
+    /// Whether the element is optional.
+    isOptional: boolean;
+    /// Whether the element is readonly.
+    isReadonly: boolean;
+    /// Whether the element is a rest element.
+    isRest: boolean;
+}
+
+/// Type kind for nominal versus structural typing.
+export enum TypeKind {
+    /// Structural typing.
+    Structural,
+    /// Nominal typing.
+    Nominal,
+}

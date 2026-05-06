@@ -1,0 +1,35 @@
+import { type Expression } from "./expression.ds";
+import { type Node } from "./node.ds";
+import { type Scope } from "./symbol.ds";
+
+/// How a block is defined.
+export enum BlockFormat {
+    /// Explicit block with braces.
+    Explicit,
+    /// Implicit block like a file module.
+    Implicit,
+}
+
+/// How a block is interpreted.
+export enum BlockContext {
+    /// Expression-position block with a value tail.
+    Expression,
+    /// Statement-position block without a value tail.
+    Statement,
+}
+
+/// A block of expressions.
+export interface Block extends Node {
+    /// The node kind.
+    nodeKind: "block";
+    /// The block context.
+    context: BlockContext;
+    /// The block format.
+    format: BlockFormat;
+    /// The leading expressions.
+    leadingExpressions: readonly Expression[];
+    /// The optional tail expression.
+    tailExpression?: Expression;
+    /// The block scope.
+    scope: Scope;
+}

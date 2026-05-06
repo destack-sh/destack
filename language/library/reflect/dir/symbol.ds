@@ -1,0 +1,157 @@
+import { type ExportMode } from "./dependency.ds";
+import { type StaticKey } from "./key.ds";
+import { type Mutability, type Node } from "./node.ds";
+
+/// A module in the DIR graph.
+export newtype Module = intrinsic;
+
+/// A symbol in the DIR graph.
+export newtype Symbol = intrinsic;
+
+/// A scope in the DIR graph.
+export newtype Scope = intrinsic;
+
+/// A merge group of related symbols.
+export newtype MergeGroup = intrinsic;
+
+/// A symbol-space category.
+export enum SymbolSpace {
+    /// The type space.
+    Type,
+    /// The value space.
+    Value,
+    /// The type-value space.
+    TypeValue,
+    /// The label space.
+    Label,
+}
+
+/// A symbol uniqueness category.
+export enum SymbolKind {
+    /// Namespace.
+    Namespace,
+    /// Item.
+    Item,
+    /// Local.
+    Local,
+}
+
+/// How a symbol was introduced.
+export enum SymbolBinding {
+    /// A runtime definition.
+    Runtime,
+    /// An ambient declaration.
+    Ambient,
+}
+
+/// Where a symbol originated.
+export enum SymbolOrigin {
+    /// Declaration in module scope.
+    Primary,
+    /// Declaration inside a global augmentation.
+    GlobalAugmentation,
+}
+
+/// Duplicate-binding validation category.
+export enum BindingCategory {
+    /// Category has not been assigned yet.
+    Unclassified,
+    /// Symbol does not participate in duplicate-binding early errors.
+    NonBinding,
+    /// Function-scoped declaration category.
+    FunctionScoped,
+    /// Block-scoped declaration category.
+    BlockScoped,
+    /// Formal parameter declaration category.
+    Parameter,
+}
+
+/// The declaration type of a symbol.
+export enum SymbolType {
+    /// Not a type declaration.
+    Void,
+    /// A class declaration.
+    Class,
+    /// A struct declaration.
+    Struct,
+    /// An interface declaration.
+    Interface,
+    /// An enum declaration.
+    Enum,
+    /// A function declaration.
+    Function,
+    /// An extension declaration.
+    Extension,
+    /// A type alias declaration.
+    TypeAlias,
+    /// A newtype declaration.
+    Newtype,
+}
+
+/// One reflected symbol view.
+export interface SymbolView {
+    /// The symbol kind.
+    kind: SymbolKind;
+    /// The symbol type.
+    type: SymbolType;
+    /// The symbol space.
+    space: SymbolSpace;
+    /// How the symbol was introduced.
+    binding: SymbolBinding;
+    /// The value binding mutability when known.
+    bindingMutability?: Mutability;
+    /// The duplicate-binding category.
+    bindingCategory: BindingCategory;
+    /// Where the symbol originated.
+    origin: SymbolOrigin;
+    /// The static key when the symbol is named.
+    key?: StaticKey;
+    /// The scope that introduces the symbol.
+    scope: Scope;
+    /// The module that owns the symbol.
+    module: Module;
+    /// The export mode when the symbol is exported.
+    export?: ExportMode;
+    /// The main declaration when one exists.
+    primaryDeclaration?: Node;
+    /// Secondary declarations for merged symbols.
+    secondaryDeclarations: readonly Node[];
+    /// The cross-space merge group when one exists.
+    mergeGroup?: MergeGroup;
+    /// The next remote symbol in an import or alias chain.
+    targetSymbol?: Symbol;
+    /// The canonical remote symbol for this symbol.
+    canonicalSymbol?: Symbol;
+    /// Whether this symbol is active for the current profile.
+    isActive: boolean;
+}
+
+/// The kind of a scope.
+export enum ScopeKind {
+    /// Namespace.
+    Namespace,
+    /// Type.
+    Type,
+    /// Conditional type infer scope.
+    TypeConditional,
+    /// Block.
+    Block,
+}
+
+/// One reflected scope view.
+export interface ScopeView {
+    /// The scope kind.
+    kind: ScopeKind;
+    /// The parent scope when one exists.
+    parent?: Scope;
+    /// The module that owns the scope.
+    module: Module;
+    /// The owner symbol when one exists.
+    owner?: Symbol;
+    /// Named symbols in insertion order.
+    namedSymbols: readonly Symbol[];
+    /// Anonymous symbols in insertion order.
+    anonymousSymbols: readonly Symbol[];
+    /// Child scopes.
+    children: readonly Scope[];
+}

@@ -1,0 +1,79 @@
+import { type Block } from "./block.ds";
+import { type Expression } from "./expression.ds";
+import { type Node } from "./node.ds";
+import { type Pattern } from "./pattern.ds";
+import { type Scope } from "./symbol.ds";
+
+/// The style of a match expression.
+export enum MatchKind {
+    /// Regular match expression.
+    Match,
+    /// Switch expression.
+    Switch,
+}
+
+/// Where a match expression was lowered from.
+export enum MatchSource {
+    /// Match expression.
+    Match,
+    /// Explicit try expression or block.
+    Try,
+    /// Maybe unary expression.
+    Maybe,
+    /// Must unary expression.
+    Must,
+}
+
+/// A match selector.
+export type MatchSelector =
+    | PatternMatchSelector
+    | DefaultMatchSelector;
+
+/// A pattern selector with an optional guard.
+export interface PatternMatchSelector {
+    /// The selector kind.
+    kind: "pattern";
+    /// The selected pattern.
+    pattern: Pattern;
+    /// The guard expression when present.
+    guard?: Expression;
+}
+
+/// The default case in a switch statement.
+export interface DefaultMatchSelector {
+    /// The selector kind.
+    kind: "default";
+}
+
+/// A match case.
+export type MatchCase =
+    | ExpressionMatchCase
+    | BlockMatchCase;
+
+/// A match case with an expression body.
+export interface ExpressionMatchCase extends Node {
+    /// The node kind.
+    nodeKind: "matchCase";
+    /// The case kind.
+    kind: "expression";
+    /// The case selector.
+    selector: MatchSelector;
+    /// The expression body.
+    body: Expression;
+    /// The case scope.
+    scope: Scope;
+}
+
+/// A match case with a block body.
+export interface BlockMatchCase extends Node {
+    /// The node kind.
+    nodeKind: "matchCase";
+    /// The case kind.
+    kind: "block";
+    /// The case selector.
+    selector: MatchSelector;
+    /// The block body.
+    body: Block;
+    /// The case scope.
+    scope: Scope;
+}

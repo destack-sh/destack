@@ -1,0 +1,219 @@
+/// A unary expression operator.
+export enum UnaryOperator {
+    /// `++`
+    PostIncrement,
+    /// `--`
+    PostDecrement,
+    /// `++`
+    PreIncrement,
+    /// `--`
+    PreDecrement,
+    /// `!`
+    Not,
+    /// `+`
+    Plus,
+    /// `-`
+    Negate,
+    /// `-%`
+    WrappingNegate,
+    /// `~`
+    ElementwiseNot,
+    /// `typeof`
+    Typeof,
+    /// `void`
+    Void,
+    /// `*`
+    Dereference,
+    /// `...`
+    Spread,
+}
+
+/// A binary expression operator.
+export enum BinaryOperator {
+    /// `*`
+    Multiply,
+    /// `*%`
+    WrappingMultiply,
+    /// `*|`
+    SaturatingMultiply,
+    /// `**`
+    Exponent,
+    /// `**%`
+    WrappingExponent,
+    /// `**|`
+    SaturatingExponent,
+    /// `/`
+    Divide,
+    /// `%`
+    Remainder,
+    /// `+`
+    Add,
+    /// `+%`
+    WrappingAdd,
+    /// `+|`
+    SaturatingAdd,
+    /// `-`
+    Subtract,
+    /// `-%`
+    WrappingSubtract,
+    /// `-|`
+    SaturatingSubtract,
+    /// `<<`
+    ShiftLeft,
+    /// `<<|`
+    SaturatingShiftLeft,
+    /// `>>`
+    ShiftRight,
+    /// `>>>`
+    UnsignedShiftRight,
+    /// `&`
+    ElementwiseAnd,
+    /// `^`
+    ElementwiseXor,
+    /// `|`
+    ElementwiseOr,
+    /// `==`
+    Equal,
+    /// `!=`
+    NotEqual,
+    /// `===`
+    EqualStrict,
+    /// `!==`
+    NotEqualStrict,
+    /// `<`
+    LessThan,
+    /// `<=`
+    LessThanOrEqual,
+    /// `>`
+    GreaterThan,
+    /// `>=`
+    GreaterThanOrEqual,
+    /// `&&`
+    And,
+    /// `||`
+    Or,
+    /// `??`
+    Coalesce,
+    /// `in`
+    In,
+}
+
+/// An assignment operator.
+export enum AssignOperator {
+    /// `*=`
+    MultiplyAssign,
+    /// `*%=`
+    WrappingMultiplyAssign,
+    /// `*|=`
+    SaturatingMultiplyAssign,
+    /// `**=`
+    ExponentAssign,
+    /// `**%=`
+    WrappingExponentAssign,
+    /// `**|=`
+    SaturatingExponentAssign,
+    /// `/=`
+    DivideAssign,
+    /// `%=`
+    RemainderAssign,
+    /// `+=`
+    AddAssign,
+    /// `+%=`
+    WrappingAddAssign,
+    /// `+|=`
+    SaturatingAddAssign,
+    /// `-=`
+    SubtractAssign,
+    /// `-%=`
+    WrappingSubtractAssign,
+    /// `-|=`
+    SaturatingSubtractAssign,
+    /// `<<=`
+    ShiftLeftAssign,
+    /// `<<|=`
+    SaturatingShiftLeftAssign,
+    /// `>>=`
+    ShiftRightAssign,
+    /// `>>>=`
+    UnsignedShiftRightAssign,
+    /// `&=`
+    ElementwiseAndAssign,
+    /// `^=`
+    ElementwiseXorAssign,
+    /// `|=`
+    ElementwiseOrAssign,
+    /// `&&=`
+    AndAssign,
+    /// `||=`
+    OrAssign,
+    /// `??=`
+    CoalesceAssign,
+}
+
+/// A cast operator.
+export enum CastOperator {
+    /// Preserve the representation without conversion.
+    Identity,
+    /// Widen an integer type to a larger width.
+    IntWiden,
+    /// Narrow an integer type to a smaller width.
+    IntNarrow,
+    /// Change integer signedness at the same width.
+    IntSignChange,
+    /// Widen a float type to a larger width.
+    FloatWiden,
+    /// Narrow a float type to a smaller width.
+    FloatNarrow,
+    /// Convert an integer to a float.
+    IntToFloat,
+    /// Convert a float to an integer.
+    FloatToInt,
+    /// Convert a pointer to an integer.
+    PointerToInt,
+    /// Convert an integer to a pointer.
+    IntToPointer,
+    /// Convert one pointer type to another.
+    PointerCast,
+    /// Convert a sized array to a slice view.
+    ArraySizedToSlice,
+    /// Convert an enum to an integer.
+    EnumToInt,
+    /// Convert an integer to an enum.
+    IntToEnum,
+    /// Convert an enum to a string.
+    EnumToString,
+    /// Convert a string to an enum.
+    StringToEnum,
+    /// Upcast into a wider union.
+    UnionUpcast,
+    /// Downcast from a union.
+    UnionDowncast,
+    /// Upcast into an instance type.
+    InstanceUpcast,
+    /// Downcast from an instance type.
+    InstanceDowncast,
+    /// Upcast into a nullable type.
+    NullableUpcast,
+    /// Downcast from a nullable type.
+    NullableDowncast,
+    /// Downcast from unknown.
+    UnknownDowncast,
+    /// Downcast from any.
+    AnyDowncast,
+    /// Upcast into any.
+    AnyUpcast,
+    /// Upcast into unknown.
+    UnknownUpcast,
+    /// Upcast into object.
+    ObjectUpcast,
+    /// Downcast from object.
+    ObjectDowncast,
+}
+
+/// The source of one cast.
+export enum CastSource {
+    /// Casts written explicitly in source.
+    Explicit,
+    /// Casts inserted implicitly at type boundaries.
+    Implicit,
+}

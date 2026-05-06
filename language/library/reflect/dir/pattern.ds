@@ -1,0 +1,357 @@
+import { type Expression } from "./expression.ds";
+import { type Name } from "./key.ds";
+import { type Mutability, type Node } from "./node.ds";
+import { type Symbol } from "./symbol.ds";
+import { type TypeExpression } from "./type-expression.ds";
+
+/// A pattern to match and unwrap values.
+export type Pattern =
+    | WildcardPattern
+    | MustPattern
+    | AssignPatternNode
+    | ReferenceOfPattern
+    | ValueOfPattern
+    | BindingPattern
+    | ExpressionPattern
+    | TypeExpressionPattern
+    | TuplePattern
+    | TaggedTuplePattern
+    | ArrayPattern
+    | ObjectPattern
+    | TaggedObjectPattern
+    | UnionPattern;
+
+/// Wildcard scalar pattern.
+export interface WildcardPattern extends Node {
+    /// The node kind.
+    nodeKind: "pattern";
+    /// The pattern kind.
+    kind: "wildcard";
+}
+
+/// Must pattern.
+export interface MustPattern extends Node {
+    /// The node kind.
+    nodeKind: "pattern";
+    /// The pattern kind.
+    kind: "must";
+    /// The inner pattern.
+    pattern: Pattern;
+}
+
+/// Assignment pattern.
+export interface AssignPatternNode extends Node {
+    /// The node kind.
+    nodeKind: "pattern";
+    /// The pattern kind.
+    kind: "assign";
+    /// The left pattern.
+    pattern: Pattern;
+    /// The default value.
+    value: Expression;
+}
+
+/// Reference pattern.
+export interface ReferenceOfPattern extends Node {
+    /// The node kind.
+    nodeKind: "pattern";
+    /// The pattern kind.
+    kind: "referenceOf";
+    /// The explicit mutability when present.
+    mutability?: Mutability;
+    /// The inner pattern.
+    right: Pattern;
+}
+
+/// Value pattern.
+export interface ValueOfPattern extends Node {
+    /// The node kind.
+    nodeKind: "pattern";
+    /// The pattern kind.
+    kind: "valueOf";
+    /// The explicit mutability when present.
+    mutability?: Mutability;
+    /// The inner pattern.
+    right: Pattern;
+}
+
+/// Binding pattern.
+export interface BindingPattern extends Node {
+    /// The node kind.
+    nodeKind: "pattern";
+    /// The pattern kind.
+    kind: "binding";
+    /// The explicit mutability when present.
+    mutability?: Mutability;
+    /// The binding name.
+    name: string;
+    /// The nested pattern when present.
+    pattern?: Pattern;
+    /// The binding symbol.
+    symbol: Symbol;
+}
+
+/// Literal, type, or path expression pattern.
+export interface ExpressionPattern extends Node {
+    /// The node kind.
+    nodeKind: "pattern";
+    /// The pattern kind.
+    kind: "expression";
+    /// The matched expression.
+    value: Expression;
+}
+
+/// Type-space pattern.
+export interface TypeExpressionPattern extends Node {
+    /// The node kind.
+    nodeKind: "pattern";
+    /// The pattern kind.
+    kind: "typeExpression";
+    /// The matched type expression.
+    value: TypeExpression;
+}
+
+/// Anonymous tuple pattern.
+export interface TuplePattern extends Node {
+    /// The node kind.
+    nodeKind: "pattern";
+    /// The pattern kind.
+    kind: "tuple";
+    /// The tuple fields.
+    fields: readonly PatternField[];
+}
+
+/// Tagged tuple pattern.
+export interface TaggedTuplePattern extends Node {
+    /// The node kind.
+    nodeKind: "pattern";
+    /// The pattern kind.
+    kind: "taggedTuple";
+    /// The matched type.
+    type: TypeExpression;
+    /// The tuple fields.
+    fields: readonly PatternField[];
+}
+
+/// Array pattern.
+export interface ArrayPattern extends Node {
+    /// The node kind.
+    nodeKind: "pattern";
+    /// The pattern kind.
+    kind: "array";
+    /// The array fields.
+    fields: readonly PatternField[];
+}
+
+/// Anonymous object pattern.
+export interface ObjectPattern extends Node {
+    /// The node kind.
+    nodeKind: "pattern";
+    /// The pattern kind.
+    kind: "object";
+    /// The object fields.
+    fields: readonly PatternField[];
+}
+
+/// Tagged object pattern.
+export interface TaggedObjectPattern extends Node {
+    /// The node kind.
+    nodeKind: "pattern";
+    /// The pattern kind.
+    kind: "taggedObject";
+    /// The matched type.
+    type: TypeExpression;
+    /// The object fields.
+    fields: readonly PatternField[];
+}
+
+/// Union pattern.
+export interface UnionPattern extends Node {
+    /// The node kind.
+    nodeKind: "pattern";
+    /// The pattern kind.
+    kind: "union";
+    /// The alternatives.
+    patterns: readonly Pattern[];
+}
+
+/// A field in a pattern.
+export type PatternField =
+    | NamedPatternField
+    | ComputedPatternField
+    | PositionalPatternField
+    | SpreadPatternField
+    | ElisionPatternField;
+
+/// Named pattern field.
+export interface NamedPatternField extends Node {
+    /// The node kind.
+    nodeKind: "patternField";
+    /// The field kind.
+    kind: "named";
+    /// The explicit mutability when present.
+    mutability?: Mutability;
+    /// The field name.
+    name: string;
+    /// The binding symbol when one exists.
+    symbol?: Symbol;
+    /// Whether the field is shorthand.
+    isShorthand: boolean;
+    /// The nested pattern when present.
+    pattern?: Pattern;
+}
+
+/// Computed pattern field.
+export interface ComputedPatternField extends Node {
+    /// The node kind.
+    nodeKind: "patternField";
+    /// The field kind.
+    kind: "computed";
+    /// The explicit mutability when present.
+    mutability?: Mutability;
+    /// The computed key.
+    key: Expression;
+    /// The nested pattern.
+    pattern: Pattern;
+}
+
+/// Positional pattern field.
+export interface PositionalPatternField extends Node {
+    /// The node kind.
+    nodeKind: "patternField";
+    /// The field kind.
+    kind: "positional";
+    /// The nested pattern.
+    pattern: Pattern;
+}
+
+/// Spread pattern field.
+export interface SpreadPatternField extends Node {
+    /// The node kind.
+    nodeKind: "patternField";
+    /// The field kind.
+    kind: "spread";
+    /// The explicit mutability when present.
+    mutability?: Mutability;
+    /// The spread pattern when present.
+    pattern?: Pattern;
+}
+
+/// Elision in an array pattern.
+export interface ElisionPatternField extends Node {
+    /// The node kind.
+    nodeKind: "patternField";
+    /// The field kind.
+    kind: "elision";
+}
+
+/// One assignment left-hand side.
+export type AssignPattern =
+    | ExpressionAssignPattern
+    | AssignAssignPattern
+    | ArrayAssignPattern
+    | ObjectAssignPattern;
+
+/// Expression assignment target.
+export interface ExpressionAssignPattern extends Node {
+    /// The node kind.
+    nodeKind: "assignPattern";
+    /// The assignment pattern kind.
+    kind: "expression";
+    /// The assignment target expression.
+    value: Expression;
+}
+
+/// Defaulted assignment target.
+export interface AssignAssignPattern extends Node {
+    /// The node kind.
+    nodeKind: "assignPattern";
+    /// The assignment pattern kind.
+    kind: "assign";
+    /// The left assignment pattern.
+    pattern: AssignPattern;
+    /// The default value.
+    value: Expression;
+}
+
+/// Array destructuring assignment target.
+export interface ArrayAssignPattern extends Node {
+    /// The node kind.
+    nodeKind: "assignPattern";
+    /// The assignment pattern kind.
+    kind: "array";
+    /// The array fields.
+    fields: readonly AssignPatternField[];
+}
+
+/// Object destructuring assignment target.
+export interface ObjectAssignPattern extends Node {
+    /// The node kind.
+    nodeKind: "assignPattern";
+    /// The assignment pattern kind.
+    kind: "object";
+    /// The object fields.
+    fields: readonly AssignPatternField[];
+}
+
+/// One assignment destructuring field.
+export type AssignPatternField =
+    | NamedAssignPatternField
+    | ComputedAssignPatternField
+    | PositionalAssignPatternField
+    | SpreadAssignPatternField
+    | ElisionAssignPatternField;
+
+/// Named assignment field.
+export interface NamedAssignPatternField extends Node {
+    /// The node kind.
+    nodeKind: "assignPatternField";
+    /// The field kind.
+    kind: "named";
+    /// The field name.
+    name: Name;
+    /// Whether the field is shorthand.
+    isShorthand: boolean;
+    /// The nested assignment pattern when present.
+    pattern?: AssignPattern;
+}
+
+/// Computed assignment field.
+export interface ComputedAssignPatternField extends Node {
+    /// The node kind.
+    nodeKind: "assignPatternField";
+    /// The field kind.
+    kind: "computed";
+    /// The computed key.
+    key: Expression;
+    /// The nested assignment pattern.
+    pattern: AssignPattern;
+}
+
+/// Positional assignment field.
+export interface PositionalAssignPatternField extends Node {
+    /// The node kind.
+    nodeKind: "assignPatternField";
+    /// The field kind.
+    kind: "positional";
+    /// The nested assignment pattern.
+    pattern: AssignPattern;
+}
+
+/// Spread assignment field.
+export interface SpreadAssignPatternField extends Node {
+    /// The node kind.
+    nodeKind: "assignPatternField";
+    /// The field kind.
+    kind: "spread";
+    /// The spread pattern when present.
+    pattern?: AssignPattern;
+}
+
+/// Elision in an array assignment target.
+export interface ElisionAssignPatternField extends Node {
+    /// The node kind.
+    nodeKind: "assignPatternField";
+    /// The field kind.
+    kind: "elision";
+}

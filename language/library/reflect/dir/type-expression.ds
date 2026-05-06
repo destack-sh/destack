@@ -1,0 +1,704 @@
+import { type Argument, type GenericArgument, type GenericParameter, type Parameter, type TupleElement } from "./argument.ds";
+import { type Declaration } from "./declaration.ds";
+import { type SymbolSpaceOrder } from "./dependency.ds";
+import { type Expression, type WhereClause } from "./expression.ds";
+import { type FunctionSignature } from "./function.ds";
+import { type Key } from "./key.ds";
+import { type ScalarLiteral } from "./literal.ds";
+import { type Mutability, type Node } from "./node.ds";
+import { type Symbol } from "./symbol.ds";
+import { type Type, type TypeLiteral, type VarianceBound } from "./type.ds";
+
+/// One type-surface member.
+export type TypeMember =
+    | FieldTypeMember
+    | MethodTypeMember
+    | CallSignatureTypeMember
+    | ConstructSignatureTypeMember
+    | IndexSignatureTypeMember
+    | EmbedTypeMember
+    | AssociatedTypeTypeMember
+    | AssociatedConstTypeMember
+    | ErrorTypeMember;
+
+/// Named type field.
+export interface FieldTypeMember extends Node {
+    /// The node kind.
+    nodeKind: "typeMember";
+    /// The member kind.
+    kind: "field";
+    /// Whether the field belongs to the static side.
+    isStatic: boolean;
+    /// Whether the field is optional.
+    isOptional: boolean;
+    /// Whether the field is readonly.
+    isReadonly: boolean;
+    /// The field key.
+    key: Key;
+    /// The declared type when present.
+    declaredType?: TypeExpression;
+    /// The field symbol.
+    symbol: Symbol;
+}
+
+/// Named type method.
+export interface MethodTypeMember extends Node {
+    /// The node kind.
+    nodeKind: "typeMember";
+    /// The member kind.
+    kind: "method";
+    /// Whether the method belongs to the static side.
+    isStatic: boolean;
+    /// Whether the method is optional.
+    isOptional: boolean;
+    /// The method key.
+    key: Key;
+    /// The method signature.
+    signature: FunctionSignature;
+    /// The method body when present.
+    body?: Expression;
+    /// The method symbol.
+    symbol: Symbol;
+}
+
+/// Call signature type member.
+export interface CallSignatureTypeMember extends Node {
+    /// The node kind.
+    nodeKind: "typeMember";
+    /// The member kind.
+    kind: "callSignature";
+    /// The call signature.
+    signature: FunctionTypeDeclaration;
+    /// The signature symbol.
+    symbol: Symbol;
+}
+
+/// Construct signature type member.
+export interface ConstructSignatureTypeMember extends Node {
+    /// The node kind.
+    nodeKind: "typeMember";
+    /// The member kind.
+    kind: "constructSignature";
+    /// The construct signature.
+    signature: ConstructorTypeDeclaration;
+    /// The signature symbol.
+    symbol: Symbol;
+}
+
+/// Index signature type member.
+export interface IndexSignatureTypeMember extends Node {
+    /// The node kind.
+    nodeKind: "typeMember";
+    /// The member kind.
+    kind: "indexSignature";
+    /// Whether indexed entries are optional.
+    isOptional: boolean;
+    /// Whether indexed entries are readonly.
+    isReadonly: boolean;
+    /// The parameter name.
+    name: string;
+    /// The key type.
+    keyType: TypeExpression;
+    /// The value type.
+    valueType: TypeExpression;
+    /// The signature symbol.
+    symbol: Symbol;
+}
+
+/// Type embedding member.
+export interface EmbedTypeMember extends Node {
+    /// The node kind.
+    nodeKind: "typeMember";
+    /// The member kind.
+    kind: "embed";
+    /// The embedded type.
+    value: TypeExpression;
+    /// The member symbol.
+    symbol: Symbol;
+}
+
+/// Associated type requirement or definition.
+export interface AssociatedTypeTypeMember extends Node {
+    /// The node kind.
+    nodeKind: "typeMember";
+    /// The member kind.
+    kind: "associatedType";
+    /// The associated type name.
+    name: string;
+    /// The generic parameters.
+    genericParameters: readonly GenericParameter[];
+    /// The where clauses.
+    whereClauses: readonly WhereClause[];
+    /// The constraint when present.
+    constraint?: TypeExpression;
+    /// The value when present.
+    value?: TypeExpression;
+    /// The member symbol.
+    symbol: Symbol;
+}
+
+/// Associated compile-time constant requirement or definition.
+export interface AssociatedConstTypeMember extends Node {
+    /// The node kind.
+    nodeKind: "typeMember";
+    /// The member kind.
+    kind: "associatedConst";
+    /// The associated constant name.
+    name: string;
+    /// The declared type when present.
+    declaredType?: TypeExpression;
+    /// The value when present.
+    value?: Expression;
+    /// The member symbol.
+    symbol: Symbol;
+}
+
+/// Malformed type member slot.
+export interface ErrorTypeMember extends Node {
+    /// The node kind.
+    nodeKind: "typeMember";
+    /// The member kind.
+    kind: "error";
+    /// The member symbol.
+    symbol: Symbol;
+}
+
+/// A mapped type parameter.
+export interface TypeMappedParameter {
+    /// The parameter name.
+    name: string;
+    /// The parameter symbol.
+    symbol: Symbol;
+    /// The source type iterated by `in`.
+    sourceType: TypeExpression;
+    /// The optional key remap.
+    keyRemap?: TypeExpression;
+}
+
+/// A mapped-type modifier sign.
+export enum TypeModifier {
+    /// The plain modifier without an explicit sign.
+    Present,
+    /// Add a modifier with an explicit `+` sign.
+    Add,
+    /// Remove a modifier with an explicit `-` sign.
+    Remove,
+    /// No modifier specified.
+    None,
+}
+
+/// A type predicate subject.
+export type TypePredicateSubject =
+    | IdentifierTypePredicateSubject
+    | ThisTypePredicateSubject;
+
+/// Identifier predicate subject.
+export interface IdentifierTypePredicateSubject {
+    /// The subject kind.
+    kind: "identifier";
+    /// The subject name.
+    name: string;
+}
+
+/// `this` predicate subject.
+export interface ThisTypePredicateSubject {
+    /// The subject kind.
+    kind: "this";
+}
+
+/// One function type declaration in type space.
+export interface FunctionTypeDeclaration {
+    /// The generic parameters.
+    genericParameters: readonly GenericParameter[];
+    /// The where clauses.
+    whereClauses: readonly WhereClause[];
+    /// The optional `this` parameter.
+    thisParameter?: Parameter;
+    /// The parameters.
+    parameters: readonly Parameter[];
+    /// The return type when present.
+    returnType?: TypeExpression;
+}
+
+/// One constructor type declaration in type space.
+export interface ConstructorTypeDeclaration {
+    /// Whether the constructor type is abstract.
+    isAbstract: boolean;
+    /// The generic parameters.
+    genericParameters: readonly GenericParameter[];
+    /// The where clauses.
+    whereClauses: readonly WhereClause[];
+    /// The parameters.
+    parameters: readonly Parameter[];
+    /// The return type when present.
+    returnType?: TypeExpression;
+}
+
+/// A type-space syntax node.
+export type TypeExpression =
+    | ParenthesizedTypeExpression
+    | ScalarLiteralTypeExpression
+    | LiteralTypeExpression
+    | IntrinsicTypeExpression
+    | TupleTypeExpression
+    | ArrayTupleTypeExpression
+    | ArrayTypeExpression
+    | ObjectTypeExpression
+    | DeclarationTypeExpression
+    | FunctionTypeDeclarationExpression
+    | ConstructorTypeDeclarationExpression
+    | ReferenceTypeExpression
+    | LocalReferenceTypeExpression
+    | ModuleReferenceTypeExpression
+    | GlobalReferenceTypeExpression
+    | MemberTypeExpression
+    | ConstTypeExpression
+    | ThisTypeExpression
+    | ImportTypeExpression
+    | ReadonlyTypeExpression
+    | KeyOfTypeExpression
+    | TypeOfValueTypeExpression
+    | MustTypeExpression
+    | AsComptimeTypeExpression
+    | NotTypeExpression
+    | ValueOfTypeExpression
+    | ReferenceOfTypeExpression
+    | PointerOfTypeExpression
+    | UnionTypeExpression
+    | IntersectionTypeExpression
+    | ConditionalTypeExpression
+    | MappedTypeExpression
+    | IndexTypeExpression
+    | TemplateLiteralTypeExpression
+    | InferTypeExpression
+    | PredicateTypeExpression
+    | MissingTypeExpression
+    | ErrorTypeExpression;
+
+/// Parenthesized type expression.
+export interface ParenthesizedTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "parenthesized";
+    /// The inner expression.
+    expression: TypeExpression;
+}
+
+/// Scalar literal type expression.
+export interface ScalarLiteralTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "scalarLiteral";
+    /// The scalar literal.
+    value: ScalarLiteral;
+}
+
+/// Literal type expression.
+export interface LiteralTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "literal";
+    /// The type literal.
+    value: TypeLiteral;
+}
+
+/// Bare intrinsic marker in type space.
+export interface IntrinsicTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "intrinsic";
+}
+
+/// Parenthesized tuple type syntax.
+export interface TupleTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "tuple";
+    /// The tuple elements.
+    elements: readonly TupleElement[];
+}
+
+/// Bracket tuple type syntax.
+export interface ArrayTupleTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "arrayTuple";
+    /// The tuple elements.
+    elements: readonly TupleElement[];
+}
+
+/// Array type syntax.
+export interface ArrayTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "array";
+    /// The element type.
+    element: TypeExpression;
+}
+
+/// Object type syntax.
+export interface ObjectTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "object";
+    /// The object members.
+    members: readonly TypeMember[];
+}
+
+/// Embedded declaration type syntax.
+export interface DeclarationTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "declaration";
+    /// The embedded declaration.
+    declaration: Declaration;
+}
+
+/// Function type declaration syntax.
+export interface FunctionTypeDeclarationExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "functionTypeDeclaration";
+    /// The function type declaration.
+    declaration: FunctionTypeDeclaration;
+}
+
+/// Constructor type declaration syntax.
+export interface ConstructorTypeDeclarationExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "constructorTypeDeclaration";
+    /// The constructor type declaration.
+    declaration: ConstructorTypeDeclaration;
+}
+
+/// Qualified type reference.
+export interface ReferenceTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "reference";
+    /// The referenced path.
+    path: string;
+    /// The generic arguments.
+    genericArguments: readonly GenericArgument[];
+    /// The symbol-space lookup order.
+    spaceOrder: SymbolSpaceOrder;
+}
+
+/// Resolved local type reference.
+export interface LocalReferenceTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "localReference";
+    /// The referenced path.
+    path: string;
+    /// The generic arguments.
+    genericArguments: readonly GenericArgument[];
+    /// The target symbol.
+    targetSymbol: Symbol;
+}
+
+/// Resolved module type reference.
+export interface ModuleReferenceTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "moduleReference";
+    /// The referenced path.
+    path: string;
+    /// The generic arguments.
+    genericArguments: readonly GenericArgument[];
+    /// The target symbol.
+    targetSymbol: Symbol;
+}
+
+/// Resolved global type reference.
+export interface GlobalReferenceTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "globalReference";
+    /// The referenced path.
+    path: string;
+    /// The generic arguments.
+    genericArguments: readonly GenericArgument[];
+    /// The target symbol.
+    targetSymbol: Symbol;
+}
+
+/// Type member projection.
+export interface MemberTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "member";
+    /// The left type expression.
+    left: TypeExpression;
+    /// The member name.
+    name: string;
+    /// The generic arguments.
+    genericArguments: readonly GenericArgument[];
+}
+
+/// `const` in type space.
+export interface ConstTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "const";
+}
+
+/// `this` in type space.
+export interface ThisTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "this";
+}
+
+/// Type import expression.
+export interface ImportTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "import";
+    /// The import target expression.
+    target: Expression;
+    /// The import arguments.
+    arguments: readonly Argument[];
+    /// The optional exported qualifier.
+    qualifier?: string;
+    /// The generic arguments.
+    genericArguments: readonly GenericArgument[];
+}
+
+/// `readonly T`.
+export interface ReadonlyTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "readonly";
+    /// The target type.
+    targetType: TypeExpression;
+}
+
+/// `keyof T`.
+export interface KeyOfTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "keyOf";
+    /// The target type.
+    targetType: TypeExpression;
+}
+
+/// `typeof value`.
+export interface TypeOfValueTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "typeOfValue";
+    /// The value expression.
+    value: Expression;
+}
+
+/// `T!`.
+export interface MustTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "must";
+    /// The target type.
+    targetType: TypeExpression;
+}
+
+/// `T as comptime`.
+export interface AsComptimeTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "asComptime";
+    /// The target type.
+    targetType: TypeExpression;
+}
+
+/// `!T`.
+export interface NotTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "not";
+    /// The target type.
+    targetType: TypeExpression;
+}
+
+/// `^T`.
+export interface ValueOfTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "valueOf";
+    /// The explicit mutability when present.
+    mutability?: Mutability;
+    /// The variance bound when present.
+    variance?: VarianceBound;
+    /// The target type.
+    targetType: TypeExpression;
+}
+
+/// `&T`.
+export interface ReferenceOfTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "referenceOf";
+    /// The explicit mutability when present.
+    mutability?: Mutability;
+    /// The variance bound when present.
+    variance?: VarianceBound;
+    /// The target type.
+    targetType: TypeExpression;
+}
+
+/// `*T`.
+export interface PointerOfTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "pointerOf";
+    /// The explicit mutability when present.
+    mutability?: Mutability;
+    /// The target type.
+    targetType: TypeExpression;
+}
+
+/// Union type.
+export interface UnionTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "union";
+    /// The union elements.
+    elements: readonly TypeExpression[];
+}
+
+/// Intersection type.
+export interface IntersectionTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "intersection";
+    /// The intersection elements.
+    elements: readonly TypeExpression[];
+}
+
+/// Conditional type.
+export interface ConditionalTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "conditional";
+    /// The left side.
+    left: TypeExpression;
+    /// The extends type.
+    extendsType: TypeExpression;
+    /// The type when true.
+    thenType: TypeExpression;
+    /// The type when false.
+    elseType: TypeExpression;
+}
+
+/// Mapped type.
+export interface MappedTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "mapped";
+    /// The mapped type parameter.
+    parameter: TypeMappedParameter;
+    /// The readonly modifier.
+    readonly: TypeModifier;
+    /// The optional modifier.
+    optional: TypeModifier;
+    /// The mapped value type.
+    value: TypeExpression;
+}
+
+/// Indexed access type.
+export interface IndexTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "index";
+    /// The indexed type.
+    left: TypeExpression;
+    /// The index type.
+    index: TypeExpression;
+}
+
+/// Template literal type.
+export interface TemplateLiteralTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "templateLiteral";
+    /// The fixed strings.
+    strings: readonly string[];
+    /// The type spans.
+    spans: readonly TypeExpression[];
+}
+
+/// Infer binding.
+export interface InferTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "infer";
+    /// The inferred name.
+    name: string;
+    /// The constraint when present.
+    constraint?: TypeExpression;
+}
+
+/// Type predicate.
+export interface PredicateTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "predicate";
+    /// Whether the predicate asserts the subject.
+    asserts: boolean;
+    /// The predicate subject.
+    subject: TypePredicateSubject;
+    /// The predicate target when present.
+    target?: TypeExpression;
+}
+
+/// Missing type child.
+export interface MissingTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "missing";
+}
+
+/// Error placeholder.
+export interface ErrorTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "error";
+}

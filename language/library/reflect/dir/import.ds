@@ -1,0 +1,108 @@
+import { type Argument } from "./argument.ds";
+import { type Expression } from "./expression.ds";
+import { type Name } from "./key.ds";
+import { type ScalarLiteral } from "./literal.ds";
+
+/// The source of one import or dependency declaration.
+export enum ImportSource {
+    /// Standard import statement.
+    ImportStatement,
+    /// TypeScript triple-slash `reference path` directive.
+    ReferencePathDirective,
+    /// TypeScript triple-slash `reference types` directive.
+    ReferenceTypesDirective,
+    /// TypeScript triple-slash `reference lib` directive.
+    ReferenceLibDirective,
+    /// TypeScript triple-slash `reference no-default-lib` directive.
+    ReferenceNoDefaultLibDirective,
+    /// Legacy import-equals expression.
+    ImportEquals,
+    /// Dynamic import call.
+    ImportCall,
+    /// Re-export statement.
+    ExportStatement,
+    /// Require call.
+    RequireCall,
+    /// Value expression dependency.
+    ValueExpression,
+}
+
+/// The target of one import declaration.
+export type ImportTarget =
+    | StringImportTarget
+    | ExpressionImportTarget;
+
+/// Static import target string.
+export interface StringImportTarget {
+    /// The target kind.
+    kind: "string";
+    /// The module specifier.
+    target: string;
+}
+
+/// Dynamic import target expression.
+export interface ExpressionImportTarget {
+    /// The target kind.
+    kind: "expression";
+    /// The target expression.
+    target: Expression;
+}
+
+/// The kind of one import attribute clause.
+export enum ImportAttributeClauseKind {
+    /// The standard `with` attribute clause keyword.
+    With,
+}
+
+/// One import attribute clause.
+export interface ImportAttributeClause {
+    /// The clause introducer.
+    kind: ImportAttributeClauseKind;
+    /// The attribute entries.
+    attributes: readonly ImportAttribute[];
+}
+
+/// One import attribute entry.
+export interface ImportAttribute {
+    /// The attribute key.
+    key: Name;
+    /// The attribute value.
+    value: ImportAttributeValue;
+}
+
+/// One static import attribute value.
+export type ImportAttributeValue =
+    | ScalarImportAttributeValue
+    | ArrayImportAttributeValue
+    | ObjectImportAttributeValue
+    | ErrorImportAttributeValue;
+
+/// A scalar import attribute value.
+export interface ScalarImportAttributeValue {
+    /// The value kind.
+    kind: "scalarLiteral";
+    /// The literal value.
+    value: ScalarLiteral;
+}
+
+/// An array import attribute value.
+export interface ArrayImportAttributeValue {
+    /// The value kind.
+    kind: "array";
+    /// The array elements.
+    elements: readonly ImportAttributeValue[];
+}
+
+/// An object import attribute value.
+export interface ObjectImportAttributeValue {
+    /// The value kind.
+    kind: "object";
+    /// The object attributes.
+    attributes: readonly ImportAttribute[];
+}
+
+/// A malformed import attribute value.
+export interface ErrorImportAttributeValue {
+    /// The value kind.
+    kind: "error";
+}

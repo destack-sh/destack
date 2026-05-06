@@ -1,0 +1,26 @@
+import { type Expression } from "./expression.ds";
+import { type Node } from "./node.ds";
+
+/// The position of one decorator relative to its owner.
+export enum DecoratorPosition {
+    /// Decorator inside the node without a following owner slot.
+    BlockInfix,
+    /// Decorator preceding the node on previous lines.
+    BlockPrefix,
+    /// Decorator after the node on a following line.
+    BlockPostfix,
+    /// Decorator before the node on the same line.
+    LinePrefix,
+    /// Decorator after the node on the same line.
+    LinePostfix,
+}
+
+/// A decorator attached to a DIR node.
+export interface Decorator extends Node {
+    /// The node kind.
+    nodeKind: "decorator";
+    /// The decorator expression.
+    expression: Expression;
+    /// The decorator position.
+    position: DecoratorPosition;
+}

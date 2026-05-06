@@ -1,0 +1,77 @@
+/// The kind of one DIR node.
+export type NodeKind =
+    | "expression"
+    | "typeExpression"
+    | "block"
+    | "declaration"
+    | "declarator"
+    | "property"
+    | "typeMember"
+    | "member"
+    | "enumField"
+    | "whereClause"
+    | "dependencyItem"
+    | "genericParameter"
+    | "parameter"
+    | "genericArgument"
+    | "tupleElement"
+    | "argument"
+    | "matchCase"
+    | "pattern"
+    | "patternField"
+    | "assignPattern"
+    | "assignPatternField"
+    | "decorator";
+
+/// Session-local identity for one DIR node.
+export newtype NodeId = intrinsic;
+
+/// Common view shared by all DIR nodes.
+export interface Node {
+    /// The node identity.
+    id: NodeId;
+    /// The node kind.
+    nodeKind: NodeKind;
+}
+
+/// A declaration or member visibility.
+export enum Visibility {
+    /// Public to everything.
+    Public,
+    /// Protected to derived constructs.
+    Protected,
+    /// Private to the closest module scope.
+    Private,
+}
+
+/// Function asynchrony.
+export enum Asynchrony {
+    /// Synchronous function.
+    Sync,
+    /// Asynchronous function.
+    Async,
+}
+
+/// Whether syntax is ambient or concrete.
+export enum Ambientness {
+    /// Ambient syntax declared with `declare`.
+    Ambient,
+    /// Concrete syntax with a body or emitted value.
+    Concrete,
+}
+
+/// Binding reference category.
+export enum ReferenceType {
+    /// A value reference.
+    Value,
+    /// A borrowed reference.
+    Reference,
+}
+
+/// Binding or reference mutability.
+export enum Mutability {
+    /// Cannot be modified.
+    Immutable,
+    /// May be modified.
+    Mutable,
+}

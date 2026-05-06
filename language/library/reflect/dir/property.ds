@@ -1,0 +1,323 @@
+import { type GenericParameter } from "./argument.ds";
+import { type Expression, type StaticExpression, type WhereClause } from "./expression.ds";
+import { type FunctionSignature } from "./function.ds";
+import { type Key } from "./key.ds";
+import {
+    type Ambientness,
+    type Mutability,
+    type Node,
+    type Visibility,
+} from "./node.ds";
+import { type Symbol } from "./symbol.ds";
+import { type TypeExpression } from "./type-expression.ds";
+
+/// Static property in a static context.
+export type StaticProperty =
+    | UnevaluatedStaticProperty
+    | StaticFieldProperty
+    | StaticMethodProperty
+    | StaticSpreadProperty;
+
+/// Unevaluated static property.
+export interface UnevaluatedStaticProperty {
+    /// The property kind.
+    kind: "unevaluated";
+    /// The unevaluated property node.
+    node: Property;
+}
+
+/// Evaluated static field.
+export interface StaticFieldProperty {
+    /// The property kind.
+    kind: "field";
+    /// The property key.
+    key: Key;
+    /// The evaluated value.
+    value: StaticExpression;
+    /// The property symbol.
+    symbol: Symbol;
+}
+
+/// Evaluated static member function.
+export interface StaticMethodProperty {
+    /// The property kind.
+    kind: "method";
+    /// The method key when present.
+    key?: Key;
+    /// The method signature.
+    signature: FunctionSignature;
+    /// The evaluated method body.
+    body: StaticExpression;
+    /// The method symbol.
+    symbol: Symbol;
+}
+
+/// Evaluated static spread.
+export interface StaticSpreadProperty {
+    /// The property kind.
+    kind: "spread";
+    /// The spread value.
+    value: StaticExpression;
+    /// The spread symbol.
+    symbol: Symbol;
+}
+
+/// Special member function mode.
+export enum FunctionMode {
+    /// Getter function.
+    Getter,
+    /// Setter function.
+    Setter,
+    /// Constructor function.
+    Constructor,
+    /// Newtype constructor function.
+    New,
+    /// Implicit call function.
+    Call,
+}
+
+/// A property of an object-like literal.
+export type Property =
+    | FieldProperty
+    | MethodProperty
+    | SpreadProperty
+    | ErrorProperty;
+
+/// Named field property.
+export interface FieldProperty extends Node {
+    /// The node kind.
+    nodeKind: "property";
+    /// The property kind.
+    kind: "field";
+    /// The property key.
+    key: Key;
+    /// The property value.
+    value: Expression;
+    /// Whether the property was shorthand.
+    isShorthand: boolean;
+    /// The property symbol.
+    symbol: Symbol;
+}
+
+/// Named member function property.
+export interface MethodProperty extends Node {
+    /// The node kind.
+    nodeKind: "property";
+    /// The property kind.
+    kind: "method";
+    /// The method key when present.
+    key?: Key;
+    /// The method signature.
+    signature: FunctionSignature;
+    /// The method body when present.
+    body?: Expression;
+    /// The method symbol.
+    symbol: Symbol;
+}
+
+/// Spread property.
+export interface SpreadProperty extends Node {
+    /// The node kind.
+    nodeKind: "property";
+    /// The property kind.
+    kind: "spread";
+    /// The spread value.
+    value: Expression;
+    /// The property symbol.
+    symbol: Symbol;
+}
+
+/// Malformed property slot.
+export interface ErrorProperty extends Node {
+    /// The node kind.
+    nodeKind: "property";
+    /// The property kind.
+    kind: "error";
+    /// The property symbol.
+    symbol: Symbol;
+}
+
+/// A member of a declaration body.
+export type Member =
+    | AssociatedTypeMember
+    | AssociatedConstMember
+    | FieldMember
+    | MethodMember
+    | EmbedMember
+    | StaticBlockMember
+    | ComptimeBlockMember
+    | ErrorMember;
+
+/// Associated type alias member.
+export interface AssociatedTypeMember extends Node {
+    /// The node kind.
+    nodeKind: "member";
+    /// The member kind.
+    kind: "associatedType";
+    /// The associated type name.
+    name: string;
+    /// The generic parameters.
+    genericParameters: readonly GenericParameter[];
+    /// The where clauses.
+    whereClauses: readonly WhereClause[];
+    /// The type constraint when present.
+    constraint?: TypeExpression;
+    /// The type value when present.
+    value?: TypeExpression;
+    /// The visibility when present.
+    visibility?: Visibility;
+    /// Whether the member is ambient.
+    ambient: Ambientness;
+    /// Whether the member is abstract.
+    isAbstract: boolean;
+    /// Whether the member overrides another member.
+    isOverride: boolean;
+    /// Whether the member belongs to the static side.
+    isStatic: boolean;
+    /// The member symbol.
+    symbol: Symbol;
+}
+
+/// Associated compile-time constant member.
+export interface AssociatedConstMember extends Node {
+    /// The node kind.
+    nodeKind: "member";
+    /// The member kind.
+    kind: "associatedConst";
+    /// The associated constant name.
+    name: string;
+    /// The declared type when present.
+    declaredType?: TypeExpression;
+    /// The constant value when present.
+    value?: Expression;
+    /// The visibility when present.
+    visibility?: Visibility;
+    /// Whether the member is ambient.
+    ambient: Ambientness;
+    /// Whether the member belongs to the static side.
+    isStatic: boolean;
+    /// The member symbol.
+    symbol: Symbol;
+}
+
+/// Named field member.
+export interface FieldMember extends Node {
+    /// The node kind.
+    nodeKind: "member";
+    /// The member kind.
+    kind: "field";
+    /// The field key.
+    key: Key;
+    /// The declared type when present.
+    declaredType?: TypeExpression;
+    /// The default value when present.
+    default?: Expression;
+    /// Whether the field is optional.
+    isOptional: boolean;
+    /// Whether the field is readonly.
+    isReadonly: boolean;
+    /// The explicit mutability when present.
+    mutability?: Mutability;
+    /// The visibility when present.
+    visibility?: Visibility;
+    /// Whether the member is ambient.
+    ambient: Ambientness;
+    /// Whether the member is abstract.
+    isAbstract: boolean;
+    /// Whether the member overrides another member.
+    isOverride: boolean;
+    /// Whether the member belongs to the static side.
+    isStatic: boolean;
+    /// Whether the field has a definite assignment assertion.
+    isDefinite: boolean;
+    /// Whether the field is an accessor slot.
+    isAccessor: boolean;
+    /// Whether the field is a comptime member.
+    isComptime: boolean;
+    /// The member symbol.
+    symbol: Symbol;
+}
+
+/// Named member function.
+export interface MethodMember extends Node {
+    /// The node kind.
+    nodeKind: "member";
+    /// The member kind.
+    kind: "method";
+    /// The method key when present.
+    key?: Key;
+    /// The method signature.
+    signature: FunctionSignature;
+    /// The method body when present.
+    body?: Expression;
+    /// Whether the method is optional.
+    isOptional: boolean;
+    /// The visibility when present.
+    visibility?: Visibility;
+    /// Whether the member is ambient.
+    ambient: Ambientness;
+    /// Whether the member is abstract.
+    isAbstract: boolean;
+    /// Whether the member overrides another member.
+    isOverride: boolean;
+    /// Whether the member belongs to the static side.
+    isStatic: boolean;
+    /// Whether the method is an accessor.
+    isAccessor: boolean;
+    /// Whether the method is a comptime member.
+    isComptime: boolean;
+    /// The member symbol.
+    symbol: Symbol;
+}
+
+/// Type embedding member.
+export interface EmbedMember extends Node {
+    /// The node kind.
+    nodeKind: "member";
+    /// The member kind.
+    kind: "embed";
+    /// The embedded type.
+    value: TypeExpression;
+    /// The visibility when present.
+    visibility?: Visibility;
+    /// Whether the member is ambient.
+    ambient: Ambientness;
+    /// Whether the member belongs to the static side.
+    isStatic: boolean;
+    /// The member symbol.
+    symbol: Symbol;
+}
+
+/// Static initialization block member.
+export interface StaticBlockMember extends Node {
+    /// The node kind.
+    nodeKind: "member";
+    /// The member kind.
+    kind: "staticBlock";
+    /// The block body.
+    body: Expression;
+    /// The member symbol.
+    symbol: Symbol;
+}
+
+/// Comptime block member.
+export interface ComptimeBlockMember extends Node {
+    /// The node kind.
+    nodeKind: "member";
+    /// The member kind.
+    kind: "comptimeBlock";
+    /// The block body.
+    body: Expression;
+    /// The member symbol.
+    symbol: Symbol;
+}
+
+/// Malformed member slot.
+export interface ErrorMember extends Node {
+    /// The node kind.
+    nodeKind: "member";
+    /// The member kind.
+    kind: "error";
+    /// The member symbol.
+    symbol: Symbol;
+}

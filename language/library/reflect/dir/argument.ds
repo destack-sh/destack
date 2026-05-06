@@ -1,0 +1,331 @@
+import { type Expression, type StaticExpression } from "./expression.ds";
+import { type Name } from "./key.ds";
+import { type Mutability, type Node, type Visibility } from "./node.ds";
+import { type Pattern } from "./pattern.ds";
+import { type Symbol } from "./symbol.ds";
+import { type TypeExpression } from "./type-expression.ds";
+
+/// Generic parameter variance.
+export enum VarianceModifier {
+    /// Contravariant parameter.
+    In,
+    /// Covariant parameter.
+    Out,
+    /// Invariant parameter.
+    InOut,
+}
+
+/// A generic parameter.
+export type GenericParameter =
+    | TypeGenericParameter
+    | ValueGenericParameter
+    | ErrorGenericParameter;
+
+/// Type generic parameter.
+export interface TypeGenericParameter extends Node {
+    /// The node kind.
+    nodeKind: "genericParameter";
+    /// The parameter kind.
+    kind: "type";
+    /// The parameter name.
+    name: string;
+    /// The variance annotation when present.
+    variance?: VarianceModifier;
+    /// The type constraint when present.
+    constraint?: TypeExpression;
+    /// The default type when present.
+    default?: TypeExpression;
+    /// The parameter symbol.
+    symbol: Symbol;
+    /// Whether this is a const type parameter.
+    isConst: boolean;
+}
+
+/// Value generic parameter.
+export interface ValueGenericParameter extends Node {
+    /// The node kind.
+    nodeKind: "genericParameter";
+    /// The parameter kind.
+    kind: "value";
+    /// The parameter name.
+    name: string;
+    /// The declared type when present.
+    declaredType?: TypeExpression;
+    /// The default expression when present.
+    default?: Expression;
+    /// Whether this is a static value parameter.
+    isComptime: boolean;
+    /// The parameter symbol.
+    symbol: Symbol;
+}
+
+/// Malformed generic parameter slot.
+export interface ErrorGenericParameter extends Node {
+    /// The node kind.
+    nodeKind: "genericParameter";
+    /// The parameter kind.
+    kind: "error";
+    /// The parameter symbol.
+    symbol: Symbol;
+}
+
+/// A callable parameter.
+export type Parameter =
+    | NamedParameter
+    | PatternParameter
+    | VariadicNamedParameter
+    | VariadicPatternParameter
+    | ErrorParameter;
+
+/// Named scalar parameter.
+export interface NamedParameter extends Node {
+    /// The node kind.
+    nodeKind: "parameter";
+    /// The parameter kind.
+    kind: "named";
+    /// The parameter name.
+    name: string;
+    /// The parameter visibility when present.
+    visibility?: Visibility;
+    /// Whether the parameter is readonly.
+    isReadonly: boolean;
+    /// Whether the parameter is optional.
+    isOptional: boolean;
+    /// The declared type when present.
+    declaredType?: TypeExpression;
+    /// The default expression when present.
+    default?: Expression;
+    /// The parameter symbol.
+    symbol: Symbol;
+}
+
+/// Pattern parameter.
+export interface PatternParameter extends Node {
+    /// The node kind.
+    nodeKind: "parameter";
+    /// The parameter kind.
+    kind: "pattern";
+    /// The binding pattern.
+    pattern: Pattern;
+    /// Whether the parameter is optional.
+    isOptional: boolean;
+    /// The declared type when present.
+    declaredType?: TypeExpression;
+    /// The default expression when present.
+    default?: Expression;
+    /// The parameter symbol.
+    symbol: Symbol;
+}
+
+/// Variadic named parameter.
+export interface VariadicNamedParameter extends Node {
+    /// The node kind.
+    nodeKind: "parameter";
+    /// The parameter kind.
+    kind: "variadicNamed";
+    /// The parameter name.
+    name: string;
+    /// The parameter visibility when present.
+    visibility?: Visibility;
+    /// Whether the parameter is readonly.
+    isReadonly: boolean;
+    /// The declared type when present.
+    declaredType?: TypeExpression;
+    /// The parameter symbol.
+    symbol: Symbol;
+}
+
+/// Variadic pattern parameter.
+export interface VariadicPatternParameter extends Node {
+    /// The node kind.
+    nodeKind: "parameter";
+    /// The parameter kind.
+    kind: "variadicPattern";
+    /// The binding pattern.
+    pattern: Pattern;
+    /// The declared type when present.
+    declaredType?: TypeExpression;
+    /// The parameter symbol.
+    symbol: Symbol;
+}
+
+/// Malformed parameter slot.
+export interface ErrorParameter extends Node {
+    /// The node kind.
+    nodeKind: "parameter";
+    /// The parameter kind.
+    kind: "error";
+    /// The parameter symbol.
+    symbol: Symbol;
+}
+
+/// A generic argument.
+export type GenericArgument =
+    | TypeGenericArgument
+    | ValueGenericArgument
+    | ErrorGenericArgument;
+
+/// Type generic argument.
+export interface TypeGenericArgument extends Node {
+    /// The node kind.
+    nodeKind: "genericArgument";
+    /// The argument kind.
+    kind: "type";
+    /// The type argument.
+    value: TypeExpression;
+}
+
+/// Value generic argument.
+export interface ValueGenericArgument extends Node {
+    /// The node kind.
+    nodeKind: "genericArgument";
+    /// The argument kind.
+    kind: "value";
+    /// The value argument.
+    value: Expression;
+}
+
+/// Malformed generic argument slot.
+export interface ErrorGenericArgument extends Node {
+    /// The node kind.
+    nodeKind: "genericArgument";
+    /// The argument kind.
+    kind: "error";
+}
+
+/// One tuple type element.
+export type TupleElement =
+    | ElementTupleElement
+    | SpreadTupleElement
+    | ErrorTupleElement;
+
+/// One non-spread tuple element.
+export interface ElementTupleElement extends Node {
+    /// The node kind.
+    nodeKind: "tupleElement";
+    /// The tuple element kind.
+    kind: "element";
+    /// The element label when present.
+    label?: string;
+    /// The element type.
+    value: TypeExpression;
+    /// Whether the element is optional.
+    isOptional: boolean;
+    /// Whether the element is readonly.
+    isReadonly: boolean;
+}
+
+/// One spread tuple element.
+export interface SpreadTupleElement extends Node {
+    /// The node kind.
+    nodeKind: "tupleElement";
+    /// The tuple element kind.
+    kind: "spread";
+    /// The element label when present.
+    label?: string;
+    /// The spread type.
+    value: TypeExpression;
+}
+
+/// Malformed tuple element slot.
+export interface ErrorTupleElement extends Node {
+    /// The node kind.
+    nodeKind: "tupleElement";
+    /// The tuple element kind.
+    kind: "error";
+}
+
+/// A runtime call or tree argument.
+export type Argument =
+    | NamedArgument
+    | LabeledArgument
+    | PositionalArgument
+    | SpreadArgument
+    | ErrorArgument;
+
+/// Named argument.
+export interface NamedArgument extends Node {
+    /// The node kind.
+    nodeKind: "argument";
+    /// The argument kind.
+    kind: "named";
+    /// The argument name.
+    name: Name;
+    /// The argument value.
+    value: Expression;
+}
+
+/// Labeled argument.
+export interface LabeledArgument extends Node {
+    /// The node kind.
+    nodeKind: "argument";
+    /// The argument kind.
+    kind: "labeled";
+    /// The argument label.
+    label: string;
+    /// The argument value.
+    value: Expression;
+}
+
+/// Positional argument.
+export interface PositionalArgument extends Node {
+    /// The node kind.
+    nodeKind: "argument";
+    /// The argument kind.
+    kind: "positional";
+    /// The argument value.
+    value: Expression;
+}
+
+/// Spread argument.
+export interface SpreadArgument extends Node {
+    /// The node kind.
+    nodeKind: "argument";
+    /// The argument kind.
+    kind: "spread";
+    /// The spread label when present.
+    label?: string;
+    /// The spread value.
+    value: Expression;
+}
+
+/// Malformed argument slot.
+export interface ErrorArgument extends Node {
+    /// The node kind.
+    nodeKind: "argument";
+    /// The argument kind.
+    kind: "error";
+    /// The recovered value.
+    value: Expression;
+}
+
+/// Static argument in a static context.
+export type StaticArgument =
+    | UnevaluatedStaticArgument
+    | EvaluatedStaticArgument;
+
+/// Unevaluated static argument.
+export interface UnevaluatedStaticArgument {
+    /// The argument kind.
+    kind: "unevaluated";
+    /// The unevaluated node.
+    node: Node;
+}
+
+/// Evaluated static argument.
+export interface EvaluatedStaticArgument {
+    /// The argument kind.
+    kind: "evaluated";
+    /// The argument name when present.
+    name?: string;
+    /// The evaluated static value.
+    value: StaticExpression;
+}
+
+/// How a generic parameter is interpreted.
+export enum GenericParameterKind {
+    /// Use the parameter as a type argument.
+    Type,
+    /// Use the parameter as a value argument.
+    Value,
+}
