@@ -250,7 +250,7 @@ impl FromStr for AtomicRmwOperator {
 }
 
 /// Execution scope for atomic operations and barriers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AtomicScope {
     /// Single invocation or thread scope.
     Invocation,
@@ -267,6 +267,7 @@ pub enum AtomicScope {
     /// Shader call group scope.
     ShaderCallGroup,
     /// System scope.
+    #[default]
     System,
 }
 
@@ -310,12 +311,6 @@ impl FromStr for AtomicScope {
     }
 }
 
-impl Default for AtomicScope {
-    fn default() -> Self {
-        Self::System
-    }
-}
-
 impl TryFrom<&str> for AtomicScope {
     type Error = ();
 
@@ -335,7 +330,7 @@ impl TryFrom<&str> for AtomicScope {
 }
 
 /// Memory scope for atomic operations and barriers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MemoryScope {
     /// Single invocation or thread scope.
     Invocation,
@@ -352,6 +347,7 @@ pub enum MemoryScope {
     /// Shader call group scope.
     ShaderCallGroup,
     /// System scope.
+    #[default]
     System,
 }
 
@@ -392,12 +388,6 @@ impl FromStr for MemoryScope {
             "system" => Ok(MemoryScope::System),
             _ => Err(()),
         }
-    }
-}
-
-impl Default for MemoryScope {
-    fn default() -> Self {
-        Self::System
     }
 }
 
