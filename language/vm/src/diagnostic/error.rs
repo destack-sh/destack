@@ -131,9 +131,6 @@ pub enum Error {
     /// Attempted to write through an immutable reference.
     ImmutableReferenceWrite { reference: String } = 26,
 
-    /// Reference kind is incompatible with the pointer value.
-    InvalidReferenceKind { reference: String, actual: String } = 27,
-
     /// Yielded during a non-yielding execution.
     UnexpectedYield = 28,
 
@@ -142,9 +139,6 @@ pub enum Error {
 
     /// Attempted to resume with an invalid continuation.
     InvalidContinuation = 30,
-
-    /// Reference address space is not supported by the VM.
-    UnsupportedAddressSpace { address_space: String } = 31,
 
     /// Reference address space does not match the pointer value.
     InvalidAddressSpace { expected: String, actual: String } = 33,
@@ -259,16 +253,10 @@ impl Error {
             Self::ImmutableReferenceWrite { reference } => {
                 format!("cannot write through immutable reference: {reference}")
             }
-            Self::InvalidReferenceKind { reference, actual } => {
-                format!("invalid reference kind {reference} for pointer {actual}")
-            }
             Self::UnexpectedYield => "yielded during non-yielding execution".to_string(),
             Self::ResumeWithoutYield => "attempted to resume without a pending yield".to_string(),
             Self::InvalidContinuation => {
                 "attempted to resume with an invalid continuation".to_string()
-            }
-            Self::UnsupportedAddressSpace { address_space } => {
-                format!("unsupported address space: {address_space}")
             }
             Self::InvalidAddressSpace { expected, actual } => {
                 format!("invalid address space: expected {expected}, got {actual}")

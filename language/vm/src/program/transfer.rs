@@ -8,8 +8,6 @@ use super::{ArgumentRange, CallTarget, MoveRange};
 /// Control transfer requested by one lowered instruction.
 #[derive(Debug)]
 pub(crate) enum Transfer {
-    /// Continue to the next instruction in the current block.
-    Continue,
     /// Continue at the current frame's block.
     Enter,
     /// Jump to another block.

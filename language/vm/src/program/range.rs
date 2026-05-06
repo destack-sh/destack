@@ -1,4 +1,18 @@
-use destack_mir as mir;
+use engine::LayoutId;
+use {destack_engine as engine, destack_mir as mir};
+
+/// One lowered frame move slot.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct MoveSlot {
+    /// The value layout id.
+    pub layout: LayoutId,
+    /// Byte offset from the frame base.
+    pub offset: u32,
+    /// Slot byte length.
+    pub byte_len: u32,
+    /// Whether this slot stores one word.
+    pub is_word: bool,
+}
 
 /// Argument range within one function argument pool.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -36,17 +50,17 @@ impl ArgumentRange {
 /// Move pair for parameter binding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct MovePair {
-    /// Destination SSA value id.
-    pub dest: mir::Value,
-    /// Source value or void fill.
+    /// Destination frame slot.
+    pub dest: MoveSlot,
+    /// Source frame slot or void fill.
     pub source: MoveSource,
 }
 
 /// Source for one lowered frame move.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum MoveSource {
-    /// Move from an SSA value.
-    Value(mir::Value),
+    /// Move from a frame slot.
+    Slot(MoveSlot),
     /// Write the canonical void value.
     Void,
 }

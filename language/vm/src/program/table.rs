@@ -3,14 +3,14 @@ use {destack_heap as heap, destack_mir as mir};
 use super::{
     AllocationLayout, AtomicCompareExchange, AtomicFence, AtomicLoad, AtomicRmw, AtomicStore, Call,
     CallBranch, CallIndirect, CallIndirectBranch, CallInterface, CallInterfaceBranch, CallVirtual,
-    CallVirtualBranch, CallableBind, ConstValue, ElementAccess, FieldAccess, FrameAccess,
-    FrameSelect, Intrinsic, MoveRange, PointeeAccess, SliceElementAccess, SwitchCase, TailCall,
-    TailCallIndirect, TailCallInterface, TailCallVirtual, TensorBinary, TensorBroadcast,
-    TensorConcat, TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract,
-    TensorFill, TensorGather, TensorLayout, TensorLoad, TensorPad, TensorReduce, TensorReshape,
-    TensorScatter, TensorSelect, TensorSlice, TensorStore, TensorTranspose, TensorUnary,
-    TensorView, VectorBinary, VectorConvert, VectorExtract, VectorInsert, VectorReduce,
-    VectorSelect, VectorShuffle, VectorSplat, VectorUnary,
+    CallVirtualBranch, CallableBind, ConstValue, FrameSelect, Intrinsic, MoveRange, Projection,
+    SliceProjection, SwitchCase, TailCall, TailCallIndirect, TailCallInterface, TailCallVirtual,
+    TensorBinary, TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorContiguousUnary,
+    TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill,
+    TensorGather, TensorLayout, TensorLoad, TensorPad, TensorReduce, TensorReshape, TensorScatter,
+    TensorSelect, TensorSlice, TensorStore, TensorTranspose, TensorUnary, TensorView, VectorBinary,
+    VectorConvert, VectorExtract, VectorInsert, VectorReduce, VectorSelect, VectorShuffle,
+    VectorSplat, VectorUnary,
 };
 
 /// Identifier for one pooled check constraint.
@@ -163,33 +163,17 @@ pub(crate) struct ConstValueId(pub(crate) u32);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct AllocationClassId(pub(crate) u32);
 
-/// Identifier for one pooled small allocation layout.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct SmallAllocationLayoutId(pub(crate) u32);
-
 /// Identifier for one pooled reference map.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ReferenceMapId(pub(crate) u32);
 
-/// Identifier for one pooled field access.
+/// Identifier for one pooled address projection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct FieldAccessId(pub(crate) u32);
+pub(crate) struct ProjectionId(pub(crate) u32);
 
-/// Identifier for one pooled frame access.
+/// Identifier for one pooled slice projection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct FrameAccessId(pub(crate) u32);
-
-/// Identifier for one pooled element access.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ElementAccessId(pub(crate) u32);
-
-/// Identifier for one pooled slice element access.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct SliceElementAccessId(pub(crate) u32);
-
-/// Identifier for one pooled pointee access.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct PointeeAccessId(pub(crate) u32);
+pub(crate) struct SliceProjectionId(pub(crate) u32);
 
 /// Identifier for one pooled u32 slice.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -304,7 +288,9 @@ side_record_table! {
     tensor_load: TensorLoad,
     tensor_extract: TensorExtract,
     tensor_binary: TensorBinary,
+    tensor_contiguous_binary: TensorContiguousBinary,
     tensor_unary: TensorUnary,
+    tensor_contiguous_unary: TensorContiguousUnary,
     tensor_store: TensorStore,
     tensor_fill: TensorFill,
     tensor_copy: TensorCopy,
@@ -340,20 +326,12 @@ pub(crate) struct SideTable {
     constant: Box<[ConstValue]>,
     /// Pooled allocation classes.
     allocation_class: Box<[heap::AllocationClass]>,
-    /// Pooled small allocation layouts.
-    small_allocation_layout: Box<[heap::SmallAllocationLayout]>,
     /// Pooled reference maps.
     reference_map: Box<[mir::ReferenceMap]>,
-    /// Pooled field accesses.
-    field_access: Box<[FieldAccess]>,
-    /// Pooled frame accesses.
-    frame_access: Box<[FrameAccess]>,
-    /// Pooled element accesses.
-    element_access: Box<[ElementAccess]>,
-    /// Pooled slice element accesses.
-    slice_element_access: Box<[SliceElementAccess]>,
-    /// Pooled pointee accesses.
-    pointee_access: Box<[PointeeAccess]>,
+    /// Pooled address projections.
+    projection: Box<[Projection]>,
+    /// Pooled slice projectiones.
+    slice_projection: Box<[SliceProjection]>,
     /// Pooled check constraints.
     check: Box<[Check]>,
     /// Pooled switch case tables.
@@ -397,20 +375,12 @@ pub(crate) struct SideTableBuilder {
     constant: Vec<ConstValue>,
     /// Pooled allocation classes.
     allocation_class: Vec<heap::AllocationClass>,
-    /// Pooled small allocation layouts.
-    small_allocation_layout: Vec<heap::SmallAllocationLayout>,
     /// Pooled reference maps.
     reference_map: Vec<mir::ReferenceMap>,
-    /// Pooled field accesses.
-    field_access: Vec<FieldAccess>,
-    /// Pooled frame accesses.
-    frame_access: Vec<FrameAccess>,
-    /// Pooled element accesses.
-    element_access: Vec<ElementAccess>,
-    /// Pooled slice element accesses.
-    slice_element_access: Vec<SliceElementAccess>,
-    /// Pooled pointee accesses.
-    pointee_access: Vec<PointeeAccess>,
+    /// Pooled address projections.
+    projection: Vec<Projection>,
+    /// Pooled slice projectiones.
+    slice_projection: Vec<SliceProjection>,
     /// Pooled u32 slices.
     u32_ranges: Vec<Box<[u32]>>,
     /// Pooled tensor dot descriptors.
@@ -439,13 +409,9 @@ impl SideTableBuilder {
             allocation_layout,
             constant,
             allocation_class,
-            small_allocation_layout,
             reference_map,
-            field_access,
-            frame_access,
-            element_access,
-            slice_element_access,
-            pointee_access,
+            projection,
+            slice_projection,
             u32_ranges,
             tensor_dot,
             tensor_convolution,
@@ -460,13 +426,9 @@ impl SideTableBuilder {
             allocation_layout: allocation_layout.into_boxed_slice(),
             constant: constant.into_boxed_slice(),
             allocation_class: allocation_class.into_boxed_slice(),
-            small_allocation_layout: small_allocation_layout.into_boxed_slice(),
             reference_map: reference_map.into_boxed_slice(),
-            field_access: field_access.into_boxed_slice(),
-            frame_access: frame_access.into_boxed_slice(),
-            element_access: element_access.into_boxed_slice(),
-            slice_element_access: slice_element_access.into_boxed_slice(),
-            pointee_access: pointee_access.into_boxed_slice(),
+            projection: projection.into_boxed_slice(),
+            slice_projection: slice_projection.into_boxed_slice(),
             check: check.into_boxed_slice(),
             switch_cases: switch_cases.into_boxed_slice(),
             switch_table: switch_table.into_boxed_slice(),
@@ -551,25 +513,6 @@ impl SideTableBuilder {
         AllocationClassId(id)
     }
 
-    /// Add one small allocation layout to the side table.
-    pub(crate) fn push_small_allocation_layout(
-        &mut self,
-        small: heap::SmallAllocationLayout,
-    ) -> SmallAllocationLayoutId {
-        if let Some(id) = self
-            .small_allocation_layout
-            .iter()
-            .position(|existing| *existing == small)
-        {
-            return SmallAllocationLayoutId(id as u32);
-        }
-
-        let id = self.small_allocation_layout.len() as u32;
-        self.small_allocation_layout.push(small);
-
-        SmallAllocationLayoutId(id)
-    }
-
     /// Add one reference map to the side table.
     pub(crate) fn push_reference_map(
         &mut self,
@@ -589,47 +532,20 @@ impl SideTableBuilder {
         ReferenceMapId(id)
     }
 
-    /// Add one field access to the side table.
-    pub(crate) fn push_field_access(&mut self, access: FieldAccess) -> FieldAccessId {
-        let id = self.field_access.len() as u32;
-        self.field_access.push(access);
+    /// Add one address projection to the side table.
+    pub(crate) fn push_projection(&mut self, projection: Projection) -> ProjectionId {
+        let id = self.projection.len() as u32;
+        self.projection.push(projection);
 
-        FieldAccessId(id)
+        ProjectionId(id)
     }
 
-    /// Add one frame access to the side table.
-    pub(crate) fn push_frame_access(&mut self, access: FrameAccess) -> FrameAccessId {
-        let id = self.frame_access.len() as u32;
-        self.frame_access.push(access);
+    /// Add one slice projection to the side table.
+    pub(crate) fn push_slice_projection(&mut self, access: SliceProjection) -> SliceProjectionId {
+        let id = self.slice_projection.len() as u32;
+        self.slice_projection.push(access);
 
-        FrameAccessId(id)
-    }
-
-    /// Add one element access to the side table.
-    pub(crate) fn push_element_access(&mut self, access: ElementAccess) -> ElementAccessId {
-        let id = self.element_access.len() as u32;
-        self.element_access.push(access);
-
-        ElementAccessId(id)
-    }
-
-    /// Add one slice element access to the side table.
-    pub(crate) fn push_slice_element_access(
-        &mut self,
-        access: SliceElementAccess,
-    ) -> SliceElementAccessId {
-        let id = self.slice_element_access.len() as u32;
-        self.slice_element_access.push(access);
-
-        SliceElementAccessId(id)
-    }
-
-    /// Add one pointee access to the side table.
-    pub(crate) fn push_pointee_access(&mut self, access: PointeeAccess) -> PointeeAccessId {
-        let id = self.pointee_access.len() as u32;
-        self.pointee_access.push(access);
-
-        PointeeAccessId(id)
+        SliceProjectionId(id)
     }
 
     /// Add one u32 slice to the side table.
@@ -779,49 +695,22 @@ impl SideTable {
         self.allocation_class[id.0 as usize]
     }
 
-    /// Return one pooled small allocation layout.
-    #[inline(always)]
-    pub(crate) fn small_allocation_layout(
-        &self,
-        id: SmallAllocationLayoutId,
-    ) -> heap::SmallAllocationLayout {
-        self.small_allocation_layout[id.0 as usize]
-    }
-
     /// Borrow one pooled reference map.
     #[inline(always)]
     pub(crate) fn reference_map(&self, id: ReferenceMapId) -> &mir::ReferenceMap {
         &self.reference_map[id.0 as usize]
     }
 
-    /// Borrow one pooled field access.
+    /// Borrow one pooled address projection.
     #[inline(always)]
-    pub(crate) fn field_access(&self, id: FieldAccessId) -> &FieldAccess {
-        &self.field_access[id.0 as usize]
+    pub(crate) fn projection(&self, id: ProjectionId) -> &Projection {
+        &self.projection[id.0 as usize]
     }
 
-    /// Borrow one pooled frame access.
+    /// Borrow one pooled slice projection.
     #[inline(always)]
-    pub(crate) fn frame_access(&self, id: FrameAccessId) -> &FrameAccess {
-        &self.frame_access[id.0 as usize]
-    }
-
-    /// Borrow one pooled element access.
-    #[inline(always)]
-    pub(crate) fn element_access(&self, id: ElementAccessId) -> &ElementAccess {
-        &self.element_access[id.0 as usize]
-    }
-
-    /// Borrow one pooled slice element access.
-    #[inline(always)]
-    pub(crate) fn slice_element_access(&self, id: SliceElementAccessId) -> &SliceElementAccess {
-        &self.slice_element_access[id.0 as usize]
-    }
-
-    /// Borrow one pooled pointee access.
-    #[inline(always)]
-    pub(crate) fn pointee_access(&self, id: PointeeAccessId) -> &PointeeAccess {
-        &self.pointee_access[id.0 as usize]
+    pub(crate) fn slice_projection(&self, id: SliceProjectionId) -> &SliceProjection {
+        &self.slice_projection[id.0 as usize]
     }
 
     /// Borrow one pooled check constraint.

@@ -6,7 +6,7 @@ use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::program::{Function, FunctionTable, Program};
-use crate::{FramePointer, RootSink, Word};
+use crate::{RootSink, Word};
 use destack_heap::{HeapResult, RootSlot};
 
 /// Call frame in the interpreter.
@@ -170,16 +170,6 @@ impl Frame {
         unsafe {
             std::ptr::write(self.slot_address(slot) as *mut Word, value);
         }
-    }
-
-    /// Read one word or frame address from a slot.
-    #[inline(always)]
-    pub(crate) fn read_slot_value(&self, slot: &engine::FrameSlot) -> Word {
-        if slot.is_word {
-            return self.read_word(slot);
-        }
-
-        Word::frame_pointer(FramePointer::from_address(self.slot_address(slot)))
     }
 
     /// Borrow one slot byte range.

@@ -1,13 +1,9 @@
-use super::{
-    CheckOptions, LimitOptions, TEST_MAX_INSTRUCTIONS, TEST_MAX_STACK_BYTES, TEST_MAX_STACK_DEPTH,
-};
+use super::{LimitOptions, TEST_MAX_INSTRUCTIONS, TEST_MAX_STACK_BYTES, TEST_MAX_STACK_DEPTH};
 use serde::{Deserialize, Serialize};
 
 /// Configuration options for a VM isolate.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct IsolateOptions {
-    /// Runtime check configuration.
-    pub checks: CheckOptions,
     /// Resource limits and execution budgets.
     pub limits: LimitOptions,
 }
@@ -20,14 +16,12 @@ impl IsolateOptions {
                 max_instructions: None,
                 ..LimitOptions::default()
             },
-            ..Self::default()
         }
     }
 
     /// Create options for testing with smaller limits.
     pub fn test() -> Self {
         Self {
-            checks: CheckOptions::debug(),
             limits: LimitOptions {
                 max_stack_depth: TEST_MAX_STACK_DEPTH,
                 max_stack_bytes: TEST_MAX_STACK_BYTES,
@@ -38,10 +32,7 @@ impl IsolateOptions {
 
     /// Create options for debug execution.
     pub fn debug() -> Self {
-        Self {
-            checks: CheckOptions::debug(),
-            ..Self::default()
-        }
+        Self::default()
     }
 
     /// Create options for comptime execution.
