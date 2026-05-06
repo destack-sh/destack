@@ -703,6 +703,7 @@ fn constant_tree_from_initializer(
             constant_tree_from_zero(ty, tree, max_aggregate_elements, pointer_width_bits)
         }
         mir::GlobalInitializer::Scalar(constant) => constant_tree_from_scalar(constant, ty, tree),
+        mir::GlobalInitializer::FunctionAddress(_) => ConstantTree::Unknown,
         mir::GlobalInitializer::Bytes(bytes) => {
             constant_tree_from_bytes(bytes, ty, tree, max_aggregate_elements)
         }

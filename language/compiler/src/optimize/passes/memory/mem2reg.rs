@@ -912,7 +912,7 @@ fn update_terminator_arguments(
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
             normal_target,
             unwind_target,
@@ -927,7 +927,7 @@ fn update_terminator_arguments(
                 ..call.clone()
             },
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
             normal_target: mir::BlockTarget {
                 block: normal_target.block,
@@ -954,7 +954,7 @@ fn update_terminator_arguments(
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
             normal_target,
             unwind_target,
@@ -969,7 +969,7 @@ fn update_terminator_arguments(
                 ..call.clone()
             },
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
             normal_target: mir::BlockTarget {
                 block: normal_target.block,
@@ -1018,7 +1018,7 @@ fn update_terminator_arguments(
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
         } => Terminator::TailCallVirtual {
             receiver: remap_value_reference(*receiver, substitutions),
@@ -1031,14 +1031,14 @@ fn update_terminator_arguments(
                 ..call.clone()
             },
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
         },
         Terminator::TailCallInterface {
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
         } => Terminator::TailCallInterface {
             receiver: remap_value_reference(*receiver, substitutions),
@@ -1051,7 +1051,7 @@ fn update_terminator_arguments(
                 ..call.clone()
             },
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
         },
         Terminator::TailCallIndirect { callee, call } => Terminator::TailCallIndirect {

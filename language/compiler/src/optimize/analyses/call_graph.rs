@@ -1196,7 +1196,7 @@ impl SymbolCallSite {
                 signature: SignatureKey::from_function_type(tree, call.signature),
                 is_precise: false,
             }),
-            mir::Terminator::InvokeVirtual { slot_id, call, .. } => {
+            mir::Terminator::InvokeVirtual { slot, call, .. } => {
                 let declared_target = terminator.call_declared_target();
                 let callee = declared_target
                     .and_then(|target| target.function())
@@ -1213,14 +1213,14 @@ impl SymbolCallSite {
 
                 Some(Self {
                     callsite,
-                    dispatch: CallDispatchKind::Virtual { slot_id: *slot_id },
+                    dispatch: CallDispatchKind::Virtual { slot: *slot },
                     callee,
                     callee_linkage,
                     signature,
                     is_precise: false,
                 })
             }
-            mir::Terminator::InvokeInterface { slot_id, call, .. } => {
+            mir::Terminator::InvokeInterface { slot, call, .. } => {
                 let declared_target = terminator.call_declared_target();
                 let callee = declared_target
                     .and_then(|target| target.function())
@@ -1237,7 +1237,7 @@ impl SymbolCallSite {
 
                 Some(Self {
                     callsite,
-                    dispatch: CallDispatchKind::Interface { slot_id: *slot_id },
+                    dispatch: CallDispatchKind::Interface { slot: *slot },
                     callee,
                     callee_linkage,
                     signature,
@@ -1272,7 +1272,7 @@ impl SymbolCallSite {
                 signature: SignatureKey::from_function_type(tree, call.signature),
                 is_precise: false,
             }),
-            mir::Terminator::TailCallVirtual { slot_id, call, .. } => {
+            mir::Terminator::TailCallVirtual { slot, call, .. } => {
                 let declared_target = terminator.call_declared_target();
                 let callee = declared_target
                     .and_then(|target| target.function())
@@ -1289,14 +1289,14 @@ impl SymbolCallSite {
 
                 Some(Self {
                     callsite,
-                    dispatch: CallDispatchKind::Virtual { slot_id: *slot_id },
+                    dispatch: CallDispatchKind::Virtual { slot: *slot },
                     callee,
                     callee_linkage,
                     signature,
                     is_precise: false,
                 })
             }
-            mir::Terminator::TailCallInterface { slot_id, call, .. } => {
+            mir::Terminator::TailCallInterface { slot, call, .. } => {
                 let declared_target = terminator.call_declared_target();
                 let callee = declared_target
                     .and_then(|target| target.function())
@@ -1313,7 +1313,7 @@ impl SymbolCallSite {
 
                 Some(Self {
                     callsite,
-                    dispatch: CallDispatchKind::Interface { slot_id: *slot_id },
+                    dispatch: CallDispatchKind::Interface { slot: *slot },
                     callee,
                     callee_linkage,
                     signature,
@@ -1523,19 +1523,19 @@ impl CallSite {
                 callee: None,
                 is_precise: false,
             }),
-            mir::Terminator::InvokeVirtual { slot_id, .. } => Some(Self {
+            mir::Terminator::InvokeVirtual { slot, .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: CallDispatchKind::Virtual { slot_id: *slot_id },
+                dispatch: CallDispatchKind::Virtual { slot: *slot },
                 callee: terminator
                     .call_declared_target()
                     .and_then(|callee| callee.function()),
                 is_precise: false,
             }),
-            mir::Terminator::InvokeInterface { slot_id, .. } => Some(Self {
+            mir::Terminator::InvokeInterface { slot, .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: CallDispatchKind::Interface { slot_id: *slot_id },
+                dispatch: CallDispatchKind::Interface { slot: *slot },
                 callee: terminator
                     .call_declared_target()
                     .and_then(|callee| callee.function()),
@@ -1555,19 +1555,19 @@ impl CallSite {
                 callee: None,
                 is_precise: false,
             }),
-            mir::Terminator::TailCallVirtual { slot_id, .. } => Some(Self {
+            mir::Terminator::TailCallVirtual { slot, .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: CallDispatchKind::Virtual { slot_id: *slot_id },
+                dispatch: CallDispatchKind::Virtual { slot: *slot },
                 callee: terminator
                     .call_declared_target()
                     .and_then(|callee| callee.function()),
                 is_precise: false,
             }),
-            mir::Terminator::TailCallInterface { slot_id, .. } => Some(Self {
+            mir::Terminator::TailCallInterface { slot, .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: CallDispatchKind::Interface { slot_id: *slot_id },
+                dispatch: CallDispatchKind::Interface { slot: *slot },
                 callee: terminator
                     .call_declared_target()
                     .and_then(|callee| callee.function()),
@@ -1878,7 +1878,7 @@ b0(v0: int32):
         assert_eq!(
             callgraph.outgoing(test_id)[0].dispatch,
             CallDispatchKind::Virtual {
-                slot_id: mir::VtableSlotId::new(1),
+                slot: mir::DispatchSlot::new(1),
             }
         );
         assert_eq!(callgraph.unknown_calls(test_id).len(), 1);
@@ -1928,7 +1928,7 @@ b2(v2: ref<int32, managed, readonly>):
         assert_eq!(
             outgoing[0].dispatch,
             CallDispatchKind::Virtual {
-                slot_id: mir::VtableSlotId::new(1),
+                slot: mir::DispatchSlot::new(1),
             }
         );
         assert!(matches!(outgoing[0].callsite, CallSiteRef::Terminator(_)));

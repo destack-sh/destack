@@ -348,15 +348,9 @@ fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut 
 
             // update binding locations to undefined
             let binding_id = mir::DebugBindingId::new(index as u32);
-            if let Some(ranges) = tree
-                .metadata
-                .debug
-                .binding_location_ranges
-                .get_mut(&binding_id)
-            {
+            if let Some(ranges) = tree.metadata.debug.binding_ranges.get_mut(&binding_id) {
                 for range in ranges {
-                    range.location =
-                        mir::DebugValueLocation::State(mir::DebugValueState::Undefined);
+                    range.location = mir::DebugValueLocation::Undefined;
                 }
             }
         }
@@ -370,7 +364,7 @@ fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut 
 fn scope_in_function(
     scope: mir::DebugScopeId,
     function_scope: mir::DebugScopeId,
-    debug_info: &mir::Debug,
+    debug_info: &mir::DebugMetadata,
 ) -> bool {
     // walk the scope chain to find the function scope
     let mut current = Some(scope);
@@ -603,11 +597,7 @@ extern function dead(int32): int32"#;
             .first()
             .copied()
             .expect("missing instruction");
-        let function_scope =
-            test.tree
-                .metadata
-                .debug
-                .create_scope(mir::DebugScopeKind::Function, None, None, None);
+        let function_scope = test.tree.metadata.debug.create_scope(None, None, None);
         test.tree
             .metadata
             .debug
@@ -624,17 +614,16 @@ extern function dead(int32): int32"#;
             None,
             mir::DebugBindingKind::Parameter,
         );
-        test.tree.metadata.debug.binding_location_ranges.insert(
+        test.tree.metadata.debug.binding_ranges.insert(
             binding_id,
-            vec![mir::DebugBindingLocationRange {
-                binding: binding_id,
+            vec![mir::DebugBindingRange {
                 location: mir::DebugValueLocation::Value(
                     parameter
                         .value
                         .value()
                         .expect("parameter value should be concrete"),
                 ),
-                start: mir::DebugRangeStart::instruction(dead_instruction),
+                start: Some(dead_instruction),
                 end: None,
             }],
         );
@@ -643,7 +632,7 @@ extern function dead(int32): int32"#;
             mir::DebugLocation {
                 scope: function_scope,
                 provenance: None,
-                inline_site: None,
+                inline_call: None,
             },
         );
 
@@ -659,15 +648,10 @@ extern function dead(int32): int32"#;
                 .contains_key(&dead_id)
         );
         assert_eq!(
-            test.tree
-                .metadata
-                .debug
-                .binding_location_ranges
-                .get(&binding_id),
-            Some(&vec![mir::DebugBindingLocationRange {
-                binding: binding_id,
-                location: mir::DebugValueLocation::State(mir::DebugValueState::Undefined),
-                start: mir::DebugRangeStart::instruction(dead_instruction),
+            test.tree.metadata.debug.binding_ranges.get(&binding_id),
+            Some(&vec![mir::DebugBindingRange {
+                location: mir::DebugValueLocation::Undefined,
+                start: Some(dead_instruction),
                 end: None,
             }])
         );

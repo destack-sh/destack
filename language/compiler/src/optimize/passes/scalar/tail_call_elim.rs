@@ -569,7 +569,7 @@ fn remap_terminator_blocks(
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
             normal_target,
             unwind_target,
@@ -577,7 +577,7 @@ fn remap_terminator_blocks(
             receiver: *receiver,
             call: call.clone(),
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
             normal_target: mir::BlockTarget {
                 block: normal_target
@@ -602,7 +602,7 @@ fn remap_terminator_blocks(
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
             normal_target,
             unwind_target,
@@ -610,7 +610,7 @@ fn remap_terminator_blocks(
             receiver: *receiver,
             call: call.clone(),
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
             normal_target: mir::BlockTarget {
                 block: normal_target

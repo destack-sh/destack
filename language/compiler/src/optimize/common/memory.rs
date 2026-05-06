@@ -1023,17 +1023,17 @@ pub fn instruction_has_atomic_ordering(
     // check for ordered or fenced accesses
     accesses.iter().any(|access| {
         access.ordering.is_some()
-            || access.semantics.is_some()
+            || access.flags.is_some()
             || matches!(access.kind, mir::MemoryAccessKind::Fence)
     })
 }
 
-/// Return true when an instruction requires exact memory access semantics.
+/// Return true when an instruction requires exact memory access behavior.
 pub fn instruction_requires_exact_access(
     tree: &mir::Tree,
     instruction: mir::LocalNodeId<mir::Instruction>,
 ) -> bool {
-    // ordered instructions must preserve exact access semantics
+    // ordered instructions must preserve exact access behavior
     if matches!(
         tree.get(instruction),
         mir::Instruction::AtomicLoad { .. }
@@ -1051,11 +1051,11 @@ pub fn instruction_requires_exact_access(
         return false;
     };
 
-    // require exact access semantics for volatile, ordered, or fenced operations
+    // require exact access behavior for volatile, ordered, or fenced operations
     accesses.iter().any(|access| {
         access.is_volatile
             || access.ordering.is_some()
-            || access.semantics.is_some()
+            || access.flags.is_some()
             || matches!(access.kind, mir::MemoryAccessKind::Fence)
     })
 }
