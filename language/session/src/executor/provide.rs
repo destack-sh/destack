@@ -19,6 +19,7 @@ impl Worker {
                 .map_err(|error| ProviderError::internal(error.to_string()).into()),
             ArtifactProvider::Compiler => self.session.compiler().provide(context),
             ArtifactProvider::Linter => self.session.linter().provide(context),
+            ArtifactProvider::Query => self.session.query().provide(context),
         }
     }
 

@@ -2,7 +2,7 @@ use destack_source::{EnclosingSpan, NodeSpanType};
 use {destack_ast as ast, destack_dir as dir};
 
 use crate::ast::enclosing_spans_with_previous;
-use crate::core::{AstQuery, DirQuery};
+use crate::core::{AstQueryContext, DirQueryContext};
 
 /// A scope and mark resolved for one cursor position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -15,8 +15,8 @@ pub(crate) struct ScopeAtOffset {
 
 /// Resolve the best visible scope at one offset.
 pub(crate) fn scope_at_offset(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     offset: u32,
 ) -> Option<ScopeAtOffset> {
     let enclosing = enclosing_spans_with_previous(ast, offset);
@@ -37,8 +37,8 @@ pub(crate) fn scope_at_offset(
 
 /// Resolve the nearest enclosing block or owned declaration scope at one offset.
 pub(crate) fn block_scope_at_offset(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     offset: u32,
 ) -> Option<ScopeAtOffset> {
     let enclosing = enclosing_spans_with_previous(ast, offset);
@@ -59,8 +59,8 @@ pub(crate) fn block_scope_at_offset(
 
 /// Resolve the scope owned by one block span.
 pub(crate) fn scope_from_block_span(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     ast_block_id: u32,
     offset: u32,
 ) -> Option<ScopeAtOffset> {
@@ -88,8 +88,8 @@ pub(crate) fn scope_from_block_span(
 
 /// Resolve the visible scope for one expression at an offset.
 pub(crate) fn expression_scope_at_offset(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     expr_id: dir::LocalNodeId<dir::Expression>,
     offset: u32,
 ) -> ScopeAtOffset {
@@ -104,8 +104,8 @@ pub(crate) fn expression_scope_at_offset(
 
 /// Resolve the best mapped dir scope from enclosing spans.
 fn scope_from_enclosing_dir_nodes(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     enclosing: &[EnclosingSpan],
     offset: u32,
     block_only: bool,
@@ -170,8 +170,8 @@ fn scope_from_enclosing_dir_nodes(
 
 /// Resolve the nearest mapped dir block scope from enclosing spans.
 fn scope_from_enclosing_dir_blocks(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     enclosing: &[EnclosingSpan],
     offset: u32,
 ) -> Option<ScopeAtOffset> {
@@ -205,8 +205,8 @@ fn scope_from_enclosing_dir_blocks(
 
 /// Resolve the nearest mapped owned declaration scope from enclosing spans.
 fn scope_from_enclosing_owned_declarations(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     enclosing: &[EnclosingSpan],
     offset: u32,
 ) -> Option<ScopeAtOffset> {
@@ -238,8 +238,8 @@ fn scope_from_enclosing_owned_declarations(
 
 /// Resolve one scope through ast parent recovery when direct span mapping failed.
 fn ast_parent_scope_at_offset(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     enclosing: &[EnclosingSpan],
     offset: u32,
 ) -> Option<ScopeAtOffset> {
@@ -313,8 +313,8 @@ fn ast_parent_scope_at_offset(
 
 /// Resolve one block or owned declaration scope through ast parent recovery.
 fn ast_parent_block_scope_at_offset(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     enclosing: &[EnclosingSpan],
     offset: u32,
 ) -> Option<ScopeAtOffset> {
@@ -373,7 +373,7 @@ fn ast_parent_block_scope_at_offset(
 
 /// Resolve the current scope mark at one offset.
 fn scope_mark_at_offset(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     scope_id: dir::LocalScopeId,
     offset: u32,
     dir_tree: &dir::Tree,

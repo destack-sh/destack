@@ -479,16 +479,16 @@ impl LanguageService {
         let mut update = FileUpdate::from(update);
 
         // attach open file protocol identity when the revision content agrees
-        if let Some(path) = update.file.as_ref().and_then(|file| file.path.as_deref()) {
-            if let Some(file) = self.open_state(path) {
-                update.diagnostic_uri = file.uri;
-                update.diagnostic_version = self.open_file_version_in_revision(
-                    session.repository().as_ref(),
-                    revision,
-                    update.file_id,
-                    path,
-                )?;
-            }
+        if let Some(path) = update.file.as_ref().and_then(|file| file.path.as_deref())
+            && let Some(file) = self.open_state(path)
+        {
+            update.diagnostic_uri = file.uri;
+            update.diagnostic_version = self.open_file_version_in_revision(
+                session.repository().as_ref(),
+                revision,
+                update.file_id,
+                path,
+            )?;
         }
 
         Ok(update)

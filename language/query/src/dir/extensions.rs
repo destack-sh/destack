@@ -1,11 +1,13 @@
 use destack_dir::{Extension, ExtensionKind, GlobalSymbolId};
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProfileId};
 use destack_workspace::{Repository, Revision};
 
-use crate::core::{DirQuery, RepositoryQueryIndexExt, query_context};
+use crate::core::{
+    DirQueryContext, ExtensionEntry, extension_candidates_for_target, query_context,
+    query_context_for_profile,
+};
 
 use super::get_canonical_symbol;
-use destack_workspace::ExtensionIndexEntry;
 
 /// Visit each visible extension that targets the given symbol.
 ///
@@ -15,13 +17,13 @@ pub(crate) fn for_each_visible_extension(
     revision: Revision,
     target_symbol: GlobalSymbolId,
     current_module_id: ModuleId,
-    mut visit: impl FnMut(DirQuery<'_>, &Extension) -> bool,
+    mut visit: impl FnMut(DirQueryContext<'_>, &Extension) -> bool,
 ) {
     // normalize the target symbol across imports and re exports
     let canonical_target = get_canonical_symbol(repository, revision, target_symbol);
 
     // scan cached extensions for the canonical target
-    for entry in repository.extension_index_entries_for_target(revision, canonical_target) {
+    for entry in extension_candidates_for_target(repository, revision, canonical_target) {
         let Some(ctx) = query_context(repository, revision, entry.module_id) else {
             continue;
         };
@@ -42,19 +44,20 @@ pub(crate) fn for_each_visible_extension(
 }
 
 /// Build extension index entries for one module.
-pub(crate) fn build_extension_index_entries_for_module(
+pub(crate) fn build_extension_candidates_for_module(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
-) -> Vec<ExtensionIndexEntry> {
-    let Some(ctx) = query_context(repository, revision, module_id) else {
+    profile_id: ProfileId,
+) -> Vec<ExtensionEntry> {
+    let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id) else {
         return Vec::new();
     };
 
     let mut entries = Vec::new();
 
     for (extension_id, extension) in ctx.dir().types().iter_extensions() {
-        entries.push(ExtensionIndexEntry {
+        entries.push(ExtensionEntry {
             module_id,
             extension_id,
             target_symbol: get_canonical_symbol(repository, revision, extension.target),

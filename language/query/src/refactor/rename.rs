@@ -1,20 +1,23 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 
+use destack_core::StringPool;
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
 use destack_workspace::Revision;
 use serde::{Deserialize, Serialize};
 use {destack_ast as ast, destack_dir as dir};
 
 use crate::ast::{is_simple_identifier, sort_and_dedup_spans, token_at_offset};
-use crate::core::{RepositoryQueryIndexExt, query_context};
+use crate::core::{
+    NominalRelation, modules_referencing_symbol, nominal_relations_for_target, query_context,
+};
 use crate::dir::{
     ReferenceCollectionOptions, SymbolAtOffset, collect_default_import_alias_symbols_for_export,
     collect_symbol_references_in_context, find_symbol_at_offset, get_canonical_symbol,
     get_symbol_definition_span, get_symbol_local_definition_span, member_key_name,
     resolve_local_import_alias_name, resolve_symbol_name,
 };
-use destack_workspace::{NominalRelationKind, Repository};
+use destack_workspace::Repository;
 
 /// Result of a prepare rename query.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -294,14 +297,7 @@ fn collect_symbol_reference_spans_across_user_modules(
 ) -> Vec<Span> {
     let mut spans = Vec::new();
 
-    for module_id in repository.reference_index_modules_for_target(revision, canonical_id) {
-        let Some(module) = repository.module(revision, module_id).ok().flatten() else {
-            continue;
-        };
-        if !module.is_user() {
-            continue;
-        }
-
+    for module_id in modules_referencing_symbol(repository, revision, canonical_id) {
         let Some(ctx) = query_context(repository, revision, module_id) else {
             continue;
         };
@@ -391,28 +387,28 @@ fn resolve_name_from_primary_declaration(
             let member_id = declaration.local_id.try_into().ok()?;
             let member = dir_tree.get::<dir::Member>(member_id);
             let key = member.key()?;
-            member_key_name(repository, key)
+            member_key_name(ctx.dir().strings(), key)
         }
         dir::NodeType::EnumField => {
             let field_id = declaration.local_id.try_into().ok()?;
             let field = dir_tree.get::<dir::EnumField>(field_id);
-            Some(repository.strings.get(field.name.string()).to_string())
+            Some(ctx.dir().strings().get(field.name.string()).to_string())
         }
         dir::NodeType::Declaration => {
             let declaration_id = declaration.local_id.try_into().ok()?;
             let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
             crate::dir::declaration_name(declaration)
-                .map(|name| repository.strings.get(name.string()).to_string())
+                .map(|name| ctx.dir().strings().get(name.string()).to_string())
         }
         dir::NodeType::Parameter => {
             let parameter_id = declaration.local_id.try_into().ok()?;
             let parameter = dir_tree.get::<dir::Parameter>(parameter_id);
             match parameter {
                 dir::Parameter::Named { name, .. } => {
-                    Some(repository.strings.get(*name).to_string())
+                    Some(ctx.dir().strings().get(*name).to_string())
                 }
                 dir::Parameter::VariadicNamed { name, .. } => {
-                    Some(repository.strings.get(*name).to_string())
+                    Some(ctx.dir().strings().get(*name).to_string())
                 }
                 dir::Parameter::Pattern { .. }
                 | dir::Parameter::VariadicPattern { .. }
@@ -424,7 +420,7 @@ fn resolve_name_from_primary_declaration(
             let pattern = dir_tree.get::<dir::Pattern>(pattern_id);
             match pattern {
                 dir::Pattern::Binding { name, .. } => {
-                    Some(repository.strings.get(*name).to_string())
+                    Some(ctx.dir().strings().get(*name).to_string())
                 }
                 _ => None,
             }
@@ -445,11 +441,14 @@ fn resolve_name_from_primary_declaration(
 
                     if let Some(pattern) = pattern {
                         return rename_pattern_binding_name(
-                            repository, dir_tree, *pattern, *symbol,
+                            ctx.dir().strings(),
+                            dir_tree,
+                            *pattern,
+                            *symbol,
                         );
                     }
 
-                    Some(repository.strings.get(*name).to_string())
+                    Some(ctx.dir().strings().get(*name).to_string())
                 }
                 _ => None,
             }
@@ -460,7 +459,7 @@ fn resolve_name_from_primary_declaration(
 
 /// Return the binding name for one pattern subtree.
 fn rename_pattern_binding_name(
-    repository: &Repository,
+    strings: &StringPool,
     dir_tree: &dir::Tree,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
     target_symbol: dir::LocalSymbolId,
@@ -473,18 +472,18 @@ fn rename_pattern_binding_name(
             ..
         } => {
             if *symbol == target_symbol {
-                return Some(repository.strings.get(*name).to_string());
+                return Some(strings.get(*name).to_string());
             }
 
             pattern.and_then(|pattern| {
-                rename_pattern_binding_name(repository, dir_tree, pattern, target_symbol)
+                rename_pattern_binding_name(strings, dir_tree, pattern, target_symbol)
             })
         }
         dir::Pattern::Assign { pattern, .. }
         | dir::Pattern::Must(pattern)
         | dir::Pattern::ReferenceOf { right: pattern, .. }
         | dir::Pattern::ValueOf { right: pattern, .. } => {
-            rename_pattern_binding_name(repository, dir_tree, *pattern, target_symbol)
+            rename_pattern_binding_name(strings, dir_tree, *pattern, target_symbol)
         }
         dir::Pattern::Tuple { .. }
         | dir::Pattern::TaggedTuple { .. }
@@ -544,7 +543,7 @@ fn resolve_interface_member_target(
     };
     let member = dir_tree.get::<dir::Member>(member_id);
     let (member_kind, member_key) = interface_member_kind_and_key(member)?;
-    let member_name = member_key_name(repository, member_key)?;
+    let member_name = member_key_name(ctx.dir().strings(), member_key)?;
 
     // resolve the parent declaration and ensure it is an interface
     let parent = dir_tree.get_parent(member_id.id)?;
@@ -580,12 +579,12 @@ fn collect_interface_member_implementations(
 ) -> Vec<dir::GlobalSymbolId> {
     let mut members = Vec::new();
     let interface_symbol = get_canonical_symbol(repository, revision, target.interface_symbol);
-    let implementing_symbols: Vec<dir::GlobalSymbolId> = repository
-        .nominal_index_entries_for_target(revision, interface_symbol)
-        .into_iter()
-        .filter(|entry| entry.relation == NominalRelationKind::Implements)
-        .map(|entry| entry.source_symbol)
-        .collect();
+    let implementing_symbols: Vec<dir::GlobalSymbolId> =
+        nominal_relations_for_target(repository, revision, interface_symbol)
+            .into_iter()
+            .filter(|entry| entry.relation == NominalRelation::Implements)
+            .map(|entry| entry.source_symbol)
+            .collect();
 
     if implementing_symbols.is_empty() {
         return members;
@@ -636,7 +635,7 @@ fn collect_interface_member_implementations(
                 continue;
             }
 
-            let Some(member_name) = member_key_name(repository, member_key) else {
+            let Some(member_name) = member_key_name(ctx.dir().strings(), member_key) else {
                 continue;
             };
             if member_name != expected_name && member_name != target.member_name {

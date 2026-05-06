@@ -1,3 +1,5 @@
+use std::path::{Component, Path};
+
 use destack_dir::SymbolSpace;
 
 use crate::{MatchQuality, match_quality};
@@ -112,19 +114,50 @@ pub fn import_sort_key(
 }
 
 /// Return one package preference rank for import ordering.
-pub fn import_package_rank<T>(current_package: T, target_package: Option<T>) -> u8
+pub fn import_package_rank<T>(current_package: Option<T>, target_package: Option<T>) -> u8
 where
     T: PartialEq,
 {
-    match target_package {
-        Some(target_package) if current_package == target_package => 0,
-        Some(_) => 2,
-        None => 1,
+    match (current_package.as_ref(), target_package.as_ref()) {
+        (Some(current_package), Some(target_package)) if current_package == target_package => 0,
+        (Some(_), _) => 2,
+        (None, _) => 1,
+    }
+}
+
+/// Compute structural path relevance for one import candidate.
+pub fn import_path_relevance<T>(
+    source_path: &Path,
+    target_path: &Path,
+    current_package: Option<T>,
+    target_package: Option<T>,
+) -> ImportPathRelevance
+where
+    T: PartialEq,
+{
+    let Some(source_dir) = source_path.parent() else {
+        let package_rank = import_package_rank(current_package, target_package);
+
+        return fallback_import_path_relevance(package_rank);
+    };
+
+    // score the relative path shape
+    let source_dir = normalize_path(source_dir);
+    let target_path = normalize_path(target_path);
+    let target_dir = target_path.parent().unwrap_or(&target_path).to_path_buf();
+    let package_rank = import_package_rank(current_package, target_package);
+
+    ImportPathRelevance {
+        directory_rank: u8::from(source_dir != target_dir),
+        package_rank,
+        distance_rank: path_distance(&source_dir, &target_path),
+        depth_rank: path_component_count(&target_dir)
+            .saturating_sub(path_component_count(&source_dir)),
     }
 }
 
 /// Return the fallback import path relevance for incomplete context.
-pub fn unknown_import_path_relevance(package_rank: u8) -> ImportPathRelevance {
+pub fn fallback_import_path_relevance(package_rank: u8) -> ImportPathRelevance {
     ImportPathRelevance {
         directory_rank: 2,
         package_rank,
@@ -149,4 +182,85 @@ fn import_space_rank(space: SymbolSpace, expected_space: Option<SymbolSpace>) ->
             SymbolSpace::Label => 3,
         },
     }
+}
+
+/// Normalize a path through lexical components.
+fn normalize_path(path: &Path) -> std::path::PathBuf {
+    let mut normalized = std::path::PathBuf::new();
+
+    // collect stable components
+    for component in path.components() {
+        match component {
+            Component::Prefix(prefix) => {
+                normalized.push(prefix.as_os_str());
+            }
+            Component::RootDir => {
+                normalized.push(std::path::MAIN_SEPARATOR.to_string());
+            }
+            Component::Normal(part) => {
+                normalized.push(part);
+            }
+            Component::CurDir => {}
+            Component::ParentDir => {
+                normalized.push("..");
+            }
+        }
+    }
+
+    normalized
+}
+
+/// Compute a heuristic distance between two paths.
+fn path_distance(from_dir: &Path, to_path: &Path) -> u32 {
+    let to_dir = to_path.parent().unwrap_or(to_path);
+
+    // resolve components for both paths
+    let from_components = normal_components(from_dir);
+    let to_components = normal_components(to_dir);
+
+    // compute the shared prefix length
+    let mut common = 0usize;
+    while common < from_components.len()
+        && common < to_components.len()
+        && from_components[common] == to_components[common]
+    {
+        common += 1;
+    }
+
+    // compute the number of path steps
+    let ups = from_components.len().saturating_sub(common);
+    let downs = to_components.len().saturating_sub(common);
+
+    (ups + downs) as u32
+}
+
+/// Count normalized components for a path.
+fn path_component_count(path: &Path) -> u32 {
+    normal_components(path).len() as u32
+}
+
+/// Collect normalized path components for stable comparisons.
+fn normal_components(path: &Path) -> Vec<String> {
+    let mut components = Vec::new();
+
+    // translate platform specific components into normalized strings
+    for component in path.components() {
+        match component {
+            Component::Prefix(prefix) => {
+                components.push(prefix.as_os_str().to_string_lossy().to_string());
+            }
+            Component::RootDir => {
+                components.push("/".to_string());
+            }
+            Component::Normal(part) => {
+                components.push(part.to_string_lossy().to_string());
+            }
+            Component::CurDir => {}
+            Component::ParentDir => {
+                components.push("..".to_string());
+            }
+        }
+    }
+
+    components
 }

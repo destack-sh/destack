@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_source::{EnclosingSpan, Span};
 
-use super::{AstQuery, span_owns_cursor};
+use super::{AstQueryContext, span_owns_cursor};
 
 /// The cursor's statement relationship to one block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,7 +65,7 @@ fn cursor_is_on_statement_main_span(
 
 /// Resolve the cursor's statement position inside one block.
 pub(crate) fn block_statement_position(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     enc: &EnclosingSpan,
     offset: u32,
 ) -> Option<BlockStatementPosition> {

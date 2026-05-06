@@ -1,26 +1,19 @@
 use destack_dir as dir;
 use destack_dir::{Expression, GlobalNodeIdAny, GlobalSymbolId, Resolution};
-use destack_source::{ModuleId, SourcePartKey};
-use destack_workspace::{NominalIndexEntry, NominalRelationKind, Repository, Revision};
+use destack_source::{ModuleId, ProfileId};
+use destack_workspace::{Repository, Revision};
 
 use super::{is_type_symbol, resolve_expression_symbol};
-use crate::core::{DirQuery, query_context, with_query_context_for_module};
+use crate::core::{
+    DirQueryContext, NominalEntry, NominalRelation, query_context_for_profile,
+    with_query_context_for_module,
+};
 
 /// Resolve a member access symbol when the cursor is on the member name.
 pub(crate) fn resolve_member_access_symbol(
-    dir: DirQuery<'_>,
+    dir: DirQueryContext<'_>,
     expr_id: dir::LocalNodeId<Expression>,
 ) -> Option<GlobalSymbolId> {
-    // prefer the compiler-recorded member target for this source part
-    let source_id = dir.tree().get_source(expr_id.id);
-    let span_type = Expression::member_source_part(dir.tree(), expr_id);
-    if let Some(target_symbol) = dir
-        .types()
-        .get_symbol_target_for_source_part(SourcePartKey::new(source_id, span_type))
-    {
-        return Some(target_symbol);
-    }
-
     // prefer the direct member target recorded on the expression
     if let Some(target_symbol) = dir.tree().get::<Expression>(expr_id).target_symbol() {
         return Some(target_symbol);
@@ -37,7 +30,7 @@ pub(crate) fn resolve_member_access_symbol(
 /// Resolve a nominal type symbol from a type expression.
 pub(crate) fn resolve_nominal_symbol_from_type_expression(
     repository: &Repository,
-    dir: DirQuery<'_>,
+    dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<GlobalSymbolId> {
     // resolve the expression and target symbol
@@ -77,12 +70,13 @@ pub(crate) fn resolve_nominal_symbol_from_type_expression(
 }
 
 /// Build nominal index entries for one module.
-pub(crate) fn build_nominal_index_entries_for_module(
+pub(crate) fn build_nominal_relations_for_module(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
-) -> Vec<NominalIndexEntry> {
-    let Some(ctx) = query_context(repository, revision, module_id) else {
+    profile_id: ProfileId,
+) -> Vec<NominalEntry> {
+    let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id) else {
         return Vec::new();
     };
 
@@ -91,26 +85,26 @@ pub(crate) fn build_nominal_index_entries_for_module(
     // collect direct nominal edges from stored lineages
     for (source_symbol, lineage) in ctx.dir().types().iter_lineages() {
         if let Some(target_symbol) = lineage.extends {
-            entries.push(NominalIndexEntry {
+            entries.push(NominalEntry {
                 source_symbol,
                 target_symbol,
-                relation: NominalRelationKind::Extends,
+                relation: NominalRelation::Extends,
             });
         }
 
         for target_symbol in lineage.implements.iter().copied() {
-            entries.push(NominalIndexEntry {
+            entries.push(NominalEntry {
                 source_symbol,
                 target_symbol,
-                relation: NominalRelationKind::Implements,
+                relation: NominalRelation::Implements,
             });
         }
 
         for target_symbol in lineage.embedded.iter().copied() {
-            entries.push(NominalIndexEntry {
+            entries.push(NominalEntry {
                 source_symbol,
                 target_symbol,
-                relation: NominalRelationKind::Embeds,
+                relation: NominalRelation::Embeds,
             });
         }
     }
@@ -125,11 +119,11 @@ fn symbol_is_type_symbol(
     symbol_id: GlobalSymbolId,
 ) -> bool {
     with_query_context_for_module(repository, revision, symbol_id.module_id, |ctx| {
-        if symbol_id.local_id.id >= ctx.dir().resolved_symbols().symbol_count() {
+        if symbol_id.local_id.id >= ctx.dir().symbols().symbol_count() {
             return false;
         }
 
-        let symbols = ctx.dir().resolved_symbols();
+        let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         is_type_symbol(symbol.ty)
     })
@@ -138,7 +132,7 @@ fn symbol_is_type_symbol(
 
 /// Resolve the recorded member target for an expression resolution.
 fn recorded_member_resolution(
-    dir: DirQuery<'_>,
+    dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<GlobalSymbolId> {
     let types = dir.types();

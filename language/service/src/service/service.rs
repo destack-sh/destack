@@ -4,6 +4,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
+use destack_query::Query;
 use destack_session::{Session, SessionEventHandler};
 use destack_source::OverlayFileSystem;
 use destack_workspace::Repository;
@@ -19,6 +20,8 @@ pub struct LanguageService {
     pub(super) compiler: Arc<Compiler>,
     /// Linter used by opened sessions.
     pub(super) linter: Arc<Linter>,
+    /// Query provider used by opened sessions.
+    pub(super) query: Arc<Query>,
     /// Sessions keyed by root path.
     pub(super) roots: DashMap<PathBuf, Arc<Session>>,
     /// Open files keyed by source path.
@@ -39,6 +42,7 @@ impl std::fmt::Debug for LanguageService {
             .field("repository", &self.repository)
             .field("compiler", &self.compiler)
             .field("linter", &self.linter)
+            .field("query", &self.query)
             .field("sessions_by_root", &self.roots)
             .field("open_file_by_path", &self.open_file_by_path.len())
             .field("overlay_file_system", &self.overlay_file_system.is_some())
@@ -59,11 +63,13 @@ impl LanguageService {
     ) -> Result<Self, LanguageServiceError> {
         let compiler = Arc::new(Compiler::new(repository.clone()));
         let linter = Arc::new(Linter::new(repository.clone()));
+        let query = Arc::new(Query::new(repository.clone()));
 
         let service = Self {
             repository,
             compiler,
             linter,
+            query,
             roots: dashmap::DashMap::new(),
             open_file_by_path: dashmap::DashMap::new(),
             overlay_file_system,

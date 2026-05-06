@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, ArtifactPin, Ast, DirAnalyzed, DirResolved};
+use destack_artifact::{
+    AmbientEnvironment, ArtifactKey, ArtifactPin, ArtifactVersion, Ast, DirChecked, DirDeclared,
+    DirExported,
+};
 use destack_ast as ast;
 use destack_core::StringPool;
 use destack_dir::{self as dir};
@@ -19,10 +22,12 @@ pub(crate) struct QueryContext {
     _pins: Vec<ArtifactPin>,
     /// The module AST (syntax tree and strings).
     ast: Arc<Ast>,
-    /// The module DIR (semantic IR).
-    dir_analyzed: Arc<DirAnalyzed>,
-    /// The resolved module linkage surface.
-    dir_resolved: Arc<DirResolved>,
+    /// The declared module DIR.
+    dir_declared: Arc<DirDeclared>,
+    /// The exported module DIR.
+    dir_exported: Arc<DirExported>,
+    /// The checked module DIR.
+    dir_checked: Arc<DirChecked>,
     /// The revision used for this context.
     revision: Revision,
     /// The profile used for this context.
@@ -35,14 +40,14 @@ pub(crate) struct QueryContext {
 
 /// Ast-facing query surface.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct AstQuery<'a> {
+pub(crate) struct AstQueryContext<'a> {
     /// The file id for this ast view.
     file_id: FileId,
     /// The module AST.
     ast: &'a Ast,
 }
 
-impl<'a> AstQuery<'a> {
+impl<'a> AstQueryContext<'a> {
     /// Return the file id for this ast view.
     pub(crate) fn file_id(self) -> FileId {
         self.file_id
@@ -86,18 +91,20 @@ impl<'a> AstQuery<'a> {
 
 /// DIR-facing query surface.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct DirQuery<'a> {
+pub(crate) struct DirQueryContext<'a> {
     /// The module id for this dir view.
     module_id: ModuleId,
     /// The revision for this dir view.
     revision: Revision,
-    /// The analyzed dir surface.
-    analyzed: &'a DirAnalyzed,
-    /// The resolved dir surface.
-    resolved: &'a DirResolved,
+    /// The declared DIR artifact.
+    declared: &'a DirDeclared,
+    /// The exported DIR artifact.
+    exported: &'a DirExported,
+    /// The checked DIR artifact.
+    checked: &'a DirChecked,
 }
 
-impl<'a> DirQuery<'a> {
+impl<'a> DirQueryContext<'a> {
     /// Return the module id for this dir view.
     pub(crate) fn module_id(self) -> ModuleId {
         self.module_id
@@ -110,37 +117,37 @@ impl<'a> DirQuery<'a> {
 
     /// Return the DIR tree.
     pub(crate) fn tree(self) -> &'a dir::Tree {
-        &self.analyzed.tree
+        &self.declared.tree
     }
 
     /// Return the DIR symbol table.
     pub(crate) fn symbols(self) -> &'a dir::SymbolTable {
-        &self.analyzed.symbols
+        &self.declared.symbols
     }
 
     /// Return the DIR type table.
     pub(crate) fn types(self) -> &'a dir::TypeTable {
-        &self.analyzed.types
+        &self.checked.types
     }
 
     /// Return the top level DIR roots.
     pub(crate) fn roots(self) -> &'a [dir::LocalNodeId<dir::Expression>] {
-        self.analyzed.roots.as_ref()
+        self.declared.roots.as_ref()
+    }
+
+    /// Return the DIR string pool.
+    pub(crate) fn strings(self) -> &'a StringPool {
+        &self.declared.strings
     }
 
     /// Return the namespace scope for this module.
     pub(crate) fn namespace_scope(self) -> dir::LocalScopeId {
-        self.analyzed.namespace_scope
+        self.declared.namespace_scope
     }
 
-    /// Return the resolved DIR symbol table.
-    pub(crate) fn resolved_symbols(self) -> &'a dir::SymbolTable {
-        &self.resolved.symbols
-    }
-
-    /// Return the resolved DIR artifact.
-    pub(crate) fn resolved(self) -> &'a DirResolved {
-        self.resolved
+    /// Return the exported DIR artifact.
+    pub(crate) fn exported(self) -> &'a DirExported {
+        self.exported
     }
 
     /// Get the inferred type id for a node.
@@ -182,26 +189,38 @@ impl QueryContext {
     }
 
     /// Return the ast query surface.
-    pub(crate) fn ast(&self) -> AstQuery<'_> {
-        AstQuery {
+    pub(crate) fn ast(&self) -> AstQueryContext<'_> {
+        AstQueryContext {
             file_id: self.file_id,
             ast: self.ast.as_ref(),
         }
     }
 
     /// Return the dir query surface.
-    pub(crate) fn dir(&self) -> DirQuery<'_> {
-        DirQuery {
+    pub(crate) fn dir(&self) -> DirQueryContext<'_> {
+        DirQueryContext {
             module_id: self.module_id,
             revision: self.revision,
-            analyzed: self.dir_analyzed.as_ref(),
-            resolved: self.dir_resolved.as_ref(),
+            declared: self.dir_declared.as_ref(),
+            exported: self.dir_exported.as_ref(),
+            checked: self.dir_checked.as_ref(),
         }
+    }
+
+    /// Return the ambient environment for this query profile.
+    pub(crate) fn ambient_environment(
+        &self,
+        repository: &Repository,
+    ) -> Option<Arc<AmbientEnvironment>> {
+        let key = ArtifactKey::ambient_environment(self.profile_id);
+        let version = artifact_version(repository, self.revision, key)?;
+
+        repository.artifact_store().ambient_environment(&version)
     }
 }
 
 /// Get query context for a module with one explicit profile.
-fn query_context_with_profile(
+pub(crate) fn query_context_for_profile(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
@@ -209,36 +228,49 @@ fn query_context_with_profile(
 ) -> Option<QueryContext> {
     let module = repository.module(revision, module_id).ok().flatten()?;
     let artifacts = repository.artifact_store().clone();
+    let selected_profile = repository
+        .module_profile_by_id(revision, module.id, profile)
+        .ok()
+        .flatten()?
+        .id();
 
-    // resolve and retain the exact live query artifacts
-    let ast_version = repository.artifact_version(revision, &ArtifactKey::ast(module.id));
-    let selected_profile =
-        repository.available_profile_id_for_module(revision, module.id, profile, true)?;
-    let resolved_version = repository.artifact_version(
+    // resolve and retain the exact source artifacts
+    let ast_version = artifact_version(repository, revision, ArtifactKey::ast(module.id))?;
+    let declared_version = artifact_version(
+        repository,
         revision,
-        &ArtifactKey::dir_resolved(module.id, selected_profile),
-    );
-    let analyzed_version = repository.artifact_version(
+        ArtifactKey::dir_declared(module.id, selected_profile),
+    )?;
+    let exported_version = artifact_version(
+        repository,
         revision,
-        &ArtifactKey::dir_analyzed(module.id, selected_profile),
-    );
+        ArtifactKey::dir_exported(module.id, selected_profile),
+    )?;
+    let checked_version = artifact_version(
+        repository,
+        revision,
+        ArtifactKey::dir_checked(module.id, selected_profile),
+    )?;
 
     // resolve module ast and profile dir artifact
-    let ast = repository.ast(revision, module.id)?;
-    let dir_analyzed = repository.dir_analyzed(revision, module.id, selected_profile)?;
-    let dir_resolved = repository.dir_resolved(revision, module.id, selected_profile)?;
+    let ast = artifacts.ast(&ast_version)?;
+    let dir_declared = artifacts.dir_declared(&declared_version)?;
+    let dir_exported = artifacts.dir_exported(&exported_version)?;
+    let dir_checked = artifacts.dir_checked(&checked_version)?;
 
-    // query artifact roots
+    // artifact roots
     let ast_pin = artifacts.pin(&ast_version)?;
-    let resolved_pin = artifacts.pin(&resolved_version)?;
-    let analyzed_pin = artifacts.pin(&analyzed_version)?;
+    let declared_pin = artifacts.pin(&declared_version)?;
+    let exported_pin = artifacts.pin(&exported_version)?;
+    let checked_pin = artifacts.pin(&checked_version)?;
 
     // build query context
     Some(QueryContext {
-        _pins: vec![ast_pin, resolved_pin, analyzed_pin],
+        _pins: vec![ast_pin, declared_pin, exported_pin, checked_pin],
         ast,
-        dir_analyzed,
-        dir_resolved,
+        dir_declared,
+        dir_exported,
+        dir_checked,
         revision,
         profile_id: selected_profile,
         module_id: module.id,
@@ -252,20 +284,9 @@ pub(crate) fn query_context(
     revision: Revision,
     module_id: ModuleId,
 ) -> Option<QueryContext> {
-    let profile = repository
-        .default_profile_id_for_module(revision, module_id)
-        .ok()?;
+    let profile = repository.module_profile(revision, module_id).ok()?.id();
 
-    query_context_with_profile(repository, revision, module_id, profile)
-}
-
-/// Get query context for a module id through the owning repository.
-pub(crate) fn query_context_for_module_id(
-    repository: &Repository,
-    revision: Revision,
-    module_id: ModuleId,
-) -> Option<QueryContext> {
-    query_context(repository, revision, module_id)
+    query_context_for_profile(repository, revision, module_id, profile)
 }
 
 /// Execute a closure with a query context for one file.
@@ -297,7 +318,7 @@ pub(crate) fn with_ast_query_for_file<T>(
     repository: &Repository,
     revision: Revision,
     file_id: FileId,
-    f: impl FnOnce(AstQuery<'_>) -> T,
+    f: impl FnOnce(AstQueryContext<'_>) -> T,
 ) -> Option<T> {
     let module = get_module_by_file_id(repository, revision, file_id)?;
     with_ast_query_for_module(repository, revision, module.id, f)
@@ -308,14 +329,28 @@ pub(crate) fn with_ast_query_for_module<T>(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
-    f: impl FnOnce(AstQuery<'_>) -> T,
+    f: impl FnOnce(AstQueryContext<'_>) -> T,
 ) -> Option<T> {
     let module = repository.module(revision, module_id).ok().flatten()?;
-    let ast = repository.ast(revision, module.id)?;
-    let query = AstQuery {
+    let artifacts = repository.artifact_store().clone();
+    let ast_version = artifact_version(repository, revision, ArtifactKey::ast(module.id))?;
+    let ast = artifacts.ast(&ast_version)?;
+    let query = AstQueryContext {
         file_id: module.file_id,
         ast: ast.as_ref(),
     };
 
     Some(f(query))
+}
+
+/// Return one recorded artifact version.
+fn artifact_version(
+    repository: &Repository,
+    revision: Revision,
+    artifact_key: ArtifactKey,
+) -> Option<ArtifactVersion> {
+    repository
+        .artifact_version(revision, &artifact_key)
+        .ok()
+        .flatten()
 }

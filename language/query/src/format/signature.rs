@@ -6,6 +6,7 @@ use destack_source::ModuleId;
 use destack_workspace::{Repository, Revision};
 
 use super::types::format_local_type;
+use crate::core::query_context_for_profile;
 use crate::dir::{
     declaration_display_name, declaration_export, declaration_is_abstract, declaration_is_ambient,
 };
@@ -43,11 +44,10 @@ pub fn format_declaration_signature(
     profile: ProfileId,
 ) -> FormattedSignature {
     // resolve dir data for formatting
-    let dir = repository
-        .dir_analyzed(revision, module.id, profile)
-        .unwrap_or_else(|| panic!("no DIR artifact for profile {profile:?}"));
-    let dir_tree = &dir.tree;
-    let types = &dir.types;
+    let ctx = query_context_for_profile(repository, revision, module.id, profile)
+        .unwrap_or_else(|| panic!("no query context for profile {profile:?}"));
+    let dir_tree = ctx.dir().tree();
+    let types = ctx.dir().types();
     let module_id = module.id;
 
     // resolve declaration metadata
@@ -476,20 +476,20 @@ pub fn format_symbol_signature(
     profile: ProfileId,
 ) -> Option<FormattedSignature> {
     // resolve module dir data
-    let dir = repository.dir_analyzed(revision, symbol_id.module_id, profile)?;
+    let ctx = query_context_for_profile(repository, revision, symbol_id.module_id, profile)?;
     let declaration_ref = {
-        let symbols = &dir.symbols;
+        let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.into_local());
         symbol.primary_declaration?
     };
 
     // read the declaration from the tree
-    let dir_tree = &dir.tree;
+    let dir_tree = ctx.dir().tree();
     let declaration_id = declaration_ref.local_id.try_into().ok()?;
     let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
 
     // resolve type table and metadata
-    let types = &dir.types;
+    let types = ctx.dir().types();
     let kind = declaration.kind_name();
     let name = declaration_display_name(strings, declaration);
 

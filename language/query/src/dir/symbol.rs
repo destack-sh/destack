@@ -1,19 +1,19 @@
 use std::collections::HashSet;
 
+use destack_core::StringPool;
 use destack_dir::{
     self as dir, DependencyItem, GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, Member, NodeType,
     SymbolSpace,
 };
-use destack_source::{ModuleId, Span};
+use destack_source::{ModuleId, ProfileId, Span};
 use destack_workspace::{Repository, Revision};
 
 use super::{container_name_for_node, declaration_display_name, matches_symbol_space_filter};
 use crate::ast::{get_node_tree_main_span, get_node_tree_span, try_span_for_dir_node};
 use crate::core::{
-    AstQuery, QueryContext, query_context, query_context_for_module_id, with_ast_query_for_module,
+    AstQueryContext, DirQueryContext, QueryContext, SymbolEntry, SymbolEntryKind, query_context,
+    query_context_for_profile,
 };
-use destack_artifact::DirResolved;
-use destack_workspace::{SymbolIndexEntry, SymbolIndexKind};
 
 /// Build a global symbol id from a module and local symbol id.
 pub(crate) fn global_symbol(module_id: ModuleId, local_id: LocalSymbolId) -> GlobalSymbolId {
@@ -30,7 +30,7 @@ pub fn resolve_global_symbol_id(
     module_id: ModuleId,
     local_symbol_id: u32,
 ) -> Option<GlobalSymbolId> {
-    let ctx = query_context_for_module_id(repository, revision, module_id)?;
+    let ctx = query_context(repository, revision, module_id)?;
     let symbol_entry = ctx.dir().symbols().get_symbol_by_id(local_symbol_id);
 
     Some(GlobalSymbolId {
@@ -45,7 +45,7 @@ pub(crate) fn get_canonical_symbol(
     revision: Revision,
     symbol_id: GlobalSymbolId,
 ) -> GlobalSymbolId {
-    let Some(ctx) = query_context_for_module_id(repository, revision, symbol_id.module_id) else {
+    let Some(ctx) = query_context(repository, revision, symbol_id.module_id) else {
         return symbol_id;
     };
 
@@ -81,8 +81,7 @@ pub(crate) fn symbol_matches_reference_target(
     let mut current_symbol = symbol_id;
     let mut visited = HashSet::new();
     while visited.insert(current_symbol) {
-        let Some(ctx) = query_context_for_module_id(repository, revision, current_symbol.module_id)
-        else {
+        let Some(ctx) = query_context(repository, revision, current_symbol.module_id) else {
             return false;
         };
 
@@ -112,22 +111,23 @@ pub(crate) fn resolve_symbol_name(
     revision: Revision,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<String> {
-    let ctx = query_context_for_module_id(repository, revision, symbol_id.module_id)?;
+    let ctx = query_context(repository, revision, symbol_id.module_id)?;
 
     let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
     symbol
         .name()
-        .map(|name_id| repository.strings.get(name_id).to_string())
+        .map(|name_id| ctx.dir().strings().get(name_id).to_string())
 }
 
 /// Build symbol index entries for one module.
-pub(crate) fn build_symbol_index_entries_for_module(
+pub(crate) fn build_workspace_symbol_candidates_for_module(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
-) -> Vec<SymbolIndexEntry> {
-    let Some(ctx) = query_context(repository, revision, module_id) else {
+    profile_id: ProfileId,
+) -> Vec<SymbolEntry> {
+    let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id) else {
         return Vec::new();
     };
 
@@ -136,16 +136,16 @@ pub(crate) fn build_symbol_index_entries_for_module(
 
     // declarations, members, enum fields
     for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
-        let name = declaration_display_name(&repository.strings, declaration);
+        let name = declaration_display_name(ctx.dir().strings(), declaration);
         let kind = symbol_index_kind_for_declaration(declaration);
         let container_name =
-            container_name_for_node(dir_tree, &repository.strings, declaration_id.id);
+            container_name_for_node(dir_tree, ctx.dir().strings(), declaration_id.id);
 
         let Some(range) = symbol_index_range(&ctx, dir_tree, declaration_id.id) else {
             continue;
         };
 
-        entries.push(SymbolIndexEntry {
+        entries.push(SymbolEntry {
             name: name.clone(),
             kind,
             module_id,
@@ -156,8 +156,7 @@ pub(crate) fn build_symbol_index_entries_for_module(
 
         if let Some(member_ids) = declaration.member_ids() {
             for member_id in member_ids {
-                let Some(entry) =
-                    member_to_symbol_index_entry(repository, &ctx, dir_tree, *member_id, &name)
+                let Some(entry) = member_to_symbol_index_entry(&ctx, dir_tree, *member_id, &name)
                 else {
                     continue;
                 };
@@ -168,9 +167,9 @@ pub(crate) fn build_symbol_index_entries_for_module(
 
         if let Some(member_ids) = declaration.type_member_ids() {
             for member_id in member_ids {
-                let Some(entry) = type_member_to_symbol_index_entry(
-                    repository, &ctx, dir_tree, *member_id, &name,
-                ) else {
+                let Some(entry) =
+                    type_member_to_symbol_index_entry(&ctx, dir_tree, *member_id, &name)
+                else {
                     continue;
                 };
 
@@ -181,7 +180,7 @@ pub(crate) fn build_symbol_index_entries_for_module(
         if let dir::Declaration::Enum(declaration) = declaration {
             for field_id in &declaration.fields {
                 let Some(entry) =
-                    enum_field_to_symbol_index_entry(repository, &ctx, dir_tree, *field_id, &name)
+                    enum_field_to_symbol_index_entry(&ctx, dir_tree, *field_id, &name)
                 else {
                     continue;
                 };
@@ -195,11 +194,11 @@ pub(crate) fn build_symbol_index_entries_for_module(
 }
 
 /// Resolve a member name from a key.
-pub(crate) fn member_key_name(repository: &Repository, key: &dir::Key) -> Option<String> {
+pub(crate) fn member_key_name(strings: &StringPool, key: &dir::Key) -> Option<String> {
     match key {
-        dir::Key::Name(name) => Some(repository.strings.get(name.string()).to_string()),
+        dir::Key::Name(name) => Some(strings.get(name.string()).to_string()),
         dir::Key::Private(name) => {
-            let name = repository.strings.get(*name).to_string();
+            let name = strings.get(*name).to_string();
             Some(format!("#{name}"))
         }
         dir::Key::Expression(_) => None,
@@ -235,28 +234,23 @@ pub(crate) fn get_symbol_local_definition_span(
     revision: Revision,
     symbol_id: GlobalSymbolId,
 ) -> Option<Span> {
-    with_resolved_symbol_context(
-        repository,
-        revision,
-        symbol_id.module_id,
-        |ast, _module_id, resolved| {
-            let declaration = {
-                let symbols = &resolved.symbols;
-                let symbol = symbols.get_symbol(symbol_id.local_id);
-                symbol.primary_declaration
-            };
+    with_resolved_symbol_context(repository, revision, symbol_id.module_id, |ctx| {
+        let declaration = {
+            let symbols = ctx.dir().symbols();
+            let symbol = symbols.get_symbol(symbol_id.local_id);
+            symbol.primary_declaration
+        };
 
-            if let Some(declaration) = declaration {
-                return Some(get_node_tree_main_span(
-                    ast,
-                    &resolved.tree,
-                    declaration.local_id,
-                ));
-            }
+        if let Some(declaration) = declaration {
+            return Some(get_node_tree_main_span(
+                ctx.ast(),
+                ctx.dir().tree(),
+                declaration.local_id,
+            ));
+        }
 
-            None
-        },
-    )?
+        None
+    })?
 }
 
 /// Resolve a definition span when the symbol is a type symbol.
@@ -265,43 +259,38 @@ pub(crate) fn type_definition_span_for_symbol(
     revision: Revision,
     symbol_id: GlobalSymbolId,
 ) -> Option<Span> {
-    with_resolved_symbol_context(
-        repository,
-        revision,
-        symbol_id.module_id,
-        |_ast, _module_id, resolved| {
-            if symbol_id.local_id.id >= resolved.symbols.symbol_count() {
-                return None;
-            }
+    with_resolved_symbol_context(repository, revision, symbol_id.module_id, |ctx| {
+        if symbol_id.local_id.id >= ctx.dir().symbols().symbol_count() {
+            return None;
+        }
 
-            let (is_type_symbol, declaration) = {
-                let symbols = &resolved.symbols;
-                let symbol = symbols.get_symbol(symbol_id.local_id);
-                (
-                    matches_symbol_space_filter(symbol.ty, symbol.space, Some(SymbolSpace::Type)),
-                    symbol.primary_declaration,
-                )
-            };
+        let (is_type_symbol, declaration) = {
+            let symbols = ctx.dir().symbols();
+            let symbol = symbols.get_symbol(symbol_id.local_id);
+            (
+                matches_symbol_space_filter(symbol.ty, symbol.space, Some(SymbolSpace::Type)),
+                symbol.primary_declaration,
+            )
+        };
 
-            if !is_type_symbol {
-                return None;
-            }
+        if !is_type_symbol {
+            return None;
+        }
 
-            if declaration
-                .is_some_and(|declaration| declaration.local_id.ty == NodeType::DependencyItem)
-            {
-                let target_symbol = dependency_item_target_symbol(resolved, symbol_id)?;
-                return get_symbol_span_with(
-                    repository,
-                    revision,
-                    target_symbol,
-                    get_node_tree_main_span,
-                );
-            }
+        if declaration
+            .is_some_and(|declaration| declaration.local_id.ty == NodeType::DependencyItem)
+        {
+            let target_symbol = dependency_item_target_symbol(ctx.dir(), symbol_id)?;
+            return get_symbol_span_with(
+                repository,
+                revision,
+                target_symbol,
+                get_node_tree_main_span,
+            );
+        }
 
-            get_symbol_span_with(repository, revision, symbol_id, get_node_tree_main_span)
-        },
-    )?
+        get_symbol_span_with(repository, revision, symbol_id, get_node_tree_main_span)
+    })?
 }
 
 /// Get the full declaration span of a symbol.
@@ -314,38 +303,37 @@ pub(crate) fn get_symbol_declaration_span(
 }
 
 /// Map one declaration to the symbol index kind.
-fn symbol_index_kind_for_declaration(declaration: &dir::Declaration) -> SymbolIndexKind {
+fn symbol_index_kind_for_declaration(declaration: &dir::Declaration) -> SymbolEntryKind {
     match declaration {
-        dir::Declaration::Global { .. } => SymbolIndexKind::Namespace,
-        dir::Declaration::Function { .. } => SymbolIndexKind::Function,
-        dir::Declaration::Struct { .. } => SymbolIndexKind::Struct,
-        dir::Declaration::Class { .. } => SymbolIndexKind::Class,
-        dir::Declaration::Interface { .. } => SymbolIndexKind::Interface,
-        dir::Declaration::Enum { .. } => SymbolIndexKind::Enum,
-        dir::Declaration::Namespace { .. } => SymbolIndexKind::Namespace,
-        dir::Declaration::Type { .. } => SymbolIndexKind::TypeParameter,
-        dir::Declaration::ImportAlias { .. } => SymbolIndexKind::Variable,
-        dir::Declaration::Extension { .. } => SymbolIndexKind::Class,
+        dir::Declaration::Global { .. } => SymbolEntryKind::Namespace,
+        dir::Declaration::Function { .. } => SymbolEntryKind::Function,
+        dir::Declaration::Struct { .. } => SymbolEntryKind::Struct,
+        dir::Declaration::Class { .. } => SymbolEntryKind::Class,
+        dir::Declaration::Interface { .. } => SymbolEntryKind::Interface,
+        dir::Declaration::Enum { .. } => SymbolEntryKind::Enum,
+        dir::Declaration::Namespace { .. } => SymbolEntryKind::Namespace,
+        dir::Declaration::Type { .. } => SymbolEntryKind::TypeParameter,
+        dir::Declaration::ImportAlias { .. } => SymbolEntryKind::Variable,
+        dir::Declaration::Extension { .. } => SymbolEntryKind::Class,
     }
 }
 
 /// Convert one member to one symbol index entry.
 fn member_to_symbol_index_entry(
-    repository: &Repository,
     ctx: &QueryContext,
     dir_tree: &dir::Tree,
     member_id: dir::LocalNodeId<dir::Member>,
     container_name: &str,
-) -> Option<SymbolIndexEntry> {
+) -> Option<SymbolEntry> {
     let member = dir_tree.get::<dir::Member>(member_id);
 
     // member name and kind
     let kind = symbol_index_kind_for_member(member)?;
     let name = if let Some(name) = member.name() {
-        repository.strings.get(name).to_string()
+        ctx.dir().strings().get(name).to_string()
     } else {
         let key = member.key()?;
-        member_key_name(repository, key)?
+        member_key_name(ctx.dir().strings(), key)?
     };
 
     let range = symbol_index_range(ctx, dir_tree, member_id.id)?;
@@ -354,7 +342,7 @@ fn member_to_symbol_index_entry(
         return None;
     }
 
-    Some(SymbolIndexEntry {
+    Some(SymbolEntry {
         name,
         kind,
         module_id: ctx.module_id(),
@@ -366,26 +354,25 @@ fn member_to_symbol_index_entry(
 
 /// Convert one type member to one symbol index entry.
 fn type_member_to_symbol_index_entry(
-    repository: &Repository,
     ctx: &QueryContext,
     dir_tree: &dir::Tree,
     member_id: dir::LocalNodeId<dir::TypeMember>,
     container_name: &str,
-) -> Option<SymbolIndexEntry> {
+) -> Option<SymbolEntry> {
     let member = dir_tree.get::<dir::TypeMember>(member_id);
 
     // type member name and kind
     let kind = symbol_index_kind_for_type_member(member)?;
     let name = if let Some(name) = member.name() {
-        repository.strings.get(name).to_string()
+        ctx.dir().strings().get(name).to_string()
     } else {
         let key = member.key()?;
-        member_key_name(repository, key)?
+        member_key_name(ctx.dir().strings(), key)?
     };
 
     let range = symbol_index_range(ctx, dir_tree, member_id.id)?;
 
-    Some(SymbolIndexEntry {
+    Some(SymbolEntry {
         name,
         kind,
         module_id: ctx.module_id(),
@@ -397,18 +384,17 @@ fn type_member_to_symbol_index_entry(
 
 /// Convert one enum field to one symbol index entry.
 fn enum_field_to_symbol_index_entry(
-    repository: &Repository,
     ctx: &QueryContext,
     dir_tree: &dir::Tree,
     field_id: dir::LocalNodeId<dir::EnumField>,
     container_name: &str,
-) -> Option<SymbolIndexEntry> {
+) -> Option<SymbolEntry> {
     let field = dir_tree.get::<dir::EnumField>(field_id);
     let range = symbol_index_range(ctx, dir_tree, field_id.id)?;
 
-    Some(SymbolIndexEntry {
-        name: repository.strings.get(field.name.string()).to_string(),
-        kind: SymbolIndexKind::EnumMember,
+    Some(SymbolEntry {
+        name: ctx.dir().strings().get(field.name.string()).to_string(),
+        kind: SymbolEntryKind::EnumMember,
         module_id: ctx.module_id(),
         file_id: ctx.file_id(),
         range,
@@ -417,12 +403,12 @@ fn enum_field_to_symbol_index_entry(
 }
 
 /// Map one member to the symbol index kind.
-fn symbol_index_kind_for_member(member: &dir::Member) -> Option<SymbolIndexKind> {
+fn symbol_index_kind_for_member(member: &dir::Member) -> Option<SymbolEntryKind> {
     match member {
-        dir::Member::AssociatedType { .. } => Some(SymbolIndexKind::TypeParameter),
-        dir::Member::AssociatedConst { .. } => Some(SymbolIndexKind::Constant),
-        dir::Member::Field { .. } => Some(SymbolIndexKind::Field),
-        dir::Member::Method { .. } => Some(SymbolIndexKind::Method),
+        dir::Member::AssociatedType { .. } => Some(SymbolEntryKind::TypeParameter),
+        dir::Member::AssociatedConst { .. } => Some(SymbolEntryKind::Constant),
+        dir::Member::Field { .. } => Some(SymbolEntryKind::Field),
+        dir::Member::Method { .. } => Some(SymbolEntryKind::Method),
         dir::Member::Embed { .. }
         | dir::Member::StaticBlock { .. }
         | dir::Member::ComptimeBlock { .. }
@@ -431,14 +417,14 @@ fn symbol_index_kind_for_member(member: &dir::Member) -> Option<SymbolIndexKind>
 }
 
 /// Map one type member to the symbol index kind.
-fn symbol_index_kind_for_type_member(member: &dir::TypeMember) -> Option<SymbolIndexKind> {
+fn symbol_index_kind_for_type_member(member: &dir::TypeMember) -> Option<SymbolEntryKind> {
     match member {
-        dir::TypeMember::AssociatedType { .. } => Some(SymbolIndexKind::TypeParameter),
-        dir::TypeMember::AssociatedConst { .. } => Some(SymbolIndexKind::Constant),
-        dir::TypeMember::Field { .. } => Some(SymbolIndexKind::Field),
-        dir::TypeMember::Method { .. } => Some(SymbolIndexKind::Method),
-        dir::TypeMember::CallSignature { .. } => Some(SymbolIndexKind::Method),
-        dir::TypeMember::ConstructSignature { .. } => Some(SymbolIndexKind::Method),
+        dir::TypeMember::AssociatedType { .. } => Some(SymbolEntryKind::TypeParameter),
+        dir::TypeMember::AssociatedConst { .. } => Some(SymbolEntryKind::Constant),
+        dir::TypeMember::Field { .. } => Some(SymbolEntryKind::Field),
+        dir::TypeMember::Method { .. } => Some(SymbolEntryKind::Method),
+        dir::TypeMember::CallSignature { .. } => Some(SymbolEntryKind::Method),
+        dir::TypeMember::ConstructSignature { .. } => Some(SymbolEntryKind::Method),
         dir::TypeMember::IndexSignature { .. } => None,
         dir::TypeMember::Embed { .. } => None,
         dir::TypeMember::Error { .. } => None,
@@ -456,82 +442,64 @@ fn get_symbol_span_with(
     repository: &Repository,
     revision: Revision,
     symbol_id: GlobalSymbolId,
-    span_for_declaration: impl Fn(AstQuery<'_>, &dir::Tree, LocalNodeIdAny) -> Span + Copy,
+    span_for_declaration: impl Fn(AstQueryContext<'_>, &dir::Tree, LocalNodeIdAny) -> Span + Copy,
 ) -> Option<Span> {
-    with_resolved_symbol_context(
-        repository,
-        revision,
-        symbol_id.module_id,
-        |ast, _module_id, resolved| {
-            let (canonical_id, declaration, target_symbol) = {
-                let symbols = &resolved.symbols;
-                let symbol = symbols.get_symbol(symbol_id.local_id);
-                let canonical_id = symbol.canonical_symbol.unwrap_or(symbol_id);
+    with_resolved_symbol_context(repository, revision, symbol_id.module_id, |ctx| {
+        let (canonical_id, declaration, target_symbol) = {
+            let symbols = ctx.dir().symbols();
+            let symbol = symbols.get_symbol(symbol_id.local_id);
+            let canonical_id = symbol.canonical_symbol.unwrap_or(symbol_id);
 
-                if canonical_id.module_id != symbol_id.module_id {
-                    (canonical_id, None, None)
-                } else {
-                    let canonical_symbol = symbols.get_symbol(canonical_id.local_id);
-                    (
-                        canonical_id,
-                        canonical_symbol.primary_declaration,
-                        canonical_symbol.target_symbol,
-                    )
-                }
-            };
             if canonical_id.module_id != symbol_id.module_id {
-                return get_symbol_span_with(
-                    repository,
-                    revision,
+                (canonical_id, None, None)
+            } else {
+                let canonical_symbol = symbols.get_symbol(canonical_id.local_id);
+                (
                     canonical_id,
-                    span_for_declaration,
-                );
+                    canonical_symbol.primary_declaration,
+                    canonical_symbol.target_symbol,
+                )
             }
+        };
+        if canonical_id.module_id != symbol_id.module_id {
+            return get_symbol_span_with(repository, revision, canonical_id, span_for_declaration);
+        }
 
-            if let Some(declaration) = declaration {
-                return Some(span_for_declaration(
-                    ast,
-                    &resolved.tree,
-                    declaration.local_id,
-                ));
-            }
+        if let Some(declaration) = declaration {
+            return Some(span_for_declaration(
+                ctx.ast(),
+                ctx.dir().tree(),
+                declaration.local_id,
+            ));
+        }
 
-            if let Some(target) = target_symbol {
-                return get_symbol_span_with(repository, revision, target, span_for_declaration);
-            }
+        if let Some(target) = target_symbol {
+            return get_symbol_span_with(repository, revision, target, span_for_declaration);
+        }
 
-            None
-        },
-    )?
+        None
+    })?
 }
 
-/// Execute a closure with AST and resolved DIR for one module.
+/// Execute a closure with one query context for a symbol module.
 fn with_resolved_symbol_context<T>(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
-    f: impl FnOnce(AstQuery<'_>, ModuleId, &DirResolved) -> T,
+    f: impl FnOnce(QueryContext) -> T,
 ) -> Option<T> {
-    let module = repository.module(revision, module_id).ok().flatten()?;
-    let profile = repository
-        .default_profile_id_for_module(revision, module.id)
-        .ok()?;
-    let selected_profile =
-        repository.available_profile_id_for_module(revision, module.id, profile, true)?;
-    let resolved = repository.dir_resolved(revision, module.id, selected_profile)?;
+    let ctx = query_context(repository, revision, module_id)?;
 
-    with_ast_query_for_module(repository, revision, module.id, |ast| {
-        f(ast, module.id, resolved.as_ref())
-    })
+    Some(f(ctx))
 }
 
 /// Resolve the imported target symbol for a dependency-item binding.
 fn dependency_item_target_symbol(
-    resolved: &DirResolved,
+    dir: DirQueryContext<'_>,
     symbol_id: GlobalSymbolId,
 ) -> Option<GlobalSymbolId> {
     let declaration = {
-        let symbols = &resolved.symbols;
+        let symbols = dir.symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         symbol.primary_declaration?
     };
@@ -540,6 +508,6 @@ fn dependency_item_target_symbol(
     }
 
     let item_id = declaration.local_id.try_into().ok()?;
-    let resolved_item = resolved.tree.get::<DependencyItem>(item_id);
+    let resolved_item = dir.tree().get::<DependencyItem>(item_id);
     resolved_item.target_symbol()
 }

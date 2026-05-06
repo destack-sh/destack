@@ -19,6 +19,9 @@ pub trait ProviderContext: DiagnosticContext {
     /// Require one artifact and return its exact version when ready.
     fn require(&self, key: ArtifactKey) -> Result<ArtifactVersion, ProviderError>;
 
+    /// Require many artifacts and return their exact versions when ready.
+    fn require_all(&self, keys: &[ArtifactKey]) -> Result<Vec<ArtifactVersion>, ProviderError>;
+
     /// Add one exact dependency read by this attempt.
     fn track(&self, dependency: ArtifactDependency);
 

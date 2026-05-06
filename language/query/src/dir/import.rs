@@ -14,9 +14,7 @@ use destack_source::{Edit, FileId, LanguageType, PathExt, Span};
 use super::get_canonical_symbol;
 use crate::ast::get_module_by_file_id;
 use crate::core::path::{normalize_separators, relative_path};
-use crate::core::{
-    AstQuery, DirQuery, RepositoryQueryIndexExt, query_context, query_context_for_module_id,
-};
+use crate::core::{AstQueryContext, DirQueryContext, modules_referencing_symbol, query_context};
 use crate::format::ImportGroup;
 use destack_dir as dir;
 use destack_workspace::{Repository, Revision};
@@ -127,7 +125,7 @@ pub(crate) fn resolve_local_import_alias_name(
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<String> {
     // resolve query context for the symbol module
-    let ctx = query_context_for_module_id(repository, revision, symbol_id.module_id)?;
+    let ctx = query_context(repository, revision, symbol_id.module_id)?;
 
     // resolve the symbol declaration and support declaration/import forms
     let declaration = {
@@ -144,7 +142,7 @@ pub(crate) fn resolve_local_import_alias_name(
         };
 
         let name_id = declaration.name.string();
-        return Some(repository.strings.get(name_id).to_string());
+        return Some(ctx.dir().strings().get(name_id).to_string());
     }
 
     if declaration.local_id.ty != NodeType::DependencyItem {
@@ -157,7 +155,7 @@ pub(crate) fn resolve_local_import_alias_name(
     let local_name_id =
         dependency_item_local_import_alias_name(dir_tree.get::<DirDependencyItem>(item_id))?;
 
-    Some(repository.strings.get(local_name_id).to_string())
+    Some(ctx.dir().strings().get(local_name_id).to_string())
 }
 
 /// Collect default import aliases whose imported default export resolves to one symbol.
@@ -168,14 +166,7 @@ pub(crate) fn collect_default_import_alias_symbols_for_export(
 ) -> Vec<dir::GlobalSymbolId> {
     let mut symbols = Vec::new();
 
-    for module_id in repository.reference_index_modules_for_target(revision, canonical_id) {
-        let Some(module) = repository.module(revision, module_id).ok().flatten() else {
-            continue;
-        };
-        if !module.is_user() {
-            continue;
-        }
-
+    for module_id in modules_referencing_symbol(repository, revision, canonical_id) {
         let Some(ctx) = query_context(repository, revision, module_id) else {
             continue;
         };
@@ -189,8 +180,7 @@ pub(crate) fn collect_default_import_alias_symbols_for_export(
                 continue;
             }
 
-            let local_alias_name =
-                local_default_import_alias_name_in_context(repository, dir, local_symbol_id);
+            let local_alias_name = local_default_import_alias_name_in_context(dir, local_symbol_id);
             if local_alias_name.is_none() {
                 continue;
             }
@@ -209,7 +199,7 @@ pub(crate) fn collect_default_import_alias_symbols_for_export(
 /// Check whether a symbol is a local import alias for a canonical target.
 pub(crate) fn is_dependency_alias_for_target(
     repository: &Repository,
-    dir: DirQuery<'_>,
+    dir: DirQueryContext<'_>,
     symbol_id: dir::GlobalSymbolId,
     canonical_target: dir::GlobalSymbolId,
 ) -> bool {
@@ -270,8 +260,7 @@ pub(crate) fn is_dependency_alias_for_target(
 
 /// Resolve the local binding name for one default import symbol inside a query context.
 fn local_default_import_alias_name_in_context(
-    repository: &Repository,
-    dir: DirQuery<'_>,
+    dir: DirQueryContext<'_>,
     local_symbol_id: LocalSymbolId,
 ) -> Option<String> {
     let declaration = {
@@ -288,7 +277,7 @@ fn local_default_import_alias_name_in_context(
     let local_name_id =
         dependency_item_default_import_alias_name(dir.tree().get::<DirDependencyItem>(item_id))?;
 
-    Some(repository.strings.get(local_name_id).to_string())
+    Some(dir.strings().get(local_name_id).to_string())
 }
 
 /// Resolve the local binding name for one dependency import alias.
@@ -341,7 +330,7 @@ fn dependency_item_default_import_alias_name(
 
 /// Resolve the brace span for an import clause.
 pub(crate) fn import_clause_brace_span(
-    source: AstQuery<'_>,
+    source: AstQueryContext<'_>,
     import_span: Span,
     target_span: Option<Span>,
 ) -> Option<(Span, Span)> {
@@ -353,7 +342,7 @@ pub(crate) fn import_clause_brace_span(
 
 /// Resolve the bounds for an import clause, even when the closing brace is missing.
 pub(crate) fn import_clause_bounds(
-    source: AstQuery<'_>,
+    source: AstQueryContext<'_>,
     import_span: Span,
     target_span: Option<Span>,
 ) -> Option<ImportClauseBounds> {
@@ -684,7 +673,7 @@ fn build_external_package_display_path(
 ) -> Option<String> {
     // resolve the owning package for the target path
     let target_package = repository
-        .workspace_module_ids(revision)
+        .module_ids(revision)
         .ok()?
         .into_iter()
         .filter_map(|module_id| {

@@ -4,15 +4,15 @@ use crate::ast::{
     member_access_dot_before_offset, receiver_token_before_member_access_dot,
     sorted_enclosing_spans, token_span_at_cursor_offset,
 };
-use crate::core::{AstQuery, DirQuery};
+use crate::core::{AstQueryContext, DirQueryContext};
 use crate::dir::resolve_expression_symbol;
 
 use super::{CompletionContext, CursorToken};
 
 /// Detect member access context near the cursor.
 pub(super) fn detect_member_access_context(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     token: &Option<CursorToken>,
     offset: u32,
 ) -> Option<CompletionContext> {
@@ -40,8 +40,8 @@ pub(super) fn detect_member_access_context(
 
 /// Detect member access from an existing member name token.
 fn member_access_context_from_member_name(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     cursor_position: u32,
 ) -> Option<CompletionContext> {
     let token_at_cursor = token_span_at_cursor_offset(ast, cursor_position)?;
@@ -98,7 +98,7 @@ fn member_access_context_from_member_name(
 
 /// Get the target symbol of an expression if it resolves to one.
 fn get_expression_symbol(
-    dir: DirQuery<'_>,
+    dir: DirQueryContext<'_>,
     expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
     resolve_expression_symbol(dir, expr_id)
@@ -122,7 +122,7 @@ fn concrete_type_id(
 ///
 /// Prefer the compiler recorded member lookup type and fall back to existing type tables.
 fn get_receiver_type(
-    dir: DirQuery<'_>,
+    dir: DirQueryContext<'_>,
     receiver_global: dir::GlobalNodeIdAny,
     receiver_symbol: Option<dir::GlobalSymbolId>,
 ) -> Option<dir::LocalTypeId> {
@@ -141,8 +141,8 @@ fn get_receiver_type(
 
 /// Resolve member access context for a receiver position.
 fn member_access_context_at_offset(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     receiver_position: u32,
 ) -> Option<CompletionContext> {
     let enclosing = sorted_enclosing_spans(ast, receiver_position, receiver_position);
@@ -216,8 +216,8 @@ fn member_access_context_at_offset(
 
 /// Resolve member access context from one dot owned cursor.
 fn member_access_context_from_dot(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     offset: u32,
 ) -> Option<CompletionContext> {
     let dot = member_access_dot_before_offset(ast, offset)?;

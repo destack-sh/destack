@@ -2,9 +2,11 @@ use destack_source::{FileId, Span};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::core::{RepositoryQueryIndexExt, symbol_relevance, workspace_symbol_sort_key};
+use crate::core::{
+    SymbolEntry, SymbolEntryKind, search_workspace_symbol_candidates, symbol_relevance,
+    symbol_sort_key,
+};
 use crate::dir::SymbolKind;
-use destack_workspace::{SymbolIndexEntry, SymbolIndexKind};
 
 /// A symbol in the workspace (flat list for workspace symbol search).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -52,13 +54,13 @@ pub fn workspace_symbols(
     // normalize query input
     let query = query.trim();
 
-    // collect candidate entries from the workspace symbol index
-    for entry in repository.search_workspace_symbol_entries(revision, query) {
+    // collect matching entries from the workspace symbol index
+    for entry in search_workspace_symbol_candidates(repository, revision, query) {
         let Some(relevance) = symbol_relevance(&entry, query) else {
             continue;
         };
 
-        let sort_key = workspace_symbol_sort_key(&relevance, &entry);
+        let sort_key = symbol_sort_key(&relevance, &entry);
         scored_symbols.push((sort_key, workspace_symbol_from_index_entry(entry)));
     }
 
@@ -90,7 +92,7 @@ pub fn workspace_symbols(
 }
 
 /// Convert one cached symbol entry to a workspace symbol.
-fn workspace_symbol_from_index_entry(entry: SymbolIndexEntry) -> WorkspaceSymbol {
+fn workspace_symbol_from_index_entry(entry: SymbolEntry) -> WorkspaceSymbol {
     WorkspaceSymbol {
         name: entry.name,
         kind: symbol_kind_from_index_kind(entry.kind),
@@ -101,19 +103,19 @@ fn workspace_symbol_from_index_entry(entry: SymbolIndexEntry) -> WorkspaceSymbol
 }
 
 /// Map one symbol index kind to the public workspace symbol kind.
-fn symbol_kind_from_index_kind(kind: SymbolIndexKind) -> SymbolKind {
+fn symbol_kind_from_index_kind(kind: SymbolEntryKind) -> SymbolKind {
     match kind {
-        SymbolIndexKind::Namespace => SymbolKind::Namespace,
-        SymbolIndexKind::Class => SymbolKind::Class,
-        SymbolIndexKind::Method => SymbolKind::Method,
-        SymbolIndexKind::Field => SymbolKind::Field,
-        SymbolIndexKind::Enum => SymbolKind::Enum,
-        SymbolIndexKind::Interface => SymbolKind::Interface,
-        SymbolIndexKind::Function => SymbolKind::Function,
-        SymbolIndexKind::Variable => SymbolKind::Variable,
-        SymbolIndexKind::Constant => SymbolKind::Constant,
-        SymbolIndexKind::EnumMember => SymbolKind::EnumMember,
-        SymbolIndexKind::Struct => SymbolKind::Struct,
-        SymbolIndexKind::TypeParameter => SymbolKind::TypeParameter,
+        SymbolEntryKind::Namespace => SymbolKind::Namespace,
+        SymbolEntryKind::Class => SymbolKind::Class,
+        SymbolEntryKind::Method => SymbolKind::Method,
+        SymbolEntryKind::Field => SymbolKind::Field,
+        SymbolEntryKind::Enum => SymbolKind::Enum,
+        SymbolEntryKind::Interface => SymbolKind::Interface,
+        SymbolEntryKind::Function => SymbolKind::Function,
+        SymbolEntryKind::Variable => SymbolKind::Variable,
+        SymbolEntryKind::Constant => SymbolKind::Constant,
+        SymbolEntryKind::EnumMember => SymbolKind::EnumMember,
+        SymbolEntryKind::Struct => SymbolKind::Struct,
+        SymbolEntryKind::TypeParameter => SymbolKind::TypeParameter,
     }
 }

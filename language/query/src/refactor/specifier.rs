@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 
-use destack_source::{FileSystem, PathExt};
-use destack_workspace::ModuleSpecifier;
+use destack_source::{FileSystem, ModuleSpecifier, PathExt};
 
 /// One shared policy context for specifier matching and rewriting.
 #[derive(Debug, Clone, Copy)]

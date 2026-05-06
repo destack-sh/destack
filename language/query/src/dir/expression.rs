@@ -1,11 +1,11 @@
 use destack_dir::{Expression, GlobalSymbolId};
 use {destack_ast as ast, destack_dir as dir};
 
-use crate::core::{AstQuery, DirQuery};
+use crate::core::{AstQueryContext, DirQueryContext};
 
 /// Resolve the best symbol for an expression from DIR data.
 pub(crate) fn resolve_expression_symbol(
-    dir: DirQuery<'_>,
+    dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<GlobalSymbolId> {
     let dir_tree = dir.tree();
@@ -20,8 +20,8 @@ pub(crate) fn resolve_expression_symbol(
 
 /// Check whether an expression is used in a type position.
 pub(crate) fn expression_is_type_position(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> bool {
     let mut current_id = dir.tree().get_source(expression_id.id);

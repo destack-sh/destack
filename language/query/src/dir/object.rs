@@ -4,7 +4,7 @@ use {destack_ast as ast, destack_dir as dir};
 
 use super::{ScopeAtOffset, expression_scope_at_offset};
 use crate::ast::sorted_enclosing_spans;
-use crate::core::{AstQuery, DirQuery};
+use crate::core::{AstQueryContext, DirQueryContext};
 
 /// Describes the cursor position inside one object literal.
 #[derive(Debug, Clone)]
@@ -30,10 +30,10 @@ pub(crate) struct ObjectLiteralContextInfo {
 
 /// Resolve object literal cursor information at one offset.
 pub(crate) fn object_literal_cursor_context(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     offset: u32,
-    repository: &Repository,
+    _repository: &Repository,
 ) -> Option<ObjectLiteralCursorContext> {
     // resolve enclosing spans from innermost to outermost
     let enclosing = sorted_enclosing_spans(ast, offset, offset);
@@ -87,8 +87,7 @@ pub(crate) fn object_literal_cursor_context(
             _ => continue,
         };
 
-        let existing_fields =
-            extract_object_property_names(dir_tree, properties, &repository.strings);
+        let existing_fields = extract_object_property_names(dir_tree, properties, dir.strings());
         let contextual_type = contextual_object_type(dir, types, dir_node_id);
 
         return Some(ObjectLiteralCursorContext::Key(ObjectLiteralContextInfo {
@@ -103,7 +102,7 @@ pub(crate) fn object_literal_cursor_context(
 }
 
 /// Check if the cursor is inside an object literal expression.
-pub(crate) fn is_inside_object_literal_expression(ast: AstQuery<'_>, offset: u32) -> bool {
+pub(crate) fn is_inside_object_literal_expression(ast: AstQueryContext<'_>, offset: u32) -> bool {
     // resolve enclosing spans from innermost to outermost
     let enclosing = sorted_enclosing_spans(ast, offset, offset);
 
@@ -162,7 +161,7 @@ pub(crate) fn is_object_literal_key_position(
 
 /// Resolve one recorded contextual object type.
 fn contextual_object_type(
-    dir: DirQuery<'_>,
+    dir: DirQueryContext<'_>,
     types: &dir::TypeTable,
     node_id: dir::LocalNodeIdAny,
 ) -> Option<dir::LocalTypeId> {

@@ -235,6 +235,13 @@ impl Repository {
         Ok(profiles.get(&profile_id).cloned())
     }
 
+    /// Return all exact profile ids present in one revision.
+    pub fn profile_ids(&self, revision: Revision) -> Result<Vec<ProfileId>, RepositoryError> {
+        let profiles = self.profiles(revision)?;
+
+        Ok(profiles.keys().copied().collect())
+    }
+
     /// Build one resolved profile from one canonical key in one revision.
     pub fn profile_from_key(
         &self,

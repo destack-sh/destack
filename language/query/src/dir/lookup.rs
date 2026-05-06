@@ -1,4 +1,4 @@
-use destack_core::StringId;
+use destack_core::{StringId, StringPool};
 use destack_dir::{
     Declaration, DependencyItem, Expression, GlobalSymbolId, LocalNodeIdAny, Parameter, Pattern,
     PatternField,
@@ -15,7 +15,7 @@ use crate::ast::{
     get_module_by_file_id, get_node_tree_main_span, get_node_tree_span, token_at_offset,
     token_span_at_offset,
 };
-use crate::core::{AstQuery, DirQuery, query_context};
+use crate::core::{AstQueryContext, DirQueryContext, query_context};
 use destack_workspace::{Repository, Revision};
 
 /// Result of finding a symbol at an offset.
@@ -115,8 +115,8 @@ pub(crate) fn find_symbol_for_hover_at_offset(
 
 /// Resolve one path segment span inside a plain multi segment path expression.
 pub(crate) fn get_path_segment_span(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
     segment_index: u16,
 ) -> Option<Span> {
@@ -144,8 +144,8 @@ pub(crate) fn get_path_segment_span(
 
 /// Resolve the span for a member access name inside its expression span.
 pub(crate) fn get_member_access_name_span(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<Span> {
     let expression = dir.tree().get::<Expression>(expression_id);
@@ -207,8 +207,8 @@ pub(crate) fn get_member_access_name_span(
 
 /// Resolve the member target for a receiver position inside one member access.
 fn member_access_target_symbol_at_offset(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
     offset: u32,
 ) -> Option<GlobalSymbolId> {
@@ -337,7 +337,7 @@ fn find_symbol_at_offset_impl(
                     let Some(name) = *name else {
                         continue;
                     };
-                    let member_name = repository.strings.get(name);
+                    let member_name = dir.strings().get(name);
                     let is_member_name_token =
                         token_at_offset(repository, dir.revision(), ast.file_id(), offset)
                             .as_deref()
@@ -627,8 +627,8 @@ fn find_symbol_at_offset_impl(
 
 /// Resolve one plain path segment symbol when the cursor is on that segment.
 fn path_segment_symbol_at_offset(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
@@ -657,8 +657,8 @@ fn path_segment_symbol_at_offset(
 /// Resolve one symbol from a type-position expression that covers the cursor.
 fn type_expression_symbol_at_offset(
     repository: &Repository,
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
     let dir_tree = dir.tree();
@@ -792,8 +792,8 @@ fn is_declaration_target_modifier_keyword(keyword: ast::Keyword) -> bool {
 /// Resolve a generic parameter symbol at the given offset.
 fn generic_parameter_symbol_at_offset(
     repository: &Repository,
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
     let token_name = token_at_offset(repository, dir.revision(), ast.file_id(), offset);
@@ -817,7 +817,7 @@ fn generic_parameter_symbol_at_offset(
             }
 
             if let Some(token_name) = token_name.as_deref()
-                && let Some(parameter_name) = generic_parameter_name(repository, parameter)
+                && let Some(parameter_name) = generic_parameter_name(dir.strings(), parameter)
                 && parameter_name != token_name
             {
                 continue;
@@ -837,12 +837,12 @@ fn generic_parameter_symbol_at_offset(
 
 /// Resolve the declared name for a generic parameter when available.
 fn generic_parameter_name(
-    repository: &Repository,
+    strings: &StringPool,
     parameter: &dir::GenericParameter,
 ) -> Option<String> {
     match parameter {
         dir::GenericParameter::Type { name, .. } | dir::GenericParameter::Value { name, .. } => {
-            Some(repository.strings.get(*name).to_string())
+            Some(strings.get(*name).to_string())
         }
         dir::GenericParameter::Error { .. } => None,
     }
@@ -851,8 +851,8 @@ fn generic_parameter_name(
 /// Resolve a binding symbol inside a pattern field at the cursor.
 fn pattern_field_symbol_at_offset(
     repository: &Repository,
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     dir_tree: &dir::Tree,
     field_id: dir::LocalNodeId<PatternField>,
     offset: u32,
@@ -895,8 +895,8 @@ fn pattern_field_symbol_at_offset(
 /// Resolve a binding symbol inside a pattern at the cursor.
 fn pattern_symbol_at_offset(
     repository: &Repository,
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     dir_tree: &dir::Tree,
     pattern_id: dir::LocalNodeId<Pattern>,
     offset: u32,
@@ -981,15 +981,15 @@ fn offset_matches_symbol_span(offset: u32, span: Span) -> bool {
 /// Resolve a member access symbol when the cursor is on the member name.
 fn member_symbol_at_offset(
     repository: &Repository,
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     expr_id: dir::LocalNodeId<Expression>,
     node_id: LocalNodeIdAny,
     _left: dir::LocalNodeId<Expression>,
     name: StringId,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
-    let member_name = repository.strings.get(name);
+    let member_name = dir.strings().get(name);
     let source_file = repository
         .file(dir.revision(), ast.file_id())
         .ok()

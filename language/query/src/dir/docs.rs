@@ -4,10 +4,14 @@ use destack_ast::normalize_comment_payload;
 use destack_dir as dir;
 use destack_workspace::{Repository, Revision};
 
-use crate::core::{AstQuery, query_context_for_module_id};
+use crate::core::{AstQueryContext, query_context};
 
 /// Collect documentation strings attached to a node.
-pub(crate) fn doc_strings_for_node(ast: AstQuery<'_>, source: &str, node_id: u32) -> Vec<String> {
+pub(crate) fn doc_strings_for_node(
+    ast: AstQueryContext<'_>,
+    source: &str,
+    node_id: u32,
+) -> Vec<String> {
     let node_span = ast.source_map().get_main_or_enclosing(node_id);
 
     ast.tree()
@@ -32,7 +36,7 @@ pub(crate) fn doc_strings_for_node(ast: AstQuery<'_>, source: &str, node_id: u32
 
 /// Collect documentation strings attached to a node or immediate line docs.
 pub(crate) fn doc_strings_for_node_with_fallback(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     source: &str,
     node_id: u32,
 ) -> Vec<String> {
@@ -51,7 +55,7 @@ pub(crate) fn doc_strings_for_node_with_fallback(
 
 /// Collect documentation strings from a node or enclosing nodes.
 pub(crate) fn doc_strings_for_node_or_enclosing(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     source: &str,
     node_id: u32,
 ) -> Vec<String> {
@@ -100,7 +104,7 @@ pub(crate) fn doc_text_for_symbol(
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<String> {
     // resolve the module query context
-    let ctx = query_context_for_module_id(repository, revision, symbol_id.module_id)?;
+    let ctx = query_context(repository, revision, symbol_id.module_id)?;
 
     // resolve the symbol declaration
     let declaration = {
@@ -112,7 +116,7 @@ pub(crate) fn doc_text_for_symbol(
     // prefer semantic documentation attached to the dir declaration
     let dir_tree = ctx.dir().tree();
     if let Some(documentation) = dir_tree.get_documentation(declaration.local_id.id) {
-        return Some(repository.strings.get(documentation.text).to_string());
+        return Some(ctx.dir().strings().get(documentation.text).to_string());
     }
 
     // resolve the source node for the declaration
@@ -131,7 +135,7 @@ pub(crate) fn doc_text_for_symbol(
 
 /// Join documentation strings with tag lines removed.
 pub(crate) fn doc_text_for_node_without_tags(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     source: &str,
     node_id: u32,
     tags: &[&str],

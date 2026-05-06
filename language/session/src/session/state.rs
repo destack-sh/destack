@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use destack_artifact::ArtifactOutcome;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
+use destack_query::Query;
 use destack_workspace::Repository;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
@@ -20,6 +21,8 @@ pub(crate) struct SessionState {
     compiler: Arc<Compiler>,
     /// Linter for this root.
     linter: Arc<Linter>,
+    /// Query provider for this root.
+    query: Arc<Query>,
     /// Serialize query and mutation access per root.
     mutation_lock: RwLock<()>,
     /// Optional outer session event handler.
@@ -36,6 +39,7 @@ impl std::fmt::Debug for SessionState {
             .field("repository", &self.repository)
             .field("compiler", &self.compiler)
             .field("linter", &self.linter)
+            .field("query", &self.query)
             .field("event_handler", &self.event_handler.is_some())
             .finish_non_exhaustive()
     }
@@ -47,12 +51,14 @@ impl SessionState {
         repository: Arc<Repository>,
         compiler: Arc<Compiler>,
         linter: Arc<Linter>,
+        query: Arc<Query>,
         event_handler: Option<SessionEventHandler>,
     ) -> Self {
         Self {
             repository,
             compiler,
             linter,
+            query,
             mutation_lock: RwLock::new(()),
             event_handler,
             next_run_id: AtomicU32::new(1),
@@ -82,6 +88,11 @@ impl SessionState {
     /// Return the linter for this session.
     pub(crate) fn linter(&self) -> Arc<Linter> {
         self.linter.clone()
+    }
+
+    /// Return the query provider for this session.
+    pub(crate) fn query(&self) -> Arc<Query> {
+        self.query.clone()
     }
 
     /// Emit one outer session event when a handler is installed.

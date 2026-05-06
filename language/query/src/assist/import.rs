@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
-use destack_artifact::ModuleEdgeRelation;
-use destack_source::{ModuleId, Span};
+use destack_source::{ModuleEdgeRelation, ModuleId, Span};
 use destack_workspace::Repository;
 use {destack_ast as ast, destack_dir as dir};
 
@@ -9,7 +8,7 @@ use crate::ast::{
     enclosing_spans_at_cursor, extract_string_literal_prefix, previous_significant_token,
     token_span_at_cursor_offset, token_text,
 };
-use crate::core::{AstQuery, DirQuery};
+use crate::core::{AstQueryContext, DirQueryContext};
 use crate::dir::import_clause_bounds;
 
 use super::CompletionContext;
@@ -17,8 +16,8 @@ use super::CompletionContext;
 /// Detect import related context.
 pub(super) fn detect_import_context(
     repository: &Repository,
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     source: &str,
     offset: u32,
 ) -> Option<CompletionContext> {
@@ -76,7 +75,11 @@ pub(super) fn detect_import_context(
 }
 
 /// Resolve a string literal span for an import path at the cursor.
-fn import_path_span_from_tokens(ast: AstQuery<'_>, import_span: Span, offset: u32) -> Option<Span> {
+fn import_path_span_from_tokens(
+    ast: AstQueryContext<'_>,
+    import_span: Span,
+    offset: u32,
+) -> Option<Span> {
     // find the token under the cursor
     let token = token_span_at_cursor_offset(ast, offset)?;
 
@@ -99,20 +102,20 @@ fn import_path_span_from_tokens(ast: AstQuery<'_>, import_span: Span, offset: u3
 
 /// Resolve one import target module from compiler resolved import edges.
 fn resolved_import_target_module(
-    repository: &Repository,
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    _repository: &Repository,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     target: destack_core::StringId,
 ) -> Option<ModuleId> {
     let specifier = ast.strings().get(target);
-    let target_id = repository.strings.intern(&specifier);
-    let cache_key = (
+    let target_id = dir.strings().intern(&specifier);
+    let cache_key = dir::ImportResolutionKey::new(
         Some(dir.module_id()),
         target_id,
         ModuleEdgeRelation::Import,
         None,
     );
-    let targets = dir.resolved().imported_modules.get(&cache_key).copied()?;
+    let targets = dir.exported().import_resolutions.get(&cache_key).copied()?;
 
     targets
         .value
@@ -130,7 +133,7 @@ struct ImportClauseInfo {
 
 /// Extract import clause info at the given offset.
 fn import_clause_info(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     expr: &ast::Expression,
     offset: u32,
     source: &str,

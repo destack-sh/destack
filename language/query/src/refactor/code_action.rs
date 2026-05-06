@@ -3,14 +3,16 @@
 use std::collections::HashSet;
 
 use destack_ast as ast;
-use destack_source::{Applicability, BatchEdit, Diagnostic, Edit, FileEdit, FileId, Span, Uri};
+use destack_source::{
+    Applicability, BatchEdit, Diagnostic, DiagnosticLabel, Edit, FileEdit, FileId, Span, Uri,
+};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use super::{extract_function, extract_variable, inline_symbol};
 use crate::assist::{CompletionContext, completion_input_at_offset};
 use crate::ast::{get_module_by_file_id, is_simple_identifier, token_at_offset};
-use crate::core::{import_relevance, import_sort_key, query_context};
+use crate::core::{import_sort_key, query_context, repository_import_relevance};
 use crate::dir::{
     ImportEditMode, build_import_display_path, build_import_edits_with_mode,
     matches_symbol_space_filter, search_importable_symbols,
@@ -369,13 +371,14 @@ fn collect_auto_import_actions(
 
     // scan diagnostics for unresolved symbol codes in the owning repository
     for diagnostic in diagnostics {
+        let diagnostic_span = diagnostic.primary_label().span;
+
         // skip diagnostics outside of the requested file
-        if diagnostic.file_id != file {
+        if diagnostic_span.file != file {
             continue;
         }
 
-        let diag_span = &diagnostic.primary_span.span;
-        if diag_span.end < range.start || diag_span.start > range.end {
+        if diagnostic_span.end < range.start || diagnostic_span.start > range.end {
             continue;
         }
 
@@ -390,7 +393,7 @@ fn collect_auto_import_actions(
         };
 
         let space_filter =
-            auto_import_space_filter_for_offset(repository, revision, file, diag_span.start);
+            auto_import_space_filter_for_offset(repository, revision, file, diagnostic_span.start);
         collect_auto_import_actions_for_symbol(
             repository,
             revision,
@@ -434,11 +437,13 @@ fn collect_auto_import_actions_for_symbol(
     actions: &mut Vec<CodeAction>,
 ) {
     // search exported symbols for exact name matches
-    let current_package_id =
-        get_module_by_file_id(repository, revision, file).map(|module| module.package_id);
-    let current_language_type = get_module_by_file_id(repository, revision, file)
-        .map(|module| module.language_type)
-        .unwrap_or_default();
+    let Some(current_module) = get_module_by_file_id(repository, revision, file) else {
+        return;
+    };
+    let Some(current_language_type) = current_module.language_type else {
+        return;
+    };
+    let current_package_id = Some(current_module.package_id);
     let mut candidates =
         search_importable_symbols(repository, revision, symbol_name, exclude_module_id);
     candidates.retain(|export| {
@@ -466,7 +471,7 @@ fn collect_auto_import_actions_for_symbol(
         }
 
         // compute shared import relevance
-        let Some(relevance) = import_relevance(
+        let Some(relevance) = repository_import_relevance(
             repository,
             revision,
             file,
@@ -563,17 +568,21 @@ fn missing_symbol_name(
     revision: Revision,
     diagnostic: &Diagnostic,
 ) -> Option<String> {
-    missing_symbol_name_from_span(repository, revision, diagnostic.primary_span.span)
+    missing_symbol_name_from_label(repository, revision, diagnostic.primary_label())
 }
 
-/// Resolve a missing symbol name from a diagnostic span.
-fn missing_symbol_name_from_span(
+/// Resolve a missing symbol name from a diagnostic label.
+fn missing_symbol_name_from_label(
     repository: &Repository,
     revision: Revision,
-    span: Span,
+    label: &DiagnosticLabel,
 ) -> Option<String> {
     // read the source text for the span
+    let span = label.span;
     let file = repository.file(revision, span.file).ok().flatten()?;
+    if file.content_id() != label.content {
+        return None;
+    }
     let source = file.get_span_str(span)?;
     let name = source.trim();
 
@@ -594,51 +603,36 @@ fn collect_diagnostic_fixes(
     actions: &mut Vec<CodeAction>,
 ) {
     for diagnostic in diagnostics {
+        let diagnostic_span = diagnostic.primary_label().span;
+
         // skip diagnostics for other files
-        if diagnostic.file_id != file {
+        if diagnostic_span.file != file {
             continue;
         }
 
         // check if diagnostic overlaps with the requested range
-        let diag_span = &diagnostic.primary_span.span;
-        if diag_span.end < range.start || diag_span.start > range.end {
+        if diagnostic_span.end < range.start || diagnostic_span.start > range.end {
             continue;
         }
 
         // convert suggestions to code actions
-        if let Some(suggestions) = &diagnostic.suggestions {
-            for suggestion in suggestions {
-                // skip non automatic suggestions
-                if suggestion.applicability != Applicability::Automatic {
-                    continue;
-                }
-
-                // create edit from suggestion
-                let Some(replacement) = &suggestion.replacement else {
-                    continue;
-                };
-
-                // build the batch edit from suggestion spans
-                let mut file_edit = FileEdit::new(file);
-                for labeled_span in &suggestion.spans {
-                    file_edit.push(Edit::replace(labeled_span.span, replacement.to_string()));
-                }
-
-                // skip empty edits
-                if file_edit.is_empty() {
-                    continue;
-                }
-
-                let mut batch_edit = BatchEdit::new();
-                batch_edit.files.push(file_edit);
-
-                // build a preferred quick fix
-                let action = CodeAction::quick_fix(&suggestion.message, batch_edit)
-                    .with_diagnostic_code(&diagnostic.code)
-                    .preferred();
-
-                actions.push(action);
+        for suggestion in &diagnostic.suggestions {
+            // skip non automatic suggestions
+            if suggestion.applicability != Applicability::Automatic {
+                continue;
             }
+
+            // skip empty edits
+            if suggestion.edits.is_empty() {
+                continue;
+            }
+
+            // build a preferred quick fix
+            let action = CodeAction::quick_fix(&suggestion.message, suggestion.edits.clone())
+                .with_diagnostic_code(&diagnostic.code)
+                .preferred();
+
+            actions.push(action);
         }
     }
 }
