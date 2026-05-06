@@ -118,18 +118,8 @@ fn should_skip_due_to_redeclaration_policy(
 }
 
 /// Return true when compiler local-redeclaration errors are enforced for this module.
-fn compiler_redeclaration_errors_enabled(ctx: &LintModuleDirContext<'_>) -> bool {
-    // JS/TS modes always enforce ecmascript redeclaration checks
-    if !ctx
-        .module
-        .language_type
-        .is_some_and(|language_type| language_type.is_destack())
-    {
-        return true;
-    }
-
-    // destack mode follows the active profile flag
-    ctx.profile.key.flags.no_redeclared_locals
+fn compiler_redeclaration_errors_enabled(_ctx: &LintModuleDirContext<'_>) -> bool {
+    true
 }
 
 /// Return true when this symbol can participate in no-shadow checks.

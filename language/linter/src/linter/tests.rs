@@ -279,10 +279,6 @@ fn language_type_for_code_file(
         .repository
         .package_options(context.revision(), package_id)
         .unwrap_or_else(|error| panic!("failed to load package options: {error}"));
-    if package_options.is_some_and(|options| options.compiler.js_as_jsx) {
-        return LanguageType::JavaScriptXml;
-    }
-
     LanguageType::JavaScript
 }
 
@@ -660,6 +656,7 @@ impl TestProgram {
             None,
             None,
             libs,
+            None,
             Vec::new(),
             false,
             false,
