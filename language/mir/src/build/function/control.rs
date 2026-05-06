@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    Block, BlockTarget, Call, CheckConstraint, Function, InterfaceSlotId, LocalNodeId, Terminator,
-    TrapKind, Type, Value, VtableSlotId,
+    Block, BlockTarget, Call, CheckConstraint, DispatchSlot, Function, LocalNodeId, Terminator,
+    TrapKind, Type, Value,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -200,7 +200,7 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         receiver: Value,
         declaring_type: LocalNodeId<Type>,
-        slot_id: VtableSlotId,
+        slot: DispatchSlot,
         declared_target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
@@ -219,7 +219,7 @@ impl<'a> FunctionBuilder<'a> {
         *terminator = Terminator::InvokeVirtual {
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
-            slot_id,
+            slot,
             declared_target: declared_target.map(Into::into),
             call: Call::new(
                 argument_values
@@ -244,7 +244,7 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         receiver: Value,
         declaring_type: LocalNodeId<Type>,
-        slot_id: InterfaceSlotId,
+        slot: DispatchSlot,
         declared_target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
@@ -263,7 +263,7 @@ impl<'a> FunctionBuilder<'a> {
         *terminator = Terminator::InvokeInterface {
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
-            slot_id,
+            slot,
             declared_target: declared_target.map(Into::into),
             call: Call::new(
                 argument_values
@@ -315,7 +315,7 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         receiver: Value,
         declaring_type: LocalNodeId<Type>,
-        slot_id: VtableSlotId,
+        slot: DispatchSlot,
         declared_target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
@@ -327,7 +327,7 @@ impl<'a> FunctionBuilder<'a> {
         *terminator = Terminator::TailCallVirtual {
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
-            slot_id,
+            slot,
             declared_target: declared_target.map(Into::into),
             call: Call::new(
                 argument_values
@@ -346,7 +346,7 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         receiver: Value,
         declaring_type: LocalNodeId<Type>,
-        slot_id: InterfaceSlotId,
+        slot: DispatchSlot,
         declared_target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
@@ -358,7 +358,7 @@ impl<'a> FunctionBuilder<'a> {
         *terminator = Terminator::TailCallInterface {
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
-            slot_id,
+            slot,
             declared_target: declared_target.map(Into::into),
             call: Call::new(
                 argument_values

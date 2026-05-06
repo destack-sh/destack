@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
     AtomicRmwOperator, AtomicScope, BinaryOperator, CastOperator, Constant, Instruction, Intrinsic,
-    LocalNodeId, MemoryOrdering, MemoryScope, MemorySemantics, Type, UnaryOperator, Value,
+    LocalNodeId, MemoryFlags, MemoryOrdering, MemoryScope, Type, UnaryOperator, Value,
     ValueReference,
 };
 #[allow(clippy::too_many_arguments)]
@@ -335,7 +335,7 @@ impl<'a> FunctionBuilder<'a> {
         ordering: MemoryOrdering,
         scope: AtomicScope,
         memory_scope: MemoryScope,
-        semantics: MemorySemantics,
+        flags: MemoryFlags,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
@@ -346,7 +346,7 @@ impl<'a> FunctionBuilder<'a> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         });
         self.define_value(destination, result_type);
         destination
@@ -360,7 +360,7 @@ impl<'a> FunctionBuilder<'a> {
         ordering: MemoryOrdering,
         scope: AtomicScope,
         memory_scope: MemoryScope,
-        semantics: MemorySemantics,
+        flags: MemoryFlags,
     ) {
         self.insert_instruction(Instruction::AtomicStore {
             pointer: pointer.into(),
@@ -368,7 +368,7 @@ impl<'a> FunctionBuilder<'a> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         });
     }
 
@@ -382,7 +382,7 @@ impl<'a> FunctionBuilder<'a> {
         ordering: MemoryOrdering,
         scope: AtomicScope,
         memory_scope: MemoryScope,
-        semantics: MemorySemantics,
+        flags: MemoryFlags,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
@@ -395,7 +395,7 @@ impl<'a> FunctionBuilder<'a> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         });
         self.define_value(destination, result_type);
         destination
@@ -410,7 +410,7 @@ impl<'a> FunctionBuilder<'a> {
         ordering: MemoryOrdering,
         scope: AtomicScope,
         memory_scope: MemoryScope,
-        semantics: MemorySemantics,
+        flags: MemoryFlags,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
@@ -422,7 +422,7 @@ impl<'a> FunctionBuilder<'a> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         });
         self.define_value(destination, result_type);
         destination
@@ -434,13 +434,13 @@ impl<'a> FunctionBuilder<'a> {
         ordering: MemoryOrdering,
         scope: AtomicScope,
         memory_scope: MemoryScope,
-        semantics: MemorySemantics,
+        flags: MemoryFlags,
     ) {
         self.insert_instruction(Instruction::AtomicFence {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         });
     }
 

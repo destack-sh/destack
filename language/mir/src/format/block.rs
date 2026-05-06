@@ -208,7 +208,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             normal_target,
             unwind_target,
             ..
@@ -224,7 +224,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     declaring_type,
                     token(","),
                     space(),
-                    text(&slot_id.0.to_string())
+                    text(&slot.0.to_string())
                 ]
             )?;
             format_value_list(&call.arguments, f)?;
@@ -236,7 +236,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             normal_target,
             unwind_target,
             ..
@@ -252,7 +252,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     declaring_type,
                     token(","),
                     space(),
-                    text(&slot_id.0.to_string())
+                    text(&slot.0.to_string())
                 ]
             )?;
             format_value_list(&call.arguments, f)?;
@@ -295,7 +295,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             ..
         } => {
             write!(
@@ -309,7 +309,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     declaring_type,
                     token(","),
                     space(),
-                    text(&slot_id.0.to_string())
+                    text(&slot.0.to_string())
                 ]
             )?;
             format_value_list(&call.arguments, f)?;
@@ -320,7 +320,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             ..
         } => {
             write!(
@@ -334,7 +334,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     declaring_type,
                     token(","),
                     space(),
-                    text(&slot_id.0.to_string())
+                    text(&slot.0.to_string())
                 ]
             )?;
             format_value_list(&call.arguments, f)?;

@@ -937,25 +937,25 @@ impl Parser {
             }
             TokenType::TailCallVirtual => {
                 self.bump();
-                let (receiver, declaring_type, slot_id, arguments, signature) =
+                let (receiver, declaring_type, slot, arguments, signature) =
                     self.parse_virtual_call_target()?;
                 Ok(Terminator::TailCallVirtual {
                     receiver,
                     declaring_type,
-                    slot_id,
+                    slot,
                     declared_target: None,
                     call: Call::new(arguments, signature),
                 })
             }
             TokenType::InvokeVirtual => {
                 self.bump();
-                let (receiver, declaring_type, slot_id, arguments, signature) =
+                let (receiver, declaring_type, slot, arguments, signature) =
                     self.parse_virtual_call_target()?;
                 let (normal_target, unwind_target) = self.parse_call_continuations()?;
                 Ok(Terminator::InvokeVirtual {
                     receiver,
                     declaring_type,
-                    slot_id,
+                    slot,
                     declared_target: None,
                     call: Call::new(arguments, signature),
                     normal_target,
@@ -964,25 +964,25 @@ impl Parser {
             }
             TokenType::TailCallInterface => {
                 self.bump();
-                let (receiver, declaring_type, slot_id, arguments, signature) =
+                let (receiver, declaring_type, slot, arguments, signature) =
                     self.parse_interface_call_target()?;
                 Ok(Terminator::TailCallInterface {
                     receiver,
                     declaring_type,
-                    slot_id,
+                    slot,
                     declared_target: None,
                     call: Call::new(arguments, signature),
                 })
             }
             TokenType::InvokeInterface => {
                 self.bump();
-                let (receiver, declaring_type, slot_id, arguments, signature) =
+                let (receiver, declaring_type, slot, arguments, signature) =
                     self.parse_interface_call_target()?;
                 let (normal_target, unwind_target) = self.parse_call_continuations()?;
                 Ok(Terminator::InvokeInterface {
                     receiver,
                     declaring_type,
-                    slot_id,
+                    slot,
                     declared_target: None,
                     call: Call::new(arguments, signature),
                     normal_target,

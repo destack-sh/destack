@@ -109,7 +109,7 @@ impl Parser {
                     && !self.function_map.contains_key(&name)
                 {
                     let name_id = self.strings.intern(&name);
-                    let void_type = self.intern_type(Type::Void);
+                    let void_type = self.tree.insert_type(Type::Void);
                     let placeholder = Function {
                         name: name_id,
                         parameters: Vec::new(),
@@ -409,7 +409,7 @@ impl Parser {
             .set_side_span(id, NodeSpanType::Region(NodeSpanRegion::Type), type_span);
         self.tree
             .metadata
-            .layout
+            .types
             .set_display_name(placeholder_id, name_id);
         self.tree.set_attribute_spans(id, attribute_spans);
         self.tree.set_type_field_spans(id, field_spans);
@@ -418,14 +418,7 @@ impl Parser {
         if ty != placeholder_id {
             let resolved = self.tree.get(ty).clone();
             *self.tree.get_mut(placeholder_id) = resolved;
-            self.tree
-                .metadata
-                .layout
-                .copy_type_metadata(ty, placeholder_id);
-            self.tree
-                .metadata
-                .dispatch
-                .copy_type_metadata(ty, placeholder_id);
+            self.tree.metadata.copy_type_metadata(ty, placeholder_id);
         }
         self.type_alias_definitions.insert(name);
 
@@ -586,6 +579,13 @@ impl Parser {
             | TokenType::CharacterLiteral => {
                 let constant = self.parse_constant()?;
                 Ok(GlobalInitializer::Scalar(constant))
+            }
+            // function address
+            TokenType::Identifier if self.tree.source_text(token.span) == "functionAddress" => {
+                self.bump();
+                let (function, _span) = self.parse_function_reference_part()?;
+
+                Ok(GlobalInitializer::FunctionAddress(function))
             }
             // aggregate initializer
             TokenType::OpenBrace => {

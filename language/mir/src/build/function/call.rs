@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    Call, Function, FunctionReference, Instruction, InterfaceSlotId, LocalNodeId, Type,
-    TypeReference, Value, ValueReference, VtableSlotId,
+    Call, DispatchSlot, Function, FunctionReference, Instruction, LocalNodeId, Type, TypeReference,
+    Value, ValueReference,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -55,7 +55,7 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         receiver: Value,
         declaring_type: LocalNodeId<Type>,
-        slot_id: VtableSlotId,
+        slot: DispatchSlot,
         declared_target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
@@ -67,7 +67,7 @@ impl<'a> FunctionBuilder<'a> {
             destination: Some(destination.into()),
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
-            slot_id,
+            slot,
             declared_target: declared_target.map(FunctionReference::Function),
             call: Call::new(arguments, TypeReference::Type(signature)),
         });
@@ -80,7 +80,7 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         receiver: Value,
         declaring_type: LocalNodeId<Type>,
-        slot_id: VtableSlotId,
+        slot: DispatchSlot,
         declared_target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
@@ -90,7 +90,7 @@ impl<'a> FunctionBuilder<'a> {
             destination: None,
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
-            slot_id,
+            slot,
             declared_target: declared_target.map(FunctionReference::Function),
             call: Call::new(arguments, TypeReference::Type(signature)),
         });
@@ -101,7 +101,7 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         receiver: Value,
         declaring_type: LocalNodeId<Type>,
-        slot_id: InterfaceSlotId,
+        slot: DispatchSlot,
         declared_target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
@@ -113,7 +113,7 @@ impl<'a> FunctionBuilder<'a> {
             destination: Some(destination.into()),
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
-            slot_id,
+            slot,
             declared_target: declared_target.map(FunctionReference::Function),
             call: Call::new(arguments, TypeReference::Type(signature)),
         });
@@ -126,7 +126,7 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         receiver: Value,
         declaring_type: LocalNodeId<Type>,
-        slot_id: InterfaceSlotId,
+        slot: DispatchSlot,
         declared_target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
@@ -136,7 +136,7 @@ impl<'a> FunctionBuilder<'a> {
             destination: None,
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
-            slot_id,
+            slot,
             declared_target: declared_target.map(FunctionReference::Function),
             call: Call::new(arguments, TypeReference::Type(signature)),
         });

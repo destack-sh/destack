@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{AddressSpace, Constant, Mutability, Node, NodeType, TypeReference};
+use crate::{AddressSpace, Constant, FunctionReference, Mutability, Node, NodeType, TypeReference};
 
 /// Symbol linkage (visibility and definition location).
 ///
@@ -126,6 +126,8 @@ pub enum GlobalInitializer {
     Zero,
     /// Scalar constant (bool, int, float).
     Scalar(Constant),
+    /// Address of one function inside the program.
+    FunctionAddress(FunctionReference),
     /// Raw bytes (blobs).
     Bytes(Vec<u8>),
     /// Aggregate (array/struct fields).
@@ -141,6 +143,11 @@ impl GlobalInitializer {
     /// Create from a scalar constant.
     pub fn scalar(value: Constant) -> Self {
         Self::Scalar(value)
+    }
+
+    /// Create from a function address.
+    pub fn function_address(function: FunctionReference) -> Self {
+        Self::FunctionAddress(function)
     }
 
     /// Create from raw bytes.

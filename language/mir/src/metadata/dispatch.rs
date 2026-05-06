@@ -9,104 +9,80 @@ use crate::{Field, Function, Global, LocalNodeId, Type};
 /// Canonical dispatch facts for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct DispatchMetadata {
-    /// Class vtables keyed by `VtableId` index.
+    /// Class dispatch tables.
     pub vtables: Vec<Vtable>,
-    /// Canonical class vtable ids keyed by type id.
-    pub(crate) vtable_id_by_type: HashMap<LocalNodeId<Type>, VtableId>,
-    /// Interface itabs keyed by `ItabId` index.
+    /// Class dispatch table vector index keyed by type id.
+    #[serde(skip, default)]
+    pub(crate) vtable_index_by_type: HashMap<LocalNodeId<Type>, usize>,
+    /// Interface dispatch tables.
     pub itabs: Vec<Itab>,
-    /// Canonical interface itab ids keyed by concrete type id, then interface type id.
-    pub(crate) itab_id_by_type: HashMap<LocalNodeId<Type>, HashMap<LocalNodeId<Type>, ItabId>>,
+    /// Interface dispatch table vector index keyed by concrete type id, then interface type id.
+    #[serde(skip, default)]
+    pub(crate) itab_index_by_type: HashMap<LocalNodeId<Type>, HashMap<LocalNodeId<Type>, usize>>,
     /// Canonical interface dispatch shapes keyed by interface type id.
     pub interface_dispatch_shapes: HashMap<LocalNodeId<Type>, InterfaceDispatchShape>,
 }
 
 impl DispatchMetadata {
-    /// Create a new empty dispatch table.
+    /// Create empty dispatch metadata.
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Copy dispatch metadata from one type id to another.
     pub fn copy_type_metadata(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
-        if let Some(vtable_id) = self.vtable_id(from) {
-            self.vtable_id_by_type.insert(to, vtable_id);
+        if let Some(index) = self.vtable_index(from) {
+            self.vtable_index_by_type.insert(to, index);
         }
 
-        if let Some(itabs) = self.itab_id_by_type.get(&from).cloned() {
-            self.itab_id_by_type.insert(to, itabs);
+        let itabs = self
+            .itabs
+            .iter()
+            .enumerate()
+            .filter_map(|(index, itab)| (itab.concrete == from).then_some((itab.interface, index)))
+            .collect::<HashMap<_, _>>();
+
+        if !itabs.is_empty() {
+            self.itab_index_by_type.insert(to, itabs);
         }
-    }
-    /// Insert a vtable and return its id.
-    pub fn insert_vtable(&mut self, table: Vtable) -> VtableId {
-        let id = VtableId::new(self.vtables.len() as u32);
-        self.vtable_id_by_type.insert(table.ty, id);
-        self.vtables.push(table);
-        id
     }
 
-    /// Insert a vtable at a specific id.
-    pub fn insert_vtable_at(&mut self, id: VtableId, table: Vtable) {
-        let index = id.index();
-        if index > self.vtables.len() {
-            panic!("vtable index {index} out of order");
-        }
-        if index < self.vtables.len() {
-            panic!("vtable index {index} already populated");
-        }
-        self.vtable_id_by_type.insert(table.ty, id);
+    /// Insert a vtable.
+    pub fn insert_vtable(&mut self, table: Vtable) {
+        let index = self.vtables.len();
+        self.vtable_index_by_type.insert(table.ty, index);
         self.vtables.push(table);
     }
 
-    /// Return the vtable for an id.
-    pub fn vtable(&self, id: VtableId) -> &Vtable {
-        self.vtables
-            .get(id.index())
-            .unwrap_or_else(|| panic!("missing vtable entry {}", id.index()))
+    /// Return the vtable for a type when present.
+    pub fn vtable(&self, ty: LocalNodeId<Type>) -> Option<&Vtable> {
+        let index = self.vtable_index(ty)?;
+
+        self.vtables.get(index)
     }
 
-    /// Iterate all populated vtables.
-    pub fn iter_vtables(&self) -> impl Iterator<Item = (VtableId, &Vtable)> {
-        self.vtables
-            .iter()
-            .enumerate()
-            .map(|(index, table)| (VtableId::new(index as u32), table))
+    /// Iterate all vtables.
+    pub fn iter_vtables(&self) -> impl Iterator<Item = &Vtable> {
+        self.vtables.iter()
     }
 
-    /// Insert an itab and return its id.
-    pub fn insert_itab(&mut self, table: Itab) -> ItabId {
-        let id = ItabId::new(self.itabs.len() as u32);
-        self.record_itab_id(table.concrete, table.interface, id);
-        self.itabs.push(table);
-        id
-    }
-
-    /// Insert an itab at a specific id.
-    pub fn insert_itab_at(&mut self, id: ItabId, table: Itab) {
-        let index = id.index();
-        if index > self.itabs.len() {
-            panic!("itab index {index} out of order");
-        }
-        if index < self.itabs.len() {
-            panic!("itab index {index} already populated");
-        }
-        self.record_itab_id(table.concrete, table.interface, id);
+    /// Insert an itab.
+    pub fn insert_itab(&mut self, table: Itab) {
+        let index = self.itabs.len();
+        self.record_itab(table.concrete, table.interface, index);
         self.itabs.push(table);
     }
 
-    /// Return the itab for an id.
-    pub fn itab(&self, id: ItabId) -> &Itab {
-        self.itabs
-            .get(id.index())
-            .unwrap_or_else(|| panic!("missing itab entry {}", id.index()))
+    /// Return the itab for a concrete type and interface when present.
+    pub fn itab(&self, concrete: LocalNodeId<Type>, interface: LocalNodeId<Type>) -> Option<&Itab> {
+        let index = self.itab_index(concrete, interface)?;
+
+        self.itabs.get(index)
     }
 
-    /// Iterate all populated itabs.
-    pub fn iter_itabs(&self) -> impl Iterator<Item = (ItabId, &Itab)> {
-        self.itabs
-            .iter()
-            .enumerate()
-            .map(|(index, table)| (ItabId::new(index as u32), table))
+    /// Iterate all itabs.
+    pub fn iter_itabs(&self) -> impl Iterator<Item = &Itab> {
+        self.itabs.iter()
     }
 
     /// Return dispatch shape metadata for an interface type id.
@@ -115,14 +91,6 @@ impl DispatchMetadata {
         interface: LocalNodeId<Type>,
     ) -> Option<&InterfaceDispatchShape> {
         self.interface_dispatch_shapes.get(&interface)
-    }
-
-    /// Return mutable dispatch shape metadata for an interface type id.
-    pub fn interface_dispatch_shape_mut(
-        &mut self,
-        interface: LocalNodeId<Type>,
-    ) -> Option<&mut InterfaceDispatchShape> {
-        self.interface_dispatch_shapes.get_mut(&interface)
     }
 
     /// Insert dispatch shape metadata for an interface type id.
@@ -134,156 +102,97 @@ impl DispatchMetadata {
         self.interface_dispatch_shapes.insert(interface, shape)
     }
 
-    /// Remove dispatch shape metadata for an interface type id.
-    pub fn remove_interface_dispatch_shape(
-        &mut self,
-        interface: LocalNodeId<Type>,
-    ) -> Option<InterfaceDispatchShape> {
-        self.interface_dispatch_shapes.remove(&interface)
-    }
-
-    /// Return the class vtable id for a type when present.
-    pub fn vtable_id(&self, ty: LocalNodeId<Type>) -> Option<VtableId> {
-        if let Some(vtable_id) = self.vtable_id_by_type.get(&ty) {
-            return Some(*vtable_id);
-        }
-
-        self.vtables
-            .iter()
-            .enumerate()
-            .find_map(|(index, vtable)| (vtable.ty == ty).then_some(VtableId::new(index as u32)))
-    }
-
-    /// Return the itab id for a concrete type and interface when present.
-    pub fn itab_id(
-        &self,
-        concrete: LocalNodeId<Type>,
-        interface: LocalNodeId<Type>,
-    ) -> Option<ItabId> {
-        if let Some(itab_id) = self
-            .itab_id_by_type
-            .get(&concrete)
-            .and_then(|itabs| itabs.get(&interface))
-        {
-            return Some(*itab_id);
-        }
-
-        self.itabs.iter().enumerate().find_map(|(index, itab)| {
-            (itab.concrete == concrete && itab.interface == interface)
-                .then_some(ItabId::new(index as u32))
-        })
-    }
-
     /// Rebuild dispatch lookup indexes from canonical tables.
     pub fn rebuild_lookup_index(&mut self) {
-        self.vtable_id_by_type.clear();
-        self.itab_id_by_type.clear();
+        self.vtable_index_by_type.clear();
+        self.itab_index_by_type.clear();
 
         for (index, vtable) in self.vtables.iter().enumerate() {
-            let vtable_id = VtableId::new(index as u32);
-            self.vtable_id_by_type.insert(vtable.ty, vtable_id);
+            self.vtable_index_by_type.insert(vtable.ty, index);
         }
 
         let itab_entries = self
             .itabs
             .iter()
             .enumerate()
-            .map(|(index, itab)| (itab.concrete, itab.interface, ItabId::new(index as u32)))
+            .map(|(index, itab)| (itab.concrete, itab.interface, index))
             .collect::<Vec<_>>();
 
-        for (concrete, interface, itab_id) in itab_entries {
-            self.record_itab_id(concrete, interface, itab_id);
+        for (concrete, interface, index) in itab_entries {
+            self.record_itab(concrete, interface, index);
         }
     }
 
-    /// Record one cached itab lookup entry.
-    fn record_itab_id(
+    /// Record one itab lookup entry.
+    fn record_itab(
         &mut self,
         concrete: LocalNodeId<Type>,
         interface: LocalNodeId<Type>,
-        itab_id: ItabId,
+        index: usize,
     ) {
-        self.itab_id_by_type
+        self.itab_index_by_type
             .entry(concrete)
             .or_default()
-            .insert(interface, itab_id);
+            .insert(interface, index);
+    }
+
+    /// Return the vtable vector index for one type.
+    fn vtable_index(&self, ty: LocalNodeId<Type>) -> Option<usize> {
+        self.vtable_index_by_type
+            .get(&ty)
+            .copied()
+            .or_else(|| self.vtables.iter().position(|vtable| vtable.ty == ty))
+    }
+
+    /// Return the itab vector index for one concrete and interface pair.
+    fn itab_index(
+        &self,
+        concrete: LocalNodeId<Type>,
+        interface: LocalNodeId<Type>,
+    ) -> Option<usize> {
+        self.itab_index_by_type
+            .get(&concrete)
+            .and_then(|itabs| itabs.get(&interface))
+            .copied()
+            .or_else(|| {
+                self.itabs
+                    .iter()
+                    .position(|itab| itab.concrete == concrete && itab.interface == interface)
+            })
     }
 }
 
-/// Identifier for a vtable entry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct VtableId(
-    /// Raw index into the vtable table.
-    u32,
-);
-
-impl VtableId {
-    /// Create a vtable id from a raw index.
-    pub fn new(index: u32) -> Self {
-        Self(index)
-    }
-
-    /// Return the raw index for this id.
-    pub fn index(self) -> usize {
-        self.0 as usize
-    }
+/// Metadata for a class vtable.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Vtable {
+    /// The class type owning this table.
+    pub ty: LocalNodeId<Type>,
+    /// The static global containing this table.
+    pub global: LocalNodeId<Global>,
+    /// Entries in declaration order.
+    pub entries: Vec<VtableEntry>,
 }
 
-/// Identifier for a vtable method slot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct VtableSlotId(
-    /// Raw index into the vtable entry list.
-    pub u32,
-);
-
-impl VtableSlotId {
-    /// Create a vtable slot id from a raw index.
-    pub const fn new(index: u32) -> Self {
-        Self(index)
-    }
-
-    /// Return the raw index for this id.
-    pub const fn index(self) -> usize {
-        self.0 as usize
-    }
+/// Metadata for an interface itab.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Itab {
+    /// The concrete type providing the implementation.
+    pub concrete: LocalNodeId<Type>,
+    /// The interface type being dispatched.
+    pub interface: LocalNodeId<Type>,
+    /// The static global containing this table.
+    pub global: LocalNodeId<Global>,
+    /// Entries in declaration order.
+    pub entries: Vec<ItabEntry>,
 }
 
-/// Identifier for an itab entry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ItabId(
-    /// Raw index into the itab table.
-    u32,
-);
-
-impl ItabId {
-    /// Create an itab id from a raw index.
-    pub fn new(index: u32) -> Self {
-        Self(index)
-    }
-
-    /// Return the raw index for this id.
-    pub fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
-/// Identifier for an interface dispatch slot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct InterfaceSlotId(
-    /// Raw index into the interface dispatch entry list.
-    pub u32,
-);
-
-impl InterfaceSlotId {
-    /// Create an interface slot id from a raw index.
-    pub const fn new(index: u32) -> Self {
-        Self(index)
-    }
-
-    /// Return the raw index for this id.
-    pub const fn index(self) -> usize {
-        self.0 as usize
-    }
+/// Canonical interface dispatch shape.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InterfaceDispatchShape {
+    /// The interface type owning this shape.
+    pub interface: LocalNodeId<Type>,
+    /// Entries in declaration order.
+    pub entries: Vec<InterfaceDispatchEntry>,
 }
 
 /// Entry in a class vtable.
@@ -345,49 +254,21 @@ pub enum InterfaceDispatchEntry {
     },
 }
 
-/// Canonical interface dispatch shape.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct InterfaceDispatchShape {
-    /// The interface type owning this shape.
-    pub interface: LocalNodeId<Type>,
-    /// Entries in declaration order.
-    pub entries: Vec<InterfaceDispatchEntry>,
-}
+/// Slot index inside a dispatch table.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DispatchSlot(
+    /// Raw index into the dispatch table.
+    pub u32,
+);
 
-/// Metadata for a class vtable.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Vtable {
-    /// The class type owning this table.
-    pub ty: LocalNodeId<Type>,
-    /// Storage backing for this vtable.
-    pub storage: VtableStorage,
-    /// Entries in declaration order.
-    pub entries: Vec<VtableEntry>,
-}
+impl DispatchSlot {
+    /// Create a dispatch slot from a raw index.
+    pub const fn new(index: u32) -> Self {
+        Self(index)
+    }
 
-/// Storage backing for a class vtable.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum VtableStorage {
-    /// Global data symbol containing the vtable entries.
-    Global(LocalNodeId<Global>),
-}
-
-/// Metadata for an interface itab.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Itab {
-    /// The concrete type providing the implementation.
-    pub concrete: LocalNodeId<Type>,
-    /// The interface type being dispatched.
-    pub interface: LocalNodeId<Type>,
-    /// Storage backing for this itab.
-    pub storage: ItabStorage,
-    /// Entries in declaration order.
-    pub entries: Vec<ItabEntry>,
-}
-
-/// Storage backing for an interface itab.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ItabStorage {
-    /// Immediate handle encoded as an itab id.
-    Handle,
+    /// Return the raw index for this slot.
+    pub const fn index(self) -> usize {
+        self.0 as usize
+    }
 }

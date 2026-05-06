@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, BlockReference, Call, FunctionReference, IntegerReference, InterfaceSlotId,
-    Node, NodeType, TypeReference, ValueReference, VtableSlotId,
+    BinaryOperator, BlockReference, Call, DispatchSlot, FunctionReference, IntegerReference, Node,
+    NodeType, TypeReference, ValueReference,
 };
 
 /// One control-flow edge target.
@@ -217,8 +217,8 @@ pub enum Terminator {
         receiver: ValueReference,
         /// The declaring type for this virtual call.
         declaring_type: TypeReference,
-        /// The vtable slot id for the method.
-        slot_id: VtableSlotId,
+        /// The dispatch slot for the method.
+        slot: DispatchSlot,
         /// The declared method target when known.
         declared_target: Option<FunctionReference>,
         /// The shared call payload.
@@ -234,8 +234,8 @@ pub enum Terminator {
         receiver: ValueReference,
         /// The declaring interface type for this call.
         declaring_type: TypeReference,
-        /// The interface slot id for the method.
-        slot_id: InterfaceSlotId,
+        /// The dispatch slot for the method.
+        slot: DispatchSlot,
         /// The declared method target when known.
         declared_target: Option<FunctionReference>,
         /// The shared call payload.
@@ -279,8 +279,8 @@ pub enum Terminator {
         receiver: ValueReference,
         /// The declaring type for this virtual call.
         declaring_type: TypeReference,
-        /// The vtable slot id for the method.
-        slot_id: VtableSlotId,
+        /// The dispatch slot for the method.
+        slot: DispatchSlot,
         /// The declared method target when known.
         declared_target: Option<FunctionReference>,
         /// The shared call payload.
@@ -292,8 +292,8 @@ pub enum Terminator {
         receiver: ValueReference,
         /// The declaring interface type for this call.
         declaring_type: TypeReference,
-        /// The interface slot id for the method.
-        slot_id: InterfaceSlotId,
+        /// The dispatch slot for the method.
+        slot: DispatchSlot,
         /// The declared method target when known.
         declared_target: Option<FunctionReference>,
         /// The shared call payload.
@@ -316,13 +316,12 @@ impl Terminator {
             Terminator::InvokeIndirect { .. } | Terminator::TailCallIndirect { .. } => {
                 Some(crate::CallDispatchKind::Indirect)
             }
-            Terminator::InvokeVirtual { slot_id, .. }
-            | Terminator::TailCallVirtual { slot_id, .. } => {
-                Some(crate::CallDispatchKind::Virtual { slot_id: *slot_id })
+            Terminator::InvokeVirtual { slot, .. } | Terminator::TailCallVirtual { slot, .. } => {
+                Some(crate::CallDispatchKind::Virtual { slot: *slot })
             }
-            Terminator::InvokeInterface { slot_id, .. }
-            | Terminator::TailCallInterface { slot_id, .. } => {
-                Some(crate::CallDispatchKind::Interface { slot_id: *slot_id })
+            Terminator::InvokeInterface { slot, .. }
+            | Terminator::TailCallInterface { slot, .. } => {
+                Some(crate::CallDispatchKind::Interface { slot: *slot })
             }
             _ => None,
         }

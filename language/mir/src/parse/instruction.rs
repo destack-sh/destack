@@ -3,12 +3,12 @@ use std::str::FromStr;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
-    ArgumentSlice, AtomicRmwOperator, AtomicScope, BinaryOperator, Call, CastOperator, Instruction,
-    InterfaceSlotId, LocalNodeId, MemoryOrdering, MemoryScope, MemorySemantics, MemorySpaceSet,
-    TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
+    ArgumentSlice, AtomicRmwOperator, AtomicScope, BinaryOperator, Call, CastOperator,
+    DispatchSlot, Instruction, LocalNodeId, MemoryFlags, MemoryOrdering, MemoryScope,
+    MemorySpaceSet, TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
     TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorReduceOperator,
     TensorScatterDimensionNumbers, TensorScatterMode, Type, UnaryOperator, ValueReference,
-    VectorConvertMode, VectorReduceOperator, VtableSlotId,
+    VectorConvertMode, VectorReduceOperator,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -144,25 +144,23 @@ impl Parser {
                 let pointer = self.parse_value_segment(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value_segment(&mut segment_spans)?;
-                let (ordering, scope, memory_scope, semantics) =
-                    self.parse_atomic_attributes(true)?;
+                let (ordering, scope, memory_scope, flags) = self.parse_atomic_attributes(true)?;
                 Instruction::AtomicStore {
                     pointer,
                     value,
                     ordering,
                     scope,
                     memory_scope,
-                    semantics,
+                    flags,
                 }
             }
             "atomic.fence" => {
-                let (ordering, scope, memory_scope, semantics) =
-                    self.parse_atomic_attributes(false)?;
+                let (ordering, scope, memory_scope, flags) = self.parse_atomic_attributes(false)?;
                 Instruction::AtomicFence {
                     ordering,
                     scope,
                     memory_scope,
-                    semantics,
+                    flags,
                 }
             }
             "assume" => {
@@ -210,27 +208,27 @@ impl Parser {
                 }
             }
             "call.virtual" => {
-                let (receiver, declaring_type, slot_id, arguments, signature) =
+                let (receiver, declaring_type, slot, arguments, signature) =
                     self.parse_virtual_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_arguments(&arguments);
                 Instruction::CallVirtual {
                     destination,
                     receiver,
                     declaring_type,
-                    slot_id,
+                    slot,
                     declared_target: None,
                     call: Call::new(arguments, signature),
                 }
             }
             "call.interface" => {
-                let (receiver, declaring_type, slot_id, arguments, signature) =
+                let (receiver, declaring_type, slot, arguments, signature) =
                     self.parse_interface_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_arguments(&arguments);
                 Instruction::CallInterface {
                     destination,
                     receiver,
                     declaring_type,
-                    slot_id,
+                    slot,
                     declared_target: None,
                     call: Call::new(arguments, signature),
                 }
@@ -929,7 +927,7 @@ impl Parser {
                     // atomic memory operations
                     "atomic.load" => {
                         let pointer = self.parse_value()?;
-                        let (ordering, scope, memory_scope, semantics) =
+                        let (ordering, scope, memory_scope, flags) =
                             self.parse_atomic_attributes(true)?;
                         Instruction::AtomicLoad {
                             destination,
@@ -938,7 +936,7 @@ impl Parser {
                             ordering,
                             scope,
                             memory_scope,
-                            semantics,
+                            flags,
                         }
                     }
                     "atomic.cas" | "atomic.cas.weak" => {
@@ -947,7 +945,7 @@ impl Parser {
                         let expected = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
                         let new_value = self.parse_value()?;
-                        let (ordering, scope, memory_scope, semantics) =
+                        let (ordering, scope, memory_scope, flags) =
                             self.parse_atomic_attributes(true)?;
                         Instruction::AtomicCompareExchange {
                             destination,
@@ -958,7 +956,7 @@ impl Parser {
                             ordering,
                             scope,
                             memory_scope,
-                            semantics,
+                            flags,
                         }
                     }
                     _ if opcode_text.starts_with("atomic.rmw.") => {
@@ -966,7 +964,7 @@ impl Parser {
                         let pointer = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let value = self.parse_value_segment(&mut segment_spans)?;
-                        let (ordering, scope, memory_scope, semantics) =
+                        let (ordering, scope, memory_scope, flags) =
                             self.parse_atomic_attributes(true)?;
                         Instruction::AtomicRmw {
                             destination,
@@ -976,7 +974,7 @@ impl Parser {
                             ordering,
                             scope,
                             memory_scope,
-                            semantics,
+                            flags,
                         }
                     }
 
@@ -1685,7 +1683,7 @@ impl Parser {
     ) -> ParseResult<(
         crate::ValueReference,
         crate::TypeReference,
-        VtableSlotId,
+        DispatchSlot,
         Vec<crate::ValueReference>,
         crate::TypeReference,
     )> {
@@ -1700,7 +1698,7 @@ impl Parser {
     ) -> ParseResult<(
         crate::ValueReference,
         crate::TypeReference,
-        VtableSlotId,
+        DispatchSlot,
         Vec<crate::ValueReference>,
         crate::TypeReference,
     )> {
@@ -1708,20 +1706,14 @@ impl Parser {
         self.eat_token(TokenType::Comma)?;
         let declaring_type = self.parse_type_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
-        let slot_id = self.parse_int_segment(segment_spans)?;
-        let slot_id =
-            u32::try_from(slot_id).map_err(|_| ParseError::invalid("vtable slot", self.pos()))?;
-        let slot_id = VtableSlotId::new(slot_id);
+        let slot = self.parse_int_segment(segment_spans)?;
+        let slot =
+            u32::try_from(slot).map_err(|_| ParseError::invalid("vtable slot", self.pos()))?;
+        let slot = DispatchSlot::new(slot);
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
 
-        Ok((
-            receiver,
-            declaring_type.into(),
-            slot_id,
-            arguments,
-            signature,
-        ))
+        Ok((receiver, declaring_type.into(), slot, arguments, signature))
     }
 
     /// Parse one interface call target and signature.
@@ -1730,7 +1722,7 @@ impl Parser {
     ) -> ParseResult<(
         crate::ValueReference,
         crate::TypeReference,
-        InterfaceSlotId,
+        DispatchSlot,
         Vec<crate::ValueReference>,
         crate::TypeReference,
     )> {
@@ -1745,7 +1737,7 @@ impl Parser {
     ) -> ParseResult<(
         crate::ValueReference,
         crate::TypeReference,
-        InterfaceSlotId,
+        DispatchSlot,
         Vec<crate::ValueReference>,
         crate::TypeReference,
     )> {
@@ -1753,20 +1745,14 @@ impl Parser {
         self.eat_token(TokenType::Comma)?;
         let declaring_type = self.parse_type_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
-        let slot_id = self.parse_int_segment(segment_spans)?;
-        let slot_id = u32::try_from(slot_id)
-            .map_err(|_| ParseError::invalid("interface slot", self.pos()))?;
-        let slot_id = InterfaceSlotId::new(slot_id);
+        let slot = self.parse_int_segment(segment_spans)?;
+        let slot =
+            u32::try_from(slot).map_err(|_| ParseError::invalid("interface slot", self.pos()))?;
+        let slot = DispatchSlot::new(slot);
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
 
-        Ok((
-            receiver,
-            declaring_type.into(),
-            slot_id,
-            arguments,
-            signature,
-        ))
+        Ok((receiver, declaring_type.into(), slot, arguments, signature))
     }
 
     /// Parse one indirect call target and signature.
@@ -1824,15 +1810,15 @@ impl Parser {
             .intern_type(Type::FunctionSignature {
                 parameters,
                 result: result.into(),
-            })
+            })?
             .into())
     }
 
-    /// Parse one atomic ordering, scope, memory scope, and semantics suffix.
+    /// Parse one atomic ordering, scope, memory scope, and flags suffix.
     fn parse_atomic_attributes(
         &mut self,
         expect_leading_comma: bool,
-    ) -> ParseResult<(MemoryOrdering, AtomicScope, MemoryScope, MemorySemantics)> {
+    ) -> ParseResult<(MemoryOrdering, AtomicScope, MemoryScope, MemoryFlags)> {
         if expect_leading_comma {
             self.eat_token(TokenType::Comma)?;
         }
@@ -1842,9 +1828,9 @@ impl Parser {
         self.eat_token(TokenType::Comma)?;
         let memory_scope = self.parse_memory_scope()?;
         self.eat_token(TokenType::Comma)?;
-        let semantics = self.parse_memory_semantics()?;
+        let flags = self.parse_memory_flags()?;
 
-        Ok((ordering, scope, memory_scope, semantics))
+        Ok((ordering, scope, memory_scope, flags))
     }
 
     /// Parse one memory ordering like `sequentiallyConsistent`.
@@ -1877,28 +1863,28 @@ impl Parser {
             .map_err(|_| ParseError::invalid("memory scope", token_start))
     }
 
-    /// Parse memory semantics for atomic operations.
-    fn parse_memory_semantics(&mut self) -> ParseResult<MemorySemantics> {
-        // semantics state
+    /// Parse memory flags for atomic operations.
+    fn parse_memory_flags(&mut self) -> ParseResult<MemoryFlags> {
+        // flags state
         let mut spaces = MemorySpaceSet::NONE;
         let mut has_space = false;
         let mut is_space_locked = false;
         let mut is_volatile = false;
-        let mut is_make_available = false;
-        let mut is_make_visible = false;
+        let mut makes_available = false;
+        let mut makes_visible = false;
         let is_list = self.eat_token_maybe(TokenType::OpenBracket);
 
-        // parse one or more semantics items
+        // parse one or more flag items
         loop {
             let token = self
                 .peek()
-                .ok_or_else(|| ParseError::unexpected_end("memory semantics", self.pos()))?;
+                .ok_or_else(|| ParseError::unexpected_end("memory flags", self.pos()))?;
             if !matches!(
                 token.ty,
                 TokenType::Identifier | TokenType::Global | TokenType::Local
             ) {
                 return Err(ParseError::unexpected(
-                    "memory semantics",
+                    "memory flags",
                     token.ty,
                     token.start,
                 ));
@@ -1914,17 +1900,17 @@ impl Parser {
                     is_volatile = true;
                 }
                 "makeAvailable" => {
-                    is_make_available = true;
+                    makes_available = true;
                 }
                 "makeVisible" => {
-                    is_make_visible = true;
+                    makes_visible = true;
                 }
                 _ => {
                     let space = self.parse_memory_space(&token_text, token_start)?;
                     if space == MemorySpaceSet::ANY || space == MemorySpaceSet::NONE {
                         if has_space && !is_space_locked {
                             return Err(ParseError::new(
-                                "memory semantics cannot mix any/none with other spaces",
+                                "memory flags cannot mix any/none with other spaces",
                                 token_start,
                             ));
                         }
@@ -1935,7 +1921,7 @@ impl Parser {
                     } else {
                         if is_space_locked {
                             return Err(ParseError::new(
-                                "memory semantics cannot mix any/none with other spaces",
+                                "memory flags cannot mix any/none with other spaces",
                                 token_start,
                             ));
                         }
@@ -1971,11 +1957,11 @@ impl Parser {
             spaces = MemorySpaceSet::ANY;
         }
 
-        Ok(MemorySemantics::with_flags(
+        Ok(MemoryFlags::with_flags(
             spaces,
             is_volatile,
-            is_make_available,
-            is_make_visible,
+            makes_available,
+            makes_visible,
         ))
     }
 

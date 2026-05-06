@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use crate::{
-    Block, DebugInlineSiteId, DebugLocation, DebugRangeStart, DebugScopeId, DebugScopeKind,
-    DebugValueLocation, Function, Instruction, Local, LocalNodeId, NodeType, ProvenanceId, Type,
+    Block, DebugInlineCall, DebugInlineCallId, DebugLocation, DebugScopeId, DebugValueLocation,
+    Function, Instruction, Local, LocalNodeId, NodeType, ProvenanceId, Type,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -21,12 +21,6 @@ impl<'a> Validator<'a> {
     pub(super) fn validate_debug(&self) -> ValidateResult<()> {
         let scope_functions = self.resolve_debug_scope_functions()?;
 
-        // type references
-        for debug_type in &self.tree.metadata.debug.types {
-            self.ensure_node_type(NodeType::Type, debug_type.ty.id, self.module_anchor())?;
-            self.validate_debug_provenance(debug_type.provenance, self.module_anchor())?;
-        }
-
         // scopes
         for index in 0..self.tree.metadata.debug.scopes.len() {
             let scope_id = DebugScopeId::new(index as u32);
@@ -43,87 +37,9 @@ impl<'a> Validator<'a> {
             }
         }
 
-        // inline sites
-        let mut validated_inline_sites = vec![false; self.tree.metadata.debug.inline_sites.len()];
-        for index in 0..self.tree.metadata.debug.inline_sites.len() {
-            let inline_site_id = DebugInlineSiteId::new(index as u32);
-            if validated_inline_sites[inline_site_id.index()] {
-                continue;
-            }
-
-            let mut inline_site_path = Vec::<DebugInlineSiteId>::new();
-            let mut current_inline_site = Some(inline_site_id);
-
-            while let Some(inline_site_id) = current_inline_site {
-                if validated_inline_sites[inline_site_id.index()] {
-                    break;
-                }
-
-                if inline_site_path.contains(&inline_site_id) {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "debug inline site parent chain must be acyclic".to_string(),
-                        anchor: self.module_anchor(),
-                    });
-                }
-
-                inline_site_path.push(inline_site_id);
-
-                let inline_site = self.tree.metadata.debug.inline_site(inline_site_id);
-                self.validate_debug_provenance(inline_site.provenance, self.module_anchor())?;
-                let Some(callee_scope) = self
-                    .tree
-                    .metadata
-                    .debug
-                    .scopes
-                    .get(inline_site.callee_scope.index())
-                else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "debug inline site references a missing callee scope".to_string(),
-                        anchor: self.module_anchor(),
-                    });
-                };
-
-                if callee_scope.kind != DebugScopeKind::Function {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "debug inline site callee scope must be a function scope"
-                            .to_string(),
-                        anchor: self.module_anchor(),
-                    });
-                }
-
-                self.validate_debug_location(&inline_site.call_location, None, &scope_functions)?;
-
-                if inline_site.call_location.inline_site != inline_site.parent {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message:
-                            "debug inline site call location must point at the parent inline site"
-                                .to_string(),
-                        anchor: self.module_anchor(),
-                    });
-                }
-
-                current_inline_site = match inline_site.parent {
-                    Some(parent_inline_site_id) => {
-                        if parent_inline_site_id.index()
-                            >= self.tree.metadata.debug.inline_sites.len()
-                        {
-                            return Err(ValidateError::MetadataInvariantViolation {
-                                message:
-                                    "debug inline site references a missing parent inline site"
-                                        .to_string(),
-                                anchor: self.module_anchor(),
-                            });
-                        }
-
-                        Some(parent_inline_site_id)
-                    }
-                    None => None,
-                };
-            }
-
-            for inline_site_id in inline_site_path {
-                validated_inline_sites[inline_site_id.index()] = true;
-            }
+        // inline calls
+        for inline_call in &self.tree.metadata.debug.inline_calls {
+            self.validate_debug_inline_call(inline_call, &scope_functions)?;
         }
 
         // function-owned nodes
@@ -231,7 +147,7 @@ impl<'a> Validator<'a> {
             }
         }
 
-        for (&binding_id, ranges) in &self.tree.metadata.debug.binding_location_ranges {
+        for (&binding_id, ranges) in &self.tree.metadata.debug.binding_ranges {
             if binding_id.index() >= self.tree.metadata.debug.bindings.len() {
                 return Err(ValidateError::MetadataInvariantViolation {
                     message: "debug binding range references a missing binding".to_string(),
@@ -244,20 +160,11 @@ impl<'a> Validator<'a> {
             let mut previous_end = 0usize;
 
             for range in ranges {
-                if range.binding != binding_id {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "debug binding range key must match the embedded binding id"
-                            .to_string(),
-                        anchor: ValidateAnchor::node(function_id),
-                    });
-                }
-
                 self.validate_debug_value_location(
                     &range.location,
                     function_id,
                     binding.ty,
                     &local_functions,
-                    &instruction_positions,
                 )?;
 
                 let start = self.debug_range_start_ordinal(
@@ -294,39 +201,6 @@ impl<'a> Validator<'a> {
             }
         }
 
-        // coroutine states
-        for coroutine_state in &self.tree.metadata.debug.coroutine_states {
-            let function_id = scope_functions[coroutine_state.scope.index()];
-            self.validate_debug_provenance(
-                coroutine_state.provenance,
-                ValidateAnchor::node(function_id),
-            )?;
-
-            self.validate_debug_location(
-                &coroutine_state.suspend_location,
-                Some(function_id),
-                &scope_functions,
-            )?;
-
-            for &binding_id in &coroutine_state.lifted_bindings {
-                let Some(binding) = self.tree.metadata.debug.bindings.get(binding_id.index())
-                else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "debug coroutine state references a missing binding".to_string(),
-                        anchor: ValidateAnchor::node(function_id),
-                    });
-                };
-
-                if scope_functions[binding.scope.index()] != function_id {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "debug coroutine state bindings must belong to the same function"
-                            .to_string(),
-                        anchor: ValidateAnchor::node(function_id),
-                    });
-                }
-            }
-        }
-
         Ok(())
     }
 
@@ -341,19 +215,19 @@ impl<'a> Validator<'a> {
                 ValidateAnchor::node(function_id),
             )?;
 
-            let Some(scope) = self.tree.metadata.debug.scopes.get(scope_id.index()) else {
+            if self
+                .tree
+                .metadata
+                .debug
+                .scopes
+                .get(scope_id.index())
+                .is_none()
+            {
                 return Err(ValidateError::MetadataInvariantViolation {
                     message: "function debug scope references a missing scope".to_string(),
                     anchor: ValidateAnchor::node(function_id),
                 });
             };
-
-            if scope.kind != DebugScopeKind::Function {
-                return Err(ValidateError::MetadataInvariantViolation {
-                    message: "function debug scope must use DebugScopeKind::Function".to_string(),
-                    anchor: ValidateAnchor::node(function_id),
-                });
-            }
 
             if root_functions[scope_id.index()]
                 .replace(function_id)
@@ -424,7 +298,7 @@ impl<'a> Validator<'a> {
                 .unwrap_or_else(|| self.module_anchor()),
         )?;
 
-        let function_id = scope_functions[location.scope.index()];
+        let function_id = self.debug_location_function(location, scope_functions)?;
 
         if let Some(expected_function) = expected_function
             && function_id != expected_function
@@ -435,18 +309,100 @@ impl<'a> Validator<'a> {
             });
         }
 
-        if let Some(inline_site_id) = location.inline_site
-            && inline_site_id.index() >= self.tree.metadata.debug.inline_sites.len()
-        {
+        Ok(())
+    }
+
+    /// Validate one inline call entry.
+    fn validate_debug_inline_call(
+        &self,
+        inline_call: &DebugInlineCall,
+        scope_functions: &[LocalNodeId<Function>],
+    ) -> ValidateResult<()> {
+        if inline_call.callee_scope.index() >= scope_functions.len() {
             return Err(ValidateError::MetadataInvariantViolation {
-                message: "debug location references a missing inline site".to_string(),
-                anchor: expected_function
-                    .map(ValidateAnchor::node)
-                    .unwrap_or_else(|| self.module_anchor()),
+                message: "debug inline call references a missing callee scope".to_string(),
+                anchor: self.module_anchor(),
             });
         }
 
+        self.validate_debug_location(&inline_call.call_location, None, scope_functions)?;
+
         Ok(())
+    }
+
+    /// Resolve the runtime function for one debug location.
+    fn debug_location_function(
+        &self,
+        location: &DebugLocation,
+        scope_functions: &[LocalNodeId<Function>],
+    ) -> ValidateResult<LocalNodeId<Function>> {
+        self.debug_location_function_with_path(location, scope_functions, &mut Vec::new())
+    }
+
+    /// Resolve the runtime function for one debug location.
+    fn debug_location_function_with_path(
+        &self,
+        location: &DebugLocation,
+        scope_functions: &[LocalNodeId<Function>],
+        path: &mut Vec<DebugInlineCallId>,
+    ) -> ValidateResult<LocalNodeId<Function>> {
+        if location.scope.index() >= scope_functions.len() {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "debug location references a missing scope".to_string(),
+                anchor: self.module_anchor(),
+            });
+        }
+
+        let Some(inline_call_id) = location.inline_call else {
+            return Ok(scope_functions[location.scope.index()]);
+        };
+
+        let Some(inline_call) = self
+            .tree
+            .metadata
+            .debug
+            .inline_calls
+            .get(inline_call_id.index())
+        else {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "debug location references a missing inline call".to_string(),
+                anchor: self.module_anchor(),
+            });
+        };
+
+        if path.contains(&inline_call_id) {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "debug inline call chain must be acyclic".to_string(),
+                anchor: self.module_anchor(),
+            });
+        }
+
+        if inline_call.callee_scope.index() >= scope_functions.len() {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "debug inline call references a missing callee scope".to_string(),
+                anchor: self.module_anchor(),
+            });
+        }
+
+        if scope_functions[location.scope.index()]
+            != scope_functions[inline_call.callee_scope.index()]
+        {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "debug inlined location scope must belong to the inline callee"
+                    .to_string(),
+                anchor: self.module_anchor(),
+            });
+        }
+
+        path.push(inline_call_id);
+        let function_id = self.debug_location_function_with_path(
+            &inline_call.call_location,
+            scope_functions,
+            path,
+        );
+        path.pop();
+
+        function_id
     }
 
     /// Validate one optional provenance link on a debug record.
@@ -476,7 +432,6 @@ impl<'a> Validator<'a> {
         function_id: LocalNodeId<Function>,
         binding_type: LocalNodeId<Type>,
         local_functions: &HashMap<LocalNodeId<Local>, LocalNodeId<Function>>,
-        _instruction_positions: &HashMap<LocalNodeId<Instruction>, InstructionPosition>,
     ) -> ValidateResult<()> {
         match location {
             DebugValueLocation::Value(value) => {
@@ -576,12 +531,11 @@ impl<'a> Validator<'a> {
                         function_id,
                         binding_type,
                         local_functions,
-                        _instruction_positions,
                     )?;
                     next_offset = fragment.offset_bytes.saturating_add(fragment.size_bytes);
                 }
             }
-            DebugValueLocation::State(_) => {}
+            DebugValueLocation::OptimizedOut | DebugValueLocation::Undefined => {}
         }
 
         Ok(())
@@ -590,14 +544,14 @@ impl<'a> Validator<'a> {
     /// Return the ordinal for one debug range start.
     pub(super) fn debug_range_start_ordinal(
         &self,
-        start: DebugRangeStart,
+        start: Option<LocalNodeId<Instruction>>,
         function_id: LocalNodeId<Function>,
         instruction_positions: &HashMap<LocalNodeId<Instruction>, InstructionPosition>,
         anchor: ValidateAnchor,
     ) -> ValidateResult<usize> {
         match start {
-            DebugRangeStart::FunctionEntry => Ok(0),
-            DebugRangeStart::Instruction(instruction_id) => {
+            None => Ok(0),
+            Some(instruction_id) => {
                 self.ensure_node_type(NodeType::Instruction, instruction_id.id, anchor)?;
 
                 let Some(position) = instruction_positions.get(&instruction_id) else {

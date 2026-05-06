@@ -1,7 +1,7 @@
 use crate::build::ModuleBuilder;
 use crate::{
-    AddressSpace, AtomicScope, Copy, MemoryOrdering, MemoryScope, MemorySemantics,
-    MirFormatOptions, Mutability, ReferenceKind, Type, format_mir,
+    AddressSpace, AtomicScope, Copy, MemoryFlags, MemoryOrdering, MemoryScope, MirFormatOptions,
+    Mutability, ReferenceKind, Type, format_mir,
 };
 
 /// Empty function with void return.
@@ -991,7 +991,7 @@ fn test_build_void_intrinsic() {
         MemoryOrdering::SequentiallyConsistent,
         AtomicScope::Device,
         MemoryScope::Device,
-        MemorySemantics::default(),
+        MemoryFlags::default(),
     );
     builder.return_(None);
     builder.seal_block(entry_block);

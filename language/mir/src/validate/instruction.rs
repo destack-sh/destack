@@ -112,21 +112,21 @@ impl<'a> Validator<'a> {
             }
             Instruction::CallVirtual {
                 declaring_type,
-                slot_id,
+                slot,
                 ..
             } => {
                 let declaring_type =
                     self.require_type_reference(*declaring_type, anchor, "virtual call type")?;
-                self.validate_virtual_dispatch_slot(declaring_type, *slot_id, anchor)?;
+                self.validate_virtual_dispatch_slot(declaring_type, *slot, anchor)?;
             }
             Instruction::CallInterface {
                 declaring_type,
-                slot_id,
+                slot,
                 ..
             } => {
                 let declaring_type =
                     self.require_type_reference(*declaring_type, anchor, "interface call type")?;
-                self.validate_interface_dispatch_slot(declaring_type, *slot_id, anchor)?;
+                self.validate_interface_dispatch_slot(declaring_type, *slot, anchor)?;
             }
             Instruction::CallIndirect { callee, .. } => {
                 self.validate_indirect_callee_signature(

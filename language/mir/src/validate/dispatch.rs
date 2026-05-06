@@ -1,7 +1,7 @@
 use crate::{
-    Function, FunctionReference, Instruction, InterfaceDispatchEntry, InterfaceSlotId, ItabEntry,
-    LocalNodeId, NodeType, Terminator, Type, TypeReference, ValueReference, VtableEntry,
-    VtableSlotId, function_signature_parts,
+    Block, DispatchSlot, Function, FunctionReference, Instruction, InterfaceDispatchEntry,
+    ItabEntry, LocalNodeId, NodeType, Terminator, Type, TypeReference, ValueReference, VtableEntry,
+    function_signature_parts,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -34,7 +34,7 @@ impl<'a> Validator<'a> {
         }
 
         // dynamic call terminators
-        for (block_id, block) in self.tree.iter_nodes::<crate::Block>() {
+        for (block_id, block) in self.tree.iter_nodes::<Block>() {
             let terminator = self.tree.get(block.terminator);
 
             match terminator {
@@ -207,21 +207,15 @@ impl<'a> Validator<'a> {
     pub(super) fn validate_virtual_dispatch_slot(
         &self,
         declaring_type: LocalNodeId<Type>,
-        slot_id: VtableSlotId,
+        slot: DispatchSlot,
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
-        let Some(vtable_id) = self.tree.metadata.dispatch.vtable_id(declaring_type) else {
+        let Some(vtable) = self.tree.metadata.dispatch.vtable(declaring_type) else {
             return Ok(());
         };
 
         // vtable entry
-        let Some(vtable) = self.tree.metadata.dispatch.vtables.get(vtable_id.index()) else {
-            return Err(ValidateError::MetadataInvariantViolation {
-                message: "virtual dispatch references missing vtable metadata".to_string(),
-                anchor,
-            });
-        };
-        let Some(entry) = vtable.entries.get(slot_id.index()) else {
+        let Some(entry) = vtable.entries.get(slot.index()) else {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "virtual dispatch slot out of bounds".to_string(),
                 anchor,
@@ -242,7 +236,7 @@ impl<'a> Validator<'a> {
     pub(super) fn validate_interface_dispatch_slot(
         &self,
         declaring_interface: LocalNodeId<Type>,
-        slot_id: InterfaceSlotId,
+        slot: DispatchSlot,
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
         // interface shape
@@ -252,7 +246,7 @@ impl<'a> Validator<'a> {
             .dispatch
             .interface_dispatch_shape(declaring_interface)
         {
-            let Some(entry) = shape.entries.get(slot_id.index()) else {
+            let Some(entry) = shape.entries.get(slot.index()) else {
                 return Err(ValidateError::MetadataInvariantViolation {
                     message: "interface dispatch slot out of bounds".to_string(),
                     anchor,
@@ -273,13 +267,13 @@ impl<'a> Validator<'a> {
         // itab consistency
         let mut found_itab = false;
         let mut declared_method = None;
-        for (_itab_id, itab) in self.tree.metadata.dispatch.iter_itabs() {
+        for itab in self.tree.metadata.dispatch.iter_itabs() {
             if itab.interface != declaring_interface {
                 continue;
             }
             found_itab = true;
 
-            let Some(entry) = itab.entries.get(slot_id.index()) else {
+            let Some(entry) = itab.entries.get(slot.index()) else {
                 return Err(ValidateError::MetadataInvariantViolation {
                     message: "interface dispatch slot out of bounds".to_string(),
                     anchor,

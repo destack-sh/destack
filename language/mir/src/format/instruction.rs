@@ -4,7 +4,7 @@ use destack_fir::write;
 
 use crate::{
     AtomicScope, FormatMirNode, FunctionReference, GlobalReference, Instruction, LocalNodeId,
-    MemoryOrdering, MemoryScope, MemorySemantics, MemorySpaceSet, MirFormatter,
+    MemoryFlags, MemoryOrdering, MemoryScope, MemorySpaceSet, MirFormatter,
     TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
     TensorGatherDimensionNumbers, TensorScatterDimensionNumbers, TypeReference, ValueReference,
 };
@@ -1261,7 +1261,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 receiver,
                 call,
                 declaring_type,
-                slot_id,
+                slot,
                 ..
             } => {
                 if let Some(dst) = destination {
@@ -1279,7 +1279,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         declaring_type,
                         token(","),
                         space(),
-                        text(&slot_id.0.to_string())
+                        text(&slot.0.to_string())
                     ]
                 )?;
                 let args = f.context().tree.get_arguments(call.arguments);
@@ -1292,7 +1292,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 receiver,
                 call,
                 declaring_type,
-                slot_id,
+                slot,
                 ..
             } => {
                 if let Some(dst) = destination {
@@ -1310,7 +1310,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         declaring_type,
                         token(","),
                         space(),
-                        text(&slot_id.0.to_string())
+                        text(&slot.0.to_string())
                     ]
                 )?;
                 let args = f.context().tree.get_arguments(call.arguments);
@@ -1417,7 +1417,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
                 ..
             } => {
                 format_typed_destination(*destination, f)?;
@@ -1432,7 +1432,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         pointer
                     ]
                 )?;
-                format_atomic_suffix(*ordering, *scope, *memory_scope, *semantics, f)
+                format_atomic_suffix(*ordering, *scope, *memory_scope, *flags, f)
             }
 
             Instruction::AtomicStore {
@@ -1441,7 +1441,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
             } => {
                 write!(
                     f,
@@ -1454,7 +1454,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         value
                     ]
                 )?;
-                format_atomic_suffix(*ordering, *scope, *memory_scope, *semantics, f)
+                format_atomic_suffix(*ordering, *scope, *memory_scope, *flags, f)
             }
 
             Instruction::AtomicCompareExchange {
@@ -1466,7 +1466,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(f, [space(), token("="), space()])?;
@@ -1489,7 +1489,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         new_value
                     ]
                 )?;
-                format_atomic_suffix(*ordering, *scope, *memory_scope, *semantics, f)
+                format_atomic_suffix(*ordering, *scope, *memory_scope, *flags, f)
             }
 
             Instruction::AtomicRmw {
@@ -1500,7 +1500,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(f, [space(), token("="), space(), token("atomic.rmw.")])?;
@@ -1515,17 +1515,17 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         value
                     ]
                 )?;
-                format_atomic_suffix(*ordering, *scope, *memory_scope, *semantics, f)
+                format_atomic_suffix(*ordering, *scope, *memory_scope, *flags, f)
             }
 
             Instruction::AtomicFence {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
             } => {
                 write!(f, [token("atomic.fence")])?;
-                format_atomic_fence_suffix(*ordering, *scope, *memory_scope, *semantics, f)
+                format_atomic_fence_suffix(*ordering, *scope, *memory_scope, *flags, f)
             }
 
             Instruction::Intrinsic {
@@ -1944,12 +1944,12 @@ fn format_intrinsic_args<'a>(
     write!(f, [token(")")])
 }
 
-/// Format one atomic ordering, scope, memory scope, and semantics suffix.
+/// Format one atomic ordering, scope, memory scope, and flags suffix.
 fn format_atomic_suffix<'a>(
     ordering: MemoryOrdering,
     scope: AtomicScope,
     memory_scope: MemoryScope,
-    semantics: MemorySemantics,
+    flags: MemoryFlags,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token(","), space()])?;
@@ -1957,31 +1957,28 @@ fn format_atomic_suffix<'a>(
     write!(f, [token(","), space(), token(scope.to_str())])?;
     write!(f, [token(","), space(), token(memory_scope.to_str())])?;
     write!(f, [token(","), space()])?;
-    format_memory_semantics(semantics, f)
+    format_memory_flags(flags, f)
 }
 
-/// Format one atomic fence ordering, scope, memory scope, and semantics suffix.
+/// Format one atomic fence ordering, scope, memory scope, and flags suffix.
 fn format_atomic_fence_suffix<'a>(
     ordering: MemoryOrdering,
     scope: AtomicScope,
     memory_scope: MemoryScope,
-    semantics: MemorySemantics,
+    flags: MemoryFlags,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [space(), token(ordering.to_str())])?;
     write!(f, [token(","), space(), token(scope.to_str())])?;
     write!(f, [token(","), space(), token(memory_scope.to_str())])?;
     write!(f, [token(","), space()])?;
-    format_memory_semantics(semantics, f)
+    format_memory_flags(flags, f)
 }
 
-/// Format memory semantics for atomics and barriers.
-fn format_memory_semantics<'a>(
-    semantics: MemorySemantics,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
-    // collect the formatted semantics names
-    let names = collect_memory_semantics_names(semantics);
+/// Format memory flags for atomics and barriers.
+fn format_memory_flags<'a>(flags: MemoryFlags, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+    // collect formatted names
+    let names = collect_memory_flag_names(flags);
 
     // render the list or a single token
     if names.len() == 1 {
@@ -1992,19 +1989,19 @@ fn format_memory_semantics<'a>(
     }
 }
 
-/// Collect memory semantics names in formatting order.
-fn collect_memory_semantics_names(semantics: MemorySemantics) -> Vec<&'static str> {
+/// Collect memory flag names in formatting order.
+fn collect_memory_flag_names(flags: MemoryFlags) -> Vec<&'static str> {
     // collect location names first
-    let mut names = collect_effect_space_names(semantics.spaces);
+    let mut names = collect_effect_space_names(flags.spaces);
 
-    // append semantics flags
-    if semantics.is_volatile {
+    // append predicates
+    if flags.is_volatile {
         names.push("volatile");
     }
-    if semantics.is_make_available {
+    if flags.makes_available {
         names.push("makeAvailable");
     }
-    if semantics.is_make_visible {
+    if flags.makes_visible {
         names.push("makeVisible");
     }
 
