@@ -6,6 +6,29 @@ use super::target::{
     TargetMinifyOptionsJson, TargetOptions, TargetTreeshakeOptions, TargetTreeshakeOptionsJson,
 };
 
+/// Development mode name.
+pub const MODE_DEV: &str = "dev";
+
+/// Production mode name.
+pub const MODE_PROD: &str = "prod";
+
+/// Test mode name.
+pub const MODE_TEST: &str = "test";
+
+/// Benchmark mode name.
+pub const MODE_BENCH: &str = "bench";
+
+/// Lint mode name.
+pub const MODE_LINT: &str = "lint";
+
+/// Well-known mode names with built-in command and file suffix behavior.
+pub const BUILTIN_MODES: &[&str] = &[MODE_DEV, MODE_PROD, MODE_TEST, MODE_BENCH, MODE_LINT];
+
+/// Return whether one mode name is well-known to the toolchain.
+pub fn is_builtin_mode(mode: &str) -> bool {
+    BUILTIN_MODES.contains(&mode)
+}
+
 /// Named build mode options.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ModeOptions {

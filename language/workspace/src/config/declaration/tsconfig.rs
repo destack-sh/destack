@@ -16,9 +16,6 @@ const TSCONFIG_ALL_PATTERN: &str = "**/*";
 /// TypeScript source file extensions recognized by tsconfig project matching.
 const TYPESCRIPT_EXTENSIONS: [&str; 4] = ["ts", "tsx", "mts", "cts"];
 
-/// JavaScript source file extensions recognized when `allowJs` is enabled.
-const JAVASCRIPT_EXTENSIONS: [&str; 4] = ["js", "jsx", "mjs", "cjs"];
-
 /// Parsed `tsconfig.json` declaration.
 #[derive(Debug, Clone)]
 pub struct TsConfigDeclaration {
@@ -141,95 +138,6 @@ impl TsConfigDeclaration {
             compiler_options.paths = tsconfig.json.compiler_options.paths.clone();
         }
 
-        // compilerOptions.experimentalDecorators
-        if compiler_options.experimental_decorators.is_none()
-            && let Some(experimental_decorators) =
-                tsconfig.json.compiler_options.experimental_decorators
-        {
-            compiler_options.experimental_decorators = Some(experimental_decorators);
-        }
-
-        // compilerOptions.emitDecoratorMetadata
-        if compiler_options.emit_decorator_metadata.is_none()
-            && let Some(emit_decorator_metadata) =
-                tsconfig.json.compiler_options.emit_decorator_metadata
-        {
-            compiler_options.emit_decorator_metadata = Some(emit_decorator_metadata);
-        }
-
-        // compilerOptions.useDefineForClassFields
-        if compiler_options.use_define_for_class_fields.is_none()
-            && let Some(use_define_for_class_fields) =
-                tsconfig.json.compiler_options.use_define_for_class_fields
-        {
-            compiler_options.use_define_for_class_fields = Some(use_define_for_class_fields);
-        }
-
-        // compilerOptions.rewriteRelativeImportExtensions
-        if compiler_options
-            .rewrite_relative_import_extensions
-            .is_none()
-            && let Some(rewrite_relative_import_extensions) = tsconfig
-                .json
-                .compiler_options
-                .rewrite_relative_import_extensions
-        {
-            compiler_options.rewrite_relative_import_extensions =
-                Some(rewrite_relative_import_extensions);
-        }
-
-        // compilerOptions.jsx
-        if compiler_options.jsx.is_none()
-            && let Some(jsx) = &tsconfig.json.compiler_options.jsx
-        {
-            compiler_options.jsx = Some(jsx.clone());
-        }
-
-        // compilerOptions.jsxFactory
-        if compiler_options.jsx_factory.is_none()
-            && let Some(jsx_factory) = &tsconfig.json.compiler_options.jsx_factory
-        {
-            compiler_options.jsx_factory = Some(jsx_factory.clone());
-        }
-
-        // compilerOptions.jsxFragmentFactory
-        if compiler_options.jsx_fragment_factory.is_none()
-            && let Some(jsx_fragment_factory) = &tsconfig.json.compiler_options.jsx_fragment_factory
-        {
-            compiler_options.jsx_fragment_factory = Some(jsx_fragment_factory.clone());
-        }
-
-        // compilerOptions.jsxImportSource
-        if compiler_options.jsx_import_source.is_none()
-            && let Some(jsx_import_source) = &tsconfig.json.compiler_options.jsx_import_source
-        {
-            compiler_options.jsx_import_source = Some(jsx_import_source.clone());
-        }
-
-        // compilerOptions.verbatimModuleSyntax
-        if compiler_options.verbatim_module_syntax.is_none()
-            && let Some(verbatim_module_syntax) =
-                tsconfig.json.compiler_options.verbatim_module_syntax
-        {
-            compiler_options.verbatim_module_syntax = Some(verbatim_module_syntax);
-        }
-
-        // compilerOptions.preserveValueImports
-        if compiler_options.preserve_value_imports.is_none()
-            && let Some(preserve_value_imports) =
-                tsconfig.json.compiler_options.preserve_value_imports
-        {
-            compiler_options.preserve_value_imports = Some(preserve_value_imports);
-        }
-
-        // compilerOptions.importsNotUsedAsValues
-        if compiler_options.imports_not_used_as_values.is_none()
-            && let Some(imports_not_used_as_values) =
-                &tsconfig.json.compiler_options.imports_not_used_as_values
-        {
-            compiler_options.imports_not_used_as_values = Some(imports_not_used_as_values.clone());
-        }
-
         // compilerOptions.target
         if compiler_options.target.is_none()
             && let Some(target) = &tsconfig.json.compiler_options.target
@@ -242,13 +150,6 @@ impl TsConfigDeclaration {
             && let Some(module) = &tsconfig.json.compiler_options.module
         {
             compiler_options.module = Some(module.clone());
-        }
-
-        // compilerOptions.allowJs
-        if compiler_options.allow_js.is_none()
-            && let Some(allow_js) = tsconfig.json.compiler_options.allow_js
-        {
-            compiler_options.allow_js = Some(allow_js);
         }
     }
 
@@ -455,17 +356,9 @@ impl TsConfigDeclaration {
 
     /// Return whether one tsconfig input path has a supported source extension.
     fn is_supported_tsconfig_input(&self, path: &Path) -> bool {
-        let allow_js = self
-            .json
-            .compiler_options
-            .allow_js
-            .is_some_and(|allow_js| allow_js);
         path.extension()
             .and_then(|extension| extension.to_str())
-            .is_some_and(|extension| {
-                TYPESCRIPT_EXTENSIONS.contains(&extension)
-                    || allow_js && JAVASCRIPT_EXTENSIONS.contains(&extension)
-            })
+            .is_some_and(|extension| TYPESCRIPT_EXTENSIONS.contains(&extension))
     }
 
     /// Return whether one normalized path matches one normalized tsconfig glob.

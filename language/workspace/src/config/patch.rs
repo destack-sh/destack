@@ -4,7 +4,7 @@ use serde_json::{Map, Value};
 /// Configuration override applied to one config value.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ConfigOverride {
-    /// Override path (e.g. compiler.strict).
+    /// Override path (e.g. compiler.target).
     pub path: String,
     /// Override payload value.
     pub value: Value,

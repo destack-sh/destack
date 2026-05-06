@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-use std::path::Path;
 use std::sync::Arc;
 
 use destack_artifact::ProfileKey;
@@ -10,7 +8,6 @@ use crate::repository::key::profile_key_for_target;
 use crate::{
     CompilerOptions, HostEnvironment, Module, Package, ProfileEnvironment, ProfileOptions,
     Repository, RepositoryError, Revision, Target, TsConfigOptions,
-    discover_typescript_type_entries, normalize_typescript_type_entries,
 };
 
 /// One resolved semantic profile.
@@ -304,16 +301,8 @@ impl Repository {
 
         let tsconfig_options = tsconfig.as_ref().map(|tsconfig| tsconfig.options());
 
-        if let Some(tsconfig) = tsconfig.as_ref()
-            && let Some(tsconfig_options) = tsconfig_options.as_ref()
-        {
+        if let Some(tsconfig_options) = tsconfig_options.as_ref() {
             compiler_options.apply_tsconfig_options(tsconfig_options);
-            self.apply_tsconfig_implicit_type_overrides(
-                module,
-                &mut compiler_options,
-                tsconfig_options,
-                &tsconfig.directory,
-            );
         }
 
         Ok((compiler_options, tsconfig_options))
@@ -337,42 +326,5 @@ impl Repository {
         );
 
         Arc::new(Profile::from_key(key, environment))
-    }
-
-    /// Apply implicit tsconfig type overrides.
-    fn apply_tsconfig_implicit_type_overrides(
-        &self,
-        module: &Module,
-        compiler_options: &mut CompilerOptions,
-        tsconfig_options: &TsConfigOptions,
-        tsconfig_directory: &Path,
-    ) {
-        if !tsconfig_options.compiler.types.is_empty() {
-            return;
-        }
-
-        let discovered_types = discover_typescript_type_entries(
-            self.fs.as_ref(),
-            tsconfig_options,
-            tsconfig_directory,
-            module.path.as_deref(),
-        );
-        if discovered_types.is_empty() {
-            return;
-        }
-
-        let mut types = normalize_typescript_type_entries(&compiler_options.types);
-        let mut seen = HashSet::new();
-        for type_name in &types {
-            seen.insert(type_name.clone());
-        }
-
-        for discovered_type in discovered_types {
-            if seen.insert(discovered_type.clone()) {
-                types.push(discovered_type);
-            }
-        }
-
-        compiler_options.types = types;
     }
 }

@@ -19,7 +19,6 @@ mod runtime;
 mod source;
 mod target;
 mod tsconfig;
-mod typescript;
 mod watch;
 mod workspace;
 
@@ -44,6 +43,5 @@ pub use runtime::*;
 pub use source::*;
 pub use target::*;
 pub use tsconfig::*;
-pub use typescript::*;
 pub use watch::*;
 pub use workspace::*;
