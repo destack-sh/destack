@@ -41,6 +41,7 @@ members = [
 	"language/vm",
 	"language/mir",
 	"language/parser",
+	"language/qir",
 	"language/query",
 	"language/resolver",
 	"language/runtime",
@@ -100,6 +101,7 @@ destack_native = { path = "language/native" }
 destack_vm = { path = "language/vm" }
 destack_mir = { path = "language/mir" }
 destack_parser = { path = "language/parser" }
+destack_qir = { path = "language/qir" }
 destack_query = { path = "language/query" }
 destack_resolver = { path = "language/resolver" }
 destack_runtime = { path = "language/runtime" }

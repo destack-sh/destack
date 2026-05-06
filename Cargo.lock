@@ -1409,6 +1409,7 @@ dependencies = [
  "destack_html",
  "destack_js",
  "destack_mir",
+ "destack_qir",
  "destack_source",
  "fs2",
  "indexmap",
@@ -1928,6 +1929,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_qir"
+version = "0.55.4"
+dependencies = [
+ "destack_dir",
+ "destack_source",
+ "serde",
+]
+
+[[package]]
 name = "destack_query"
 version = "0.55.4"
 dependencies = [
@@ -1935,6 +1945,7 @@ dependencies = [
  "destack_ast",
  "destack_core",
  "destack_dir",
+ "destack_qir",
  "destack_resolver",
  "destack_source",
  "destack_workspace",
