@@ -247,7 +247,7 @@ struct CommandEntry {
 
 /// Build grouped command help output.
 fn build_commands_help(color_enabled: bool) -> String {
-    let mut entries = vec![
+    let entries = vec![
         CommandEntry {
             name: "run",
             example: "./src/main.ds",
@@ -407,15 +407,19 @@ fn build_commands_help(color_enabled: bool) -> String {
     ];
 
     #[cfg(feature = "dev")]
-    entries.insert(
-        entries.len() - 1,
-        CommandEntry {
-            name: "dev",
-            example: "",
-            help: None,
-            group: 3,
-        },
-    );
+    let entries = {
+        let mut entries = entries;
+        entries.insert(
+            entries.len() - 1,
+            CommandEntry {
+                name: "dev",
+                example: "",
+                help: None,
+                group: 3,
+            },
+        );
+        entries
+    };
 
     let command_definition = Cli::command();
 

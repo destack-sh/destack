@@ -282,8 +282,6 @@ fn create_destack_config(_name: &str, template: Template) -> String {
     let mut compiler = json!({
         "target": "esnext",
         "module": "esnext",
-        "strict": true,
-        "lib": ["esnext"],
     });
     // set rootDir for src-based templates
     if let Some(root_dir) = root_dir {
