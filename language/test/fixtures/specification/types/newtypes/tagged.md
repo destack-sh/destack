@@ -1,13 +1,13 @@
 # Newtype Tagged Unions
 
-`@tagged` adds constructor helpers for tagged newtype unions.
+`Tagged` derives constructor helpers for nominal discriminated unions.
 
 ## constructors
 
 ### tagged constructors insert discriminants
 
 ```ds
-@tagged
+@derive(Tagged)
 newtype Shape =
     | { kind: "rectangle"; width: int32; height: int32 }
     | { kind: "circle"; radius: int32 };
@@ -22,7 +22,7 @@ circle satisfies Shape;
 ### tagged constructors preserve payload types
 
 ```ds
-@tagged
+@derive(Tagged)
 newtype AppError =
     | { kind: "missing"; path: string }
     | { kind: "denied"; code: int32 };
@@ -40,7 +40,7 @@ match (error) {
 ### preserve keeps discriminant names
 
 ```ds
-@tagged("preserve")
+@derive(Tagged({ case: "preserve" }))
 newtype Shape =
     | { kind: "rectangle"; width: int32; height: int32 }
     | { kind: "circle"; radius: int32 };
@@ -55,7 +55,7 @@ circle satisfies Shape;
 ### camelCase converts discriminant names
 
 ```ds
-@tagged("camelCase")
+@derive(Tagged({ case: "camelCase" }))
 newtype Event =
     | { kind: "parse-error"; line: int32 }
     | { kind: "file-missing"; path: string };
@@ -67,10 +67,10 @@ parse satisfies Event;
 missing satisfies Event;
 ```
 
-### UpperCamelCase converts discriminant names
+### UpperCamelCase is the default
 
 ```ds
-@tagged("UpperCamelCase")
+@derive(Tagged)
 newtype Event =
     | { kind: "parse-error"; line: int32 }
     | { kind: "file-missing"; path: string };
@@ -85,7 +85,7 @@ missing satisfies Event;
 ### snake_case converts discriminant names
 
 ```ds
-@tagged("snake_case")
+@derive(Tagged({ case: "snake_case" }))
 newtype Event =
     | { kind: "parseError"; line: int32 }
     | { kind: "fileMissing"; path: string };
@@ -100,7 +100,7 @@ missing satisfies Event;
 ### SCREAMING_SNAKE_CASE converts discriminant names
 
 ```ds
-@tagged("SCREAMING_SNAKE_CASE")
+@derive(Tagged({ case: "SCREAMING_SNAKE_CASE" }))
 newtype Event =
     | { kind: "parseError"; line: int32 }
     | { kind: "fileMissing"; path: string };
@@ -115,7 +115,7 @@ missing satisfies Event;
 ### explicit names cover numeric discriminants
 
 ```ds
-@tagged({ names: { "1": "Ready", "2": "Done" } })
+@derive(Tagged({ names: { "1": "Ready", "2": "Done" } }))
 newtype State =
     | { kind: 1; path: string }
     | { kind: 2; code: int32 };
@@ -127,25 +127,10 @@ ready satisfies State;
 done satisfies State;
 ```
 
-### object directive selects naming policy
+### tagged constructors infer the discriminant field
 
 ```ds
-@tagged({ case: "UpperCamelCase" })
-newtype Event =
-    | { kind: "parse-error"; line: int32 }
-    | { kind: "file-missing"; path: string };
-
-const parse = Event.ParseError({ line: 10 });
-const missing = Event.FileMissing({ path: "config.json" });
-
-parse satisfies Event;
-missing satisfies Event;
-```
-
-### object directive selects discriminant field
-
-```ds
-@tagged({ field: "type", case: "UpperCamelCase" })
+@derive(Tagged)
 newtype Shape =
     | { type: "rectangle"; width: int32; height: int32 }
     | { type: "circle"; radius: int32 };
@@ -157,59 +142,21 @@ rectangle satisfies Shape;
 circle satisfies Shape;
 ```
 
-### bare tagged accepts data-shaped names
-
-```ds
-@tagged
-newtype Event =
-    | { kind: "parse-error"; line: int32 }
-    | { kind: "file-missing"; path: string };
-
-const parse = Event.ParseError({ line: 10 });
-const missing = Event.FileMissing({ path: "config.json" });
-
-parse satisfies Event;
-missing satisfies Event;
-```
-
-### compiler taggedCase overrides default naming
-
-```ds:main.ds
-@tagged
-newtype Event =
-    | { kind: "parse-error"; line: int32 }
-    | { kind: "file-missing"; path: string };
-
-const parse = Event.parseError({ line: 10 });
-const missing = Event.fileMissing({ path: "config.json" });
-
-parse satisfies Event;
-missing satisfies Event;
-```
-
-```json:destack.json
-{
-    "compiler": {
-        "taggedCase": "camelCase"
-    }
-}
-```
-
 ## rejections
 
-### tagged constructors require object variants
+### tagged unions require object variants
 
 ```ds
-@tagged
+@derive(Tagged)
 newtype Value = string | int32;
 ```
 
-- contains: tagged
+- contains: Tagged
 
-### tagged constructors require string discriminants by default
+### numeric discriminants require explicit names
 
 ```ds
-@tagged
+@derive(Tagged)
 newtype Event =
     | { kind: 1; path: string }
     | { kind: 2; code: int32 };
@@ -217,10 +164,10 @@ newtype Event =
 
 - contains: discriminant
 
-### explicit names are required for every non-string discriminant
+### explicit names must cover every numeric discriminant
 
 ```ds
-@tagged({ names: { "1": "Ready" } })
+@derive(Tagged({ names: { "1": "Ready" } }))
 newtype Event =
     | { kind: 1; path: string }
     | { kind: 2; code: int32 };
@@ -228,10 +175,10 @@ newtype Event =
 
 - contains: discriminant
 
-### tagged constructors require unique discriminants
+### tagged discriminants must be unique
 
 ```ds
-@tagged
+@derive(Tagged)
 newtype Event =
     | { kind: "message"; text: string }
     | { kind: "message"; code: int32 };
@@ -239,13 +186,24 @@ newtype Event =
 
 - contains: duplicate
 
-### tagged constructors require unique generated names
+### tagged constructor names must be unique
 
 ```ds
-@tagged("camelCase")
+@derive(Tagged({ case: "camelCase" }))
 newtype Event =
     | { kind: "parse-error"; line: int32 }
     | { kind: "parse_error"; path: string };
 ```
 
 - contains: duplicate
+
+### tagged unions require one discriminant field
+
+```ds
+@derive(Tagged)
+newtype Event =
+    | { kind: "parse"; type: "error"; line: int32 }
+    | { kind: "file"; type: "missing"; path: string };
+```
+
+- contains: discriminant

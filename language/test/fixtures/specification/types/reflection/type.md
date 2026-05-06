@@ -1,8 +1,8 @@
-# Type Reflection
+# Type
 
-## handles
+## values
 
-### type expressions can coerce to type handles
+### type expressions coerce to reflected types
 
 A type expression can be used where `Type<T>` is expected.
 
@@ -11,26 +11,27 @@ struct User {
     name: string;
 }
 
-const handle: Type<User> = User;
-handle satisfies Type<User>;
+const type: Type<User> = User;
+type satisfies Type<User>;
 ```
 
-### type of creates type handles
+### Type.of creates reflected types
 
-`Type.of<T>()` returns a handle for `T`.
+`Type.of<T>()` returns the reflected type for `T`.
 
 ```ds
 struct User {
     name: string;
 }
 
-const handle = Type.of<User>();
-handle satisfies Type<User>;
+const type = Type.of<User>();
+type satisfies Type<User>;
+type.id satisfies TypeId;
 ```
 
-### reflected types can be generic comptime arguments
+### reflected types are static values
 
-`Type<T>` handles can be passed as comptime generic parameters.
+`Type<T>` values can be passed as static generic values.
 
 ```ds
 declare function parseWithType<comptime T: Type>(raw: string): T;
@@ -47,59 +48,9 @@ const user = parse<User>("{}");
 user satisfies User;
 ```
 
-## descriptor
-
-### type describe returns a type descriptor
-
-`Type.describe` exposes the stable public descriptor.
-
-```ds
-struct User {
-    name: string;
-}
-
-const descriptor = Type.describe(Type.of<User>());
-descriptor satisfies TypeDescriptor;
-descriptor.shape satisfies TypeShape;
-```
-
-### type descriptors include display names
-
-Type descriptors include human-readable names.
-
-```ds
-struct User {
-    name: string;
-}
-
-const descriptor = Type.describe(Type.of<User>());
-descriptor.displayName satisfies string;
-```
-
-### type descriptors expose declarations
-
-Declared types can expose retained declaration metadata.
-
-```ds
-newtype Label = { name: string };
-
-function label(name: string): Label {
-    Label({ name })
-}
-
-@label("entity")
-struct User {
-    name: string;
-}
-
-const declaration = Type.describe(Type.of<User>()).declaration!;
-declaration.kind satisfies TypeDeclarationKind;
-declaration.annotations satisfies readonly AnnotationDescriptor[];
-```
-
 ## layout
 
-### layout intrinsics return target sized values
+### layout queries return target-sized values
 
 Layout queries are target-sensitive reflection operations.
 
@@ -117,7 +68,7 @@ alignment satisfies usize;
 stride satisfies usize;
 ```
 
-### layout of returns a layout descriptor
+### layoutOf returns field layouts
 
 `layoutOf<T>()` returns field layout information for the active target.
 
@@ -127,5 +78,6 @@ struct Header {
 }
 
 const layout = comptime layoutOf<Header>();
-layout satisfies LayoutDescriptor;
+layout satisfies Layout;
+layout.fields satisfies readonly LayoutField[];
 ```

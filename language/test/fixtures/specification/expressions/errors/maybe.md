@@ -80,10 +80,12 @@ A union of Results unwraps to the union of success values and propagates the uni
 
 ```ds
 struct MissingError implements Error {
+    name: "MissingError";
     message: string;
 }
 
 struct BadError implements Error {
+    name: "BadError";
     message: string;
 }
 
