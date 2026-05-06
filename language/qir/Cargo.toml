@@ -1,0 +1,23 @@
+[package]
+name = "destack_qir"
+description = "Destack Query IR"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+# language
+destack_dir = { workspace = true }
+destack_source = { workspace = true }
+
+# general
+serde = { workspace = true, features = ["derive"] }
+
+[lints]
+workspace = true
