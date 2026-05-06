@@ -958,7 +958,7 @@ When overflow / wrapping policy is part of the algorithm, the expression should 
 (These forms are not overloadable.)
 
 Dereference operators are a little different from the main "value-shaped" operators.
-`ReadonlyDereference` and `Dereference` project one access form into another access form, preserving ownership, placement, mutability, and borrow regions.
+`ReadonlyDereference` and `Dereference` project one access form into another access form, preserving ownership, placement, mutability, and lifetimes.
 
 ```ds
 struct Box<T> {
@@ -1646,19 +1646,18 @@ The two axes compose and commute freely, e.g. `shared ^T` and `^shared T` both m
 Ownership decides who keeps a value alive, who is allowed to mutate it, and when and how it is eventually freed.
 Each ownership form has a corresponding normalized representation in our little "type algebra" (see [Algebra](#algebra)).
 
-| Form | Ownership | Liveness | Meaning |
-|------|-----------|----------|---------|
-| `T` (value base) | value | owned by its containing storage | inline value |
-| `T` (object base) | managed | keeps the referent alive | managed heap handle (GC) |
-| `^T` | owned | owns the referent | unique owned handle |
-| `&T` | borrowed | requires liveness | semantic borrow or projection |
-| `*T` | raw | does not keep anything alive | unsafe typed pointer |
+| Form | Meaning |
+|------|---------|
+| `T` | normal managed/default value |
+| `^T` | owned value |
+| `&T` | borrowed access |
+| `*T` | raw pointer |
 
 ```ds
-let a: User = new User();  // managed handle
-let b: ^User = new User(); // owned handle
-let c: &User = &a;         // borrowed handle
-let d: *User = &a;         // raw handle (unchecked)
+let a: User = new User();
+let b: ^User = new User();
+let c: &User = &a;
+let d: *User = &a;
 ```
 
 ### Space
@@ -1685,19 +1684,33 @@ This is why we distinguish `Place` from `Space`: `Space` is concrete, while `Pla
 
 #### Shared Space
 
-The "shared space" is shared memory visible to all `Worker`s in the same `Runtime`.
+The shared space is memory visible to all `Worker`s in the same `Runtime`.
 Conceptually, `shared` is the typed, generalized version of the `SharedArrayBuffer` idea with the full type system and object graphs at our disposal:
 - Local values may point to shared values.
 - Shared values must not point directly into a local heap.
 
-It should be noted that shared placement - or any space placement - is **not** a synchronization primitive in itself, and does **not** imply atomic access, locking, actor isolation, `Sync`, or anything like it _by itself_.
-It's just a name for a region of memory, nothing more.
+Shared placement, or any space placement, is **not** a synchronization primitive and does **not** imply atomic access, locking, actor isolation, `Sync`, or anything like it.
+It is a placement label.
 Libraries and strict profiles may require capabilities like `Send` and `Sync` for APIs that transfer or publish values, but `shared` itself is only placement.
+
+### Static Space
+
+Because Destack inherits the JS/TS Worker model for isolation, module-scoped constants are owned by each _Worker_ and are not actually process-global as they would be in most other languages.
+For genuinely _shared_ process-global state, the binding _itself_ can be declared as `shared`.
+
+| Form | Binding place | Value place | Meaning |
+|------|--------------|-------------|---------|
+| `const world = new World()` | local | local | one local module binding and one local value |
+| `const world: shared World = new World()` | local | shared | one local binding cell holding one shared handle |
+| `shared const world: World = new World()` | shared | shared | one shared binding cell initialized in shared space |
+| `shared const world: shared World = new World()` | shared | shared | same runtime meaning, explicit on both axes |
+
+Note that marking the binding itself as `shared` also types the value as `shared` (as it is illegal to have a shared reference to a local value anyway, this is convenient).
 
 ### Capabilities
 
-Like many other languages, Destack encodes synchronisation and memory primitives as (newtype) interfaces like `Copy`, `Clone`, `Send`, and `Sync`
-(These are separate from and orthogonal to ownership and placement.)
+Like other similar languages, Destack encodes synchronisation and memory primitives as (newtype) interfaces like `Copy`, `Clone`, `Send`, and `Sync`
+(As said, these are separate from and orthogonal to ownership and placement.)
 
 | Capability | Meaning |
 |------------|---------|
@@ -1723,17 +1736,13 @@ The rules for who can convert into what mostly follow from two facts:
 | `^T` | no | yes | - | unsafe |
 | `*T` | no | reborrow | no | - |
 
-### Statics
+The default type for a borrow is `&T`, and typing it as `*T` produces a raw pointer instead:
 
-Because Destack inherits the JS/TS Worker model for isolation, module-scoped constants are owned by each _Worker_ and are not actually process-global as they would be in many other languages.
-For genuinely shared process-global state, the binding _itself_ can be declared as `shared`.
-
-| Form | Binding cell | Value place | Meaning |
-|------|--------------|-------------|---------|
-| `const world = new World()` | local | local | one local module binding and one local value |
-| `const world: shared World = new World()` | local | shared | one local binding cell holding one shared handle |
-| `shared const world: World = new World()` | shared | shared | one shared binding cell initialized in shared space |
-| `shared const world: shared World = new World()` | shared | shared | same runtime meaning, explicit on both axes |
+```ds
+let user = new User();
+let userBorrow: &User = &user;
+let userPointer: *User = &user;
+```
 
 ### Allocation
 
@@ -1744,17 +1753,67 @@ let a: User = new User();   // managed
 let b: ^User = new User();  // owned
 ```
 
-### Borrows, Regions and Suspension
-
-A region is one compiler-known lifetime relation for one borrow.
-Explicit region spelling is only needed when a signature must relate returned borrows to input borrows.
+Of course, Destack also supports direct allocation control via direct access to the underlying `Allocator`:
 
 ```ds
-&T                 // surface syntax
-Borrowed<T, _>     // normalized form
+let allocator = defaultAllocator<"shared">();
+let layout = AllocationLayout { size: 4096, align: 64 };
+let page = allocator.allocate(layout)?;
 
-@lifetime("a") &T
-Borrowed<T, "a">
+page satisfies Allocation<"shared">;
+```
+
+### Borrows and Lifetimes
+
+When working with owned and borrowed values, lifetimes are the compiler-known validity relations for borrowed access.
+In Destack, lifetimes are ordinary static parameters, and most code never names one: every `&T` gets an inferred lifetime from the expression being borrowed.
+Explicit lifetimes are only needed when a signature or type stores a borrow or relates an output borrow to an input borrow.
+
+```ds
+function first<T, L: Lifetime>(items: Borrowed<[T], L>): Borrowed<T, L> {
+    return &items[0];
+}
+
+struct View<T, L: Lifetime> {
+    items: Borrowed<[T], L>;
+}
+```
+
+Borrow checking - that is, ensuring a borrow to some reference remains valid - is mostly Rust-shaped:
+- many `&readonly T` borrows may overlap;
+- one `&T` borrow may exist when no other borrow overlaps;
+- a value cannot move, drop, or be mutably borrowed while an overlapping borrow is live;
+- a borrow cannot outlive the owner or access path it came from.
+
+### Synchronisation
+
+The standard library provides the usual memory and synchronisation primitives on top of all of the above which we won't list out completely here.
+Basically, the important split is between:
+ - **ownership sharing**: `Rc`, `Arc`
+ - **interior mutability**: `Cell`, `RefCell`
+ - **single-location atomic access**: `Atomic`
+ - **critical sections**: `AsyncLock`, `SharedLock`
+
+| Primitive | Contract |
+|-----------|----------|
+| `Box<T>` | unique heap ownership for `T`, with deterministic drop when `T: Drop` |
+| `Rc<T>` | local shared ownership, non-atomic refcount, not transferable across Workers |
+| `Arc<T>` | shared ownership, atomic refcount, transferable when `T` satisfies the required `Send` / `Sync` bounds |
+| `Cell<T>` | local interior mutation by value, for small `Copy`-like state |
+| `RefCell<T>` | local runtime borrow checking for cases static borrowing cannot express cleanly |
+| `Atomic<T>` | lock-free scalar storage with explicit ordering and scope |
+| `AsyncLock<T>` | local mutual exclusion that suspends the current async task, not the Worker |
+| `SharedLock<T>` | shared mutual exclusion backed by atomics and runtime wait/wake support |
+
+
+Because ownership and placement are part of our type system, and we can query and gate based on contextual type information, Destack can provide more ergonomic aliases that are context-aware and do what you want 90% of the time:
+
+```ds
+type Ref<T> =
+    PlaceIn<T, "local"> extends "shared" ? Arc<T> : Rc<T>;
+
+type Lock<T> =
+    PlaceIn<T, "local"> extends "shared" ? SharedLock<T> : AsyncLock<T>;
 ```
 
 ### Algebra
@@ -1768,42 +1827,51 @@ newtype Form<
     T,
     O: Ownership = "managed",
     P: Place = "ambient",
-    R = never,
+    L: Lifetime = never,
 > = unknown;
 ```
 
-All these `Form`s are based on the common static evaluation machinery, and code can be generic over `Form<T, O, P, R>`, `WithSpace<T, S>`, or `PlaceIn<T, S>` without choosing a final address space or ownership.
+All `Form`s are based on the common static evaluation machinery, and code can be generic over `Form<T, O, P, R>`, `WithSpace<T, S>`, or `PlaceIn<T, S>` without choosing a final address space or ownership.
 
 ```ds
 User            // unqualified, defaults to managed ambient
 ^User           // Form<User, "owned", "ambient">
-&User           // Form<User, "borrowed", "ambient", R>
+&User           // Form<User, "borrowed", "ambient", L>
 *User           // Form<User, "raw", "ambient">
 shared User     // Form<User, "managed", "shared">
 shared ^User    // Form<User, "owned", "shared">
 ^shared User    // Form<User, "owned", "shared">
 ```
 
-The provided convenience memory algebra operators are just the those same families applied to those axes.
+The helpers are the same few operations applied to each axis.
 Constructors build a form from a base type:
 
 ```ds
 Managed<User> satisfies Form<User, "managed", "ambient">;
 Owned<User> satisfies Form<User, "owned", "ambient">;
-Borrowed<User, "a"> satisfies Form<User, "borrowed", "ambient", "a">;
 Raw<User> satisfies Form<User, "raw", "ambient">;
 
 shared User satisfies WithSpace<User, "shared">;
+shared ^User satisfies WithSpace<^User, "shared">;
+^shared User satisfies WithSpace<^User, "shared">;
+
 Shared<^User> satisfies Form<User, "owned", "shared">;
+Local<User> satisfies WithSpace<User, "local">;
+Ambient<shared User> satisfies Form<User, "managed", "ambient">;
 ```
 
-Accessors pull the axes back out.
-The `*Of` family returns `never` when that axis is not explicit on the input, while `*Or` applies a default:
+Borrowed forms additionally carry a lifetime:
+
+```ds
+type UserBorrow<L: Lifetime> = Borrowed<User, L>;
+```
+
+We provide builtin (userland-defined) accessors to pull the axes back out of `Form`:
+the `*Of` family returns `never` when that axis is not explicit on the input, while `*Or` applies a default:
 ```ds
 BaseOf<shared ^User> satisfies User;
 OwnershipOf<^User> satisfies "owned";
 OwnershipOr<User, "managed"> satisfies "managed";
-RegionOf<Borrowed<User, "a">> satisfies "a";
 ```
 
 `Space` represents a concrete space like `"local"` or `"shared"` while `Place` means either a concrete `Space` or `"ambient"`, and ambient placement follows the containing context until a final layout is required:
@@ -1836,7 +1904,6 @@ Rewriting one axis leaves the others alone:
 WithSpace<^User, "shared"> satisfies Form<User, "owned", "shared">;
 WithOwnership<shared User, "owned"> satisfies Form<User, "owned", "shared">;
 WithPlace<shared User, "ambient"> satisfies Form<User, "managed", "ambient">;
-AsBorrowed<shared User, "a"> satisfies Form<User, "borrowed", "shared", "a">;
 ```
 
 Except for the intrinsic `Form`, all the rest is just regular TypeScript-shaped type algebra.
