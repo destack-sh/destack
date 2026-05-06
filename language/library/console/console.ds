@@ -1,4 +1,4 @@
-import type { PlatformError } from "../error/index.ds";
+import type { PlatformError } from "../platform/error/index.ds";
 
 /// Fail because platform console bindings are unavailable.
 function unavailable(): never {

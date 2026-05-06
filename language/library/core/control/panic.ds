@@ -1,0 +1,13 @@
+import { intrinsic } from "../primitive/decorator.ds";
+
+/// Stop execution with a panic diagnostic.
+@intrinsic("panic")
+export declare function panic(message: string): never;
+
+/// Stop execution immediately without cleanup.
+@intrinsic("abort")
+export declare function abort(): never;
+
+/// Mark code as unreachable.
+@intrinsic("unreachable")
+export declare function unreachable(): never;

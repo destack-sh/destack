@@ -1,6 +1,6 @@
 import * as platform from "library/platform/index.ds";
 import { TimerHandle } from "../resource/index.ds";
-import type { PlatformError } from "../error/index.ds";
+import type { PlatformError } from "../platform/error/index.ds";
 
 /// Schedule a one-shot timer.
 export function once(delayNs: uint64): Result<TimerHandle, PlatformError> {

@@ -7,5 +7,4 @@ export * from "./arithmetic.ds";
 export * from "./math.ds";
 export * from "./memory.ds";
 export * from "./atomic.ds";
-export * from "./control.ds";
 export * from "./vector.ds";

@@ -1,0 +1,17 @@
+/// Constructor for well known symbols.
+export declare interface SymbolConstructor {
+    /// The default iterator symbol.
+    readonly iterator: unique symbol;
+
+    /// The default async iterator symbol.
+    readonly asyncIterator: unique symbol;
+
+    /// The default dispose symbol.
+    readonly dispose: unique symbol;
+
+    /// The default async dispose symbol.
+    readonly asyncDispose: unique symbol;
+}
+
+/// Global symbol constructor.
+export declare const Symbol: SymbolConstructor;

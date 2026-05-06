@@ -41,6 +41,7 @@ export {
     type Buffer,
     type Copy,
     type Clone,
+    type Drop,
     type Dispose,
     type AsyncDispose,
     type Send,
@@ -54,27 +55,45 @@ export {
     type TryBranch,
     type TryContinue,
     type TryFailure,
-} from "./core/try.ds";
-export { type Error } from "./core/error.ds";
+} from "./core/control/try.ds";
+export { type Error } from "./core/control/error.ds";
 export {
-    type Promise,
-    type PromiseConstructor,
-    Promise,
+    type StackFrameId,
+    type SourceLocation,
+    type StackFrame,
+    type StackTrace,
+    type StackTraceOptions,
+    captureStackTrace,
+    formatStackTrace,
+} from "./core/control/stack.ds";
+export {
     Ok,
     Err,
     Result,
     AsyncResult,
-} from "./core/result.ds";
+} from "./core/control/result.ds";
+export {
+    type Promise,
+    type PromiseConstructor,
+    Promise,
+} from "./core/async/promise.ds";
 export {
     type SymbolConstructor,
     Symbol,
-    type IteratorYieldResult,
-    type IteratorReturnResult,
+    type IteratorYield,
+    type IteratorReturn,
     type IteratorResult,
     type Iterator,
     type Iterable,
     type IterableIterator,
-} from "./core/iterator.ds";
+} from "./core/iterator/index.ds";
+export {
+    type Generator,
+    type AsyncIterator,
+    type AsyncIterable,
+    type AsyncIterableIterator,
+    type AsyncGenerator,
+} from "./core/async/generator.ds";
 
 // simd
 export {
@@ -112,6 +131,7 @@ export {
     type CaptureKind,
     type CapturePolicy,
     type CaptureDirective,
+    type InlineHint,
     type TaggedCase,
     type TaggedNames,
     type PatchContext,

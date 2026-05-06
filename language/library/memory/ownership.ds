@@ -16,7 +16,7 @@ export newtype Form<
     O: Ownership = "managed",
     P: Place = "ambient",
     R = never,
-> = unknown;
+> = intrinsic;
 
 /// Managed heap storage or handle for `T` in the ambient space.
 export type Managed<T> = Form<BaseOf<T>, "managed", PlaceOr<T, "ambient">>;
@@ -32,6 +32,12 @@ export type Owned<T> = Form<BaseOf<T>, "owned", PlaceOr<T, "ambient">>;
 
 /// Rebase `T` into the shared space.
 export type Shared<T> = WithSpace<T, "shared">;
+
+/// Rebase `T` into the local space.
+export type Local<T> = WithSpace<T, "local">;
+
+/// Rebase `T` into the ambient space.
+export type Ambient<T> = WithPlace<T, "ambient">;
 
 /// Extract the unqualified base type of `T`.
 export type BaseOf<T> =

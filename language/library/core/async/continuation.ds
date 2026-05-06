@@ -1,0 +1,65 @@
+import { intrinsic } from "../primitive/decorator.ds";
+import { type Drop } from "../../memory/index.ds";
+
+/// Worker-local handle to a suspended execution frame.
+export newtype ContinuationHandle = uint64;
+
+/// Suspended continuation produced by `yield`.
+export struct ContinuationYield<T> {
+    kind: "yield" = "yield";
+    value: T;
+    continuation: ContinuationHandle;
+}
+
+/// Completed continuation.
+export struct ContinuationReturn<T> {
+    kind: "return" = "return";
+    value: T;
+}
+
+/// Failed continuation.
+export struct ContinuationThrow {
+    kind: "throw" = "throw";
+    error: unknown;
+}
+
+/// Result of resuming a continuation.
+export type ContinuationResult<TYield, TReturn> =
+    | ContinuationYield<TYield>
+    | ContinuationReturn<TReturn>
+    | ContinuationThrow;
+
+/// Suspend the current continuation and register its handle.
+@intrinsic("continuation.suspend")
+export declare function suspendContinuation<T>(
+    register: (handle: ContinuationHandle) => void,
+): T;
+
+/// Resume one suspended continuation.
+@intrinsic("continuation.resume")
+export declare function resumeContinuation<TInput, TYield, TReturn>(
+    handle: ContinuationHandle,
+    value: TInput,
+): ContinuationResult<TYield, TReturn>;
+
+/// Throw into one suspended continuation.
+@intrinsic("continuation.throw")
+export declare function throwContinuation<TYield, TReturn>(
+    handle: ContinuationHandle,
+    error: unknown,
+): ContinuationResult<TYield, TReturn>;
+
+/// Drop one suspended continuation.
+@intrinsic("continuation.drop")
+export declare function dropContinuation(handle: ContinuationHandle): void;
+
+/// Queue one Worker-local microtask.
+@intrinsic("microtask.queue")
+export declare function queueMicrotask(task: () => void): void;
+
+extension of ContinuationHandle implements Drop {
+    /// Drop the suspended execution frame.
+    drop(): void {
+        dropContinuation(this)
+    }
+}
