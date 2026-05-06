@@ -7,9 +7,6 @@ use crate::program::{
     pointer_class_from_reference, repr_type, word_layout_from_type,
 };
 
-const VTABLE_FIELD_INDEX: u32 = 0;
-const ITABLE_FIELD_INDEX: u32 = 1;
-
 /// Build one field projection from one compiled layout.
 pub(super) fn field_projection(
     tree: &mir::Tree,
@@ -32,26 +29,56 @@ pub(super) fn field_projection(
     ))
 }
 
-/// Build the vtable field for one virtual receiver.
-pub(super) fn virtual_table_field(
+/// Build the vtable projection for one virtual receiver.
+pub(super) fn vtable_projection(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     receiver_type: Option<mir::LocalNodeId<mir::Type>>,
 ) -> Option<Projection> {
     let receiver_type = receiver_type?;
+    let raw_layout = tree.type_layout(repr_type(tree, receiver_type))?;
+    let mir::LayoutKind::Object { vtable_offset } = &raw_layout.kind else {
+        return None;
+    };
 
-    field_projection(tree, layouts, receiver_type, VTABLE_FIELD_INDEX)
+    field_projection_at_offset(tree, layouts, receiver_type, *vtable_offset as usize)
 }
 
-/// Build the itab field for one interface receiver.
-pub(super) fn interface_table_field(
+/// Build the itab projection for one interface receiver.
+pub(super) fn itab_projection(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     receiver_type: Option<mir::LocalNodeId<mir::Type>>,
 ) -> Option<Projection> {
     let receiver_type = receiver_type?;
+    let raw_layout = tree.type_layout(repr_type(tree, receiver_type))?;
+    let mir::LayoutKind::Interface { table_offset, .. } = &raw_layout.kind else {
+        return None;
+    };
 
-    field_projection(tree, layouts, receiver_type, ITABLE_FIELD_INDEX)
+    field_projection_at_offset(tree, layouts, receiver_type, *table_offset as usize)
+}
+
+/// Build one field projection from a lowered byte offset.
+fn field_projection_at_offset(
+    tree: &mir::Tree,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    pointee_type: mir::LocalNodeId<mir::Type>,
+    byte_offset: usize,
+) -> Option<Projection> {
+    let layout = layouts.get(&pointee_type)?;
+    let field = (0..layout.field_count()?)
+        .filter_map(|index| layout.field(index as u32))
+        .find(|field| field.offset == byte_offset)?;
+
+    let word_layout = access_word_layout(tree, layouts, field.ty);
+
+    Some(Projection::fixed(
+        field.ty,
+        field.offset,
+        field.byte_len,
+        word_layout,
+    ))
 }
 
 /// Build one element projection from one compiled layout.

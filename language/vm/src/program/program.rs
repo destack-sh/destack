@@ -31,8 +31,6 @@ pub struct Program {
     pub(crate) statics: engine::StaticSpace,
     /// Callable heap object field layout.
     pub(crate) callable_object_layout: CallableObjectLayout,
-    /// Interface method targets by itab id and method index.
-    interface_method_by_id: Vec<Box<[Option<mir::LocalNodeId<mir::Function>>]>>,
 
     /// Logical frame layouts by dense layout id.
     pub(crate) frame_layouts: Vec<engine::FrameLayout>,
@@ -197,19 +195,6 @@ impl Program {
         self.statics.region(self.static_id(global)).is_some()
     }
 
-    /// Return the interface method target for one itab method index.
-    pub(crate) fn interface_method(
-        &self,
-        table: mir::ItabId,
-        method_index: u32,
-    ) -> Option<mir::LocalNodeId<mir::Function>> {
-        self.interface_method_by_id
-            .get(table.index())
-            .and_then(|methods| methods.get(method_index as usize))
-            .copied()
-            .flatten()
-    }
-
     /// Return one MIR type by display name.
     pub(crate) fn type_by_display_name(&self, name: &str) -> Option<mir::LocalNodeId<mir::Type>> {
         for (type_id, _) in self.tree.iter_nodes::<mir::Type>() {
@@ -303,10 +288,12 @@ fn initializer_bytes(
         mir::GlobalInitializer::Aggregate(elements) => {
             payload_initializer_bytes(tree, layouts, elements, ty)
         }
-        mir::GlobalInitializer::Scalar(_) => Err(Error::TypeMismatch {
-            expected: "payload initializer".to_string(),
-            actual: "scalar initializer".to_string(),
-        }),
+        mir::GlobalInitializer::Scalar(_) | mir::GlobalInitializer::FunctionAddress(_) => {
+            Err(Error::TypeMismatch {
+                expected: "payload initializer".to_string(),
+                actual: "scalar initializer".to_string(),
+            })
+        }
     }
 }
 
@@ -338,11 +325,40 @@ fn scalar_initializer_bytes(
 
             Ok(bytes)
         }
+        mir::GlobalInitializer::FunctionAddress(function) => {
+            let bytes = function_address_initializer_bytes(*function, byte_len)?;
+
+            Ok(bytes)
+        }
         mir::GlobalInitializer::Aggregate(_) => Err(Error::TypeMismatch {
             expected: "scalar initializer".to_string(),
             actual: format!("{ty:?}"),
         }),
     }
+}
+
+/// Encode one function address initializer as bytes.
+fn function_address_initializer_bytes(
+    function: mir::FunctionReference,
+    byte_len: usize,
+) -> Result<Vec<u8>> {
+    if byte_len > Word::BYTE_LEN {
+        return Err(Error::TypeMismatch {
+            expected: "address-sized initializer".to_string(),
+            actual: format!("{byte_len} byte initializer"),
+        });
+    }
+
+    let Some(function) = function.function() else {
+        return Err(Error::MissingRepresentation {
+            context: "function address initializer".to_string(),
+        });
+    };
+    let function = FunctionPointer::from_bits(function.id as usize);
+    let raw = function.bits() as u64;
+    let bytes = raw.to_le_bytes();
+
+    Ok(bytes[..byte_len].to_vec())
 }
 
 /// Encode one scalar initializer as bytes.
@@ -537,27 +553,6 @@ fn initializer_ranges(
     Ok(ranges)
 }
 
-/// Build interface dispatch targets by itab id.
-fn interface_methods(tree: &mir::Tree) -> Vec<Box<[Option<mir::LocalNodeId<mir::Function>>]>> {
-    let mut methods = Vec::with_capacity(tree.metadata.dispatch.itabs.len());
-
-    for (_, table) in tree.metadata.dispatch.iter_itabs() {
-        let entries = table
-            .entries
-            .iter()
-            .map(|entry| match entry {
-                mir::ItabEntry::Method { target_method, .. } => Some(*target_method),
-                mir::ItabEntry::TypeDescriptor | mir::ItabEntry::FieldOffset { .. } => None,
-            })
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
-
-        methods.push(entries);
-    }
-
-    methods
-}
-
 /// Build one program from one MIR tree and immutable string pool.
 struct ProgramBuilder {
     heap_options: heap::HeapOptions,
@@ -594,7 +589,6 @@ impl ProgramBuilder {
         let layout_id_by_type = self.build_layout_id_map(&type_layouts)?;
         let layouts = self.build_layout_table(&type_layouts, &layout_id_by_type)?;
         let callable_object_layout = callable_object_layout(self.tree.pointer_bytes() as usize);
-        let interface_method_by_id = interface_methods(&self.tree);
         let layout_index = LayoutIndex::new(layouts, type_layouts, layout_id_by_type);
         let statics = self.build_statics(layout_index.type_layouts())?;
         let mut side_table = SideTableBuilder::default();
@@ -614,7 +608,6 @@ impl ProgramBuilder {
             function_id_by_name,
             statics,
             callable_object_layout,
-            interface_method_by_id,
             layout_index,
             frame_layouts: self.frame_layouts,
             frame_states: self.frame_states,
@@ -641,29 +634,6 @@ impl ProgramBuilder {
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ) -> Result<engine::StaticSpace> {
         let mut data = engine::StaticSpace::allocator();
-
-        // dispatch tables are immutable program statics
-        for (_table_id, table) in self.tree.metadata.dispatch.iter_vtables() {
-            let mir::VtableStorage::Global(global) = table.storage;
-            let words = table
-                .entries
-                .iter()
-                .map(|entry| match entry {
-                    mir::VtableEntry::Method { function }
-                    | mir::VtableEntry::Destructor {
-                        function: Some(function),
-                    } => Word::function_pointer(FunctionPointer::from_bits(function.id as usize)),
-                    mir::VtableEntry::TypeDescriptor
-                    | mir::VtableEntry::Destructor { function: None } => Word::VOID,
-                })
-                .collect::<Vec<_>>();
-            let Some(ty) = self.tree.get(global).ty.ty() else {
-                return Err(Error::MissingRepresentation {
-                    context: "dispatch table global type".to_string(),
-                });
-            };
-            self.define_static_words(&mut data, global, ty, &words)?;
-        }
 
         // immutable globals without heap edges can share program storage
         for (global_id, global) in self.tree.iter_nodes::<mir::Global>() {
@@ -721,22 +691,6 @@ impl ProgramBuilder {
         }
 
         Ok(())
-    }
-
-    /// Define one word region in program static memory.
-    fn define_static_words(
-        &self,
-        data: &mut engine::StaticAllocator,
-        global: mir::LocalNodeId<mir::Global>,
-        ty: mir::LocalNodeId<mir::Type>,
-        words: &[Word],
-    ) -> Result<()> {
-        let mut bytes = Vec::with_capacity(words.len() * Word::BYTE_LEN);
-        for word in words {
-            bytes.extend_from_slice(&word.to_byte_array());
-        }
-
-        self.define_static_bytes(data, global, ty, Word::BYTE_LEN, false, &bytes)
     }
 
     /// Build the layout id map for all compiled MIR types.

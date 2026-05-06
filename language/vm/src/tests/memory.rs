@@ -1,6 +1,6 @@
 use crate::diagnostic::Error;
 use crate::tests::{
-    assert_runtime_error_matches, create_isolate, create_isolate_with_storage, run_mir,
+    assert_runtime_error_matches, create_isolate, create_isolate_with_data_layout, run_mir,
     run_mir_expect, run_mir_ok, run_mir_with_frame_ok,
 };
 use crate::{SharedHeap, Value, Word};
@@ -9,7 +9,7 @@ use destack_heap::{
     SharedHeapReference, SharedRawBudget, SharedRawLimits,
 };
 use destack_mir::parse::{ParseOptions, Parser};
-use destack_mir::{ReferenceMap, Storage};
+use destack_mir::{DataLayout, ReferenceMap};
 use destack_source::FileId;
 
 /// Decode one native-width heap reference from materialized bytes.
@@ -775,11 +775,9 @@ b0:
     v0: ref<Packed, managed, readonly> = new Packed
     return v0
 }"#;
-    let storage = Storage {
-        native_pointer_bytes: 8,
-    };
+    let data_layout = DataLayout { pointer_bytes: 8 };
 
-    let mut isolate = create_isolate_with_storage(mir, storage);
+    let mut isolate = create_isolate_with_data_layout(mir, data_layout);
     let output = isolate
         .run_function_by_name("allocPacked", &[])
         .expect("execution failed");
@@ -806,11 +804,9 @@ b0:
     v1: slice<ref<int32, managed, readonly>> = new.slice ref<int32, managed, readonly>, v0
     return v1
 }"#;
-    let storage = Storage {
-        native_pointer_bytes: 8,
-    };
+    let data_layout = DataLayout { pointer_bytes: 8 };
 
-    let mut isolate = create_isolate_with_storage(mir, storage);
+    let mut isolate = create_isolate_with_data_layout(mir, data_layout);
     let output = isolate
         .run_function_by_name("allocArray", &[])
         .expect("execution failed");
@@ -997,10 +993,9 @@ b0:
     v5: int32 = load v4
     return v5
 }"#;
-    let storage = Storage {
-        native_pointer_bytes: 4,
-    };
-    let error = match std::panic::catch_unwind(|| create_isolate_with_storage(mir, storage)) {
+    let data_layout = DataLayout { pointer_bytes: 4 };
+    let error = match std::panic::catch_unwind(|| create_isolate_with_data_layout(mir, data_layout))
+    {
         Ok(_) => panic!("narrow heap reference storage should be rejected loudly"),
         Err(error) => error,
     };

@@ -11,7 +11,7 @@ use crate::{Error, Result};
 use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
 use super::pool::Pool;
-use super::projection::{interface_table_field, virtual_table_field};
+use super::projection::{itab_projection, vtable_projection};
 use super::value::{
     heap_pointee_type_for_value, heap_pointee_type_for_value_layout, pointer_class_for_value,
 };
@@ -32,16 +32,16 @@ impl<'a> BlockLowerer<'a> {
             }
             mir::Terminator::InvokeVirtual {
                 receiver,
-                slot_id,
+                slot,
                 call,
                 ..
-            } => self.lower_virtual_invoke(*receiver, *slot_id, call, pool)?,
+            } => self.lower_virtual_invoke(*receiver, *slot, call, pool)?,
             mir::Terminator::InvokeInterface {
                 receiver,
-                slot_id,
+                slot,
                 call,
                 ..
-            } => self.lower_interface_invoke(*receiver, *slot_id, call, pool)?,
+            } => self.lower_interface_invoke(*receiver, *slot, call, pool)?,
             mir::Terminator::TailCall { function, call, .. } => {
                 self.lower_tail_call(*function, call, pool)?
             }
@@ -50,16 +50,16 @@ impl<'a> BlockLowerer<'a> {
             }
             mir::Terminator::TailCallVirtual {
                 receiver,
-                slot_id,
+                slot,
                 call,
                 ..
-            } => self.lower_virtual_tail_call(*receiver, *slot_id, call, pool)?,
+            } => self.lower_virtual_tail_call(*receiver, *slot, call, pool)?,
             mir::Terminator::TailCallInterface {
                 receiver,
-                slot_id,
+                slot,
                 call,
                 ..
-            } => self.lower_interface_tail_call(*receiver, *slot_id, call, pool)?,
+            } => self.lower_interface_tail_call(*receiver, *slot, call, pool)?,
             _ => return Err(Error::InvalidInstruction),
         })
     }
@@ -114,7 +114,7 @@ impl<'a> BlockLowerer<'a> {
         &self,
         destination: Option<mir::ValueReference>,
         receiver: mir::ValueReference,
-        method: mir::VtableSlotId,
+        method: mir::DispatchSlot,
         call: &mir::Call<mir::ArgumentSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
@@ -131,7 +131,7 @@ impl<'a> BlockLowerer<'a> {
 
         // compile the receiver table access
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
-        let table_field = virtual_table_field(
+        let table_field = vtable_projection(
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
@@ -148,7 +148,7 @@ impl<'a> BlockLowerer<'a> {
                 dest: self.optional_value(destination, "virtual call destination")?,
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
-                method_index: method.0,
+                slot: method.0,
                 arguments,
             },
         ))
@@ -159,7 +159,7 @@ impl<'a> BlockLowerer<'a> {
         &self,
         destination: Option<mir::ValueReference>,
         receiver: mir::ValueReference,
-        method: mir::InterfaceSlotId,
+        method: mir::DispatchSlot,
         call: &mir::Call<mir::ArgumentSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
@@ -176,7 +176,7 @@ impl<'a> BlockLowerer<'a> {
 
         // compile the receiver table access
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
-        let table_field = interface_table_field(
+        let table_field = itab_projection(
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
@@ -193,7 +193,7 @@ impl<'a> BlockLowerer<'a> {
                 dest: self.optional_value(destination, "interface call destination")?,
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
-                method_index: method.0,
+                slot: method.0,
                 arguments,
             },
         ))
@@ -430,7 +430,7 @@ impl<'a> BlockLowerer<'a> {
     fn lower_virtual_invoke(
         &self,
         receiver: mir::ValueReference,
-        method: mir::VtableSlotId,
+        method: mir::DispatchSlot,
         call: &mir::Call<Vec<mir::ValueReference>>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
@@ -443,7 +443,7 @@ impl<'a> BlockLowerer<'a> {
             pool.argument_reference_range(call.arguments.as_slice(), "invoke virtual argument")?;
         let (normal_state, unwind_state) = self.exceptional_call_states()?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
-        let table_field = virtual_table_field(
+        let table_field = vtable_projection(
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
@@ -458,7 +458,7 @@ impl<'a> BlockLowerer<'a> {
             CallVirtualBranch {
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
-                method_index: method.0,
+                slot: method.0,
                 arguments,
                 normal_state,
                 unwind_state,
@@ -470,7 +470,7 @@ impl<'a> BlockLowerer<'a> {
     fn lower_interface_invoke(
         &self,
         receiver: mir::ValueReference,
-        method: mir::InterfaceSlotId,
+        method: mir::DispatchSlot,
         call: &mir::Call<Vec<mir::ValueReference>>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
@@ -483,7 +483,7 @@ impl<'a> BlockLowerer<'a> {
             pool.argument_reference_range(call.arguments.as_slice(), "invoke interface argument")?;
         let (normal_state, unwind_state) = self.exceptional_call_states()?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
-        let table_field = interface_table_field(
+        let table_field = itab_projection(
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
@@ -498,7 +498,7 @@ impl<'a> BlockLowerer<'a> {
             CallInterfaceBranch {
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
-                method_index: method.0,
+                slot: method.0,
                 arguments,
                 normal_state,
                 unwind_state,
@@ -584,7 +584,7 @@ impl<'a> BlockLowerer<'a> {
     fn lower_virtual_tail_call(
         &self,
         receiver: mir::ValueReference,
-        method: mir::VtableSlotId,
+        method: mir::DispatchSlot,
         call: &mir::Call<Vec<mir::ValueReference>>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
@@ -596,7 +596,7 @@ impl<'a> BlockLowerer<'a> {
         let arguments =
             pool.argument_reference_range(call.arguments.as_slice(), "tail virtual argument")?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
-        let table_field = virtual_table_field(
+        let table_field = vtable_projection(
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value_layout(self.value_layout_map(), receiver),
@@ -611,7 +611,7 @@ impl<'a> BlockLowerer<'a> {
             TailCallVirtual {
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
-                method_index: method.0,
+                slot: method.0,
                 arguments,
             },
         ))
@@ -621,7 +621,7 @@ impl<'a> BlockLowerer<'a> {
     fn lower_interface_tail_call(
         &self,
         receiver: mir::ValueReference,
-        method: mir::InterfaceSlotId,
+        method: mir::DispatchSlot,
         call: &mir::Call<Vec<mir::ValueReference>>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
@@ -633,7 +633,7 @@ impl<'a> BlockLowerer<'a> {
         let arguments =
             pool.argument_reference_range(call.arguments.as_slice(), "tail interface argument")?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
-        let table_field = interface_table_field(
+        let table_field = itab_projection(
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value_layout(self.value_layout_map(), receiver),
@@ -648,7 +648,7 @@ impl<'a> BlockLowerer<'a> {
             TailCallInterface {
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
-                method_index: method.0,
+                slot: method.0,
                 arguments,
             },
         ))

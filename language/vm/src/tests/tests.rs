@@ -7,7 +7,7 @@ use destack_heap::{
 };
 
 use crate::SharedHeap;
-use destack_mir::Storage;
+use destack_mir::DataLayout;
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
 
@@ -251,18 +251,21 @@ pub(crate) fn create_isolate_with_id(mir_text: &str, isolate_id: IsolateId) -> T
     TestIsolate::with_id(mir_text, isolate_id)
 }
 
-/// Parse MIR text and create one test isolate with explicit storage metadata.
-pub(crate) fn create_isolate_with_storage(mir_text: &str, storage: Storage) -> TestIsolate {
+/// Parse MIR text and create one test isolate with explicit data layout.
+pub(crate) fn create_isolate_with_data_layout(
+    mir_text: &str,
+    data_layout: DataLayout,
+) -> TestIsolate {
     let (tree, strings) = Parser::parse(
         FileId::new(0),
         mir_text,
         ParseOptions {
-            pointer_bytes: storage.native_pointer_bytes,
+            pointer_bytes: data_layout.pointer_bytes,
         },
     )
     .validate()
     .expect("failed to parse MIR");
-    assert_eq!(tree.metadata.layout.storage, storage);
+    assert_eq!(tree.metadata.data_layout, data_layout);
 
     let mut isolate =
         Isolate::build_with_options(IsolateId::new(1), tree, strings, IsolateOptions::test())

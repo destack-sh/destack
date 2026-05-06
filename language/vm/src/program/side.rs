@@ -369,8 +369,8 @@ pub(crate) struct CallVirtual {
     pub(crate) receiver_offset: u32,
     /// The dispatch table field projection.
     pub(crate) table_field: ProjectionId,
-    /// The method index inside the dispatch table.
-    pub(crate) method_index: u32,
+    /// The dispatch table slot.
+    pub(crate) slot: u32,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
 }
@@ -382,8 +382,8 @@ pub(crate) struct CallVirtualBranch {
     pub(crate) receiver_offset: u32,
     /// The dispatch table field projection.
     pub(crate) table_field: ProjectionId,
-    /// The method index inside the dispatch table.
-    pub(crate) method_index: u32,
+    /// The dispatch table slot.
+    pub(crate) slot: u32,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
     /// The normal continuation frame state.
@@ -401,8 +401,8 @@ pub(crate) struct CallInterface {
     pub(crate) receiver_offset: u32,
     /// The interface table field projection.
     pub(crate) table_field: ProjectionId,
-    /// The method index inside the interface table.
-    pub(crate) method_index: u32,
+    /// The interface table slot.
+    pub(crate) slot: u32,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
 }
@@ -414,8 +414,8 @@ pub(crate) struct CallInterfaceBranch {
     pub(crate) receiver_offset: u32,
     /// The interface table field projection.
     pub(crate) table_field: ProjectionId,
-    /// The method index inside the interface table.
-    pub(crate) method_index: u32,
+    /// The interface table slot.
+    pub(crate) slot: u32,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
     /// The normal continuation frame state.
@@ -1067,8 +1067,8 @@ pub(crate) struct TailCallVirtual {
     pub(crate) receiver_offset: u32,
     /// The dispatch table field projection.
     pub(crate) table_field: ProjectionId,
-    /// The method index inside the dispatch table.
-    pub(crate) method_index: u32,
+    /// The dispatch table slot.
+    pub(crate) slot: u32,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
 }
@@ -1080,8 +1080,8 @@ pub(crate) struct TailCallInterface {
     pub(crate) receiver_offset: u32,
     /// The interface table field projection.
     pub(crate) table_field: ProjectionId,
-    /// The method index inside the interface table.
-    pub(crate) method_index: u32,
+    /// The interface table slot.
+    pub(crate) slot: u32,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
 }
