@@ -772,7 +772,7 @@ b3:
             ordering: None,
             scope: None,
             memory_scope: None,
-            semantics: None,
+            flags: None,
             address_space: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),

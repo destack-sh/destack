@@ -409,7 +409,7 @@ impl TestProgram {
             ordering,
             scope: None,
             memory_scope: None,
-            semantics: None,
+            flags: None,
             address_space: None,
             alias_scopes,
             noalias_scopes,

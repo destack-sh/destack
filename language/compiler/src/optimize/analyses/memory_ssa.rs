@@ -1229,14 +1229,14 @@ impl<'a> MemoryAccessCollector<'a> {
             effect.is_volatile = true;
         }
 
-        // semantics and scopes imply atomic behavior, treat as volatile
-        if access.semantics.is_some() || access.scope.is_some() || access.memory_scope.is_some() {
+        // flags and scopes imply atomic behavior
+        if access.flags.is_some() || access.scope.is_some() || access.memory_scope.is_some() {
             effect.is_volatile = true;
         }
 
-        // make-available/visible semantics act as barriers for optimization
-        if let Some(semantics) = access.semantics
-            && (semantics.is_make_available || semantics.is_make_visible)
+        // availability and visibility flags block reordering
+        if let Some(flags) = access.flags
+            && (flags.makes_available || flags.makes_visible)
         {
             effect.is_barrier = true;
         }
@@ -2441,9 +2441,9 @@ b0:
         assert_eq!(clobber, store_access);
     }
 
-    /// Memory semantics metadata marks effects as volatile and barrier when needed.
+    /// Memory flags metadata marks effects as volatile and barrier when needed.
     #[test]
-    fn test_memory_ssa_semantics_marks_effects() {
+    fn test_memory_ssa_flags_mark_effects() {
         let mut test = TestProgram::new(
             r#"
 function test(): int32 {
@@ -2458,8 +2458,7 @@ b0:
         let instructions = test.entry_instructions(function_id);
         let load_inst = instructions[1];
 
-        let semantics =
-            mir::MemorySemantics::with_flags(mir::MemorySpaceSet::ANY, true, true, false);
+        let flags = mir::MemoryFlags::with_flags(mir::MemorySpaceSet::ANY, true, true, false);
         let access = mir::MemoryAccessMetadata {
             kind: mir::MemoryAccessKind::Read,
             target: mir::MemoryAccessTarget::Pointer(mir::Value::new(0)),
@@ -2470,7 +2469,7 @@ b0:
             ordering: None,
             scope: Some(mir::AtomicScope::Device),
             memory_scope: Some(mir::MemoryScope::Device),
-            semantics: Some(semantics),
+            flags: Some(flags),
             address_space: Some(mir::AddressSpace::Stack),
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
@@ -2917,7 +2916,7 @@ b0(v0: ref<int32, raw>):
             ordering: None,
             scope: None,
             memory_scope: None,
-            semantics: None,
+            flags: None,
             address_space: Some(mir::AddressSpace::Stack),
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
@@ -2933,7 +2932,7 @@ b0(v0: ref<int32, raw>):
             ordering: None,
             scope: None,
             memory_scope: None,
-            semantics: None,
+            flags: None,
             address_space: Some(mir::AddressSpace::Static),
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
@@ -3512,7 +3511,7 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
             ordering: None,
             scope: None,
             memory_scope: None,
-            semantics: None,
+            flags: None,
             address_space: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
@@ -3528,7 +3527,7 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
             ordering: None,
             scope: None,
             memory_scope: None,
-            semantics: None,
+            flags: None,
             address_space: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),

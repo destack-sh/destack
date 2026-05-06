@@ -36,7 +36,7 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         | Instruction::Select { .. }
         | Instruction::Assume { .. } => true,
 
-        // pure aggregate operations (value semantics)
+        // pure aggregate operations
         Instruction::Struct { .. }
         | Instruction::Tuple { .. }
         | Instruction::Array { .. }
@@ -560,7 +560,7 @@ pub fn instruction_substitute_uses(
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicLoad {
             destination: *destination,
             pointer: substitute(pointer),
@@ -568,7 +568,7 @@ pub fn instruction_substitute_uses(
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::AtomicStore {
             pointer,
@@ -576,14 +576,14 @@ pub fn instruction_substitute_uses(
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicStore {
             pointer: substitute(pointer),
             value: substitute(value),
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::AtomicCompareExchange {
             destination,
@@ -594,7 +594,7 @@ pub fn instruction_substitute_uses(
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicCompareExchange {
             destination: *destination,
             pointer: substitute(pointer),
@@ -604,7 +604,7 @@ pub fn instruction_substitute_uses(
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::AtomicRmw {
             destination,
@@ -614,7 +614,7 @@ pub fn instruction_substitute_uses(
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicRmw {
             destination: *destination,
             operator: *operator,
@@ -623,18 +623,18 @@ pub fn instruction_substitute_uses(
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::AtomicFence {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicFence {
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::BarrierWrite {
             object,
@@ -1038,14 +1038,14 @@ pub fn instruction_substitute_uses(
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
         } => mir::Instruction::CallVirtual {
             destination: *destination,
             receiver: substitute(receiver),
             call: call.clone(),
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
         },
         mir::Instruction::CallInterface {
@@ -1053,14 +1053,14 @@ pub fn instruction_substitute_uses(
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
         } => mir::Instruction::CallInterface {
             destination: *destination,
             receiver: substitute(receiver),
             call: call.clone(),
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
         },
         mir::Instruction::CallIndirect {
@@ -1499,14 +1499,14 @@ pub fn instruction_substitute_uses_in_tree(
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
         } => mir::Instruction::CallVirtual {
             destination: *destination,
             receiver: substitute(*receiver),
             call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
         },
         mir::Instruction::CallInterface {
@@ -1514,14 +1514,14 @@ pub fn instruction_substitute_uses_in_tree(
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
         } => mir::Instruction::CallInterface {
             destination: *destination,
             receiver: substitute(*receiver),
             call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
         },
         mir::Instruction::CallIndirect {
@@ -1549,7 +1549,7 @@ pub fn instruction_substitute_uses_in_tree(
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicLoad {
             destination: *destination,
             pointer: substitute(*pointer),
@@ -1557,7 +1557,7 @@ pub fn instruction_substitute_uses_in_tree(
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::AtomicStore {
             pointer,
@@ -1565,14 +1565,14 @@ pub fn instruction_substitute_uses_in_tree(
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicStore {
             pointer: substitute(*pointer),
             value: substitute(*value),
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::AtomicCompareExchange {
             destination,
@@ -1583,7 +1583,7 @@ pub fn instruction_substitute_uses_in_tree(
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicCompareExchange {
             destination: *destination,
             pointer: substitute(*pointer),
@@ -1593,7 +1593,7 @@ pub fn instruction_substitute_uses_in_tree(
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::AtomicRmw {
             destination,
@@ -1603,7 +1603,7 @@ pub fn instruction_substitute_uses_in_tree(
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicRmw {
             destination: *destination,
             operator: *operator,
@@ -1612,18 +1612,18 @@ pub fn instruction_substitute_uses_in_tree(
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::AtomicFence {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicFence {
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::BarrierWrite {
             object,
@@ -2601,14 +2601,14 @@ pub fn instruction_map(
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
         } => mir::Instruction::CallVirtual {
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
         },
         mir::Instruction::CallInterface {
@@ -2616,14 +2616,14 @@ pub fn instruction_map(
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
         } => mir::Instruction::CallInterface {
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
         },
         mir::Instruction::CallIndirect {
@@ -2692,7 +2692,7 @@ pub fn instruction_map(
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicLoad {
             destination: remap(*destination),
             pointer: remap(*pointer),
@@ -2700,7 +2700,7 @@ pub fn instruction_map(
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::AtomicStore {
             pointer,
@@ -2708,14 +2708,14 @@ pub fn instruction_map(
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicStore {
             pointer: remap(*pointer),
             value: remap(*value),
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::AtomicCompareExchange {
             destination,
@@ -2726,7 +2726,7 @@ pub fn instruction_map(
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicCompareExchange {
             destination: remap(*destination),
             pointer: remap(*pointer),
@@ -2736,7 +2736,7 @@ pub fn instruction_map(
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::AtomicRmw {
             destination,
@@ -2746,7 +2746,7 @@ pub fn instruction_map(
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicRmw {
             destination: remap(*destination),
             operator: *operator,
@@ -2755,18 +2755,18 @@ pub fn instruction_map(
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::AtomicFence {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicFence {
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::BarrierWrite {
             object,
@@ -3403,14 +3403,14 @@ pub fn instruction_map_with_locals(
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
         } => mir::Instruction::CallVirtual {
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
         },
         mir::Instruction::CallInterface {
@@ -3418,14 +3418,14 @@ pub fn instruction_map_with_locals(
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
         } => mir::Instruction::CallInterface {
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
         },
         mir::Instruction::CallIndirect {
@@ -3453,7 +3453,7 @@ pub fn instruction_map_with_locals(
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicLoad {
             destination: remap(*destination),
             pointer: remap(*pointer),
@@ -3461,7 +3461,7 @@ pub fn instruction_map_with_locals(
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::AtomicStore {
             pointer,
@@ -3469,14 +3469,14 @@ pub fn instruction_map_with_locals(
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicStore {
             pointer: remap(*pointer),
             value: remap(*value),
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::AtomicCompareExchange {
             destination,
@@ -3487,7 +3487,7 @@ pub fn instruction_map_with_locals(
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicCompareExchange {
             destination: remap(*destination),
             pointer: remap(*pointer),
@@ -3497,7 +3497,7 @@ pub fn instruction_map_with_locals(
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::AtomicRmw {
             destination,
@@ -3507,7 +3507,7 @@ pub fn instruction_map_with_locals(
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicRmw {
             destination: remap(*destination),
             operator: *operator,
@@ -3516,18 +3516,18 @@ pub fn instruction_map_with_locals(
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::AtomicFence {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         } => mir::Instruction::AtomicFence {
             ordering: *ordering,
             scope: *scope,
             memory_scope: *memory_scope,
-            semantics: *semantics,
+            flags: *flags,
         },
         mir::Instruction::BarrierWrite {
             object,

@@ -787,7 +787,7 @@ fn memory_effect_for_access(access: &mir::MemoryAccessMetadata) -> mir::MemoryEf
     }
     if access.is_volatile
         || access.ordering.is_some()
-        || access.semantics.is_some()
+        || access.flags.is_some()
         || access.scope.is_some()
         || access.memory_scope.is_some()
         || access.kind == mir::MemoryAccessKind::Fence

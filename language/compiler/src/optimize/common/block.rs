@@ -1625,7 +1625,7 @@ pub fn terminator_substitute_uses(
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
             normal_target,
             unwind_target,
@@ -1636,7 +1636,7 @@ pub fn terminator_substitute_uses(
                 ..call.clone()
             },
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
             normal_target: mir::BlockTarget {
                 block: normal_target.block,
@@ -1661,7 +1661,7 @@ pub fn terminator_substitute_uses(
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
             normal_target,
             unwind_target,
@@ -1672,7 +1672,7 @@ pub fn terminator_substitute_uses(
                 ..call.clone()
             },
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
             normal_target: mir::BlockTarget {
                 block: normal_target.block,
@@ -1712,7 +1712,7 @@ pub fn terminator_substitute_uses(
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
         } => mir::Terminator::TailCallVirtual {
             receiver: substitute(*receiver),
@@ -1721,14 +1721,14 @@ pub fn terminator_substitute_uses(
                 ..call.clone()
             },
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
         },
         mir::Terminator::TailCallInterface {
             receiver,
             call,
             declaring_type,
-            slot_id,
+            slot,
             declared_target,
         } => mir::Terminator::TailCallInterface {
             receiver: substitute(*receiver),
@@ -1737,7 +1737,7 @@ pub fn terminator_substitute_uses(
                 ..call.clone()
             },
             declaring_type: *declaring_type,
-            slot_id: *slot_id,
+            slot: *slot,
             declared_target: *declared_target,
         },
         mir::Terminator::TailCallIndirect { callee, call } => mir::Terminator::TailCallIndirect {

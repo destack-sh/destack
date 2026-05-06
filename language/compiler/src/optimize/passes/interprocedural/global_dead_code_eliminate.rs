@@ -117,7 +117,7 @@ fn collect_used_globals(tree: &mir::Tree) -> HashSet<mir::LocalNodeId<mir::Globa
     }
 
     // record globals referenced by debug locations
-    for ranges in tree.metadata.debug.binding_location_ranges.values() {
+    for ranges in tree.metadata.debug.binding_ranges.values() {
         for range in ranges {
             collect_debug_location_globals(&range.location, &mut used);
         }
@@ -237,11 +237,7 @@ b0:
             .expect("missing debug global");
         let global_name = test.tree.get(global_id).name;
         let global_type = test.tree.get(global_id).ty;
-        let scope_id =
-            test.tree
-                .metadata
-                .debug
-                .create_scope(mir::DebugScopeKind::Lexical, None, None, None);
+        let scope_id = test.tree.metadata.debug.create_scope(None, None, None);
         let binding_id = test.tree.metadata.debug.create_binding(
             global_name,
             global_type.ty().expect("global type should be concrete"),
@@ -249,12 +245,11 @@ b0:
             None,
             mir::DebugBindingKind::Local,
         );
-        test.tree.metadata.debug.binding_location_ranges.insert(
+        test.tree.metadata.debug.binding_ranges.insert(
             binding_id,
-            vec![mir::DebugBindingLocationRange {
-                binding: binding_id,
+            vec![mir::DebugBindingRange {
                 location: mir::DebugValueLocation::Global(global_id),
-                start: mir::DebugRangeStart::function_entry(),
+                start: None,
                 end: None,
             }],
         );

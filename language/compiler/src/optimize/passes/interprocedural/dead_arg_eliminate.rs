@@ -417,7 +417,7 @@ fn update_debug_for_removed_parameters(
 
         // read the current binding location ranges
         let binding_id = mir::DebugBindingId::new(index as u32);
-        let Some(ranges) = tree.metadata.debug.binding_location_ranges.get(&binding_id) else {
+        let Some(ranges) = tree.metadata.debug.binding_ranges.get(&binding_id) else {
             continue;
         };
 
@@ -433,14 +433,9 @@ fn update_debug_for_removed_parameters(
 
     // rewrite removed parameter locations to undefined
     for binding_id in to_update {
-        if let Some(ranges) = tree
-            .metadata
-            .debug
-            .binding_location_ranges
-            .get_mut(&binding_id)
-        {
+        if let Some(ranges) = tree.metadata.debug.binding_ranges.get_mut(&binding_id) {
             for range in ranges {
-                range.location = mir::DebugValueLocation::State(mir::DebugValueState::Undefined);
+                range.location = mir::DebugValueLocation::Undefined;
             }
         }
     }
@@ -450,7 +445,7 @@ fn update_debug_for_removed_parameters(
 fn scope_in_function(
     scope: mir::DebugScopeId,
     function_scope: mir::DebugScopeId,
-    debug_info: &mir::Debug,
+    debug_info: &mir::DebugMetadata,
 ) -> bool {
     // walk the scope chain to find the function scope
     let mut current = Some(scope);
@@ -837,11 +832,7 @@ b0(v0: int32):
             .ty()
             .expect("parameter type should be concrete");
         let callee_name = callee.name;
-        let scope_id =
-            test.tree
-                .metadata
-                .debug
-                .create_scope(mir::DebugScopeKind::Function, None, None, None);
+        let scope_id = test.tree.metadata.debug.create_scope(None, None, None);
         test.tree
             .metadata
             .debug
@@ -854,12 +845,11 @@ b0(v0: int32):
             None,
             mir::DebugBindingKind::Parameter,
         );
-        test.tree.metadata.debug.binding_location_ranges.insert(
+        test.tree.metadata.debug.binding_ranges.insert(
             binding_id,
-            vec![mir::DebugBindingLocationRange {
-                binding: binding_id,
+            vec![mir::DebugBindingRange {
                 location: mir::DebugValueLocation::Value(param_value),
-                start: mir::DebugRangeStart::function_entry(),
+                start: None,
                 end: None,
             }],
         );
@@ -870,16 +860,15 @@ b0(v0: int32):
             .tree
             .metadata
             .debug
-            .binding_location_ranges
+            .binding_ranges
             .get(&binding_id)
             .expect("missing debug binding location");
 
         assert_eq!(
             location,
-            &vec![mir::DebugBindingLocationRange {
-                binding: binding_id,
-                location: mir::DebugValueLocation::State(mir::DebugValueState::Undefined),
-                start: mir::DebugRangeStart::function_entry(),
+            &vec![mir::DebugBindingRange {
+                location: mir::DebugValueLocation::Undefined,
+                start: None,
                 end: None,
             }]
         );
