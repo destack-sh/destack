@@ -1,12 +1,10 @@
 # Drop
 
-`drop(value)` explicitly ends ownership of an owned value.
-
-## owned values
+## explicit
 
 ### drop consumes owned values
 
-Dropping an owned value ends its ownership.
+`drop(value)` ends ownership at that point.
 
 ```ds
 class File {
@@ -17,9 +15,9 @@ let file: ^File = new File();
 drop(file);
 ```
 
-### dropped values cannot be used again
+### dropped values cannot be used
 
-Values are not usable after explicit drop.
+A dropped value cannot be used again.
 
 ```ds
 class File {
@@ -35,19 +33,38 @@ file.handle;
 
 ## borrows
 
-### borrowed values cannot be dropped while the borrow is live
+### drop before last borrow use is rejected
 
-Dropping a value while a live borrow depends on it is invalid.
+Owned storage cannot drop while a live borrow depends on it.
 
 ```ds
-class File {
-    handle: int32 = 0;
+struct Point {
+    x: int32;
 }
 
-let file: ^File = new File();
-let handle = &file.handle;
-drop(file);
-handle satisfies &int32;
+let point = ^Point { x: 1 };
+let x = &point.x;
+
+drop(point);
+
+x satisfies &int32;
 ```
 
 - contains: borrowed
+
+### drop after last borrow use is allowed
+
+Owned storage can drop after dependent borrows are no longer live.
+
+```ds
+struct Point {
+    x: int32;
+}
+
+let point = ^Point { x: 1 };
+let x = &point.x;
+
+x satisfies &int32;
+
+drop(point);
+```

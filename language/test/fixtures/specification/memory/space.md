@@ -1,12 +1,10 @@
 # Space
 
-Space fixtures cover local and shared placement.
+## borrows
 
-## references
+### shared borrow reads shared storage
 
-### shared references borrow from shared space
-
-> `shared &T` borrows from shared storage.
+`shared &T` is borrowed access to shared storage.
 
 ```ds
 struct Point {
@@ -19,9 +17,25 @@ function kernel(data: shared &Point): int32 {
 }
 ```
 
-### shared types place values in shared space
+## values
 
-> `shared T` rebases `T` into shared space.
+### local is an algebra form
+
+`Local<T>` explicitly pins a type to Worker-local space.
+
+```ds
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+let point: Local<Point> = Point { x: 1, y: 2 };
+point satisfies WithSpace<Point, "local">;
+```
+
+### shared places values in shared space
+
+`shared T` rebases `T` into shared space.
 
 ```ds
 struct Point {
@@ -33,9 +47,9 @@ let point: shared Point = Point { x: 1, y: 2 };
 point satisfies shared Point;
 ```
 
-### shared aggregate fields inherit shared placement
+### ambient fields inherit shared placement
 
-> Ambient fields follow the placement of their containing aggregate.
+Ambient fields follow the placement of their containing aggregate.
 
 ```ds
 struct Header {
@@ -56,9 +70,9 @@ request.header satisfies shared Header;
 request.body satisfies shared Payload;
 ```
 
-### shared values cannot contain explicit local fields
+### shared values reject explicit local fields
 
-> Shared values cannot point directly into a Worker-local heap.
+Shared values cannot point directly into a Worker-local heap.
 
 ```ds
 struct Payload {

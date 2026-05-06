@@ -4,9 +4,9 @@
 
 ### use after move is rejected
 
-> Values moved into owned parameters cannot be used afterwards.
+Values moved into owned parameters cannot be used afterwards.
 
-```ds native=true
+```ds
 struct Data {
     value: int32;
 }
@@ -26,9 +26,9 @@ function run(): void {
 
 ### moved value is allowed when not used again
 
-> Moving a value once is allowed when it is not used afterwards.
+Moving a value once is allowed when it is not used afterwards.
 
-```ds native=true
+```ds
 struct Data {
     value: int32;
 }
@@ -45,9 +45,9 @@ function run(): void {
 
 ### move in branch is rejected
 
-> Values moved on one control-flow path cannot be used afterwards.
+Values moved on one control-flow path cannot be used afterwards.
 
-```ds native=true
+```ds
 struct Data {
     value: int32;
 }
@@ -69,9 +69,9 @@ function run(flag: boolean): void {
 
 ### moving twice is rejected
 
-> Values cannot be moved more than once.
+Values cannot be moved more than once.
 
-```ds native=true
+```ds
 struct Data {
     value: int32;
 }
@@ -93,9 +93,9 @@ function run(): void {
 
 ### move while borrowed is rejected
 
-> Values cannot be moved while a borrow is active.
+Values cannot be moved while a borrow is active.
 
-```ds native=true
+```ds
 struct Data {
     value: int32;
 }
@@ -110,9 +110,9 @@ function consume(value: ^Container): void {
 
 function run(): void {
     let container = ^Container { data: Data { value: 1 } };
-    let sharedRef = &container.data;
+    let borrow = &container.data;
     consume(container);
-    sharedRef.value;
+    borrow.value;
 }
 ```
 
@@ -120,9 +120,9 @@ function run(): void {
 
 ### borrow after move is rejected
 
-> Borrowing after a move is rejected.
+Borrowing after a move is rejected.
 
-```ds native=true
+```ds
 struct Data {
     value: int32;
 }
@@ -138,8 +138,8 @@ function consume(value: ^Container): void {
 function run(): void {
     let container = ^Container { data: Data { value: 1 } };
     consume(container);
-    let sharedRef = &container.data;
-    sharedRef.value;
+    let borrow = &container.data;
+    borrow.value;
 }
 ```
 

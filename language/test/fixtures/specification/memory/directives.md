@@ -1,10 +1,10 @@
-# Managed
+# Directives
 
-## directives
+## managed
 
-### noManaged rejects managed allocations
+### no managed rejects managed allocations
 
-> `@noManaged` forbids managed allocations inside the annotated body.
+`@noManaged` forbids managed allocations inside the annotated body.
 
 ```ds:main.ds
 class Box {
@@ -19,9 +19,9 @@ function run(): void {
 
 - contains: managed memory is disabled
 
-### noManaged allows owned values
+### no managed allows owned values
 
-> `@noManaged` allows owned value construction.
+`@noManaged` allows owned value construction.
 
 ```ds:main.ds
 struct Data {
@@ -35,9 +35,9 @@ function run(): void {
 }
 ```
 
-### stackOnly rejects managed allocations
+### stack only rejects managed allocations
 
-> `@stackOnly` forbids managed allocations inside the annotated body.
+`@stackOnly` forbids managed allocations inside the annotated body.
 
 ```ds:main.ds
 class Box {
@@ -52,9 +52,9 @@ function run(): void {
 
 - contains: managed memory is disabled
 
-### noManaged rejects managed parameter types
+### no managed rejects managed parameters
 
-> `@noManaged` forbids managed types in signatures.
+`@noManaged` forbids managed types in signatures.
 
 ```ds:main.ds
 class Box {
@@ -68,9 +68,9 @@ function take(value: Box): void {
 
 - contains: managed memory is disabled
 
-### noManaged rejects managed return types
+### no managed rejects managed returns
 
-> `@noManaged` forbids managed types in signatures.
+`@noManaged` forbids managed return types.
 
 ```ds:main.ds
 class Box {
