@@ -443,7 +443,8 @@ user.profile.name = "Grace"; // error
 user.tags[0] = "admin";      // error
 ```
 
-As in TypeScript with `readonly` (or Rust with `mut` in inverse), `readonly` does not directly affect runtime behavior or freeze anything, it's just a semantic convention.
+As in TypeScript, `readonly` is a type-level access promise.
+It does not freeze the runtime value.
 
 ### Generics
 
@@ -958,7 +959,7 @@ When overflow / wrapping policy is part of the algorithm, the expression should 
 (These forms are not overloadable.)
 
 Dereference operators are a little different from the main "value-shaped" operators.
-`ReadonlyDereference` and `Dereference` project one access form into another access form, preserving ownership, placement, mutability, and lifetimes.
+`ReadonlyDereference` and `Dereference` project one access form into another access form, preserving ownership, placement, access, and lifetimes.
 
 ```ds
 struct Box<T> {
@@ -1635,7 +1636,7 @@ That is convenient, but sometimes we need to take direct control of memory, whet
 
 Destack supports explicit, optional modifiers for controlling memory ownership and placement, inspired by Rust and Mojo with `^T` as the "owned" signifier.
 Specifically, memory can be controlled along two axes:
-- **Ownership**: who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`), or raw (`*T`).
+- **Ownership**: who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`, `&readonly T`, `&exclusive T`), or raw (`*T`).
 - **Placement**: where the value is located: ambient by default, `shared` across Workers, explicit `"local"` in the type algebra, or some other target-defined space.
 
 Plain `T` still behaves as the type's default representation, of course: value types are values, object types are managed references.
@@ -1650,14 +1651,17 @@ Each ownership form has a corresponding normalized representation in our little 
 |------|---------|
 | `T` | normal managed/default value |
 | `^T` | owned value |
+| `&readonly T` | readonly borrowed access |
 | `&T` | borrowed access |
+| `&exclusive T` | exclusive borrowed access |
 | `*T` | raw pointer |
 
 ```ds
 let a: User = new User();
 let b: ^User = new User();
 let c: &User = &a;
-let d: *User = &a;
+let d: &exclusive User = &exclusive a;
+let e: *User = &a;
 ```
 
 ### Space
@@ -1705,7 +1709,7 @@ For genuinely _shared_ process-global state, the binding _itself_ can be declare
 | `shared const world: World = new World()` | shared | shared | one shared binding cell initialized in shared space |
 | `shared const world: shared World = new World()` | shared | shared | same runtime meaning, explicit on both axes |
 
-Note that marking the binding itself as `shared` also types the value as `shared` (as it is illegal to have a shared reference to a local value anyway, this is convenient).
+Note that marking the binding itself as `shared` also types the value as `shared` (as it is illegal to point from shared storage into local storage anyway, this is convenient).
 
 ### Capabilities
 
@@ -1727,7 +1731,7 @@ Userland APIs such as channels, Worker pools, atomics, locks, and actors can req
 The rules for who can convert into what mostly follow from two facts:
     - References must always be valid,
     - Shared memory must not point into local memory.
-(Raw pointers are your own dirty business.)
+(Raw pointers are explicit and unchecked.)
 
 | From \ To | `T` | `&T` | `^T` | `*T` |
 |-----------|-----|------|------|------|
@@ -1770,12 +1774,18 @@ In Destack, lifetimes are ordinary static parameters, and most code never names 
 Explicit lifetimes are only needed when a signature or type stores a borrow or relates an output borrow to an input borrow.
 Lifetime parameters are inferred from borrowed inputs and field initializers, but they do not create validity by themselves.
 
-Borrow checking - that is, ensuring a borrow to some reference remains valid - is mostly Rust-shaped and follows the same simple rules:
+Borrow checking - that is, ensuring a borrow to some reference remains valid - starts from two simple rules:
 
-1. many `&readonly T` borrows of the same place may overlap;
-2. one `&T` borrow of a place may exist when no overlapping borrow of that place is live;
-3. a place cannot move or drop while an overlapping borrow is live;
-4. a borrow cannot outlive the owner or access path it came from.
+1. a place cannot move or drop while an overlapping borrow is live;
+2. a borrow cannot outlive the owner or access path it came from.
+
+Borrowers then choose the level of access:
+
+| Form | Access |
+|------|--------|
+| `&readonly T` | may overlap, cannot mutate through the borrow |
+| `&T` | may overlap, can mutate through the borrow |
+| `&exclusive T` | cannot overlap another borrow of the same place, can mutate through the borrow |
 
 The rules are applied to access paths, so disjoint fields can be borrowed independently when the compiler can prove they do not overlap.
 Borrow lifetimes are also based on use, not block scope: once the last use of a borrow has passed, the original place can be borrowed differently, moved, or dropped again.
@@ -1803,20 +1813,20 @@ let point = ^Point { x: 1, y: 2 };
 // `&readonly point.x` borrows from owned storage without moving `point`
 let readX = &readonly point.x;
 
-// another readonly borrow of `point.x` may overlap
-let readAgain = &readonly point.x;
+// `&point.x` *can* overlap with readonly borrowed access
+let writeX = &point.x;
+*writeX = 3;
 
 // `&point.y` mutably borrows a disjoint field
 let writeY = &point.y;
-writeY = 3;
+*writeY = 3;
 
-// both readonly borrows are still valid here
+// the readonly borrow is still valid here
 readX satisfies &readonly int32;
-readAgain satisfies &readonly int32;
 
-// the readonly borrows of `point.x` are no longer live
-let writeX = &point.x;
-writeX = 4;
+// `&exclusive point.x` is allowed after the overlapping borrows are no longer live
+let exclusiveX = &exclusive point.x;
+*exclusiveX = 4;
 ```
 
 Escaping borrowed access must be tied to the input it came from:
@@ -1848,7 +1858,7 @@ function escapedPoint(): &Point {
 }
 
 /* VALID: managed Point can be returned instead of borrowed access */
-function ownedPoint(): Point {
+function managedPoint(): Point {
     let point = Point { x: 1, y: 2 };
     return point;
 }
@@ -1868,8 +1878,8 @@ function borrowInput<L: Lifetime>(point: Borrowed<Point, L>): Borrowed<Point, L>
 
 ### Synchronisation
 
-The standard library provides the usual memory and synchronisation primitives on top of all of the above which we won't list out completely here.
-Basically, the important axis are:
+The standard library provides the usual memory and synchronisation primitives on top of all of the above, without making them part of the ownership syntax itself.
+The main axes are:
  - **ownership sharing**: `Rc`, `Arc`
  - **interior mutability**: `Cell`, `RefCell`
  - **single-location atomic access**: `Atomic`
@@ -1900,8 +1910,9 @@ type Lock<T> =
 ### Algebra
 
 Type "algebra" here is just a fancy way of saying Destack supports querying and manipulating ownership and placement in its type system, because _they_ are part of the type system. 
-Qualified surface forms like `^T`, `&T`, `*T`, and `shared T` are sugar over a single normalized `Form`.
-Plain `T` may remain unqualified, but algebra operators treat it as managed ambient when they need a default.
+Qualified surface forms like `readonly T`, `^T`, `&T`, `*T`, and `shared T` are sugar over a single normalized `Form`.
+Plain `T` may remain unqualified, but algebra operators treat it as managed, mutable, and ambient when they need a default.
+Unlike `Place`, `Access` is always concrete: plain `T` has access `"mutable"`, not some ambient access.
 
 ```ds
 newtype Form<
@@ -1909,15 +1920,20 @@ newtype Form<
     O: Ownership = "managed",
     P: Place = "ambient",
     L: Lifetime = never,
+    A: Access = "mutable",
 > = unknown;
 ```
 
-All `Form`s are based on the common static evaluation machinery, and code can be generic over `Form<T, O, P, R>`, `WithSpace<T, S>`, or `PlaceIn<T, S>` without choosing a final address space or ownership.
+All `Form`s are based on the common static evaluation machinery, and code can be generic over `Form<T, O, P, L, A>`, `WithSpace<T, S>`, or `PlaceIn<T, S>` without choosing a final address space, ownership, or access mode.
 
 ```ds
 User            // unqualified, defaults to managed ambient
+readonly User   // Form<User, "managed", "ambient", never, "readonly">
 ^User           // Form<User, "owned", "ambient">
-&User           // Form<User, "borrowed", "ambient", L>
+^readonly User  // Form<User, "owned", "ambient", never, "readonly">
+&readonly User  // Form<User, "borrowed", "ambient", L, "readonly">
+&User           // Form<User, "borrowed", "ambient", L, "mutable">
+&exclusive User // Form<User, "borrowed", "ambient", L, "exclusive">
 *User           // Form<User, "raw", "ambient">
 shared User     // Form<User, "managed", "shared">
 shared ^User    // Form<User, "owned", "shared">
@@ -1945,14 +1961,20 @@ Borrowed forms additionally carry a lifetime:
 
 ```ds
 type UserBorrow<L: Lifetime> = Borrowed<User, L>;
+type UserReadonlyBorrow<L: Lifetime> = ReadonlyBorrowed<User, L>;
+type UserExclusiveBorrow<L: Lifetime> = ExclusiveBorrowed<User, L>;
 ```
 
-We provide builtin (userland-defined) accessors to pull the axes back out of `Form`:
-the `*Of` family returns `never` when that axis is not explicit on the input, while `*Or` applies a default:
+We provide builtin accessors to pull the axes back out of `Form`.
+`AccessOf<T>` and `OwnershipOr<T, ..>` always return concrete values, while placement keeps the ambient distinction:
 ```ds
 BaseOf<shared ^User> satisfies User;
 OwnershipOf<^User> satisfies "owned";
 OwnershipOr<User, "managed"> satisfies "managed";
+AccessOf<User> satisfies "mutable";
+AccessOf<readonly User> satisfies "readonly";
+AccessOf<^readonly User> satisfies "readonly";
+AccessOf<&exclusive User> satisfies "exclusive";
 ```
 
 `Space` represents a concrete space like `"local"` or `"shared"` while `Place` means either a concrete `Space` or `"ambient"`, and ambient placement follows the containing context until a final layout is required:
@@ -1985,6 +2007,9 @@ Rewriting one axis leaves the others alone:
 WithSpace<^User, "shared"> satisfies Form<User, "owned", "shared">;
 WithOwnership<shared User, "owned"> satisfies Form<User, "owned", "shared">;
 WithPlace<shared User, "ambient"> satisfies Form<User, "managed", "ambient">;
+WithAccess<User, "readonly"> satisfies readonly User;
+WithAccess<^User, "readonly"> satisfies ^readonly User;
+WithAccess<&User, "exclusive"> satisfies &exclusive User;
 ```
 
 Except for the intrinsic `Form`, all the rest is just regular TypeScript-shaped type algebra.
