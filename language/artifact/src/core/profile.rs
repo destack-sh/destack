@@ -13,34 +13,6 @@ const PROFILE_ID_DOMAIN: &[u8] = b"profile";
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
 )]
 pub struct ProfileFlags {
-    /// Forbid use of `any`.
-    pub no_any: bool,
-    /// Forbid use of `unknown`.
-    pub no_unknown: bool,
-    /// Require precise primitive types.
-    pub no_imprecise_primitives: bool,
-    /// Require explicit conversions.
-    pub no_implicit_conversions: bool,
-    /// Forbid unsafe type assertions.
-    pub no_unsafe_type_assertions: bool,
-    /// Forbid must assertions.
-    pub no_must_assertions: bool,
-    /// Forbid definite assignment assertions.
-    pub no_definite_assignment_assertions: bool,
-    /// Forbid custom type guards.
-    pub no_custom_type_guards: bool,
-    /// Forbid unsound variance.
-    pub no_unsound_variance: bool,
-    /// Forbid unsound narrowing.
-    pub no_unsound_narrowing: bool,
-    /// Require deep readonly semantics.
-    pub deep_readonly: bool,
-    /// Forbid untrusted declaration files.
-    pub no_untrusted_declarations: bool,
-    /// Forbid redeclaration of locals.
-    pub no_redeclared_locals: bool,
-    /// Require explicit managed ownership.
-    pub no_implicit_managed: bool,
     /// Forbid managed memory features.
     pub no_managed: bool,
     /// Forbid runtime features.
@@ -65,8 +37,6 @@ pub struct ProfileFlags {
     pub no_implicit_dynamic_dispatch: bool,
     /// Forbid exceptions.
     pub no_exceptions: bool,
-    /// Enable strict builtin iterator return checking.
-    pub strict_builtin_iterator_return: bool,
 }
 
 /// Canonical profile key for semantic identity.
@@ -84,10 +54,12 @@ pub struct ProfileKey {
     pub target_vendor: Option<TargetVendor>,
     /// Target environment for the profile.
     pub target_abi: Option<TargetAbi>,
-    /// Normalized library set for the profile.
-    pub lib: Vec<String>,
     /// Normalized global provider roots for the profile.
     pub globals: Vec<String>,
+    /// Default tree tag builder provider.
+    pub tree: Option<String>,
+    /// Auto derive providers for the profile.
+    pub derive: Vec<String>,
     /// Debug flag exposed to `import.meta`.
     pub debug: bool,
     /// Test flag exposed to `import.meta`.
@@ -102,7 +74,7 @@ pub struct ProfileKey {
 
 #[allow(clippy::too_many_arguments)]
 impl ProfileKey {
-    /// Create a profile key with normalized library and global entries.
+    /// Create a profile key with normalized global entries.
     pub fn new(
         emit: EmitFormat,
         runtime: Runtime,
@@ -110,16 +82,17 @@ impl ProfileKey {
         target_arch: Option<TargetArch>,
         target_vendor: Option<TargetVendor>,
         target_abi: Option<TargetAbi>,
-        lib: Vec<String>,
         globals: Vec<String>,
+        tree: Option<String>,
+        derive: Vec<String>,
         debug: bool,
         test: bool,
         skip_lib_check: bool,
         env: HostEnvironmentKey,
         flags: ProfileFlags,
     ) -> Self {
-        let lib = normalize_profile_keys(lib);
         let globals = normalize_profile_keys(globals);
+        let derive = normalize_profile_keys(derive);
 
         Self {
             emit,
@@ -128,8 +101,9 @@ impl ProfileKey {
             target_arch,
             target_vendor,
             target_abi,
-            lib,
             globals,
+            tree,
+            derive,
             debug,
             test,
             skip_lib_check,
