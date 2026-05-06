@@ -1,12 +1,12 @@
 # Derive
 
-`@derive(...)` asks the compiler to add ordinary declarations for a nominal type.
+Derive providers add ordinary declarations to nominal types.
 
 ## nominal types
 
 ### derive applies to structs
 
-Derive annotations apply to nominal type declarations.
+Derive decorators apply to nominal type declarations.
 
 ```ds
 @derive(Clone)
@@ -18,9 +18,9 @@ const user = User { id: 1 };
 user.clone() satisfies User;
 ```
 
-### derive can request multiple capabilities
+### derive can request multiple providers
 
-Each derive argument names one nominal capability.
+Each derive argument names one provider.
 
 ```ds
 @derive(Clone, Debug)

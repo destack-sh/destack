@@ -28,7 +28,7 @@ let value: ^Box = new Box();
 value satisfies ^Box;
 ```
 
-### new creates owned shared values for owned shared destinations
+### new creates owned values in shared space
 
 > `new` follows ownership and space in the destination type.
 
@@ -37,7 +37,8 @@ class Box {
     value: int32 = 0;
 }
 
-let value: ^shared Box = new Box();
+let value: shared ^Box = new Box();
+value satisfies shared ^Box;
 value satisfies ^shared Box;
 ```
 

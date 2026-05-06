@@ -2,11 +2,11 @@
 
 Space fixtures cover local and shared placement.
 
-## annotations
+## references
 
-### space annotation applies to borrowed references
+### shared references borrow from shared space
 
-> Explicit space annotations use `@space`.
+> `shared &T` borrows from shared storage.
 
 ```ds
 struct Point {
@@ -14,7 +14,7 @@ struct Point {
     y: int32;
 }
 
-function kernel(data: @space("shared") &Point): int32 {
+function kernel(data: shared &Point): int32 {
     data.x
 }
 ```

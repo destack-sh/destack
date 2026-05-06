@@ -90,10 +90,12 @@ Coalescing can open a union when every non-nullish arm is a Try carrier.
 
 ```ds
 struct MissingError implements Error {
+    name: "MissingError";
     message: string;
 }
 
 struct FormatError implements Error {
+    name: "FormatError";
     message: string;
 }
 

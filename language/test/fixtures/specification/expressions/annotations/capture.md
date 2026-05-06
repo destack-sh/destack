@@ -1,77 +1,180 @@
-# Capture Annotations
+# Capture
 
-`@capture` controls how a closure environment captures surrounding bindings.
+`@capture` is a compiler-known annotation for closure environments.
 
 ## policy
 
-### borrow capture keeps the original binding
+### borrow keeps the original binding
 
-> A borrow capture gives the closure borrowed access to the captured binding.
+> A borrow capture gives the closure borrowed access and keeps the original binding live.
 
 ```ds
-let count = 0;
+struct Packet {
+    sequence: int32;
+}
 
-@capture("borrow")
-const next = () => {
-    count += 1;
-    return count;
-};
+function run(): void {
+    let packet = Packet { sequence: 1 };
 
-next satisfies () => number;
+    // `read` captures a borrowed reference to `packet`
+    @capture("borrow")
+    const read = () => packet.sequence;
+
+    // `packet` is still owned after the closure is called
+    packet.sequence satisfies int32;
+
+    // `read` returns the value via the borrowed reference
+    read() satisfies int32;
+}
 ```
 
-### copy capture snapshots the binding value
+### borrow keeps a borrow active
 
-> A copy capture gives the closure its own copied value.
+> Moving a borrowed capture is rejected while the closure can still use it.
 
 ```ds
-let name = "Ada";
+struct Packet {
+    sequence: int32;
+}
+
+function consume(packet: Packet): void {
+    packet.sequence;
+}
+
+function run(): void {
+    let packet = Packet { sequence: 1 };
+
+    // the closure borrow keeps `packet` live
+    @capture("borrow")
+    const read = () => packet.sequence;
+
+    // moving `packet` while `read` can still run is rejected
+    consume(packet);
+    read();
+}
+```
+
+- contains: cannot move while borrowed
+
+### copy snapshots the binding value
+
+> A copy capture duplicates the value and keeps the original binding usable.
+
+```ds
+let count: int32 = 1;
 
 @capture("copy")
-const greet = () => `hello ${name}`;
+const read = () => count;
 
-greet satisfies () => string;
+// copy leaves the original binding usable
+count satisfies int32;
+read() satisfies int32;
 ```
 
-### move capture transfers ownership into the closure
+### copy requires Copy
+
+> Copy capture can only duplicate values that implement `Copy`.
+
+```ds
+struct Socket {
+    fd: int32;
+}
+
+function run(): void {
+    let socket = Socket { fd: 1 };
+
+    @capture("copy")
+    const read = () => socket.fd;
+
+    read();
+}
+```
+
+- contains: Copy
+
+### move transfers ownership into the closure
 
 > A move capture consumes the captured binding for the closure environment.
 
 ```ds
-declare function connect(): Result<Socket, IOError>;
+struct Packet {
+    sequence: int32;
+}
 
-let socket = connect()?;
+function run(): () => int32 {
+    let packet = Packet { sequence: 1 };
 
-@capture("move")
-const send = (message: string) => socket.write(message);
-
-send satisfies (message: string) => Result<void, IOError>;
+    // move captures the plain struct value, not `^Packet`
+    @capture("move")
+    return () => packet.sequence;
+}
 ```
 
-### object directives can configure individual bindings
+### move can capture explicit owned values
+
+> Explicit owned forms can also move into the closure environment.
+
+```ds
+struct Packet {
+    sequence: int32;
+}
+
+function run(): () => int32 {
+    let packet = ^Packet { sequence: 1 };
+
+    // explicit owned values move the same way
+    @capture("move")
+    return () => packet.sequence;
+}
+```
+
+### move consumes the original binding
+
+> A moved capture cannot be used through the original binding afterwards.
+
+```ds
+struct Packet {
+    sequence: int32;
+}
+
+function run(): void {
+    let packet = Packet { sequence: 1 };
+
+    // `packet` is consumed by the move capture
+    @capture("move")
+    const read = () => packet.sequence;
+
+    // `packet` is unavailable after the move capture
+    packet.sequence;
+    read();
+}
+```
+
+- contains: use of moved value
+
+### directives configure individual bindings
 
 > Object form sets a default and overrides selected captures.
 
 ```ds
-class Client {
-    prefix: string = "client";
+struct Socket {
+    fd: int32;
+}
 
-    make(socket: Socket, logger: Logger): (message: string) => Result<void, IOError> {
-        @capture({
-            default: "copy",
-            socket: "move",
-            logger: "borrow",
-            this: "borrow",
-        })
-        return (message) => {
-            logger.info("sending");
-            return socket.write(`${this.prefix}: ${message}`);
-        };
-    }
+function run(): () => int32 {
+    let prefix: int32 = 10;
+    let socket = Socket { fd: 1 };
+
+    // copy `prefix`, move `socket`
+    @capture({
+        default: "copy",
+        socket: "move",
+    })
+    return () => prefix + socket.fd;
 }
 ```
 
-### capture accepts static directives
+### static directives are allowed
 
 > Capture directives can come from static values.
 
@@ -83,40 +186,3 @@ const read = () => "ready";
 
 read satisfies () => string;
 ```
-
-## rejections
-
-### capture rejects non-function targets
-
-> `@capture` only supports declarations that create function-like values.
-
-```ds
-@capture("copy")
-const value = 1;
-```
-
-- contains: capture
-
-### capture rejects unknown policies
-
-> Capture policies are checked through `CaptureDirective`.
-
-```ds
-@capture("maybe")
-const read = () => "ready";
-```
-
-- contains: CaptureDirective
-
-### capture rejects unknown rule values
-
-> Per-binding rules use the same capture policy set.
-
-```ds
-let name = "Ada";
-
-@capture({ name: "borrow" })
-const read = () => name;
-```
-
-- contains: CaptureDirective
