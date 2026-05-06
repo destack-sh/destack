@@ -302,9 +302,9 @@ function greet(pet): string {
 #[test]
 fn test_reify_dynamic_method_call_casts_per_static_branch() {
     // dynamic call branches reify argument casts per selected signature
-    let test = TestProgram::memory_sequential_with_prelude_and_libs()
+    let test = TestProgram::memory_sequential_with_prelude()
         .with_profile_emit(EmitFormat::Native)
-        .with_profile_libs(&["native"]);
+        ;
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -352,9 +352,9 @@ function speakVolume(pet, amount): int32 {
 #[ignore = "TODO #Incomplete: dynamic operator union resolution is blocked by Analyze (EA203)"]
 fn test_reify_dynamic_operator_call_on_union() {
     // dynamic operator calls on unions should split into static branches
-    let test = TestProgram::memory_sequential_with_prelude_and_libs()
+    let test = TestProgram::memory_sequential_with_prelude()
         .with_profile_emit(EmitFormat::Native)
-        .with_profile_libs(&["native"]);
+        ;
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -491,7 +491,7 @@ function bump(c): Counter {
 #[test]
 fn test_reify_static_operator_add_to_method_call() {
     // overloaded add rewrites to `add` method call
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -533,7 +533,7 @@ function increment(counter): Counter {
 #[test]
 fn test_reify_static_operator_not_equal_to_equal_call() {
     // overloaded not equal rewrites to `!a.equal(b)`
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -575,7 +575,7 @@ function differs(left, right): boolean {
 #[test]
 fn test_reify_static_operator_compare_to_ordering_check() {
     // overloaded comparisons rewrite through compare and Ordering
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -628,7 +628,7 @@ function isLess(left, right): boolean {
 #[test]
 fn test_reify_static_operator_greater_than_or_equal_to_ordering_check() {
     // overloaded >= rewrites through compare and ordering less check
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -681,7 +681,7 @@ function isAtLeast(left, right): boolean {
 #[test]
 fn test_reify_static_operator_less_than_or_equal_to_ordering_check() {
     // overloaded <= rewrites through compare and ordering greater check
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -734,7 +734,7 @@ function isAtMost(left, right): boolean {
 #[test]
 fn test_reify_static_operator_greater_than_to_ordering_check() {
     // overloaded > rewrites through compare and ordering greater check
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -787,7 +787,7 @@ function isGreater(left, right): boolean {
 #[test]
 fn test_reify_static_unary_operator_to_method_call() {
     // overloaded unary negate rewrites to method call
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -829,7 +829,7 @@ function flip(counter): Counter {
 #[test]
 fn test_reify_static_unary_plus_to_method_call() {
     // overloaded unary plus rewrites to method call
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"

@@ -222,7 +222,7 @@ entry0(value0: int32[4]):
 /// Verify borrowing an array element emits bounds checks when enabled.
 #[test]
 fn test_lower_borrows_array_element_checked() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -299,7 +299,7 @@ entry0(value0: ref<int32[4], borrowed>):
 /// Verify borrowing a reference array element emits bounds checks when enabled.
 #[test]
 fn test_lower_borrows_array_reference_element_checked() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"

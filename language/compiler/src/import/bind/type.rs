@@ -1964,6 +1964,7 @@ impl Compiler {
         match mutability {
             ast::Mutability::Immutable => Mutability::Immutable,
             ast::Mutability::Mutable => Mutability::Mutable,
+            ast::Mutability::Exclusive => Mutability::Mutable,
         }
     }
 

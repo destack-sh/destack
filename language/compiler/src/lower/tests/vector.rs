@@ -2,7 +2,7 @@ use crate::TestProgram;
 /// Lower Vector<T, N> types into MIR vector types.
 #[test]
 fn test_lower_vector_color_signature() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -34,7 +34,7 @@ entry0(value0: vector<float32, 4>):
 /// Lower vector types in struct fields.
 #[test]
 fn test_lower_vector_struct_field() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -70,7 +70,7 @@ entry0(value0: Particle):
 /// Lower vector types inside tuple signatures.
 #[test]
 fn test_lower_vector_tuple_type() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -101,7 +101,7 @@ entry0(value0: passStereoFrame.value#tuple):
 /// Lower vector aliases to the underlying MIR vector type.
 #[test]
 fn test_lower_vector_alias_type() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -132,7 +132,7 @@ entry0(value0: vector<float32, 4>):
 /// Lower SIMD splat intrinsic to MIR vector.splat.
 #[test]
 fn test_lower_vector_splat_intrinsic() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -164,7 +164,7 @@ entry0(value0: float32):
 /// Lower SIMD select intrinsic to MIR vector.select.
 #[test]
 fn test_lower_vector_select_intrinsic() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -200,7 +200,7 @@ entry0(value0: vector<boolean, 4>, value1: vector<float32, 4>, value2: vector<fl
 /// Lower SIMD reduce intrinsics to MIR vector.reduce.
 #[test]
 fn test_lower_vector_reduce_intrinsic() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"

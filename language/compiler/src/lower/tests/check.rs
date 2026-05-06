@@ -9,7 +9,7 @@ use crate::TestProgram;
 /// Emit overflow checks for integer arithmetic when configured.
 #[test]
 fn test_lower_overflow_checks() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -53,7 +53,7 @@ block2:
 /// Emit overflow checks with abort failure policy.
 #[test]
 fn test_lower_overflow_checks_abort() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -94,7 +94,7 @@ block2:
 /// Emit unsigned overflow checks for integer arithmetic when configured.
 #[test]
 fn test_lower_overflow_checks_unsigned() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -138,7 +138,7 @@ block2:
 /// Skip overflow checks when disabled.
 #[test]
 fn test_lower_overflow_checks_disabled() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -171,7 +171,7 @@ entry0(value0: int32, value1: int32):
 /// Emit division checks for integer division when configured.
 #[test]
 fn test_lower_division_checks() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -223,7 +223,7 @@ block4:
 /// Emit division checks with trap failure policy.
 #[test]
 fn test_lower_division_checks_trap() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -268,7 +268,7 @@ block4:
 /// Emit unsigned division checks without overflow handling.
 #[test]
 fn test_lower_division_checks_unsigned() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -314,7 +314,7 @@ block2:
 /// Emit shift range checks for integer shifts when configured.
 #[test]
 fn test_lower_shift_checks() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -356,7 +356,7 @@ block2:
 /// Emit shift range checks with abort failure policy.
 #[test]
 fn test_lower_shift_checks_abort() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -395,7 +395,7 @@ block2:
 /// Emit unsigned shift checks for unsigned shift amounts.
 #[test]
 fn test_lower_shift_checks_unsigned() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -437,7 +437,7 @@ block2:
 /// Emit bounds checks for array access when configured.
 #[test]
 fn test_lower_bounds_checks() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -480,7 +480,7 @@ block2:
 /// Emit bounds checks with trap failure policy.
 #[test]
 fn test_lower_bounds_checks_trap() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -520,7 +520,7 @@ block2:
 /// Emit unsigned bounds checks for unsigned indices.
 #[test]
 fn test_lower_bounds_checks_unsigned() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -563,7 +563,7 @@ block2:
 /// Apply no managed allocation mode when requested by decorators.
 #[test]
 fn test_lower_sets_no_managed_allocation_mode() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -585,7 +585,7 @@ function work(): void {}
 /// Apply stack only allocation mode when requested by decorators.
 #[test]
 fn test_lower_sets_stack_only_allocation_mode() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -607,7 +607,7 @@ function work(): void {}
 /// Do not force no managed allocation mode from profile flags.
 #[test]
 fn test_lower_sets_profile_no_managed_allocation_mode() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"

@@ -722,7 +722,7 @@ export const appValue = { voidCheck, typeCheck, nullType };
 fn test_links_single_file_bare_javascript_globals_from_builtin_libraries() {
     // keep the real authored JS global surface available in this linker case
     let test =
-        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es2020", "js"]);
+        TestProgram::memory_sequential_with_prelude();
     test.add_package("test", None);
     let main = test.add_module(
         "app.ts",
@@ -1307,7 +1307,7 @@ export const appValue = [first, second, [alpha, beta, gamma]];
 fn test_minifies_single_file_full_bundle_infinity_spellings() {
     // mirror the bun infinity case over the real builtin-library surface
     let test =
-        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es2020", "js"]);
+        TestProgram::memory_sequential_with_prelude();
     test.add_package("test", None);
     let main = test.add_module(
         "app.ts",
@@ -1821,7 +1821,7 @@ export const appValue = count;
 #[test]
 fn test_links_single_file_async_for_of_statement() {
     let test =
-        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es2020", "js"]);
+        TestProgram::memory_sequential_with_prelude();
     test.add_package("test", None);
     let main = test.add_module(
         "app.ts",
@@ -2046,7 +2046,7 @@ export function app() {
 #[test]
 fn test_links_single_file_meta_property_expressions() {
     let test =
-        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es2020", "js"]);
+        TestProgram::memory_sequential_with_prelude();
     test.add_package("test", None);
     let main = test.add_module(
         "app.ts",

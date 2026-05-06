@@ -144,12 +144,6 @@ impl Compiler {
         level: OptimizationLevel,
         context: &dyn ProviderContext,
     ) -> PipelineOptions {
-        // resolve compiler configuration and derived restrictions for this target
-        let workspace_options = self
-            .workspace_compiler_options(context, module)
-            .unwrap_or_default();
-        let strict_borrow_mode = workspace_options.borrow_mode.is_strict();
-
         // resolve pointer width from target configuration
         let pointer_width_bits = self.pointer_width_bits_for_target(target);
 
@@ -174,7 +168,7 @@ impl Compiler {
         };
 
         PipelineOptions {
-            strict_borrow_mode,
+            strict_borrow_mode: true,
             target: pipeline_target,
             float_math: target.float_math,
             type_context: TypeContext { pointer_width_bits },

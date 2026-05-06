@@ -4,7 +4,7 @@ use crate::TestProgram;
 #[test]
 fn test_lower_string_literal() {
     let test =
-        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["native"]);
+        TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"

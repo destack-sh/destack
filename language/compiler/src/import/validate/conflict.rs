@@ -144,17 +144,8 @@ impl Compiler {
     }
 
     /// Return true when local redeclarations should report conflicts.
-    fn no_redeclared_locals_enabled(&self, state: &ImportState<'_>) -> bool {
-        // JS/TS modes always enforce ecmascript redeclaration rules
-        if !state.module.is_destack() {
-            return true;
-        }
-
-        // destack modes read the configurable local redeclaration policy
-        let policy = self
-            .import_options(state.context, state.module)
-            .no_redeclared_locals;
-        !policy.is_allow()
+    fn no_redeclared_locals_enabled(&self, _state: &ImportState<'_>) -> bool {
+        true
     }
     /// Check if the symbols are a strict local conflict.
     fn is_strict_local_conflict(&self, left: &Symbol, right: &Symbol) -> bool {

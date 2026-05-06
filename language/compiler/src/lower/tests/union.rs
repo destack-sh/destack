@@ -324,7 +324,7 @@ entry0(value0: ref?<Circle, managed, readonly>):
 #[test]
 fn test_lower_union_null_undefined_tagged() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -384,7 +384,7 @@ entry0(value0: acceptUnion.value#union):
 #[test]
 fn test_lower_union_upcast_null_literal() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -430,7 +430,7 @@ entry0:
 #[test]
 fn test_lower_union_upcast_undefined_literal() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -476,7 +476,7 @@ entry0:
 #[test]
 fn test_lower_union_upcast_boxed() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -536,7 +536,7 @@ entry0(value0: Frame):
 #[test]
 fn test_lower_union_downcast() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -820,7 +820,7 @@ entry0(value0: isA.value#union):
 /// Lower string discriminant comparisons to tag checks.
 #[test]
 fn test_lower_union_string_discriminant() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
