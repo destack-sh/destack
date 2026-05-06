@@ -2,8 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 
-use destack_compiler::default_workers;
-use destack_session::SessionEventHandler;
+use destack_session::{Session, SessionEventHandler};
 use destack_workspace::Repository;
 
 use super::instance::{DaemonInstance, DaemonInstanceError, DaemonMetadata};
@@ -290,7 +289,7 @@ impl Default for DaemonServerOptions {
     /// Create default daemon server options.
     fn default() -> Self {
         Self {
-            worker_limit: default_workers() as usize,
+            worker_limit: Session::default_worker_limit(),
             session_event_handler: None,
             protocol: ProtocolServerOptions::default(),
             shutdown: DaemonShutdownOptions::default(),

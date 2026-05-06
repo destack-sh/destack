@@ -1,8 +1,7 @@
 use std::io;
 use std::sync::Arc;
 
-use destack_compiler::default_workers;
-use destack_session::SessionEventHandler;
+use destack_session::{Session, SessionEventHandler};
 use destack_workspace::Repository;
 
 use crate::Daemon;
@@ -95,7 +94,7 @@ impl Default for DaemonServiceOptions {
     /// Create default daemon service options.
     fn default() -> Self {
         Self {
-            worker_limit: default_workers() as usize,
+            worker_limit: Session::default_worker_limit(),
             session_event_handler: None,
             protocol: ProtocolServerOptions::default(),
         }

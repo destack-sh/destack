@@ -2,8 +2,7 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use destack_compiler::default_workers;
-use destack_session::SessionEventHandler;
+use destack_session::{Session, SessionEventHandler};
 use destack_workspace::Repository;
 
 use super::instance::{DaemonInstance, DaemonLaunchConfig};
@@ -82,7 +81,7 @@ impl Default for DaemonConnectOptions {
         Self {
             client: ProtocolClientOptions::default(),
             server: ProtocolServerOptions::default(),
-            worker_limit: default_workers() as usize,
+            worker_limit: Session::default_worker_limit(),
             session_event_handler: None,
             retry_delay: Duration::from_millis(50),
             timeout: Duration::from_secs(3),
