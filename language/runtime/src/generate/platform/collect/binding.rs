@@ -127,11 +127,10 @@ pub(crate) fn collect_platform_bindings(
         // load module metadata
         let module = context.get(*module_id);
         let module = module.as_ref();
-        let resolved_dir = context.dir_resolved(module.id, profile_id);
-        let dir = context.dir_patched(compiler, module.id, profile_id);
-        let tree = &resolved_dir.tree;
-        let types = &dir.types;
-        let symbols = &dir.symbols;
+        let dir = context.dir(module.id, profile_id);
+        let tree = dir.tree();
+        let types = dir.types();
+        let symbols = dir.symbols();
         let mut seen_declarations = HashSet::new();
 
         // scan expressions for binding declarations

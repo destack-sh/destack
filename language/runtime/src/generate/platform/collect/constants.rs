@@ -39,10 +39,10 @@ pub(crate) fn collect_platform_constants(
             continue;
         };
 
-        let dir = context.dir_patched(compiler, module.id, profile_id);
-        let tree = &dir.tree;
-        let types = &dir.types;
-        let symbols = &dir.symbols;
+        let dir = context.dir(module.id, profile_id);
+        let tree = dir.tree();
+        let types = dir.types();
+        let symbols = dir.symbols();
         let mut known_values: BTreeMap<String, i128> = BTreeMap::new();
 
         for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {

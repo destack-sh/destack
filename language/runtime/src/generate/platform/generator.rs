@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use destack_artifact::{
-    DiskCacheStore, EmitFormat, EnvironmentStamp, Platform, ProfileFlags, ProfileKey, Runtime,
+    ArtifactKey, DiskCacheStore, EmitFormat, EnvironmentStamp, Platform, ProfileFlags, ProfileKey,
+    Runtime,
 };
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_linter::Linter;
@@ -236,16 +237,14 @@ impl RuntimeGenerator {
         &self,
         profile_id: ProfileId,
         platform_modules: &[destack_source::ModuleId],
-    ) -> Vec<destack_artifact::ArtifactKey> {
+    ) -> Vec<ArtifactKey> {
         let mut artifact_keys = vec![
-            destack_artifact::ArtifactKey::language_environment(profile_id),
-            destack_artifact::ArtifactKey::library_environment(profile_id),
+            ArtifactKey::language_environment(profile_id),
+            ArtifactKey::library_environment(profile_id),
         ];
 
         for module_id in platform_modules {
-            artifact_keys.push(destack_artifact::ArtifactKey::dir_patched(
-                *module_id, profile_id,
-            ));
+            artifact_keys.push(ArtifactKey::dir_checked(*module_id, profile_id));
         }
 
         artifact_keys
