@@ -6,7 +6,7 @@ Template literal expressions are strings.
 
 ### template literal yields string
 
-> Template expressions evaluate to string values.
+Template expressions evaluate to string values.
 
 ```ds
 let name = "Ada";
@@ -15,7 +15,7 @@ let greeting = `hello ${name}`;
 
 ### template literal is assignable to string
 
-> Template expressions are assignable to string.
+Template expressions are assignable to string.
 
 ```ds
 let greeting: string = `hello`;
@@ -23,7 +23,7 @@ let greeting: string = `hello`;
 
 ### template literal is not assignable to number
 
-> Template expressions are not assignable to number.
+Template expressions are not assignable to number.
 
 ```ds
 let value: number = `hello`;
@@ -35,7 +35,7 @@ let value: number = `hello`;
 
 ### tagged template uses tag return type
 
-> Tagged templates use the tag function return type.
+Tagged templates use the tag function return type.
 
 ```ds
 declare function tag(strings: TemplateStringsArray, value: int32): boolean;
@@ -45,7 +45,7 @@ let result: boolean = tag`value=${1}`;
 
 ### tagged template enforces argument types
 
-> Tagged templates check argument types against the tag signature.
+Tagged templates check argument types against the tag signature.
 
 ```ds
 declare function tag(strings: TemplateStringsArray, value: string): string;
@@ -57,7 +57,7 @@ let result = tag`value=${1}`;
 
 ### tagged template return type is not widened
 
-> Tagged templates preserve the tag return type.
+Tagged templates preserve the tag return type.
 
 ```ds
 declare function tag(strings: TemplateStringsArray): int32;

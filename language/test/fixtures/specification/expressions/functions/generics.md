@@ -6,7 +6,7 @@ Generic parameter instancing and inference.
 
 ### explicit type arguments
 
-> Explicit type arguments specialize function references.
+Explicit type arguments specialize function references.
 
 ```ds
 function identity<T>(value: T): T {
@@ -18,7 +18,7 @@ as_number satisfies (value: number) => number;
 
 ### inferred type arguments from call
 
-> Type parameters are inferred from call arguments.
+Type parameters are inferred from call arguments.
 
 ```ds
 function identity<T>(value: T): T {
@@ -30,7 +30,7 @@ one satisfies 1;
 
 ### explicit type argument mismatch
 
-> Call arguments must satisfy concrete parameter types.
+Call arguments must satisfy concrete parameter types.
 
 ```ds
 function identity<T>(value: T): T {
@@ -43,7 +43,7 @@ identity<number>("hi");
 
 ### static value arguments
 
-> Static value arguments are checked against declared types.
+Static value arguments are checked against declared types.
 
 ```ds
 function choose<comptime Flag: boolean>(value: number): number {
@@ -57,7 +57,7 @@ choose<1>(1);
 
 ### default static value arguments
 
-> Static value arguments fall back to defaults when omitted.
+Static value arguments fall back to defaults when omitted.
 
 ```ds
 function choose<comptime Flag: boolean = true>(value: number): number {
@@ -68,7 +68,7 @@ choose(1);
 
 ### default static value argument mismatch
 
-> Default static values must satisfy declared types.
+Default static values must satisfy declared types.
 
 ```ds
 function broken<comptime Flag: boolean = 1>(value: number): number {
@@ -81,7 +81,7 @@ broken(1);
 
 ### default type parameters
 
-> Type parameters fall back to defaults when omitted.
+Type parameters fall back to defaults when omitted.
 
 ```ds
 declare function make<T = number>(): T;
@@ -92,7 +92,7 @@ value satisfies number;
 
 ### inherited comptime arguments on member calls
 
-> Member calls apply inherited comptime arguments from the receiver type.
+Member calls apply inherited comptime arguments from the receiver type.
 
 ```ds
 interface Container<T> {
@@ -108,7 +108,7 @@ getContainer().map<string>("hello");
 
 ### member comptime arguments on member expressions
 
-> Member comptime arguments are applied before call typing.
+Member comptime arguments are applied before call typing.
 
 ```ds
 interface Container<T> {
@@ -125,7 +125,7 @@ mapper("hi");
 
 ### instantiation expressions require parentheses before member access
 
-> Instantiation expressions must be parenthesized before member or index access.
+Instantiation expressions must be parenthesized before member or index access.
 
 ```ds
 function make<T>(value: T): T {
@@ -140,7 +140,7 @@ make<number>.value;
 
 ### parenthesized instantiation expressions allow member access
 
-> Parenthesized instantiation expressions can be used for member access.
+Parenthesized instantiation expressions can be used for member access.
 
 ```ds
 function make<T>(value: T): T {
@@ -153,7 +153,7 @@ next satisfies number;
 
 ### conflicting comptime arguments on member calls
 
-> Comptime arguments cannot appear on both a member and its call.
+Comptime arguments cannot appear on both a member and its call.
 
 ```ds
 interface Container<T> {

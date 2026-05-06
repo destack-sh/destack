@@ -12,7 +12,7 @@ Extension visibility depends on where the extension is declared relative to the 
 
 ### inherent extension in same file
 
-> Inherent extensions are visible next to the type they extend.
+Inherent extensions are visible next to the type they extend.
 
 ```ds
 struct Point { x: number; y: number }
@@ -29,7 +29,7 @@ point.length() satisfies number;
 
 ### inherent extension across modules
 
-> Inherent extensions are visible in other files that import the type.
+Inherent extensions are visible in other files that import the type.
 
 ```ds:types.ds
 export struct Vector2 { x: number; y: number }
@@ -52,7 +52,7 @@ vector.magnitude() satisfies number;
 
 ### local extension not visible in other files
 
-> Local extensions are not visible outside the file where they are declared.
+Local extensions are not visible outside the file where they are declared.
 
 ```ds:types.ds
 export struct Vector2 { x: number; y: number }
@@ -81,7 +81,7 @@ const m = vector.magnitude();
 
 ### named extension syntax
 
-> Named extensions have a name before the `of` keyword.
+Named extensions have a name before the `of` keyword.
 
 ```ds
 struct Point { x: number; y: number }
@@ -98,7 +98,7 @@ point.distance() satisfies number;
 
 ### named extension across modules
 
-> Named extensions are visible when explicitly imported.
+Named extensions are visible when explicitly imported.
 
 ```ds:types.ds
 export struct Point { x: number; y: number }
@@ -124,7 +124,7 @@ point.distance() satisfies number;
 
 ### named extension requires import
 
-> Named extensions are not visible without an explicit import.
+Named extensions are not visible without an explicit import.
 
 ```ds:types.ds
 export struct Point { x: number; y: number }

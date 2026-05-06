@@ -6,7 +6,7 @@ Optional chaining propagates `undefined` through property access, element access
 
 ### optional property access returns undefined for nullish bases
 
-> Optional property access yields undefined when the base is nullish.
+Optional property access yields undefined when the base is nullish.
 
 ```ds
 type User = { name: string };
@@ -19,7 +19,7 @@ name satisfies string | undefined;
 
 ### optional property access requires known properties
 
-> Optional chaining still enforces property existence.
+Optional chaining still enforces property existence.
 
 ```ds
 type User = { name: string };
@@ -35,7 +35,7 @@ user?.missing;
 
 ### optional element access returns undefined for nullish bases
 
-> Optional element access yields undefined when the base is nullish.
+Optional element access yields undefined when the base is nullish.
 
 ```ds
 type Bag = { [key: string]: number };
@@ -50,7 +50,7 @@ value satisfies number | undefined;
 
 ### optional call returns undefined for nullish functions
 
-> Optional calls yield undefined when the callee is nullish.
+Optional calls yield undefined when the callee is nullish.
 
 ```ds
 declare const handler: ((value: number) => string) | undefined;
@@ -61,7 +61,7 @@ result satisfies string | undefined;
 
 ### optional call validates argument types
 
-> Optional calls still enforce parameter types.
+Optional calls still enforce parameter types.
 
 ```ds
 declare const handler: ((value: number) => string) | undefined;
@@ -73,7 +73,7 @@ handler?.("bad");
 
 ### optional call rejects non callable values
 
-> Optional calls still require callable targets.
+Optional calls still require callable targets.
 
 ```ds
 declare const value: { name: string } | undefined;
@@ -87,7 +87,7 @@ value?.();
 
 ### optional chains propagate undefined
 
-> Chained optional access preserves undefined in the result.
+Chained optional access preserves undefined in the result.
 
 ```ds
 type User = { name?: { length: number } };

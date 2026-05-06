@@ -6,7 +6,7 @@ Extensions can attach methods to nominal and structural type declarations.
 
 ### extensions add methods to structs
 
-> Extensions can add methods to a struct defined in the same file.
+Extensions can add methods to a struct defined in the same file.
 
 ```ds
 struct Point {
@@ -28,7 +28,7 @@ point.magnitude() satisfies number;
 
 ### extensions do not change type shape
 
-> Extension methods are resolved separately from the type's own members.
+Extension methods are resolved separately from the type's own members.
 
 ```ds
 struct Point {
@@ -51,7 +51,7 @@ point.y satisfies number;
 
 ### types can have multiple extensions
 
-> A type can have multiple extension blocks.
+A type can have multiple extension blocks.
 
 ```ds
 struct Vector2 { x: number; y: number }
@@ -79,7 +79,7 @@ vector.scale(2) satisfies Vector2;
 
 ### extensions add methods to classes
 
-> Extensions can add methods to classes.
+Extensions can add methods to classes.
 
 ```ds
 class Counter {
@@ -106,7 +106,7 @@ counter.reset();
 
 ### extensions add methods to interfaces
 
-> Extensions can add methods to interfaces.
+Extensions can add methods to interfaces.
 
 ```ds
 interface Shape {
@@ -129,7 +129,7 @@ shape.describe() satisfies string;
 
 ### extensions add methods to enums
 
-> Extensions can add methods to enums.
+Extensions can add methods to enums.
 
 ```ds
 enum Status {

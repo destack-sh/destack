@@ -4,7 +4,7 @@
 
 ### interface properties declare types
 
-> Interface properties declare types without initializers.
+Interface properties declare types without initializers.
 
 ```ds
 interface Config {
@@ -14,7 +14,7 @@ interface Config {
 
 ### interface optional properties are allowed
 
-> Optional interface properties use `?`.
+Optional interface properties use `?`.
 
 ```ds
 interface Config {
@@ -24,7 +24,7 @@ interface Config {
 
 ### interface readonly properties are allowed
 
-> Interface properties can be readonly.
+Interface properties can be readonly.
 
 ```ds
 interface Config {
@@ -34,7 +34,7 @@ interface Config {
 
 ### interface properties can use keyword names
 
-> Interface properties can use keywords as names.
+Interface properties can use keywords as names.
 
 ```ds
 interface Config {
@@ -45,7 +45,7 @@ interface Config {
 
 ### interface methods declare signatures
 
-> Interface methods declare call signatures without bodies.
+Interface methods declare call signatures without bodies.
 
 ```ds
 interface Config {
@@ -55,7 +55,7 @@ interface Config {
 
 ### interface call signatures are allowed
 
-> Interfaces can declare callable signatures.
+Interfaces can declare callable signatures.
 
 ```ds
 interface Fn {
@@ -68,7 +68,7 @@ fn("ok") satisfies number;
 
 ### interface construct signatures are allowed
 
-> Interfaces can declare constructor signatures.
+Interfaces can declare constructor signatures.
 
 ```ds
 interface Factory {
@@ -82,7 +82,7 @@ obj satisfies object;
 
 ### interface accessors are allowed
 
-> Interface accessors declare getter and setter signatures.
+Interface accessors declare getter and setter signatures.
 
 ```ds
 interface Config {
@@ -93,7 +93,7 @@ interface Config {
 
 ### interface index signatures are allowed
 
-> Interface index signatures declare dynamic property shapes.
+Interface index signatures declare dynamic property shapes.
 
 ```ds
 interface Config {
@@ -105,7 +105,7 @@ interface Config {
 
 ### interface properties cannot have initializers
 
-> Interface members are declarations only, so initializers are invalid.
+Interface members are declarations only, so initializers are invalid.
 
 ```ds
 interface Config {
@@ -117,7 +117,7 @@ interface Config {
 
 ### interface members cannot use visibility modifiers
 
-> Interface members cannot declare access modifiers.
+Interface members cannot declare access modifiers.
 
 ```ds
 interface Config {
@@ -129,7 +129,7 @@ interface Config {
 
 ### interface members cannot use static modifiers
 
-> Interface members cannot be static.
+Interface members cannot be static.
 
 ```ds
 interface Config {
@@ -141,7 +141,7 @@ interface Config {
 
 ### interface members cannot be async
 
-> Interface method signatures cannot be async.
+Interface method signatures cannot be async.
 
 ```ds
 interface Config {
@@ -153,7 +153,7 @@ interface Config {
 
 ### interface members cannot have bodies
 
-> Interface methods are declarations without bodies.
+Interface methods are declarations without bodies.
 
 ```ds
 interface Config {
@@ -165,7 +165,7 @@ interface Config {
 
 ### interface getters cannot take parameters
 
-> Interface getters take no parameters.
+Interface getters take no parameters.
 
 ```ds
 interface Config {
@@ -177,7 +177,7 @@ interface Config {
 
 ### interface getters cannot be generic
 
-> Interface accessors cannot be generic.
+Interface accessors cannot be generic.
 
 ```ds
 interface Config {
@@ -189,7 +189,7 @@ interface Config {
 
 ### interface setters require one parameter
 
-> Interface setters require one non-optional parameter.
+Interface setters require one non-optional parameter.
 
 ```ds
 interface Config {
@@ -201,7 +201,7 @@ interface Config {
 
 ### interface setters cannot be optional
 
-> Interface setters require one required parameter.
+Interface setters require one required parameter.
 
 ```ds
 interface Config {
@@ -213,7 +213,7 @@ interface Config {
 
 ### interface setter return type must be void
 
-> Interface setters only return void.
+Interface setters only return void.
 
 ```ds
 interface Config {

@@ -4,7 +4,7 @@
 
 ### switch selects a matching case
 
-> Switch statements run the first matching case.
+Switch statements run the first matching case.
 
 ```ds
 function describe(day: int32): string {
@@ -22,7 +22,7 @@ function describe(day: int32): string {
 
 ### switch falls through without break
 
-> Switch cases fall through when no break is present.
+Switch cases fall through when no break is present.
 
 ```ds
 function classify(day: int32): int32 {
@@ -47,7 +47,7 @@ function classify(day: int32): int32 {
 
 ### switch rejects break values
 
-> Switch breaks cannot carry a value.
+Switch breaks cannot carry a value.
 
 ```ds
 function invalidBreak(day: int32): int32 {
@@ -65,7 +65,7 @@ function invalidBreak(day: int32): int32 {
 
 ### switch cases use expressions
 
-> Switch cases do not accept structural patterns.
+Switch cases do not accept structural patterns.
 
 ```ds
 function invalidCase(value: int32): int32 {
@@ -83,7 +83,7 @@ function invalidCase(value: int32): int32 {
 
 ### switch cases do not accept wildcards
 
-> `default` handles remaining values.
+`default` handles remaining values.
 
 ```ds
 function invalidWildcard(value: int32): int32 {
@@ -101,7 +101,7 @@ function invalidWildcard(value: int32): int32 {
 
 ### switch cases match the switch type
 
-> Case expressions must be assignable to the switch value.
+Case expressions must be assignable to the switch value.
 
 ```ds
 function invalidCaseType(value: int32): int32 {

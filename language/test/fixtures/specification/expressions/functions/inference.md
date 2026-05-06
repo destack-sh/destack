@@ -6,7 +6,7 @@ Parameter and return type inference.
 
 ### default values infer parameters
 
-> Parameters are inferred from default values.
+Parameters are inferred from default values.
 
 ```ds
 function greet(name = "hi") {
@@ -19,7 +19,7 @@ greet satisfies (name: string) => string;
 
 ### contextual lambda from annotation
 
-> Lambda parameter types are inferred from annotations.
+Lambda parameter types are inferred from annotations.
 
 ```ds
 const add: (a: number, b: number) => number = (a, b) => a + b
@@ -28,7 +28,7 @@ add satisfies (a: number, b: number) => number;
 
 ### contextual lambda from annotation mismatch
 
-> Lambda return type must satisfy the contextual return type.
+Lambda return type must satisfy the contextual return type.
 
 ```ds
 const add: (a: number, b: number) => number = (a, b) => "hi"
@@ -38,7 +38,7 @@ const add: (a: number, b: number) => number = (a, b) => "hi"
 
 ### contextual lambda from argument
 
-> Lambda parameter types are inferred from parameter types.
+Lambda parameter types are inferred from parameter types.
 
 ```ds
 function apply(transform: (value: number) => number) {
@@ -49,7 +49,7 @@ apply((value) => value + 1)
 
 ### contextual lambda from argument mismatch
 
-> Lambda return type must satisfy the contextual return type.
+Lambda return type must satisfy the contextual return type.
 
 ```ds
 function apply(transform: (value: number) => number) {
@@ -62,7 +62,7 @@ apply((value) => "hi")
 
 ### contextual object argument
 
-> Object literals use parameter types for contextual typing.
+Object literals use parameter types for contextual typing.
 
 ```ds
 function use_point(point: { x: number, y: number }) {
@@ -73,7 +73,7 @@ use_point({ x: 1, y: 2 })
 
 ### contextual object argument mismatch
 
-> Object literal properties must satisfy contextual field types.
+Object literal properties must satisfy contextual field types.
 
 ```ds
 function use_point(point: { x: number, y: number }) {
@@ -86,7 +86,7 @@ use_point({ x: 1, y: "hi" })
 
 ### contextual tuple argument
 
-> Tuple literals use parameter types for contextual typing.
+Tuple literals use parameter types for contextual typing.
 
 ```ds
 function sum(pair: (number, number)) {
@@ -97,7 +97,7 @@ sum((1, 2))
 
 ### contextual tuple argument mismatch
 
-> Tuple literal elements must satisfy contextual element types.
+Tuple literal elements must satisfy contextual element types.
 
 ```ds
 function sum(pair: (number, number)) {
@@ -110,7 +110,7 @@ sum((1, "hi"))
 
 ### contextual array argument
 
-> Array literals use parameter types for contextual typing.
+Array literals use parameter types for contextual typing.
 
 ```ds
 function total(values: number[]) {
@@ -121,7 +121,7 @@ total([1, 2, 3])
 
 ### contextual array argument mismatch
 
-> Array literal elements must satisfy contextual element types.
+Array literal elements must satisfy contextual element types.
 
 ```ds
 function total(values: number[]) {
@@ -136,7 +136,7 @@ total([1, "hi"])
 
 ### arrow properties remain order-insensitive for contextual callback inference
 
-> Arrow properties infer contextual callback types regardless of sibling order.
+Arrow properties infer contextual callback types regardless of sibling order.
 
 ```ds:main.ds
 declare function callIt<T>(obj: {
@@ -152,7 +152,7 @@ callIt({
 
 ### object methods do not infer from sibling members when flipped
 
-> Method syntax does not infer parameter types from sibling members.
+Method syntax does not infer parameter types from sibling members.
 
 ```ds:main.ds
 declare function callIt<T>(obj: {
@@ -172,7 +172,7 @@ callIt({
 
 ### arrow properties infer across sibling ordering with nested object literals
 
-> Arrow properties contextually infer generic payloads regardless of sibling ordering.
+Arrow properties contextually infer generic payloads regardless of sibling ordering.
 
 ```ds:main.ds
 declare function build<T>(spec: {
@@ -190,7 +190,7 @@ output satisfies string;
 
 ### object methods do not contextually infer sibling generic payloads
 
-> Method syntax does not gain arrow-style sibling contextual inference in object literals.
+Method syntax does not gain arrow-style sibling contextual inference in object literals.
 
 ```ds:main.ds
 declare function build<T>(spec: {
@@ -208,7 +208,7 @@ build({
 
 ### arrow callbacks preserve inference through renamed re-exports
 
-> Renamed re-exports do not affect arrow contextual inference.
+Renamed re-exports do not affect arrow contextual inference.
 
 ```ds:api.ds
 export declare function build<T>(spec: {
@@ -236,7 +236,7 @@ output satisfies string;
 
 ### generic callback inference preserves const tuple literal element types
 
-> Generic callback inference preserves tuple literal precision from const tuple arguments.
+Generic callback inference preserves tuple literal precision from const tuple arguments.
 
 ```ds:main.ds
 declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
@@ -249,7 +249,7 @@ head satisfies 1;
 
 ### generic callback inference widens mutable array element types
 
-> Generic callback inference widens mutable array element reads to their primitive element type.
+Generic callback inference widens mutable array element reads to their primitive element type.
 
 ```ds:main.ds
 declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
@@ -262,7 +262,7 @@ head satisfies number;
 
 ### generic callback inference does not keep mutable array literal elements
 
-> Generic callback inference does not preserve mutable array element literal types.
+Generic callback inference does not preserve mutable array element literal types.
 
 ```ds:main.ds
 declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
@@ -277,7 +277,7 @@ head satisfies 1;
 
 ### generic callback inference stays precise through renamed re-exports
 
-> Generic callback inference preserves const tuple precision across renamed re-export paths.
+Generic callback inference preserves const tuple precision across renamed re-export paths.
 
 ```ds:api.ds
 export declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
@@ -300,7 +300,7 @@ head satisfies 1;
 
 ### nested callback inference threads outer generic payloads
 
-> Nested callbacks preserve contextual generic payload types through outer callback positions.
+Nested callbacks preserve contextual generic payload types through outer callback positions.
 
 ```ds:main.ds
 declare function withValue<T>(
@@ -314,7 +314,7 @@ output satisfies string;
 
 ### nested callback inference rejects mismatched payload usage
 
-> Nested callbacks reject payload usage that is incompatible with the inferred contextual generic type.
+Nested callbacks reject payload usage that is incompatible with the inferred contextual generic type.
 
 ```ds:main.ds
 declare function withValue<T>(
@@ -329,7 +329,7 @@ withValue("ready", read => read().toFixed());
 
 ### nested arrows remain order-insensitive in contextual object inference
 
-> Nested arrow properties remain order-insensitive for contextual generic object inference.
+Nested arrow properties remain order-insensitive for contextual generic object inference.
 
 ```ds:main.ds
 declare function wire<T>(spec: {
@@ -350,7 +350,7 @@ output satisfies string;
 
 ### nested methods do not infer sibling payloads
 
-> Nested method syntax does not gain arrow-style sibling contextual inference.
+Nested method syntax does not gain arrow-style sibling contextual inference.
 
 ```ds:main.ds
 declare function wire<T>(spec: {

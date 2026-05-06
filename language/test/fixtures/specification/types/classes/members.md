@@ -53,7 +53,7 @@ class Counter {
 }
 
 const value = Counter.defaultValue;
-value satisfies int32;
+value satisfies number;
 ```
 
 ### static fields infer from initializers

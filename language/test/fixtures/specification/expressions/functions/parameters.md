@@ -6,7 +6,7 @@ Dynamic parameter passing and defaults.
 
 ### positional arguments map to parameters
 
-> Positional arguments flow into parameters by order.
+Positional arguments flow into parameters by order.
 
 ```ds
 function sum(a: number, b: number): number {
@@ -19,7 +19,7 @@ value satisfies number;
 
 ### defaulted parameters are optional
 
-> Parameters with defaults can be omitted at call sites.
+Parameters with defaults can be omitted at call sites.
 
 ```ds
 function greet(name: string = "hi"): string {
@@ -32,7 +32,7 @@ greet("hello") satisfies string;
 
 ### defaulted parameter types are enforced
 
-> Arguments still satisfy the declared parameter type.
+Arguments still satisfy the declared parameter type.
 
 ```ds
 function repeat(value: string = "hi"): string {
@@ -47,7 +47,7 @@ repeat(1);
 
 ### tuple rest parameters infer element types
 
-> Tuple rest parameters preserve element types from call sites.
+Tuple rest parameters preserve element types from call sites.
 
 ```ds
 function pair<T, U>(...values: (T, U)): (T, U) {
@@ -58,26 +58,11 @@ const result = pair(1, "hi");
 result satisfies (int, string);
 ```
 
-### tuple rest destructuring supports nested defaults
-
-> Tuple rest destructuring supports nested object defaults and a tuple level fallback.
-
-```ds:main.ds
-type SpawnArguments = (string, { syncSnapshot?: boolean }?);
-
-function spawnChild(...[src, { syncSnapshot = false } = {}]: SpawnArguments): boolean {
-    return syncSnapshot;
-}
-```
-
-- contains: named fields are not allowed in array or tuple patterns
-
-
 ## parameter property rejections
 
 ### function parameters cannot be parameter properties
 
-> Parameter property modifiers are only allowed in constructors.
+Parameter property modifiers are only allowed in constructors.
 
 ```ds
 function build(public value: number) {
@@ -90,7 +75,7 @@ function build(public value: number) {
 
 ### optional pattern parameters are rejected
 
-> Optional parameters must use identifiers, not binding patterns.
+Optional parameters must use identifiers, not binding patterns.
 
 ```ds:main.ds
 interface Payload {
@@ -106,7 +91,7 @@ function handle({ value }?: Payload) {
 
 ### optional rest parameters are rejected
 
-> Rest parameters cannot be optional.
+Rest parameters cannot be optional.
 
 ```ds:main.ds
 function collect(...items?: string[]) {

@@ -2,9 +2,9 @@
 
 ## branches
 
-### if let joins branches
+### if (let ...) joins branches
 
-> If let joins then and else branch types.
+If let joins then and else branch types.
 
 ```ds
 declare const value: int32;
@@ -18,9 +18,9 @@ const result = if (let 1 = value) {
 result satisfies string | int32;
 ```
 
-### if let chains with else if
+### if (let ...) chains with else if
 
-> If let conditions are valid in else if branches.
+If let conditions are valid in else if branches.
 
 ```ds
 declare const value: 1 | 2 | 3;
@@ -36,9 +36,9 @@ const result = if (let 1 = value) {
 result satisfies string;
 ```
 
-### if let without else yields void
+### if (let ...) without else yields void
 
-> If let without else yields void.
+If let without else yields void.
 
 ```ds
 declare const value: int32;
@@ -52,9 +52,9 @@ const result: int32 = if (let 1 = value) {
 
 ## scoping
 
-### if let bindings stay in the then branch
+### if (let ...) bindings stay in the then branch
 
-> Bindings introduced by if let are only visible in the then branch.
+Bindings introduced by if (let ...) are only visible in the then branch.
 
 ```ds
 declare const pair: (int32, int32);
@@ -68,9 +68,9 @@ const result = if (let (left, right) = pair) {
 
 - contains: missing symbol
 
-### if let bindings do not escape the if expression
+### if (let ...) bindings do not escape the if expression
 
-> Bindings introduced by if let are not visible after the if.
+Bindings introduced by if (let ...) are not visible after the if.
 
 ```ds
 declare const value: int32;
@@ -86,9 +86,9 @@ x
 
 ## flow
 
-### if let narrows both branches
+### if (let ...) narrows both branches
 
-> If let narrows the matched value in the then and else branches.
+If let narrows the matched value in the then and else branches.
 
 ```ds
 declare const value: 1 | 2;
@@ -102,9 +102,9 @@ if (let 1 = value) {
 
 ## annotations
 
-### if let annotations accept matching values
+### if (let ...) annotations accept matching values
 
-> Type annotations on if let bindings check the matched value.
+Type annotations on if (let ...) bindings check the matched value.
 
 ```ds
 declare const value: int32;
@@ -114,9 +114,9 @@ if (let x: int32 = value) {
 }
 ```
 
-### if let annotations reject mismatches
+### if (let ...) annotations reject mismatches
 
-> The matched value must satisfy the binding annotation.
+The matched value must satisfy the binding annotation.
 
 ```ds
 declare const value: string | int32;

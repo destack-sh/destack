@@ -6,7 +6,7 @@ String literal type inference and checking.
 
 ### string literal
 
-> String literals can be assigned to string type.
+String literals can be assigned to string type.
 
 ```ds
 const x: string = "hello";
@@ -14,7 +14,7 @@ const x: string = "hello";
 
 ### empty string
 
-> Empty strings are accepted string literals.
+Empty strings are accepted string literals.
 
 ```ds
 const x: string = "";
@@ -22,7 +22,7 @@ const x: string = "";
 
 ### string with spaces
 
-> Strings can contain spaces.
+Strings can contain spaces.
 
 ```ds
 const x: string = "hello world";
@@ -30,27 +30,29 @@ const x: string = "hello world";
 
 ## inference
 
-### inferred string type
+### string literals stay exact
 
-> String literals without annotation infer to string.
+String literals without annotation keep their literal type.
 
 ```ds
 const x = "hello";
+x satisfies "hello";
 x satisfies string;
 ```
 
-### inferred empty string
+### empty string literals stay exact
 
-> Empty string literals infer to string.
+Empty string literals keep their literal type.
 
 ```ds
 const x = "";
+x satisfies "";
 x satisfies string;
 ```
 
 ### string does not satisfy number
 
-> String literal cannot satisfy number type.
+String literal cannot satisfy number type.
 
 ```ds
 const x = "hello";
@@ -63,7 +65,7 @@ x satisfies number;
 
 ### string length resolves
 
-> String literals expose string members.
+String literals expose string members.
 
 ```ds
 const value = "hello";
@@ -72,7 +74,7 @@ value.length satisfies int32;
 
 ### string toUpperCase resolves
 
-> String methods preserve their declared return types.
+String methods preserve their declared return types.
 
 ```ds
 const value = "hello";

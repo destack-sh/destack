@@ -9,7 +9,7 @@ Multiple `@if` guards must all be true.
 Both guards must be true for the declaration to exist.
 
 ```ds
-@if(import.meta.emit == "js")
-@if(import.meta.emit == "native")
+@if(import.meta.output == "js")
+@if(import.meta.output == "native")
 const combined = missingSymbol;
 ```

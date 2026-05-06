@@ -6,7 +6,7 @@ Classes can bind type parameters and static value parameters.
 
 ### classes accept explicit type arguments
 
-> Class type references accept explicit type arguments.
+Class type references accept explicit type arguments.
 
 ```ds
 class Box<T> {
@@ -21,7 +21,7 @@ value satisfies Box<number>;
 
 ### classes reject type argument mismatches
 
-> Type arguments must satisfy declared bounds.
+Type arguments must satisfy declared bounds.
 
 ```ds
 class Box<T: number> {
@@ -37,7 +37,7 @@ let value: Box<string> = makeBox();
 
 ### classes accept static value arguments
 
-> Static value arguments are checked against declared types.
+Static value arguments are checked against declared types.
 
 ```ds
 class Buffer<T, comptime N: number> {
@@ -52,7 +52,7 @@ buffer satisfies Buffer<string, 4>;
 
 ### classes reject static value argument mismatches
 
-> Static value arguments must satisfy declared types.
+Static value arguments must satisfy declared types.
 
 ```ds
 class Buffer<T, comptime N: number> {
@@ -70,7 +70,7 @@ let buffer: Buffer<string, true> = makeBuffer();
 
 ### classes accept default type parameters
 
-> Type parameters fall back to defaults when omitted.
+Type parameters fall back to defaults when omitted.
 
 ```ds
 class Box<T = number> {
@@ -85,7 +85,7 @@ value satisfies Box<number>;
 
 ### classes accept default static values
 
-> Static value arguments fall back to defaults when omitted.
+Static value arguments fall back to defaults when omitted.
 
 ```ds
 class Buffer<T, comptime N: number = 4> {
@@ -102,7 +102,7 @@ buffer satisfies Buffer<string, 4>;
 
 ### type arguments affect class assignability
 
-> Class type references with different type arguments are not assignable.
+Class type references with different type arguments are not assignable.
 
 ```ds
 class Box<T> {
@@ -118,7 +118,7 @@ let stringBox: Box<string> = numberBox;
 
 ### static value arguments affect class assignability
 
-> Class references with different value arguments are not assignable.
+Class references with different value arguments are not assignable.
 
 ```ds
 class Buffer<T, comptime N: number> {

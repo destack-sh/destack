@@ -6,7 +6,7 @@ Blocks can produce values from their final expression.
 
 ### if blocks yield branch values
 
-> If expressions join the values produced by their branches.
+If expressions join the values produced by their branches.
 
 ```ds
 const enabled = true;
@@ -21,7 +21,7 @@ value satisfies int32;
 
 ### blocks without tail expressions yield void
 
-> A block with no final expression has type void.
+A block with no final expression has type void.
 
 ```ds
 const enabled = true;
@@ -38,7 +38,7 @@ const value: int32 = if (enabled) {
 
 ### function bodies return tail expressions
 
-> A function body can return its final expression without `return`.
+A function body can return its final expression without `return`.
 
 ```ds
 function add(left: int32, right: int32): int32 {

@@ -6,7 +6,7 @@ Interfaces can require associated types and constants from implementations.
 
 ### implementations inherit type defaults
 
-> A default type member is used when the implementation does not override it.
+A default type member is used when the implementation does not override it.
 
 ```ds
 interface Stream<T> {
@@ -28,7 +28,7 @@ item satisfies int32;
 
 ### implementations can override type defaults
 
-> An explicit type member wins over the interface default.
+An explicit type member wins over the interface default.
 
 ```ds
 class DecodeError {}
@@ -56,7 +56,7 @@ error satisfies JsonError;
 
 ### required type members need implementations
 
-> A required type member has no default.
+A required type member has no default.
 
 ```ds
 interface Iterator {
@@ -74,7 +74,7 @@ class Empty implements Iterator {}
 
 ### implementations inherit constant defaults
 
-> A default constant member is used when the implementation does not override it.
+A default constant member is used when the implementation does not override it.
 
 ```ds
 interface RegisterBlock {
@@ -90,7 +90,7 @@ bytes satisfies [uint8; 4];
 
 ### implementations can override constant defaults
 
-> An explicit constant member wins over the interface default.
+An explicit constant member wins over the interface default.
 
 ```ds
 interface RegisterBlock {
@@ -108,7 +108,7 @@ bytes satisfies [uint8; 16];
 
 ### extensions can provide requirements
 
-> An extension can provide associated members for an interface implementation.
+An extension can provide associated members for an interface implementation.
 
 ```ds
 interface Window<T> {

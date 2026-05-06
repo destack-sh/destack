@@ -4,18 +4,18 @@
 
 Module metadata available via `import.meta`.
 
-### emit is a known union
+### output is a known union
 
-> `import.meta.emit` returns the emit format for the profile.
+`import.meta.output` returns the output format for the profile.
 
 ```ds
-const emit = import.meta.emit;
-emit satisfies "js" | "ts" | "html" | "wasm" | "native";
+const output = import.meta.output;
+output satisfies "js" | "ts" | "wasm" | "native";
 ```
 
 ### runtime is a known union
 
-> `import.meta.runtime` returns the runtime for the profile.
+`import.meta.runtime` returns the runtime for the profile.
 
 ```ds
 const runtime = import.meta.runtime;
@@ -34,7 +34,7 @@ runtime satisfies
 
 ### platform is a known union
 
-> `import.meta.platform` returns the target platform for the profile.
+`import.meta.platform` returns the target platform for the profile.
 
 ```ds
 const platform = import.meta.platform;
@@ -63,7 +63,7 @@ platform satisfies
 
 ### target metadata is typed
 
-> `import.meta.target` exposes structured target metadata.
+`import.meta.target` exposes structured target metadata.
 
 ```ds
 const family = import.meta.target.family;
@@ -84,7 +84,7 @@ const arch: string | undefined = import.meta.target.arch;
 
 ### debug and test are booleans
 
-> `import.meta.debug` and `import.meta.test` are booleans.
+`import.meta.debug` and `import.meta.test` are booleans.
 
 ```ds
 const debug: boolean = import.meta.debug;
@@ -93,20 +93,17 @@ const test: boolean = import.meta.test;
 
 ### module paths are typed
 
-> URL is always present and paths are optional.
+URL is always present and local paths are optional.
 
 ```ds
 const url: string = import.meta.url;
 const path: string | undefined = import.meta.path;
-const file: string | undefined = import.meta.file;
-const filename: string | undefined = import.meta.filename;
 const dir: string | undefined = import.meta.dir;
-const dirname: string | undefined = import.meta.dirname;
 ```
 
 ### env exposes strings and helper fields
 
-> `import.meta.env` exposes string values and helpers.
+`import.meta.env` exposes string values and helpers.
 
 ```ds
 const mode: "development" | "production" | "test" | undefined =

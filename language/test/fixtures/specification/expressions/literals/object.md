@@ -6,7 +6,7 @@ Object literal type inference and checking.
 
 ### object with properties
 
-> Objects infer property types from their values.
+Objects infer property types from their values.
 
 ```ds
 const x = { a: 1, b: "two" };
@@ -15,7 +15,7 @@ x satisfies { a: number, b: string };
 
 ### object with shorthand properties
 
-> Shorthand fields use the binding type.
+Shorthand fields use the binding type.
 
 ```ds
 const name = "Ada";
@@ -26,7 +26,7 @@ person satisfies { name: string, age: number };
 
 ### empty object
 
-> Empty objects have no properties.
+Empty objects have no properties.
 
 ```ds
 const x = {};
@@ -35,7 +35,7 @@ x satisfies {};
 
 ### nested object
 
-> Objects can contain nested objects.
+Objects can contain nested objects.
 
 ```ds
 const x = { a: { b: 1 } };
@@ -44,7 +44,7 @@ x satisfies { a: { b: number } };
 
 ### object with const assertion
 
-> Const assertions preserve literal property types.
+Const assertions preserve literal property types.
 
 ```ds
 const x = { a: 1, b: "two" } as const;
@@ -55,7 +55,7 @@ x satisfies { readonly a: 1, readonly b: "two" };
 
 ### object spread adds fields
 
-> Object literals incorporate spread fields.
+Object literals incorporate spread fields.
 
 ```ds
 const base = { a: 1, b: "two" };
@@ -65,7 +65,7 @@ value satisfies { a: number, b: string, c: boolean };
 
 ### object spread overrides fields
 
-> Later fields override earlier spread fields.
+Later fields override earlier spread fields.
 
 ```ds
 const base = { a: 1, b: 2 };
@@ -75,7 +75,7 @@ value satisfies { a: number, b: string };
 
 ### object spread preserves unions
 
-> Union spreads produce union object shapes.
+Union spreads produce union object shapes.
 
 ```ds
 const value: { a: number } | { b: string } = { a: 1 };
@@ -85,7 +85,7 @@ merged satisfies { a: number } | { b: string };
 
 ### object spread unwraps aliases
 
-> Object spreads unwrap structural type aliases.
+Object spreads unwrap structural type aliases.
 
 ```ds
 type Base = { a: number };
@@ -96,7 +96,7 @@ value satisfies { a: number, b: string };
 
 ### object spread merges intersections
 
-> Object spreads merge intersection shapes.
+Object spreads merge intersection shapes.
 
 ```ds
 const base: { a: number } & { b: string } = { a: 1, b: "two" };
@@ -108,7 +108,7 @@ value satisfies { a: number, b: string, c: boolean };
 
 ### contextual object literal
 
-> Object literals use contextual types for property inference.
+Object literals use contextual types for property inference.
 
 ```ds
 const value: { a: number, b: string } = { a: 1, b: "hi" };
@@ -117,7 +117,7 @@ value satisfies { a: number, b: string };
 
 ### contextual object literal mismatch
 
-> Object literal properties must satisfy contextual field types.
+Object literal properties must satisfy contextual field types.
 
 ```ds
 const value: { a: number, b: string } = { a: 1, b: 2 };
@@ -127,7 +127,7 @@ const value: { a: number, b: string } = { a: 1, b: 2 };
 
 ### contextual object literal via alias
 
-> Contextual object types are preserved through aliases.
+Contextual object types are preserved through aliases.
 
 ```ds
 type Point = { x: number, y: number };
@@ -138,7 +138,7 @@ value satisfies { x: number, y: number };
 
 ### contextual object literal alias mismatch
 
-> Alias contextual types still enforce property constraints.
+Alias contextual types still enforce property constraints.
 
 ```ds
 type Point = { x: number, y: number };
@@ -150,7 +150,7 @@ const value: Point = { x: 1, y: "hi" };
 
 ### contextual object spread literal
 
-> Object spreads still respect contextual object types.
+Object spreads still respect contextual object types.
 
 ```ds
 const value: { a: number } = { ...{ a: 1 } };
@@ -159,7 +159,7 @@ value satisfies { a: number };
 
 ### contextual object spread literal mismatch
 
-> Object spreads reject fields that violate contextual types.
+Object spreads reject fields that violate contextual types.
 
 ```ds
 const value: { a: number } = { ...{ a: "hi" } };
@@ -171,7 +171,7 @@ const value: { a: number } = { ...{ a: "hi" } };
 
 ### object toString resolves
 
-> Object literals expose standard object members.
+Object literals expose standard object members.
 
 
 ```ds
@@ -182,7 +182,7 @@ text satisfies string;
 
 ### object hasOwnProperty resolves
 
-> Object literals expose hasOwnProperty.
+Object literals expose hasOwnProperty.
 
 
 ```ds

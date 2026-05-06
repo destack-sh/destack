@@ -4,7 +4,7 @@
 
 ### template literal type accepts bigint strings
 
-> Bigint spans accept bigint literal strings.
+Bigint spans accept bigint literal strings.
 
 ```ds
 type Big = `${bigint}`;
@@ -18,7 +18,7 @@ let ok5: Big = "-0";
 
 ### template literal type rejects invalid bigint strings
 
-> Bigint spans reject invalid literal strings.
+Bigint spans reject invalid literal strings.
 
 ```ds
 type Big = `${bigint}`;
@@ -38,7 +38,7 @@ let bad5: Big = "+0x1";
 
 ### template literal type accepts int span strings
 
-> Fixed width ints accept valid literal strings.
+Fixed width ints accept valid literal strings.
 
 ```ds
 type Small = `${int8}`;
@@ -49,7 +49,7 @@ let ok2: Small = "0x7f";
 
 ### template literal type rejects int span out of range
 
-> Fixed width ints reject out of range strings.
+Fixed width ints reject out of range strings.
 
 ```ds
 type Small = `${int8}`;
@@ -63,7 +63,7 @@ let bad2: Small = "-0x1";
 
 ### template literal type accepts number string forms
 
-> `${number}` matches numeric string forms.
+`${number}` matches numeric string forms.
 
 ```ds
 type Numeric = `${number}`;
@@ -85,7 +85,7 @@ let ok13: Numeric = "1e999";
 
 ### template literal type rejects invalid number strings
 
-> `${number}` rejects invalid numeric strings.
+`${number}` rejects invalid numeric strings.
 
 ```ds
 type Numeric = `${number}`;

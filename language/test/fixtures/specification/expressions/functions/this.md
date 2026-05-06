@@ -6,7 +6,7 @@ Free functions need explicit receiver types, while methods provide `this`.
 
 ### functions reject implicit this
 
-> `this` inside functions requires an explicit `this` parameter.
+`this` inside functions requires an explicit `this` parameter.
 
 ```ds
 function counter() {
@@ -18,7 +18,7 @@ function counter() {
 
 ### explicit this parameters provide receiver types
 
-> Explicit `this` parameters provide a concrete type.
+Explicit `this` parameters provide a concrete type.
 
 ```ds
 function counter(this: { value: number }) {
@@ -30,7 +30,7 @@ function counter(this: { value: number }) {
 
 ### methods provide implicit this
 
-> Member methods have an implicit `this` binding.
+Member methods have an implicit `this` binding.
 
 ```ds
 class Counter {
@@ -44,7 +44,7 @@ class Counter {
 
 ### method lambdas capture this
 
-> Lambdas inside methods capture the lexical `this`.
+Lambdas inside methods capture the lexical `this`.
 
 ```ds
 class Counter {
@@ -58,7 +58,7 @@ class Counter {
 
 ### non-member lambdas reject implicit this
 
-> Lambdas outside methods require an explicit `this` parameter to use `this`.
+Lambdas outside methods require an explicit `this` parameter to use `this`.
 
 ```ds
 function make() {

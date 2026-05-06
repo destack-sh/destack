@@ -6,7 +6,7 @@
 
 ### number plus number
 
-> Adding two numbers produces a number.
+Adding two numbers produces a number.
 
 ```ds
 const value = 1 + 2;
@@ -18,7 +18,7 @@ value satisfies number;
 
 ### plus rejects incompatible operands
 
-> `+` rejects operand pairs without a numeric or overload rule.
+`+` rejects operand pairs without a numeric or overload rule.
 
 ```ds
 const value = 1 + "two";
@@ -30,7 +30,7 @@ const value = 1 + "two";
 
 ### arrays concatenate with plus
 
-> Arrays support `+` concatenation through the builtin `Add` implementation.
+Arrays support `+` concatenation through the builtin `Add` implementation.
 
 ```ds
 declare const left: int32[];
@@ -44,7 +44,7 @@ combined satisfies int32[];
 
 ### unary plus dispatches to Plus
 
-> Unary `+` dispatches to `Plus` on the receiver.
+Unary `+` dispatches to `Plus` on the receiver.
 
 ```ds
 struct Signed { value: int }
@@ -63,7 +63,7 @@ value satisfies Signed;
 
 ### unary plus requires Plus
 
-> Unary `+` requires a matching `Plus` implementation.
+Unary `+` requires a matching `Plus` implementation.
 
 ```ds
 struct Signed { value: int }
@@ -84,7 +84,7 @@ value satisfies Signed;
 
 ### plus dispatches to Add
 
-> `+` dispatches to `Add` on the receiver.
+`+` dispatches to `Add` on the receiver.
 
 ```ds
 struct Vector2 { x: number; y: number }
@@ -108,7 +108,7 @@ sum satisfies Vector2;
 
 ### plus requires Add
 
-> A matching method without `implements Add` is not an overload.
+A matching method without `implements Add` is not an overload.
 
 ```ds
 struct Vector2 { x: number; y: number }
@@ -131,7 +131,7 @@ left + right;
 
 ### plus requires the right operand type
 
-> `Add<T>` only accepts right operands assignable to `T`.
+`Add<T>` only accepts right operands assignable to `T`.
 
 ```ds
 struct Scalar { value: int }
@@ -159,7 +159,7 @@ sum satisfies Scalar;
 
 ### wrapping plus is builtin integer arithmetic
 
-> `+%` wraps modulo the integer range.
+`+%` wraps modulo the integer range.
 
 ```ds
 const a: uint8 = 250;
@@ -171,7 +171,7 @@ wrapped satisfies uint8;
 
 ### saturating plus is builtin integer arithmetic
 
-> `+|` clamps to the integer range.
+`+|` clamps to the integer range.
 
 ```ds
 const a: uint8 = 250;
@@ -183,7 +183,7 @@ saturated satisfies uint8;
 
 ### wrapping plus rejects user types
 
-> `+%` is not an overloadable operator.
+`+%` is not an overloadable operator.
 
 ```ds
 struct Scalar { value: int }

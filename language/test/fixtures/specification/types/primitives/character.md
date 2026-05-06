@@ -4,7 +4,7 @@
 
 ### character literals satisfy character
 
-> Character literals are assignable to the character type.
+Character literals are assignable to the character type.
 
 ```ds
 let value: character = 'a';
@@ -12,7 +12,7 @@ let value: character = 'a';
 
 ### character does not widen to string
 
-> Character values do not implicitly widen to string.
+Character values do not implicitly widen to string.
 
 ```ds
 let value: string = 'a';
@@ -22,7 +22,7 @@ let value: string = 'a';
 
 ### string literals do not satisfy character
 
-> String literals are not assignable to character.
+String literals are not assignable to character.
 
 ```ds
 let value: character = "a";
@@ -32,7 +32,7 @@ let value: character = "a";
 
 ### character values are not assignable to numbers
 
-> Character values do not implicitly convert to numeric types.
+Character values do not implicitly convert to numeric types.
 
 ```ds
 let value: int32 = 'a';
@@ -42,7 +42,7 @@ let value: int32 = 'a';
 
 ### character values satisfy character unions
 
-> Character values are assignable to unions that include character.
+Character values are assignable to unions that include character.
 
 ```ds
 let value: character | string = 'a';

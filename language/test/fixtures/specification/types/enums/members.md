@@ -6,7 +6,7 @@ Enums can declare instance and static members.
 
 ### enum instances expose methods
 
-> Enum instances expose declared methods.
+Enum instances expose declared methods.
 
 ```ds
 enum Status {
@@ -29,7 +29,7 @@ value satisfies boolean;
 
 ### enum statics expose values
 
-> Enum statics can expose shared values.
+Enum statics can expose shared values.
 
 ```ds
 enum Status {

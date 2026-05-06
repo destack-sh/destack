@@ -4,7 +4,7 @@
 
 ### using binding introduces a resource name
 
-> `using` introduces a scoped binding whose value implements `Dispose`.
+`using` introduces a scoped binding whose value implements `Dispose`.
 
 ```ds
 class File implements Dispose {
@@ -17,7 +17,7 @@ file satisfies File;
 
 ### using expression yields void
 
-> `using` expressions evaluate to `void`.
+`using` expressions evaluate to `void`.
 
 ```ds
 class File implements Dispose {
@@ -30,7 +30,7 @@ result satisfies void;
 
 ### using accepts nullish resources
 
-> `null` and `undefined` are ignored by resource cleanup.
+`null` and `undefined` are ignored by resource cleanup.
 
 ```ds
 using missing = null;
@@ -39,7 +39,7 @@ using absent = undefined;
 
 ### using rejects non disposable values
 
-> Ordinary values are not resources.
+Ordinary values are not resources.
 
 ```ds
 using value = 1;
@@ -49,7 +49,7 @@ using value = 1;
 
 ### using rejects async-only resources
 
-> `using` requires synchronous disposal.
+`using` requires synchronous disposal.
 
 ```ds
 class Connection implements AsyncDispose {
@@ -65,7 +65,7 @@ using connection = new Connection();
 
 ### using rejects declare
 
-> Declare bindings cannot have initializers.
+Declare bindings cannot have initializers.
 
 ```ds
 declare using value = null;

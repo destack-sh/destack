@@ -4,7 +4,7 @@
 
 ### union rejects extra fields
 
-> Object literals with fields not present in any union member are rejected.
+Object literals with fields not present in any union member are rejected.
 
 ```ds
 interface Named {
@@ -24,7 +24,7 @@ const value: Named | Aged = { name: "Ada", extra: true };
 
 ### intersection requires all fields
 
-> Object literals must satisfy every intersection member.
+Object literals must satisfy every intersection member.
 
 ```ds
 interface Named {
@@ -42,7 +42,7 @@ const value: Named & Aged = { name: "Ada" };
 
 ### intersection accepts combined fields
 
-> Object literals satisfy intersections when all fields are present.
+Object literals satisfy intersections when all fields are present.
 
 ```ds
 interface Named {
@@ -60,7 +60,7 @@ const value: Named & Aged = { name: "Ada", age: 42 };
 
 ### fresh object literals reject extra fields for direct object targets
 
-> Fresh object literals enforce excess property checks for direct object targets.
+Fresh object literals enforce excess property checks for direct object targets.
 
 ```ds
 type Person = { name: string };
@@ -72,7 +72,7 @@ const value: Person = { name: "Ada", extra: true };
 
 ### non-fresh object values allow extra fields through assignment
 
-> Non-fresh object values do not run excess property checks when assigned later.
+Non-fresh object values do not run excess property checks when assigned later.
 
 ```ds
 type Person = { name: string };
@@ -83,7 +83,7 @@ const value: Person = source;
 
 ### generic targets do not run excess checks for fresh literals
 
-> Generic target positions infer full source shape without excess checks.
+Generic target positions infer full source shape without excess checks.
 
 ```ds
 function keep<T extends { name: string }>(value: T): T {
@@ -98,7 +98,7 @@ value.extra satisfies boolean;
 
 ### fresh discriminant literals reject extra fields
 
-> Fresh literals targeting discriminated unions reject non-member fields.
+Fresh literals targeting discriminated unions reject non-member fields.
 
 ```ds
 type Shape =
@@ -112,7 +112,7 @@ const value: Shape = { kind: "a" as const, value: 1, extra: true };
 
 ### non-fresh discriminant values allow extra fields
 
-> Non-fresh values may carry extra fields when structurally assignable to a member.
+Non-fresh values may carry extra fields when structurally assignable to a member.
 
 ```ds
 type Shape =
@@ -127,7 +127,7 @@ const value: Shape = source;
 
 ### fresh spread literals reject explicit extra fields
 
-> Fresh spread literals still reject explicit excess fields on the literal itself.
+Fresh spread literals still reject explicit excess fields on the literal itself.
 
 ```ds
 type Person = { name: string };
@@ -140,7 +140,7 @@ const value: Person = { ...base, extra: true };
 
 ### spread-only object literals keep source extras without fresh excess checks
 
-> Spread-only object literals do not re-run fresh excess checks on spread-origin fields.
+Spread-only object literals do not re-run fresh excess checks on spread-origin fields.
 
 ```ds
 type Person = { name: string };
@@ -153,7 +153,7 @@ const value: Person = { ...source };
 
 ### weak object targets reject assignments without shared properties
 
-> Weak object target types reject sources that do not share required keys.
+Weak object target types reject sources that do not share required keys.
 
 ```ds
 type WeakPoint = {
@@ -168,7 +168,7 @@ const value: WeakPoint = { label: "origin" };
 
 ### weak object targets accept assignments with shared properties
 
-> Weak object target types accept sources that share at least one target property.
+Weak object target types accept sources that share at least one target property.
 
 ```ds
 type WeakPoint = {
@@ -181,7 +181,7 @@ const value: WeakPoint = { x: 1, label: "origin" };
 
 ### weak object targets reject fresh spread literals without shared properties
 
-> Fresh spread literals still reject weak targets when no target property is shared.
+Fresh spread literals still reject weak targets when no target property is shared.
 
 ```ds
 type WeakPoint = {
@@ -197,7 +197,7 @@ const value: WeakPoint = { ...base };
 
 ### weak object targets accept spread literals with shared properties
 
-> Spread literals are accepted for weak targets when at least one target property is shared.
+Spread literals are accepted for weak targets when at least one target property is shared.
 
 ```ds
 type WeakPoint = {
@@ -211,7 +211,7 @@ const value: WeakPoint = { ...base };
 
 ### callback return literals run excess checks in contextual object return types
 
-> Contextually typed callback returns run excess property checks on fresh returned literals.
+Contextually typed callback returns run excess property checks on fresh returned literals.
 
 ```ds
 type Person = { name: string };
@@ -227,7 +227,7 @@ use(() => ({ name: "Ada", extra: true }));
 
 ### callback-produced values lose freshness outside contextual return positions
 
-> Object values produced by non-contextual callbacks do not run excess checks on later assignment.
+Object values produced by non-contextual callbacks do not run excess checks on later assignment.
 
 ```ds
 type Person = { name: string };
@@ -238,7 +238,7 @@ const value: Person = make();
 
 ### fresh discriminant literals reject extra fields through renamed re-exports
 
-> Fresh discriminant literals reject excess fields through renamed re-export paths.
+Fresh discriminant literals reject excess fields through renamed re-export paths.
 
 ```ds:shape.ds
 export type Shape =
@@ -260,7 +260,7 @@ const value: PublicShape = { kind: "a" as const, value: 1, extra: true };
 
 ### spread discriminant literals reject extra fields through renamed re-exports
 
-> Fresh spread literals still reject explicit excess fields for discriminant union targets through renamed re-exports.
+Fresh spread literals still reject explicit excess fields for discriminant union targets through renamed re-exports.
 
 ```ds:shape.ds
 export type Shape =

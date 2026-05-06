@@ -1,6 +1,6 @@
 # Arrays
 
-Fixed array lengths can use parameters, constants, and projections resolved during analysis.
+Fixed array lengths can use static parameters and associated constants.
 
 ## lengths
 

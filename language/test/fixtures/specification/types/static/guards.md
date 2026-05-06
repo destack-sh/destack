@@ -44,7 +44,7 @@ declare const packet: Packet<string>;
 packet.meta satisfies TextMeta;
 ```
 
-### false @if removes fields
+### when false, @if removes fields
 
 A field behind `@if(false)` is absent.
 

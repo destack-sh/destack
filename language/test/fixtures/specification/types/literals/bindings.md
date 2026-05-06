@@ -4,7 +4,7 @@
 
 ### const assertions keep nested literals through satisfies
 
-> `as const` values checked with `satisfies` keep nested literal precision.
+`as const` values checked with `satisfies` keep nested literal precision.
 
 ```ds
 const value = ({ env: { mode: "dev" } } as const) satisfies { env: { mode: string } };
@@ -14,7 +14,7 @@ value.env.mode satisfies "dev";
 
 ### generic const wrappers preserve literal precision
 
-> Generic wrappers over readonly inputs preserve literal precision when the value is assigned.
+Generic wrappers over readonly inputs preserve literal precision when the value is assigned.
 
 ```ds
 declare function freeze<const T>(value: T): T;
@@ -28,7 +28,7 @@ value.level satisfies 1;
 
 ### mutable generic wrappers widen object literal members
 
-> Passing literals through mutable generic wrappers widens members to mutable types.
+Passing literals through mutable generic wrappers widens members to mutable types.
 
 ```ds
 declare function hold<T>(value: T): T;
@@ -41,7 +41,7 @@ value.kind satisfies "ready";
 
 ### mutable spread targets widen readonly source literals
 
-> Spreading readonly sources into mutable object targets widens member literals at the assignment site.
+Spreading readonly sources into mutable object targets widens member literals at the assignment site.
 
 ```ds
 const base = { kind: "ready" } as const;
@@ -56,7 +56,7 @@ value.kind satisfies "ready";
 
 ### direct fresh literals reject excess fields at typed calls
 
-> A fresh literal passed directly to a target type still triggers excess property rejection.
+A fresh literal passed directly to a target type still triggers excess property rejection.
 
 ```ds
 type Ready = { kind: "ready"; payload: string };
@@ -70,7 +70,7 @@ accept({ kind: "ready", payload: "ok", extra: true });
 
 ### stale values remain assignable after variable binding
 
-> The same shape, once held in a variable, remains assignable despite extra properties.
+The same shape, once held in a variable, remains assignable despite extra properties.
 
 ```ds
 type Ready = { kind: "ready"; payload: string };

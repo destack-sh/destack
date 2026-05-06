@@ -4,7 +4,7 @@
 
 ### catch assignments widen post-try variable types
 
-> A catch assignment rejoins with the try path.
+A catch assignment rejoins with the try path.
 
 ```ds
 let value: string | int32 = "ok";
@@ -22,7 +22,7 @@ value satisfies string;
 
 ### catch assignments remove variant-specific members
 
-> Discriminant narrowing from the try path does not leak past catch writes.
+Discriminant narrowing from the try path does not leak past catch writes.
 
 ```ds
 type Ready = { kind: "ready", payload: string };
@@ -45,7 +45,7 @@ state.payload;
 
 ### catch joins keep only shared members
 
-> After try and catch join, only members common to all paths remain available.
+After try and catch join, only members common to all paths remain available.
 
 ```ds
 let value: string | number = "ok";
@@ -65,7 +65,7 @@ value.toUpperCase();
 
 ### finally writes invalidate prior narrows
 
-> Writes in finally run on all exits and invalidate prior narrowing facts.
+Writes in finally run on all exits and invalidate prior narrowing facts.
 
 ```ds
 let value: string | null = "ok";
@@ -85,7 +85,7 @@ if (value != null) {
 
 ### finally alias writes invalidate prior dotted narrows
 
-> A write through an alias in finally invalidates earlier dotted-name narrows.
+A write through an alias in finally invalidates earlier dotted-name narrows.
 
 ```ds
 let box: { inner: { value?: string } } = { inner: { value: "ok" } };
@@ -106,7 +106,7 @@ if (box.inner.value !== undefined) {
 
 ### finally helper writes invalidate prior null checks
 
-> A helper called from finally can invalidate null checks established in try.
+A helper called from finally can invalidate null checks established in try.
 
 ```ds
 let value: string | null = "ok";
@@ -132,7 +132,7 @@ if (value !== null) {
 
 ### loop closures invalidate discriminant member narrows
 
-> Closure writes inside loops invalidate discriminant member narrows.
+Closure writes inside loops invalidate discriminant member narrows.
 
 ```ds
 type Ready = { kind: "ready"; payload: string };

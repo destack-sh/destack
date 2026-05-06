@@ -6,7 +6,7 @@
 
 ### number power number
 
-> Raising one number to another produces a number.
+Raising one number to another produces a number.
 
 ```ds
 const value = 2 ** 3;
@@ -20,7 +20,7 @@ value satisfies number;
 
 ### power dispatches to Power
 
-> `**` dispatches to `Power` on the receiver.
+`**` dispatches to `Power` on the receiver.
 
 ```ds
 struct Scalar { value: int }
@@ -42,7 +42,7 @@ value satisfies Scalar;
 
 ### power requires Power
 
-> `**` requires a matching `Power` implementation.
+`**` requires a matching `Power` implementation.
 
 ```ds
 struct Scalar { value: int }

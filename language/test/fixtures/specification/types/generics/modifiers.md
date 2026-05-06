@@ -7,7 +7,7 @@ Modifiers are applied after key selection.
 
 ### mapped modifiers can remove readonly and optional markers
 
-> Removing readonly and optional markers requires all fields to be present.
+Removing readonly and optional markers requires all fields to be present.
 
 ```ds
 interface Person {
@@ -24,7 +24,7 @@ const bad: MutableRequired<Person> = {};
 
 ### mapped readonly modifiers prevent mutation
 
-> Adding readonly markers prevents writes through the mapped type.
+Adding readonly markers prevents writes through the mapped type.
 
 ```ds
 type Frozen<T> = { readonly [K in keyof T]: T[K] };
@@ -39,7 +39,7 @@ value.a = 2;
 
 ### key remapping to never removes keys
 
-> Remapping keys to `never` drops those keys from the resulting type.
+Remapping keys to `never` drops those keys from the resulting type.
 
 ```ds
 interface Shape {
@@ -57,7 +57,7 @@ const bad: WithoutA<Shape> = { a: 1, b: "x" };
 
 ### key remap collisions merge value types
 
-> Remapping multiple keys to the same key merges their value types.
+Remapping multiple keys to the same key merges their value types.
 
 ```ds
 interface Shape {
@@ -74,7 +74,7 @@ const bad: Merge<Shape> = { value: true };
 
 ### key remapping supports template literal keys
 
-> Remapped keys can be produced by template literal expressions.
+Remapped keys can be produced by template literal expressions.
 
 ```ds
 interface Shape {
@@ -94,7 +94,7 @@ const ok: Prefixed<Shape> = {
 
 ### key remapping template keys reject mismatched fields
 
-> Template literal remapped keys still enforce value types.
+Template literal remapped keys still enforce value types.
 
 ```ds
 interface Shape {

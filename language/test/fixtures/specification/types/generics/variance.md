@@ -4,7 +4,7 @@
 
 ### declarations accept variance modifiers
 
-> Variance modifiers are accepted in type parameter lists.
+Variance modifiers are accepted in type parameter lists.
 
 ```ds:main.ds
 interface Sink<in T> {
@@ -26,7 +26,7 @@ source.get() satisfies string;
 
 ### classes and functions accept variance modifiers
 
-> Variance modifiers are accepted on classes and functions.
+Variance modifiers are accepted on classes and functions.
 
 ```ds:main.ds
 declare class Box<out T> {
@@ -40,9 +40,9 @@ type Boxed = Box<string>;
 type Mapper = typeof map;
 ```
 
-### variance modifiers compose with defaults
+### variance modifiers work with defaults
 
-> Defaults are applied when type arguments are omitted.
+Defaults are applied when type arguments are omitted.
 
 ```ds:main.ds
 interface Box<out T = string> {
@@ -55,7 +55,7 @@ boxed.value satisfies string;
 
 ### variance in method type parameters
 
-> Variance modifiers are accepted on method type parameters.
+Variance modifiers are accepted on method type parameters.
 
 ```ds:main.ds
 interface Mapper {
@@ -67,7 +67,7 @@ declare const mapper: Mapper;
 
 ### declarations accept variance modifiers in ds sources
 
-> Variance modifiers are accepted in `.ds` sources.
+Variance modifiers are accepted in `.ds` sources.
 
 ```ds:main.ds
 interface Sink<in T> {
@@ -87,9 +87,9 @@ const source: Source<string> = {
 source.get() satisfies string;
 ```
 
-### variance modifiers compose with constraints
+### variance modifiers work with constraints
 
-> Variance modifiers compose with `.ds` constraints.
+Variance modifiers work with `.ds` constraints.
 
 ```ds:main.ds
 interface Sink<in T: string> {
@@ -107,9 +107,9 @@ let source: Source<string>;
 let adapter: Adapter<string, int32>;
 ```
 
-### variance modifiers compose with ds defaults
+### variance modifiers work with ds defaults
 
-> Defaults are applied when type arguments are omitted.
+Defaults are applied when type arguments are omitted.
 
 ```ds:main.ds
 interface Box<out T: string = string> {
@@ -122,7 +122,7 @@ boxed.value satisfies string;
 
 ### variance with defaults on in parameters
 
-> Defaults are applied to contravariant parameters.
+Defaults are applied to contravariant parameters.
 
 ```ds:main.ds
 interface Sink<in T = string> {
@@ -135,7 +135,7 @@ sink.set("ok");
 
 ### variance keywords in value parameters
 
-> `out` remains a normal identifier in value parameter positions.
+`out` remains a normal identifier in value parameter positions.
 
 ```ds:main.ds
 function echo(out: string): string {
@@ -147,7 +147,7 @@ echo("ok") satisfies string;
 
 ### variance keywords are rejected in value parameters
 
-> `in` is a keyword and cannot be used as a value parameter name.
+`in` is a keyword and cannot be used as a value parameter name.
 
 ```ds
 function bad(in value: string) {}
@@ -157,7 +157,7 @@ function bad(in value: string) {}
 
 ### variance modifiers require parameter names
 
-> Variance modifiers must be followed by a type parameter name.
+Variance modifiers must be followed by a type parameter name.
 
 ```ds
 interface Bad<in, out T> {}
@@ -167,7 +167,7 @@ interface Bad<in, out T> {}
 
 ### declaration files accept variance modifiers
 
-> Variance modifiers are accepted in declaration files.
+Variance modifiers are accepted in declaration files.
 
 ```ds:main.ds
 export interface Sink<in T> {
@@ -195,7 +195,7 @@ export declare const adapt: Adapter<string, number>;
 
 ### declaration files apply variance defaults
 
-> Defaults are applied in declaration files.
+Defaults are applied in declaration files.
 
 ```ds:main.ds
 export interface Box<out T = string> {
@@ -207,7 +207,7 @@ export declare const boxed: Box;
 
 ### declaration files apply contravariant defaults
 
-> Defaults are applied to contravariant parameters in declaration files.
+Defaults are applied to contravariant parameters in declaration files.
 
 ```ds:main.ds
 export interface Sink<in T = string> {
@@ -221,7 +221,7 @@ export declare const sink: Sink;
 
 ### covariance allows widening
 
-> Covariant parameters allow assignment from narrower to wider types.
+Covariant parameters allow assignment from narrower to wider types.
 
 ```ds
 interface Source<out T> {
@@ -235,7 +235,7 @@ widened.get() satisfies string | number;
 
 ### covariance rejects narrowing
 
-> Covariant parameters reject assignment from wider to narrower types.
+Covariant parameters reject assignment from wider to narrower types.
 
 ```ds
 interface Source<out T> {
@@ -250,7 +250,7 @@ const narrowed: Source<string> = source_union;
 
 ### contravariance allows narrowing
 
-> Contravariant parameters allow assignment from wider to narrower targets.
+Contravariant parameters allow assignment from wider to narrower targets.
 
 ```ds
 interface Sink<in T> {
@@ -267,7 +267,7 @@ sink_string.set("ok");
 
 ### contravariance rejects widening
 
-> Contravariant parameters reject assignment from narrower to wider targets.
+Contravariant parameters reject assignment from narrower to wider targets.
 
 ```ds
 interface Sink<in T> {

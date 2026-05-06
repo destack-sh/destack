@@ -4,7 +4,7 @@
 
 ### catch sees result errors
 
-> A propagated Result error becomes the catch value.
+A propagated Result error becomes the catch value.
 
 ```ds
 declare function readConfig(): Result<int, string>;
@@ -38,7 +38,7 @@ value satisfies int;
 
 ### catch sees multiple errors
 
-> Multiple propagated errors join in the catch value.
+Multiple propagated errors join in the catch value.
 
 ```ds
 declare function readConfig(): Result<int, "missing">;
@@ -57,7 +57,7 @@ value satisfies int;
 
 ### catch can stop custom failures
 
-> A caught failure does not have to leave the function.
+A caught failure does not have to leave the function.
 
 ```ds
 struct Maybe<T, E> {

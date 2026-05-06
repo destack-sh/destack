@@ -1,12 +1,12 @@
 # Implicit Types
 
-Strict functions reject implicit `any`.
+Strict functions reject missing parameter and local types.
 
 ## parameters
 
 ### parameters require types
 
-> Parameters without annotations or defaults are implicit any and are rejected.
+Parameters without annotations or defaults are rejected.
 
 ```ds
 function handle(value) {
@@ -17,7 +17,7 @@ function handle(value) {
 
 ### parameter defaults infer parameter types
 
-> Defaults provide an inferred parameter type.
+Defaults provide an inferred parameter type.
 
 ```ds
 function handle(value = 1) {
@@ -29,7 +29,7 @@ function handle(value = 1) {
 
 ### uninitialized bindings require annotations
 
-> Bindings without annotations or initializers are implicit any.
+Bindings without annotations or initializers are rejected.
 
 ```ds
 let pending;

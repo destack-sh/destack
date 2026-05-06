@@ -6,7 +6,7 @@ Function values satisfy compatible callable shapes.
 
 ### function values satisfy callable interfaces
 
-> Function values are assignable to callable interfaces.
+Function values are assignable to callable interfaces.
 
 ```ds
 interface Fn {
@@ -19,7 +19,7 @@ parse satisfies Fn;
 
 ### incompatible returns are not assignable
 
-> Function values with incompatible return types are not assignable.
+Function values with incompatible return types are not assignable.
 
 ```ds
 interface Fn {
@@ -34,7 +34,7 @@ parse satisfies Fn;
 
 ### call signature object types accept function values
 
-> Function values are assignable to call signature object types.
+Function values are assignable to call signature object types.
 
 ```ds
 const fn = (): number => 1;
@@ -43,7 +43,7 @@ fn satisfies { (): number };
 
 ### call signature object types reject incompatible returns
 
-> Call signature object types reject incompatible return types.
+Call signature object types reject incompatible return types.
 
 ```ds
 const fn = (): string => "no";
@@ -54,7 +54,7 @@ fn satisfies { (): number };
 
 ### callable interfaces satisfy call signature object types
 
-> Callable interfaces satisfy compatible call signature object types.
+Callable interfaces satisfy compatible call signature object types.
 
 ```ds
 interface Fn {
@@ -69,7 +69,7 @@ fn satisfies { (): number };
 
 ### function assignment rejects narrow parameters
 
-> Function assignment checks parameter variance.
+Function assignment checks parameter variance.
 
 ```ds
 interface FnWide {

@@ -46,7 +46,7 @@ value.ok satisfies boolean;
 
 ### export star preserves type-only exports
 
-> Export star reexports types for type positions without runtime values.
+Export star reexports types for type positions without runtime values.
 
 ```ds:types.ds
 export type User = { name: string };
@@ -105,7 +105,7 @@ value.ok satisfies boolean;
 
 ### export type reexports remain type-only
 
-> Export type reexports do not create runtime values.
+Export type reexports do not create runtime values.
 
 ```ds:types.ds
 export type User = { name: string };
@@ -126,7 +126,7 @@ User;
 
 ### export type specifiers remain type-only
 
-> Named export type specifiers do not produce runtime values.
+Named export type specifiers do not produce runtime values.
 
 ```ds:types.ds
 export type User = { name: string };
@@ -147,7 +147,7 @@ User;
 
 ### export type star reexports types only
 
-> Export type star reexports types without runtime values.
+Export type star reexports types without runtime values.
 
 ```ds:types.ds
 export type User = { name: string };
@@ -168,7 +168,7 @@ User;
 
 ### export type star rejects runtime value usage
 
-> Value usage from export type star imports stays type-only.
+Value usage from export type star imports stays type-only.
 
 ```ds:types.ds
 export interface User {

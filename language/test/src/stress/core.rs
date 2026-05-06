@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
-use destack_query::RepositoryQueryIndexExt;
 use destack_source::{Edit, FileId, Span};
 use destack_workspace::{Ref, Repository, Revision};
 use serde::Deserialize;
@@ -340,17 +339,22 @@ fn compile_and_index_stress_project(
 
     // enqueue the full query substrate for each module
     let mut artifact_keys = Vec::new();
+    let mut profile_ids = HashSet::new();
     for module_id in &module_ids {
         let profile = default_profile_id_for_module(repository, revision, *module_id);
+        profile_ids.insert(profile);
         artifact_keys.push(ArtifactKey::DirChecked {
             module: *module_id,
             profile,
         });
+        artifact_keys.push(ArtifactKey::module_query_index(*module_id, profile));
+    }
+
+    for profile in profile_ids {
+        artifact_keys.push(ArtifactKey::workspace_query_index(profile));
     }
 
     let revision = provide_workspace_artifacts(repository.clone(), compiler, &artifact_keys);
-    repository.index_query_modules(revision, module_ids.iter().copied());
-    repository.index_query_imports(revision);
 
     let mut file_ids_by_path = HashMap::new();
     let mut file_paths_by_id = HashMap::new();

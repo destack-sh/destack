@@ -7,7 +7,7 @@ Result typing is still handled by arm body joins.
 
 ### discriminants narrow each arm
 
-> Object discriminants select the matching union member.
+Object discriminants select the matching union member.
 
 ```ds
 type Shape =
@@ -32,7 +32,7 @@ match (shape) {
 
 ### literals narrow each arm
 
-> Literal patterns select the matching literal member.
+Literal patterns select the matching literal member.
 
 ```ds
 type Status = "ready" | "loading";
@@ -51,7 +51,7 @@ match (status) {
 
 ### union literal patterns narrow covered values
 
-> Union patterns select the covered literal members.
+Union patterns select the covered literal members.
 
 ```ds
 type Status = 1 | 2 | 3;
@@ -70,7 +70,7 @@ match (status) {
 
 ### tuple discriminants narrow unions
 
-> Literal tuple positions select the matching tuple member.
+Literal tuple positions select the matching tuple member.
 
 ```ds
 type Pair = (1, string) | (2, string);
@@ -89,7 +89,7 @@ match (pair) {
 
 ### tuple discriminants narrow payloads
 
-> Tuple payload slots narrow with the selected tuple member.
+Tuple payload slots narrow with the selected tuple member.
 
 ```ds
 type Pair = (1, string) | (2, int32);
@@ -108,7 +108,7 @@ match (pair) {
 
 ### tuple discriminants narrow nested objects
 
-> Nested object payloads narrow with the selected tuple member.
+Nested object payloads narrow with the selected tuple member.
 
 ```ds
 type Event =
@@ -129,7 +129,7 @@ match (event) {
 
 ### object payloads narrow nested tuples
 
-> Nested tuple payloads narrow from literal tuple positions.
+Nested tuple payloads narrow from literal tuple positions.
 
 ```ds
 type Envelope =
@@ -150,7 +150,7 @@ match (envelope) {
 
 ### wildcard fields leave payload unions intact
 
-> Ignored discriminant fields do not narrow unrelated payloads.
+Ignored discriminant fields do not narrow unrelated payloads.
 
 ```ds
 type Envelope =
@@ -168,7 +168,7 @@ match (envelope) {
 
 ### nested discriminants narrow payloads
 
-> Nested object tags select the matching payload member.
+Nested object tags select the matching payload member.
 
 ```ds
 type Envelope =
@@ -191,7 +191,7 @@ match (envelope) {
 
 ### match results join arm bodies
 
-> Arm body types join into the match result.
+Arm body types join into the match result.
 
 ```ds
 type Shape =

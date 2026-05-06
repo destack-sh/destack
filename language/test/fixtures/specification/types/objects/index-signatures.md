@@ -4,7 +4,7 @@
 
 ### string index signature accepts matching fields
 
-> String index signatures allow string and numeric keys with compatible values.
+String index signatures allow string and numeric keys with compatible values.
 
 ```ds
 interface Bag {
@@ -17,7 +17,7 @@ bag satisfies Bag;
 
 ### string index signature rejects incompatible fields
 
-> Fields with incompatible value types are rejected.
+Fields with incompatible value types are rejected.
 
 ```ds
 interface Bag {
@@ -32,7 +32,7 @@ bag satisfies Bag;
 
 ### satisfies preserves literal type for index access
 
-> `satisfies` does not widen object literals for index access.
+`satisfies` does not widen object literals for index access.
 
 ```ds
 interface Bag {
@@ -45,7 +45,7 @@ let value: number = bag["a"];
 
 ### satisfies does not add index signature
 
-> Missing properties still reject index access after `satisfies`.
+Missing properties still reject index access after `satisfies`.
 
 ```ds
 interface Bag {
@@ -62,7 +62,7 @@ let value = bag["missing"];
 
 ### number index signature allows string fields
 
-> Number index signatures allow string fields.
+Number index signatures allow string fields.
 
 ```ds
 interface NumberBag {
@@ -75,7 +75,7 @@ bag satisfies NumberBag;
 
 ### number index signature accepts numeric fields
 
-> Number index signatures accept numeric field keys.
+Number index signatures accept numeric field keys.
 
 ```ds
 interface NumberBag {
@@ -88,7 +88,7 @@ bag satisfies NumberBag;
 
 ### number index signature accepts numeric string index access
 
-> Numeric string literals index number index signatures.
+Numeric string literals index number index signatures.
 
 ```ds
 interface NumberBag {
@@ -101,7 +101,7 @@ let value: string | undefined = bag["1"];
 
 ### number index signature rejects non numeric string index access
 
-> Non numeric string literals do not index number index signatures.
+Non numeric string literals do not index number index signatures.
 
 ```ds
 interface NumberBag {
@@ -118,7 +118,7 @@ let value = bag["missing"];
 
 ### record-like assignment accepts object literals
 
-> Object literals assignable to index signatures are allowed.
+Object literals assignable to index signatures are allowed.
 
 ```ds
 type Bag = { [key: string]: int32 };
@@ -128,7 +128,7 @@ let bag: Bag = { alpha: 1, beta: 2 };
 
 ### record-like assignment accepts structural objects
 
-> Structural object types without index signatures are assignable when fields match.
+Structural object types without index signatures are assignable when fields match.
 
 ```ds
 type Bag = { [key: string]: int32 };
@@ -140,7 +140,7 @@ let bag: Bag = point;
 
 ### record-like assignment rejects incompatible field values
 
-> Fields with incompatible value types are rejected.
+Fields with incompatible value types are rejected.
 
 ```ds
 type Bag = { [key: string]: int32 };
@@ -156,7 +156,7 @@ let bag: Bag = mixed;
 
 ### index signature reads include undefined
 
-> Index signature access includes undefined because the key may be absent.
+Index signature access includes undefined because the key may be absent.
 
 ```ds:main.ds
 interface Bag {

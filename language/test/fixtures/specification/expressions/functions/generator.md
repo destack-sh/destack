@@ -6,7 +6,7 @@ Generator functions use `yield` and respect declared `Generator<TYield, TReturn,
 
 ### yield values satisfy the declared yield type
 
-> Yield expressions must satisfy the declared yield type.
+Yield expressions must satisfy the declared yield type.
 
 ```ds
 function* gen(): Generator<int32, unknown, unknown> {
@@ -16,7 +16,7 @@ function* gen(): Generator<int32, unknown, unknown> {
 
 ### yield values reject mismatched types
 
-> Yield expressions reject values that do not satisfy the yield type.
+Yield expressions reject values that do not satisfy the yield type.
 
 ```ds
 function* gen(): Generator<int32, unknown, unknown> {
@@ -28,7 +28,7 @@ function* gen(): Generator<int32, unknown, unknown> {
 
 ### yield expressions use the next type
 
-> Yield expressions evaluate to the declared next type.
+Yield expressions evaluate to the declared next type.
 
 ```ds
 function* gen(): Generator<int32, string, boolean> {
@@ -39,7 +39,7 @@ function* gen(): Generator<int32, string, boolean> {
 
 ### yield expression type mismatch is reported
 
-> Yield expressions must match the declared next type.
+Yield expressions must match the declared next type.
 
 ```ds
 function* gen(): Generator<int32, string, boolean> {
@@ -54,7 +54,7 @@ function* gen(): Generator<int32, string, boolean> {
 
 ### generator return values satisfy the return type
 
-> Generator return statements must satisfy the declared return type.
+Generator return statements must satisfy the declared return type.
 
 ```ds
 function* gen(): Generator<int32, string, unknown> {
@@ -64,7 +64,7 @@ function* gen(): Generator<int32, string, unknown> {
 
 ### generator return values reject mismatched types
 
-> Generator return statements reject values that do not satisfy the return type.
+Generator return statements reject values that do not satisfy the return type.
 
 ```ds
 function* gen(): Generator<int32, string, unknown> {

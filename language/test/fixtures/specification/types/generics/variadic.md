@@ -7,9 +7,9 @@
 Tail extraction with a variadic tuple keeps the literal precision of preserved head elements.
 
 ```ds
-type Head<T extends readonly unknown[]> = T extends readonly [infer H, ...unknown[]] ? H : never;
+type Head<T extends readonly unknown[]> = T extends readonly (infer H, ...unknown[]) ? H : never;
 
-declare const value: Head<readonly ["a", "b", "c"]>;
+declare const value: Head<readonly ("a", "b", "c")>;
 value satisfies "a";
 ```
 
@@ -18,7 +18,7 @@ value satisfies "a";
 Concatenating const tuples through variadic parameters retains fixed-length literal tuple precision.
 
 ```ds
-declare function concat<T extends readonly unknown[], U extends readonly unknown[]>(a: T, b: U): [...T, ...U];
+declare function concat<T extends readonly unknown[], U extends readonly unknown[]>(a: T, b: U): (...T, ...U);
 
 const value = concat([1, 2] as const, ["x"] as const);
 value[0] satisfies 1;
@@ -30,7 +30,7 @@ value[2] satisfies "x";
 Concatenating mutable arrays through variadic tuples widens to array-compatible element types.
 
 ```ds
-declare function concat<T extends readonly unknown[], U extends readonly unknown[]>(a: T, b: U): [...T, ...U];
+declare function concat<T extends readonly unknown[], U extends readonly unknown[]>(a: T, b: U): (...T, ...U);
 
 let left = [1, 2];
 let right = ["x"];

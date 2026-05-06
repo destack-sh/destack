@@ -25,7 +25,7 @@ options.strict satisfies boolean;
 
 ### type-only exports do not create values
 
-> Type-only exports do not provide runtime values.
+Type-only exports do not provide runtime values.
 
 ```ds:types.ds
 export type Options = { strict: boolean };
@@ -48,7 +48,7 @@ const value = Options;
 
 ### type-only imports do not create values
 
-> Type-only imports do not provide runtime values.
+Type-only imports do not provide runtime values.
 
 ```ds:types.ds
 export type Options = { strict: boolean };

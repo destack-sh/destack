@@ -6,7 +6,7 @@
 
 ### as preserves the asserted type
 
-> `as` applies the target type.
+`as` applies the target type.
 
 ```ds
 const value = "ok" as string;
@@ -15,7 +15,7 @@ value satisfies string;
 
 ### as can narrow unions
 
-> `as` can select a narrower union member.
+`as` can select a narrower union member.
 
 ```ds
 const value = ("ok" as string | number) as string;
@@ -24,7 +24,7 @@ value satisfies string;
 
 ### as can widen to supertypes
 
-> A subtype can be asserted to a supertype.
+A subtype can be asserted to a supertype.
 
 ```ds
 const value: 42 = 42;
@@ -34,7 +34,7 @@ widened satisfies number;
 
 ### as can narrow from unknown
 
-> `unknown` can be asserted to a concrete type.
+`unknown` can be asserted to a concrete type.
 
 ```ds
 declare const value: unknown;
@@ -45,7 +45,7 @@ narrowed satisfies number;
 
 ### as can widen object shapes
 
-> An object can be asserted to a type with fewer required fields.
+An object can be asserted to a type with fewer required fields.
 
 ```ds
 const value = { x: 1, y: 2 };
@@ -57,7 +57,7 @@ narrowed satisfies { x: number };
 
 ### as rejects unrelated types
 
-> `as` rejects unrelated source and target types.
+`as` rejects unrelated source and target types.
 
 ```ds
 const value: string = "hello";
@@ -68,7 +68,7 @@ const numberValue = value as number;
 
 ### as rejects boolean to number
 
-> Boolean and number do not overlap.
+Boolean and number do not overlap.
 
 ```ds
 const value: boolean = true;

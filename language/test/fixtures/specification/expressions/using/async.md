@@ -4,7 +4,7 @@
 
 ### await using accepts async resources
 
-> `await using` can appear in async scopes and accepts `AsyncDispose`.
+`await using` can appear in async scopes and accepts `AsyncDispose`.
 
 ```ds
 class Connection implements AsyncDispose {
@@ -21,7 +21,7 @@ async function run(): Promise<void> {
 
 ### await using accepts sync resources
 
-> `await using` falls back to `Dispose` for synchronous resources.
+`await using` falls back to `Dispose` for synchronous resources.
 
 ```ds
 class File implements Dispose {
@@ -36,7 +36,7 @@ async function run(): Promise<void> {
 
 ### await using accepts nullish resources
 
-> `null` and `undefined` are ignored by async resource cleanup.
+`null` and `undefined` are ignored by async resource cleanup.
 
 ```ds
 async function run(): Promise<void> {
@@ -47,7 +47,7 @@ async function run(): Promise<void> {
 
 ### await using rejects non disposable values
 
-> `await using` still requires a disposable resource.
+`await using` still requires a disposable resource.
 
 ```ds
 async function run(): Promise<void> {
@@ -59,7 +59,7 @@ async function run(): Promise<void> {
 
 ### await using requires async scopes
 
-> `await using` can only appear where `await` is allowed.
+`await using` can only appear where `await` is allowed.
 
 ```ds
 function run(): void {

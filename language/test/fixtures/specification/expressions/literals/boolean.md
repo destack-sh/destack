@@ -6,7 +6,7 @@ Boolean literal type inference and checking.
 
 ### true literal
 
-> True can be assigned to boolean type.
+True can be assigned to boolean type.
 
 ```ds
 const x: boolean = true;
@@ -14,7 +14,7 @@ const x: boolean = true;
 
 ### false literal
 
-> False can be assigned to boolean type.
+False can be assigned to boolean type.
 
 ```ds
 const x: boolean = false;
@@ -22,21 +22,23 @@ const x: boolean = false;
 
 ## inference
 
-### inferred true type
+### true literals stay exact
 
-> True literals without annotation infer to boolean.
+True literals without annotation keep their literal type.
 
 ```ds
 const x = true;
+x satisfies true;
 x satisfies boolean;
 ```
 
-### inferred false type
+### false literals stay exact
 
-> False literals without annotation infer to boolean.
+False literals without annotation keep their literal type.
 
 ```ds
 const x = false;
+x satisfies false;
 x satisfies boolean;
 ```
 
@@ -44,7 +46,7 @@ x satisfies boolean;
 
 ### boolean assigned to string
 
-> Boolean literals cannot be assigned to string type.
+Boolean literals cannot be assigned to string type.
 
 ```ds
 const x: string = true;
@@ -54,7 +56,7 @@ const x: string = true;
 
 ### boolean assigned to number
 
-> Boolean literals cannot be assigned to number type.
+Boolean literals cannot be assigned to number type.
 
 ```ds
 const x: number = false;
@@ -64,7 +66,7 @@ const x: number = false;
 
 ### boolean does not satisfy string
 
-> Boolean literal cannot satisfy string type.
+Boolean literal cannot satisfy string type.
 
 ```ds
 const x = true;
@@ -77,7 +79,7 @@ x satisfies string;
 
 ### boolean toString resolves
 
-> Boolean literals expose Boolean standard members.
+Boolean literals expose Boolean standard members.
 
 
 ```ds

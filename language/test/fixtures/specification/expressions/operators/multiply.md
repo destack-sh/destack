@@ -6,7 +6,7 @@
 
 ### number times number
 
-> Multiplying two numbers produces a number.
+Multiplying two numbers produces a number.
 
 ```ds
 const value = 2 * 3;
@@ -20,7 +20,7 @@ value satisfies number;
 
 ### multiply dispatches to Multiply
 
-> `*` dispatches to `Multiply` on the receiver.
+`*` dispatches to `Multiply` on the receiver.
 
 ```ds
 struct Scalar { value: int }
@@ -42,7 +42,7 @@ value satisfies Scalar;
 
 ### multiply requires Multiply
 
-> `*` requires a matching `Multiply` implementation.
+`*` requires a matching `Multiply` implementation.
 
 ```ds
 struct Scalar { value: int }
@@ -67,7 +67,7 @@ left * right;
 
 ### wrapping multiply is builtin integer arithmetic
 
-> `*%` wraps modulo the integer range.
+`*%` wraps modulo the integer range.
 
 ```ds
 const a: uint8 = 250;
@@ -79,7 +79,7 @@ value satisfies uint8;
 
 ### saturating multiply is builtin integer arithmetic
 
-> `*|` clamps to the integer range.
+`*|` clamps to the integer range.
 
 ```ds
 const a: uint8 = 250;
@@ -91,7 +91,7 @@ value satisfies uint8;
 
 ### wrapping multiply rejects user types
 
-> `*%` is not an overloadable operator.
+`*%` is not an overloadable operator.
 
 ```ds
 struct Scalar { value: int }

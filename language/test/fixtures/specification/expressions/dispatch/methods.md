@@ -7,7 +7,7 @@ Method overloads follow the same declaration-order rules as free functions.
 
 ### methods use declaration order
 
-> The first matching method overload wins in `.ds` modules.
+The first matching method overload wins in `.ds` modules.
 
 ```ds
 class Parser {
@@ -27,7 +27,7 @@ selected satisfies "broad";
 
 ### later method overloads do not win
 
-> Later method overloads do not win when earlier overloads apply.
+Later method overloads do not win when earlier overloads apply.
 
 ```ds
 class Parser {
@@ -49,7 +49,7 @@ selected satisfies "narrow";
 
 ### inherited methods keep overload order
 
-> Overload declaration order stays stable on inherited methods.
+Overload declaration order stays stable on inherited methods.
 
 ```ds
 class BaseParser {
@@ -71,7 +71,7 @@ selected satisfies "broad";
 
 ### inherited methods do not reorder overloads
 
-> Inherited method overloads do not promote later declaration results.
+Inherited method overloads do not promote later declaration results.
 
 ```ds
 class BaseParser {

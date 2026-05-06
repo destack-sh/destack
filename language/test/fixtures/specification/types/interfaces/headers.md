@@ -6,7 +6,7 @@ Interface headers define names, exports, and parent interfaces.
 
 ### interfaces cannot be abstract
 
-> Interfaces cannot be abstract.
+Interfaces cannot be abstract.
 
 ```ds
 abstract interface Config {}
@@ -18,7 +18,7 @@ abstract interface Config {}
 
 ### default export interfaces must be named
 
-> Default export interfaces require a name.
+Default export interfaces require a name.
 
 ```ds
 export default interface {
@@ -30,7 +30,7 @@ export default interface {
 
 ### named default export interfaces are allowed
 
-> Default export interfaces are accepted when they provide a name.
+Default export interfaces are accepted when they provide a name.
 
 ```ds
 export default interface Config {
@@ -42,7 +42,7 @@ export default interface Config {
 
 ### empty extends clauses are rejected
 
-> Interfaces cannot declare empty extends clauses.
+Interfaces cannot declare empty extends clauses.
 
 ```ds
 interface Config extends {
@@ -53,7 +53,7 @@ interface Config extends {
 
 ### interfaces may extend multiple parents
 
-> Interfaces can extend multiple interface parents.
+Interfaces can extend multiple interface parents.
 
 ```ds
 interface Named {

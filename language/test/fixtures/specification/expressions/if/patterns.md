@@ -4,9 +4,9 @@ If let uses the same pattern families as bindings and match arms.
 
 ## tuple patterns
 
-### if let tuple patterns bind elements
+### if (let ...) tuple patterns bind elements
 
-> Tuple patterns bind tuple elements.
+Tuple patterns bind tuple elements.
 
 ```ds
 declare const pair: (int32, int32);
@@ -19,9 +19,9 @@ if (let (left, right) = pair) {
 
 ## fixed arrays
 
-### if let fixed array patterns bind elements
+### if (let ...) fixed array patterns bind elements
 
-> Fixed array patterns bind element types.
+Fixed array patterns bind element types.
 
 ```ds
 declare const pair: [int32; 2];
@@ -34,9 +34,9 @@ if (let [left, right] = pair) {
 
 ## rest patterns
 
-### if let tuple rest binds tails
+### if (let ...) tuple rest binds tails
 
-> Tuple rest patterns bind the tail as a tuple.
+Tuple rest patterns bind the tail as a tuple.
 
 ```ds
 declare const values: (int32, int32, int32);
@@ -47,9 +47,9 @@ if (let (first, ...rest) = values) {
 }
 ```
 
-### if let fixed array rest binds tails
+### if (let ...) fixed array rest binds tails
 
-> Fixed array rest patterns bind the tail as a fixed array.
+Fixed array rest patterns bind the tail as a fixed array.
 
 ```ds
 declare const values: [int32; 3];
@@ -60,9 +60,9 @@ if (let [first, ...rest] = values) {
 }
 ```
 
-### if let object rest binds tails
+### if (let ...) object rest binds tails
 
-> Object rest patterns bind the remaining fields.
+Object rest patterns bind the remaining fields.
 
 ```ds
 type Config = { enabled: boolean, retries: int32 };
@@ -77,9 +77,9 @@ if (let { enabled, ...rest } = config) {
 
 ## must patterns
 
-### if let must patterns bind non-nullish values
+### if (let ...) must patterns bind non-nullish values
 
-> Must patterns bind the non-nullish value in the then branch.
+Must patterns bind the non-nullish value in the then branch.
 
 ```ds
 declare const value: int32 | null;
@@ -93,9 +93,9 @@ if (let x! = value) {
 
 ## ownership patterns
 
-### if let owned patterns bind owned views
+### if (let ...) owned patterns bind owned views
 
-> Owned patterns bind an owned view.
+Owned patterns bind an owned view.
 
 ```ds
 declare const value: ^int32;
@@ -105,9 +105,9 @@ if (let ^x = value) {
 }
 ```
 
-### if let borrow patterns bind borrowed views
+### if (let ...) borrow patterns bind borrowed views
 
-> Borrow patterns bind a borrowed view.
+Borrow patterns bind a borrowed view.
 
 ```ds
 declare const value: &int32;
@@ -119,9 +119,9 @@ if (let &x = value) {
 
 ## newtype patterns
 
-### if let scalar newtype patterns bind values
+### if (let ...) scalar newtype patterns bind values
 
-> Scalar newtype patterns bind the wrapped value.
+Scalar newtype patterns bind the wrapped value.
 
 ```ds
 newtype UserId = int64;
@@ -133,9 +133,9 @@ if (let UserId(value) = id) {
 }
 ```
 
-### if let tuple newtype patterns bind fields
+### if (let ...) tuple newtype patterns bind fields
 
-> Tuple newtype patterns bind positional fields.
+Tuple newtype patterns bind positional fields.
 
 ```ds
 newtype Point = (float32, float32);
@@ -148,9 +148,9 @@ if (let Point(x, y) = point) {
 }
 ```
 
-### if let scalar newtype patterns bind defaults
+### if (let ...) scalar newtype patterns bind defaults
 
-> Defaults can be attached to scalar newtype bindings.
+Defaults can be attached to scalar newtype bindings.
 
 ```ds
 newtype UserId = int64;
@@ -162,9 +162,9 @@ if (let UserId(value = 1) = id) {
 }
 ```
 
-### if let newtype defaults are expressions
+### if (let ...) newtype defaults are expressions
 
-> Defaults in newtype patterns are ordinary expressions.
+Defaults in newtype patterns are ordinary expressions.
 
 ```ds
 newtype UserId = int64;
@@ -179,9 +179,9 @@ if (let UserId(value = missing_default) = id) {
 - contains: missing symbol
 
 
-### if let object newtype patterns need tags
+### if (let ...) object newtype patterns need tags
 
-> Object newtypes require tagged object patterns.
+Object newtypes require tagged object patterns.
 
 ```ds
 newtype Config = { debug: boolean };
@@ -193,9 +193,9 @@ if (let Config { debug } = config) {
 }
 ```
 
-### if let object newtype patterns reject bare objects
+### if (let ...) object newtype patterns reject bare objects
 
-> Untagged object patterns do not match object newtypes.
+Untagged object patterns do not match object newtypes.
 
 ```ds
 newtype Config = { debug: boolean };
@@ -211,9 +211,9 @@ if (let { debug } = config) {
 
 ## struct patterns
 
-### if let struct patterns need tags
+### if (let ...) struct patterns need tags
 
-> Struct patterns use the type tag.
+Struct patterns use the type tag.
 
 ```ds
 struct Point {
@@ -229,9 +229,9 @@ if (let Point { x, y } = point) {
 }
 ```
 
-### if let struct patterns reject bare objects
+### if (let ...) struct patterns reject bare objects
 
-> Bare object patterns do not match nominal structs.
+Bare object patterns do not match nominal structs.
 
 ```ds
 struct Point {
@@ -250,9 +250,9 @@ if (let { x, y } = point) {
 
 ## enum patterns
 
-### if let enum patterns narrow variants
+### if (let ...) enum patterns narrow variants
 
-> Enum patterns in if let narrow to the matched variant.
+Enum patterns in if (let ...) narrow to the matched variant.
 
 ```ds
 enum State {
@@ -271,9 +271,9 @@ if (let State.Ready = state) {
 
 ## union patterns
 
-### if let union patterns narrow covered literals
+### if (let ...) union patterns narrow covered literals
 
-> Union patterns narrow to the covered literals in the then branch.
+Union patterns narrow to the covered literals in the then branch.
 
 ```ds
 declare const value: 1 | 2 | 3;

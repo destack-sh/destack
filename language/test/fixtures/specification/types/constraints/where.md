@@ -6,28 +6,28 @@
 
 ### where accepts one constraint
 
-> A `where` clause can constrain one type parameter.
+A `where` clause can constrain one type parameter.
 
 ```ds
-interface Copy {
-    copy(): void;
+interface Readable {
+    read(): void;
 }
 
-function clone<T>(value: T): T where T: Copy {
+function clone<T>(value: T): T where T: Readable {
     return value;
 }
 
-const value: Copy = { copy() {} };
-clone<Copy>(value);
+const value: Readable = { read() {} };
+clone<Readable>(value);
 ```
 
 ### where accepts multiple constraints
 
-> A `where` clause can constrain several parameters.
+A `where` clause can constrain several parameters.
 
 ```ds
-interface Copy {
-    copy(): void;
+interface Readable {
+    read(): void;
 }
 
 interface Mergeable {
@@ -35,7 +35,7 @@ interface Mergeable {
 }
 
 function merge<T, U>(value: T, other: U): T where (
-    T: Copy,
+    T: Readable,
     U: Mergeable
 ) {
     value;
@@ -43,40 +43,40 @@ function merge<T, U>(value: T, other: U): T where (
     return value;
 }
 
-const value: Copy = { copy() {} };
+const value: Readable = { read() {} };
 const other: Mergeable = { merge() {} };
 
-merge<Copy, Mergeable>(value, other);
+merge<Readable, Mergeable>(value, other);
 ```
 
 ### where rejects unmet constraints
 
-> Type arguments must satisfy every `where` constraint.
+Type arguments must satisfy every `where` constraint.
 
 ```ds
-interface Copy {
-    copy(): void;
+interface Readable {
+    read(): void;
 }
 
-interface NotCopy {}
+interface NotReadable {}
 
-function clone<T>(value: T): T where T: Copy {
+function clone<T>(value: T): T where T: Readable {
     return value;
 }
 
-const value: NotCopy = {};
-clone<NotCopy>(value);
+const value: NotReadable = {};
+clone<NotReadable>(value);
 ```
 
 - contains: not assignable
 
 ### where checks each constraint independently
 
-> Each parameter is checked against its own `where` entry.
+Each parameter is checked against its own `where` entry.
 
 ```ds
-interface Copy {
-    copy(): void;
+interface Readable {
+    read(): void;
 }
 
 interface Mergeable {
@@ -84,7 +84,7 @@ interface Mergeable {
 }
 
 function merge<T, U>(value: T, other: U): T where (
-    T: Copy,
+    T: Readable,
     U: Mergeable
 ) {
     value;
@@ -92,10 +92,10 @@ function merge<T, U>(value: T, other: U): T where (
     return value;
 }
 
-const value: Copy = { copy() {} };
-const other: Copy = { copy() {} };
+const value: Readable = { read() {} };
+const other: Readable = { read() {} };
 
-merge<Copy, Copy>(value, other);
+merge<Readable, Readable>(value, other);
 ```
 
 - contains: not assignable
@@ -104,30 +104,30 @@ merge<Copy, Copy>(value, other);
 
 ### where checks inferred arguments
 
-> Inferred type arguments must satisfy `where` constraints.
+Inferred type arguments must satisfy `where` constraints.
 
 ```ds
-interface Copy {
-    copy(): void;
+interface Readable {
+    read(): void;
 }
 
-function clone<T>(value: T): T where T: Copy {
+function clone<T>(value: T): T where T: Readable {
     return value;
 }
 
-clone({ copy() {} });
+clone({ read() {} });
 ```
 
 ### where rejects inferred arguments
 
-> Inference rejects inferred types that do not satisfy a `where` constraint.
+Inference rejects inferred types that do not satisfy a `where` constraint.
 
 ```ds
-interface Copy {
-    copy(): void;
+interface Readable {
+    read(): void;
 }
 
-function clone<T>(value: T): T where T: Copy {
+function clone<T>(value: T): T where T: Readable {
     return value;
 }
 

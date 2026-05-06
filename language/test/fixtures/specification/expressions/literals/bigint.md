@@ -6,7 +6,7 @@ Bigint literal type inference and checking.
 
 ### bigint literal
 
-> Bigint literals can be assigned to bigint type.
+Bigint literals can be assigned to bigint type.
 
 
 ```ds
@@ -17,7 +17,7 @@ const x: bigint = 42n;
 
 ### bigint toString resolves
 
-> Bigint literals expose BigInt standard members.
+Bigint literals expose BigInt standard members.
 
 
 ```ds
@@ -28,7 +28,7 @@ text satisfies string;
 
 ### bigint literal is not assignable to number
 
-> Bigint values are not assignable to number.
+Bigint values are not assignable to number.
 
 ```ds
 const value: number = 42n;
@@ -38,7 +38,7 @@ const value: number = 42n;
 
 ### bigint literals participate in bigint arithmetic
 
-> Bigint arithmetic preserves bigint results.
+Bigint arithmetic preserves bigint results.
 
 ```ds
 const value = 40n + 2n;
@@ -47,7 +47,7 @@ value satisfies bigint;
 
 ### bigint arithmetic rejects number operands
 
-> Bigint arithmetic rejects mixed bigint and number operands.
+Bigint arithmetic rejects mixed bigint and number operands.
 
 ```ds
 const value = 40n + 2;

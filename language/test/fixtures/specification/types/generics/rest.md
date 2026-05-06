@@ -4,7 +4,7 @@
 
 ### partial application preserves tail tuple order
 
-> Variadic partial application infers the remaining tail tuple in original parameter order.
+Variadic partial application infers the remaining tail tuple in original parameter order.
 
 ```ds
 declare function partial<T extends readonly unknown[], U extends readonly unknown[], R>(
@@ -21,7 +21,7 @@ value satisfies "ok";
 
 ### partial application rejects reordered tail arguments
 
-> A partially applied function rejects calls that provide the inferred tail arguments in the wrong order.
+A partially applied function rejects calls that provide the inferred tail arguments in the wrong order.
 
 ```ds
 declare function partial<T extends readonly unknown[], U extends readonly unknown[], R>(
@@ -41,7 +41,7 @@ tail(true, 1);
 
 ### const rest inference preserves literal tuple elements
 
-> Rest inference from const tuple inputs keeps literal element types.
+Rest inference from const tuple inputs keeps literal element types.
 
 ```ds
 declare function collect<const T extends readonly unknown[]>(...values: T): T;
@@ -54,7 +54,7 @@ value[2] satisfies true;
 
 ### mutable rest inference widens scalar tuple elements
 
-> Rest inference from mutable arrays widens scalar literals to their mutable primitive counterparts.
+Rest inference from mutable arrays widens scalar literals to their mutable primitive counterparts.
 
 ```ds
 declare function collect<T extends readonly unknown[]>(...values: T): T;

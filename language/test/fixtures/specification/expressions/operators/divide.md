@@ -6,7 +6,7 @@
 
 ### number divided by number
 
-> Dividing two numbers produces a number.
+Dividing two numbers produces a number.
 
 ```ds
 const value = 10 / 2;
@@ -20,7 +20,7 @@ value satisfies number;
 
 ### divide dispatches to Divide
 
-> `/` dispatches to `Divide` on the receiver.
+`/` dispatches to `Divide` on the receiver.
 
 ```ds
 struct Scalar { value: int }
@@ -42,7 +42,7 @@ value satisfies Scalar;
 
 ### divide requires Divide
 
-> `/` requires a matching `Divide` implementation.
+`/` requires a matching `Divide` implementation.
 
 ```ds
 struct Scalar { value: int }

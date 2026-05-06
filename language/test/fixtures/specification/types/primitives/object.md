@@ -6,7 +6,7 @@ The `object` type, which represents any non-primitive value.
 
 ### object to object
 
-> The object type is assignable to itself.
+The object type is assignable to itself.
 
 ```ds
 const x: object = {} as object
@@ -14,7 +14,7 @@ const x: object = {} as object
 
 ### object literal to object
 
-> Object literals are assignable to object.
+Object literals are assignable to object.
 
 ```ds
 const x: object = { a: 1, b: "hello" }
@@ -22,7 +22,7 @@ const x: object = { a: 1, b: "hello" }
 
 ### array to object
 
-> Arrays are assignable to object.
+Arrays are assignable to object.
 
 ```ds
 const x: object = [1, 2, 3]
@@ -30,7 +30,7 @@ const x: object = [1, 2, 3]
 
 ### function to object
 
-> Functions are assignable to object.
+Functions are assignable to object.
 
 ```ds
 const fn = () => {}
@@ -41,7 +41,7 @@ const x: object = fn
 
 ### number not assignable to object
 
-> Primitive number is not assignable to object.
+Primitive number is not assignable to object.
 
 ```ds
 const x: object = 42
@@ -51,7 +51,7 @@ const x: object = 42
 
 ### string not assignable to object
 
-> Primitive string is not assignable to object.
+Primitive string is not assignable to object.
 
 ```ds
 const x: object = "hello"
@@ -61,7 +61,7 @@ const x: object = "hello"
 
 ### boolean not assignable to object
 
-> Primitive boolean is not assignable to object.
+Primitive boolean is not assignable to object.
 
 ```ds
 const x: object = true
@@ -71,7 +71,7 @@ const x: object = true
 
 ### null not assignable to object
 
-> Null is not assignable to object.
+Null is not assignable to object.
 
 ```ds
 const x: object = null
@@ -81,7 +81,7 @@ const x: object = null
 
 ### undefined not assignable to object
 
-> Undefined is not assignable to object.
+Undefined is not assignable to object.
 
 ```ds
 const x: object = undefined

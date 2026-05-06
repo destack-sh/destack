@@ -6,7 +6,7 @@ Visible extensions participate in member lookup.
 
 ### earlier extensions win duplicate methods
 
-> When multiple visible extensions define the same method, the earlier extension is used.
+When multiple visible extensions define the same method, the earlier extension is used.
 
 ```ds
 struct Vector2 { x: number; y: number }

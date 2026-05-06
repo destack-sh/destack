@@ -6,7 +6,7 @@ Extensionless and index-based module resolution.
 
 ### resolves ds module without extension
 
-> Extensionless specifiers resolve `.ds` modules.
+Extensionless specifiers resolve `.ds` modules.
 
 ```ds:main.ds
 import { value } from "./mod";
@@ -20,7 +20,7 @@ export const value: int32 = 1;
 
 ### resolves inferred module without extension
 
-> Extensionless specifiers resolve `.ds` modules with inferred exports.
+Extensionless specifiers resolve `.ds` modules with inferred exports.
 
 ```ds:main.ds
 import { value } from "./mod";
@@ -34,7 +34,7 @@ export const value = 1;
 
 ### resolves declaration modules without extension
 
-> Extensionless specifiers resolve `.ds` modules for type usage.
+Extensionless specifiers resolve `.ds` modules for type usage.
 
 ```ds:main.ds
 import type { User } from "./types";
@@ -52,7 +52,7 @@ export interface User {
 
 ### resolves declaration value exports
 
-> Extensionless specifiers resolve declared values from `.ds` modules.
+Extensionless specifiers resolve declared values from `.ds` modules.
 
 ```ds:main.ds
 import { version } from "./types";
@@ -68,7 +68,7 @@ export const version: string;
 
 ### resolves directory index module
 
-> Directory specifiers resolve `index.ds` modules.
+Directory specifiers resolve `index.ds` modules.
 
 ```ds:main.ds
 import { value } from "./dir";

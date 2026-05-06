@@ -6,7 +6,7 @@ Interfaces can bind type parameters and static value parameters.
 
 ### interfaces accept explicit type arguments
 
-> Interface type references accept explicit type arguments.
+Interface type references accept explicit type arguments.
 
 ```ds
 interface Box<T> { value: T }
@@ -19,7 +19,7 @@ value satisfies Box<number>;
 
 ### interfaces reject type argument mismatches
 
-> Type arguments must satisfy declared bounds.
+Type arguments must satisfy declared bounds.
 
 ```ds
 interface Box<T: number> { value: T }
@@ -33,7 +33,7 @@ let value: Box<string> = makeBox();
 
 ### interfaces accept static value arguments
 
-> Static value arguments are checked against declared types.
+Static value arguments are checked against declared types.
 
 ```ds
 interface Buffer<T, comptime N: number> { value: T }
@@ -46,7 +46,7 @@ buffer satisfies Buffer<string, 4>;
 
 ### interfaces reject static value argument mismatches
 
-> Static value arguments must satisfy declared types.
+Static value arguments must satisfy declared types.
 
 ```ds
 interface Buffer<T, comptime N: number> { value: T }
@@ -62,7 +62,7 @@ let buffer: Buffer<string, true> = makeBuffer();
 
 ### interfaces accept default type parameters
 
-> Type parameters fall back to defaults when omitted.
+Type parameters fall back to defaults when omitted.
 
 ```ds
 interface Box<T = number> { value: T }
@@ -75,7 +75,7 @@ value satisfies Box<number>;
 
 ### interfaces accept default static values
 
-> Static value arguments fall back to defaults when omitted.
+Static value arguments fall back to defaults when omitted.
 
 ```ds
 interface Buffer<T, comptime N: number = 4> { value: T }

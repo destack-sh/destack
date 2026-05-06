@@ -6,7 +6,7 @@ Promise<T> and await expressions.
 
 ### await unwraps promise value type
 
-> Await unwraps the resolved value type of a promise.
+Await unwraps the resolved value type of a promise.
 
 ```ds
 declare const value: Promise<number>;
@@ -20,7 +20,7 @@ async function read(): Promise<number> {
 
 ### await rejects non promise values
 
-> Await only accepts typed async values.
+Await only accepts typed async values.
 
 ```ds
 async function read(): Promise<string> {
@@ -34,7 +34,7 @@ async function read(): Promise<string> {
 
 ### await distributes over unions
 
-> Await distributes across promise unions.
+Await distributes across promise unions.
 
 ```ds
 declare const value: Promise<number> | Promise<string>;
@@ -48,7 +48,7 @@ async function read(): Promise<number | string> {
 
 ### await unwraps nested promises
 
-> Await recursively unwraps nested promise values.
+Await recursively unwraps nested promise values.
 
 ```ds
 declare const value: Promise<Promise<number>>;
@@ -62,7 +62,7 @@ async function read(): Promise<number> {
 
 ### await preserves unknown promise values
 
-> Await preserves `unknown` when the promise value is unknown.
+Await preserves `unknown` when the promise value is unknown.
 
 ```ds
 declare const value: Promise<unknown>;
@@ -76,7 +76,7 @@ async function read(): Promise<unknown> {
 
 ### await unwraps promise aliases
 
-> Await unwraps promise aliases through ordinary alias resolution.
+Await unwraps promise aliases through ordinary alias resolution.
 
 ```ds
 type Box<T> = Promise<T>;
@@ -91,7 +91,7 @@ async function read(): Promise<int32> {
 
 ### await unwraps unevaluated promise arguments
 
-> Await unwraps Promise arguments even when the static argument is an unevaluated alias.
+Await unwraps Promise arguments even when the static argument is an unevaluated alias.
 
 ```ds
 type Box<T> = Promise<T>;

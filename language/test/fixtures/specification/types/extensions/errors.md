@@ -6,7 +6,7 @@ Rejected extension method calls.
 
 ### calling nonexistent extension method
 
-> Calling a method that doesn't exist on the type or extensions is an error.
+Calling a method that doesn't exist on the type or extensions is an error.
 
 ```ds
 struct Point { x: number; y: number }
@@ -25,7 +25,7 @@ point.nonexistent();
 
 ### method exists on different type
 
-> Extension methods are scoped to their type.
+Extension methods are scoped to their type.
 
 ```ds
 struct Point { x: number; y: number }
@@ -47,7 +47,7 @@ vector.magnitude();
 
 ### wrong argument type
 
-> Extension method arguments must satisfy their declared parameter types.
+Extension method arguments must satisfy their declared parameter types.
 
 ```ds
 struct Calculator { value: number }
@@ -68,7 +68,7 @@ calculator.add("one", 2);
 
 ### local extension not visible from another file
 
-> Local extension on foreign type is not visible from other files.
+Local extension on foreign type is not visible from other files.
 
 ```ds:types.ds
 export struct Vector2 { x: number; y: number }

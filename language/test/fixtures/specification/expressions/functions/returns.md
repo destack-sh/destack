@@ -6,7 +6,7 @@ Function bodies must produce the declared return type.
 
 ### block bodies reject missing returns
 
-> Not all code paths return a value.
+Not all code paths return a value.
 
 ```ds
 function example(value: number): number {
@@ -21,7 +21,7 @@ function example(value: number): number {
 
 ### tail expressions satisfy return types
 
-> Implicit return expressions satisfy the return requirement.
+Implicit return expressions satisfy the return requirement.
 
 ```ds
 function example(value: number): number {

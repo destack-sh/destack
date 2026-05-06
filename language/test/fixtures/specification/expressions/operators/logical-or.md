@@ -6,7 +6,7 @@
 
 ### logical or yields boolean for booleans
 
-> `||` produces boolean when both operands are boolean.
+`||` produces boolean when both operands are boolean.
 
 ```ds
 let value: boolean = true || false;
@@ -16,7 +16,7 @@ let value: boolean = true || false;
 
 ### logical or assignment accepts assignable values
 
-> `||=` uses standard assignment rules.
+`||=` uses standard assignment rules.
 
 ```ds
 let value: string | undefined = undefined;
@@ -27,7 +27,7 @@ value satisfies string | undefined;
 
 ### logical or assignment rejects incompatible operands
 
-> `||=` rejects incompatible right operands.
+`||=` rejects incompatible right operands.
 
 ```ds
 let value: string = "ok";

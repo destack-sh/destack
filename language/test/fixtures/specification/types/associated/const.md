@@ -6,7 +6,7 @@ Associated constants are `comptime const` members on nominal types and interface
 
 ### constants can use enclosing type generics
 
-> A constant member can branch on generic parameters from its enclosing type.
+A constant member can branch on generic parameters from its enclosing type.
 
 ```ds
 class Segment<Row> {
@@ -19,7 +19,7 @@ width satisfies 4;
 
 ### constants can size fixed arrays
 
-> Associated constants can be used where a compile-time value is required.
+Associated constants can be used where a compile-time value is required.
 
 ```ds
 class Segment<Row> {
@@ -33,7 +33,7 @@ lane satisfies [uint8; 8];
 
 ### constants can use other constants
 
-> `this` names other static members on the same type.
+`this` names other static members on the same type.
 
 ```ds
 class Layout<Row> {
@@ -48,16 +48,16 @@ lane satisfies [string; 8];
 
 ## value positions
 
-### value reads need concrete types
+### value reads need resolved types
 
-> Reading an associated constant as a value requires a concrete type.
+Reading an associated constant as a value requires a resolved owner type.
 
 ```ds
 class Segment<Row> {
     comptime const Width: uint = Row extends string ? 4 : 2;
 }
 
-function unresolved<Row>() {
+function readWidth<Row>() {
     const width = Segment<Row>.Width;
     width
 }
@@ -67,7 +67,7 @@ function unresolved<Row>() {
 
 ### constants are not instance fields
 
-> Associated constants are read from the type, not from values of the type.
+Associated constants are read from the type, not from values of the type.
 
 ```ds
 class Segment<Row> {

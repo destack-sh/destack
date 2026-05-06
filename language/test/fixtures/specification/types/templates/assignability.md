@@ -4,7 +4,7 @@
 
 ### template literal type assigns to broader template
 
-> Narrow template literal types assign to broader ones.
+Narrow template literal types assign to broader ones.
 
 ```ds
 type Loose = `${string}-id`;
@@ -16,7 +16,7 @@ let ok: Loose = tight;
 
 ### template literal type rejects union assignment to narrower template
 
-> Union template types are not assignable to a narrower branch.
+Union template types are not assignable to a narrower branch.
 
 ```ds
 type Combo = `foo-${string}` | `bar-${string}`;
@@ -30,7 +30,7 @@ let bad: FooOnly = combo;
 
 ### template literal type rejects assignment to narrower template
 
-> Broader template literal types do not assign to narrower ones.
+Broader template literal types do not assign to narrower ones.
 
 ```ds
 type Loose = `${string}-id`;
@@ -44,7 +44,7 @@ let bad: Tight = loose;
 
 ### template literal type accepts generic spans
 
-> Generic spans assign to the string supertype.
+Generic spans assign to the string supertype.
 
 ```ds
 type AnyString = `${string}`;
@@ -56,7 +56,7 @@ let ok: AnyString = tagged;
 
 ### template literal numeric spans assign to string spans
 
-> Numeric spans are assignable to string spans.
+Numeric spans are assignable to string spans.
 
 ```ds
 type NumericId = `id-${number}`;
@@ -68,7 +68,7 @@ let ok: StringId = numeric;
 
 ### template literal string spans reject numeric spans
 
-> String spans do not narrow to numeric spans.
+String spans do not narrow to numeric spans.
 
 ```ds
 type NumericId = `id-${number}`;
@@ -82,7 +82,7 @@ let bad: NumericId = value;
 
 ### template literal type assigns to string
 
-> Template literal types assign to string.
+Template literal types assign to string.
 
 ```ds
 type Tagged = `tag-${string}`;
@@ -93,7 +93,7 @@ let ok: string = tagged;
 
 ### string does not assign to template literal type
 
-> Strings do not assign to narrower template literal types.
+Strings do not assign to narrower template literal types.
 
 ```ds
 type Tagged = `tag-${string}`;
@@ -106,7 +106,7 @@ let bad: Tagged = value;
 
 ### template literal type rejects boolean spans
 
-> Boolean spans are not assignable to numeric spans.
+Boolean spans are not assignable to numeric spans.
 
 ```ds
 type BoolSpan = `flag-${boolean}`;

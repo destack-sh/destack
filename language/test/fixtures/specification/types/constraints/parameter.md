@@ -6,68 +6,68 @@ Generic parameters can declare constraints directly in the parameter list.
 
 ### type parameters accept matching arguments
 
-> A constrained type parameter accepts type arguments that satisfy the constraint.
+A constrained type parameter accepts type arguments that satisfy the constraint.
 
 ```ds
-interface Copy {
-    copy(): void;
+interface Readable {
+    read(): void;
 }
 
-function clone<T: Copy>(value: T): T {
+function clone<T: Readable>(value: T): T {
     return value;
 }
 
-const value: Copy = { copy() {} };
-clone<Copy>(value);
+const value: Readable = { read() {} };
+clone<Readable>(value);
 ```
 
 ### type parameters reject mismatched arguments
 
-> A constrained type parameter rejects type arguments that do not satisfy the constraint.
+A constrained type parameter rejects type arguments that do not satisfy the constraint.
 
 ```ds
-interface Copy {
-    copy(): void;
+interface Readable {
+    read(): void;
 }
 
-interface NotCopy {}
+interface NotReadable {}
 
-function clone<T: Copy>(value: T): T {
+function clone<T: Readable>(value: T): T {
     return value;
 }
 
-const value: NotCopy = {};
-clone<NotCopy>(value);
+const value: NotReadable = {};
+clone<NotReadable>(value);
 ```
 
 - contains: not assignable
 
 ### inferred arguments must satisfy constraints
 
-> Inferred type arguments are checked against their parameter constraints.
+Inferred type arguments are checked against their parameter constraints.
 
 ```ds
-interface Copy {
-    copy(): void;
+interface Readable {
+    read(): void;
 }
 
-function clone<T: Copy>(value: T): T {
+function clone<T: Readable>(value: T): T {
     return value;
 }
 
-clone({ copy() {} });
+clone({ read() {} });
 ```
 
 ### inferred arguments reject unmet constraints
 
-> Inference rejects inferred types that do not satisfy the constraint.
+Inference rejects inferred types that do not satisfy the constraint.
 
 ```ds
-interface Copy {
-    copy(): void;
+interface Readable {
+    read(): void;
 }
 
-function clone<T: Copy>(value: T): T {
+function clone<T: Readable>(value: T): T {
     return value;
 }
 
@@ -80,7 +80,7 @@ clone({ merge() {} });
 
 ### static value parameters accept matching arguments
 
-> Static value parameters can also declare constraints.
+Static value parameters can also declare constraints.
 
 ```ds
 function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {
@@ -93,7 +93,7 @@ bytes satisfies [uint8; 4];
 
 ### static value parameters reject mismatched arguments
 
-> Static value arguments must satisfy their declared constraint.
+Static value arguments must satisfy their declared constraint.
 
 ```ds
 function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {

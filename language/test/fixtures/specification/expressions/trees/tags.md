@@ -6,7 +6,7 @@ Tree tags resolve either as values or as configured intrinsic tags.
 
 ### structural component tag is allowed
 
-> Value tags can be resolved from structural component shape.
+Value tags can be resolved from structural component shape.
 
 ```ds
 declare function Button(props: { kind: string, children?: unknown[] }): unknown;
@@ -17,7 +17,7 @@ node;
 
 ### key and ref are not language reserved
 
-> The language does not reserve key and ref prop names globally.
+The language does not reserve key and ref prop names globally.
 
 ```ds
 declare function Button(props: { key: string, ref: string, children?: unknown[] }): unknown;
@@ -30,7 +30,7 @@ node;
 
 ### lowercase intrinsic requires configured TreeTagBuilder
 
-> Lowercase tags require an active TreeTagBuilder.
+Lowercase tags require an active TreeTagBuilder.
 
 ```ds
 const node = <div className="card" />;
@@ -41,7 +41,7 @@ node;
 
 ### fragment requires configured TreeTagBuilder
 
-> Fragments resolve through TreeTagBuilder and fail without one.
+Fragments resolve through TreeTagBuilder and fail without one.
 
 ```ds
 declare function Button(props: { children?: unknown[] }): unknown;
@@ -56,7 +56,7 @@ node;
 
 ### namespaced tags resolve as intrinsic string names
 
-> XML namespaced tags resolve as intrinsic string names.
+XML namespaced tags resolve as intrinsic string names.
 
 ```ds
 const node = <svg:path />;
@@ -70,7 +70,7 @@ node;
 
 ### explicit props override spread props by source order
 
-> Later explicit props override earlier spread props.
+Later explicit props override earlier spread props.
 
 ```ds
 declare function Button(props: { a: number, b: number, children?: unknown[] }): unknown;
@@ -82,7 +82,7 @@ node;
 
 ### open shape spread is rejected
 
-> Open shape spreads are not allowed in tree literals.
+Open shape spreads are not allowed in tree literals.
 
 ```ds
 declare function Button(props: { children?: unknown[] }): unknown;

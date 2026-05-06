@@ -4,7 +4,7 @@
 
 ### dynamic arrays accept compatible element types
 
-> Dynamic arrays are assignable when element types are compatible.
+Dynamic arrays are assignable when element types are compatible.
 
 ```ds
 let source: int32[] = [1, 2, 3];
@@ -13,7 +13,7 @@ let target: int32[] = source;
 
 ### dynamic arrays reject incompatible element types
 
-> Dynamic arrays reject assignment when element types are incompatible.
+Dynamic arrays reject assignment when element types are incompatible.
 
 ```ds
 let source: int32[] = [1, 2, 3];
@@ -26,7 +26,7 @@ let target: string[] = source;
 
 ### dynamic array indexing yields the element type
 
-> Indexing a dynamic array yields its element type.
+Indexing a dynamic array yields its element type.
 
 ```ds
 let values: int32[] = [1, 2, 3];
@@ -37,7 +37,7 @@ first satisfies int32;
 
 ### dynamic array indexing rejects incompatible element expectations
 
-> Indexed dynamic array elements reject incompatible target types.
+Indexed dynamic array elements reject incompatible target types.
 
 ```ds
 let values: int32[] = [1, 2, 3];
@@ -51,7 +51,7 @@ const first: string = values[0];
 
 ### dynamic arrays satisfy compatible function parameters
 
-> Dynamic arrays are accepted by parameters with the same element type.
+Dynamic arrays are accepted by parameters with the same element type.
 
 ```ds
 function take(values: int32[]): int32[] {
@@ -64,7 +64,7 @@ result satisfies int32[];
 
 ### dynamic arrays reject incompatible function parameters
 
-> Dynamic arrays reject function parameters with incompatible element types.
+Dynamic arrays reject function parameters with incompatible element types.
 
 ```ds
 function take(values: string[]): string[] {

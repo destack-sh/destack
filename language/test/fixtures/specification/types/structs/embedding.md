@@ -122,3 +122,19 @@ struct Entity {
 ```
 
 - contains: duplicate
+
+### embedding rejects classes
+
+Only structs can be embedded into structs.
+
+```ds
+class Transform {
+    x: int32 = 0
+}
+
+struct Entity {
+    ...Transform
+}
+```
+
+- contains: embed

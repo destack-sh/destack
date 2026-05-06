@@ -4,7 +4,7 @@
 
 ### try expressions require catch or finally
 
-> A try expression requires a catch or finally block.
+A try expression requires a catch or finally block.
 
 ```ds
 const value = try { 1 };
@@ -15,7 +15,7 @@ value satisfies int;
 
 ### try finally returns the body type
 
-> Finally does not affect the try expression type.
+Finally does not affect the try expression type.
 
 ```ds
 const value = try {
@@ -30,7 +30,7 @@ value satisfies int;
 
 ### try catch returns union type
 
-> Catch contributes to the try expression type.
+Catch contributes to the try expression type.
 
 ```ds
 const value = try {
@@ -46,7 +46,7 @@ value satisfies int | string;
 
 ### try catch finally returns union type
 
-> Catch contributes to the try expression type.
+Catch contributes to the try expression type.
 
 ```ds
 const value = try {
