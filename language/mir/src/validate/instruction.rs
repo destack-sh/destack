@@ -454,17 +454,19 @@ impl<'a> Validator<'a> {
         anchor: ValidateAnchor,
         operation: &'static str,
     ) -> ValidateResult<()> {
-        if !matches!(
-            self.tree.get(value_type),
+        let is_scalar = match self.tree.get(value_type) {
             Type::Boolean
-                | Type::Int { .. }
-                | Type::Isize
-                | Type::Usize
-                | Type::Float { .. }
-                | Type::TypeId
-                | Type::Reference { .. }
-                | Type::FunctionPointer { .. }
-        ) {
+            | Type::Int { .. }
+            | Type::Isize
+            | Type::Usize
+            | Type::Float { .. }
+            | Type::TypeId
+            | Type::FunctionPointer { .. } => true,
+            Type::Reference { kind, .. } => matches!(kind, ReferenceKind::Raw),
+            _ => false,
+        };
+
+        if !is_scalar {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: format!("{operation} atomic value must be scalar storage"),
                 anchor,
