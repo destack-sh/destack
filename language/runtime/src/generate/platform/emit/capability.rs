@@ -2,14 +2,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Prefix used by the intrinsic platform-capability declaration.
+/// Prefix used by the platform capability declaration.
 const PLATFORM_CAPABILITY_TYPE_PREFIX: &str = "export type PlatformCapability =";
 
-/// Generate runtime capability kinds from the primitive binding union.
+/// Generate runtime capability kinds from the binding capability union.
 pub(crate) fn generate_platform_capability_kind() {
-    let intrinsic_binding_path = intrinsic_binding_path();
-    let source = fs::read_to_string(&intrinsic_binding_path).unwrap_or_else(|error| {
-        panic!("failed to read intrinsic binding source {intrinsic_binding_path:?}: {error}")
+    let binding_metadata_path = binding_metadata_path();
+    let source = fs::read_to_string(&binding_metadata_path).unwrap_or_else(|error| {
+        panic!("failed to read binding metadata source {binding_metadata_path:?}: {error}")
     });
     let capability_names = parse_platform_capability_names(&source);
     let generated = render_platform_capability_source(&capability_names);
@@ -27,9 +27,9 @@ fn language_root() -> PathBuf {
         .to_path_buf()
 }
 
-/// Resolve the primitive binding declaration path.
-fn intrinsic_binding_path() -> PathBuf {
-    language_root().join("library/core/primitive/binding.ds")
+/// Resolve the binding declaration path.
+fn binding_metadata_path() -> PathBuf {
+    language_root().join("library/platform/core/capability.ds")
 }
 
 /// Resolve the generated runtime capability kind output path.
@@ -47,7 +47,7 @@ fn write_generated_file(path: &Path, contents: &str) {
     fs::write(path, contents).expect("failed to write generated file");
 }
 
-/// Parse canonical capability names from the intrinsic type union.
+/// Parse canonical capability names from the binding metadata union.
 fn parse_platform_capability_names(source: &str) -> Vec<String> {
     let mut in_union = false;
     let mut capabilities = Vec::new();
@@ -74,17 +74,17 @@ fn parse_platform_capability_names(source: &str) -> Vec<String> {
     }
 
     if !in_union {
-        panic!("missing intrinsic PlatformCapability union declaration");
+        panic!("missing PlatformCapability union declaration");
     }
 
     if capabilities.is_empty() {
-        panic!("intrinsic PlatformCapability union is empty");
+        panic!("PlatformCapability union is empty");
     }
 
     let mut seen_capabilities = BTreeSet::new();
     for capability in &capabilities {
         if !seen_capabilities.insert(capability.clone()) {
-            panic!("duplicate intrinsic capability literal: {capability}");
+            panic!("duplicate platform capability literal: {capability}");
         }
     }
 
