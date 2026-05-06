@@ -1,7 +1,13 @@
-// Compiler-recognized decorator markers.
+import {
+    type Declaration,
+    type Scope,
+    type Symbol,
+} from "../../reflect/dir/index.ds";
+
+// compiler-known annotation and decorator markers
 //
-// These newtypes are used as decorators that the compiler understands.
-// When applied to declarations, they affect compilation behavior.
+// nominal annotation values are metadata by default
+// some names have fixed compiler or toolchain behavior
 
 /// Marks something as an external symbol.
 ///
@@ -13,7 +19,7 @@ export newtype extern = (string,) | ();
 
 /// Marks something as deprecated.
 ///
-/// When used as a decorator, emits a compile-time warning.
+/// As an annotation, emits a compile-time warning.
 /// The message is included in the warning and accessible at runtime.
 ///
 /// ```
@@ -112,7 +118,7 @@ export type CapturePolicy = "borrow" | "copy" | "move";
 /// Capture policy for individual bindings.
 export type CaptureKind = CapturePolicy;
 
-/// Capture directive value for the capture decorator.
+/// Capture directive value for the capture annotation.
 export type CaptureDirective =
     | CapturePolicy
     | {
@@ -146,24 +152,94 @@ export type TaggedNames = {
     readonly [discriminant: string]: string;
 };
 
-/// Tagged union constructor directive.
-export type TaggedDirective =
-    | TaggedCase
-    | {
-        case?: TaggedCase;
-        field?: string;
-        names?: TaggedNames;
-    };
+/// Context passed to patch providers.
+export struct PatchContext {
+    /// The decorated target symbol.
+    symbol: Symbol;
 
-/// Add constructor helpers for tagged newtype unions.
+    /// The containing scope.
+    scope: Scope;
+
+    /// The local name of the decorated target when one exists.
+    name?: string;
+}
+
+/// Patch that adds a generated declaration.
+export newtype PatchAdd = {
+    kind: "add";
+    scope: Scope;
+    declaration: Declaration;
+};
+
+/// Patch that replaces one symbol with a generated declaration.
+export newtype PatchReplace = {
+    kind: "replace";
+    symbol: Symbol;
+    declaration: Declaration;
+};
+
+/// Patch that renames one symbol.
+export newtype PatchRename = {
+    kind: "rename";
+    symbol: Symbol;
+    name: string;
+};
+
+/// Patch that removes one symbol.
+export newtype PatchRemove = {
+    kind: "remove";
+    symbol: Symbol;
+};
+
+/// One static patch operation.
+export newtype Patch =
+    | PatchAdd
+    | PatchReplace
+    | PatchRename
+    | PatchRemove;
+
+/// Protocol for decorator values that provide patches.
+export newtype interface Patcher<Target> {
+    /// Return the patches for the decorated target.
+    static patch(target: Target, context: PatchContext, config: this): Patch[];
+}
+
+/// Derive constructor helpers for tagged newtype unions.
 ///
 /// ```ds
-/// @tagged("UpperCamelCase")
+/// @derive(Tagged({ case: "UpperCamelCase" }))
 /// newtype Shape =
 ///     | { kind: "rectangle"; width: int32; height: int32 }
 ///     | { kind: "circle"; radius: int32 };
 /// ```
-export newtype tagged = (TaggedDirective,) | ();
+export newtype Tagged = () | {
+    case?: TaggedCase;
+    names?: TaggedNames;
+};
+
+/// Implement `Tagged` as a patch provider.
+export extension<Target> of Tagged implements Patcher<Target> {
+    @intrinsic
+    static patch(target: Target, context: PatchContext, config: this): Patch[];
+}
+
+/// Derive `Clone` implementations.
+export newtype Clone = ();
+
+/// Implement `Clone` as a patch provider.
+export extension<Target> of Clone implements Patcher<Target> {
+    @intrinsic
+    static patch(target: Target, context: PatchContext, config: this): Patch[];
+}
+
+/// Derive `Debug` implementations.
+export newtype Debug = ();
+
+/// Implement `Debug` as a patch provider.
+export extension<Target> of Debug implements Patcher<Target> {
+    @intrinsic
+    static patch(target: Target, context: PatchContext, config: this): Patch[];
+}
 
 /// Inline hint for the optimizer.
 ///
@@ -204,8 +280,8 @@ export newtype layout = (unknown,);
 
 /// Loop unroll hint for the optimizer.
 ///
-/// Suggests that a loop should be unrolled. Can optionally specify
-/// the unroll factor.
+/// As an annotation, suggests that a loop should be unrolled.
+/// Can optionally specify the unroll factor.
 ///
 /// ```
 /// @unroll
@@ -324,7 +400,7 @@ export newtype sanitizer = (string,) | ();
 
 /// Tag a value or expression.
 ///
-/// Tags are used for general purpose metadata when more specific decorators are not available.
+/// Tags are used for general purpose metadata when more specific annotations are not available.
 ///
 /// ```
 /// @tag("user")
@@ -378,19 +454,3 @@ export newtype tag = (string,) | ();
 /// returning a value that doesn't actually borrow from the declared
 /// parameters is a compile error.
 export newtype lifetime = string;
-
-/// Space annotation for a reference type.
-///
-/// `space` specifies the memory region that a reference points into.
-/// Supported names include `generic`, `stack`, `global`, `heap`, `shared`,
-/// `local`, and `constant`.
-///
-/// Non-generic address spaces are only valid for borrowed and raw references.
-/// `constant` references are always immutable.
-/// Space changes are explicit and use `space.cast`.
-///
-/// ```
-/// let p: @space("shared") &Point = ...;
-/// let q: @space("constant") &Color = ...;
-/// ```
-export newtype space = (string,);

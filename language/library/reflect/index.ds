@@ -1,3 +1,2 @@
 export * from "./type.ds";
-export * from "./property.ds";
-export * from "./annotation.ds";
+export * as dir from "./dir/index.ds";

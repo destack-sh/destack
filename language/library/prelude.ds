@@ -91,7 +91,7 @@ export {
     reduceXor,
 } from "./core/primitive/vector.ds";
 
-// decorator markers (intrinsics)
+// annotation and decorator markers
 export {
     deprecated,
     experimental,
@@ -106,13 +106,21 @@ export {
     noManaged,
     stackOnly,
     capture,
-    tagged,
+    Tagged,
+    Clone,
+    Debug,
     type CaptureKind,
     type CapturePolicy,
     type CaptureDirective,
     type TaggedCase,
     type TaggedNames,
-    type TaggedDirective,
+    type PatchContext,
+    type PatchAdd,
+    type PatchReplace,
+    type PatchRename,
+    type PatchRemove,
+    type Patch,
+    type Patcher,
     inline,
     noinline,
     unroll,
@@ -130,10 +138,9 @@ export {
     sanitizer,
     tag,
     lifetime,
-    space,
 } from "./core/primitive/decorator.ds";
 
-// binding decorators (intrinsics)
+// binding annotations
 export {
     binding,
     require,

@@ -1,0 +1,47 @@
+import { type GenericParameter, type Parameter } from "./argument.ds";
+import { type TypeExpression } from "./type-expression.ds";
+import { type Asynchrony } from "./node.ds";
+import { type FunctionMode } from "./property.ds";
+import { type WhereClause } from "./expression.ds";
+
+/// Function cardinality.
+export enum FunctionCardinality {
+    /// Scalar function.
+    Scalar,
+    /// Generator function.
+    Generator,
+}
+
+/// Function syntax kind.
+export enum FunctionKind {
+    /// A normal function.
+    Function,
+    /// A lambda function.
+    Lambda,
+}
+
+/// The signature of one function.
+export interface FunctionSignature {
+    /// Whether the function is abstract.
+    isAbstract: boolean;
+    /// Whether the function is an override.
+    isOverride: boolean;
+    /// The function asynchrony.
+    asynchrony: Asynchrony;
+    /// The function cardinality.
+    cardinality: FunctionCardinality;
+    /// The special function mode when one exists.
+    mode?: FunctionMode;
+    /// The function syntax kind.
+    kind: FunctionKind;
+    /// The generic parameters.
+    genericParameters: readonly GenericParameter[];
+    /// The where clauses.
+    whereClauses: readonly WhereClause[];
+    /// The explicit `this` parameter when present.
+    thisParameter?: Parameter;
+    /// The runtime parameters.
+    parameters: readonly Parameter[];
+    /// The return type when declared.
+    returnType?: TypeExpression;
+}

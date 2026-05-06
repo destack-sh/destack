@@ -1,0 +1,1250 @@
+import { type Argument, type GenericArgument, type StaticArgument } from "./argument.ds";
+import { type Block } from "./block.ds";
+import { type CastOperator, type CastSource, type UnaryOperator, type BinaryOperator, type AssignOperator } from "./operator.ds";
+import { type Declaration } from "./declaration.ds";
+import { type Declarator } from "./declarator.ds";
+import { type DependencyItem, type DependencyKind, type ExportMode, type ModuleTarget, type SymbolSpaceOrder } from "./dependency.ds";
+import { type ImportAttributeClause, type ImportSource, type ImportTarget } from "./import.ds";
+import { type ScalarLiteral, type TemplateLiteral } from "./literal.ds";
+import { type MatchCase, type MatchKind, type MatchSource } from "./match.ds";
+import { type Asynchrony, type Ambientness, type Mutability, type Node } from "./node.ds";
+import { type AssignPattern, type Pattern } from "./pattern.ds";
+import { type Property, type StaticProperty } from "./property.ds";
+import { type Scope, type Symbol } from "./symbol.ds";
+import { type Type, type TypeLiteral, type VarianceBound } from "./type.ds";
+import { type TypeExpression } from "./type-expression.ds";
+
+/// The kind of a loop expression.
+export enum LoopKind {
+    /// No-test loop.
+    NoTest,
+    /// Pre-test loop.
+    PreTest,
+    /// Post-test loop.
+    PostTest,
+}
+
+/// The style of an if expression.
+export enum IfKind {
+    /// If expression.
+    If,
+    /// Ternary expression.
+    Ternary,
+}
+
+/// The kind of a let, var, or const binding.
+export enum LetKind {
+    /// `let` binding.
+    Let,
+    /// `var` binding.
+    Var,
+    /// `const` binding.
+    Const,
+}
+
+/// The condition for an if expression.
+export type IfCondition =
+    | ExpressionIfCondition
+    | LetIfCondition;
+
+/// A regular condition expression.
+export interface ExpressionIfCondition {
+    /// The condition kind.
+    kind: "expression";
+    /// The condition expression.
+    condition: Expression;
+}
+
+/// A let binding condition.
+export interface LetIfCondition {
+    /// The condition kind.
+    kind: "let";
+    /// The keyword used for the let binding.
+    letKind: LetKind;
+    /// The binding mutability.
+    mutability: Mutability;
+    /// The binding declarator.
+    declarator: Declarator;
+}
+
+/// The kind of a while expression.
+export enum WhileKind {
+    /// While expression.
+    While,
+    /// Do-while expression.
+    DoWhile,
+}
+
+/// The kind of a for-each expression.
+export enum ForEachKind {
+    /// In expression.
+    In,
+    /// Of expression.
+    Of,
+}
+
+/// The declaration keyword used by a for-each pattern binding.
+export enum ForEachDeclarationKind {
+    /// `var` declaration keyword.
+    Var,
+    /// `let` declaration keyword.
+    Let,
+    /// `const` declaration keyword.
+    Const,
+}
+
+/// The binding of a for-each expression.
+export type ForEachBinding =
+    | PatternForEachBinding
+    | UsingForEachBinding;
+
+/// Normal pattern binding.
+export interface PatternForEachBinding {
+    /// The binding kind.
+    kind: "pattern";
+    /// The binding pattern.
+    pattern: Pattern;
+    /// The declaration keyword when present.
+    declarationKind?: ForEachDeclarationKind;
+}
+
+/// Using binding.
+export interface UsingForEachBinding {
+    /// The binding kind.
+    kind: "using";
+    /// The using asynchrony.
+    asynchrony: Asynchrony;
+    /// The binding pattern.
+    pattern: Pattern;
+}
+
+/// The kind of a yield expression.
+export enum YieldCardinality {
+    /// Generator yield expression.
+    Generator,
+    /// Scalar yield expression.
+    Scalar,
+}
+
+/// A single where clause.
+export interface WhereClause extends Node {
+    /// The node kind.
+    nodeKind: "whereClause";
+    /// The target to constrain.
+    left: string;
+    /// The constraint type.
+    right: TypeExpression;
+}
+
+/// Expression addressability.
+export enum Addressability {
+    /// A place expression that refers to storage.
+    Place,
+    /// A value expression that does not refer to storage.
+    Value,
+}
+
+/// Static value form of an expression.
+export type StaticExpression =
+    | UnevaluatedStaticExpression
+    | ScalarLiteralStaticExpression
+    | TypeLiteralStaticExpression
+    | DeclarationStaticExpression
+    | TypeStaticExpression
+    | ArrayStaticExpression
+    | TupleStaticExpression
+    | ObjectStaticExpression;
+
+/// Unevaluated static expression.
+export interface UnevaluatedStaticExpression {
+    /// The static expression kind.
+    kind: "unevaluated";
+    /// The unevaluated node.
+    node: Expression;
+}
+
+/// Scalar literal static expression.
+export interface ScalarLiteralStaticExpression {
+    /// The static expression kind.
+    kind: "scalarLiteral";
+    /// The scalar literal.
+    value: ScalarLiteral;
+}
+
+/// Type literal static expression.
+export interface TypeLiteralStaticExpression {
+    /// The static expression kind.
+    kind: "typeLiteral";
+    /// The type literal.
+    value: TypeLiteral;
+}
+
+/// Declaration static expression.
+export interface DeclarationStaticExpression {
+    /// The static expression kind.
+    kind: "declaration";
+    /// The declaration.
+    declaration: Declaration;
+    /// The static generic arguments when present.
+    genericArguments?: readonly StaticArgument[];
+}
+
+/// Type static expression.
+export interface TypeStaticExpression {
+    /// The static expression kind.
+    kind: "type";
+    /// The type value.
+    type: Type;
+}
+
+/// Array static expression.
+export interface ArrayStaticExpression {
+    /// The static expression kind.
+    kind: "arrayExpression";
+    /// The array elements.
+    elements: readonly StaticExpression[];
+}
+
+/// Tuple static expression.
+export interface TupleStaticExpression {
+    /// The static expression kind.
+    kind: "tupleExpression";
+    /// The tuple elements.
+    elements: readonly StaticExpression[];
+}
+
+/// Object static expression.
+export interface ObjectStaticExpression {
+    /// The static expression kind.
+    kind: "objectExpression";
+    /// The object properties.
+    properties: readonly StaticProperty[];
+}
+
+/// A DIR expression node.
+export type Expression =
+    | DeclarationExpression
+    | BlockExpression
+    | LabelledExpression
+    | UnresolvedImportExpression
+    | UnresolvedReExportExpression
+    | ImportExpression
+    | ReExportExpression
+    | ExportExpression
+    | ExportNamespaceExpression
+    | LetExpression
+    | LetElseExpression
+    | UsingExpression
+    | AsExpression
+    | SatisfiesExpression
+    | IsExpression
+    | InstanceOfExpression
+    | UnaryExpression
+    | ValueOfExpression
+    | ReferenceOfExpression
+    | PointerOfExpression
+    | BinaryExpression
+    | AssignExpression
+    | AssignBinaryExpression
+    | MemberExpression
+    | PrivateMemberExpression
+    | CallExpression
+    | IndexExpression
+    | InstantiationExpression
+    | MaybeExpression
+    | MustExpression
+    | NewExpression
+    | DeleteExpression
+    | UnresolvedPathExpression
+    | LocalReferenceExpression
+    | ModuleReferenceExpression
+    | GlobalReferenceExpression
+    | PrivateIdentifierExpression
+    | ImportMetaExpression
+    | NewTargetExpression
+    | ThisExpression
+    | SuperExpression
+    | ScalarLiteralExpression
+    | TypeLiteralExpression
+    | TypeExpressionValue
+    | TemplateExpressionNode
+    | TaggedTemplateExpressionNode
+    | ArrayExpressionNode
+    | TupleExpressionNode
+    | SequenceExpression
+    | ObjectExpression
+    | TreeExpression
+    | TaggedScalarExpression
+    | TaggedTupleExpression
+    | TaggedObjectExpression
+    | ParenthesizedExpression
+    | IfExpression
+    | LoopExpression
+    | ForEachExpression
+    | ForExpression
+    | TryExpression
+    | MatchExpression
+    | UnresolvedBreakExpression
+    | BreakExpression
+    | UnresolvedContinueExpression
+    | ContinueExpression
+    | ThrowExpression
+    | AwaitExpression
+    | AwaitMaybeExpression
+    | ComptimeExpression
+    | YieldExpression
+    | ReturnExpression
+    | DebuggerExpression
+    | MissingExpression
+    | StubExpression
+    | ErrorExpression;
+
+/// Declaration as a value.
+export interface DeclarationExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "declaration";
+    /// The declaration.
+    declaration: Declaration;
+}
+
+/// Block expression.
+export interface BlockExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "block";
+    /// The block.
+    block: Block;
+}
+
+/// Labelled statement.
+export interface LabelledExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "labelled";
+    /// The label name.
+    label: string;
+    /// The labelled body.
+    body: Expression;
+    /// The label symbol.
+    symbol: Symbol;
+}
+
+/// Unresolved import dependency declaration.
+export interface UnresolvedImportExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "unresolvedImport";
+    /// The import source.
+    source: ImportSource;
+    /// The dependency kind.
+    dependencyKind: DependencyKind;
+    /// The import target.
+    target: ImportTarget;
+    /// The dependency items when present.
+    items?: readonly DependencyItem[];
+    /// The import attributes when present.
+    attributes?: ImportAttributeClause;
+    /// The dynamic import arguments when present.
+    arguments?: readonly Argument[];
+}
+
+/// Unresolved re-export dependency declaration.
+export interface UnresolvedReExportExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "unresolvedReExport";
+    /// The module target.
+    target: string;
+    /// The dependency kind.
+    dependencyKind: DependencyKind;
+    /// The dependency items.
+    items: readonly DependencyItem[];
+    /// The import attributes when present.
+    attributes?: ImportAttributeClause;
+}
+
+/// Resolved import dependency declaration.
+export interface ImportExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "import";
+    /// The import source.
+    source: ImportSource;
+    /// The dependency kind.
+    dependencyKind: DependencyKind;
+    /// The module target.
+    target: string;
+    /// The resolved target module.
+    targetModule: ModuleTarget;
+    /// The dependency items when present.
+    items?: readonly DependencyItem[];
+    /// The import attributes when present.
+    attributes?: ImportAttributeClause;
+    /// The dynamic import arguments when present.
+    arguments?: readonly Argument[];
+}
+
+/// Resolved re-export dependency declaration.
+export interface ReExportExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "reExport";
+    /// The module target.
+    target: string;
+    /// The dependency kind.
+    dependencyKind: DependencyKind;
+    /// The dependency items.
+    items: readonly DependencyItem[];
+    /// The import attributes when present.
+    attributes?: ImportAttributeClause;
+    /// The resolved target module.
+    targetModule: ModuleTarget;
+}
+
+/// Export dependency declaration.
+export interface ExportExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "export";
+    /// The dependency kind.
+    dependencyKind: DependencyKind;
+    /// The dependency items.
+    items: readonly DependencyItem[];
+    /// The import attributes when present.
+    attributes?: ImportAttributeClause;
+}
+
+/// Export the module namespace as a global name.
+export interface ExportNamespaceExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "exportNamespace";
+    /// The global name.
+    name: string;
+}
+
+/// Let, var, or const binding expression.
+export interface LetExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "let";
+    /// The export mode when present.
+    export?: ExportMode;
+    /// Whether the binding is ambient.
+    ambient: Ambientness;
+    /// The binding mutability.
+    mutability: Mutability;
+    /// The binding declarators.
+    declarators: readonly Declarator[];
+}
+
+/// Let-else binding.
+export interface LetElseExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "letElse";
+    /// The binding keyword kind.
+    letKind: LetKind;
+    /// The binding mutability.
+    mutability: Mutability;
+    /// The binding declarator.
+    declarator: Declarator;
+    /// The else branch.
+    elseBranch: Expression;
+}
+
+/// Using binding.
+export interface UsingExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "using";
+    /// The using asynchrony.
+    asynchrony: Asynchrony;
+    /// The export mode when present.
+    export?: ExportMode;
+    /// Whether the binding is ambient.
+    ambient: Ambientness;
+    /// The binding declarators.
+    declarators: readonly Declarator[];
+}
+
+/// TypeScript-style `as` assertion.
+export interface AsExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "as";
+    /// The resolved cast operator after elaboration.
+    operator?: CastOperator;
+    /// Whether the cast was written or inserted.
+    source: CastSource;
+    /// The source expression.
+    expression: Expression;
+    /// The target type.
+    targetType: TypeExpression;
+}
+
+/// Value expression checked against a target type.
+export interface SatisfiesExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "satisfies";
+    /// The source expression.
+    expression: Expression;
+    /// The target type.
+    targetType: TypeExpression;
+}
+
+/// Runtime type guard.
+export interface IsExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "is";
+    /// The guarded value.
+    value: Expression;
+    /// The target type.
+    targetType: TypeExpression;
+}
+
+/// Runtime constructor guard.
+export interface InstanceOfExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "instanceOf";
+    /// The guarded value.
+    value: Expression;
+    /// The constructor target.
+    target: Expression;
+}
+
+/// Unary operation.
+export interface UnaryExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "unary";
+    /// The unary operator.
+    operator: UnaryOperator;
+    /// The operand.
+    right: Expression;
+}
+
+/// Value operation.
+export interface ValueOfExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "valueOf";
+    /// The explicit mutability when present.
+    mutability?: Mutability;
+    /// The variance bound when present.
+    variance?: VarianceBound;
+    /// The operand.
+    right: Expression;
+}
+
+/// Reference-of operation.
+export interface ReferenceOfExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "referenceOf";
+    /// The explicit mutability when present.
+    mutability?: Mutability;
+    /// The variance bound when present.
+    variance?: VarianceBound;
+    /// The operand.
+    right: Expression;
+}
+
+/// Pointer-of operation.
+export interface PointerOfExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "pointerOf";
+    /// The explicit mutability when present.
+    mutability?: Mutability;
+    /// The operand.
+    right: Expression;
+}
+
+/// Binary operation.
+export interface BinaryExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "binary";
+    /// The left operand.
+    left: Expression;
+    /// The binary operator.
+    operator: BinaryOperator;
+    /// The right operand.
+    right: Expression;
+}
+
+/// Assignment.
+export interface AssignExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "assign";
+    /// The assignment target.
+    left: AssignPattern;
+    /// The assigned value.
+    right: Expression;
+}
+
+/// Assignment with operator.
+export interface AssignBinaryExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "assignBinary";
+    /// The assignment target expression.
+    left: Expression;
+    /// The assignment operator.
+    operator: AssignOperator;
+    /// The assigned value.
+    right: Expression;
+}
+
+/// Member access.
+export interface MemberExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "member";
+    /// The left expression.
+    left: Expression;
+    /// The member name when present.
+    name?: string;
+}
+
+/// Private member access.
+export interface PrivateMemberExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "privateMember";
+    /// The left expression.
+    left: Expression;
+    /// The member name when present.
+    name?: string;
+}
+
+/// Function call.
+export interface CallExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "call";
+    /// The callee expression.
+    left: Expression;
+    /// The generic arguments.
+    genericArguments: readonly GenericArgument[];
+    /// The call arguments.
+    arguments: readonly Argument[];
+}
+
+/// Index expression.
+export interface IndexExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "index";
+    /// The indexed expression.
+    left: Expression;
+    /// The index expression when present.
+    right?: Expression;
+}
+
+/// Instantiation expression.
+export interface InstantiationExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "instantiation";
+    /// The callee expression.
+    left: Expression;
+    /// The generic arguments.
+    genericArguments: readonly GenericArgument[];
+}
+
+/// Maybe unwrap expression.
+export interface MaybeExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "maybe";
+    /// The operand.
+    left: Expression;
+}
+
+/// Force unwrap expression.
+export interface MustExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "must";
+    /// The operand.
+    left: Expression;
+}
+
+/// New constructor call.
+export interface NewExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "new";
+    /// The constructor expression.
+    left: Expression;
+    /// The generic arguments.
+    genericArguments: readonly GenericArgument[];
+    /// The call arguments.
+    arguments: readonly Argument[];
+}
+
+/// Delete expression.
+export interface DeleteExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "delete";
+    /// The deleted value.
+    value: Expression;
+}
+
+/// Unresolved path expression.
+export interface UnresolvedPathExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "unresolvedPath";
+    /// The path text.
+    path: string;
+    /// The generic arguments.
+    genericArguments: readonly GenericArgument[];
+    /// The symbol-space lookup order.
+    spaceOrder: SymbolSpaceOrder;
+}
+
+/// Resolved local reference.
+export interface LocalReferenceExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "localReference";
+    /// The path text.
+    path: string;
+    /// The generic arguments.
+    genericArguments: readonly GenericArgument[];
+    /// The target symbol.
+    targetSymbol: Symbol;
+}
+
+/// Resolved module reference.
+export interface ModuleReferenceExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "moduleReference";
+    /// The path text.
+    path: string;
+    /// The generic arguments.
+    genericArguments: readonly GenericArgument[];
+    /// The target symbol.
+    targetSymbol: Symbol;
+}
+
+/// Resolved global reference.
+export interface GlobalReferenceExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "globalReference";
+    /// The path text.
+    path: string;
+    /// The generic arguments.
+    genericArguments: readonly GenericArgument[];
+    /// The target symbol.
+    targetSymbol: Symbol;
+}
+
+/// Private identifier.
+export interface PrivateIdentifierExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "privateIdentifier";
+    /// The private name.
+    name: string;
+}
+
+/// Import meta intrinsic value.
+export interface ImportMetaExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "importMeta";
+}
+
+/// New target intrinsic value.
+export interface NewTargetExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "newTarget";
+}
+
+/// This intrinsic value.
+export interface ThisExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "this";
+}
+
+/// Super intrinsic value.
+export interface SuperExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "super";
+}
+
+/// Scalar literal value.
+export interface ScalarLiteralExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "scalarLiteral";
+    /// The scalar literal.
+    value: ScalarLiteral;
+}
+
+/// Type literal value.
+export interface TypeLiteralExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "typeLiteral";
+    /// The type literal.
+    value: TypeLiteral;
+}
+
+/// Type as a value.
+export interface TypeExpressionValue extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "type";
+    /// The type expression.
+    value: TypeExpression;
+    /// The resolved type.
+    resolvedType: Type;
+}
+
+/// Template expression.
+export interface TemplateExpressionNode extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "templateExpression";
+    /// The template value.
+    value: TemplateLiteral;
+}
+
+/// Tagged template expression.
+export interface TaggedTemplateExpressionNode extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "taggedTemplateExpression";
+    /// The tag expression.
+    tag: Expression;
+    /// The generic arguments.
+    genericArguments: readonly GenericArgument[];
+    /// The template value.
+    value: TemplateLiteral;
+}
+
+/// Array expression.
+export interface ArrayExpressionNode extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "arrayExpression";
+    /// The elements.
+    elements: readonly Argument[];
+}
+
+/// Tuple expression.
+export interface TupleExpressionNode extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "tupleExpression";
+    /// The elements.
+    elements: readonly Argument[];
+}
+
+/// Sequence expression.
+export interface SequenceExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "sequenceExpression";
+    /// The expressions in order.
+    expressions: readonly Expression[];
+}
+
+/// Object expression.
+export interface ObjectExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "objectExpression";
+    /// The explicit type when present.
+    type?: TypeExpression;
+    /// The object properties.
+    properties: readonly Property[];
+}
+
+/// Tree expression.
+export interface TreeExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "treeExpression";
+    /// The builder expression when present.
+    left?: Expression;
+    /// The generic arguments.
+    genericArguments: readonly GenericArgument[];
+    /// The call arguments when present.
+    arguments?: readonly Argument[];
+    /// The child elements when present.
+    elements?: readonly Argument[];
+}
+
+/// Tagged scalar expression.
+export interface TaggedScalarExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "taggedScalarExpression";
+    /// The tag type.
+    type: TypeExpression;
+    /// The scalar value.
+    value: Expression;
+}
+
+/// Tagged tuple expression.
+export interface TaggedTupleExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "taggedTupleExpression";
+    /// The tag type.
+    type: TypeExpression;
+    /// The tuple elements.
+    elements: readonly Argument[];
+}
+
+/// Tagged object expression.
+export interface TaggedObjectExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "taggedObjectExpression";
+    /// The tag type.
+    type: TypeExpression;
+    /// The object properties.
+    properties: readonly Property[];
+}
+
+/// Parenthesized expression.
+export interface ParenthesizedExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "parenthesized";
+    /// The inner expression.
+    expression: Expression;
+}
+
+/// If expression.
+export interface IfExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "if";
+    /// The if style.
+    ifKind: IfKind;
+    /// The condition.
+    condition: IfCondition;
+    /// The then expression.
+    thenExpression: Expression;
+    /// The else expression when present.
+    elseExpression?: Expression;
+}
+
+/// Loop expression.
+export interface LoopExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "loop";
+    /// The loop kind.
+    loopKind: LoopKind;
+    /// The loop condition when present.
+    condition?: Expression;
+    /// The loop body.
+    body: Block;
+    /// The loop scope.
+    scope: Scope;
+    /// The loop symbol.
+    symbol: Symbol;
+}
+
+/// For-each loop.
+export interface ForEachExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "forEach";
+    /// The for-each asynchrony.
+    asynchrony: Asynchrony;
+    /// The for-each kind.
+    forEachKind: ForEachKind;
+    /// The loop binding.
+    binding: ForEachBinding;
+    /// The iterator expression.
+    iterator: Expression;
+    /// The loop body.
+    body: Block;
+    /// The loop scope.
+    scope: Scope;
+    /// The loop symbol.
+    symbol: Symbol;
+}
+
+/// Three-part for loop.
+export interface ForExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "for";
+    /// The initialization expression when present.
+    initialization?: Expression;
+    /// The condition expression when present.
+    condition?: Expression;
+    /// The increment expression when present.
+    increment?: Expression;
+    /// The loop body.
+    body: Block;
+    /// The loop scope.
+    scope: Scope;
+    /// The loop symbol.
+    symbol: Symbol;
+}
+
+/// Try expression.
+export interface TryExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "try";
+    /// The try expression.
+    tryExpression: Expression;
+    /// The catch pattern when present.
+    catchPattern?: Pattern;
+    /// The catch type when present.
+    catchType?: TypeExpression;
+    /// The catch expression when present.
+    catchExpression?: Expression;
+    /// The finally expression when present.
+    finallyExpression?: Expression;
+    /// The try scope.
+    scope: Scope;
+    /// The try symbol.
+    symbol: Symbol;
+}
+
+/// Match expression.
+export interface MatchExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "match";
+    /// The match kind.
+    matchKind: MatchKind;
+    /// The matched value.
+    value: Expression;
+    /// The match cases.
+    cases: readonly MatchCase[];
+    /// The match source.
+    source: MatchSource;
+    /// The match scope.
+    scope: Scope;
+    /// The match symbol.
+    symbol: Symbol;
+}
+
+/// Unresolved break expression.
+export interface UnresolvedBreakExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "unresolvedBreak";
+    /// The target label.
+    target: string;
+    /// The break value when present.
+    value?: Expression;
+}
+
+/// Break expression.
+export interface BreakExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "break";
+    /// The target label when present.
+    target?: string;
+    /// The target symbol when present.
+    targetSymbol?: Symbol;
+    /// The break value when present.
+    value?: Expression;
+}
+
+/// Unresolved continue expression.
+export interface UnresolvedContinueExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "unresolvedContinue";
+    /// The target label.
+    target: string;
+}
+
+/// Continue expression.
+export interface ContinueExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "continue";
+    /// The target label when present.
+    target?: string;
+    /// The target symbol when present.
+    targetSymbol?: Symbol;
+}
+
+/// Throw expression.
+export interface ThrowExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "throw";
+    /// The thrown value.
+    value: Expression;
+}
+
+/// Await expression.
+export interface AwaitExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "await";
+    /// The awaited expression.
+    expression: Expression;
+}
+
+/// Await with immediate error propagation.
+export interface AwaitMaybeExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "awaitMaybe";
+    /// The awaited expression.
+    expression: Expression;
+}
+
+/// Compile-time evaluated expression.
+export interface ComptimeExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "comptime";
+    /// The comptime body.
+    body: Expression;
+}
+
+/// Yield expression.
+export interface YieldExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "yield";
+    /// The yield cardinality.
+    cardinality: YieldCardinality;
+    /// The yielded value when present.
+    value?: Expression;
+}
+
+/// Return expression.
+export interface ReturnExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "return";
+    /// The returned value when present.
+    value?: Expression;
+}
+
+/// Debugger statement.
+export interface DebuggerExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "debugger";
+}
+
+/// Missing expression child.
+export interface MissingExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "missing";
+}
+
+/// Stub placeholder.
+export interface StubExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "stub";
+}
+
+/// Error expression.
+export interface ErrorExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "error";
+}

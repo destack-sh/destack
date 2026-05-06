@@ -1,0 +1,99 @@
+import { type Argument } from "./argument.ds";
+
+/// A scalar literal value.
+export type ScalarLiteral =
+    | NullLiteral
+    | BooleanLiteral
+    | IntegerLiteral
+    | BigintLiteral
+    | FloatLiteral
+    | CharacterLiteral
+    | StringLiteral
+    | RegexStringLiteral;
+
+/// A null literal.
+export interface NullLiteral {
+    /// The literal kind.
+    kind: "null";
+}
+
+/// A boolean literal.
+export interface BooleanLiteral {
+    /// The literal kind.
+    kind: "boolean";
+    /// The literal value.
+    value: boolean;
+}
+
+/// An integer literal.
+export interface IntegerLiteral {
+    /// The literal kind.
+    kind: "integer";
+    /// The literal value.
+    value: int64;
+}
+
+/// A bigint literal.
+export interface BigintLiteral {
+    /// The literal kind.
+    kind: "bigint";
+    /// The literal value.
+    value: int64;
+}
+
+/// A floating-point literal.
+export interface FloatLiteral {
+    /// The literal kind.
+    kind: "float";
+    /// The literal value.
+    value: float64;
+}
+
+/// A character literal.
+export interface CharacterLiteral {
+    /// The literal kind.
+    kind: "character";
+    /// The literal value.
+    value: char;
+}
+
+/// A string literal.
+export interface StringLiteral {
+    /// The literal kind.
+    kind: "string";
+    /// The literal value.
+    value: string;
+}
+
+/// A regular expression literal.
+export interface RegexStringLiteral {
+    /// The literal kind.
+    kind: "regexString";
+    /// The regex body.
+    content: string;
+    /// The regex flags when present.
+    flags?: string;
+}
+
+/// A template literal.
+export type TemplateLiteral =
+    | TemplateStringLiteral
+    | InterpolatedTemplateLiteral;
+
+/// A non-interpolated template literal.
+export interface TemplateStringLiteral {
+    /// The literal kind.
+    kind: "string";
+    /// The template string.
+    string: string;
+}
+
+/// An interpolated template literal.
+export interface InterpolatedTemplateLiteral {
+    /// The literal kind.
+    kind: "interpolatedString";
+    /// The fixed template spans.
+    strings: readonly string[];
+    /// The interpolated arguments.
+    arguments: readonly Argument[];
+}

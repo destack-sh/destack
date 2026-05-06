@@ -1,0 +1,2 @@
+/// A qualified path.
+export type Path = string;

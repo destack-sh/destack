@@ -1,0 +1,251 @@
+import { type Expression } from "./expression.ds";
+import { type ImportSource } from "./import.ds";
+import { type Name, type StaticKey } from "./key.ds";
+import { type Node } from "./node.ds";
+import { type Declaration } from "./declaration.ds";
+import { type Module, type Scope, type Symbol, type SymbolSpace } from "./symbol.ds";
+
+/// Dependency item mode.
+export enum DependencyMode {
+    /// Regular item.
+    Item,
+    /// Default item.
+    Default,
+    /// Namespace item.
+    Namespace,
+}
+
+/// Declaration or binding export mode.
+export enum ExportMode {
+    /// Named export.
+    Named,
+    /// Default export.
+    Default,
+}
+
+/// Dependency value space.
+export enum DependencyKind {
+    /// Type dependency.
+    Type,
+    /// Value dependency.
+    Value,
+}
+
+/// A resolved module target.
+export type ModuleTarget =
+    | ModuleModuleTarget
+    | BindingModuleTarget
+    | ExternalModuleTarget;
+
+/// A file or library module target.
+export interface ModuleModuleTarget {
+    /// The target kind.
+    kind: "module";
+    /// The target module.
+    module: Module;
+}
+
+/// A `declare module "name"` target.
+export interface BindingModuleTarget {
+    /// The target kind.
+    kind: "binding";
+    /// The module binding specifier.
+    specifier: string;
+}
+
+/// An external module target preserved for linking.
+export interface ExternalModuleTarget {
+    /// The target kind.
+    kind: "external";
+    /// The external specifier.
+    specifier: string;
+}
+
+/// Resolved module targets for type and value spaces.
+export interface ModuleResolution {
+    /// The value-space target.
+    value?: ModuleTarget;
+    /// The type-space target.
+    type?: ModuleTarget;
+}
+
+/// One dependency item.
+export type DependencyItem =
+    | ErrorDependencyItem
+    | UnresolvedRemoteDependencyItem
+    | UnresolvedLocalDependencyItem
+    | ValueDependencyItem
+    | LocalDependencyItem
+    | RemoteDependencyItem;
+
+/// Malformed dependency item slot.
+export interface ErrorDependencyItem extends Node {
+    /// The node kind.
+    nodeKind: "dependencyItem";
+    /// The dependency item kind.
+    kind: "error";
+}
+
+/// Unresolved remote dependency item.
+export interface UnresolvedRemoteDependencyItem extends Node {
+    /// The node kind.
+    nodeKind: "dependencyItem";
+    /// The dependency item kind.
+    kind: "unresolvedRemote";
+    /// The source that introduced the dependency.
+    source: ImportSource;
+    /// The dependency mode.
+    mode: DependencyMode;
+    /// The dependency value space.
+    dependencyKind: DependencyKind;
+    /// The imported name.
+    name?: Name;
+    /// The local alias.
+    alias?: string;
+    /// The module specifier.
+    target: string;
+    /// The resolved target module when known.
+    targetModule?: ModuleResolution;
+    /// The local symbol when one exists.
+    symbol?: Symbol;
+}
+
+/// Unresolved local dependency item.
+export interface UnresolvedLocalDependencyItem extends Node {
+    /// The node kind.
+    nodeKind: "dependencyItem";
+    /// The dependency item kind.
+    kind: "unresolvedLocal";
+    /// The dependency mode.
+    mode: DependencyMode;
+    /// The dependency value space.
+    dependencyKind: DependencyKind;
+    /// The exported name.
+    name?: Name;
+    /// The local alias.
+    alias?: string;
+    /// The local symbol when one exists.
+    symbol?: Symbol;
+}
+
+/// Value expression dependency item.
+export interface ValueDependencyItem extends Node {
+    /// The node kind.
+    nodeKind: "dependencyItem";
+    /// The dependency item kind.
+    kind: "value";
+    /// The dependency mode.
+    mode: DependencyMode;
+    /// The dependency value expression.
+    value: Expression;
+}
+
+/// Resolved local dependency item.
+export interface LocalDependencyItem extends Node {
+    /// The node kind.
+    nodeKind: "dependencyItem";
+    /// The dependency item kind.
+    kind: "local";
+    /// The dependency mode.
+    mode: DependencyMode;
+    /// The dependency value space.
+    dependencyKind: DependencyKind;
+    /// The exported name.
+    name?: Name;
+    /// The local alias.
+    alias?: string;
+    /// The local symbol when one exists.
+    symbol?: Symbol;
+    /// The resolved target symbol.
+    targetSymbol: Symbol;
+}
+
+/// Resolved remote dependency item.
+export interface RemoteDependencyItem extends Node {
+    /// The node kind.
+    nodeKind: "dependencyItem";
+    /// The dependency item kind.
+    kind: "remote";
+    /// The dependency mode.
+    mode: DependencyMode;
+    /// The dependency value space.
+    dependencyKind: DependencyKind;
+    /// The imported name.
+    name?: Name;
+    /// The local alias.
+    alias?: string;
+    /// The module specifier.
+    target: string;
+    /// The resolved target module.
+    targetModule: ModuleResolution;
+    /// The local symbol when one exists.
+    symbol?: Symbol;
+    /// The resolved target symbol.
+    targetSymbol: Symbol;
+}
+
+/// A namespace export edge from `export * from`.
+export interface NamespaceExport {
+    /// The target module.
+    module: ModuleTarget;
+    /// The dependency value space.
+    kind: DependencyKind;
+    /// The dependency item.
+    item: DependencyItem;
+}
+
+/// The kind of one export entry.
+export enum ExportKind {
+    /// A local symbol export.
+    Local,
+    /// A re-export via a dependency item.
+    ReExport,
+}
+
+/// One resolved module export entry.
+export interface Export {
+    /// The export key.
+    key: StaticKey;
+    /// The export space.
+    space: SymbolSpace;
+    /// The export kind.
+    kind: ExportKind;
+    /// The resolved export target when known.
+    target?: Symbol;
+    /// The local symbol export when one exists.
+    symbol?: Symbol;
+    /// The re-export item when one exists.
+    item?: DependencyItem;
+    /// Canonical export dependency symbols.
+    dependencies: readonly Symbol[];
+}
+
+/// The symbol-space lookup order for a dependency kind.
+export enum SymbolSpaceOrder {
+    /// Do not consider any spaces.
+    None,
+    /// Consider only type exports.
+    TypeOnly,
+    /// Consider only value exports.
+    ValueOnly,
+    /// Consider type exports first, then values.
+    TypeThenValue,
+    /// Consider value exports first, then types.
+    ValueThenType,
+}
+
+/// One module binding entry from `declare module "name"`.
+export interface ModuleBinding {
+    /// The module specifier string.
+    specifier: string;
+    /// The declaration node.
+    declaration: Declaration;
+    /// The namespace scope.
+    scope: Scope;
+    /// The expressions declared inside the module body.
+    expressions: readonly Expression[];
+    /// The default export symbol.
+    defaultSymbol: Symbol;
+    /// The export-assignment symbol.
+    exportAssignmentSymbol: Symbol;
+}

@@ -1,0 +1,341 @@
+import { type GenericArgument, type GenericParameter } from "./argument.ds";
+import { type DependencyKind, type ExportMode } from "./dependency.ds";
+import { type Expression, type WhereClause } from "./expression.ds";
+import { type FunctionSignature } from "./function.ds";
+import { type Name } from "./key.ds";
+import { type Ambientness, type Mutability, type Node } from "./node.ds";
+import { type Member } from "./property.ds";
+import { type Scope, type Symbol } from "./symbol.ds";
+import { type TypeExpression, type TypeMember } from "./type-expression.ds";
+
+/// The source keyword used for a namespace declaration.
+export enum NamespaceKind {
+    /// `namespace Foo {}`.
+    Namespace,
+    /// `module Foo {}` or `module "foo" {}`.
+    Module,
+}
+
+/// The target of an import-alias declaration.
+export type ImportAliasTarget =
+    | RequireImportAliasTarget
+    | PathImportAliasTarget;
+
+/// A require-based import alias target.
+export interface RequireImportAliasTarget {
+    /// The target kind.
+    kind: "require";
+    /// The required target.
+    target: string;
+}
+
+/// A qualified path import alias target.
+export interface PathImportAliasTarget {
+    /// The target kind.
+    kind: "path";
+    /// The target path.
+    path: string;
+}
+
+/// Global augmentation declaration.
+export interface GlobalDeclaration extends Node {
+    /// The node kind.
+    nodeKind: "declaration";
+    /// The declaration kind.
+    kind: "global";
+    /// Whether the declaration is ambient.
+    ambient: Ambientness;
+    /// The declaration symbol.
+    symbol: Symbol;
+    /// The declaration scope.
+    scope: Scope;
+    /// The expressions inside the global augmentation body.
+    expressions: readonly Expression[];
+}
+
+/// Namespace declaration.
+export interface NamespaceDeclaration extends Node {
+    /// The node kind.
+    nodeKind: "declaration";
+    /// The declaration kind.
+    kind: "namespace";
+    /// The namespace name.
+    name: Name;
+    /// The export mode when present.
+    export?: ExportMode;
+    /// Whether the declaration is ambient.
+    ambient: Ambientness;
+    /// The declaration symbol.
+    symbol: Symbol;
+    /// The source namespace keyword.
+    namespaceKind: NamespaceKind;
+    /// The generic parameters.
+    genericParameters: readonly GenericParameter[];
+    /// The where clauses.
+    whereClauses: readonly WhereClause[];
+    /// The declaration scope.
+    scope: Scope;
+    /// The expressions inside the namespace body.
+    expressions: readonly Expression[];
+}
+
+/// Type declaration.
+export interface TypeDeclaration extends Node {
+    /// The node kind.
+    nodeKind: "declaration";
+    /// The declaration kind.
+    kind: "type";
+    /// The declared name.
+    name: Name;
+    /// The export mode when present.
+    export?: ExportMode;
+    /// Whether the declaration is ambient.
+    ambient: Ambientness;
+    /// The declaration symbol.
+    symbol: Symbol;
+    /// The declaration scope.
+    scope: Scope;
+    /// Whether the declaration is nominal.
+    isNominal: boolean;
+    /// The optional mutability qualifier.
+    mutability?: Mutability;
+    /// The generic parameters.
+    genericParameters: readonly GenericParameter[];
+    /// The where clauses.
+    whereClauses: readonly WhereClause[];
+    /// The declared type expression.
+    value: TypeExpression;
+}
+
+/// Import-alias declaration.
+export interface ImportAliasDeclaration extends Node {
+    /// The node kind.
+    nodeKind: "declaration";
+    /// The declaration kind.
+    kind: "importAlias";
+    /// The declared name.
+    name: Name;
+    /// The export mode when present.
+    export?: ExportMode;
+    /// Whether the declaration is ambient.
+    ambient: Ambientness;
+    /// The declaration symbol.
+    symbol: Symbol;
+    /// The import alias dependency kind.
+    dependencyKind: DependencyKind;
+    /// The alias target.
+    target: ImportAliasTarget;
+}
+
+/// Struct declaration.
+export interface StructDeclaration extends Node {
+    /// The node kind.
+    nodeKind: "declaration";
+    /// The declaration kind.
+    kind: "struct";
+    /// The declared name.
+    name: Name;
+    /// The export mode when present.
+    export?: ExportMode;
+    /// Whether the declaration is ambient.
+    ambient: Ambientness;
+    /// The declaration symbol.
+    symbol: Symbol;
+    /// The declaration scope.
+    scope: Scope;
+    /// The generic parameters.
+    genericParameters: readonly GenericParameter[];
+    /// The where clauses.
+    whereClauses: readonly WhereClause[];
+    /// The implemented interfaces.
+    implementsTypes: readonly TypeExpression[];
+    /// The embedded types.
+    embeddedTypes: readonly TypeExpression[];
+    /// The struct members.
+    members: readonly Member[];
+}
+
+/// Class declaration.
+export interface ClassDeclaration extends Node {
+    /// The node kind.
+    nodeKind: "declaration";
+    /// The declaration kind.
+    kind: "class";
+    /// The declared name when present.
+    name?: Name;
+    /// The export mode when present.
+    export?: ExportMode;
+    /// Whether the declaration is ambient.
+    ambient: Ambientness;
+    /// The declaration symbol.
+    symbol: Symbol;
+    /// The symbol for `self` when present.
+    selfSymbol?: Symbol;
+    /// The declaration scope.
+    scope: Scope;
+    /// Whether the class is abstract.
+    isAbstract: boolean;
+    /// The generic parameters.
+    genericParameters: readonly GenericParameter[];
+    /// The where clauses.
+    whereClauses: readonly WhereClause[];
+    /// The extended class expression when present.
+    extendsExpression?: Expression;
+    /// The generic arguments applied to the extended class expression.
+    extendsGenericArguments: readonly GenericArgument[];
+    /// The implemented interfaces.
+    implementsTypes: readonly TypeExpression[];
+    /// The class members.
+    members: readonly Member[];
+}
+
+/// The kind of an enum declaration.
+export enum EnumKind {
+    /// A regular enum.
+    Enum,
+    /// A const enum.
+    Const,
+}
+
+/// An enum declaration.
+export interface EnumDeclaration extends Node {
+    /// The node kind.
+    nodeKind: "declaration";
+    /// The declaration kind.
+    kind: "enum";
+    /// The declared name when present.
+    name?: Name;
+    /// The export mode when present.
+    export?: ExportMode;
+    /// Whether the declaration is ambient.
+    ambient: Ambientness;
+    /// The declaration symbol.
+    symbol: Symbol;
+    /// The declaration scope.
+    scope: Scope;
+    /// The enum kind.
+    enumKind: EnumKind;
+    /// The generic parameters.
+    genericParameters: readonly GenericParameter[];
+    /// The where clauses.
+    whereClauses: readonly WhereClause[];
+    /// The implemented interfaces.
+    implementsTypes: readonly TypeExpression[];
+    /// The enum fields.
+    fields: readonly EnumField[];
+    /// The enum members.
+    members: readonly Member[];
+}
+
+/// One interface heritage clause item.
+export interface InterfaceHeritage {
+    /// The extended interface expression.
+    expression: Expression;
+    /// The generic arguments applied to the extended interface expression.
+    genericArguments: readonly GenericArgument[];
+}
+
+/// Interface declaration.
+export interface InterfaceDeclaration extends Node {
+    /// The node kind.
+    nodeKind: "declaration";
+    /// The declaration kind.
+    kind: "interface";
+    /// The declared name when present.
+    name?: Name;
+    /// The export mode when present.
+    export?: ExportMode;
+    /// Whether the declaration is ambient.
+    ambient: Ambientness;
+    /// The declaration symbol.
+    symbol: Symbol;
+    /// The declaration scope.
+    scope: Scope;
+    /// Whether the interface is nominal.
+    isNominal: boolean;
+    /// The generic parameters.
+    genericParameters: readonly GenericParameter[];
+    /// The where clauses.
+    whereClauses: readonly WhereClause[];
+    /// The extended interfaces.
+    extends: readonly InterfaceHeritage[];
+    /// The interface members.
+    members: readonly TypeMember[];
+}
+
+/// Extension declaration.
+export interface ExtensionDeclaration extends Node {
+    /// The node kind.
+    nodeKind: "declaration";
+    /// The declaration kind.
+    kind: "extension";
+    /// The declared name when present.
+    name?: Name;
+    /// The export mode when present.
+    export?: ExportMode;
+    /// Whether the declaration is ambient.
+    ambient: Ambientness;
+    /// The declaration symbol.
+    symbol: Symbol;
+    /// The declaration scope.
+    scope: Scope;
+    /// The generic parameters.
+    genericParameters: readonly GenericParameter[];
+    /// The where clauses.
+    whereClauses: readonly WhereClause[];
+    /// The extended target type.
+    targetType: TypeExpression;
+    /// The resolved target symbol when present.
+    targetSymbol?: Symbol;
+    /// The implemented interfaces.
+    implementsTypes: readonly TypeExpression[];
+    /// The extension members.
+    members: readonly Member[];
+}
+
+/// Function declaration.
+export interface FunctionDeclaration extends Node {
+    /// The node kind.
+    nodeKind: "declaration";
+    /// The declaration kind.
+    kind: "function";
+    /// The declared name when present.
+    name?: Name;
+    /// The export mode when present.
+    export?: ExportMode;
+    /// Whether the declaration is ambient.
+    ambient: Ambientness;
+    /// The declaration symbol.
+    symbol: Symbol;
+    /// The symbol for `self` when present.
+    selfSymbol?: Symbol;
+    /// The declaration scope.
+    scope: Scope;
+    /// The function signature.
+    signature: FunctionSignature;
+    /// The function body when present.
+    body?: Expression;
+}
+
+/// Declaration introduces a type or function into its scope.
+export type Declaration =
+    | GlobalDeclaration
+    | NamespaceDeclaration
+    | TypeDeclaration
+    | ImportAliasDeclaration
+    | StructDeclaration
+    | ClassDeclaration
+    | EnumDeclaration
+    | InterfaceDeclaration
+    | ExtensionDeclaration
+    | FunctionDeclaration;
+
+/// An enum field.
+export interface EnumField extends Node {
+    /// The node kind.
+    nodeKind: "enumField";
+    /// The enum field name.
+    name: Name;
+    /// The default value when present.
+    value?: Expression;
+}
