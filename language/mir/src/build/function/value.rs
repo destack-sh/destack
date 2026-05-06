@@ -1,8 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    AtomicRmwOperator, AtomicScope, BinaryOperator, CastOperator, Constant, Instruction, Intrinsic,
-    LocalNodeId, MemoryFlags, MemoryOrdering, MemoryScope, Type, UnaryOperator, Value,
-    ValueReference,
+    AtomicAccess, AtomicRmwOperator, BinaryOperator, CastOperator, Constant, Instruction,
+    Intrinsic, LocalNodeId, Type, UnaryOperator, Value, ValueReference,
 };
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
@@ -332,10 +331,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn atomic_load(
         &mut self,
         pointer: Value,
-        ordering: MemoryOrdering,
-        scope: AtomicScope,
-        memory_scope: MemoryScope,
-        flags: MemoryFlags,
+        access: AtomicAccess,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
@@ -343,32 +339,18 @@ impl<'a> FunctionBuilder<'a> {
             destination: destination.into(),
             pointer: pointer.into(),
             result_type: result_type.into(),
-            ordering,
-            scope,
-            memory_scope,
-            flags,
+            access,
         });
         self.define_value(destination, result_type);
         destination
     }
 
     /// Store one value atomically.
-    pub fn atomic_store(
-        &mut self,
-        pointer: Value,
-        value: Value,
-        ordering: MemoryOrdering,
-        scope: AtomicScope,
-        memory_scope: MemoryScope,
-        flags: MemoryFlags,
-    ) {
+    pub fn atomic_store(&mut self, pointer: Value, value: Value, access: AtomicAccess) {
         self.insert_instruction(Instruction::AtomicStore {
             pointer: pointer.into(),
             value: value.into(),
-            ordering,
-            scope,
-            memory_scope,
-            flags,
+            access,
         });
     }
 
@@ -379,10 +361,7 @@ impl<'a> FunctionBuilder<'a> {
         expected: Value,
         new_value: Value,
         is_weak: bool,
-        ordering: MemoryOrdering,
-        scope: AtomicScope,
-        memory_scope: MemoryScope,
-        flags: MemoryFlags,
+        access: AtomicAccess,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
@@ -392,10 +371,7 @@ impl<'a> FunctionBuilder<'a> {
             expected: expected.into(),
             new_value: new_value.into(),
             is_weak,
-            ordering,
-            scope,
-            memory_scope,
-            flags,
+            access,
         });
         self.define_value(destination, result_type);
         destination
@@ -407,10 +383,7 @@ impl<'a> FunctionBuilder<'a> {
         operator: AtomicRmwOperator,
         pointer: Value,
         value: Value,
-        ordering: MemoryOrdering,
-        scope: AtomicScope,
-        memory_scope: MemoryScope,
-        flags: MemoryFlags,
+        access: AtomicAccess,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
@@ -419,29 +392,15 @@ impl<'a> FunctionBuilder<'a> {
             operator,
             pointer: pointer.into(),
             value: value.into(),
-            ordering,
-            scope,
-            memory_scope,
-            flags,
+            access,
         });
         self.define_value(destination, result_type);
         destination
     }
 
     /// Publish one atomic fence.
-    pub fn atomic_fence(
-        &mut self,
-        ordering: MemoryOrdering,
-        scope: AtomicScope,
-        memory_scope: MemoryScope,
-        flags: MemoryFlags,
-    ) {
-        self.insert_instruction(Instruction::AtomicFence {
-            ordering,
-            scope,
-            memory_scope,
-            flags,
-        });
+    pub fn atomic_fence(&mut self, access: AtomicAccess) {
+        self.insert_instruction(Instruction::AtomicFence { access });
     }
 
     /// Record a managed reference write for the collector.

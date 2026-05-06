@@ -731,6 +731,13 @@ impl LayoutRecorder<'_> {
 
                 Ok(group_reference_map(maps))
             }
+            Type::Atomic { value } => {
+                let Some(value) = concrete_type(value) else {
+                    return Ok(ReferenceMap::None);
+                };
+
+                self.build_reference_map_at(value, base_offset)
+            }
             Type::Array {
                 element, length, ..
             } => {

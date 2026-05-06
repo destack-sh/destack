@@ -310,6 +310,12 @@ impl FromStr for AtomicScope {
     }
 }
 
+impl Default for AtomicScope {
+    fn default() -> Self {
+        Self::System
+    }
+}
+
 impl TryFrom<&str> for AtomicScope {
     type Error = ();
 
@@ -389,6 +395,12 @@ impl FromStr for MemoryScope {
     }
 }
 
+impl Default for MemoryScope {
+    fn default() -> Self {
+        Self::System
+    }
+}
+
 impl TryFrom<&str> for MemoryScope {
     type Error = ();
 
@@ -421,6 +433,14 @@ pub struct MemoryFlags {
 }
 
 impl MemoryFlags {
+    /// Default memory flags.
+    pub const DEFAULT: Self = Self {
+        spaces: MemorySpaceSet::ANY,
+        is_volatile: false,
+        makes_available: false,
+        makes_visible: false,
+    };
+
     /// Create flags for the provided spaces.
     pub fn new(spaces: MemorySpaceSet) -> Self {
         Self {
@@ -449,11 +469,52 @@ impl MemoryFlags {
 
 impl Default for MemoryFlags {
     fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+/// Atomic ordering, scope, and flags for one operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AtomicAccess {
+    /// The memory ordering.
+    pub ordering: MemoryOrdering,
+    /// The synchronization scope.
+    pub scope: AtomicScope,
+    /// The memory visibility scope.
+    pub memory_scope: MemoryScope,
+    /// The memory flags.
+    pub flags: MemoryFlags,
+}
+
+impl AtomicAccess {
+    /// Create one atomic access record.
+    pub const fn new(
+        ordering: MemoryOrdering,
+        scope: AtomicScope,
+        memory_scope: MemoryScope,
+        flags: MemoryFlags,
+    ) -> Self {
         Self {
-            spaces: MemorySpaceSet::ANY,
-            is_volatile: false,
-            makes_available: false,
-            makes_visible: false,
+            ordering,
+            scope,
+            memory_scope,
+            flags,
         }
+    }
+
+    /// Create one atomic access record with default scope and flags.
+    pub const fn ordered(ordering: MemoryOrdering) -> Self {
+        Self::new(
+            ordering,
+            AtomicScope::System,
+            MemoryScope::System,
+            MemoryFlags::DEFAULT,
+        )
+    }
+}
+
+impl Default for AtomicAccess {
+    fn default() -> Self {
+        Self::ordered(MemoryOrdering::default())
     }
 }

@@ -48,6 +48,8 @@ pub(super) enum TypeKey {
     TypeDescriptor,
     /// Runtime type id.
     TypeId,
+    /// Atomic storage cell type.
+    Atomic { value: TypeReference },
     /// Reference/pointer type.
     Reference {
         kind: ReferenceKind,
@@ -130,6 +132,7 @@ impl TypeKey {
             Type::Float { width } => TypeKey::Float { width: *width },
             Type::TypeDescriptor => TypeKey::TypeDescriptor,
             Type::TypeId => TypeKey::TypeId,
+            Type::Atomic { value } => TypeKey::Atomic { value: *value },
 
             Type::Reference {
                 kind,

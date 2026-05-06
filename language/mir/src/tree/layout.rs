@@ -77,6 +77,12 @@ pub(crate) fn compute_type_layout(
         | Type::Reference { .. }
         | Type::FunctionPointer { .. } => TypeLayout::natural(pointer_bytes as u32),
 
+        Type::Atomic { value } => compute_type_layout(
+            tree,
+            require_type_reference(*value, "atomic value"),
+            pointer_bytes,
+        ),
+
         Type::FunctionSignature { .. } => TypeLayout::new(0, 1),
 
         Type::Callable { signature } => {

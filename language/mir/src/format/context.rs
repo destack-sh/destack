@@ -516,6 +516,7 @@ fn type_alias_prefix(ty: &Type) -> &'static str {
         Type::Tuple { .. } => "Tuple",
         Type::Array { .. } => "Array",
         Type::Slice { .. } => "Slice",
+        Type::Atomic { .. } => "Atomic",
         Type::Reference { .. } => "Ref",
         Type::FunctionPointer { .. } => "Function",
         Type::Callable { .. } => "Callable",
@@ -616,6 +617,10 @@ fn type_key_for_alias_inner(
         Type::Float { width } => format!("float{width}"),
         Type::TypeDescriptor => "typeDescriptor".to_string(),
         Type::TypeId => "typeId".to_string(),
+        Type::Atomic { value } => {
+            let value_key = type_key_for_alias_reference(tree, strings, *value, active_types);
+            format!("atomic<{value_key}>")
+        }
         Type::Reference {
             kind,
             address_space,
@@ -1069,6 +1074,12 @@ fn record_type_use_inner(
                 return;
             };
             record_type_use_inner(tree, pointee, counts, visited);
+        }
+        Type::Atomic { value } => {
+            let TypeReference::Type(value) = *value else {
+                return;
+            };
+            record_type_use_inner(tree, value, counts, visited);
         }
         Type::Array { element, .. } | Type::Slice { element, .. } => {
             let TypeReference::Type(element) = *element else {
@@ -1546,6 +1557,9 @@ fn collect_alias_dependencies(
         match ty {
             Type::Reference { pointee, .. } => {
                 record_dependency(*pointee, root, alias_types, &mut dependencies, &mut stack);
+            }
+            Type::Atomic { value } => {
+                record_dependency(*value, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::Array { element, .. } | Type::Slice { element, .. } => {
                 record_dependency(*element, root, alias_types, &mut dependencies, &mut stack);

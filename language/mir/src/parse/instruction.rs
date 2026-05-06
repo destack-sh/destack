@@ -3,8 +3,8 @@ use std::str::FromStr;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
-    ArgumentSlice, AtomicRmwOperator, AtomicScope, BinaryOperator, Call, CastOperator,
-    DispatchSlot, Instruction, LocalNodeId, MemoryFlags, MemoryOrdering, MemoryScope,
+    ArgumentSlice, AtomicAccess, AtomicRmwOperator, AtomicScope, BinaryOperator, Call,
+    CastOperator, DispatchSlot, Instruction, LocalNodeId, MemoryFlags, MemoryOrdering, MemoryScope,
     MemorySpaceSet, TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
     TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorReduceOperator,
     TensorScatterDimensionNumbers, TensorScatterMode, Type, UnaryOperator, ValueReference,
@@ -144,24 +144,16 @@ impl Parser {
                 let pointer = self.parse_value_segment(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value_segment(&mut segment_spans)?;
-                let (ordering, scope, memory_scope, flags) = self.parse_atomic_attributes(true)?;
+                let access = self.parse_atomic_access(true)?;
                 Instruction::AtomicStore {
                     pointer,
                     value,
-                    ordering,
-                    scope,
-                    memory_scope,
-                    flags,
+                    access,
                 }
             }
             "atomic.fence" => {
-                let (ordering, scope, memory_scope, flags) = self.parse_atomic_attributes(false)?;
-                Instruction::AtomicFence {
-                    ordering,
-                    scope,
-                    memory_scope,
-                    flags,
-                }
+                let access = self.parse_atomic_access(false)?;
+                Instruction::AtomicFence { access }
             }
             "assume" => {
                 let condition = self.parse_value_segment(&mut segment_spans)?;
@@ -927,16 +919,12 @@ impl Parser {
                     // atomic memory operations
                     "atomic.load" => {
                         let pointer = self.parse_value()?;
-                        let (ordering, scope, memory_scope, flags) =
-                            self.parse_atomic_attributes(true)?;
+                        let access = self.parse_atomic_access(true)?;
                         Instruction::AtomicLoad {
                             destination,
                             pointer,
                             result_type: destination_type.into(),
-                            ordering,
-                            scope,
-                            memory_scope,
-                            flags,
+                            access,
                         }
                     }
                     "atomic.cas" | "atomic.cas.weak" => {
@@ -945,18 +933,14 @@ impl Parser {
                         let expected = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
                         let new_value = self.parse_value()?;
-                        let (ordering, scope, memory_scope, flags) =
-                            self.parse_atomic_attributes(true)?;
+                        let access = self.parse_atomic_access(true)?;
                         Instruction::AtomicCompareExchange {
                             destination,
                             pointer,
                             expected,
                             new_value,
                             is_weak: opcode_text == "atomic.cas.weak",
-                            ordering,
-                            scope,
-                            memory_scope,
-                            flags,
+                            access,
                         }
                     }
                     _ if opcode_text.starts_with("atomic.rmw.") => {
@@ -964,17 +948,13 @@ impl Parser {
                         let pointer = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let value = self.parse_value_segment(&mut segment_spans)?;
-                        let (ordering, scope, memory_scope, flags) =
-                            self.parse_atomic_attributes(true)?;
+                        let access = self.parse_atomic_access(true)?;
                         Instruction::AtomicRmw {
                             destination,
                             operator,
                             pointer,
                             value,
-                            ordering,
-                            scope,
-                            memory_scope,
-                            flags,
+                            access,
                         }
                     }
 
@@ -1814,23 +1794,51 @@ impl Parser {
             .into())
     }
 
-    /// Parse one atomic ordering, scope, memory scope, and flags suffix.
-    fn parse_atomic_attributes(
-        &mut self,
-        expect_leading_comma: bool,
-    ) -> ParseResult<(MemoryOrdering, AtomicScope, MemoryScope, MemoryFlags)> {
+    /// Parse one atomic access suffix.
+    fn parse_atomic_access(&mut self, expect_leading_comma: bool) -> ParseResult<AtomicAccess> {
         if expect_leading_comma {
             self.eat_token(TokenType::Comma)?;
         }
-        let ordering = self.parse_memory_ordering()?;
-        self.eat_token(TokenType::Comma)?;
-        let scope = self.parse_atomic_scope()?;
-        self.eat_token(TokenType::Comma)?;
-        let memory_scope = self.parse_memory_scope()?;
-        self.eat_token(TokenType::Comma)?;
-        let flags = self.parse_memory_flags()?;
 
-        Ok((ordering, scope, memory_scope, flags))
+        let ordering = self.parse_memory_ordering()?;
+        let mut access = AtomicAccess::ordered(ordering);
+
+        while self.eat_token_maybe(TokenType::Comma) {
+            let token = self
+                .peek()
+                .ok_or_else(|| ParseError::unexpected_end("atomic access", self.pos()))?;
+            let token_text = self.tree.source_text(token.span).to_string();
+
+            if token_text == "scope" {
+                access.scope = self.parse_atomic_scope_clause()?;
+            } else if token_text == "memory" {
+                access.memory_scope = self.parse_memory_scope_clause()?;
+            } else {
+                access.flags = self.parse_memory_flags()?;
+            }
+        }
+
+        Ok(access)
+    }
+
+    /// Parse one `scope(...)` atomic clause.
+    fn parse_atomic_scope_clause(&mut self) -> ParseResult<AtomicScope> {
+        self.eat_token(TokenType::Identifier)?;
+        self.eat_token(TokenType::OpenParen)?;
+        let scope = self.parse_atomic_scope()?;
+        self.eat_token(TokenType::CloseParen)?;
+
+        Ok(scope)
+    }
+
+    /// Parse one `memory(...)` atomic clause.
+    fn parse_memory_scope_clause(&mut self) -> ParseResult<MemoryScope> {
+        self.eat_token(TokenType::Identifier)?;
+        self.eat_token(TokenType::OpenParen)?;
+        let scope = self.parse_memory_scope()?;
+        self.eat_token(TokenType::CloseParen)?;
+
+        Ok(scope)
     }
 
     /// Parse one memory ordering like `sequentiallyConsistent`.

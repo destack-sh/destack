@@ -3,8 +3,8 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    AtomicScope, FormatMirNode, FunctionReference, GlobalReference, Instruction, LocalNodeId,
-    MemoryFlags, MemoryOrdering, MemoryScope, MemorySpaceSet, MirFormatter,
+    AtomicAccess, AtomicScope, FormatMirNode, FunctionReference, GlobalReference, Instruction,
+    LocalNodeId, MemoryFlags, MemoryScope, MemorySpaceSet, MirFormatter,
     TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
     TensorGatherDimensionNumbers, TensorScatterDimensionNumbers, TypeReference, ValueReference,
 };
@@ -1414,10 +1414,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             Instruction::AtomicLoad {
                 destination,
                 pointer,
-                ordering,
-                scope,
-                memory_scope,
-                flags,
+                access,
                 ..
             } => {
                 format_typed_destination(*destination, f)?;
@@ -1432,16 +1429,13 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         pointer
                     ]
                 )?;
-                format_atomic_suffix(*ordering, *scope, *memory_scope, *flags, f)
+                format_atomic_access(*access, f)
             }
 
             Instruction::AtomicStore {
                 pointer,
                 value,
-                ordering,
-                scope,
-                memory_scope,
-                flags,
+                access,
             } => {
                 write!(
                     f,
@@ -1454,7 +1448,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         value
                     ]
                 )?;
-                format_atomic_suffix(*ordering, *scope, *memory_scope, *flags, f)
+                format_atomic_access(*access, f)
             }
 
             Instruction::AtomicCompareExchange {
@@ -1463,10 +1457,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 expected,
                 new_value,
                 is_weak,
-                ordering,
-                scope,
-                memory_scope,
-                flags,
+                access,
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(f, [space(), token("="), space()])?;
@@ -1489,7 +1480,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         new_value
                     ]
                 )?;
-                format_atomic_suffix(*ordering, *scope, *memory_scope, *flags, f)
+                format_atomic_access(*access, f)
             }
 
             Instruction::AtomicRmw {
@@ -1497,10 +1488,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 operator,
                 pointer,
                 value,
-                ordering,
-                scope,
-                memory_scope,
-                flags,
+                access,
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(f, [space(), token("="), space(), token("atomic.rmw.")])?;
@@ -1515,17 +1503,12 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         value
                     ]
                 )?;
-                format_atomic_suffix(*ordering, *scope, *memory_scope, *flags, f)
+                format_atomic_access(*access, f)
             }
 
-            Instruction::AtomicFence {
-                ordering,
-                scope,
-                memory_scope,
-                flags,
-            } => {
+            Instruction::AtomicFence { access } => {
                 write!(f, [token("atomic.fence")])?;
-                format_atomic_fence_suffix(*ordering, *scope, *memory_scope, *flags, f)
+                format_atomic_fence_access(*access, f)
             }
 
             Instruction::Intrinsic {
@@ -1944,35 +1927,63 @@ fn format_intrinsic_args<'a>(
     write!(f, [token(")")])
 }
 
-/// Format one atomic ordering, scope, memory scope, and flags suffix.
-fn format_atomic_suffix<'a>(
-    ordering: MemoryOrdering,
-    scope: AtomicScope,
-    memory_scope: MemoryScope,
-    flags: MemoryFlags,
+/// Format one atomic access suffix.
+fn format_atomic_access<'a>(
+    access: AtomicAccess,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [token(","), space()])?;
-    write!(f, [token(ordering.to_str())])?;
-    write!(f, [token(","), space(), token(scope.to_str())])?;
-    write!(f, [token(","), space(), token(memory_scope.to_str())])?;
-    write!(f, [token(","), space()])?;
-    format_memory_flags(flags, f)
+    write!(f, [token(","), space(), token(access.ordering.to_str())])?;
+    format_atomic_context(access, f)
 }
 
-/// Format one atomic fence ordering, scope, memory scope, and flags suffix.
-fn format_atomic_fence_suffix<'a>(
-    ordering: MemoryOrdering,
-    scope: AtomicScope,
-    memory_scope: MemoryScope,
-    flags: MemoryFlags,
+/// Format one atomic fence access suffix.
+fn format_atomic_fence_access<'a>(
+    access: AtomicAccess,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [space(), token(ordering.to_str())])?;
-    write!(f, [token(","), space(), token(scope.to_str())])?;
-    write!(f, [token(","), space(), token(memory_scope.to_str())])?;
-    write!(f, [token(","), space()])?;
-    format_memory_flags(flags, f)
+    write!(f, [space(), token(access.ordering.to_str())])?;
+    format_atomic_context(access, f)
+}
+
+/// Format non-default atomic scope and flag context.
+fn format_atomic_context<'a>(
+    access: AtomicAccess,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    if access.scope != AtomicScope::default() {
+        write!(
+            f,
+            [
+                token(","),
+                space(),
+                token("scope"),
+                token("("),
+                token(access.scope.to_str()),
+                token(")")
+            ]
+        )?;
+    }
+
+    if access.memory_scope != MemoryScope::default() {
+        write!(
+            f,
+            [
+                token(","),
+                space(),
+                token("memory"),
+                token("("),
+                token(access.memory_scope.to_str()),
+                token(")")
+            ]
+        )?;
+    }
+
+    if access.flags != MemoryFlags::default() {
+        write!(f, [token(","), space()])?;
+        format_memory_flags(access.flags, f)?;
+    }
+
+    Ok(())
 }
 
 /// Format memory flags for atomics and barriers.

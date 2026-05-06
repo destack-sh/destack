@@ -141,6 +141,12 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, pointee, pointee_ty);
             }
         }
+        Type::Atomic { value } => {
+            if let TypeReference::Type(value) = *value {
+                let value_ty = tree.get(value);
+                visitor.visit_type(tree, value, value_ty);
+            }
+        }
         Type::Array { element, .. } => {
             if let TypeReference::Type(element) = *element {
                 let element_ty = tree.get(element);

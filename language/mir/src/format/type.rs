@@ -211,6 +211,9 @@ fn format_type_inner<'a>(
         }
         Type::TypeDescriptor => write!(f, [token("typeDescriptor")]),
         Type::TypeId => write!(f, [token("typeId")]),
+        Type::Atomic { value } => {
+            write!(f, [token("atomic"), token("<"), value, token(">")])
+        }
         Type::Reference {
             kind,
             address_space,

@@ -5,13 +5,13 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    AllocationSize, ArgumentAttribute, AtomicRmwOperator, AtomicScope, BinaryOperator, Call,
+    AllocationSize, ArgumentAttribute, AtomicAccess, AtomicRmwOperator, BinaryOperator, Call,
     CallBehavior, Constant, DispatchSlot, FunctionReference, GlobalReference, Intrinsic,
-    LocalReference, MemoryEffect, MemoryFlags, MemoryOrdering, MemoryScope, Node, NodeType,
-    PointerAttribute, TensorConvertMode, TensorConvolutionDimensionNumbers,
-    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, TypeReference,
-    UnaryOperator, ValueReference, VectorConvertMode, VectorReduceOperator,
+    LocalReference, MemoryEffect, Node, NodeType, PointerAttribute, TensorConvertMode,
+    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
+    TensorGatherDimensionNumbers, TensorReduceOperator, TensorScatterDimensionNumbers,
+    TensorScatterMode, TypeReference, UnaryOperator, ValueReference, VectorConvertMode,
+    VectorReduceOperator,
 };
 
 /// Compact representation of an argument slice stored in an external buffer.
@@ -794,14 +794,8 @@ pub enum Instruction {
         pointer: ValueReference,
         /// The loaded value type.
         result_type: TypeReference,
-        /// The memory ordering to apply.
-        ordering: MemoryOrdering,
-        /// The execution scope for the operation.
-        scope: AtomicScope,
-        /// The memory scope for the operation.
-        memory_scope: MemoryScope,
-        /// The memory flags.
-        flags: MemoryFlags,
+        /// The atomic access.
+        access: AtomicAccess,
     },
     /// Store to memory atomically.
     AtomicStore {
@@ -809,14 +803,8 @@ pub enum Instruction {
         pointer: ValueReference,
         /// The value to store.
         value: ValueReference,
-        /// The memory ordering to apply.
-        ordering: MemoryOrdering,
-        /// The execution scope for the operation.
-        scope: AtomicScope,
-        /// The memory scope for the operation.
-        memory_scope: MemoryScope,
-        /// The memory flags.
-        flags: MemoryFlags,
+        /// The atomic access.
+        access: AtomicAccess,
     },
     /// Compare exchange one memory location atomically.
     AtomicCompareExchange {
@@ -830,14 +818,8 @@ pub enum Instruction {
         new_value: ValueReference,
         /// Whether the compare exchange is weak.
         is_weak: bool,
-        /// The memory ordering to apply.
-        ordering: MemoryOrdering,
-        /// The execution scope for the operation.
-        scope: AtomicScope,
-        /// The memory scope for the operation.
-        memory_scope: MemoryScope,
-        /// The memory flags.
-        flags: MemoryFlags,
+        /// The atomic access.
+        access: AtomicAccess,
     },
     /// Apply one atomic read modify write operation.
     AtomicRmw {
@@ -849,25 +831,13 @@ pub enum Instruction {
         pointer: ValueReference,
         /// The value argument for the operator.
         value: ValueReference,
-        /// The memory ordering to apply.
-        ordering: MemoryOrdering,
-        /// The execution scope for the operation.
-        scope: AtomicScope,
-        /// The memory scope for the operation.
-        memory_scope: MemoryScope,
-        /// The memory flags.
-        flags: MemoryFlags,
+        /// The atomic access.
+        access: AtomicAccess,
     },
     /// Publish one memory fence.
     AtomicFence {
-        /// The memory ordering to apply.
-        ordering: MemoryOrdering,
-        /// The execution scope for the operation.
-        scope: AtomicScope,
-        /// The memory scope for the operation.
-        memory_scope: MemoryScope,
-        /// The memory flags.
-        flags: MemoryFlags,
+        /// The atomic access.
+        access: AtomicAccess,
     },
     // assumptions and hints
     /// Assume a condition is true (UB if false).

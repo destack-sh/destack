@@ -217,6 +217,11 @@ pub enum Type {
     /// Compact runtime type identity token.
     TypeId,
 
+    /// Atomic storage cell for one value type.
+    Atomic {
+        /// The stored value type.
+        value: TypeReference,
+    },
     /// Reference with explicit kind and mutability.
     Reference {
         /// The reference kind (managed, owned, borrowed, raw).
@@ -514,6 +519,9 @@ impl Type {
             | Type::Float { .. }
             | Type::TypeDescriptor
             | Type::TypeId => Copy::Yes,
+
+            // atomic cells are storage, not freely copied values
+            Type::Atomic { .. } => Copy::No,
 
             // references depend on ownership
             Type::Reference { kind, .. } => {
