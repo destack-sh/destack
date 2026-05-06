@@ -1,12 +1,12 @@
 # Result Types
 
-`Result<T, E>` assignability and narrowing.
+`Result<T, E>` is nominal, pattern-matchable, and has a small composition surface.
 
 ## constructors
 
-### result constructors return Result
+### constructors return Result
 
-> Result constructors produce the declared result type.
+Result constructors produce the declared result type.
 
 ```ds
 const ok: Result<int, string> = Result.ok(1);
@@ -16,9 +16,9 @@ ok satisfies Result<int, string>;
 err satisfies Result<int, string>;
 ```
 
-### ok and err values are not Result without wrapping
+### variants require wrapping
 
-> Result is nominal and requires explicit construction.
+Result is nominal and requires explicit construction.
 
 ```ds
 const value: Result<int, string> = Ok { value: 1 };
@@ -26,11 +26,28 @@ const value: Result<int, string> = Ok { value: 1 };
 
 - contains: not assignable
 
+### throwing functions can be wrapped
+
+`Result.try` maps thrown values into typed errors.
+
+```ds
+newtype ParseError = string;
+
+declare function parseInteger(raw: string): int;
+
+const value = Result.try(
+    () => parseInteger("42"),
+    (error) => ParseError(String(error)),
+);
+
+value satisfies Result<int, ParseError>;
+```
+
 ## narrowing
 
 ### discriminant narrows result variants
 
-> Discriminant checks narrow to `Ok` and `Err` variants.
+Discriminant checks narrow to `Ok` and `Err` variants.
 
 ```ds
 const value: Result<int, string> = Result.ok(1);
@@ -39,5 +56,74 @@ if (value.kind == "Ok") {
     value.value satisfies int;
 } else {
     value.error satisfies string;
+}
+```
+
+## composition
+
+### match folds variants
+
+`Result.match` folds success and failure into one value.
+
+```ds
+const value: Result<int, string> = Result.ok(1);
+
+const label = value.match({
+    ok: (number) => `ok:${number}`,
+    err: (error) => `err:${error}`,
+});
+
+label satisfies string;
+```
+
+### tap keeps the original Result
+
+`tap` and `tapErr` observe one branch without changing the result type.
+
+```ds
+declare function logValue(value: int): void;
+declare function logError(error: string): void;
+
+const value: Result<int, string> = Result.ok(1);
+const out = value.tap(logValue).tapErr(logError);
+
+out satisfies Result<int, string>;
+```
+
+## async
+
+### AsyncResult wraps Promise Result
+
+`AsyncResult<T, E>` keeps promise rejection outside typed error flow.
+
+```ds
+newtype NetworkError = string;
+
+declare function request(): Promise<string>;
+declare function recover(error: unknown): NetworkError;
+
+const value = AsyncResult.fromPromise(request(), recover);
+
+value satisfies AsyncResult<string, NetworkError>;
+```
+
+### async failures can be propagated
+
+`AsyncResult` can rebuild itself from propagated failures.
+
+```ds
+newtype NetworkError = string;
+newtype DecodeError = string;
+struct User {
+    name: string;
+}
+
+declare function request(): AsyncResult<string, NetworkError>;
+declare function decode(raw: string): Result<User, DecodeError>;
+
+async function load(): AsyncResult<User, NetworkError | DecodeError> {
+    const raw = (await request())?;
+    const user = decode(raw)?;
+    return Result.ok(user);
 }
 ```
