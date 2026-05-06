@@ -29,6 +29,15 @@ extension<T, E> of Result<T, E> {
         Result(Err { kind: "Err", error })
     }
 
+    /// Run a throwing function and map the exception into a typed failure.
+    static try(body: () => T, recover: (error: unknown) => E): Result<T, E> {
+        try {
+            Result.ok(body())
+        } catch (error) {
+            Result.err(recover(error))
+        }
+    }
+
     /// Return true when this result is successful.
     isOk(): boolean {
         this.kind == "Ok"
@@ -100,6 +109,36 @@ extension<T, E> of Result<T, E> {
         match (this) {
             Ok { value } => Result.ok(value)
             Err { error } => f(error)
+        }
+    }
+
+    /// Fold either result variant into one value.
+    match<U>(arms: { ok: (value: T) => U; err: (error: E) => U }): U {
+        match (this) {
+            Ok { value } => arms.ok(value)
+            Err { error } => arms.err(error)
+        }
+    }
+
+    /// Run a side effect on success and keep the original result.
+    tap(f: (value: T) => void): Result<T, E> {
+        match (this) {
+            Ok { value } => {
+                f(value)
+                this
+            }
+            Err { error: _ } => this
+        }
+    }
+
+    /// Run a side effect on failure and keep the original result.
+    tapErr(f: (error: E) => void): Result<T, E> {
+        match (this) {
+            Ok { value: _ } => this
+            Err { error } => {
+                f(error)
+                this
+            }
         }
     }
 }
@@ -213,6 +252,18 @@ extension<T, E> of AsyncResult<T, E> {
         AsyncResult(this.then((result) => result.andThen(f)))
     }
 
+    /// Continue with a promise-returning operation.
+    andThenPromise<U, F>(f: (value: T) => Promise<Result<U, F>>): AsyncResult<U, E | F> {
+        AsyncResult(
+            this.then(async (result) => {
+                match (result) {
+                    Ok { value } => await f(value)
+                    Err { error } => Result.err(error)
+                }
+            }),
+        )
+    }
+
     /// Recover from a failure with another async result.
     orElse<F>(f: (error: E) => AsyncResult<T, F>): AsyncResult<T, F> {
         AsyncResult(
@@ -223,6 +274,22 @@ extension<T, E> of AsyncResult<T, E> {
                 }
             }),
         )
+    }
+
+    /// Fold either result variant into one async value.
+    async match<U>(arms: { ok: (value: T) => U; err: (error: E) => U }): Promise<U> {
+        const result = await this;
+        result.match(arms)
+    }
+
+    /// Run a side effect on success and keep the original result.
+    tap(f: (value: T) => void): AsyncResult<T, E> {
+        AsyncResult(this.then((result) => result.tap(f)))
+    }
+
+    /// Run a side effect on failure and keep the original result.
+    tapErr(f: (error: E) => void): AsyncResult<T, E> {
+        AsyncResult(this.then((result) => result.tapErr(f)))
     }
 
     /// Return a promise for the success value or panic.
@@ -241,5 +308,12 @@ extension<T, E> of AsyncResult<T, E> {
     async unwrapOrElse(f: (error: E) => T): Promise<T> {
         const result = await this;
         result.unwrapOrElse(f)
+    }
+}
+
+extension<T, E> of AsyncResult<T, E> implements FromFailure<E> {
+    /// Create an async result from a propagated failure.
+    static fromFailure(failure: E): AsyncResult<T, E> {
+        AsyncResult.err(failure)
     }
 }
