@@ -481,6 +481,28 @@ impl Repository {
                 package: package_id,
                 target: target_id,
             })?;
+        let package_options = self
+            .package_options(revision, package_id)
+            .map_err(|error| TargetDiscoveryError::Repository {
+                package: package_id,
+                target: target_id,
+                message: error.to_string(),
+            })?;
+        let compiler_globals = package_options
+            .as_ref()
+            .map(|package_options| package_options.compiler.globals.clone())
+            .unwrap_or_default();
+        let profile_globals = package_options
+            .as_ref()
+            .and_then(|package_options| {
+                target
+                    .profile
+                    .as_ref()
+                    .or(package_options.compiler.profile.as_ref())
+                    .and_then(|name| package_options.profiles.get(name))
+            })
+            .map(|profile| profile.globals.clone())
+            .unwrap_or_default();
 
         // selected modules
         let mut module_ids = match target.discovery {
@@ -510,7 +532,27 @@ impl Repository {
             &target,
             options,
         )?;
-        for module_id in global_module_ids {
+        let compiler_global_module_ids = self.resolve_target_paths(
+            revision,
+            package_id,
+            target_id,
+            &package.path,
+            &compiler_globals,
+            options.entry_resolution,
+        )?;
+        let profile_global_module_ids = self.resolve_target_paths(
+            revision,
+            package_id,
+            target_id,
+            &package.path,
+            &profile_globals,
+            options.entry_resolution,
+        )?;
+        for module_id in global_module_ids
+            .into_iter()
+            .chain(compiler_global_module_ids)
+            .chain(profile_global_module_ids)
+        {
             if module_ids.contains(&module_id) {
                 continue;
             }

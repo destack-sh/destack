@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use destack_artifact::Platform;
 use serde::Deserialize;
 
@@ -14,6 +16,12 @@ pub struct ProfileOptions {
     pub debug: Option<bool>,
     /// Comptime environment whitelist.
     pub comptime_env: Option<Vec<String>>,
+    /// Default tree tag builder provider.
+    pub tree: Option<String>,
+    /// Global provider modules for this profile.
+    pub globals: Vec<PathBuf>,
+    /// Derive providers automatically considered in this profile.
+    pub derive: Vec<String>,
 }
 
 impl ProfileOptions {
@@ -27,6 +35,13 @@ impl ProfileOptions {
             platform: json.platform.as_deref().and_then(Platform::parse),
             debug: json.debug,
             comptime_env: json.comptime_env.clone(),
+            tree: json.tree.clone(),
+            globals: json
+                .globals
+                .as_ref()
+                .map(|globals| globals.iter().map(PathBuf::from).collect())
+                .unwrap_or_default(),
+            derive: json.derive.clone().unwrap_or_default(),
         }
     }
 }
@@ -44,4 +59,10 @@ pub struct ProfileOptionsJson {
     pub debug: Option<bool>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
     pub comptime_env: Option<Vec<String>>,
+    /// Default tree tag builder provider.
+    pub tree: Option<String>,
+    /// Global provider modules for this profile.
+    pub globals: Option<Vec<String>>,
+    /// Derive providers automatically considered in this profile.
+    pub derive: Option<Vec<String>>,
 }

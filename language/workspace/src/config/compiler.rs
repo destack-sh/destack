@@ -45,6 +45,12 @@ pub struct CompilerOptions {
     pub mode: Option<String>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
     pub comptime_env: Option<Vec<String>>,
+    /// Default tree tag builder provider.
+    pub tree: Option<String>,
+    /// Global provider modules added to every target profile.
+    pub globals: Vec<PathBuf>,
+    /// Derive providers automatically considered for nominal declarations.
+    pub derive: Vec<String>,
 
     // capability restrictions
     /// Policy for GC-managed defaults and allocations.
@@ -112,6 +118,9 @@ impl Default for CompilerOptions {
             profile: None,
             mode: None,
             comptime_env: None,
+            tree: None,
+            globals: Vec::new(),
+            derive: Vec::new(),
 
             // capability restrictions
             no_managed: DiagnosticPolicy::Allow,
@@ -346,6 +355,12 @@ pub struct CompilerOptionsJson {
     pub mode: Option<String>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
     pub comptime_env: Option<Vec<String>>,
+    /// Default tree tag builder provider.
+    pub tree: Option<String>,
+    /// Global provider modules added to every target profile.
+    pub globals: Option<Vec<String>>,
+    /// Derive providers automatically considered for nominal declarations.
+    pub derive: Option<Vec<String>>,
 
     // capability restrictions
     /// Policy for GC-managed defaults and allocations.
@@ -444,6 +459,13 @@ impl From<&CompilerOptionsJson> for CompilerOptions {
             profile: json.profile.clone(),
             mode: json.mode.clone(),
             comptime_env: json.comptime_env.clone(),
+            tree: json.tree.clone(),
+            globals: json
+                .globals
+                .as_ref()
+                .map(|globals| globals.iter().map(PathBuf::from).collect())
+                .unwrap_or_default(),
+            derive: json.derive.clone().unwrap_or_default(),
 
             // capability restrictions
             no_managed: json

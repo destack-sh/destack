@@ -13,7 +13,19 @@ pub(crate) fn profile_key_for_target(
     _tsconfig_options: Option<&TsConfigOptions>,
     environment: &HostEnvironment,
 ) -> ProfileKey {
-    let compiler_options = target.compiler_options(compiler_options);
+    let mut compiler_options = compiler_options.clone();
+    if let Some(profile_config) = profile_config {
+        if profile_config.tree.is_some() {
+            compiler_options.tree = profile_config.tree.clone();
+        }
+        compiler_options
+            .globals
+            .extend(profile_config.globals.clone());
+        compiler_options
+            .derive
+            .extend(profile_config.derive.clone());
+    }
+    let compiler_options = target.compiler_options(&compiler_options);
     let emit = target.emit;
 
     // runtime surface
@@ -38,11 +50,13 @@ pub(crate) fn profile_key_for_target(
 
     let flags = profile_flags_for_compiler_options(&compiler_options);
     let (_, _, _, test) = ProfileEnvironment::mode_from_key(&env, environment, debug);
-    let globals = target
+    let globals = compiler_options
         .globals
         .iter()
         .map(|path| path.display().to_string())
         .collect();
+    let tree = compiler_options.tree.clone();
+    let derive = compiler_options.derive.clone();
 
     ProfileKey::new(
         emit,
@@ -52,6 +66,8 @@ pub(crate) fn profile_key_for_target(
         target.target_vendor.clone(),
         target.target_abi.clone(),
         globals,
+        tree,
+        derive,
         debug,
         test,
         compiler_options.skip_lib_check,
