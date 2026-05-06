@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 
 pub use crate::SymbolKind;
 use crate::ast::{main_span_for_dir_node, span_for_dir_node};
-use crate::core::{AstQuery, QueryContext, with_ast_query_for_file, with_query_context_for_file};
+use crate::core::{
+    AstQueryContext, QueryContext, with_ast_query_for_file, with_query_context_for_file,
+};
 use crate::dir::{
     declaration_display_name, declaration_symbol_kind, is_synthetic_function_keyword_field,
     member_key_name, member_symbol_kind, type_member_symbol_kind,
@@ -110,7 +112,7 @@ fn document_symbols_with_dir(
             let kind = declaration_symbol_kind(declaration);
 
             // get the declaration name
-            let name = declaration_display_name(&repository.strings, declaration);
+            let name = declaration_display_name(ctx.dir().strings(), declaration);
 
             // resolve the full range and the main selection range
             let range = span_for_dir_node(ctx.ast(), dir_tree, declaration_id.into());
@@ -124,9 +126,7 @@ fn document_symbols_with_dir(
             // add children for declarations with members
             if let Some(member_ids) = declaration.member_ids() {
                 for member_id in member_ids {
-                    if let Some(child) =
-                        member_to_document_symbol(dir_tree, *member_id, &ctx, repository)
-                    {
+                    if let Some(child) = member_to_document_symbol(dir_tree, *member_id, &ctx) {
                         symbol = symbol.with_child(child);
                     }
                 }
@@ -134,8 +134,7 @@ fn document_symbols_with_dir(
 
             if let Some(member_ids) = declaration.type_member_ids() {
                 for member_id in member_ids {
-                    if let Some(child) =
-                        type_member_to_document_symbol(dir_tree, *member_id, &ctx, repository)
+                    if let Some(child) = type_member_to_document_symbol(dir_tree, *member_id, &ctx)
                     {
                         symbol = symbol.with_child(child);
                     }
@@ -145,9 +144,7 @@ fn document_symbols_with_dir(
             // add enum field children
             if let Declaration::Enum(declaration) = declaration {
                 for field_id in &declaration.fields {
-                    if let Some(child) =
-                        enum_field_to_document_symbol(dir_tree, *field_id, &ctx, repository)
-                    {
+                    if let Some(child) = enum_field_to_document_symbol(dir_tree, *field_id, &ctx) {
                         symbol = symbol.with_child(child);
                     }
                 }
@@ -227,7 +224,6 @@ fn member_to_document_symbol(
     dir_tree: &Tree,
     member_id: LocalNodeId<Member>,
     ctx: &QueryContext,
-    repository: &Repository,
 ) -> Option<DocumentSymbol> {
     let member = dir_tree.get::<Member>(member_id);
     let range = span_for_dir_node(ctx.ast(), dir_tree, member_id.into());
@@ -235,16 +231,16 @@ fn member_to_document_symbol(
     // get the member name and symbol kind
     let (name, kind) = match member {
         Member::AssociatedType { name, .. } => {
-            let name = repository.strings.get(*name).to_string();
+            let name = ctx.dir().strings().get(*name).to_string();
             (name, SymbolKind::TypeParameter)
         }
         Member::AssociatedConst { name, .. } => {
-            let name = repository.strings.get(*name).to_string();
+            let name = ctx.dir().strings().get(*name).to_string();
             (name, SymbolKind::Constant)
         }
         _ => {
             let key = member.key()?;
-            let name = member_key_name(repository, key)?;
+            let name = member_key_name(ctx.dir().strings(), key)?;
             let kind = member_symbol_kind(member)?;
             (name, kind)
         }
@@ -268,7 +264,6 @@ fn type_member_to_document_symbol(
     dir_tree: &Tree,
     member_id: LocalNodeId<TypeMember>,
     ctx: &QueryContext,
-    repository: &Repository,
 ) -> Option<DocumentSymbol> {
     let member = dir_tree.get::<TypeMember>(member_id);
     let range = span_for_dir_node(ctx.ast(), dir_tree, member_id.into());
@@ -276,10 +271,10 @@ fn type_member_to_document_symbol(
     // resolve the type member name and symbol kind
     let kind = type_member_symbol_kind(member)?;
     let name = if let Some(name) = member.name() {
-        repository.strings.get(name).to_string()
+        ctx.dir().strings().get(name).to_string()
     } else {
         let key = member.key()?;
-        member_key_name(repository, key)?
+        member_key_name(ctx.dir().strings(), key)?
     };
 
     // get spans
@@ -294,12 +289,11 @@ fn enum_field_to_document_symbol(
     dir_tree: &Tree,
     field_id: LocalNodeId<EnumField>,
     ctx: &QueryContext,
-    repository: &Repository,
 ) -> Option<DocumentSymbol> {
     let field = dir_tree.get::<EnumField>(field_id);
 
     // get the field name
-    let name = repository.strings.get(field.name.string()).to_string();
+    let name = ctx.dir().strings().get(field.name.string()).to_string();
 
     // get spans
     let range = span_for_dir_node(ctx.ast(), dir_tree, field_id.into());
@@ -349,7 +343,7 @@ fn declaration_symbol_kind_ast(declaration: &ast::Declaration) -> SymbolKind {
 
 /// Convert an AST member to a document symbol.
 fn member_to_document_symbol_ast(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     member_id: ast::LocalNodeId<ast::Member>,
 ) -> Option<DocumentSymbol> {
     // resolve the member node
@@ -373,7 +367,7 @@ fn member_to_document_symbol_ast(
 
 /// Convert an AST type member to a document symbol.
 fn type_member_to_document_symbol_ast(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     member_id: ast::LocalNodeId<ast::TypeMember>,
 ) -> Option<DocumentSymbol> {
     // resolve the type member node
@@ -397,7 +391,7 @@ fn type_member_to_document_symbol_ast(
 
 /// Convert an AST enum field to a document symbol.
 fn enum_field_to_document_symbol_ast(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     field_id: ast::LocalNodeId<ast::EnumField>,
 ) -> Option<DocumentSymbol> {
     // resolve the enum field node
@@ -417,7 +411,7 @@ fn enum_field_to_document_symbol_ast(
 }
 
 /// Resolve a display name for a member key.
-fn member_key_name_ast(ast: AstQuery<'_>, key: &ast::Key) -> Option<String> {
+fn member_key_name_ast(ast: AstQueryContext<'_>, key: &ast::Key) -> Option<String> {
     match key {
         ast::Key::Name(name) => Some(ast.strings().get(name.string()).to_string()),
         ast::Key::Private(name) => {

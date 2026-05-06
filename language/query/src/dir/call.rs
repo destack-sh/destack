@@ -1,18 +1,18 @@
 use destack_dir::{
     self as dir, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Resolution, SymbolType,
 };
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProfileId};
 use destack_workspace::{Repository, Revision};
 
 use crate::ast::get_node_tree_span;
-use crate::core::{DirQuery, QueryContext, query_context, query_context_for_module_id};
+use crate::core::{
+    CallEntry, DirQueryContext, QueryContext, query_context, query_context_for_profile,
+};
 
 use super::{
     get_canonical_symbol, resolve_expression_symbol, resolve_member_access_symbol,
     resolve_symbol_name,
 };
-use destack_workspace::CallIndexEntry;
-
 /// Information about a resolved call target.
 #[derive(Debug, Clone)]
 pub(crate) struct CallTarget {
@@ -32,7 +32,7 @@ impl CallTarget {
 /// Resolve the call target name and symbol for a call expression.
 pub(crate) fn resolve_call_target(
     repository: &Repository,
-    dir: DirQuery<'_>,
+    dir: DirQueryContext<'_>,
     left_expression_id: LocalNodeId<Expression>,
 ) -> CallTarget {
     // resolve the left expression node
@@ -60,7 +60,7 @@ pub(crate) fn resolve_call_target(
             let symbol = *target_symbol;
             let name = resolve_symbol_name(repository, dir.revision(), symbol).or_else(|| {
                 path.last_segment()
-                    .map(|name_id| repository.strings.get(name_id).to_string())
+                    .map(|name_id| dir.strings().get(name_id).to_string())
             });
 
             // prefer the canonical function symbol when possible
@@ -79,7 +79,7 @@ pub(crate) fn resolve_call_target(
             };
 
             // resolve the member name string
-            let member_name = repository.strings.get(name).to_string();
+            let member_name = dir.strings().get(name).to_string();
 
             // resolve the member symbol when possible
             let member_symbol = resolve_member_access_symbol(dir, left_expression_id);
@@ -91,7 +91,7 @@ pub(crate) fn resolve_call_target(
             // resolve the unresolved path name
             let name = path
                 .last_segment()
-                .map(|name_id| repository.strings.get(name_id).to_string());
+                .map(|name_id| dir.strings().get(name_id).to_string());
             CallTarget::new(name, None)
         }
         _ => CallTarget::new(None, None),
@@ -104,7 +104,7 @@ fn symbol_is_function(
     revision: Revision,
     symbol_id: GlobalSymbolId,
 ) -> bool {
-    let Some(ctx) = query_context_for_module_id(repository, revision, symbol_id.module_id) else {
+    let Some(ctx) = query_context(repository, revision, symbol_id.module_id) else {
         return false;
     };
 
@@ -114,12 +114,13 @@ fn symbol_is_function(
 }
 
 /// Build call index entries for one module.
-pub(crate) fn build_call_index_entries_for_module(
+pub(crate) fn build_call_candidates_for_module(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
-) -> Vec<CallIndexEntry> {
-    let Some(ctx) = query_context(repository, revision, module_id) else {
+    profile_id: ProfileId,
+) -> Vec<CallEntry> {
+    let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id) else {
         return Vec::new();
     };
 
@@ -136,7 +137,7 @@ pub(crate) fn build_call_index_entries_for_module(
         let caller_symbol = find_containing_function_symbol(&ctx, expression_id.into());
         let callee_symbols = call_target_symbols(repository, &ctx, expression_id, left_expression);
         for callee_symbol in callee_symbols {
-            entries.push(CallIndexEntry {
+            entries.push(CallEntry {
                 module_id,
                 caller_symbol,
                 callee_symbol,

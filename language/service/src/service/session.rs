@@ -253,6 +253,7 @@ impl LanguageService {
             revision_ref,
             self.compiler.clone(),
             self.linter.clone(),
+            self.query.clone(),
             self.worker_limit,
             self.event_handler.clone(),
         )?)

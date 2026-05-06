@@ -3,12 +3,11 @@ use destack_source::{FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::core::{RepositoryQueryIndexExt, query_context};
+use crate::core::{NominalRelation, nominal_relations_for_target, query_context};
 use crate::dir::{
     find_symbol_at_offset, get_canonical_symbol, get_symbol_declaration_span,
     get_symbol_definition_span, resolve_symbol_name,
 };
-use destack_workspace::NominalRelationKind;
 
 /// An item in the type hierarchy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -199,15 +198,13 @@ pub fn subtypes(
     let mut subtype_ids: Vec<GlobalSymbolId> = Vec::new();
 
     // search cached direct nominal edges across the repository
-    let entries = repository.nominal_index_entries_for_target(revision, canonical_id);
+    let entries = nominal_relations_for_target(repository, revision, canonical_id);
 
     for entry in entries {
         let matches = entry.target_symbol == canonical_id
             && matches!(
                 entry.relation,
-                NominalRelationKind::Extends
-                    | NominalRelationKind::Implements
-                    | NominalRelationKind::Embeds
+                NominalRelation::Extends | NominalRelation::Implements | NominalRelation::Embeds
             );
 
         if matches {

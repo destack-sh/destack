@@ -3,8 +3,9 @@ use destack_core::StringId;
 use destack_source::Span;
 
 use super::{
-    AstQuery, enclosing_missing_expression, enclosing_spans_at_cursor, previous_significant_token,
-    span_owns_cursor, token_text, tokens_between_offsets_include_statement_boundary,
+    AstQueryContext, enclosing_missing_expression, enclosing_spans_at_cursor,
+    previous_significant_token, span_owns_cursor, token_text,
+    tokens_between_offsets_include_statement_boundary,
 };
 
 /// The structural context for one expression slot.
@@ -81,7 +82,7 @@ fn assign_pattern_field_contains_expression(
 
 /// Resolve the structural context for the innermost expression slot at the cursor.
 pub(crate) fn expression_slot_position(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     source: &str,
     offset: u32,
 ) -> Option<ExpressionSlotPosition> {
@@ -99,7 +100,7 @@ pub(crate) fn expression_slot_position(
 
 /// Collect the binding names excluded from completion inside one initializer.
 pub(crate) fn current_initializer_binding_names(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     source: &str,
     offset: u32,
 ) -> Vec<StringId> {
@@ -118,7 +119,7 @@ pub(crate) fn current_initializer_binding_names(
 
 /// Check whether the cursor sits in a missing declarator initializer slot.
 pub(crate) fn missing_declarator_value_at_cursor(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     source: &str,
     offset: u32,
 ) -> bool {
@@ -137,7 +138,7 @@ pub(crate) fn missing_declarator_value_at_cursor(
 
 /// Resolve the structural owner for the innermost expression slot at the cursor.
 fn expression_slot_owner(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     source: &str,
     offset: u32,
 ) -> Option<ExpressionSlotOwner> {
@@ -198,7 +199,7 @@ fn expression_slot_owner_for_missing_node(
 
 /// Resolve the structural context for an explicit value slot without a missing node.
 fn open_expression_slot_owner(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     source: &str,
     offset: u32,
 ) -> Option<ExpressionSlotOwner> {
@@ -261,7 +262,7 @@ fn expression_slot_owner_from_position(position: ExpressionSlotPosition) -> Expr
 
 /// Check whether the cursor still belongs to one keyword-owned expression slot.
 fn cursor_is_after_expression_keyword(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     source: &str,
     offset: u32,
     expr_span: Span,
@@ -502,7 +503,7 @@ fn expression_slot_position_in_expression(
 
 /// Resolve the declarator that owns the initializer slot at one cursor offset.
 fn current_initializer_declarator(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     source: &str,
     offset: u32,
 ) -> Option<ast::LocalNodeId<ast::Declarator>> {
@@ -519,7 +520,7 @@ fn current_initializer_declarator(
 
 /// Resolve the declarator whose initializer span still owns the cursor.
 fn initializer_declarator_at_cursor(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     offset: u32,
 ) -> Option<ast::LocalNodeId<ast::Declarator>> {
     let ast_tree = ast.tree();
@@ -562,7 +563,7 @@ fn initializer_declarator_at_cursor(
 
 /// Check whether the cursor still belongs to one declarator initializer gap.
 fn cursor_is_after_initializer_assign(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     declarator_span: Span,
     offset: u32,
 ) -> bool {

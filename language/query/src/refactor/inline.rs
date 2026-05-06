@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use destack_core::StringPool;
 use destack_dir::{self as dir, NodeVisitor};
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, ModuleId, Span, Uri};
 use destack_workspace::{Repository, Revision};
@@ -9,7 +10,7 @@ use crate::ast::{
     get_module_by_file_id, is_simple_identifier, line_start_for_offset, main_span_for_dir_node,
     span_for_dir_node,
 };
-use crate::core::{QueryContext, RepositoryQueryIndexExt, query_context};
+use crate::core::{QueryContext, modules_referencing_symbol, query_context};
 use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
     get_canonical_symbol, get_member_access_name_span, get_symbol_definition_span, member_key_name,
@@ -120,7 +121,7 @@ pub fn inline_symbol(
     }
 
     let access_path = pattern_access_path(
-        repository,
+        ctx.dir().strings(),
         dir_tree,
         declarator.pattern,
         canonical_id.local_id,
@@ -150,7 +151,7 @@ pub fn inline_symbol(
         require_target_name_match: false,
         limit_to_file: None,
     };
-    for module_id in repository.reference_index_modules_for_target(revision, canonical_id) {
+    for module_id in modules_referencing_symbol(repository, revision, canonical_id) {
         let Some(ctx) = query_context(repository, ctx.revision(), module_id) else {
             continue;
         };
@@ -317,7 +318,7 @@ fn collect_inline_reference_entries(
             continue;
         };
 
-        let Some(key_name) = member_key_name(repository, key) else {
+        let Some(key_name) = member_key_name(ctx.dir().strings(), key) else {
             continue;
         };
         if key_name != reference_name {
@@ -462,7 +463,7 @@ fn collect_pattern_bindings_field(
 
 /// Resolve the access path for a destructured binding.
 fn pattern_access_path(
-    repository: &Repository,
+    strings: &StringPool,
     dir_tree: &dir::Tree,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
     target_symbol: dir::LocalSymbolId,
@@ -470,7 +471,7 @@ fn pattern_access_path(
     let pattern = dir_tree.get::<dir::Pattern>(pattern_id);
     match pattern {
         dir::Pattern::Assign { pattern, .. } => {
-            pattern_access_path(repository, dir_tree, *pattern, target_symbol)
+            pattern_access_path(strings, dir_tree, *pattern, target_symbol)
         }
         dir::Pattern::Binding {
             symbol, pattern, ..
@@ -479,28 +480,28 @@ fn pattern_access_path(
                 return Some(Vec::new());
             }
             if let Some(inner) = pattern {
-                return pattern_access_path(repository, dir_tree, *inner, target_symbol);
+                return pattern_access_path(strings, dir_tree, *inner, target_symbol);
             }
             None
         }
         dir::Pattern::Must(inner)
         | dir::Pattern::ReferenceOf { right: inner, .. }
         | dir::Pattern::ValueOf { right: inner, .. } => {
-            pattern_access_path(repository, dir_tree, *inner, target_symbol)
+            pattern_access_path(strings, dir_tree, *inner, target_symbol)
         }
         dir::Pattern::Object { fields } | dir::Pattern::TaggedObject { fields, .. } => {
-            pattern_access_path_object_fields(repository, dir_tree, fields, target_symbol)
+            pattern_access_path_object_fields(strings, dir_tree, fields, target_symbol)
         }
         dir::Pattern::Tuple { fields }
         | dir::Pattern::TaggedTuple { fields, .. }
         | dir::Pattern::Array { fields } => {
-            pattern_access_path_indexed(repository, dir_tree, fields, target_symbol)
+            pattern_access_path_indexed(strings, dir_tree, fields, target_symbol)
         }
         dir::Pattern::Union { patterns } => {
             let mut resolved: Option<Vec<AccessSegment>> = None;
             for pattern_id in patterns {
                 if let Some(path) =
-                    pattern_access_path(repository, dir_tree, *pattern_id, target_symbol)
+                    pattern_access_path(strings, dir_tree, *pattern_id, target_symbol)
                 {
                     if resolved.is_some() {
                         return None;
@@ -518,7 +519,7 @@ fn pattern_access_path(
 
 /// Resolve access paths for object fields.
 fn pattern_access_path_object_fields(
-    repository: &Repository,
+    strings: &StringPool,
     dir_tree: &dir::Tree,
     fields: &[dir::LocalNodeId<dir::PatternField>],
     target_symbol: dir::LocalSymbolId,
@@ -534,14 +535,14 @@ fn pattern_access_path_object_fields(
                 ..
             } => {
                 if symbol.is_some_and(|symbol| symbol == target_symbol) {
-                    let name = repository.strings.get(*name).to_string();
+                    let name = strings.get(*name).to_string();
                     return Some(vec![AccessSegment::Property(name)]);
                 }
 
-                let name = repository.strings.get(*name).to_string();
+                let name = strings.get(*name).to_string();
                 if let Some(pattern) = pattern
                     && let Some(path) =
-                        pattern_access_path(repository, dir_tree, *pattern, target_symbol)
+                        pattern_access_path(strings, dir_tree, *pattern, target_symbol)
                 {
                     let mut path = path;
                     path.insert(0, AccessSegment::Property(name));
@@ -549,8 +550,7 @@ fn pattern_access_path_object_fields(
                 }
             }
             dir::PatternField::Positional { pattern, .. } => {
-                if let Some(path) =
-                    pattern_access_path(repository, dir_tree, *pattern, target_symbol)
+                if let Some(path) = pattern_access_path(strings, dir_tree, *pattern, target_symbol)
                 {
                     return Some(path);
                 }
@@ -566,7 +566,7 @@ fn pattern_access_path_object_fields(
 
 /// Resolve access paths for tuple and array fields.
 fn pattern_access_path_indexed(
-    repository: &Repository,
+    strings: &StringPool,
     dir_tree: &dir::Tree,
     fields: &[dir::LocalNodeId<dir::PatternField>],
     target_symbol: dir::LocalSymbolId,
@@ -583,8 +583,7 @@ fn pattern_access_path_indexed(
                 return None;
             }
             dir::PatternField::Positional { pattern, .. } => {
-                if let Some(path) =
-                    pattern_access_path(repository, dir_tree, *pattern, target_symbol)
+                if let Some(path) = pattern_access_path(strings, dir_tree, *pattern, target_symbol)
                 {
                     let mut path = path;
                     path.insert(0, AccessSegment::Index(index));
@@ -600,7 +599,7 @@ fn pattern_access_path_indexed(
                 }
                 if let Some(pattern) = pattern
                     && let Some(path) =
-                        pattern_access_path(repository, dir_tree, *pattern, target_symbol)
+                        pattern_access_path(strings, dir_tree, *pattern, target_symbol)
                 {
                     let mut path = path;
                     path.insert(0, AccessSegment::Index(index));
@@ -609,8 +608,7 @@ fn pattern_access_path_indexed(
                 index += 1;
             }
             dir::PatternField::Computed { pattern, .. } => {
-                if let Some(path) =
-                    pattern_access_path(repository, dir_tree, *pattern, target_symbol)
+                if let Some(path) = pattern_access_path(strings, dir_tree, *pattern, target_symbol)
                 {
                     let mut path = path;
                     path.insert(0, AccessSegment::Index(index));

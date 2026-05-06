@@ -5,7 +5,7 @@ use destack_dir::{
     self as dir, DependencyItem, DependencyKind, DependencyMode, Expression, GlobalSymbolId,
     NodeType, Resolution,
 };
-use destack_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, ProfileId, Span};
 use destack_workspace::{Repository, Revision};
 
 use super::import::is_dependency_alias_for_target;
@@ -16,7 +16,7 @@ use super::{
     resolve_expression_symbol, resolve_namespace_receiver_symbol, symbol_matches_reference_target,
 };
 use crate::ast::{get_node_tree_main_span, get_node_tree_span};
-use crate::core::{AstQuery, DirQuery, query_context};
+use crate::core::{AstQueryContext, DirQueryContext, query_context_for_profile};
 
 /// Options for collecting symbol references.
 #[derive(Debug, Clone, Copy)]
@@ -42,12 +42,13 @@ pub(crate) struct ReferenceCollectionOptions<'a> {
 }
 
 /// Build reference index target keys for one module.
-pub(crate) fn build_reference_index_entries_for_module(
+pub(crate) fn build_reference_targets_for_module(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
+    profile_id: ProfileId,
 ) -> Vec<GlobalSymbolId> {
-    let Some(ctx) = query_context(repository, revision, module_id) else {
+    let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id) else {
         return Vec::new();
     };
 
@@ -158,8 +159,8 @@ fn insert_reference_target_keys(
 /// Collect symbol references within a query context.
 pub(crate) fn collect_symbol_references_in_context(
     repository: &Repository,
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     canonical_id: GlobalSymbolId,
     options: ReferenceCollectionOptions<'_>,
 ) -> Vec<Span> {
@@ -207,8 +208,8 @@ pub(crate) fn collect_symbol_references_in_context(
 /// Collect direct expression reference spans.
 fn collect_expression_reference_spans(
     repository: &Repository,
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     canonical_id: GlobalSymbolId,
     options: ReferenceCollectionOptions<'_>,
 ) -> Vec<Span> {
@@ -414,7 +415,7 @@ fn span_matches_target_name(
 /// Check whether a member receiver expression matches the canonical symbol target.
 fn member_receiver_matches_target(
     repository: &Repository,
-    dir: DirQuery<'_>,
+    dir: DirQueryContext<'_>,
     _dir_tree: &dir::Tree,
     receiver_expression_id: dir::LocalNodeId<Expression>,
     canonical_id: GlobalSymbolId,
@@ -430,7 +431,7 @@ fn member_receiver_matches_target(
 
 /// Resolve the target symbol for an expression reference.
 fn resolve_expression_target_symbol(
-    dir: DirQuery<'_>,
+    dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
     expression: &Expression,
 ) -> Option<GlobalSymbolId> {
@@ -469,8 +470,8 @@ fn expression_is_member_receiver_expression(
 
 /// Resolve the best span for a reference expression.
 fn resolve_expression_reference_span(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     dir_tree: &dir::Tree,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<Span> {
@@ -515,8 +516,8 @@ fn resolve_expression_reference_span(
 
 /// Resolve the best span for a member receiver expression.
 fn resolve_member_receiver_reference_span(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     member_expression_id: dir::LocalNodeId<Expression>,
     receiver_expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<Span> {
@@ -564,8 +565,8 @@ fn resolve_member_receiver_reference_span(
 
 /// Resolve the main AST span for a DIR expression source id.
 fn ast_expression_span_for_dir_expression(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<Span> {
     let source_id = dir.tree().get_source(expression_id.id);
@@ -576,7 +577,7 @@ fn ast_expression_span_for_dir_expression(
 
 /// Resolve an AST expression main span, unwrapping parenthesized expressions.
 fn ast_expression_main_span_without_parentheses(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<Span> {
     let mut expression_id = expression_id;
@@ -608,7 +609,10 @@ fn ast_expression_main_span_without_parentheses(
 }
 
 /// Resolve the last identifier token span inside an expression span.
-fn last_identifier_span_in_expression(ast: AstQuery<'_>, expression_span: Span) -> Option<Span> {
+fn last_identifier_span_in_expression(
+    ast: AstQueryContext<'_>,
+    expression_span: Span,
+) -> Option<Span> {
     let mut last_identifier_span = None;
     for token in ast.tokens() {
         if token.span.file != ast.file_id() {
@@ -630,8 +634,8 @@ fn last_identifier_span_in_expression(ast: AstQuery<'_>, expression_span: Span) 
 /// Collect member access reference spans.
 fn collect_member_reference_spans(
     repository: &Repository,
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     canonical_id: GlobalSymbolId,
     options: ReferenceCollectionOptions<'_>,
     namespace_aliases: &[GlobalSymbolId],
@@ -711,7 +715,7 @@ fn collect_member_reference_spans(
         }
 
         // require the member name to match the requested target name
-        let member_name = repository.strings.get(name).to_string();
+        let member_name = dir.strings().get(name).to_string();
         if member_name != target_name {
             continue;
         }
@@ -737,7 +741,7 @@ fn collect_member_reference_spans(
 /// Check whether one member access resolution candidate set matches the target.
 fn member_resolution_matches_reference_target(
     repository: &Repository,
-    dir: DirQuery<'_>,
+    dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
     canonical_id: GlobalSymbolId,
 ) -> bool {
@@ -768,8 +772,8 @@ fn member_resolution_matches_reference_target(
 /// Collect dependency item reference spans.
 fn collect_dependency_reference_spans(
     repository: &Repository,
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     canonical_id: GlobalSymbolId,
     options: ReferenceCollectionOptions<'_>,
 ) -> Vec<Span> {
@@ -790,7 +794,7 @@ fn collect_dependency_reference_spans(
     let mut spans = Vec::new();
     for item_id in matching_dependency_ids {
         let span = if options.use_dependency_name_spans {
-            dependency_item_name_span(repository, ast, dir, item_id, options.target_name)
+            dependency_item_name_span(ast, dir, item_id, options.target_name)
         } else {
             None
         }
@@ -821,9 +825,8 @@ fn collect_dependency_reference_spans(
 
 /// Resolve a dependency item's name span when a target name is provided.
 fn dependency_item_name_span(
-    repository: &Repository,
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     item_id: dir::LocalNodeId<DependencyItem>,
     target_name: Option<&str>,
 ) -> Option<Span> {
@@ -851,7 +854,7 @@ fn dependency_item_name_span(
 
     // match the remote/local item name first
     if let Some(name_id) = name_id
-        && repository.strings.get(name_id) == target_name
+        && dir.strings().get(name_id) == target_name
     {
         let span = ast
             .tree()
@@ -861,7 +864,7 @@ fn dependency_item_name_span(
 
     // fall back to alias when present
     if let Some(alias_id) = alias_id
-        && repository.strings.get(alias_id) == target_name
+        && dir.strings().get(alias_id) == target_name
     {
         let span = ast
             .tree()
@@ -874,7 +877,7 @@ fn dependency_item_name_span(
 
 /// Collect namespace import aliases that target a module.
 fn namespace_import_aliases_for_module(
-    dir: DirQuery<'_>,
+    dir: DirQueryContext<'_>,
     module_id: ModuleId,
 ) -> Vec<GlobalSymbolId> {
     // scan dependency items for namespace imports to the target module

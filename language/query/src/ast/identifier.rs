@@ -3,7 +3,7 @@ use destack_ast::TokenType;
 use destack_source::FileId;
 use destack_workspace::{Repository, Revision};
 
-use crate::core::{AstQuery, with_ast_query_for_file};
+use crate::core::{AstQueryContext, with_ast_query_for_file};
 
 /// Check whether a character can start an identifier.
 pub(crate) fn is_identifier_start(ch: char) -> bool {
@@ -70,7 +70,7 @@ pub(crate) fn token_span_at_offset(
 }
 
 /// Find the token span that contains the offset.
-fn token_span_at_offset_in_ast(ast: AstQuery<'_>, offset: u32) -> Option<ast::TokenSpan> {
+fn token_span_at_offset_in_ast(ast: AstQueryContext<'_>, offset: u32) -> Option<ast::TokenSpan> {
     // track the last token starting before the offset
     let mut candidate = None;
 

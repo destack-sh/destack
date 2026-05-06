@@ -449,6 +449,65 @@ impl ProviderContext for TestProviderContext {
         Ok(version)
     }
 
+    /// Require many artifacts and return their exact versions when ready.
+    fn require_all(&self, keys: &[ArtifactKey]) -> Result<Vec<ArtifactVersion>, ProviderError> {
+        let mut blocked = Vec::new();
+        let mut versions = Vec::with_capacity(keys.len());
+
+        // scan the full dependency batch
+        for key in keys {
+            // reject direct cycles
+            if *key == self.artifact_key {
+                return Err(ProviderError::RequirementFailed { key: *key });
+            }
+
+            // read the version bound to this revision
+            let Some(version) = self
+                .repository
+                .artifact_version(self.revision, key)
+                .expect("linter test provider should read artifact version")
+            else {
+                blocked.push(*key);
+                continue;
+            };
+
+            // inspect the required artifact outcome
+            match self.repository.artifact_store().outcome(&version) {
+                Some(ArtifactOutcome::Ok) => {
+                    let mut dependencies = self.dependencies.lock();
+                    let dependency = ArtifactDependency::artifact(version);
+                    if !dependencies.iter().any(|existing| *existing == dependency) {
+                        dependencies.push(dependency);
+                    }
+
+                    versions.push(version);
+                }
+                Some(ArtifactOutcome::Failed(_)) => {
+                    let mut dependencies = self.dependencies.lock();
+                    let dependency = ArtifactDependency::artifact(version);
+                    if !dependencies.iter().any(|existing| *existing == dependency) {
+                        dependencies.push(dependency);
+                    }
+
+                    return Err(ProviderError::RequirementFailed { key: *key });
+                }
+                None => {
+                    blocked.push(*key);
+                }
+            }
+        }
+
+        // return the full blocked set together
+        if !blocked.is_empty() {
+            blocked.sort();
+            blocked.dedup();
+
+            return Err(ProviderError::blocked_many(blocked));
+        }
+
+        Ok(versions)
+    }
+
     /// Record one exact dependency read by this attempt.
     fn track(&self, dependency: ArtifactDependency) {
         let mut dependencies = self.dependencies.lock();

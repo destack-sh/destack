@@ -8,12 +8,13 @@ use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::{get_node_tree_main_span, sort_and_dedup_spans};
-use crate::core::{RepositoryQueryIndexExt, query_context, with_query_context_for_file};
+use crate::core::{
+    NominalRelation, nominal_relations_for_target, query_context, with_query_context_for_file,
+};
 use crate::dir::{
     find_symbol_at_offset, get_canonical_symbol, get_symbol_definition_span,
     resolve_nominal_symbol_from_type_expression,
 };
-use destack_workspace::NominalRelationKind;
 
 /// Result of a goto implementation query.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -137,13 +138,13 @@ pub fn goto_implementation(
 
     // match cached direct edges against the target symbol set
     for target_symbol in target_symbols {
-        let entries = repository.nominal_index_entries_for_target(revision, target_symbol);
+        let entries = nominal_relations_for_target(repository, revision, target_symbol);
 
         for entry in entries {
             let matches = if is_interface {
-                entry.relation == NominalRelationKind::Implements
+                entry.relation == NominalRelation::Implements
             } else {
-                entry.relation == NominalRelationKind::Extends
+                entry.relation == NominalRelation::Extends
             };
 
             if matches

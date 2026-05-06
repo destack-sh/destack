@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_source::Span;
 
-use crate::core::AstQuery;
+use crate::core::AstQueryContext;
 
 /// Check whether a token type is trivia.
 pub(crate) fn is_trivia_token(token: ast::TokenType) -> bool {
@@ -18,7 +18,10 @@ pub(crate) fn is_trivia_token(token: ast::TokenType) -> bool {
 }
 
 /// Find the previous significant token before or at the cursor.
-pub(crate) fn previous_significant_token(ast: AstQuery<'_>, offset: u32) -> Option<ast::TokenSpan> {
+pub(crate) fn previous_significant_token(
+    ast: AstQueryContext<'_>,
+    offset: u32,
+) -> Option<ast::TokenSpan> {
     let mut candidate = None;
 
     // scan tokens in order for the latest significant token before the offset
@@ -49,7 +52,10 @@ pub(crate) fn previous_significant_token(ast: AstQuery<'_>, offset: u32) -> Opti
 }
 
 /// Find the next significant token after or at the cursor.
-pub(crate) fn next_significant_token(ast: AstQuery<'_>, offset: u32) -> Option<ast::TokenSpan> {
+pub(crate) fn next_significant_token(
+    ast: AstQueryContext<'_>,
+    offset: u32,
+) -> Option<ast::TokenSpan> {
     for token in ast.tokens() {
         // skip tokens from other files
         if token.span.file != ast.file_id() {
@@ -72,7 +78,7 @@ pub(crate) fn next_significant_token(ast: AstQuery<'_>, offset: u32) -> Option<a
 
 /// Find the significant token span that owns one cursor offset in a query context.
 pub(crate) fn token_span_at_cursor_offset(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     offset: u32,
 ) -> Option<ast::TokenSpan> {
     let mut candidate = None;
@@ -119,7 +125,7 @@ pub(crate) fn token_text(source: &str, span: Span) -> Option<&str> {
 
 /// Resolve the member access dot before the given offset when present.
 pub(crate) fn member_access_dot_before_offset(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     offset: u32,
 ) -> Option<ast::TokenSpan> {
     // look at the nearest significant token before the cursor
@@ -146,7 +152,7 @@ pub(crate) fn member_access_dot_before_offset(
 
 /// Resolve the receiver token before one member access dot.
 pub(crate) fn receiver_token_before_member_access_dot(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     dot: ast::TokenSpan,
 ) -> Option<ast::TokenSpan> {
     // the receiver token sits immediately before the dot
@@ -162,7 +168,7 @@ pub(crate) fn receiver_token_before_member_access_dot(
 
 /// Check whether one token range contains a statement boundary.
 pub(crate) fn tokens_between_offsets_include_statement_boundary(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     start: u32,
     end: u32,
 ) -> bool {

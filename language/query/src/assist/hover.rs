@@ -129,7 +129,7 @@ pub fn hover(
         canonical_id,
         repository,
         revision,
-        &repository.strings,
+        ctx.dir().strings(),
         profile,
     ) {
         // resolve the hover location
@@ -150,7 +150,7 @@ pub fn hover(
     let symbol = symbols.get_symbol(symbol_at.symbol_id.local_id);
     let name = symbol
         .name()
-        .map(|id| repository.strings.get(id).to_string());
+        .map(|id| ctx.dir().strings().get(id).to_string());
 
     // prefer declaration nodes for expression hovers
     let mut hover_node_id = symbol_at.node_id;
@@ -176,7 +176,7 @@ pub fn hover(
                 // format member hover with full signature
                 let member = dir_tree.get::<Member>(member_id);
                 format_member_hover(
-                    &repository.strings,
+                    ctx.dir().strings(),
                     repository,
                     revision,
                     member,
@@ -195,7 +195,7 @@ pub fn hover(
                 // format enum field hover
                 let field = dir_tree.get::<EnumField>(field_id);
                 format_enum_field_hover(
-                    &repository.strings,
+                    ctx.dir().strings(),
                     repository,
                     revision,
                     field,
@@ -213,7 +213,7 @@ pub fn hover(
                 // format parameter hover
                 let param = dir_tree.get::<Parameter>(param_id);
                 format_parameter_hover(
-                    &repository.strings,
+                    ctx.dir().strings(),
                     repository,
                     revision,
                     param,
@@ -234,7 +234,7 @@ pub fn hover(
                 types,
                 repository,
                 revision,
-                &repository.strings,
+                ctx.dir().strings(),
             )
         }
         _ => format_simple_signature(symbol.ty, name.as_deref()),
@@ -287,7 +287,7 @@ fn resolve_hover_type_text(
         types,
         repository,
         ctx.revision(),
-        &repository.strings,
+        ctx.dir().strings(),
     ))
 }
 

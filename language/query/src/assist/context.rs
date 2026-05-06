@@ -8,7 +8,7 @@ use crate::ast::{
     missing_declarator_value_at_cursor, offset_is_in_ast_type_side_span,
     previous_significant_token, token_span_at_cursor_offset, token_text,
 };
-use crate::core::{AstQuery, DirQuery, query_context};
+use crate::core::{AstQueryContext, DirQueryContext, query_context};
 use crate::dir::{
     ExpectedParameterHint, ObjectLiteralCursorContext, ScopeAtOffset,
     is_inside_object_literal_expression, object_literal_cursor_context, scope_at_offset,
@@ -174,7 +174,7 @@ fn context_from_expression_slot_position(
 
 /// Detect whether completion should stay suppressed at the cursor.
 fn is_suppressed_completion_position(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     source: &str,
     token: &Option<CursorToken>,
     offset: u32,
@@ -303,7 +303,11 @@ pub(crate) fn completion_input_at_offset(
 }
 
 /// Detect partial identifier at the cursor position.
-fn detect_partial_identifier(ast: AstQuery<'_>, source: &str, offset: u32) -> Option<CursorToken> {
+fn detect_partial_identifier(
+    ast: AstQueryContext<'_>,
+    source: &str,
+    offset: u32,
+) -> Option<CursorToken> {
     // find the token under the cursor or immediately before it
     let token = match token_span_at_cursor_offset(ast, offset) {
         Some(token) if token.token.ty == ast::TokenType::Identifier => token,
@@ -379,8 +383,8 @@ fn is_identifier_character(character: char) -> bool {
 
 /// Detect whether the cursor is at a statement position.
 fn detect_statement_position(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     source: &str,
     offset: u32,
 ) -> Option<CompletionContext> {
@@ -424,8 +428,8 @@ fn statement_context_from_scope(scope: Option<ScopeAtOffset>) -> CompletionConte
 
 /// Resolve a statement position inside a block expression.
 fn statement_position_from_block(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     offset: u32,
 ) -> Option<ScopeAtOffset> {
     // resolve enclosing spans at the cursor boundary
@@ -452,7 +456,7 @@ fn statement_position_from_block(
 // ================================================================================
 
 /// Detect whether the cursor is in a type position.
-fn detect_type_position(ast: AstQuery<'_>, source: &str, offset: u32) -> bool {
+fn detect_type_position(ast: AstQueryContext<'_>, source: &str, offset: u32) -> bool {
     // resolve enclosing spans from innermost to outermost
     let enclosing = enclosing_spans_with_previous(ast, offset);
 
@@ -489,7 +493,7 @@ fn detect_type_position(ast: AstQuery<'_>, source: &str, offset: u32) -> bool {
 }
 
 /// Check whether the preceding token still suggests a type position.
-fn token_suggests_type_position(ast: AstQuery<'_>, source: &str, offset: u32) -> bool {
+fn token_suggests_type_position(ast: AstQueryContext<'_>, source: &str, offset: u32) -> bool {
     let Some(token) = previous_significant_token(ast, offset) else {
         return false;
     };
@@ -512,7 +516,7 @@ fn token_suggests_type_position(ast: AstQuery<'_>, source: &str, offset: u32) ->
 
 /// Check whether the cursor is inside a type declaration value expression.
 fn is_type_declaration_value_position(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     enclosing: &[EnclosingSpan],
     offset: u32,
 ) -> bool {

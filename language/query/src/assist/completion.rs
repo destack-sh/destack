@@ -4,20 +4,18 @@ use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use destack_artifact::Loader;
 use destack_ast as ast;
 use destack_ast::Keyword;
 use destack_dir::{self as dir, FloatType, IntType, SymbolSpace, SymbolType};
-use destack_source::{Edit, File, FileId, FileType, ModuleId, PackageId, Uri};
+use destack_source::{Edit, File, FileId, FileType, Loader, ModuleId, PackageId, Uri};
 use destack_workspace::{Module, Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use super::{CompletionContext, CompletionInput, CursorToken, completion_input_at_offset};
 use crate::ast::{current_initializer_binding_names, get_module_by_file_id};
-use crate::core::relevance::MatchKind;
 use crate::core::{
-    ImportSortKey, MatchQuality, import_relevance, import_sort_key, import_sort_text,
-    match_quality, query_context,
+    ImportSortKey, MatchKind, MatchQuality, import_sort_key, import_sort_text, match_quality,
+    query_context, query_context_for_profile, repository_import_relevance,
 };
 use crate::dir::{
     ImportEditMode, MemberInfo, MemberKind, MemberName, build_import_display_path,
@@ -657,7 +655,7 @@ impl<'a> CompletionBuilder<'a> {
             types,
             self.repository,
             self.revision,
-            &self.repository.strings,
+            ctx.dir().strings(),
         ))
     }
 
@@ -718,17 +716,19 @@ impl<'a> CompletionBuilder<'a> {
                 completion =
                     completion.with_type_symbols(self.type_symbols_for_type(types, member_type_id));
 
-                let type_text = format_local_type(
-                    member_type_id,
-                    types,
-                    self.repository,
-                    self.revision,
-                    &self.repository.strings,
-                );
-                completion = completion.with_detail(type_text);
+                if let Some(ctx) = self.current_query_context() {
+                    let type_text = format_local_type(
+                        member_type_id,
+                        types,
+                        self.repository,
+                        self.revision,
+                        ctx.dir().strings(),
+                    );
+                    completion = completion.with_detail(type_text);
+                }
             }
         }
-        // otherwise fall back to backing-symbol facts
+        // otherwise fall back to the backing symbol
         else if let Some(symbol_id) = member.symbol_id {
             if let Some(value_shape) = self.value_shape_for_symbol(symbol_id) {
                 completion = completion.with_value_shape(value_shape);
@@ -907,13 +907,15 @@ impl<'a> CompletionBuilder<'a> {
                     .with_sort_order(5)
                     .as_contextual();
 
-                if let Some(member_type_id) = member.type_id {
+                if let Some(member_type_id) = member.type_id
+                    && let Some(ctx) = self.current_query_context()
+                {
                     let type_text = format_local_type(
                         member_type_id,
                         types,
                         self.repository,
                         self.revision,
-                        &self.repository.strings,
+                        ctx.dir().strings(),
                     );
                     completion = completion.with_detail(type_text);
                 }
@@ -936,7 +938,7 @@ impl<'a> CompletionBuilder<'a> {
                     continue;
                 };
 
-                let name = self.repository.strings.get(name_id).to_string();
+                let name = ctx.dir().strings().get(name_id).to_string();
                 if excluded_labels.contains(&name) {
                     continue;
                 }
@@ -992,13 +994,15 @@ impl<'a> CompletionBuilder<'a> {
                 return symbol.ty;
             }
 
-            let Some(dir) = self
-                .repository
-                .dir_base(self.revision, canonical_id.module_id)
-            else {
+            let Some(ctx) = query_context_for_profile(
+                self.repository,
+                self.revision,
+                canonical_id.module_id,
+                ctx.profile_id(),
+            ) else {
                 return symbol.ty;
             };
-            let canonical_symbol = dir.symbols.get_symbol(canonical_id.local_id);
+            let canonical_symbol = ctx.dir().symbols().get_symbol(canonical_id.local_id);
             canonical_symbol.ty
         };
 
@@ -1011,7 +1015,7 @@ impl<'a> CompletionBuilder<'a> {
                 continue;
             };
 
-            let name = self.repository.strings.get(name_id).to_string();
+            let name = ctx.dir().strings().get(name_id).to_string();
             if !seen_names.insert(name.clone()) {
                 continue;
             }
@@ -1044,7 +1048,7 @@ impl<'a> CompletionBuilder<'a> {
                 continue;
             };
 
-            let name = self.repository.strings.get(name_id).to_string();
+            let name = ctx.dir().strings().get(name_id).to_string();
             if !seen_names.insert(name.clone()) {
                 continue;
             }
@@ -1124,7 +1128,7 @@ impl<'a> CompletionBuilder<'a> {
                     continue;
                 };
 
-                let name = self.repository.strings.get(name_id).to_string();
+                let name = ctx.dir().strings().get(name_id).to_string();
                 if excluded_labels.contains(&name) {
                     continue;
                 }
@@ -1211,7 +1215,7 @@ impl<'a> CompletionBuilder<'a> {
                     continue;
                 };
 
-                let name = self.repository.strings.get(name_id).to_string();
+                let name = ctx.dir().strings().get(name_id).to_string();
                 if excluded_labels.contains(&name) {
                     continue;
                 }
@@ -1257,7 +1261,7 @@ impl<'a> CompletionBuilder<'a> {
                 let Some(name_id) = symbol.name() else {
                     continue;
                 };
-                let name = self.repository.strings.get(name_id).to_string();
+                let name = ctx.dir().strings().get(name_id).to_string();
                 if excluded_labels.contains(&name) {
                     continue;
                 }
@@ -1337,16 +1341,14 @@ impl<'a> CompletionBuilder<'a> {
             return Vec::new();
         }
 
-        let (current_module_id, current_package_id, current_language_type) =
-            if let Some(module) = self.current_module() {
-                (
-                    Some(module.id),
-                    Some(module.package_id),
-                    module.language_type,
-                )
-            } else {
-                (None, None, Default::default())
-            };
+        let Some(module) = self.current_module() else {
+            return Vec::new();
+        };
+        let Some(current_language_type) = module.language_type else {
+            return Vec::new();
+        };
+        let current_module_id = Some(module.id);
+        let current_package_id = Some(module.package_id);
 
         let mut results = Vec::new();
         let mut seen: HashSet<(ModuleId, dir::LocalSymbolId)> = HashSet::new();
@@ -1407,7 +1409,7 @@ impl<'a> CompletionBuilder<'a> {
                 continue;
             };
 
-            names.insert(self.repository.strings.get(name_id).to_string());
+            names.insert(ctx.dir().strings().get(name_id).to_string());
         }
 
         Some(names)
@@ -1442,7 +1444,7 @@ impl<'a> CompletionBuilder<'a> {
             return;
         }
 
-        let Some(relevance) = import_relevance(
+        let Some(relevance) = repository_import_relevance(
             self.repository,
             self.revision,
             self.file_id,
@@ -1513,7 +1515,7 @@ impl<'a> CompletionBuilder<'a> {
                 continue;
             }
 
-            let name = self.repository.strings.get(string_id).to_string();
+            let name = ctx.dir().strings().get(string_id).to_string();
             if existing_names.contains(name.as_str()) {
                 continue;
             }
@@ -1915,7 +1917,7 @@ fn complete_relative_path(
                         .as_contextual(),
                 )
             } else if let Some(file_type) = FileType::from_path(entry) {
-                let loader = Loader::from_file_type(file_type);
+                let loader = Loader::from(file_type);
                 if !loader.is_code() {
                     return None;
                 }
@@ -1942,11 +1944,7 @@ fn complete_package_names(
     let mut results = Vec::new();
     let mut seen_packages = HashSet::new();
 
-    for module_id in repository
-        .workspace_module_ids(revision)
-        .ok()
-        .unwrap_or_default()
-    {
+    for module_id in repository.module_ids(revision).ok().unwrap_or_default() {
         let Some(module) = repository.module(revision, module_id).ok().flatten() else {
             continue;
         };

@@ -4,6 +4,7 @@ use std::thread;
 
 use destack_compiler::Compiler;
 use destack_linter::Linter;
+use destack_query::Query;
 use destack_source::ModuleId;
 use destack_workspace::{Ref, Repository, Revision};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
@@ -56,6 +57,7 @@ impl Session {
         revision: Revision,
         compiler: Arc<Compiler>,
         linter: Arc<Linter>,
+        query: Arc<Query>,
         worker_limit: usize,
         event_handler: Option<SessionEventHandler>,
     ) -> Result<Self, SessionError> {
@@ -71,6 +73,7 @@ impl Session {
             head,
             compiler,
             linter,
+            query,
             worker_limit,
             event_handler,
         )
@@ -84,6 +87,7 @@ impl Session {
         head: Ref,
         compiler: Arc<Compiler>,
         linter: Arc<Linter>,
+        query: Arc<Query>,
         worker_limit: usize,
         event_handler: Option<SessionEventHandler>,
     ) -> Result<Self, SessionError> {
@@ -91,6 +95,7 @@ impl Session {
             repository,
             compiler,
             linter,
+            query,
             event_handler,
         ));
 
@@ -149,6 +154,11 @@ impl Session {
     /// Return the linter for this session.
     pub fn linter(&self) -> Arc<Linter> {
         self.state.linter()
+    }
+
+    /// Return the query provider for this session.
+    pub fn query(&self) -> Arc<Query> {
+        self.state.query()
     }
 
     /// Set one ref to an existing revision.

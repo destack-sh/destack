@@ -171,7 +171,7 @@ fn document_links_with_dir(
                     let Some(file) = repository.file(revision, ctx.file_id()).ok().flatten() else {
                         continue;
                     };
-                    let import_path = repository.strings.get(*target).to_string();
+                    let import_path = ctx.dir().strings().get(*target).to_string();
                     let span = string_literal_span_in_enclosing(
                         &file,
                         ctx.ast().tokens(),

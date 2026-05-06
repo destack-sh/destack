@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
+use destack_artifact::ArtifactKey;
 use destack_query as query;
-use destack_query::QueryArtifact;
+use destack_query::QueryScope;
 use destack_session::{Session, SessionError};
 use destack_source::{File, FileId, ModuleId, ProfileId, Span, Uri};
 use destack_workspace::{Repository, Revision, RevisionPin};
@@ -65,7 +66,7 @@ impl LanguageService {
         Ok(file)
     }
 
-    /// Prepare the default query artifact for one file path.
+    /// Prepare the default query scope for one file path.
     pub fn prepare_query(&self, path: &Path) -> Result<(), LanguageServiceError> {
         let session = self.edit_session(path)?;
         let module_id = session
@@ -79,16 +80,16 @@ impl LanguageService {
                 .map_err(|error| LanguageServiceError::QueryNotReady {
                     detail: format!("query preparation failed for {}: {error}", path.display()),
                 })?;
-        let query_artifact = QueryArtifact::CheckedDir {
+        let query_scope = QueryScope::Module {
             uri: Uri::from_file_path(path),
         };
-        let artifact_key = query_artifact.key(module_id, profile_id);
+        let artifact_keys = file_query_index_keys(&query_scope, module_id, profile_id);
 
-        session
-            .provide(revision, &[artifact_key])
-            .map_err(|error| LanguageServiceError::QueryNotReady {
+        session.provide(revision, &artifact_keys).map_err(|error| {
+            LanguageServiceError::QueryNotReady {
                 detail: format!("query preparation failed for {}: {error}", path.display()),
-            })?;
+            }
+        })?;
 
         Ok(())
     }
@@ -299,9 +300,9 @@ impl LanguageService {
             });
         }
 
-        // materialize requested query artifacts through the root session
+        // materialize requested query indexes through the root session
         let session = self.session(root)?;
-        self.provide_query_artifact(session.as_ref(), root, &request)?;
+        self.provide_query_scope(session.as_ref(), root, &request)?;
 
         self.read_session(root, |_session, revision_pin| {
             // dispatch pure read query execution
@@ -345,6 +346,9 @@ impl LanguageService {
         // resolve the owning session and current revision
         let session = self.session(root)?;
 
+        // materialize requested query indexes before taking the mutation lock
+        self.provide_query_scope(session.as_ref(), root, &request)?;
+
         // serialize write queries with all other root mutations
         let _mutation_guard = session.enter_mutation();
         let current_revision = session.revision(session.head())?;
@@ -379,8 +383,8 @@ impl LanguageService {
         bound_file_id: Option<FileId>,
         request: query::QueryRequest,
     ) -> Result<query::QueryResponse, LanguageServiceError> {
-        // use the request-owned artifact decision for all file-backed branches
-        let request_artifact = request.artifact();
+        // use the request-owned scope decision for all file-backed branches
+        let request_scope = request.scope();
 
         // dispatch by query request variant
         let response = match request {
@@ -390,7 +394,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let mut items = match file_id {
                     Some(file_id) => query::completions(
@@ -418,7 +422,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let hover = match file_id {
                     Some(file_id) => query::hover(repository, revision, file_id, params.offset),
@@ -433,7 +437,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let help = match file_id {
                     Some(file_id) => {
@@ -450,7 +454,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let hints = match file_id {
                     Some(file_id) => {
@@ -468,7 +472,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let lenses = match file_id {
                     Some(file_id) => query::code_lenses(repository, revision, file_id),
@@ -487,7 +491,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let ranges = match file_id {
                     Some(file_id) => query::folding_ranges(repository, revision, file_id),
@@ -502,7 +506,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let tokens = match file_id {
                     Some(file_id) => query::semantic_tokens(repository, revision, file_id),
@@ -517,7 +521,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let tokens = match file_id {
                     Some(file_id) => {
@@ -535,7 +539,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let symbols = match file_id {
                     Some(file_id) => query::document_symbols(repository, revision, file_id),
@@ -559,7 +563,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let links = match file_id {
                     Some(file_id) => query::document_links(repository, revision, file_id),
@@ -580,7 +584,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let highlights = match file_id {
                     Some(file_id) => {
@@ -599,7 +603,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let ranges = match file_id {
                     Some(file_id) => {
@@ -616,7 +620,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let result = match file_id {
                     Some(file_id) => {
@@ -633,7 +637,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let result = match file_id {
                     Some(file_id) => {
@@ -650,7 +654,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let result = match file_id {
                     Some(file_id) => {
@@ -669,7 +673,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let result = match file_id {
                     Some(file_id) => {
@@ -688,7 +692,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let result = match file_id {
                     Some(file_id) => query::find_references(
@@ -709,7 +713,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let item = match file_id {
                     Some(file_id) => {
@@ -740,7 +744,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let item = match file_id {
                     Some(file_id) => {
@@ -771,7 +775,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let result = match file_id {
                     Some(file_id) => {
@@ -788,7 +792,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let result = match file_id {
                     Some(file_id) => query::rename(
@@ -813,7 +817,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let result = match file_id {
                     Some(file_id) => {
@@ -837,7 +841,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let result = match file_id {
                     Some(file_id) => {
@@ -861,7 +865,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let result = match file_id {
                     Some(file_id) => {
@@ -878,7 +882,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let result = match file_id {
                     Some(file_id) => query::change_signature(
@@ -900,7 +904,7 @@ impl LanguageService {
                     revision,
                     &params.uri,
                     bound_file_id,
-                    request_artifact.as_ref(),
+                    request_scope.as_ref(),
                 )?;
                 let actions = match file_id {
                     Some(file_id) => {
@@ -934,7 +938,7 @@ impl LanguageService {
         revision: Revision,
         uri: &Uri,
         bound_file_id: Option<FileId>,
-        artifact: Option<&QueryArtifact>,
+        scope: Option<&QueryScope>,
     ) -> Result<Option<FileId>, LanguageServiceError> {
         // resolve the file identity from the bound file or query URI
         let file_id = match bound_file_id {
@@ -945,10 +949,10 @@ impl LanguageService {
             return Ok(None);
         };
 
-        // assert the query artifact selected by the request
-        if let Some(artifact) = artifact {
+        // assert the query scope selected by the request
+        if let Some(scope) = scope {
             return self
-                .require_query_artifact(repository, revision, file_id, artifact)
+                .require_query_scope(repository, revision, file_id, scope)
                 .map(Some);
         }
 
@@ -985,13 +989,13 @@ impl LanguageService {
         Ok(repository.file(revision, file_id)?.map(|_| file_id))
     }
 
-    /// Require one query artifact to be ready for a file.
-    fn require_query_artifact(
+    /// Require one query scope to be ready for a file.
+    fn require_query_scope(
         &self,
         repository: &Repository,
         revision: Revision,
         file_id: FileId,
-        artifact: &QueryArtifact,
+        scope: &QueryScope,
     ) -> Result<FileId, LanguageServiceError> {
         // query files must belong to a module
         let Some(module_id) = repository
@@ -1010,33 +1014,59 @@ impl LanguageService {
                     detail: format!("missing query profile for module {module_id:?}: {error}"),
                 }
             })?;
-        let artifact_key = artifact.key(module_id, profile_id);
+        let artifact_keys = file_query_index_keys(scope, module_id, profile_id);
 
-        // require preparation to have bound the query artifact
-        if repository
-            .artifact_version(revision, &artifact_key)?
-            .is_some()
-        {
-            return Ok(file_id);
+        // require preparation to have bound the query indexes
+        for artifact_key in &artifact_keys {
+            if repository
+                .artifact_version(revision, artifact_key)?
+                .is_none()
+            {
+                return Err(LanguageServiceError::QueryNotReady {
+                    detail: format!("missing query index {artifact_key:?}"),
+                });
+            }
         }
 
-        Err(LanguageServiceError::QueryNotReady {
-            detail: format!("missing query artifact {artifact_key:?}"),
-        })
+        Ok(file_id)
     }
 
-    /// Provide the artifact required by one query.
-    fn provide_query_artifact(
+    /// Provide the scope required by one query.
+    fn provide_query_scope(
         &self,
         session: &Session,
         root: &Path,
         request: &query::QueryRequest,
     ) -> Result<(), LanguageServiceError> {
-        // skip queries that do not need a file artifact
-        let Some(artifact) = request.artifact() else {
+        // skip queries that do not need query indexes
+        let Some(scope) = request.scope() else {
             return Ok(());
         };
-        let Some(path) = artifact.uri().to_path_buf() else {
+
+        // workspace scopes are rooted in the current session revision
+        let Some(uri) = scope.uri() else {
+            let revision = session.revision(session.head())?;
+            let mut artifact_keys = Vec::new();
+
+            // one workspace index per real profile
+            for profile_id in session.repository().profile_ids(revision)? {
+                artifact_keys.push(ArtifactKey::workspace_query_index(profile_id));
+            }
+
+            if artifact_keys.is_empty() {
+                return Ok(());
+            }
+
+            // provide requested workspace indexes
+            session.provide(revision, &artifact_keys).map_err(|error| {
+                LanguageServiceError::QueryNotReady {
+                    detail: format!("query preparation failed: {error}"),
+                }
+            })?;
+
+            return Ok(());
+        };
+        let Some(path) = uri.to_path_buf() else {
             return Ok(());
         };
 
@@ -1052,21 +1082,21 @@ impl LanguageService {
                 detail: format!("query preparation failed for {}: {error}", path.display()),
             })?;
 
-        // resolve the artifact key requested by this query
+        // resolve the artifact keys requested by this query
         let revision = session.revision(session.head())?;
         let profile_id =
             default_profile_id_for_module(session.repository().as_ref(), revision, module_id)
                 .map_err(|error| LanguageServiceError::QueryNotReady {
                     detail: format!("query preparation failed for {}: {error}", path.display()),
                 })?;
-        let artifact_key = artifact.key(module_id, profile_id);
+        let artifact_keys = file_query_index_keys(&scope, module_id, profile_id);
 
-        // provide exactly the requested query artifact
-        session
-            .provide(revision, &[artifact_key])
-            .map_err(|error| LanguageServiceError::QueryNotReady {
+        // provide exactly the requested query indexes
+        session.provide(revision, &artifact_keys).map_err(|error| {
+            LanguageServiceError::QueryNotReady {
                 detail: format!("query preparation failed for {}: {error}", path.display()),
-            })?;
+            }
+        })?;
 
         Ok(())
     }
@@ -1089,4 +1119,24 @@ fn default_profile_id_for_module(
     let profile = repository.module_profile(revision, module_id)?;
 
     Ok(profile.id())
+}
+
+/// Return the query index keys needed for one file-backed query.
+fn file_query_index_keys(
+    scope: &QueryScope,
+    module_id: ModuleId,
+    profile_id: ProfileId,
+) -> Vec<ArtifactKey> {
+    match scope {
+        QueryScope::Module { .. } => {
+            vec![ArtifactKey::module_query_index(module_id, profile_id)]
+        }
+        QueryScope::ModuleAndWorkspace { .. } => {
+            vec![
+                ArtifactKey::module_query_index(module_id, profile_id),
+                ArtifactKey::workspace_query_index(profile_id),
+            ]
+        }
+        QueryScope::Workspace => Vec::new(),
+    }
 }

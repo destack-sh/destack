@@ -5,6 +5,8 @@ use destack_dir as dir;
 use destack_source::ProfileId;
 use destack_workspace::{Module, Package, Repository, Revision};
 
+use crate::core::{query_context, query_context_for_profile};
+
 const DEFAULT_INT_DISPLAY: &str = "int32";
 const DEFAULT_FLOAT_DISPLAY: &str = "float64";
 const DEFAULT_BOOLEAN_DISPLAY: &str = "boolean";
@@ -20,14 +22,16 @@ pub fn format_global_type(
     strings: &StringPool,
     profile: ProfileId,
 ) -> String {
-    let Some(dir) = repository.dir_analyzed(revision, ty_id.module_id, profile) else {
+    let Some(ctx) = query_context_for_profile(repository, revision, ty_id.module_id, profile)
+    else {
         return "<missing>".to_string();
     };
-    let Some(ty) = dir.types.get_type_maybe(ty_id.local_id) else {
+    let types = ctx.dir().types();
+    let Some(ty) = types.get_type_maybe(ty_id.local_id) else {
         return "<missing>".to_string();
     };
 
-    format_type(ty, &dir.types, repository, revision, strings)
+    format_type(ty, types, repository, revision, strings)
 }
 
 /// Format a type by its id.
@@ -568,15 +572,16 @@ pub fn format_symbol_name(
     symbol_id: dir::GlobalSymbolId,
     repository: &Repository,
     revision: Revision,
-    strings: &StringPool,
+    _strings: &StringPool,
 ) -> String {
-    let Some(dir) = repository.dir_base(revision, symbol_id.module_id) else {
+    let Some(ctx) = query_context(repository, revision, symbol_id.module_id) else {
         return "<unknown>".to_string();
     };
-    let symbols = &dir.symbols;
+    let dir = ctx.dir();
+    let symbols = dir.symbols();
     let symbol = symbols.get_symbol(symbol_id.into_local());
     if let Some(name_id) = symbol.name() {
-        strings.get(name_id).to_string()
+        dir.strings().get(name_id).to_string()
     } else {
         "<anonymous>".to_string()
     }
@@ -587,15 +592,16 @@ pub fn format_symbol_path(
     symbol_id: dir::GlobalSymbolId,
     repository: &Repository,
     revision: Revision,
-    strings: &StringPool,
+    _strings: &StringPool,
 ) -> Option<String> {
     // load the module symbols
-    let dir = repository.dir_base(revision, symbol_id.module_id)?;
-    let symbols = &dir.symbols;
+    let ctx = query_context(repository, revision, symbol_id.module_id)?;
+    let dir = ctx.dir();
+    let symbols = dir.symbols();
 
     // seed with the symbol name
     let symbol = symbols.get_symbol(symbol_id.into_local());
-    let symbol_name = static_key_segment(symbol.key, strings)?;
+    let symbol_name = static_key_segment(symbol.key, dir.strings())?;
     let mut segments = vec![symbol_name];
 
     // walk owner scopes for namespaces and types
@@ -613,7 +619,7 @@ pub fn format_symbol_path(
             && owner_id != symbol_id.into_local()
         {
             let owner = symbols.get_symbol(owner_id);
-            let owner_name = static_key_segment(owner.key, strings)?;
+            let owner_name = static_key_segment(owner.key, dir.strings())?;
             segments.push(owner_name);
         }
 

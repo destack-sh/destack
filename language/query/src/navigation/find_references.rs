@@ -3,7 +3,7 @@ use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::sort_and_dedup_spans;
-use crate::core::{RepositoryQueryIndexExt, query_context};
+use crate::core::{modules_referencing_symbol, query_context};
 use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
     get_canonical_symbol, get_symbol_definition_span, get_symbol_local_definition_span,
@@ -142,7 +142,7 @@ fn find_references_to_symbol(
     };
 
     // collect references across candidate modules only
-    for module_id in repository.reference_index_modules_for_target(revision, canonical_id) {
+    for module_id in modules_referencing_symbol(repository, revision, canonical_id) {
         let Some(ctx) = query_context(repository, revision, module_id) else {
             continue;
         };

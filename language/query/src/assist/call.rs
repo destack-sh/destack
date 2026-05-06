@@ -6,7 +6,7 @@ use crate::ast::{
     enclosing_spans_at_cursor, previous_significant_token, sorted_enclosing_spans,
     span_for_dir_node, span_owns_cursor,
 };
-use crate::core::{AstQuery, DirQuery};
+use crate::core::{AstQueryContext, DirQueryContext};
 use crate::dir::{
     ExpectedParameterHint, ScopeAtOffset, block_scope_at_offset,
     expected_parameter_hint_for_symbol, expression_scope_at_offset, resolve_call_target,
@@ -15,7 +15,7 @@ use crate::dir::{
 
 use super::CompletionContext;
 
-/// The shared call-shape facts for one DIR expression.
+/// The shared call shape for one DIR expression.
 struct DirCallExpression<'a> {
     /// The callee expression on the left side.
     left: dir::LocalNodeId<dir::Expression>,
@@ -25,8 +25,8 @@ struct DirCallExpression<'a> {
 
 /// Detect whether the cursor is in a new expression context.
 pub(super) fn detect_new_expression_context(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     offset: u32,
 ) -> Option<CompletionContext> {
     // resolve enclosing spans around the cursor boundary
@@ -45,8 +45,8 @@ pub(super) fn detect_new_expression_context(
 /// Detect whether the cursor is in a call argument context.
 pub(super) fn detect_call_argument_context(
     repository: &Repository,
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     offset: u32,
 ) -> Option<CompletionContext> {
     // resolve enclosing spans at the cursor
@@ -91,8 +91,8 @@ pub(super) fn detect_call_argument_context(
 
 /// Build a new expression context from a single enclosing span.
 fn new_expression_context_for_span(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     enc: &EnclosingSpan,
     offset: u32,
 ) -> Option<CompletionContext> {
@@ -139,8 +139,8 @@ fn unwrap_statement_ast_expression(
 /// Build a call argument context from a single enclosing span.
 fn call_argument_context_for_span(
     repository: &Repository,
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     dir_tree: &dir::Tree,
     enc: &EnclosingSpan,
     offset: u32,
@@ -168,8 +168,8 @@ fn call_argument_context_for_span(
 /// Build a call argument context from a separator position inside a call.
 fn call_argument_context_after_separator(
     repository: &Repository,
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     dir_tree: &dir::Tree,
     offset: u32,
     separator_position: u32,
@@ -249,7 +249,7 @@ fn dir_call_expression_for_enclosing_span<'a>(
     Some((expr_id, call))
 }
 
-/// Resolve the shared call-shape facts for one DIR expression.
+/// Resolve the shared call shape for one DIR expression.
 fn dir_call_expression(expr: &dir::Expression) -> Option<DirCallExpression<'_>> {
     match expr {
         dir::Expression::Call {
@@ -267,7 +267,7 @@ fn dir_call_expression(expr: &dir::Expression) -> Option<DirCallExpression<'_>> 
 
 /// Resolve the active argument index inside one call.
 fn active_argument_index(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     dir_tree: &dir::Tree,
     arguments: &[dir::LocalNodeId<dir::Argument>],
     offset: u32,
@@ -296,7 +296,7 @@ fn active_argument_index(
 /// Resolve one expected-parameter hint for one call target.
 fn expected_parameter_hint(
     repository: &Repository,
-    dir: DirQuery<'_>,
+    dir: DirQueryContext<'_>,
     left_expression_id: dir::LocalNodeId<dir::Expression>,
     parameter_index: usize,
 ) -> Option<ExpectedParameterHint> {
@@ -307,14 +307,18 @@ fn expected_parameter_hint(
 }
 
 /// Resolve the source span for one dir node.
-fn dir_node_span(ast: AstQuery<'_>, dir_tree: &dir::Tree, node_id: dir::LocalNodeIdAny) -> Span {
+fn dir_node_span(
+    ast: AstQueryContext<'_>,
+    dir_tree: &dir::Tree,
+    node_id: dir::LocalNodeIdAny,
+) -> Span {
     let source_id = dir_tree.get_source(node_id.id);
     ast.tree().source_map.get(source_id)
 }
 
 /// Resolve the source span for one call target expression.
 fn left_expression_span(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     dir_tree: &dir::Tree,
     left: dir::LocalNodeId<dir::Expression>,
 ) -> Span {
@@ -324,8 +328,8 @@ fn left_expression_span(
 
 /// Resolve a call argument scope from a small set of nearby offsets.
 fn call_argument_scope_from_offsets(
-    ast: AstQuery<'_>,
-    dir: DirQuery<'_>,
+    ast: AstQueryContext<'_>,
+    dir: DirQueryContext<'_>,
     offsets: &[u32],
 ) -> Option<ScopeAtOffset> {
     for &offset in offsets {
@@ -359,7 +363,7 @@ fn normalize_call_argument_scope(scope: ScopeAtOffset) -> ScopeAtOffset {
 
 /// Check whether the cursor is inside a call argument list.
 fn cursor_in_argument_list(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     dir_tree: &dir::Tree,
     arguments: &[dir::LocalNodeId<dir::Argument>],
     left_span: Span,

@@ -57,7 +57,7 @@ pub enum LanguageServiceError {
     /// Repository work failed inside the service.
     Repository(RepositoryError),
     /// Session work failed inside the service.
-    Session(SessionError),
+    Session(Box<SessionError>),
     /// Filesystem work failed inside the service.
     Io {
         /// The path that failed.
@@ -116,7 +116,7 @@ impl std::fmt::Display for LanguageServiceError {
                 )
             }
             LanguageServiceError::QueryNotReady { detail } => {
-                write!(formatter, "query artifacts are not ready: {detail}")
+                write!(formatter, "query indexes are not ready: {detail}")
             }
             LanguageServiceError::Repository(error) => {
                 write!(formatter, "repository error: {error}")
@@ -157,6 +157,6 @@ impl From<RepositoryError> for LanguageServiceError {
 
 impl From<SessionError> for LanguageServiceError {
     fn from(error: SessionError) -> Self {
-        LanguageServiceError::Session(error)
+        LanguageServiceError::Session(Box::new(error))
     }
 }

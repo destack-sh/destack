@@ -7,9 +7,7 @@ use destack_source::{BatchEdit, Edit, File, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::{get_module_by_file_id, span_for_dir_node};
-use crate::core::{
-    QueryContext, RepositoryQueryIndexExt, query_context, query_context_for_module_id,
-};
+use crate::core::{QueryContext, call_candidates_for_callee, query_context};
 use crate::dir::{
     find_symbol_at_offset, get_canonical_symbol, resolve_expression_symbol,
     resolve_member_access_symbol,
@@ -107,11 +105,11 @@ pub fn change_signature(
 
     // narrow the scan to modules that actually call the target
     let mut candidate_modules = HashSet::new();
-    for entry in repository.call_index_entries_for_callee(revision, canonical_id) {
+    for entry in call_candidates_for_callee(repository, revision, canonical_id) {
         candidate_modules.insert(entry.module_id);
     }
     if let Some(owner_symbol) = constructor_owner {
-        for entry in repository.call_index_entries_for_callee(revision, owner_symbol) {
+        for entry in call_candidates_for_callee(repository, revision, owner_symbol) {
             candidate_modules.insert(entry.module_id);
         }
     }
@@ -194,7 +192,7 @@ fn constructor_owner_symbol(
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::GlobalSymbolId> {
     // resolve the module and query context
-    let ctx = query_context_for_module_id(repository, revision, symbol_id.module_id)?;
+    let ctx = query_context(repository, revision, symbol_id.module_id)?;
 
     // resolve the declaration node
     let declaration = {
@@ -285,7 +283,7 @@ fn function_parameter_span(
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<Span> {
     // resolve the module and query context
-    let ctx = query_context_for_module_id(repository, revision, symbol_id.module_id)?;
+    let ctx = query_context(repository, revision, symbol_id.module_id)?;
 
     // resolve the declaration node
     let declaration = {
@@ -339,7 +337,7 @@ fn function_parameter_spans(
     }
 
     // resolve secondary declarations (overloads)
-    let Some(ctx) = query_context_for_module_id(repository, revision, symbol_id.module_id) else {
+    let Some(ctx) = query_context(repository, revision, symbol_id.module_id) else {
         return spans;
     };
     let secondary = {
@@ -371,7 +369,7 @@ fn function_parameter_name_positions(
     symbol_id: dir::GlobalSymbolId,
 ) -> HashMap<String, usize> {
     // resolve the module and query context for the symbol
-    let Some(ctx) = query_context_for_module_id(repository, revision, symbol_id.module_id) else {
+    let Some(ctx) = query_context(repository, revision, symbol_id.module_id) else {
         return HashMap::new();
     };
 
@@ -398,7 +396,7 @@ fn function_parameter_name_positions(
         let parameter = dir_tree.get::<dir::Parameter>(*param_id);
         let name = match parameter {
             dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
-                Some(repository.strings.get(*name).to_string())
+                Some(ctx.dir().strings().get(*name).to_string())
             }
             dir::Parameter::Pattern { .. }
             | dir::Parameter::VariadicPattern { .. }
@@ -418,7 +416,7 @@ fn parameter_span_for_node(
     revision: Revision,
     node_id: dir::GlobalNodeIdAny,
 ) -> Option<Span> {
-    let ctx = query_context_for_module_id(repository, revision, node_id.module_id)?;
+    let ctx = query_context(repository, revision, node_id.module_id)?;
     let dir_tree = ctx.dir().tree();
 
     match node_id.local_id.ty {
@@ -706,12 +704,12 @@ fn build_arguments_for_call(
 
         match argument {
             dir::Argument::Named { name, .. } => {
-                let name = repository.strings.get(name.string()).to_string();
+                let name = ctx.dir().strings().get(name.string()).to_string();
                 let value_text = argument_value_text(&source_file, ctx, dir_tree, argument);
                 named_args.insert(name, value_text);
             }
             dir::Argument::Labeled { label, .. } => {
-                let name = repository.strings.get(*label).to_string();
+                let name = ctx.dir().strings().get(*label).to_string();
                 let value_text = argument_value_text(&source_file, ctx, dir_tree, argument);
                 named_args.insert(name, value_text);
             }

@@ -8,8 +8,10 @@ use serde::{Deserialize, Serialize};
 
 use super::specifier::{SpecifierPolicy, apply_rename_to_specifier, match_specifier_rename};
 use crate::ast::string_literal_span_in_enclosing;
-use crate::core::{RepositoryQueryIndexExt, with_ast_query_for_module};
-use destack_workspace::{Repository, SpecifierIndexEntry};
+use crate::core::{
+    SpecifierEntry, specifier_candidates_for_rename_paths, with_ast_query_for_module,
+};
+use destack_workspace::Repository;
 
 /// A file rename entry for refactor queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -103,8 +105,8 @@ pub fn rename_files(
 
     // collect candidate specifier entries from the workspace index
     let specifier_entries =
-        repository.specifier_index_entries_for_rename_paths(revision, rename_map.keys().cloned());
-    let mut entries_by_module: HashMap<ModuleId, Vec<SpecifierIndexEntry>> = HashMap::new();
+        specifier_candidates_for_rename_paths(repository, revision, rename_map.keys().cloned());
+    let mut entries_by_module: HashMap<ModuleId, Vec<SpecifierEntry>> = HashMap::new();
     for entry in specifier_entries {
         entries_by_module
             .entry(entry.module_id)
@@ -260,18 +262,25 @@ fn wrap_string_literal(literal: &str, specifier: &str) -> String {
 mod tests {
     use std::collections::HashMap;
     use std::path::{Path, PathBuf};
+    use std::sync::Arc;
 
     use super::super::specifier::{
         SpecifierPolicy, SpecifierRenameMatch, apply_rename_to_specifier, match_specifier_rename,
     };
-    use destack_source::PathExt;
-    use destack_workspace::{AmbientSnapshot, Repository};
+    use destack_artifact::DiskCacheStore;
+    use destack_source::{FileSystem, PathExt, PhysicalFileSystem};
+    use destack_workspace::{HostEnvironment, Repository};
 
     /// Match absolute target paths against workspace relative rename entries.
     #[test]
     fn test_match_path_rename_entry_for_absolute_target() {
-        let repository =
-            Repository::open_root(PathBuf::from("/test"), AmbientSnapshot::capture_process());
+        let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+        let repository = Repository::new(
+            PathBuf::from("/test"),
+            Arc::new(DiskCacheStore::new()),
+            file_system,
+            HostEnvironment::capture_process(),
+        );
         let workspace_root = repository.workspace_root().to_path_buf().normalize();
         let policy = SpecifierPolicy {
             fs: &**repository.file_system(),

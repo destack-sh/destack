@@ -1,33 +1,8 @@
-use std::path::PathBuf;
-
-use destack_artifact::ArtifactKey;
-use destack_source::{ModuleId, ProfileId, Uri};
-use destack_workspace::Revision;
 use serde::{Deserialize, Serialize};
 
 use super::method::QueryMethodId;
+use super::scope::QueryScope;
 use crate::{assist, navigation, refactor};
-
-/// Wire envelope for a single query request.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct QueryRequestEnvelope {
-    /// Expected workspace semantic revision for mutating requests.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub expected_revision: Option<Revision>,
-    /// Query request payload.
-    #[serde(flatten)]
-    pub request: QueryRequest,
-}
-
-/// Wire envelope for a single query response.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct QueryResponseEnvelope {
-    /// Workspace semantic revision after request execution.
-    pub revision: Revision,
-    /// Query response payload.
-    #[serde(flatten)]
-    pub response: QueryResponse,
-}
 
 /// Query execution mode used for precondition handling.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -160,14 +135,26 @@ impl QueryRequest {
         self.method_id().execution_mode()
     }
 
-    /// Return the targeted document path for this query when it has one.
-    pub fn path(&self) -> Option<PathBuf> {
+    /// Return the query index scope needed before this query can run.
+    pub fn scope(&self) -> Option<QueryScope> {
         let uri = match self {
-            Self::Completion(params) => &params.uri,
+            Self::Completion(params) => {
+                if params.include_imports {
+                    return Some(QueryScope::ModuleAndWorkspace {
+                        uri: params.uri.clone(),
+                    });
+                }
+
+                &params.uri
+            }
             Self::Hover(params) => &params.uri,
             Self::SignatureHelp(params) => &params.uri,
             Self::InlayHints(params) => &params.uri,
-            Self::CodeLenses(params) => &params.uri,
+            Self::CodeLenses(params) => {
+                return Some(QueryScope::ModuleAndWorkspace {
+                    uri: params.uri.clone(),
+                });
+            }
             Self::FoldingRanges(params) => &params.uri,
             Self::SemanticTokens(params) => &params.uri,
             Self::SemanticTokensRange(params) => &params.uri,
@@ -178,82 +165,48 @@ impl QueryRequest {
             Self::GotoDefinition(params) => &params.uri,
             Self::GotoDeclaration(params) => &params.uri,
             Self::GotoTypeDefinition(params) => &params.uri,
-            Self::GotoImplementation(params) => &params.uri,
-            Self::FindReferences(params) => &params.uri,
+            Self::GotoImplementation(params) => {
+                return Some(QueryScope::ModuleAndWorkspace {
+                    uri: params.uri.clone(),
+                });
+            }
+            Self::FindReferences(params) => {
+                return Some(QueryScope::ModuleAndWorkspace {
+                    uri: params.uri.clone(),
+                });
+            }
             Self::PrepareCallHierarchy(params) => &params.uri,
             Self::PrepareTypeHierarchy(params) => &params.uri,
             Self::PrepareRename(params) => &params.uri,
-            Self::Rename(params) => &params.uri,
+            Self::Rename(params) => {
+                return Some(QueryScope::ModuleAndWorkspace {
+                    uri: params.uri.clone(),
+                });
+            }
             Self::ExtractFunction(params) => &params.uri,
             Self::ExtractVariable(params) => &params.uri,
-            Self::Inline(params) => &params.uri,
-            Self::ChangeSignature(params) => &params.uri,
+            Self::Inline(params) => {
+                return Some(QueryScope::ModuleAndWorkspace {
+                    uri: params.uri.clone(),
+                });
+            }
+            Self::ChangeSignature(params) => {
+                return Some(QueryScope::ModuleAndWorkspace {
+                    uri: params.uri.clone(),
+                });
+            }
             Self::CodeActions(params) => &params.uri,
-            Self::ResolveCodeLens(_)
-            | Self::WorkspaceSymbols(_)
-            | Self::ResolveDocumentLink(_)
+            Self::WorkspaceSymbols(_)
             | Self::CallHierarchyIncoming(_)
             | Self::CallHierarchyOutgoing(_)
             | Self::TypeHierarchySupertypes(_)
             | Self::TypeHierarchySubtypes(_)
-            | Self::RenameFiles(_) => return None,
+            | Self::RenameFiles(_) => return Some(QueryScope::Workspace),
+            Self::ResolveCodeLens(_) | Self::ResolveDocumentLink(_) => return None,
         };
 
-        query_path_from_uri(uri)
+        Some(QueryScope::Module { uri: uri.clone() })
     }
-
-    /// Return the default prepared artifact root for this query when it needs one.
-    pub fn default_artifact_key(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> Option<ArtifactKey> {
-        let has_document_root = matches!(
-            self,
-            Self::Completion(_)
-                | Self::Hover(_)
-                | Self::SignatureHelp(_)
-                | Self::InlayHints(_)
-                | Self::CodeLenses(_)
-                | Self::FoldingRanges(_)
-                | Self::SemanticTokens(_)
-                | Self::SemanticTokensRange(_)
-                | Self::DocumentSymbols(_)
-                | Self::DocumentLinks(_)
-                | Self::DocumentHighlight(_)
-                | Self::SelectionRanges(_)
-                | Self::GotoDefinition(_)
-                | Self::GotoDeclaration(_)
-                | Self::GotoTypeDefinition(_)
-                | Self::GotoImplementation(_)
-                | Self::FindReferences(_)
-                | Self::PrepareCallHierarchy(_)
-                | Self::PrepareTypeHierarchy(_)
-                | Self::PrepareRename(_)
-                | Self::Rename(_)
-                | Self::ExtractFunction(_)
-                | Self::ExtractVariable(_)
-                | Self::Inline(_)
-                | Self::ChangeSignature(_)
-                | Self::CodeActions(_)
-        );
-
-        if !has_document_root {
-            return None;
-        }
-
-        Some(default_document_artifact_key(module_id, profile_id))
-    }
-}
-
-/// Return the default prepared artifact root for one document query.
-pub fn default_document_artifact_key(module_id: ModuleId, profile_id: ProfileId) -> ArtifactKey {
-    ArtifactKey::dir_analyzed(module_id, profile_id)
-}
-
-/// Return a filesystem path for one query uri when it points at a file.
-fn query_path_from_uri(uri: &Uri) -> Option<PathBuf> {
-    uri.to_path_buf()
 }
 
 /// Query response payload.

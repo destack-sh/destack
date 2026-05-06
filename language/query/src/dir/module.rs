@@ -1,13 +1,13 @@
 use destack_dir as dir;
 
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace, SymbolType};
-use destack_source::{ModuleId, PathExt};
-use destack_workspace::{ImportIndexEntry, Repository, Revision, SpecifierIndexEntry};
+use destack_source::{ModuleId, PathExt, ProfileId};
+use destack_workspace::{Repository, Revision};
 
 use super::module_specifier_in_expression;
 use crate::core::{
-    RepositoryQueryIndexExt, query_context, with_ast_query_for_module,
-    with_query_context_for_module,
+    ImportEntry, SpecifierEntry, query_context_for_profile, search_import_candidates,
+    with_ast_query_for_module,
 };
 
 /// Information about an exported symbol from a module.
@@ -45,18 +45,18 @@ fn module_path_for_import(module: &destack_workspace::Module) -> Option<String> 
     Some(path.to_string())
 }
 
-/// Resolve the symbol facts for an export entry.
+/// Resolve the symbol shape for an export entry.
 fn resolve_export_symbol_info(
     repository: &Repository,
     revision: Revision,
     symbol_id: GlobalSymbolId,
+    profile_id: ProfileId,
 ) -> Option<(SymbolType, SymbolSpace)> {
-    // resolve the module query context
-    with_query_context_for_module(repository, revision, symbol_id.module_id, |ctx| {
-        let symbols = ctx.dir().resolved_symbols();
-        let symbol = symbols.get_symbol(symbol_id.local_id);
-        (symbol.ty, symbol.space)
-    })
+    let ctx = query_context_for_profile(repository, revision, symbol_id.module_id, profile_id)?;
+    let symbols = ctx.dir().symbols();
+    let symbol = symbols.get_symbol(symbol_id.local_id);
+
+    Some((symbol.ty, symbol.space))
 }
 
 /// Search for importable symbols across the current workspace root.
@@ -68,7 +68,7 @@ pub(crate) fn search_importable_symbols(
 ) -> Vec<ExportedSymbol> {
     let mut exports = Vec::new();
 
-    let entries = repository.search_import_entries(revision, query, exclude_module);
+    let entries = search_import_candidates(repository, revision, query, exclude_module);
     exports.extend(entries.into_iter().map(|entry| ExportedSymbol {
         name: entry.name,
         kind: entry.kind,
@@ -81,39 +81,21 @@ pub(crate) fn search_importable_symbols(
     exports
 }
 
-/// Build import index entries for the repository root.
-pub(crate) fn build_import_index_entries(
-    repository: &Repository,
-    revision: Revision,
-) -> Vec<ImportIndexEntry> {
-    let mut entries = Vec::new();
-
-    // collect every export visible from this repository
-    for module_id in repository
-        .workspace_module_ids(revision)
-        .unwrap_or_default()
-    {
-        entries.extend(build_import_index_entries_for_module(
-            repository, revision, module_id,
-        ));
-    }
-
-    entries
-}
-
 /// Build import index entries for one module.
-pub(crate) fn build_import_index_entries_for_module(
+pub(crate) fn build_import_candidates_for_module(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
-) -> Vec<ImportIndexEntry> {
-    let Some(exports) = get_module_exports_maybe(repository, revision, module_id) else {
+    profile_id: ProfileId,
+) -> Vec<ImportEntry> {
+    let Some(exports) = get_module_exports_maybe(repository, revision, module_id, profile_id)
+    else {
         return Vec::new();
     };
 
     exports
         .into_iter()
-        .map(|export| ImportIndexEntry {
+        .map(|export| ImportEntry {
             name: export.name,
             kind: export.kind,
             space: export.space,
@@ -129,14 +111,15 @@ pub(crate) fn get_module_exports_maybe(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
+    profile_id: ProfileId,
 ) -> Option<Vec<ExportedSymbol>> {
     let module = repository.module(revision, module_id).ok().flatten()?;
-    let ctx = query_context(repository, revision, module_id)?;
+    let ctx = query_context_for_profile(repository, revision, module_id, profile_id)?;
     let module_path = module_path_for_import(module.as_ref());
 
     let mut exports = Vec::new();
 
-    for ((_, key), export) in ctx.dir().resolved().exported_symbols.iter() {
+    for ((_, key), export) in ctx.dir().exported().export_by_symbol_key.iter() {
         let StaticKey::Name(string_id) = *key else {
             continue;
         };
@@ -145,12 +128,13 @@ pub(crate) fn get_module_exports_maybe(
             continue;
         };
 
-        let Some((kind, space)) = resolve_export_symbol_info(repository, revision, target_symbol)
+        let Some((kind, space)) =
+            resolve_export_symbol_info(repository, revision, target_symbol, profile_id)
         else {
             continue;
         };
 
-        let name = repository.strings.get(string_id).to_string();
+        let name = ctx.dir().strings().get(string_id).to_string();
         exports.push(ExportedSymbol {
             name,
             kind,
@@ -165,12 +149,13 @@ pub(crate) fn get_module_exports_maybe(
 }
 
 /// Build module specifier index entries for one module.
-pub(crate) fn build_specifier_index_entries_for_module(
+pub(crate) fn build_specifier_candidates_for_module(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
-) -> Vec<SpecifierIndexEntry> {
-    let query_context = query_context(repository, revision, module_id);
+    profile_id: ProfileId,
+) -> Vec<SpecifierEntry> {
+    let query_context = query_context_for_profile(repository, revision, module_id, profile_id);
 
     let Some(entries) = with_ast_query_for_module(repository, revision, module_id, |ast| {
         let mut dir_targets = std::collections::HashMap::new();
@@ -209,7 +194,7 @@ pub(crate) fn build_specifier_index_entries_for_module(
                 target_module.path.as_ref().map(|path| path.normalize())
             });
 
-            entries.push(SpecifierIndexEntry {
+            entries.push(SpecifierEntry {
                 module_id,
                 file_id: ast.file_id(),
                 ast_node_id: expression_id.id,

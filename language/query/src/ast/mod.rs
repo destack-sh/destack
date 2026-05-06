@@ -5,7 +5,7 @@ mod lexical;
 mod span;
 mod statement;
 
-pub(crate) use crate::core::AstQuery;
+pub(crate) use crate::core::AstQueryContext;
 pub(crate) use cursor::*;
 pub(crate) use hole::*;
 pub(crate) use identifier::*;

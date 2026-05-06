@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use super::AstQuery;
+use super::AstQueryContext;
 use destack_ast as ast;
 use destack_dir::{self as dir, LocalNodeIdAny};
 use destack_source::{EnclosingSpan, File, FileId, Span};
@@ -19,7 +19,7 @@ pub(crate) fn get_module_by_file_id(
 
 /// Get the span of a DIR node using one DIR tree.
 pub(crate) fn get_node_tree_span(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     dir_tree: &dir::Tree,
     dir_node_id: LocalNodeIdAny,
 ) -> Span {
@@ -32,7 +32,7 @@ pub(crate) fn get_node_tree_span(
 
 /// Get the main span of a DIR node using one DIR tree.
 pub(crate) fn get_node_tree_main_span(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     dir_tree: &dir::Tree,
     dir_node_id: LocalNodeIdAny,
 ) -> Span {
@@ -45,7 +45,7 @@ pub(crate) fn get_node_tree_main_span(
 
 /// Resolve the span for a DIR node within a query context.
 pub(crate) fn span_for_dir_node(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     dir_tree: &dir::Tree,
     node_id: LocalNodeIdAny,
 ) -> Span {
@@ -58,7 +58,7 @@ pub(crate) fn span_for_dir_node(
 
 /// Resolve the span for a DIR node when its source id is present in the AST source map.
 pub(crate) fn try_span_for_dir_node(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     dir_tree: &dir::Tree,
     node_id: LocalNodeIdAny,
 ) -> Option<Span> {
@@ -71,7 +71,7 @@ pub(crate) fn try_span_for_dir_node(
 
 /// Resolve the main span for a DIR node when available.
 pub(crate) fn main_span_for_dir_node(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     dir_tree: &dir::Tree,
     node_id: LocalNodeIdAny,
 ) -> Option<Span> {
@@ -84,7 +84,7 @@ pub(crate) fn main_span_for_dir_node(
 
 /// Resolve the main or enclosing span for a DIR node.
 pub(crate) fn main_or_enclosing_span_for_dir_node(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     dir_tree: &dir::Tree,
     node_id: LocalNodeIdAny,
 ) -> Span {
@@ -147,7 +147,7 @@ pub(crate) fn extract_string_literal_prefix(source: &str, span: Span, offset: u3
 
 /// Collect enclosing spans and sort from innermost to outermost.
 pub(crate) fn sorted_enclosing_spans(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     start: u32,
     end: u32,
 ) -> Vec<EnclosingSpan> {
@@ -162,7 +162,7 @@ pub(crate) fn sorted_enclosing_spans(
 
 /// Collect and sort enclosing spans for a set of probe offsets.
 pub(crate) fn enclosing_spans_at_offsets(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     offsets: impl IntoIterator<Item = u32>,
 ) -> Vec<EnclosingSpan> {
     let mut enclosing = Vec::new();
@@ -185,7 +185,10 @@ pub(crate) fn enclosing_spans_at_offsets(
 }
 
 /// Collect enclosing spans at the cursor and previous byte.
-pub(crate) fn enclosing_spans_with_previous(ast: AstQuery<'_>, offset: u32) -> Vec<EnclosingSpan> {
+pub(crate) fn enclosing_spans_with_previous(
+    ast: AstQueryContext<'_>,
+    offset: u32,
+) -> Vec<EnclosingSpan> {
     let mut offsets = vec![offset];
     if offset > 0 {
         offsets.push(offset - 1);

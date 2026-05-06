@@ -1,3 +1,4 @@
+use destack_core::StringPool;
 use destack_dir as dir;
 use destack_dir::{Argument, Declarator, Expression, GlobalSymbolId, Pattern, TemplateLiteral};
 use destack_source::{FileId, Span, Uri};
@@ -140,7 +141,7 @@ pub fn inlay_hints(
 
                 // skip hints for arguments that already carry labels or match the name
                 if should_skip_parameter_hint(
-                    repository,
+                    ctx.dir().strings(),
                     dir_tree,
                     argument,
                     param_name,
@@ -201,7 +202,7 @@ pub fn inlay_hints(
                         types,
                         repository,
                         revision,
-                        &repository.strings,
+                        ctx.dir().strings(),
                     );
 
                     // add type hint after the binding name
@@ -265,7 +266,7 @@ fn get_parameter_names(
 
 /// Decide whether a parameter hint should be skipped for an argument.
 fn should_skip_parameter_hint(
-    repository: &Repository,
+    strings: &StringPool,
     dir_tree: &dir::Tree,
     argument: &Argument,
     param_name: &str,
@@ -292,7 +293,7 @@ fn should_skip_parameter_hint(
     }
 
     // skip when the argument already repeats the parameter name
-    if let Some(reference) = argument_reference(repository, dir_tree, argument) {
+    if let Some(reference) = argument_reference(strings, dir_tree, argument) {
         match reference {
             ArgumentReference::Name(argument_name) => {
                 if argument_name == param_name && !parameter_name_hints_when_argument_matches_name()
@@ -309,7 +310,7 @@ fn should_skip_parameter_hint(
 
 /// Extract a simple reference name from an argument value when available.
 fn argument_reference(
-    repository: &Repository,
+    strings: &StringPool,
     dir_tree: &dir::Tree,
     argument: &Argument,
 ) -> Option<ArgumentReference> {
@@ -322,7 +323,7 @@ fn argument_reference(
         | Expression::ModuleReference { path, .. }
         | Expression::GlobalReference { path, .. } => path
             .last_segment()
-            .map(|id| ArgumentReference::Name(repository.strings.get(id).to_string())),
+            .map(|id| ArgumentReference::Name(strings.get(id).to_string())),
         Expression::This => Some(ArgumentReference::This),
         _ => None,
     }

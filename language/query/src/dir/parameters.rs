@@ -1,11 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
+use destack_core::StringPool;
 use destack_dir::{
     Declaration, GlobalSymbolId, LocalNodeId, LocalTypeId, Member, NodeType, Parameter, Tree,
 };
 use destack_workspace::{Repository, Revision};
 
-use crate::core::{AstQuery, query_context, query_context_for_module_id};
+use crate::core::{AstQueryContext, query_context};
 
 use super::{doc_strings_for_node_or_enclosing, get_canonical_symbol, parse_param_docs};
 
@@ -34,12 +35,12 @@ pub(crate) struct ExpectedParameterHint {
 }
 
 /// Format a parameter into a display name.
-pub(crate) fn parameter_display_name(repository: &Repository, parameter: &Parameter) -> String {
+pub(crate) fn parameter_display_name(strings: &StringPool, parameter: &Parameter) -> String {
     // choose the display name based on the parameter shape
     match parameter {
-        Parameter::Named { name, .. } => repository.strings.get(*name).to_string(),
+        Parameter::Named { name, .. } => strings.get(*name).to_string(),
         Parameter::VariadicNamed { name, .. } => {
-            let name_str = repository.strings.get(*name).to_string();
+            let name_str = strings.get(*name).to_string();
             format!("...{name_str}")
         }
         Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => "<pattern>".to_string(),
@@ -49,7 +50,7 @@ pub(crate) fn parameter_display_name(repository: &Repository, parameter: &Parame
 
 /// Collect parameter display names from parameter nodes.
 pub(crate) fn parameter_display_names(
-    repository: &Repository,
+    strings: &StringPool,
     tree: &Tree,
     parameters: &[LocalNodeId<Parameter>],
 ) -> Vec<String> {
@@ -58,7 +59,7 @@ pub(crate) fn parameter_display_names(
         .iter()
         .map(|param_id| {
             let param = tree.get::<Parameter>(*param_id);
-            parameter_display_name(repository, param)
+            parameter_display_name(strings, param)
         })
         .collect()
 }
@@ -122,8 +123,11 @@ fn parameter_data_for_symbol_with_context(
 
             let ast_node_id = dir_tree.get_source(declaration_id.id);
             let docs = parameter_doc_map(ctx.ast(), source, ast_node_id);
-            let names =
-                parameter_display_names(repository, dir_tree, &declaration.signature.parameters);
+            let names = parameter_display_names(
+                ctx.dir().strings(),
+                dir_tree,
+                &declaration.signature.parameters,
+            );
 
             Some(ParameterData { names, docs })
         }
@@ -136,7 +140,8 @@ fn parameter_data_for_symbol_with_context(
 
             let ast_node_id = dir_tree.get_source(member_id.id);
             let docs = parameter_doc_map(ctx.ast(), source, ast_node_id);
-            let names = parameter_display_names(repository, dir_tree, &signature.parameters);
+            let names =
+                parameter_display_names(ctx.dir().strings(), dir_tree, &signature.parameters);
 
             Some(ParameterData { names, docs })
         }
@@ -153,7 +158,7 @@ pub(crate) fn expected_parameter_hint_for_symbol(
     parameter_index: usize,
 ) -> Option<ExpectedParameterHint> {
     // read the target module and build a query context
-    let ctx = query_context_for_module_id(repository, revision, symbol_id.module_id)?;
+    let ctx = query_context(repository, revision, symbol_id.module_id)?;
 
     // resolve the symbol and its primary declaration
     let global_node_id = {
@@ -187,7 +192,7 @@ pub(crate) fn expected_parameter_hint_for_symbol(
     // resolve the active parameter node
     let parameter_id = resolve_expected_parameter_id(dir_tree, &parameters, parameter_index)?;
     let parameter = dir_tree.get::<Parameter>(parameter_id);
-    let name = Some(parameter_display_name(repository, parameter));
+    let name = Some(parameter_display_name(ctx.dir().strings(), parameter));
 
     // resolve the declared parameter type and classify its shape
     let global_parameter_id = parameter_id.into_global_any(ctx.module_id());
@@ -348,7 +353,7 @@ fn expected_value_shape(types: &destack_dir::TypeTable, type_id: LocalTypeId) ->
 
 /// Collect @param documentation from a declaration's doc comments.
 pub(crate) fn parameter_doc_map(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     source: &str,
     ast_node_id: u32,
 ) -> HashMap<String, String> {

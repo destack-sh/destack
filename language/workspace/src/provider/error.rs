@@ -39,6 +39,11 @@ impl ProviderError {
         Self::Blocked { keys: vec![key] }
     }
 
+    /// Build one blocked provider error from many required artifacts.
+    pub fn blocked_many(keys: Vec<ArtifactKey>) -> Self {
+        Self::Blocked { keys }
+    }
+
     /// Build one internal provider error.
     pub fn internal(message: impl Into<String>) -> Self {
         Self::Internal {

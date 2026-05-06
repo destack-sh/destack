@@ -42,38 +42,6 @@ pub(crate) fn relative_path(from_dir: &Path, to_path: &Path) -> Option<PathBuf> 
     Some(relative)
 }
 
-/// Compute a heuristic distance between two paths.
-pub(crate) fn path_distance(from_dir: &Path, to_path: &Path) -> u32 {
-    // normalize the directories before comparing components
-    let from_dir = from_dir.normalize();
-    let to_dir = to_path.parent().unwrap_or(to_path).normalize();
-
-    // resolve components for both paths
-    let from_components = normal_components(&from_dir);
-    let to_components = normal_components(&to_dir);
-
-    // compute the shared prefix length
-    let mut common = 0usize;
-    while common < from_components.len()
-        && common < to_components.len()
-        && from_components[common] == to_components[common]
-    {
-        common += 1;
-    }
-
-    // compute the number of path steps
-    let ups = from_components.len().saturating_sub(common);
-    let downs = to_components.len().saturating_sub(common);
-
-    // return the computed distance
-    (ups + downs) as u32
-}
-
-/// Count normalized components for a path.
-pub(crate) fn path_component_count(path: &Path) -> u32 {
-    normal_components(path).len() as u32
-}
-
 /// Normalize path separators to forward slashes.
 pub(crate) fn normalize_separators(path: &str) -> String {
     path.replace('\\', "/")

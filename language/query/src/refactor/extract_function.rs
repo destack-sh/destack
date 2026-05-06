@@ -12,7 +12,7 @@ use super::extract::{
 use crate::ast::{
     get_module_by_file_id, is_simple_identifier, span_contains_span, span_for_dir_node,
 };
-use crate::core::{QueryContext, query_context, query_context_for_module_id};
+use crate::core::{QueryContext, query_context};
 use crate::dir::{get_canonical_symbol, get_symbol_definition_span, resolve_symbol_name};
 use crate::format::{format_local_type, format_type_for_inlay_hint};
 
@@ -165,7 +165,7 @@ fn extract_expression(
     let return_type = ctx.dir().expression_type_id(expr_id.into()).map(|type_id| {
         let types = ctx.dir().types();
         let ty = types.get_type(type_id);
-        format_type_for_inlay_hint(ty, types, repository, ctx.revision(), &repository.strings)
+        format_type_for_inlay_hint(ty, types, repository, ctx.revision(), ctx.dir().strings())
     });
     let return_type = filter_inferred_type(return_type);
     let return_type = async_return_type(return_type, requires_async)
@@ -488,7 +488,7 @@ fn collect_output_symbols(
                     types,
                     repository,
                     ctx.revision(),
-                    &repository.strings,
+                    ctx.dir().strings(),
                 )
             })
             .filter(|ty| !ty.is_empty())
@@ -693,7 +693,7 @@ fn collect_free_variables(
                     types,
                     repository,
                     ctx.revision(),
-                    &repository.strings,
+                    ctx.dir().strings(),
                 )
             })
             .filter(|ty| !ty.is_empty())
@@ -712,7 +712,7 @@ fn symbol_mutability(
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::Mutability> {
     // resolve the mutability for the symbol
-    let ctx = query_context_for_module_id(repository, revision, symbol_id.module_id)?;
+    let ctx = query_context(repository, revision, symbol_id.module_id)?;
     let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
     symbol.binding_mutability
@@ -738,7 +738,7 @@ fn symbol_type_text(
             ctx.dir().types(),
             repository,
             ctx.revision(),
-            &repository.strings,
+            ctx.dir().strings(),
         );
         if type_text.is_empty() {
             return None;
@@ -748,7 +748,7 @@ fn symbol_type_text(
     }
 
     // resolve the declaration node for the symbol in its module
-    let ctx = query_context_for_module_id(repository, ctx.revision(), symbol_id.module_id)?;
+    let ctx = query_context(repository, ctx.revision(), symbol_id.module_id)?;
     let declaration = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
@@ -761,7 +761,7 @@ fn symbol_type_text(
         ctx.dir().types(),
         repository,
         ctx.revision(),
-        &repository.strings,
+        ctx.dir().strings(),
     );
     if type_text.is_empty() {
         None

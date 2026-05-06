@@ -8,7 +8,7 @@ use destack_source::ModuleId;
 use destack_workspace::{Repository, Revision};
 
 use super::for_each_visible_extension;
-use crate::core::query_context_for_module_id;
+use crate::core::query_context;
 
 /// Maximum recursion depth for type member resolution.
 const MAX_TYPE_DEPTH: u32 = 10;
@@ -66,12 +66,15 @@ pub(crate) fn resolve_type_members(
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {
     // resolve the root type and collect members
+    let Some(ctx) = query_context(repository, revision, current_module_id) else {
+        return Vec::new();
+    };
     let ty = types.get_type(type_id);
     resolve_type_members_inner(
         ty,
         types,
         symbols,
-        &repository.strings,
+        ctx.dir().strings(),
         repository,
         revision,
         current_module_id,
@@ -206,9 +209,7 @@ fn resolve_type_members_inner(
                     let inner = types.get_type(*value);
                     if let Type::Reference { symbol, .. } = inner {
                         // load the symbol and check if it's an enum
-                        if let Some(ctx) =
-                            query_context_for_module_id(repository, revision, symbol.module_id)
-                        {
+                        if let Some(ctx) = query_context(repository, revision, symbol.module_id) {
                             let symbols_table = ctx.dir().symbols();
                             let sym = symbols_table.get_symbol(symbol.local_id);
                             return sym.ty == SymbolType::Enum;
@@ -311,7 +312,7 @@ pub(crate) fn resolve_reference_members(
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {
     // load the symbol's module
-    let Some(ctx) = query_context_for_module_id(repository, revision, symbol_id.module_id) else {
+    let Some(ctx) = query_context(repository, revision, symbol_id.module_id) else {
         return Vec::new();
     };
     let symbols = ctx.dir().symbols();
@@ -319,7 +320,7 @@ pub(crate) fn resolve_reference_members(
 
     // resolve direct members from the symbol definition
     let mut members =
-        resolve_local_symbol_members(symbol_id.local_id, types, symbols, &repository.strings);
+        resolve_local_symbol_members(symbol_id.local_id, types, symbols, ctx.dir().strings());
 
     // merge extension members for this symbol
     let extension_members =
@@ -463,7 +464,7 @@ pub(crate) fn resolve_extension_members_for_symbol(
                     continue;
                 };
                 let name = match key {
-                    dir::Key::Name(name) => repository.strings.get(name.string()).to_string(),
+                    dir::Key::Name(name) => dir.strings().get(name.string()).to_string(),
                     _ => continue,
                 };
 
@@ -586,12 +587,12 @@ fn resolve_well_known_members(
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {
     // resolve the current query profile so we stay on one exact lib surface
-    let Some(ctx) = query_context_for_module_id(repository, revision, current_module_id) else {
+    let Some(ctx) = query_context(repository, revision, current_module_id) else {
         return Vec::new();
     };
 
     // resolve the exact well known symbol from the current profile
-    let Some(environment) = repository.library_environment(revision, ctx.profile_id()) else {
+    let Some(environment) = ctx.ambient_environment(repository) else {
         return Vec::new();
     };
     let Some(symbol_id) = environment.well_known_symbols().get_type_symbol(well_known) else {

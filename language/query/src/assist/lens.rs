@@ -5,12 +5,14 @@ use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::get_module_by_file_id;
-use crate::core::{AstQuery, RepositoryQueryIndexExt, query_context};
+use crate::core::{
+    AstQueryContext, NominalRelation, modules_referencing_symbol, nominal_relations_for_target,
+    query_context,
+};
 use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, get_canonical_symbol,
     resolve_symbol_name,
 };
-use destack_workspace::NominalRelationKind;
 
 /// A code lens (inline annotation with optional command).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -274,7 +276,7 @@ fn count_references(
     };
 
     let mut count = 0;
-    for module_id in repository.reference_index_modules_for_target(revision, canonical_id) {
+    for module_id in modules_referencing_symbol(repository, revision, canonical_id) {
         let Some(ctx) = query_context(repository, revision, module_id) else {
             continue;
         };
@@ -299,10 +301,9 @@ fn count_implementations(
     symbol_id: GlobalSymbolId,
 ) -> usize {
     let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
-    repository
-        .nominal_index_entries_for_target(revision, canonical_id)
+    nominal_relations_for_target(repository, revision, canonical_id)
         .into_iter()
-        .filter(|entry| entry.relation == NominalRelationKind::Implements)
+        .filter(|entry| entry.relation == NominalRelation::Implements)
         .count()
 }
 
@@ -313,15 +314,14 @@ fn count_subclasses(
     symbol_id: GlobalSymbolId,
 ) -> usize {
     let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
-    repository
-        .nominal_index_entries_for_target(revision, canonical_id)
+    nominal_relations_for_target(repository, revision, canonical_id)
         .into_iter()
-        .filter(|entry| entry.relation == NominalRelationKind::Extends)
+        .filter(|entry| entry.relation == NominalRelation::Extends)
         .count()
 }
 
 /// Check whether a node has a decorator with the given name.
-fn has_decorator_named(ast: AstQuery<'_>, node_id: u32, name: &str) -> bool {
+fn has_decorator_named(ast: AstQueryContext<'_>, node_id: u32, name: &str) -> bool {
     // scan annotations attached to the node
     if decorator_on_node(ast, node_id, name) {
         return true;
@@ -347,7 +347,7 @@ fn has_decorator_named(ast: AstQuery<'_>, node_id: u32, name: &str) -> bool {
 }
 
 /// Check whether a decorator is attached directly to a node.
-fn decorator_on_node(ast: AstQuery<'_>, node_id: u32, name: &str) -> bool {
+fn decorator_on_node(ast: AstQueryContext<'_>, node_id: u32, name: &str) -> bool {
     // scan decorators attached to the node
     let decorators = ast.tree().get_decorators(node_id);
     for decorator_id in decorators {
@@ -366,7 +366,7 @@ fn decorator_on_node(ast: AstQuery<'_>, node_id: u32, name: &str) -> bool {
 
 /// Resolve the last segment of a decorator name when it is path-like.
 fn decorator_name_id(
-    ast: AstQuery<'_>,
+    ast: AstQueryContext<'_>,
     decorator: &ast::Decorator,
 ) -> Option<destack_core::StringId> {
     let mut expression_id = decorator.expression;

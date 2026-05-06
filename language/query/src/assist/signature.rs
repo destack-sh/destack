@@ -281,7 +281,7 @@ fn signature_info_for_symbol(
         types,
         repository,
         revision,
-        &repository.strings,
+        ctx.dir().strings(),
         false,
     );
 
