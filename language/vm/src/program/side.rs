@@ -41,8 +41,8 @@ pub(crate) struct AtomicLoad {
     pub(crate) scope: mir::AtomicScope,
     /// The memory scope for the operation.
     pub(crate) memory_scope: mir::MemoryScope,
-    /// The memory semantics for the operation.
-    pub(crate) semantics: mir::MemorySemantics,
+    /// The memory flags.
+    pub(crate) flags: mir::MemoryFlags,
 }
 
 /// Atomic store over one word.
@@ -62,8 +62,8 @@ pub(crate) struct AtomicStore {
     pub(crate) scope: mir::AtomicScope,
     /// The memory scope for the operation.
     pub(crate) memory_scope: mir::MemoryScope,
-    /// The memory semantics for the operation.
-    pub(crate) semantics: mir::MemorySemantics,
+    /// The memory flags.
+    pub(crate) flags: mir::MemoryFlags,
 }
 
 /// Atomic read modify write over one word.
@@ -85,8 +85,8 @@ pub(crate) struct AtomicRmw {
     pub(crate) scope: mir::AtomicScope,
     /// The memory scope for the operation.
     pub(crate) memory_scope: mir::MemoryScope,
-    /// The memory semantics for the operation.
-    pub(crate) semantics: mir::MemorySemantics,
+    /// The memory flags.
+    pub(crate) flags: mir::MemoryFlags,
 }
 
 /// Atomic compare exchange over one word.
@@ -112,8 +112,8 @@ pub(crate) struct AtomicCompareExchange {
     pub(crate) scope: mir::AtomicScope,
     /// The memory scope for the operation.
     pub(crate) memory_scope: mir::MemoryScope,
-    /// The memory semantics for the operation.
-    pub(crate) semantics: mir::MemorySemantics,
+    /// The memory flags.
+    pub(crate) flags: mir::MemoryFlags,
 }
 
 /// Atomic fence.
@@ -125,8 +125,8 @@ pub(crate) struct AtomicFence {
     pub(crate) scope: mir::AtomicScope,
     /// The memory scope for the operation.
     pub(crate) memory_scope: mir::MemoryScope,
-    /// The memory semantics for the operation.
-    pub(crate) semantics: mir::MemorySemantics,
+    /// The memory flags.
+    pub(crate) flags: mir::MemoryFlags,
 }
 
 /// Vector splat operation.

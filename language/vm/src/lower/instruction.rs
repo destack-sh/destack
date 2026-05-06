@@ -100,7 +100,7 @@ impl<'a> BlockLowerer<'a> {
             mir::Instruction::CallVirtual {
                 destination,
                 receiver,
-                slot_id: method,
+                slot: method,
                 call,
                 ..
             } => self.lower_virtual_call(*destination, *receiver, *method, call, pool)?,
@@ -108,7 +108,7 @@ impl<'a> BlockLowerer<'a> {
             mir::Instruction::CallInterface {
                 destination,
                 receiver,
-                slot_id: method,
+                slot: method,
                 call,
                 ..
             } => self.lower_interface_call(*destination, *receiver, *method, call, pool)?,
@@ -287,7 +287,7 @@ impl<'a> BlockLowerer<'a> {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
                 ..
             } => self.lower_atomic_load(
                 pool,
@@ -296,7 +296,7 @@ impl<'a> BlockLowerer<'a> {
                 *ordering,
                 *scope,
                 *memory_scope,
-                *semantics,
+                *flags,
             )?,
 
             mir::Instruction::AtomicStore {
@@ -305,7 +305,7 @@ impl<'a> BlockLowerer<'a> {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
             } => self.lower_atomic_store(
                 pool,
                 *pointer,
@@ -313,7 +313,7 @@ impl<'a> BlockLowerer<'a> {
                 *ordering,
                 *scope,
                 *memory_scope,
-                *semantics,
+                *flags,
             )?,
 
             mir::Instruction::AtomicCompareExchange {
@@ -325,7 +325,7 @@ impl<'a> BlockLowerer<'a> {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
             } => self.lower_atomic_compare_exchange(
                 pool,
                 *destination,
@@ -336,7 +336,7 @@ impl<'a> BlockLowerer<'a> {
                 *ordering,
                 *scope,
                 *memory_scope,
-                *semantics,
+                *flags,
             )?,
 
             mir::Instruction::AtomicRmw {
@@ -347,7 +347,7 @@ impl<'a> BlockLowerer<'a> {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
             } => self.lower_atomic_rmw(
                 pool,
                 *destination,
@@ -357,15 +357,15 @@ impl<'a> BlockLowerer<'a> {
                 *ordering,
                 *scope,
                 *memory_scope,
-                *semantics,
+                *flags,
             )?,
 
             mir::Instruction::AtomicFence {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
-            } => self.lower_atomic_fence(pool, *ordering, *scope, *memory_scope, *semantics),
+                flags,
+            } => self.lower_atomic_fence(pool, *ordering, *scope, *memory_scope, *flags),
 
             mir::Instruction::BarrierWrite {
                 object,

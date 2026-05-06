@@ -1728,7 +1728,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         _ordering: mir::MemoryOrdering,
         _scope: mir::AtomicScope,
         _memory_scope: mir::MemoryScope,
-        _semantics: mir::MemorySemantics,
+        _flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
         self.atomic_load(pointer, layout, byte_len)
     }
@@ -1743,7 +1743,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         _ordering: mir::MemoryOrdering,
         _scope: mir::AtomicScope,
         _memory_scope: mir::MemoryScope,
-        _semantics: mir::MemorySemantics,
+        _flags: mir::MemoryFlags,
     ) -> RuntimeResult<()> {
         self.atomic_store(pointer, layout, byte_len, value)
     }
@@ -1761,9 +1761,9 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
-        // the interpreter uses strong semantics for the weak variant
+        // the interpreter uses strong behavior for the weak variant
         if is_weak {
             return self.atomic_cas_weak(
                 destination,
@@ -1775,7 +1775,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
             );
         }
 
@@ -1789,7 +1789,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         )
     }
 
@@ -1799,7 +1799,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         _ordering: mir::MemoryOrdering,
         _scope: mir::AtomicScope,
         _memory_scope: mir::MemoryScope,
-        _semantics: mir::MemorySemantics,
+        _flags: mir::MemoryFlags,
     ) -> RuntimeResult<()> {
         Ok(())
     }
@@ -1837,7 +1837,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
         let current = self.atomic_load_value(
             pointer,
@@ -1846,7 +1846,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         )?;
         let success = self.values_equal(&current, &expected);
 
@@ -1859,7 +1859,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
             )?;
         }
 
@@ -1868,7 +1868,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
     /// Atomic compare-and-swap (weak).
     ///
-    /// The interpreter uses strong semantics for the weak variant.
+    /// The interpreter uses strong behavior for the weak variant.
     fn atomic_cas_weak(
         &mut self,
         destination: mir::Value,
@@ -1880,7 +1880,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
         self.atomic_cas(
             destination,
@@ -1892,7 +1892,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         )
     }
 
@@ -1906,7 +1906,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
         let old_value = self.atomic_load_value(
             pointer,
@@ -1915,7 +1915,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         )?;
         self.atomic_store_value(
             pointer,
@@ -1925,7 +1925,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         )?;
 
         Ok(old_value)
@@ -1941,7 +1941,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
         self.atomic_integer_rmw(
             pointer,
@@ -1951,7 +1951,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
             i64::wrapping_add,
             u64::wrapping_add,
         )
@@ -1967,7 +1967,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
         self.atomic_integer_rmw(
             pointer,
@@ -1977,7 +1977,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
             i64::wrapping_sub,
             u64::wrapping_sub,
         )
@@ -1993,7 +1993,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
         self.atomic_integer_rmw(
             pointer,
@@ -2003,7 +2003,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
             |a, b| a & b,
             |a, b| a & b,
         )
@@ -2019,7 +2019,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
         self.atomic_integer_rmw(
             pointer,
@@ -2029,7 +2029,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
             |a, b| a | b,
             |a, b| a | b,
         )
@@ -2045,7 +2045,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
         self.atomic_integer_rmw(
             pointer,
@@ -2055,7 +2055,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
             |a, b| a ^ b,
             |a, b| a ^ b,
         )
@@ -2071,7 +2071,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
         self.atomic_integer_rmw(
             pointer,
@@ -2081,7 +2081,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
             i64::min,
             u64::min,
         )
@@ -2097,7 +2097,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
         self.atomic_integer_rmw(
             pointer,
@@ -2107,7 +2107,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
             i64::max,
             u64::max,
         )
@@ -2123,7 +2123,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
         self.atomic_unsigned_rmw(
             pointer,
@@ -2133,7 +2133,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
             u64::min,
         )
     }
@@ -2148,7 +2148,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
         self.atomic_unsigned_rmw(
             pointer,
@@ -2158,7 +2158,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
             u64::max,
         )
     }
@@ -2173,7 +2173,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
         self.atomic_float_rmw(
             pointer,
@@ -2183,7 +2183,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
             |a, b| a + b,
             |a, b| a + b,
         )
@@ -2199,7 +2199,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
         self.atomic_float_rmw(
             pointer,
@@ -2209,7 +2209,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
             f64::min,
             f32::min,
         )
@@ -2225,7 +2225,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> RuntimeResult<Word> {
         self.atomic_float_rmw(
             pointer,
@@ -2235,7 +2235,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
             f64::max,
             f32::max,
         )
@@ -2286,7 +2286,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
         signed_op: S,
         unsigned_op: U,
     ) -> RuntimeResult<Word>
@@ -2302,7 +2302,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         )?;
 
         let new_value = if signed {
@@ -2319,7 +2319,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         )?;
 
         Ok(old_value)
@@ -2335,7 +2335,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
         op: U,
     ) -> RuntimeResult<Word>
     where
@@ -2349,7 +2349,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         )?;
 
         let new_value = Word::uint(op(old_value.as_uint(), value.as_uint()), width);
@@ -2361,7 +2361,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         )?;
 
         Ok(old_value)
@@ -2377,7 +2377,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
         f64_op: D,
         f32_op: F,
     ) -> RuntimeResult<Word>
@@ -2393,7 +2393,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         )?;
 
         let new_value = match width {
@@ -2408,7 +2408,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ordering,
             scope,
             memory_scope,
-            semantics,
+            flags,
         )?;
 
         Ok(old_value)

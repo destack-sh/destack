@@ -20,7 +20,7 @@ macro_rules! atomic_rmw_executor {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
             } = machine.side::<AtomicRmw>(instruction);
 
             // execute the read modify write
@@ -34,7 +34,7 @@ macro_rules! atomic_rmw_executor {
                 *ordering,
                 *scope,
                 *memory_scope,
-                *semantics,
+                *flags,
             ) {
                 Ok(result) => result,
                 Err(error) => return Err(error.error),
@@ -61,7 +61,7 @@ pub(crate) fn execute_atomic_load(
         ordering,
         scope,
         memory_scope,
-        semantics,
+        flags,
     } = machine.side::<AtomicLoad>(instruction);
 
     // execute the load
@@ -73,7 +73,7 @@ pub(crate) fn execute_atomic_load(
         *ordering,
         *scope,
         *memory_scope,
-        *semantics,
+        *flags,
     ) {
         Ok(value) => value,
         Err(error) => return Err(error.error),
@@ -98,7 +98,7 @@ pub(crate) fn execute_atomic_store(
         ordering,
         scope,
         memory_scope,
-        semantics,
+        flags,
     } = machine.side::<AtomicStore>(instruction);
 
     // execute the store
@@ -112,7 +112,7 @@ pub(crate) fn execute_atomic_store(
         *ordering,
         *scope,
         *memory_scope,
-        *semantics,
+        *flags,
     ) {
         return Err(error.error);
     }
@@ -137,7 +137,7 @@ pub(crate) fn execute_atomic_compare_exchange(
         ordering,
         scope,
         memory_scope,
-        semantics,
+        flags,
     } = machine.side::<AtomicCompareExchange>(instruction);
 
     // execute the compare exchange
@@ -155,7 +155,7 @@ pub(crate) fn execute_atomic_compare_exchange(
         *ordering,
         *scope,
         *memory_scope,
-        *semantics,
+        *flags,
     ) {
         return Err(error.error);
     }
@@ -222,11 +222,11 @@ pub(crate) fn execute_atomic_fence(
         ordering,
         scope,
         memory_scope,
-        semantics,
+        flags,
     } = machine.side::<AtomicFence>(instruction);
 
     // execute the fence
-    if let Err(error) = machine.atomic_fence(*ordering, *scope, *memory_scope, *semantics) {
+    if let Err(error) = machine.atomic_fence(*ordering, *scope, *memory_scope, *flags) {
         return Err(error.error);
     }
 
