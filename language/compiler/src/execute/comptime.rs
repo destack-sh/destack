@@ -13,7 +13,10 @@ use crate::lower::{
     FunctionState, InstanceKey, RuntimeCheckConfig, StructLayout, TypeLowerer,
     collect_expression_string_literals, string_literal_global_name_for_content,
 };
-use crate::{Compiler, CompilerContext, ExecuteError, ExecuteResult, LowerError, ModuleLowerer};
+use crate::{
+    Compiler, CompilerContext, ExecuteError, ExecuteResult, LowerError, ModuleLowerer,
+    RequirementError,
+};
 
 #[allow(dead_code)]
 impl Compiler {
@@ -26,10 +29,8 @@ impl Compiler {
     ) -> ExecuteResult<Arc<DirElaborated>> {
         self.require_artifact_dir_elaborated(revision, module_id, profile)
             .map_err(|error| match error {
-                crate::RequirementError::NotReady { requirement } => {
-                    ExecuteError::Yield { requirement }
-                }
-                crate::RequirementError::Failed { requirement } => {
+                RequirementError::NotReady { requirement } => ExecuteError::Yield { requirement },
+                RequirementError::Failed { requirement } => {
                     ExecuteError::UnsatisfiedRequirement { requirement }
                 }
             })
@@ -271,7 +272,7 @@ impl<'a> ComptimeLowerer<'a> {
             HashMap::new();
         let globals_by_symbol = HashMap::new();
         let interface_slots_by_symbol = HashMap::new();
-        let interface_itab_ids = HashMap::new();
+        let itab_globals_by_pair = HashMap::new();
         let virtual_method_slots_by_key = HashMap::new();
         let vtable_globals_by_symbol = HashMap::new();
         let function_signature_types = HashMap::new();
@@ -314,7 +315,7 @@ impl<'a> ComptimeLowerer<'a> {
             take_platform_error_function: None,
             globals_by_symbol: &globals_by_symbol,
             interface_slots_by_symbol: &interface_slots_by_symbol,
-            interface_itab_ids: &interface_itab_ids,
+            itab_globals_by_pair: &itab_globals_by_pair,
             virtual_method_slots_by_key: &virtual_method_slots_by_key,
             vtable_globals_by_symbol: &vtable_globals_by_symbol,
             string_literal_globals: &self.string_literal_globals,
