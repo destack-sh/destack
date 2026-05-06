@@ -1,35 +1,5 @@
 use std::path::Path;
 
-/// JSX transformation mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum JsxMode {
-    /// Preserve JSX as-is in output.
-    #[default]
-    Preserve,
-    /// Transform to React.createElement calls.
-    React,
-    /// Transform to React 17+ JSX runtime (automatic import).
-    ReactJsx,
-    /// Transform to React 17+ JSX runtime (development mode).
-    ReactJsxDev,
-    /// Transform to h() calls (Preact, etc.).
-    ReactNative,
-}
-
-impl JsxMode {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "preserve" => Some(Self::Preserve),
-            "react" => Some(Self::React),
-            "react-jsx" => Some(Self::ReactJsx),
-            "react-jsxdev" => Some(Self::ReactJsxDev),
-            "react-native" => Some(Self::ReactNative),
-            _ => None,
-        }
-    }
-}
-
 /// Module resolution strategy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ModuleResolution {
@@ -165,24 +135,6 @@ impl EsTarget {
             _ => None,
         }
     }
-
-    /// Return the default builtin lib name for this target.
-    pub fn default_lib_name(self) -> &'static str {
-        match self {
-            Self::Es5 => "es5",
-            Self::Es2015 => "es2015",
-            Self::Es2016 => "es2016",
-            Self::Es2017 => "es2017",
-            Self::Es2018 => "es2018",
-            Self::Es2019 => "es2019",
-            Self::Es2020 => "es2020",
-            Self::Es2021 => "es2021",
-            Self::Es2022 => "es2022",
-            Self::Es2023 => "es2023",
-            Self::Es2024 => "es2024",
-            Self::EsNext => "esnext",
-        }
-    }
 }
 
 /// How to detect module vs script files.
@@ -299,30 +251,6 @@ impl SourceType {
                     Self::Script
                 }
             }
-        }
-    }
-}
-
-/// How to handle type-only imports.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum ImportsNotUsedAsValues {
-    /// Remove unused imports.
-    #[default]
-    Remove,
-    /// Preserve all imports.
-    Preserve,
-    /// Error on unused imports.
-    Error,
-}
-
-impl ImportsNotUsedAsValues {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "remove" => Some(Self::Remove),
-            "preserve" => Some(Self::Preserve),
-            "error" => Some(Self::Error),
-            _ => None,
         }
     }
 }

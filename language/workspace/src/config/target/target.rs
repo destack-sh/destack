@@ -12,8 +12,8 @@ use super::super::policy::{
     DivisionCheckPolicy, DivisionCheckPolicyJson, ExecutionMode, ExecutionModeJson,
     FloatMathPolicy, FloatMathPolicyJson, NullCheckPolicy, NullCheckPolicyJson,
     OverflowCheckPolicy, OverflowCheckPolicyJson, PanicPolicy, PanicPolicyJson, SafetyPreset,
-    SafetyPresetJson, SandboxPolicy, SandboxPolicyJson, ShiftCheckPolicy, ShiftCheckPolicyJson,
-    TrustPolicy, TrustPolicyJson, UnwindFormat, UnwindFormatJson,
+    SafetyPresetJson, SandboxPolicy, ShiftCheckPolicy, ShiftCheckPolicyJson, TrustPolicy,
+    TrustPolicyJson, UnwindFormat, UnwindFormatJson,
 };
 use super::super::runtime::{
     RuntimeAppDeclaration, RuntimeConfigJson, RuntimeOptions, runtime_options_with_base,
@@ -56,10 +56,6 @@ pub struct Target {
     pub module: ModuleTarget,
     /// ECMAScript target version.
     pub es_target: EsTarget,
-    /// Library files for this target. If `None`, derived automatically from runtime and platform.
-    pub lib: Option<Vec<String>>,
-    /// Additional library types for this target.
-    pub types: Option<Vec<String>>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
     /// Explicit mode name for this target.
@@ -236,8 +232,6 @@ impl std::hash::Hash for Target {
         self.exclude.hash(state);
         self.module.hash(state);
         self.es_target.hash(state);
-        self.lib.hash(state);
-        self.types.hash(state);
         self.profile.hash(state);
         self.mode.hash(state);
         self.assembly.hash(state);
@@ -692,18 +686,6 @@ impl Target {
         self
     }
 
-    /// Set library files explicitly (overrides automatic derivation).
-    pub fn with_lib(mut self, lib: Vec<String>) -> Self {
-        self.lib = Some(lib);
-        self
-    }
-
-    /// Set additional library types (additive to derived libs).
-    pub fn with_types(mut self, types: Vec<String>) -> Self {
-        self.types = Some(types);
-        self
-    }
-
     /// Set an explicit profile name for this target.
     pub fn with_profile(mut self, profile: impl Into<String>) -> Self {
         self.profile = Some(profile.into());
@@ -874,71 +856,6 @@ impl Target {
     pub fn with_allocator(mut self, allocator: Allocator) -> Self {
         self.allocator = allocator;
         self
-    }
-
-    /// Derive library files from target settings.
-    /// If `lib` is explicitly set, returns it. Otherwise derives from:
-    /// - ES version from compiler target (JS/TS outputs only)
-    /// - Runtime-specific libs (dom, node, deno, worker, etc.)
-    pub fn derived_lib(&self) -> Vec<String> {
-        if let Some(lib) = &self.lib {
-            return lib.clone();
-        }
-
-        let mut libs = Vec::new();
-        let runtime_version = self
-            .runtime_version
-            .as_deref()
-            .map(str::trim)
-            .filter(|version| !version.is_empty())
-            .filter(|version| !version.eq_ignore_ascii_case("latest"));
-
-        let versioned_lib = |name: &str, version: Option<&str>| {
-            if let Some(version) = version {
-                let version = version.strip_prefix('v').unwrap_or(version);
-                format!("{name}.v{version}")
-            } else {
-                name.to_string()
-            }
-        };
-
-        // runtime-specific libs
-        match self.runtime {
-            Runtime::Browser => {
-                libs.push("dom".to_string());
-                libs.push("dom.iterable".to_string());
-                libs.push("dom.asynciterable".to_string());
-            }
-            Runtime::Node => {
-                libs.push(versioned_lib("node", runtime_version));
-            }
-            Runtime::Deno => {
-                libs.push(versioned_lib("deno", runtime_version));
-            }
-            Runtime::Bun => {
-                libs.push(versioned_lib("bun", runtime_version));
-                libs.push("node".to_string());
-            }
-            Runtime::Worker => {
-                libs.push("worker".to_string());
-                libs.push("worker.iterable".to_string());
-                libs.push("worker.asynciterable".to_string());
-            }
-            Runtime::WasmJs
-            | Runtime::WasmWasi
-            | Runtime::NativeManaged
-            | Runtime::NativeFreestanding
-            | Runtime::NativeEmbedded => {
-                libs.push("native".to_string());
-            }
-        }
-
-        if self.emit.is_js() || self.emit.is_ts() || self.emit.is_html() {
-            libs.push("js".to_string());
-            libs.push(self.es_target.default_lib_name().to_string());
-        }
-
-        libs
     }
 
     /// Set whether optimization is enabled.
@@ -1199,10 +1116,6 @@ pub struct TargetOptions {
     pub module: ModuleTarget,
     /// ECMAScript target for this target.
     pub es_target: EsTarget,
-    /// Library files for this target. If `None`, derived automatically from runtime and platform.
-    pub lib: Option<Vec<String>>,
-    /// Additional library types for this target.
-    pub types: Option<Vec<String>>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
     /// Explicit mode name for this target.
@@ -1342,8 +1255,6 @@ impl Default for TargetOptions {
             declaration_dir: None,
             module: ModuleTarget::default(),
             es_target: EsTarget::default(),
-            lib: None,
-            types: None,
             profile: None,
             mode: None,
             assembly: BundleMode::default(),
@@ -1459,8 +1370,6 @@ impl TargetOptions {
             declaration_dir: self.declaration_dir.clone(),
             module: self.module,
             es_target: self.es_target,
-            lib: self.lib.clone(),
-            types: self.types.clone(),
             profile: self.profile.clone(),
             mode: self.mode.clone(),
             assembly: self.assembly,
@@ -1696,8 +1605,6 @@ impl TargetOptions {
                 .as_deref()
                 .and_then(EsTarget::parse)
                 .unwrap_or_default(),
-            lib: json.lib.clone(),
-            types: json.types.clone(),
             profile: json.profile.clone(),
             mode: json.mode.clone(),
             assembly,
@@ -1719,8 +1626,8 @@ impl TargetOptions {
                 .optimize_level
                 .map(OptimizeLevel::from)
                 .unwrap_or_default(),
-            unroll_threshold: json.unroll_threshold,
-            inline_budget_scale_percent: json.inline_budget_scale_percent,
+            unroll_threshold: None,
+            inline_budget_scale_percent: None,
             lto_mode: json.lto_mode.map(LtoMode::from).unwrap_or_default(),
             shrink_level: json.shrink_level.map(ShrinkLevel::from).unwrap_or_default(),
             float_math: json
@@ -1732,25 +1639,13 @@ impl TargetOptions {
                 .map(DebugInfoLevel::from)
                 .unwrap_or_default(),
             debug_mode: json.debug_mode.map(DebugMode::from).unwrap_or_default(),
-            safepoint_mode: json
-                .safepoint_mode
-                .map(SafepointMode::from)
-                .unwrap_or_default(),
-            safepoint_interval: json.safepoint_interval,
-            speculation_mode: json
-                .speculation_mode
-                .map(SpeculationMode::from)
-                .unwrap_or_default(),
-            profiling_mode: json
-                .profiling_mode
-                .map(ProfilingMode::from)
-                .unwrap_or_default(),
+            safepoint_mode: SafepointMode::default(),
+            safepoint_interval: None,
+            speculation_mode: SpeculationMode::default(),
+            profiling_mode: ProfilingMode::default(),
             runtime_options,
             trust_policy: json.trust_policy.map(TrustPolicy::from).unwrap_or_default(),
-            sandbox_policy: json
-                .sandbox_policy
-                .map(SandboxPolicy::from)
-                .unwrap_or_default(),
+            sandbox_policy: SandboxPolicy::default(),
             strip: json.strip.map(StripLevel::from).unwrap_or_default(),
             panic: json.panic.map(PanicPolicy::from).unwrap_or_default(),
             unwind: json.unwind.map(UnwindFormat::from).unwrap_or_default(),
@@ -1893,10 +1788,6 @@ pub struct TargetJson {
     pub module: Option<String>,
     /// ECMAScript target for this target (overrides compilerOptions.target).
     pub target: Option<String>,
-    /// Library files for this target (overrides derived libs).
-    pub lib: Option<Vec<String>>,
-    /// Additional library types for this target.
-    pub types: Option<Vec<String>>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
     /// Explicit mode name for this target.
@@ -1936,10 +1827,6 @@ pub struct TargetJson {
     /// Optimization level (0-4).
     #[cfg_attr(feature = "schema", schemars(range(min = 0, max = 4)))]
     pub optimize_level: Option<u8>,
-    /// Loop unroll threshold in instructions.
-    pub unroll_threshold: Option<u64>,
-    /// Inline budget scaling in percent.
-    pub inline_budget_scale_percent: Option<u64>,
     /// Link time optimization mode.
     pub lto_mode: Option<LtoModeJson>,
     /// Shrink level (0-3).
@@ -1951,22 +1838,12 @@ pub struct TargetJson {
     pub debug_info: Option<DebugInfoLevelJson>,
     /// Debug execution mode for VM/native targets.
     pub debug_mode: Option<DebugModeJson>,
-    /// Safepoint insertion mode for native execution.
-    pub safepoint_mode: Option<SafepointModeJson>,
-    /// Instruction interval for safepoint polling (when enabled).
-    pub safepoint_interval: Option<u64>,
-    /// Speculation mode for native optimization.
-    pub speculation_mode: Option<SpeculationModeJson>,
-    /// Profiling mode for tiering and optimization.
-    pub profiling_mode: Option<ProfilingModeJson>,
     /// Execution mode for runtime scheduling and replay.
     #[serde(alias = "executionMode")]
     #[serde(alias = "execution_mode")]
     pub execution: Option<ExecutionModeJson>,
     /// Trust policy for runtime execution.
     pub trust_policy: Option<TrustPolicyJson>,
-    /// Sandbox policy for runtime isolation.
-    pub sandbox_policy: Option<SandboxPolicyJson>,
     /// Symbol stripping policy.
     pub strip: Option<StripLevelJson>,
     /// Panic policy.

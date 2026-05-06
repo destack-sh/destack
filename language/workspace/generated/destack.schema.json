@@ -425,26 +425,6 @@
             "null"
           ]
         },
-        "lib": {
-          "description": "Library files to include (e.g., [\"es2024\", \"dom\"]).",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "types": {
-          "description": "Additional ambient type entries to include (e.g., [\"node\", \"@types/node\", \"dom.iterable\"]).",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
         "environment": {
           "description": "Default environment for IDEs and CLI usage.",
           "type": [
@@ -475,373 +455,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "incremental": {
-          "description": "Enable incremental compilation for this project.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "taggedCase": {
-          "description": "Default constructor naming policy for `@tagged` newtype unions.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TaggedCaseJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "strict": {
-          "description": "Enable all strict type checking options. Default: true for .ds files.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "alwaysStrict": {
-          "description": "Parse in strict mode.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noImplicitAny": {
-          "description": "Policy for expressions and declarations with implied `any` type.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "strictNullChecks": {
-          "description": "Enable strict null checks (`null` and `undefined` are distinct types).",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noImplicitThis": {
-          "description": "Policy for `this` expressions with implied `any` type.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "strictFunctionTypes": {
-          "description": "Enable strict checking of function types.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "strictBindCallApply": {
-          "description": "Enable strict checking of `bind`, `call`, and `apply` methods.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "strictBuiltinIteratorReturn": {
-          "description": "Enable strict checking for built in iterator return types.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "strictPropertyInitialization": {
-          "description": "Enable strict checking of property initialization in classes.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "useUnknownInCatchVariables": {
-          "description": "Use `unknown` instead of `any` for catch clause variables.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noUnusedLocals": {
-          "description": "Policy for unused local variables.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noUnusedParameters": {
-          "description": "Policy for unused function parameters.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noImplicitReturns": {
-          "description": "Policy for missing return paths.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "allowUnreachableCode": {
-          "description": "Policy for unreachable code.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "allowUnusedLabels": {
-          "description": "Policy for unused labels.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noImplicitOverride": {
-          "description": "Policy for missing `override` on class members.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noFallthroughCasesInSwitch": {
-          "description": "Policy for fallthrough cases in switch statements.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "exactOptionalPropertyTypes": {
-          "description": "Interpret optional property types as written without implicit `undefined`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noUncheckedIndexedAccess": {
-          "description": "Policy for unchecked index signature access results.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noPropertyAccessFromIndexSignature": {
-          "description": "Policy for property access from index signatures without explicit index access.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noAny": {
-          "description": "Policy for forbidding `any` types.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noUnknown": {
-          "description": "Policy for forbidding `unknown` types.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noImprecisePrimitives": {
-          "description": "Policy for imprecise primitive types (int32 vs number, etc.).",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noImplicitConversions": {
-          "description": "Policy for implicit widening/narrowing conversions.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "implicitCollectionConversions": {
-          "description": "Policy for implicit collection conversions (record-like and sized arrays).",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ImplicitCollectionConversionPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noUnsafeTypeAssertions": {
-          "description": "Policy for unsafe type assertions (`as T`).",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noMustAssertions": {
-          "description": "Policy for must assertions (`x!`).",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noDefiniteAssignmentAssertions": {
-          "description": "Policy for definite assignment assertions (`field!: T`).",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noCustomTypeGuards": {
-          "description": "Policy for custom type guards (`x is T`).",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noUnsoundVariance": {
-          "description": "Policy for unsound variance (invariant mutable positions).",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noUnsoundNarrowing": {
-          "description": "Policy for unsound narrowing (`instanceof`, `in`, and predicates).",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "deepReadonly": {
-          "description": "Policy for shallow readonly behavior.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noUntrustedDeclarations": {
-          "description": "Policy for untrusted declaration files.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noRedeclaredLocals": {
-          "description": "Policy for re-declaration of local variables.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noImplicitManaged": {
-          "description": "Policy for implicit ownership of managed types and values.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
         },
         "noManaged": {
           "description": "Policy for GC-managed defaults and allocations.",
@@ -975,17 +588,6 @@
             }
           ]
         },
-        "borrowMode": {
-          "description": "Borrow checking mode for `&T` and `&mut T`.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/BorrowModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "rootDir": {
           "description": "Root directory of source files (controls output directory structure, not module resolution).",
           "type": [
@@ -1028,41 +630,6 @@
             "null"
           ]
         },
-        "allowTs": {
-          "description": "Allow TypeScript files (.ts, .tsx) in the project.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "checkTs": {
-          "description": "Type-check TypeScript files.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "allowJs": {
-          "description": "Allow JavaScript files (.js, .jsx) in the project.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "jsAsJsx": {
-          "description": "Parse JavaScript files (.js, .mjs, .cjs) in JSX mode.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "checkJs": {
-          "description": "Type-check JavaScript files.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "allowArbitraryExtensions": {
           "description": "Allow arbitrary file extensions in import specifiers.",
           "type": [
@@ -1077,20 +644,6 @@
             "null"
           ]
         },
-        "verbatimModuleSyntax": {
-          "description": "Preserve import and export syntax verbatim.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "rewriteRelativeImportExtensions": {
-          "description": "Rewrite relative import extensions.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "skipLibCheck": {
           "description": "Skip type checking of declaration files (.d.ts, .d.ds).",
           "type": [
@@ -1099,17 +652,6 @@
           ]
         }
       }
-    },
-    "TaggedCaseJson": {
-      "description": "Constructor naming policy for JSON deserialization.",
-      "type": "string",
-      "enum": [
-        "preserve",
-        "camelCase",
-        "UpperCamelCase",
-        "snake_case",
-        "SCREAMING_SNAKE_CASE"
-      ]
     },
     "DiagnosticPolicyJson": {
       "description": "Diagnostic policy for JSON deserialization.",
@@ -1129,23 +671,6 @@
         "allow",
         "warn",
         "deny"
-      ]
-    },
-    "ImplicitCollectionConversionPolicyJson": {
-      "description": "Implicit collection conversion policy for JSON deserialization.",
-      "type": "string",
-      "enum": [
-        "allow",
-        "warn",
-        "deny"
-      ]
-    },
-    "BorrowModeJson": {
-      "description": "Borrow checking mode for JSON deserialization.",
-      "type": "string",
-      "enum": [
-        "hint",
-        "strict"
       ]
     },
     "RuntimeConfigJson": {
@@ -5828,26 +5353,6 @@
             "null"
           ]
         },
-        "lib": {
-          "description": "Library files for this target (overrides derived libs).",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "types": {
-          "description": "Additional library types for this target.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
         "profile": {
           "description": "Explicit profile name for this target.",
           "type": [
@@ -6003,24 +5508,6 @@
           "minimum": 0,
           "maximum": 4
         },
-        "unrollThreshold": {
-          "description": "Loop unroll threshold in instructions.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "inlineBudgetScalePercent": {
-          "description": "Inline budget scaling in percent.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
         "ltoMode": {
           "description": "Link time optimization mode.",
           "anyOf": [
@@ -6075,48 +5562,6 @@
             }
           ]
         },
-        "safepointMode": {
-          "description": "Safepoint insertion mode for native execution.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SafepointModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "safepointInterval": {
-          "description": "Instruction interval for safepoint polling (when enabled).",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "speculationMode": {
-          "description": "Speculation mode for native optimization.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SpeculationModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "profilingMode": {
-          "description": "Profiling mode for tiering and optimization.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ProfilingModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "execution": {
           "description": "Execution mode for runtime scheduling and replay.",
           "anyOf": [
@@ -6133,17 +5578,6 @@
           "anyOf": [
             {
               "$ref": "#/$defs/TrustPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "sandboxPolicy": {
-          "description": "Sandbox policy for runtime isolation.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SandboxPolicyJson"
             },
             {
               "type": "null"
@@ -7918,66 +7352,6 @@
         }
       ]
     },
-    "SafepointModeJson": {
-      "description": "Safepoint mode for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Safepoints at calls, allocations, and loop back-edges.",
-          "type": "string",
-          "const": "calls-alloc-backedges"
-        },
-        {
-          "description": "Add instruction-budget safepoints for bounded latency.",
-          "type": "string",
-          "const": "budgeted"
-        }
-      ]
-    },
-    "SpeculationModeJson": {
-      "description": "Speculation mode for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Disable speculative optimizations.",
-          "type": "string",
-          "const": "none"
-        },
-        {
-          "description": "Guarded speculations with explicit deopt metadata.",
-          "type": "string",
-          "const": "guarded"
-        },
-        {
-          "description": "Aggressive speculation across more sites.",
-          "type": "string",
-          "const": "aggressive"
-        }
-      ]
-    },
-    "ProfilingModeJson": {
-      "description": "Profiling mode for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Disable runtime profiling.",
-          "type": "string",
-          "const": "none"
-        },
-        {
-          "description": "Counters only.",
-          "type": "string",
-          "const": "counters"
-        },
-        {
-          "description": "Sampling only.",
-          "type": "string",
-          "const": "sampling"
-        },
-        {
-          "description": "Counters + sampling + inline caches.",
-          "type": "string",
-          "const": "hybrid"
-        }
-      ]
-    },
     "TrustPolicyJson": {
       "description": "Trust policy for JSON deserialization.",
       "oneOf": [
@@ -7995,31 +7369,6 @@
           "description": "Internal toolchain code with full privileges.",
           "type": "string",
           "const": "internal"
-        }
-      ]
-    },
-    "SandboxPolicyJson": {
-      "description": "Sandbox policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "In-process isolation with VM guardrails.",
-          "type": "string",
-          "const": "inprocess"
-        },
-        {
-          "description": "Process isolation with OS sandboxing.",
-          "type": "string",
-          "const": "process"
-        },
-        {
-          "description": "Container or VM isolation.",
-          "type": "string",
-          "const": "container"
-        },
-        {
-          "description": "Forbid execution without an external sandbox.",
-          "type": "string",
-          "const": "forbidden"
         }
       ]
     },
@@ -8327,26 +7676,6 @@
             "string",
             "null"
           ]
-        },
-        "lib": {
-          "description": "Library files for this profile.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "types": {
-          "description": "Additional library types for this profile.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
         },
         "debug": {
           "description": "Debug build flag (affects import.meta.debug).",
