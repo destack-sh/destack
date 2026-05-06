@@ -2,78 +2,26 @@ use super::scalar::{convert_integer_bytes, integer_bytes_to_word};
 use crate::Word;
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
-use crate::program::{FrameSelect, Instruction, Transfer, WordLayout};
-
-const CAST_SIGN_BIT: u32 = 1 << 8;
-const WORD_LAYOUT_HEAP_REFERENCE: u32 = 1;
-const WORD_LAYOUT_SHARED_HEAP_REFERENCE: u32 = 2;
-const WORD_LAYOUT_RAW_POINTER: u32 = 3;
-const WORD_LAYOUT_SHARED_RAW_POINTER: u32 = 4;
-const WORD_LAYOUT_STACK_POINTER: u32 = 5;
-const WORD_LAYOUT_FRAME_POINTER: u32 = 6;
-const WORD_LAYOUT_STATIC_POINTER: u32 = 7;
-const WORD_LAYOUT_FUNCTION_POINTER: u32 = 8;
-
-/// Return one wide integer cast flag from an instruction field.
-fn wide_cast_flags(field: u32) -> (bool, bool) {
-    let source_signed = field & (1 << 8) != 0;
-    let dest_signed = field & (1 << 9) != 0;
-
-    (source_signed, dest_signed)
-}
-
-/// Return one wide integer cast layout from an instruction field.
-fn wide_cast_layout(field: u32) -> (u16, u16) {
-    let source_width = field as u16;
-    let dest_width = (field >> 16) as u16;
-
-    (source_width, dest_width)
-}
-
-/// Return one word integer cast layout from an instruction field.
-fn integer_cast_layout(field: u32) -> (u8, bool) {
-    let width = field as u8;
-    let signed = field & CAST_SIGN_BIT != 0;
-
-    (width, signed)
-}
-
-/// Return one pointer word layout from an instruction field.
-fn pointer_cast_layout(field: u32) -> Result<WordLayout, Error> {
-    match field {
-        WORD_LAYOUT_HEAP_REFERENCE => Ok(WordLayout::HeapReference),
-        WORD_LAYOUT_SHARED_HEAP_REFERENCE => Ok(WordLayout::SharedHeapReference),
-        WORD_LAYOUT_RAW_POINTER => Ok(WordLayout::RawPointer),
-        WORD_LAYOUT_SHARED_RAW_POINTER => Ok(WordLayout::SharedRawPointer),
-        WORD_LAYOUT_STACK_POINTER => Ok(WordLayout::StackPointer),
-        WORD_LAYOUT_FRAME_POINTER => Ok(WordLayout::FramePointer),
-        WORD_LAYOUT_STATIC_POINTER => Ok(WordLayout::StaticPointer),
-        WORD_LAYOUT_FUNCTION_POINTER => Ok(WordLayout::FunctionPointer),
-        _ => Err(Error::InvalidCast),
-    }
-}
+use crate::program::{FrameSelect, Instruction, IntegerCast, PointerCast, WideIntegerCast};
 
 /// Execute one lowered word cast.
 fn execute_word_cast(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
     cast: fn(Word, u32) -> Result<Word, Error>,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let argument = instruction.b;
     let cast_field = instruction.c;
 
     // cast the word directly
     let argument = machine.get_word_at(argument);
-    let result = match cast(argument, cast_field) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
+    let result = cast(argument, cast_field)?;
 
     // store result
     machine.set_word_at(dest, result);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute one lowered wide integer cast.
@@ -112,7 +60,7 @@ fn store_frame_bytes_at(machine: &mut Machine<'_, '_>, offset: u32, bytes: &[u8]
 
 /// Cast one integer bit pattern into the requested pointer-shaped target type.
 fn cast_integer_to_pointer(raw: u64, field: u32) -> Result<Word, Error> {
-    let layout = pointer_cast_layout(field)?;
+    let layout = PointerCast::from_field(field).decode()?;
 
     Ok(layout.decode(raw))
 }
@@ -243,7 +191,7 @@ fn cast_bitcast(argument: Word, _field: u32) -> Result<Word, Error> {
 
 /// Truncate one integer word.
 fn cast_truncate(argument: Word, field: u32) -> Result<Word, Error> {
-    let (width, is_signed) = integer_cast_layout(field);
+    let (width, is_signed) = IntegerCast::from_field(field).decode();
 
     Ok(if is_signed {
         Word::int(truncate_signed(argument.as_i64(), width), width)
@@ -254,21 +202,21 @@ fn cast_truncate(argument: Word, field: u32) -> Result<Word, Error> {
 
 /// Zero extend one integer word.
 fn cast_zero_extend(argument: Word, field: u32) -> Result<Word, Error> {
-    let (width, _) = integer_cast_layout(field);
+    let (width, _) = IntegerCast::from_field(field).decode();
 
     Ok(Word::uint(argument.as_u64(), width))
 }
 
 /// Sign extend one integer word.
 fn cast_sign_extend(argument: Word, field: u32) -> Result<Word, Error> {
-    let (width, _) = integer_cast_layout(field);
+    let (width, _) = IntegerCast::from_field(field).decode();
 
     Ok(Word::int(argument.as_i64(), width))
 }
 
 /// Convert one float word to a signed integer word.
 fn cast_float_to_signed_int(argument: Word, field: u32) -> Result<Word, Error> {
-    let (target_width, _) = integer_cast_layout(field);
+    let (target_width, _) = IntegerCast::from_field(field).decode();
     let (min_bound, max_bound) = integer_bounds(target_width, true).ok_or(Error::InvalidCast)?;
     let converted = float_to_int_checked(argument.as_f64(), min_bound, max_bound)
         .ok_or(Error::BadConversionToInteger)?;
@@ -278,7 +226,7 @@ fn cast_float_to_signed_int(argument: Word, field: u32) -> Result<Word, Error> {
 
 /// Convert one float word to an unsigned integer word.
 fn cast_float_to_unsigned_int(argument: Word, field: u32) -> Result<Word, Error> {
-    let (target_width, _) = integer_cast_layout(field);
+    let (target_width, _) = IntegerCast::from_field(field).decode();
     let (min_bound, max_bound) = integer_bounds(target_width, false).ok_or(Error::InvalidCast)?;
     let converted = float_to_int_checked(argument.as_f64(), min_bound, max_bound)
         .ok_or(Error::BadConversionToInteger)?;
@@ -288,7 +236,7 @@ fn cast_float_to_unsigned_int(argument: Word, field: u32) -> Result<Word, Error>
 
 /// Saturating convert one float word to a signed integer word.
 fn cast_float_to_signed_int_saturating(argument: Word, field: u32) -> Result<Word, Error> {
-    let (target_width, _) = integer_cast_layout(field);
+    let (target_width, _) = IntegerCast::from_field(field).decode();
     let (min_bound, max_bound) = integer_bounds(target_width, true).ok_or(Error::InvalidCast)?;
     let converted = float_to_int_saturating(argument.as_f64(), min_bound, max_bound);
 
@@ -297,7 +245,7 @@ fn cast_float_to_signed_int_saturating(argument: Word, field: u32) -> Result<Wor
 
 /// Saturating convert one float word to an unsigned integer word.
 fn cast_float_to_unsigned_int_saturating(argument: Word, field: u32) -> Result<Word, Error> {
-    let (target_width, _) = integer_cast_layout(field);
+    let (target_width, _) = IntegerCast::from_field(field).decode();
     let (min_bound, max_bound) = integer_bounds(target_width, false).ok_or(Error::InvalidCast)?;
     let converted = float_to_int_saturating(argument.as_f64(), min_bound, max_bound);
 
@@ -336,7 +284,7 @@ fn cast_float_extend(argument: Word, _field: u32) -> Result<Word, Error> {
 
 /// Convert one pointer word to an integer word.
 fn cast_pointer_to_int(argument: Word, field: u32) -> Result<Word, Error> {
-    let (target_width, _) = integer_cast_layout(field);
+    let (target_width, _) = IntegerCast::from_field(field).decode();
 
     Ok(Word::uint(argument.as_u64(), target_width))
 }
@@ -350,7 +298,7 @@ fn cast_int_to_pointer(argument: Word, field: u32) -> Result<Word, Error> {
 pub(crate) fn execute_cast_bitcast(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     execute_word_cast(machine, instruction, cast_bitcast)
 }
 
@@ -358,7 +306,7 @@ pub(crate) fn execute_cast_bitcast(
 pub(crate) fn execute_cast_truncate(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     execute_word_cast(machine, instruction, cast_truncate)
 }
 
@@ -366,7 +314,7 @@ pub(crate) fn execute_cast_truncate(
 pub(crate) fn execute_cast_zero_extend(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     execute_word_cast(machine, instruction, cast_zero_extend)
 }
 
@@ -374,7 +322,7 @@ pub(crate) fn execute_cast_zero_extend(
 pub(crate) fn execute_cast_sign_extend(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     execute_word_cast(machine, instruction, cast_sign_extend)
 }
 
@@ -382,7 +330,7 @@ pub(crate) fn execute_cast_sign_extend(
 pub(crate) fn execute_cast_float_to_signed_int(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     execute_word_cast(machine, instruction, cast_float_to_signed_int)
 }
 
@@ -390,7 +338,7 @@ pub(crate) fn execute_cast_float_to_signed_int(
 pub(crate) fn execute_cast_float_to_unsigned_int(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     execute_word_cast(machine, instruction, cast_float_to_unsigned_int)
 }
 
@@ -398,7 +346,7 @@ pub(crate) fn execute_cast_float_to_unsigned_int(
 pub(crate) fn execute_cast_float_to_signed_int_saturating(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     execute_word_cast(machine, instruction, cast_float_to_signed_int_saturating)
 }
 
@@ -406,7 +354,7 @@ pub(crate) fn execute_cast_float_to_signed_int_saturating(
 pub(crate) fn execute_cast_float_to_unsigned_int_saturating(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     execute_word_cast(machine, instruction, cast_float_to_unsigned_int_saturating)
 }
 
@@ -414,7 +362,7 @@ pub(crate) fn execute_cast_float_to_unsigned_int_saturating(
 pub(crate) fn execute_cast_signed_int_to_f32(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     execute_word_cast(machine, instruction, cast_signed_int_to_f32)
 }
 
@@ -422,7 +370,7 @@ pub(crate) fn execute_cast_signed_int_to_f32(
 pub(crate) fn execute_cast_signed_int_to_f64(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     execute_word_cast(machine, instruction, cast_signed_int_to_f64)
 }
 
@@ -430,7 +378,7 @@ pub(crate) fn execute_cast_signed_int_to_f64(
 pub(crate) fn execute_cast_unsigned_int_to_f32(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     execute_word_cast(machine, instruction, cast_unsigned_int_to_f32)
 }
 
@@ -438,7 +386,7 @@ pub(crate) fn execute_cast_unsigned_int_to_f32(
 pub(crate) fn execute_cast_unsigned_int_to_f64(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     execute_word_cast(machine, instruction, cast_unsigned_int_to_f64)
 }
 
@@ -446,7 +394,7 @@ pub(crate) fn execute_cast_unsigned_int_to_f64(
 pub(crate) fn execute_cast_float_truncate(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     execute_word_cast(machine, instruction, cast_float_truncate)
 }
 
@@ -454,7 +402,7 @@ pub(crate) fn execute_cast_float_truncate(
 pub(crate) fn execute_cast_float_extend(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     execute_word_cast(machine, instruction, cast_float_extend)
 }
 
@@ -462,7 +410,7 @@ pub(crate) fn execute_cast_float_extend(
 pub(crate) fn execute_cast_pointer_to_int(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     execute_word_cast(machine, instruction, cast_pointer_to_int)
 }
 
@@ -470,7 +418,7 @@ pub(crate) fn execute_cast_pointer_to_int(
 pub(crate) fn execute_cast_int_to_pointer(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     execute_word_cast(machine, instruction, cast_int_to_pointer)
 }
 
@@ -478,11 +426,12 @@ pub(crate) fn execute_cast_int_to_pointer(
 pub(crate) fn execute_cast_word_to_wide_int(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let arg = instruction.b;
-    let (source_signed, _) = wide_cast_flags(instruction.c);
-    let (source_width, dest_width) = wide_cast_layout(instruction.d);
+    let cast = WideIntegerCast::from_fields(instruction.c, instruction.d);
+    let (source_signed, _) = cast.signs();
+    let (source_width, dest_width) = cast.widths_pair();
 
     // cast from word bits into frame bytes
     let source = machine.get_word_at(arg).to_byte_array();
@@ -491,43 +440,41 @@ pub(crate) fn execute_cast_word_to_wide_int(
     // store result bytes
     store_frame_bytes_at(machine, dest, &result);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute wide integer to word cast op.
 pub(crate) fn execute_cast_wide_int_to_word(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let arg = instruction.b;
-    let (source_signed, dest_signed) = wide_cast_flags(instruction.c);
-    let (source_width, dest_width) = wide_cast_layout(instruction.d);
+    let cast = WideIntegerCast::from_fields(instruction.c, instruction.d);
+    let (source_signed, dest_signed) = cast.signs();
+    let (source_width, dest_width) = cast.widths_pair();
 
     // cast from frame bytes into word bits
     let source = frame_bytes_at(machine, arg, integer_byte_len(source_width));
     let bytes = cast_integer_bytes(source, source_width, source_signed, dest_width);
-    let result = match integer_bytes_to_word(&bytes, dest_width, dest_signed) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error),
-    };
+    let result = integer_bytes_to_word(&bytes, dest_width, dest_signed)?;
 
     // store result word
     machine.set_word_at(dest, result);
 
-    // continue to next instruction
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute wide integer cast op.
 pub(crate) fn execute_cast_wide_int(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let arg = instruction.b;
-    let (source_signed, _) = wide_cast_flags(instruction.c);
-    let (source_width, dest_width) = wide_cast_layout(instruction.d);
+    let cast = WideIntegerCast::from_fields(instruction.c, instruction.d);
+    let (source_signed, _) = cast.signs();
+    let (source_width, dest_width) = cast.widths_pair();
 
     // cast from frame bytes into frame bytes
     let source = frame_bytes_at(machine, arg, integer_byte_len(source_width));
@@ -536,14 +483,14 @@ pub(crate) fn execute_cast_wide_int(
     // store result bytes
     store_frame_bytes_at(machine, dest, &result);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute word select op.
 pub(crate) fn execute_select_word(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let condition = instruction.b;
     let then_value = instruction.c;
@@ -557,15 +504,14 @@ pub(crate) fn execute_select_word(
     // store result
     machine.set_word_at(dest, result);
 
-    // continue to next instruction
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute frame select op.
 pub(crate) fn execute_select_frame(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let FrameSelect {
         destination_offset,
         condition_offset,
@@ -581,6 +527,5 @@ pub(crate) fn execute_select_frame(
     // move the selected frame slot directly
     machine.copy_frame_bytes(*source_offset, *destination_offset, *byte_len);
 
-    // continue to next instruction
-    Transfer::Continue
+    Ok(())
 }

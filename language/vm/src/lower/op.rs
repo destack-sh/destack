@@ -1,7 +1,7 @@
 use destack_mir as mir;
 
 use crate::diagnostic::Error;
-use crate::program::{FrameAccess, Op, PointeeAccess, PointerClass, ValueLayout, WordLayout};
+use crate::program::{Op, PointerClass, Projection, ValueLayout, WordLayout};
 
 use super::value::ValueLayoutMap;
 
@@ -111,8 +111,8 @@ pub(super) fn select_binary_op(
             And => Op::AndBool,
             Or => Op::OrBool,
             Xor => Op::XorBool,
-            Equal => Op::EqInt,
-            NotEqual => Op::NeInt,
+            Equal => Op::EqWord,
+            NotEqual => Op::NeWord,
             _ => return None,
         },
         _ => return None,
@@ -213,32 +213,32 @@ fn select_integer_word_op(operator: mir::BinaryOperator, signed: bool) -> Option
     use mir::BinaryOperator::*;
 
     Some(match (operator, signed) {
-        (Add, true) => Op::AddInt,
-        (Add, false) => Op::AddUint,
-        (Subtract, true) => Op::SubInt,
-        (Subtract, false) => Op::SubUint,
-        (Multiply, true) => Op::MulInt,
-        (Multiply, false) => Op::MulUint,
-        (SignedDivide, true) => Op::DivInt,
-        (UnsignedDivide, _) => Op::DivUint,
-        (SignedRemainder, true) => Op::RemInt,
-        (UnsignedRemainder, _) => Op::RemUint,
+        (Add, true) => Op::AddWordInt,
+        (Add, false) => Op::AddWordUint,
+        (Subtract, true) => Op::SubWordInt,
+        (Subtract, false) => Op::SubWordUint,
+        (Multiply, true) => Op::MulWordInt,
+        (Multiply, false) => Op::MulWordUint,
+        (SignedDivide, true) => Op::DivWordInt,
+        (UnsignedDivide, _) => Op::DivWordUint,
+        (SignedRemainder, true) => Op::RemWordInt,
+        (UnsignedRemainder, _) => Op::RemWordUint,
         (And, _) => Op::AndWord,
         (Or, _) => Op::OrWord,
         (Xor, _) => Op::XorWord,
         (ShiftLeft, _) => Op::ShlWord,
-        (ArithmeticShiftRight, true) => Op::ShrInt,
-        (LogicalShiftRight, _) => Op::ShrUint,
-        (Equal, _) => Op::EqInt,
-        (NotEqual, _) => Op::NeInt,
-        (SignedLessThan, true) => Op::LtInt,
-        (SignedLessEqual, true) => Op::LeInt,
-        (SignedGreaterThan, true) => Op::GtInt,
-        (SignedGreaterEqual, true) => Op::GeInt,
-        (UnsignedLessThan, _) => Op::LtUint,
-        (UnsignedLessEqual, _) => Op::LeUint,
-        (UnsignedGreaterThan, _) => Op::GtUint,
-        (UnsignedGreaterEqual, _) => Op::GeUint,
+        (ArithmeticShiftRight, true) => Op::ShrWordInt,
+        (LogicalShiftRight, _) => Op::ShrWordUint,
+        (Equal, _) => Op::EqWord,
+        (NotEqual, _) => Op::NeWord,
+        (SignedLessThan, true) => Op::LtWordInt,
+        (SignedLessEqual, true) => Op::LeWordInt,
+        (SignedGreaterThan, true) => Op::GtWordInt,
+        (SignedGreaterEqual, true) => Op::GeWordInt,
+        (UnsignedLessThan, _) => Op::LtWordUint,
+        (UnsignedLessEqual, _) => Op::LeWordUint,
+        (UnsignedGreaterThan, _) => Op::GtWordUint,
+        (UnsignedGreaterEqual, _) => Op::GeWordUint,
         _ => return None,
     })
 }
@@ -319,7 +319,7 @@ pub(super) fn select_integer_unary_op(
     Some(match (operator, signed, width) {
         (mir::UnaryOperator::Negate, true, 32) => Op::NegI32,
         (mir::UnaryOperator::Negate, true, 64) => Op::NegI64,
-        (mir::UnaryOperator::Negate, true, _) => Op::NegInt,
+        (mir::UnaryOperator::Negate, true, _) => Op::NegWordInt,
         (mir::UnaryOperator::Not, _, 32) => Op::Not32,
         (mir::UnaryOperator::Not, _, 64) => Op::Not64,
         (mir::UnaryOperator::Not, _, _) => Op::NotWord,
@@ -361,28 +361,34 @@ pub(super) fn select_wide_integer_unary_op(
     })
 }
 
-/// Select a load handler for one known pointer access.
-pub(super) fn select_load_op(access: PointeeAccess) -> Result<Op, Error> {
-    if !access.is_word() {
-        return select_bytes_load_op(access.pointer_class);
+/// Select a load handler for one known pointer class and projection.
+pub(super) fn select_load_op(
+    pointer_class: PointerClass,
+    projection: Projection,
+) -> Result<Op, Error> {
+    if !projection.is_word() {
+        return select_bytes_load_op(pointer_class);
     }
 
-    let layout = access.word_layout.ok_or(Error::InvalidInstruction)?;
+    let layout = projection.word_layout.ok_or(Error::InvalidInstruction)?;
     let load = scalar_load(layout)?;
 
-    select_scalar_load_op(access.pointer_class, load)
+    select_scalar_load_op(pointer_class, load)
 }
 
-/// Select a store handler for one known pointer access.
-pub(super) fn select_store_op(access: PointeeAccess) -> Result<Op, Error> {
-    if !access.is_word() {
-        return select_bytes_store_op(access.pointer_class);
+/// Select a store handler for one known pointer class and projection.
+pub(super) fn select_store_op(
+    pointer_class: PointerClass,
+    projection: Projection,
+) -> Result<Op, Error> {
+    if !projection.is_word() {
+        return select_bytes_store_op(pointer_class);
     }
 
-    let layout = access.word_layout.ok_or(Error::InvalidInstruction)?;
+    let layout = projection.word_layout.ok_or(Error::InvalidInstruction)?;
     let store = scalar_store(layout)?;
 
-    select_scalar_store_op(access.pointer_class, store)
+    select_scalar_store_op(pointer_class, store)
 }
 
 /// Select one scalar load operation.
@@ -499,8 +505,8 @@ fn select_scalar_store_op(pointer_class: PointerClass, store: ScalarStore) -> Re
 }
 
 /// Select one frame value scalar load operation.
-pub(super) fn select_frame_value_load_op(access: FrameAccess) -> Result<Op, Error> {
-    let layout = access.word_layout.ok_or(Error::InvalidInstruction)?;
+pub(super) fn select_frame_value_load_op(projection: Projection) -> Result<Op, Error> {
+    let layout = projection.word_layout.ok_or(Error::InvalidInstruction)?;
 
     Ok(match scalar_load(layout)? {
         ScalarLoad::U8 => Op::LoadFrameValueU8,
@@ -514,8 +520,8 @@ pub(super) fn select_frame_value_load_op(access: FrameAccess) -> Result<Op, Erro
 }
 
 /// Select one frame value scalar store operation.
-pub(super) fn select_frame_value_store_op(access: FrameAccess) -> Result<Op, Error> {
-    let layout = access.word_layout.ok_or(Error::InvalidInstruction)?;
+pub(super) fn select_frame_value_store_op(projection: Projection) -> Result<Op, Error> {
+    let layout = projection.word_layout.ok_or(Error::InvalidInstruction)?;
 
     Ok(match scalar_store(layout)? {
         ScalarStore::Width8 => Op::StoreFrameValue8,
@@ -591,7 +597,7 @@ pub(super) fn select_slice_element_addr_op(pointer_class: PointerClass) -> Resul
     }
 }
 
-/// Return the pointer class addressed by one field access.
+/// Return the pointer class addressed by one field projection.
 fn field_base_pointer_class(layout: ValueLayout) -> Result<PointerClass, Error> {
     match layout {
         ValueLayout::FrameBytes { .. } => Ok(PointerClass::Frame),
@@ -600,7 +606,7 @@ fn field_base_pointer_class(layout: ValueLayout) -> Result<PointerClass, Error> 
     }
 }
 
-/// Return the pointer class addressed by one element access.
+/// Return the pointer class addressed by one element projection.
 fn element_base_pointer_class(layout: ValueLayout) -> Result<PointerClass, Error> {
     match layout {
         ValueLayout::FrameBytes { .. } | ValueLayout::Array { .. } => Ok(PointerClass::Frame),
@@ -638,54 +644,6 @@ fn select_offset_address_op(pointer_class: PointerClass) -> Result<Op, Error> {
         PointerClass::Stack => Ok(Op::AddressStackOffset),
         PointerClass::Static => Ok(Op::AddressStaticOffset),
         PointerClass::Unknown => Err(Error::InvalidInstruction),
-    }
-}
-
-/// Select a switch handler based on inferred value layout.
-pub(super) fn select_switch_op(value_layouts: &ValueLayoutMap, value: mir::Value) -> Op {
-    match value_layouts.get(value) {
-        Some(ValueLayout::Int {
-            width,
-            signed: true,
-        }) if width <= u32::BITS as u16 => Op::SwitchI32,
-        Some(ValueLayout::Int {
-            width,
-            signed: false,
-        }) if width <= u32::BITS as u16 => Op::SwitchU32,
-        Some(ValueLayout::Int {
-            width,
-            signed: true,
-        }) if width <= u64::BITS as u16 => Op::SwitchI64,
-        Some(ValueLayout::Int {
-            width,
-            signed: false,
-        }) if width <= u64::BITS as u16 => Op::SwitchU64,
-        Some(ValueLayout::Int { signed: true, .. }) => Op::SwitchWideInt,
-        _ => Op::SwitchWideUint,
-    }
-}
-
-/// Select a switch table handler based on inferred value layout.
-pub(super) fn select_switch_table_op(value_layouts: &ValueLayoutMap, value: mir::Value) -> Op {
-    match value_layouts.get(value) {
-        Some(ValueLayout::Int {
-            width,
-            signed: true,
-        }) if width <= u32::BITS as u16 => Op::SwitchTableI32,
-        Some(ValueLayout::Int {
-            width,
-            signed: false,
-        }) if width <= u32::BITS as u16 => Op::SwitchTableU32,
-        Some(ValueLayout::Int {
-            width,
-            signed: true,
-        }) if width <= u64::BITS as u16 => Op::SwitchTableI64,
-        Some(ValueLayout::Int {
-            width,
-            signed: false,
-        }) if width <= u64::BITS as u16 => Op::SwitchTableU64,
-        Some(ValueLayout::Int { signed: true, .. }) => Op::SwitchTableWideInt,
-        _ => Op::SwitchTableWideUint,
     }
 }
 
@@ -745,16 +703,16 @@ fn select_compare_branch_64_op(operator: mir::BinaryOperator, signed: bool) -> O
 /// Select an arbitrary-width word compare branch op.
 fn select_compare_branch_word_op(operator: mir::BinaryOperator) -> Option<Op> {
     Some(match operator {
-        mir::BinaryOperator::Equal => Op::BranchEqInt,
-        mir::BinaryOperator::NotEqual => Op::BranchNeInt,
-        mir::BinaryOperator::SignedLessThan => Op::BranchLtInt,
-        mir::BinaryOperator::SignedLessEqual => Op::BranchLeInt,
-        mir::BinaryOperator::SignedGreaterThan => Op::BranchGtInt,
-        mir::BinaryOperator::SignedGreaterEqual => Op::BranchGeInt,
-        mir::BinaryOperator::UnsignedLessThan => Op::BranchLtUint,
-        mir::BinaryOperator::UnsignedLessEqual => Op::BranchLeUint,
-        mir::BinaryOperator::UnsignedGreaterThan => Op::BranchGtUint,
-        mir::BinaryOperator::UnsignedGreaterEqual => Op::BranchGeUint,
+        mir::BinaryOperator::Equal => Op::BranchEqWord,
+        mir::BinaryOperator::NotEqual => Op::BranchNeWord,
+        mir::BinaryOperator::SignedLessThan => Op::BranchLtWordInt,
+        mir::BinaryOperator::SignedLessEqual => Op::BranchLeWordInt,
+        mir::BinaryOperator::SignedGreaterThan => Op::BranchGtWordInt,
+        mir::BinaryOperator::SignedGreaterEqual => Op::BranchGeWordInt,
+        mir::BinaryOperator::UnsignedLessThan => Op::BranchLtWordUint,
+        mir::BinaryOperator::UnsignedLessEqual => Op::BranchLeWordUint,
+        mir::BinaryOperator::UnsignedGreaterThan => Op::BranchGtWordUint,
+        mir::BinaryOperator::UnsignedGreaterEqual => Op::BranchGeWordUint,
         _ => return None,
     })
 }

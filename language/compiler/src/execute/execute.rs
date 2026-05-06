@@ -5,7 +5,7 @@ use crate::{Compiler, CompilerContext, ExecuteError, ExecuteResult, RequirementC
 
 use destack_artifact::DirPatched;
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, TrustPolicy};
+use destack_workspace::ProfileId;
 
 use super::{ComptimeOutput, ComptimePatch, collect_comptime_dependencies};
 use vm::{Allocator, Heap, HeapLimits, HeapOptions, SharedHeap, SharedHeapLimits, StaticSpace};
@@ -161,18 +161,12 @@ impl Compiler {
             let (mir_tree, strings, function_id) =
                 self.lower_comptime_expression(module, profile_id, *body, context)?;
 
-            // execute the MIR with the interpreter
-            let mut options = vm::IsolateOptions::comptime();
-            if matches!(self.comptime_target.trust_policy, TrustPolicy::Untrusted) {
-                options.checks = vm::CheckOptions::debug();
-            }
-
             // TODO #Cleanup: figure out a nicer way to create the Isolate for comptime
             let mut isolate = vm::Isolate::build_with_options(
                 vm::IsolateId::new(1),
                 mir_tree,
                 strings.into_immutable(), // TODO #Performance: avoid cloning the string pool
-                options,
+                vm::IsolateOptions::comptime(),
             )
             .map_err(|error| ExecuteError::FailedExecution {
                 module: module_id,

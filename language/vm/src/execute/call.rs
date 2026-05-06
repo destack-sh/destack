@@ -10,8 +10,8 @@ use crate::diagnostic::Error;
 use crate::interpreter::{Frame, Machine};
 use crate::program::{
     ArgumentRange, Call, CallBranch, CallIndirect, CallIndirectBranch, CallInterface,
-    CallInterfaceBranch, CallTarget, CallVirtual, CallVirtualBranch, CallableBind, FieldAccess,
-    Function, Instruction, MoveRange, TailCall, TailCallIndirect, TailCallInterface,
+    CallInterfaceBranch, CallTarget, CallVirtual, CallVirtualBranch, CallableBind, Function,
+    Instruction, MoveRange, Projection, TailCall, TailCallIndirect, TailCallInterface,
     TailCallVirtual, Transfer,
 };
 use crate::{FunctionPointer, Word};
@@ -21,20 +21,28 @@ use destack_mir as mir;
 fn load_receiver_field<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     receiver: Word,
-    field: FieldAccess,
+    field: Projection,
 ) -> Result<Word, Error> {
     if IS_SHARED {
-        return access::load_shared_heap_scalar::<8, false>(machine, receiver, field.byte_offset);
+        return Ok(access::load_shared_heap_scalar::<8, false>(
+            machine,
+            receiver,
+            field.byte_offset,
+        ));
     }
 
-    access::load_heap_scalar::<8, false>(machine, receiver, field.byte_offset)
+    Ok(access::load_heap_scalar::<8, false>(
+        machine,
+        receiver,
+        field.byte_offset,
+    ))
 }
 
 /// Resolve the callee for one virtual call.
 fn resolve_virtual_callee<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     receiver: Word,
-    table_field: FieldAccess,
+    table_field: Projection,
     method_index: u32,
 ) -> Result<mir::LocalNodeId<mir::Function>, Error> {
     // load the vtable pointer from the receiver
@@ -55,7 +63,7 @@ fn resolve_virtual_callee<const IS_SHARED: bool>(
 fn resolve_interface_callee<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     receiver: Word,
-    table_field: FieldAccess,
+    table_field: Projection,
     method_index: u32,
 ) -> Result<mir::LocalNodeId<mir::Function>, Error> {
     // load the itab id from the interface reference
@@ -109,7 +117,7 @@ fn require_call_target(
 pub(crate) fn execute_address_function(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     // build function pointer value
     let dest = instruction.a;
     let function_id = mir::LocalNodeId::<mir::Function>::new(instruction.b);
@@ -118,15 +126,14 @@ pub(crate) fn execute_address_function(
     // store result
     machine.set_word_at(dest, value);
 
-    // continue to next instruction
-    Transfer::Continue
+    Ok(())
 }
 
 /// Build a callable value from one function and word environment.
 pub(crate) fn execute_bind_callable_word(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest_offset = instruction.a;
     let function = instruction.b;
     let environment_offset = instruction.c;
@@ -139,30 +146,26 @@ pub(crate) fn execute_bind_callable_word(
     // bind the function pointer and environment into a callable object
     let function_id = mir::LocalNodeId::<mir::Function>::new(function);
     let function = Word::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
-    let value = match callable::bind_callable(
+    let value = callable::bind_callable(
         machine,
         callable_layout,
         object_layout,
         function,
         environment,
         environment_offset,
-    ) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
+    )?;
 
     // store result
     machine.set_word_at(dest_offset, value);
 
-    // continue to next instruction
-    Transfer::Continue
+    Ok(())
 }
 
 /// Build a callable value from one function and frame address environment.
 pub(crate) fn execute_bind_callable_address(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest_offset = instruction.a;
     let function = instruction.b;
     let environment_offset = instruction.c;
@@ -175,50 +178,41 @@ pub(crate) fn execute_bind_callable_address(
     // bind the function pointer and environment into a callable object
     let function_id = mir::LocalNodeId::<mir::Function>::new(function);
     let function = Word::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
-    let value = match callable::bind_callable(
+    let value = callable::bind_callable(
         machine,
         callable_layout,
         object_layout,
         function,
         environment,
         environment_offset,
-    ) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
+    )?;
 
     // store result
     machine.set_word_at(dest_offset, value);
 
-    // continue to next instruction
-    Transfer::Continue
+    Ok(())
 }
 
 /// Load the callable environment pointer for the current frame.
 pub(crate) fn execute_load_callable_environment(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
 
     // load current frame environment
     let frame_layout = machine.frame_layout() as *const engine::FrameLayout;
-    let environment = match machine
+    let environment = machine
         .current_frame_mut()
-        .environment(unsafe { &*frame_layout })
-    {
-        Ok(environment) => environment,
-        Err(error) => return Transfer::Error(error),
-    };
+        .environment(unsafe { &*frame_layout })?;
     let Some(environment) = environment else {
-        return Transfer::Error(Error::InvalidInstruction);
+        return Err(Error::InvalidInstruction);
     };
 
     // store result
     machine.set_word_at(dest, environment);
 
-    // continue to next instruction
-    Transfer::Continue
+    Ok(())
 }
 
 /// Return one local function for a call target.
@@ -292,7 +286,6 @@ fn enter_local_call(
     let caller = unsafe { &*caller_ptr };
 
     if let Err(error) = move_values(
-        machine.program,
         caller,
         &mut new_frame,
         moves,
@@ -435,7 +428,7 @@ fn execute_call_virtual<const IS_SHARED: bool>(
 
     // resolve dynamic callee
     let receiver_value = machine.get_word_at(*receiver_offset);
-    let table_field = machine.field_access(*table_field);
+    let table_field = machine.projection(*table_field);
     let function_id = match resolve_virtual_callee::<IS_SHARED>(
         machine,
         receiver_value,
@@ -499,7 +492,7 @@ fn execute_invoke_virtual<const IS_SHARED: bool>(
     } = machine.side::<CallVirtualBranch>(instruction);
 
     let receiver_value = machine.get_word_at(*receiver_offset);
-    let table_field = machine.field_access(*table_field);
+    let table_field = machine.projection(*table_field);
     let function_id = match resolve_virtual_callee::<IS_SHARED>(
         machine,
         receiver_value,
@@ -557,7 +550,7 @@ fn execute_call_interface<const IS_SHARED: bool>(
 
     // resolve dynamic callee
     let receiver_value = machine.get_word_at(*receiver_offset);
-    let table_field = machine.field_access(*table_field);
+    let table_field = machine.projection(*table_field);
     let function_id = match resolve_interface_callee::<IS_SHARED>(
         machine,
         receiver_value,
@@ -621,7 +614,7 @@ fn execute_invoke_interface<const IS_SHARED: bool>(
     } = machine.side::<CallInterfaceBranch>(instruction);
 
     let receiver_value = machine.get_word_at(*receiver_offset);
-    let table_field = machine.field_access(*table_field);
+    let table_field = machine.projection(*table_field);
     let function_id = match resolve_interface_callee::<IS_SHARED>(
         machine,
         receiver_value,
@@ -886,7 +879,6 @@ pub(crate) fn execute_tail_call(
 
         match load_moved_arguments(
             machine.program,
-            machine.interpreter.frames.as_slice(),
             caller,
             current_func.move_pool.as_slice(),
             *moves,
@@ -1019,7 +1011,7 @@ fn execute_tail_call_virtual<const IS_SHARED: bool>(
 
     // resolve dynamic callee
     let receiver_value = machine.get_word_at(*receiver_offset);
-    let table_field = machine.field_access(*table_field);
+    let table_field = machine.projection(*table_field);
     let function_id = match resolve_virtual_callee::<IS_SHARED>(
         machine,
         receiver_value,
@@ -1074,7 +1066,7 @@ fn execute_tail_call_interface<const IS_SHARED: bool>(
 
     // resolve dynamic callee
     let receiver_value = machine.get_word_at(*receiver_offset);
-    let table_field = machine.field_access(*table_field);
+    let table_field = machine.projection(*table_field);
     let function_id = match resolve_interface_callee::<IS_SHARED>(
         machine,
         receiver_value,

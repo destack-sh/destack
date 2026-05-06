@@ -2,10 +2,7 @@ use super::access;
 use super::slice::{load_slice_length_at, store_slice_at};
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
-use crate::program::{
-    AllocationLayoutId, Instruction, PointeeAccessId, SliceElementAccessId,
-    SmallAllocationLayoutId, Transfer,
-};
+use crate::program::{AllocationLayoutId, Instruction, ProjectionId, SliceProjectionId};
 use crate::{StackPointer, Word};
 use destack_heap::{AllocationShape, HeapError, Payload, repeated_layout};
 
@@ -19,40 +16,35 @@ fn decode_alignment(alignment_log2: u32) -> usize {
 pub(crate) fn execute_allocate_heap_small_noscan(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let allocation = AllocationLayoutId(instruction.b);
-    let small = SmallAllocationLayoutId(instruction.c);
-    let table = machine.side_table_ptr();
-    let small = unsafe { (*table).small_allocation_layout(small) };
+    let slot_bytes = instruction.c as usize;
 
     // reserve from the active young run, refill on capacity failure
-    let reference = match machine.reserve_young(small) {
+    let reference = match machine.reserve_young(slot_bytes) {
         Some(reference) => reference,
         None => {
+            let table = machine.side_table_ptr();
             let allocation = unsafe { (*table).allocation_layout(allocation) };
             let reference_map = unsafe { (*table).reference_map(allocation.reference_map) };
             let class = unsafe { (*table).allocation_class(allocation.class) };
 
-            match machine.allocate_zeroed_heap_layout(&allocation.heap_layout(reference_map, class))
-            {
-                Ok(reference) => reference,
-                Err(error) => return Transfer::Error(error),
-            }
+            machine.allocate_zeroed_heap_layout(&allocation.heap_layout(reference_map, class))?
         }
     };
 
     // store result
     machine.set_word_at(dest, Word::heap_reference(reference));
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute local heap allocation.
 pub(crate) fn execute_allocate_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let allocation = AllocationLayoutId(instruction.b);
     let table = machine.side_table_ptr();
@@ -62,56 +54,49 @@ pub(crate) fn execute_allocate_heap(
 
     // allocate through the compiled heap layout
     let reference =
-        match machine.allocate_zeroed_heap_layout(&allocation.heap_layout(reference_map, class)) {
-            Ok(reference) => reference,
-            Err(error) => return Transfer::Error(error),
-        };
+        machine.allocate_zeroed_heap_layout(&allocation.heap_layout(reference_map, class))?;
 
     // store result
     machine.set_word_at(dest, Word::heap_reference(reference));
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute shared heap allocation.
 pub(crate) fn execute_allocate_shared_heap_small_noscan(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let allocation = AllocationLayoutId(instruction.b);
-    let small = SmallAllocationLayoutId(instruction.c);
-    let table = machine.side_table_ptr();
-    let small = unsafe { (*table).small_allocation_layout(small) };
+    let slot_bytes = instruction.c as usize;
+    let bucket_index = instruction.d as usize;
 
     // reserve from the active worker run, refill on capacity failure
-    let reference = match machine.reserve_shared_small(small) {
+    let reference = match machine.reserve_shared_small(bucket_index, slot_bytes) {
         Some(reference) => reference,
         None => {
+            let table = machine.side_table_ptr();
             let allocation = unsafe { (*table).allocation_layout(allocation) };
             let reference_map = unsafe { (*table).reference_map(allocation.reference_map) };
             let class = unsafe { (*table).allocation_class(allocation.class) };
 
-            match machine
-                .allocate_zeroed_shared_heap_layout(&allocation.heap_layout(reference_map, class))
-            {
-                Ok(reference) => reference,
-                Err(error) => return Transfer::Error(error),
-            }
+            machine
+                .allocate_zeroed_shared_heap_layout(&allocation.heap_layout(reference_map, class))?
         }
     };
 
     // store result
     machine.set_word_at(dest, Word::shared_heap_reference(reference));
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute shared heap allocation.
 pub(crate) fn execute_allocate_shared_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let allocation = AllocationLayoutId(instruction.b);
     let table = machine.side_table_ptr();
@@ -120,39 +105,32 @@ pub(crate) fn execute_allocate_shared_heap(
     let class = unsafe { (*table).allocation_class(allocation.class) };
 
     // allocate through the compiled shared heap layout
-    let reference = match machine
-        .allocate_zeroed_shared_heap_layout(&allocation.heap_layout(reference_map, class))
-    {
-        Ok(reference) => reference,
-        Err(error) => return Transfer::Error(error),
-    };
+    let reference = machine
+        .allocate_zeroed_shared_heap_layout(&allocation.heap_layout(reference_map, class))?;
 
     // store result
     machine.set_word_at(dest, Word::shared_heap_reference(reference));
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute local slice allocation.
 pub(crate) fn execute_allocate_slice(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     // decode fixed fields
     let dest = instruction.a;
     let length = instruction.b;
     let element = AllocationLayoutId(instruction.c);
-    let access = SliceElementAccessId(instruction.d);
+    let access = SliceProjectionId(instruction.d);
     let table = machine.side_table_ptr();
     let element = unsafe { (*table).allocation_layout(element) };
     let element_reference_map = unsafe { (*table).reference_map(element.reference_map) };
-    let access = unsafe { *(*table).slice_element_access(access) };
+    let access = unsafe { *(*table).slice_projection(access) };
 
     // load slice length
-    let length = match load_slice_length_at(machine, length) {
-        Ok(length) => length,
-        Err(error) => return Transfer::Error(error),
-    };
+    let length = load_slice_length_at(machine, length)?;
 
     // build the backing array allocation shape
     let backing_reference = {
@@ -164,7 +142,7 @@ pub(crate) fn execute_allocate_slice(
             length,
         ) {
             Ok(layout) => layout,
-            Err(error) => return Transfer::Error(Error::from(error)),
+            Err(error) => return Err(Error::from(error)),
         };
         let shape = AllocationShape::new(byte_len, element.alignment, &reference_map);
 
@@ -172,39 +150,31 @@ pub(crate) fn execute_allocate_slice(
             .allocate_zeroed_heap_shape(shape)
             .map(Word::heap_reference)
     };
-    let backing_reference = match backing_reference {
-        Ok(reference) => reference,
-        Err(error) => return Transfer::Error(error),
-    };
+    let backing_reference = backing_reference?;
 
     // write the slice descriptor
-    if let Err(error) = store_slice_at(machine, dest, access, backing_reference, length) {
-        return Transfer::Error(error);
-    }
+    store_slice_at(machine, dest, access, backing_reference, length)?;
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute shared slice allocation.
 pub(crate) fn execute_allocate_shared_slice(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     // decode fixed fields
     let dest = instruction.a;
     let length = instruction.b;
     let element = AllocationLayoutId(instruction.c);
-    let access = SliceElementAccessId(instruction.d);
+    let access = SliceProjectionId(instruction.d);
     let table = machine.side_table_ptr();
     let element = unsafe { (*table).allocation_layout(element) };
     let element_reference_map = unsafe { (*table).reference_map(element.reference_map) };
-    let access = unsafe { *(*table).slice_element_access(access) };
+    let access = unsafe { *(*table).slice_projection(access) };
 
     // load slice length
-    let length = match load_slice_length_at(machine, length) {
-        Ok(length) => length,
-        Err(error) => return Transfer::Error(error),
-    };
+    let length = load_slice_length_at(machine, length)?;
 
     // build the backing array allocation shape
     let backing_reference = {
@@ -216,7 +186,7 @@ pub(crate) fn execute_allocate_shared_slice(
             length,
         ) {
             Ok(layout) => layout,
-            Err(error) => return Transfer::Error(Error::from(error)),
+            Err(error) => return Err(Error::from(error)),
         };
         let shape = AllocationShape::new(byte_len, element.alignment, &reference_map);
 
@@ -224,24 +194,19 @@ pub(crate) fn execute_allocate_shared_slice(
             .allocate_zeroed_shared_heap_shape(shape)
             .map(Word::shared_heap_reference)
     };
-    let backing_reference = match backing_reference {
-        Ok(reference) => reference,
-        Err(error) => return Transfer::Error(error),
-    };
+    let backing_reference = backing_reference?;
 
     // write the slice descriptor
-    if let Err(error) = store_slice_at(machine, dest, access, backing_reference, length) {
-        return Transfer::Error(error);
-    }
+    store_slice_at(machine, dest, access, backing_reference, length)?;
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute raw allocation.
 pub(crate) fn execute_allocate_raw(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let byte_len = instruction.b as u64 | ((instruction.c as u64) << 32);
     let byte_len = byte_len as usize;
@@ -250,20 +215,42 @@ pub(crate) fn execute_allocate_raw(
     let pointer = machine.heap_mut().allocate_raw(byte_len, Payload::Zeroed);
     let pointer = match pointer {
         Ok(pointer) => pointer,
-        Err(error) => return Transfer::Error(Error::from(error)),
+        Err(error) => return Err(Error::from(error)),
     };
     let value = Word::raw_pointer(pointer);
 
     machine.set_word_at(dest, value);
 
-    Transfer::Continue
+    Ok(())
+}
+
+/// Execute shared raw allocation.
+pub(crate) fn execute_allocate_shared_raw(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let byte_len = instruction.b as u64 | ((instruction.c as u64) << 32);
+    let byte_len = byte_len as usize;
+
+    // allocate shared raw heap bytes
+    let pointer = machine.shared().allocate_raw(byte_len, Payload::Zeroed);
+    let pointer = match pointer {
+        Ok(pointer) => pointer,
+        Err(error) => return Err(Error::from(error)),
+    };
+    let value = Word::shared_raw_pointer(pointer);
+
+    machine.set_word_at(dest, value);
+
+    Ok(())
 }
 
 /// Execute raw free.
 pub(crate) fn execute_free_raw(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let pointer = instruction.a;
 
     // free the pointed raw allocation
@@ -271,21 +258,21 @@ pub(crate) fn execute_free_raw(
     let heap = machine.heap_mut();
     match heap.free_raw(pointer) {
         Ok(true) => {}
-        Ok(false) => return Transfer::Error(Error::InvalidRawPointer),
+        Ok(false) => return Err(Error::InvalidRawPointer),
         Err(HeapError::InvalidRawPointer { .. }) => {
-            return Transfer::Error(Error::InvalidRawPointer);
+            return Err(Error::InvalidRawPointer);
         }
-        Err(error) => return Transfer::Error(Error::from(error)),
+        Err(error) => return Err(Error::from(error)),
     }
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute local heap pin.
 pub(crate) fn execute_pin_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let value = instruction.b;
 
@@ -295,19 +282,19 @@ pub(crate) fn execute_pin_heap(
     match heap.pin_heap(reference) {
         Ok(reference) => machine.set_word_at(dest, Word::heap_reference(reference)),
         Err(HeapError::InvalidHeapReference { .. }) => {
-            return Transfer::Error(Error::InvalidHeapReference);
+            return Err(Error::InvalidHeapReference);
         }
-        Err(error) => return Transfer::Error(Error::from(error)),
+        Err(error) => return Err(Error::from(error)),
     }
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute shared heap pin.
 pub(crate) fn execute_pin_shared_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let value = instruction.b;
 
@@ -315,14 +302,14 @@ pub(crate) fn execute_pin_shared_heap(
     let reference = machine.get_word_at(value).as_shared_heap_reference();
     machine.set_word_at(dest, Word::shared_heap_reference(reference));
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute local heap unpin.
 pub(crate) fn execute_unpin_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let value = instruction.a;
 
     // release the local heap pin
@@ -331,42 +318,37 @@ pub(crate) fn execute_unpin_heap(
     match heap.unpin_heap(reference) {
         Ok(()) => {}
         Err(HeapError::InvalidHeapReference { .. }) => {
-            return Transfer::Error(Error::InvalidHeapReference);
+            return Err(Error::InvalidHeapReference);
         }
-        Err(error) => return Transfer::Error(Error::from(error)),
+        Err(error) => return Err(Error::from(error)),
     }
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute shared heap unpin.
 pub(crate) fn execute_unpin_shared_heap(
     _machine: &mut Machine<'_, '_>,
     _instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     // shared heap pins do not need worker-local release
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute one owned local heap drop.
 pub(crate) fn execute_drop_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let value = instruction.a;
     let reference = machine.get_word_at(value).as_heap_reference();
 
-    // null owned references have no storage
-    if reference.is_null() {
-        return Transfer::Continue;
-    }
-
     // release local heap storage immediately
     match machine.heap_mut().free_heap(reference) {
-        Ok(true) => Transfer::Continue,
-        Ok(false) => Transfer::Error(Error::InvalidHeapReference),
-        Err(HeapError::InvalidHeapReference { .. }) => Transfer::Error(Error::InvalidHeapReference),
-        Err(error) => Transfer::Error(Error::from(error)),
+        Ok(true) => Ok(()),
+        Ok(false) => Err(Error::InvalidHeapReference),
+        Err(HeapError::InvalidHeapReference { .. }) => Err(Error::InvalidHeapReference),
+        Err(error) => Err(Error::from(error)),
     }
 }
 
@@ -374,23 +356,16 @@ pub(crate) fn execute_drop_heap(
 pub(crate) fn execute_drop_shared_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let value = instruction.a;
     let reference = machine.get_word_at(value).as_shared_heap_reference();
 
-    // null owned references have no storage
-    if reference.is_null() {
-        return Transfer::Continue;
-    }
-
     // release shared heap storage immediately
     match machine.shared().free_heap(reference) {
-        Ok(true) => Transfer::Continue,
-        Ok(false) => Transfer::Error(Error::InvalidSharedHeapReference),
-        Err(HeapError::InvalidSharedHeapReference { .. }) => {
-            Transfer::Error(Error::InvalidSharedHeapReference)
-        }
-        Err(error) => Transfer::Error(Error::from(error)),
+        Ok(true) => Ok(()),
+        Ok(false) => Err(Error::InvalidSharedHeapReference),
+        Err(HeapError::InvalidSharedHeapReference { .. }) => Err(Error::InvalidSharedHeapReference),
+        Err(error) => Err(Error::from(error)),
     }
 }
 
@@ -398,62 +373,53 @@ pub(crate) fn execute_drop_shared_heap(
 pub(crate) fn execute_drop_stack(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let value = instruction.a;
     let byte_len = instruction.b as u64 | ((instruction.c as u64) << 32);
     let byte_len = byte_len as usize;
 
     // release stack bytes from the lowered layout width
     let pointer = machine.get_word_at(value).as_stack_pointer();
-    if let Err(error) = machine.retire_stack(pointer, byte_len) {
-        return Transfer::Error(error);
-    }
+    machine.retire_stack(pointer, byte_len)?;
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute one owned local slice drop.
 pub(crate) fn execute_drop_slice(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let value = instruction.a;
-    let access = PointeeAccessId(instruction.b);
+    let access = ProjectionId(instruction.b);
 
     // release slice backing storage
-    if let Err(error) = drop_local_slice_backing(machine, value, access) {
-        return Transfer::Error(error);
-    }
+    drop_local_slice_backing(machine, value, access)?;
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute one owned shared slice drop.
 pub(crate) fn execute_drop_shared_slice(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let value = instruction.a;
-    let access = PointeeAccessId(instruction.b);
+    let access = ProjectionId(instruction.b);
 
     // release slice backing storage
-    if let Err(error) = drop_shared_slice_backing(machine, value, access) {
-        return Transfer::Error(error);
-    }
+    drop_shared_slice_backing(machine, value, access)?;
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Drop one local slice backing allocation.
 fn drop_local_slice_backing(
     machine: &mut Machine<'_, '_>,
     value_offset: u32,
-    access: PointeeAccessId,
+    access: ProjectionId,
 ) -> Result<(), Error> {
     let reference = slice_backing_word(machine, value_offset, access)?.as_heap_reference();
-    if reference.is_null() {
-        return Ok(());
-    }
 
     // release local heap backing storage
     match machine.heap_mut().free_heap(reference) {
@@ -468,12 +434,9 @@ fn drop_local_slice_backing(
 fn drop_shared_slice_backing(
     machine: &mut Machine<'_, '_>,
     value_offset: u32,
-    access: PointeeAccessId,
+    access: ProjectionId,
 ) -> Result<(), Error> {
     let reference = slice_backing_word(machine, value_offset, access)?.as_shared_heap_reference();
-    if reference.is_null() {
-        return Ok(());
-    }
 
     // release shared heap backing storage
     match machine.shared().free_heap(reference) {
@@ -488,56 +451,55 @@ fn drop_shared_slice_backing(
 fn slice_backing_word(
     machine: &mut Machine<'_, '_>,
     value_offset: u32,
-    access: PointeeAccessId,
+    access: ProjectionId,
 ) -> Result<Word, Error> {
-    // load through the lowered descriptor field access
+    // load through the lowered descriptor field projection
     let table = machine.side_table_ptr();
-    let access = unsafe { *(*table).pointee_access(access) };
+    let access = unsafe { *(*table).projection(access) };
     let pointer = machine.frame_pointer_at(value_offset);
 
-    access::load_frame_scalar_by_layout(machine, pointer, access)
+    Ok(access::load_frame_scalar_by_layout(
+        machine, pointer, access,
+    ))
 }
 
 /// Execute shared raw free.
 pub(crate) fn execute_free_shared_raw(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let pointer = instruction.a;
 
     // free the pointed shared raw allocation
     let pointer = machine.get_word_at(pointer).as_shared_raw_pointer();
     match machine.shared().free_raw(pointer) {
         Ok(true) => {}
-        Ok(false) => return Transfer::Error(Error::InvalidSharedRawPointer),
+        Ok(false) => return Err(Error::InvalidSharedRawPointer),
         Err(HeapError::InvalidSharedRawPointer { .. }) => {
-            return Transfer::Error(Error::InvalidSharedRawPointer);
+            return Err(Error::InvalidSharedRawPointer);
         }
-        Err(error) => return Transfer::Error(Error::from(error)),
+        Err(error) => return Err(Error::from(error)),
     }
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute stack allocation.
 pub(crate) fn execute_allocate_stack(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let byte_len = instruction.b as u64 | ((instruction.c as u64) << 32);
     let byte_len = byte_len as usize;
     let alignment = decode_alignment(instruction.d);
 
     // allocate stack bytes from the lowered layout
-    let address = match machine.allocate_stack(byte_len, alignment) {
-        Ok(address) => address,
-        Err(error) => return Transfer::Error(error),
-    };
+    let address = machine.allocate_stack(byte_len, alignment)?;
     let sp = StackPointer::from_address(address);
     let value = Word::stack_pointer(sp);
 
     machine.set_word_at(dest, value);
 
-    Transfer::Continue
+    Ok(())
 }

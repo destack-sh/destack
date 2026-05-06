@@ -1,4 +1,3 @@
-mod access;
 mod allocation;
 mod arithmetic;
 mod atomic;
@@ -19,6 +18,7 @@ mod lower;
 mod memory;
 mod op;
 mod pool;
+mod projection;
 mod tensor;
 mod tree;
 mod value;

@@ -14,7 +14,7 @@ impl<'a> BlockLowerer<'a> {
         destination: Option<mir::ValueReference>,
         intrinsic: mir::Intrinsic,
         arguments: mir::ArgumentSlice,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         // collect argument values and static layouts
         let argument_values = self.tree.get_arguments(arguments);
@@ -59,82 +59,26 @@ impl<'a> BlockLowerer<'a> {
             None => IntrinsicDest::None,
         };
 
-        // encode the intrinsic choice in the opcode
-        let op = intrinsic_op(intrinsic)?;
-        let intrinsic = Intrinsic::new(dest, arguments, &layouts).ok_or_else(|| {
+        // reject compile-time intrinsics before building the side record
+        validate_runtime_intrinsic(intrinsic)?;
+        let intrinsic = Intrinsic::new(intrinsic, dest, arguments, &layouts).ok_or_else(|| {
             Error::UnsupportedInstruction {
                 name: "intrinsic with more than 16 arguments".to_string(),
             }
         })?;
 
-        Ok(pool.instruction_with_side_record(op, intrinsic))
+        Ok(pool.instruction_with_side(Op::Intrinsic, intrinsic))
     }
 }
 
-/// Return the VM opcode for one runtime intrinsic.
-fn intrinsic_op(intrinsic: mir::Intrinsic) -> Result<Op> {
+/// Validate one runtime intrinsic.
+fn validate_runtime_intrinsic(intrinsic: mir::Intrinsic) -> Result<()> {
     match intrinsic {
         mir::Intrinsic::TypeOf | mir::Intrinsic::SizeOf | mir::Intrinsic::AlignOf => {
             Err(Error::UnsupportedInstruction {
                 name: format!("intrinsic.{} (compile-time only)", intrinsic.to_str()),
             })
         }
-        mir::Intrinsic::LeadingZeroCount => Ok(Op::IntrinsicLeadingZeroCount),
-        mir::Intrinsic::TrailingZeroCount => Ok(Op::IntrinsicTrailingZeroCount),
-        mir::Intrinsic::PopulationCount => Ok(Op::IntrinsicPopulationCount),
-        mir::Intrinsic::ByteSwap => Ok(Op::IntrinsicByteSwap),
-        mir::Intrinsic::BitReverse => Ok(Op::IntrinsicBitReverse),
-        mir::Intrinsic::RotateLeft => Ok(Op::IntrinsicRotateLeft),
-        mir::Intrinsic::RotateRight => Ok(Op::IntrinsicRotateRight),
-        mir::Intrinsic::AddOverflow => Ok(Op::IntrinsicAddOverflow),
-        mir::Intrinsic::SubOverflow => Ok(Op::IntrinsicSubOverflow),
-        mir::Intrinsic::MulOverflow => Ok(Op::IntrinsicMulOverflow),
-        mir::Intrinsic::AddUnchecked => Ok(Op::IntrinsicAddUnchecked),
-        mir::Intrinsic::SubUnchecked => Ok(Op::IntrinsicSubUnchecked),
-        mir::Intrinsic::MulUnchecked => Ok(Op::IntrinsicMulUnchecked),
-        mir::Intrinsic::DivUnchecked => Ok(Op::IntrinsicDivUnchecked),
-        mir::Intrinsic::RemUnchecked => Ok(Op::IntrinsicRemUnchecked),
-        mir::Intrinsic::ShlUnchecked => Ok(Op::IntrinsicShlUnchecked),
-        mir::Intrinsic::ShrUnchecked => Ok(Op::IntrinsicShrUnchecked),
-        mir::Intrinsic::SatAdd => Ok(Op::IntrinsicSatAdd),
-        mir::Intrinsic::SatSub => Ok(Op::IntrinsicSatSub),
-        mir::Intrinsic::Memcpy => Ok(Op::IntrinsicMemcpy),
-        mir::Intrinsic::Memmove => Ok(Op::IntrinsicMemmove),
-        mir::Intrinsic::Memset => Ok(Op::IntrinsicMemset),
-        mir::Intrinsic::Memcmp => Ok(Op::IntrinsicMemcmp),
-        mir::Intrinsic::PrefetchRead => Ok(Op::IntrinsicPrefetchRead),
-        mir::Intrinsic::PrefetchWrite => Ok(Op::IntrinsicPrefetchWrite),
-        mir::Intrinsic::Transmute => Ok(Op::IntrinsicTransmute),
-        mir::Intrinsic::AddressSpaceCast => Ok(Op::IntrinsicAddressSpaceCast),
-        mir::Intrinsic::PointerOffsetFrom => Ok(Op::IntrinsicPointerOffsetFrom),
-        mir::Intrinsic::RawEq => Ok(Op::IntrinsicRawEq),
-        mir::Intrinsic::Sqrt => Ok(Op::IntrinsicSqrt),
-        mir::Intrinsic::Abs => Ok(Op::IntrinsicAbs),
-        mir::Intrinsic::Fma => Ok(Op::IntrinsicFma),
-        mir::Intrinsic::CopySign => Ok(Op::IntrinsicCopySign),
-        mir::Intrinsic::Min => Ok(Op::IntrinsicMin),
-        mir::Intrinsic::Max => Ok(Op::IntrinsicMax),
-        mir::Intrinsic::Sin => Ok(Op::IntrinsicSin),
-        mir::Intrinsic::Cos => Ok(Op::IntrinsicCos),
-        mir::Intrinsic::Tan => Ok(Op::IntrinsicTan),
-        mir::Intrinsic::Asin => Ok(Op::IntrinsicAsin),
-        mir::Intrinsic::Acos => Ok(Op::IntrinsicAcos),
-        mir::Intrinsic::Atan => Ok(Op::IntrinsicAtan),
-        mir::Intrinsic::Atan2 => Ok(Op::IntrinsicAtan2),
-        mir::Intrinsic::Exp => Ok(Op::IntrinsicExp),
-        mir::Intrinsic::Exp2 => Ok(Op::IntrinsicExp2),
-        mir::Intrinsic::Log => Ok(Op::IntrinsicLog),
-        mir::Intrinsic::Log2 => Ok(Op::IntrinsicLog2),
-        mir::Intrinsic::Log10 => Ok(Op::IntrinsicLog10),
-        mir::Intrinsic::Pow => Ok(Op::IntrinsicPow),
-        mir::Intrinsic::Floor => Ok(Op::IntrinsicFloor),
-        mir::Intrinsic::Ceil => Ok(Op::IntrinsicCeil),
-        mir::Intrinsic::Trunc => Ok(Op::IntrinsicTrunc),
-        mir::Intrinsic::Round => Ok(Op::IntrinsicRound),
-        mir::Intrinsic::Breakpoint => Ok(Op::IntrinsicBreakpoint),
-        mir::Intrinsic::ReturnAddress => Ok(Op::IntrinsicReturnAddress),
-        mir::Intrinsic::FrameAddress => Ok(Op::IntrinsicFrameAddress),
-        mir::Intrinsic::Expect => Ok(Op::IntrinsicExpect),
-        mir::Intrinsic::BlackBox => Ok(Op::IntrinsicBlackBox),
+        _ => Ok(()),
     }
 }

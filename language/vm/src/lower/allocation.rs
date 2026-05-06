@@ -2,22 +2,22 @@ use destack_heap::{AllocationClass, HeapOptions, SmallAllocationLayout};
 use destack_mir as mir;
 
 use crate::program::{
-    AllocationLayout, Instruction, Layout, Op, PointeeAccess, PointerClass,
+    AllocationLayout, Instruction, Layout, Op, PointerClass, Projection,
     pointer_class_from_reference, repr_type, word_layout_from_type,
 };
 use crate::{Error, Result};
 
-use super::access::slice_element_access;
 use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
 use super::pool::Pool;
+use super::projection::slice_projection;
 use super::value::pointer_class_for_value;
 
 impl<'a> BlockLowerer<'a> {
     /// Lower one heap allocation.
     pub(super) fn lower_new(
         &self,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
         destination: mir::ValueReference,
         layout: mir::TypeReference,
     ) -> Result<Instruction> {
@@ -43,24 +43,22 @@ impl<'a> BlockLowerer<'a> {
         )?;
         let allocation = pool.allocation_layout(allocation);
         let op = allocation_op(pointer_class, small)?;
-        let small = match small {
-            Some(small) => pool.small_allocation_layout(small).0,
-            None => 0,
-        };
+        let slot_bytes = small.map_or(0, |small| small.slot_bytes() as u32);
+        let bucket_index = small.map_or(0, |small| small.bucket_index() as u32);
 
         Ok(Instruction::new(
             op,
             word_offset(self, destination)?,
             allocation.0,
-            small,
-            0,
+            slot_bytes,
+            bucket_index,
         ))
     }
 
     /// Lower one slice allocation.
     pub(super) fn lower_new_slice(
         &self,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
         destination: mir::ValueReference,
         element: mir::TypeReference,
         length: mir::ValueReference,
@@ -94,11 +92,10 @@ impl<'a> BlockLowerer<'a> {
             self.heap_options,
             self.shared_heap_options,
         )?;
-        let access =
-            slice_element_access(self.tree, self.layouts(), result_type, PointerClass::Frame)
-                .ok_or(Error::InvalidInstruction)?;
+        let access = slice_projection(self.tree, self.layouts(), result_type)
+            .ok_or(Error::InvalidInstruction)?;
         let element = pool.allocation_layout(element);
-        let access = pool.slice_element_access(access);
+        let access = pool.slice_projection(access);
 
         let op = match pointer_class {
             PointerClass::Heap => Op::AllocateSlice,
@@ -133,11 +130,21 @@ impl<'a> BlockLowerer<'a> {
         let layout = layout.ty().ok_or_else(|| Error::MissingRepresentation {
             context: "raw alloc layout".to_string(),
         })?;
+        let pointer_class = pointer_class_for_value(self.value_layout_map(), destination);
+        let op = match pointer_class {
+            PointerClass::Raw => Op::AllocateRaw,
+            PointerClass::SharedRaw => Op::AllocateSharedRaw,
+            _ => {
+                return Err(Error::InvalidPointerType {
+                    actual: format!("{pointer_class:?}"),
+                });
+            }
+        };
 
         let byte_len = self.byte_len_for_type(layout)? as u64;
 
         Ok(Instruction::new(
-            Op::AllocateRaw,
+            op,
             word_offset(self, destination)?,
             byte_len as u32,
             (byte_len >> 32) as u32,
@@ -263,7 +270,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one owned-value drop.
     pub(super) fn lower_drop(
         &self,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
         value: mir::ValueReference,
     ) -> Result<Vec<Instruction>> {
         // resolve value and MIR type
@@ -340,7 +347,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one slice drop.
     fn lower_slice_drop(
         &self,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
         value: mir::Value,
         kind: mir::ReferenceKind,
         address_space: mir::AddressSpace,
@@ -365,14 +372,13 @@ impl<'a> BlockLowerer<'a> {
         // describe the slice backing pointer once during lowering
         let layout = self.layout_for_type(slice_type)?;
         let slice = layout.slice().ok_or(Error::InvalidInstruction)?;
-        let access = PointeeAccess {
-            pointer_class: PointerClass::Frame,
-            value_type: slice.data.ty,
-            byte_offset: slice.data.offset,
-            byte_len: slice.data.byte_len,
-            word_layout: word_layout_from_type(self.tree, slice.data.ty),
-        };
-        let access = pool.pointee_access(access);
+        let access = Projection::fixed(
+            slice.data.ty,
+            slice.data.offset,
+            slice.data.byte_len,
+            word_layout_from_type(self.tree, slice.data.ty),
+        );
+        let access = pool.projection(access);
 
         Ok(vec![Instruction::new(
             op,
@@ -417,7 +423,7 @@ fn slice_backing_pointer_class(
 
 /// Build one allocation layout for a concrete MIR type.
 fn allocation_layout(
-    pool: &mut Pool<'_>,
+    pool: &mut Pool<'_, '_>,
     pointer_class: PointerClass,
     layout: &Layout,
     heap_options: &HeapOptions,

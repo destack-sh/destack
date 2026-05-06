@@ -1,49 +1,25 @@
 use std::slice;
 
 use super::access;
-use super::reference::check_reference_address_space;
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
-use crate::program::{
-    FrameAccess, FrameAccessId, Instruction, PointeeAccess, PointeeAccessId, Transfer,
-};
-use crate::{FramePointer, ReferenceMeta, StaticPointer, Word};
+use crate::program::{Instruction, Projection, ProjectionId};
+use crate::{FramePointer, StaticPointer, Word};
 use destack_mir as mir;
 
-/// Execute local variable load.
+/// Execute frame word move.
 #[inline(always)]
-pub(crate) fn execute_load_local(
+pub(crate) fn execute_move_word(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
-    let dest = instruction.a;
-    let local = instruction.b;
+) -> Result<(), Error> {
+    let destination_offset = instruction.a;
+    let source_offset = instruction.b;
 
-    // move local bytes into the destination region
-    if let Err(error) = machine.move_local_to_offset(local, dest) {
-        return Transfer::Error(error);
-    }
+    let value = machine.get_word_at(source_offset);
+    machine.set_word_at(destination_offset, value);
 
-    // continue to next instruction
-    Transfer::Continue
-}
-
-/// Execute local variable store.
-#[inline(always)]
-pub(crate) fn execute_store_local(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Transfer {
-    let local = instruction.a;
-    let value = instruction.b;
-
-    // move the value bytes into the local region
-    if let Err(error) = machine.move_offset_to_local(value, local) {
-        return Transfer::Error(error);
-    }
-
-    // continue to next instruction
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute frame byte move.
@@ -51,21 +27,14 @@ pub(crate) fn execute_store_local(
 pub(crate) fn execute_move_frame(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let destination_offset = instruction.a;
-    let destination_access = FrameAccessId(instruction.b);
+    let byte_len = instruction.b as usize;
     let source_offset = instruction.c;
-    let source_access = FrameAccessId(instruction.d);
 
-    move_frame_range(
-        machine,
-        destination_offset,
-        machine.frame_access(destination_access),
-        source_offset,
-        machine.frame_access(source_access),
-    );
+    machine.copy_frame_bytes(source_offset, destination_offset, byte_len);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute one byte range load from local heap memory.
@@ -73,16 +42,12 @@ pub(crate) fn execute_move_frame(
 pub(crate) fn execute_load_heap_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (address, access, destination, destination_len) = load_bytes(machine, instruction);
 
-    if let Err(error) =
-        access::load_heap_bytes(machine, address, access, destination, destination_len)
-    {
-        return Transfer::Error(error);
-    }
+    access::load_heap_bytes(machine, address, access, destination, destination_len)?;
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute one byte range load from shared heap memory.
@@ -90,16 +55,12 @@ pub(crate) fn execute_load_heap_bytes(
 pub(crate) fn execute_load_shared_heap_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (address, access, destination, destination_len) = load_bytes(machine, instruction);
 
-    if let Err(error) =
-        access::load_shared_heap_bytes(machine, address, access, destination, destination_len)
-    {
-        return Transfer::Error(error);
-    }
+    access::load_shared_heap_bytes(machine, address, access, destination, destination_len)?;
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute one byte range load from local raw memory.
@@ -107,16 +68,12 @@ pub(crate) fn execute_load_shared_heap_bytes(
 pub(crate) fn execute_load_raw_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (address, access, destination, destination_len) = load_bytes(machine, instruction);
 
-    if let Err(error) =
-        access::load_raw_bytes(machine, address, access, destination, destination_len)
-    {
-        return Transfer::Error(error);
-    }
+    access::load_raw_bytes(machine, address, access, destination, destination_len)?;
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute one byte range load from shared raw memory.
@@ -124,16 +81,12 @@ pub(crate) fn execute_load_raw_bytes(
 pub(crate) fn execute_load_shared_raw_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (address, access, destination, destination_len) = load_bytes(machine, instruction);
 
-    if let Err(error) =
-        access::load_shared_raw_bytes(machine, address, access, destination, destination_len)
-    {
-        return Transfer::Error(error);
-    }
+    access::load_shared_raw_bytes(machine, address, access, destination, destination_len)?;
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute one byte range load from stack memory.
@@ -141,20 +94,18 @@ pub(crate) fn execute_load_shared_raw_bytes(
 pub(crate) fn execute_load_stack_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (address, access, destination, destination_len) = load_bytes(machine, instruction);
 
-    if let Err(error) = access::load_stack_bytes(
+    access::load_stack_bytes(
         machine,
         address.as_stack_pointer(),
         access,
         destination,
         destination_len,
-    ) {
-        return Transfer::Error(error);
-    }
+    )?;
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute one byte range load from frame memory.
@@ -162,20 +113,18 @@ pub(crate) fn execute_load_stack_bytes(
 pub(crate) fn execute_load_frame_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (address, access, destination, destination_len) = load_bytes(machine, instruction);
 
-    if let Err(error) = access::load_frame_bytes(
+    access::load_frame_bytes(
         machine,
         address.as_frame_pointer(),
         access,
         destination,
         destination_len,
-    ) {
-        return Transfer::Error(error);
-    }
+    )?;
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute one byte range load from static memory.
@@ -183,20 +132,18 @@ pub(crate) fn execute_load_frame_bytes(
 pub(crate) fn execute_load_static_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (address, access, destination, destination_len) = load_bytes(machine, instruction);
 
-    if let Err(error) = access::load_static_bytes(
+    access::load_static_bytes(
         machine,
         address.as_static_pointer(),
         access,
         destination,
         destination_len,
-    ) {
-        return Transfer::Error(error);
-    }
+    )?;
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute one byte range store into local heap memory.
@@ -204,15 +151,15 @@ pub(crate) fn execute_load_static_bytes(
 pub(crate) fn execute_store_heap_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
-    let (address, access, source, source_len) = store_bytes(machine, instruction);
-    let source = unsafe { slice::from_raw_parts(source, source_len) };
+) -> Result<(), Error> {
+    let (address, access, source, byte_len) = store_bytes(machine, instruction);
 
-    if let Err(error) = access::store_heap_bytes(machine, address, access, source) {
-        return Transfer::Error(error);
-    }
+    // borrow source frame bytes after decoding the access
+    let source = unsafe { slice::from_raw_parts(source, byte_len) };
 
-    Transfer::Continue
+    access::store_heap_bytes(machine, address, access, source)?;
+
+    Ok(())
 }
 
 /// Execute one byte range store into shared heap memory.
@@ -220,15 +167,15 @@ pub(crate) fn execute_store_heap_bytes(
 pub(crate) fn execute_store_shared_heap_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
-    let (address, access, source, source_len) = store_bytes(machine, instruction);
-    let source = unsafe { slice::from_raw_parts(source, source_len) };
+) -> Result<(), Error> {
+    let (address, access, source, byte_len) = store_bytes(machine, instruction);
 
-    if let Err(error) = access::store_shared_heap_bytes(machine, address, access, source) {
-        return Transfer::Error(error);
-    }
+    // borrow source frame bytes after decoding the access
+    let source = unsafe { slice::from_raw_parts(source, byte_len) };
 
-    Transfer::Continue
+    access::store_shared_heap_bytes(machine, address, access, source)?;
+
+    Ok(())
 }
 
 /// Execute one byte range store into local raw memory.
@@ -236,15 +183,15 @@ pub(crate) fn execute_store_shared_heap_bytes(
 pub(crate) fn execute_store_raw_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
-    let (address, access, source, source_len) = store_bytes(machine, instruction);
-    let source = unsafe { slice::from_raw_parts(source, source_len) };
+) -> Result<(), Error> {
+    let (address, access, source, byte_len) = store_bytes(machine, instruction);
 
-    if let Err(error) = access::store_raw_bytes(machine, address, access, source) {
-        return Transfer::Error(error);
-    }
+    // borrow source frame bytes after decoding the access
+    let source = unsafe { slice::from_raw_parts(source, byte_len) };
 
-    Transfer::Continue
+    access::store_raw_bytes(machine, address, access, source)?;
+
+    Ok(())
 }
 
 /// Execute one byte range store into shared raw memory.
@@ -252,15 +199,15 @@ pub(crate) fn execute_store_raw_bytes(
 pub(crate) fn execute_store_shared_raw_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
-    let (address, access, source, source_len) = store_bytes(machine, instruction);
-    let source = unsafe { slice::from_raw_parts(source, source_len) };
+) -> Result<(), Error> {
+    let (address, access, source, byte_len) = store_bytes(machine, instruction);
 
-    if let Err(error) = access::store_shared_raw_bytes(machine, address, access, source) {
-        return Transfer::Error(error);
-    }
+    // borrow source frame bytes after decoding the access
+    let source = unsafe { slice::from_raw_parts(source, byte_len) };
 
-    Transfer::Continue
+    access::store_shared_raw_bytes(machine, address, access, source)?;
+
+    Ok(())
 }
 
 /// Execute one byte range store into stack memory.
@@ -268,17 +215,15 @@ pub(crate) fn execute_store_shared_raw_bytes(
 pub(crate) fn execute_store_stack_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
-    let (address, access, source, source_len) = store_bytes(machine, instruction);
-    let source = unsafe { slice::from_raw_parts(source, source_len) };
+) -> Result<(), Error> {
+    let (address, access, source, byte_len) = store_bytes(machine, instruction);
 
-    if let Err(error) =
-        access::store_stack_bytes(machine, address.as_stack_pointer(), access, source)
-    {
-        return Transfer::Error(error);
-    }
+    // borrow source frame bytes after decoding the access
+    let source = unsafe { slice::from_raw_parts(source, byte_len) };
 
-    Transfer::Continue
+    access::store_stack_bytes(machine, address.as_stack_pointer(), access, source)?;
+
+    Ok(())
 }
 
 /// Execute one byte range store into frame memory.
@@ -286,17 +231,15 @@ pub(crate) fn execute_store_stack_bytes(
 pub(crate) fn execute_store_frame_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
-    let (address, access, source, source_len) = store_bytes(machine, instruction);
-    let source = unsafe { slice::from_raw_parts(source, source_len) };
+) -> Result<(), Error> {
+    let (address, access, source, byte_len) = store_bytes(machine, instruction);
 
-    if let Err(error) =
-        access::store_frame_bytes(machine, address.as_frame_pointer(), access, source)
-    {
-        return Transfer::Error(error);
-    }
+    // borrow source frame bytes after decoding the access
+    let source = unsafe { slice::from_raw_parts(source, byte_len) };
 
-    Transfer::Continue
+    access::store_frame_bytes(machine, address.as_frame_pointer(), access, source)?;
+
+    Ok(())
 }
 
 /// Execute one byte range store into static memory.
@@ -304,42 +247,26 @@ pub(crate) fn execute_store_frame_bytes(
 pub(crate) fn execute_store_static_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
-    let (address, access, source, source_len) = store_bytes(machine, instruction);
-    let source = unsafe { slice::from_raw_parts(source, source_len) };
+) -> Result<(), Error> {
+    let (address, access, source, byte_len) = store_bytes(machine, instruction);
 
-    if let Err(error) =
-        access::store_static_bytes(machine, address.as_static_pointer(), access, source)
-    {
-        return Transfer::Error(error);
-    }
+    // borrow source frame bytes after decoding the access
+    let source = unsafe { slice::from_raw_parts(source, byte_len) };
 
-    Transfer::Continue
-}
+    access::store_static_bytes(machine, address.as_static_pointer(), access, source)?;
 
-/// Move one frame byte range into another frame byte range.
-fn move_frame_range(
-    machine: &mut Machine<'_, '_>,
-    destination_offset: u32,
-    destination_access: FrameAccess,
-    source_offset: u32,
-    source_access: FrameAccess,
-) {
-    let destination_offset = destination_offset + destination_access.byte_offset as u32;
-    let source_offset = source_offset + source_access.byte_offset as u32;
-
-    machine.copy_frame_bytes(source_offset, destination_offset, source_access.byte_len);
+    Ok(())
 }
 
 /// Load byte range fields from one instruction.
 fn load_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> (Word, PointeeAccess, *mut u8, usize) {
+) -> (Word, Projection, *mut u8, usize) {
     let destination = instruction.a;
     let address = instruction.b;
-    let access = PointeeAccessId(instruction.c);
-    let access = machine.pointee_access(access);
+    let access = ProjectionId(instruction.c);
+    let access = machine.projection(access);
 
     let address = machine.get_word_at(address);
     let destination = machine.frame_pointer_at(destination).address() as *mut u8;
@@ -352,17 +279,17 @@ fn load_bytes(
 fn store_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> (Word, PointeeAccess, *const u8, usize) {
+) -> (Word, Projection, *const u8, usize) {
     let address = instruction.a;
     let source = instruction.b;
-    let access = PointeeAccessId(instruction.c);
-    let access = machine.pointee_access(access);
+    let access = ProjectionId(instruction.c);
+    let access = machine.projection(access);
 
     let address = machine.get_word_at(address);
     let source = machine.frame_pointer_at(source).address() as *const u8;
-    let source_len = access.byte_len;
+    let byte_len = access.byte_len;
 
-    (address, access, source, source_len)
+    (address, access, source, byte_len)
 }
 
 /// Execute local address.
@@ -370,61 +297,39 @@ fn store_bytes(
 pub(crate) fn execute_address_local(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
     let local = instruction.b;
-    let reference = ReferenceMeta::from_bits(instruction.c as u8);
 
-    // take the address of the local value
     let local = mir::LocalNodeId::new(local);
-    let frame_layout = machine.frame_layout() as *const _;
-    let address = match machine
-        .current_frame_mut()
-        .local_address(unsafe { &*frame_layout }, local)
-    {
-        Ok(address) => address,
-        Err(error) => return Transfer::Error(error),
-    };
+    let address = machine
+        .current_frame()
+        .local_address(machine.frame_layout(), local)?;
     let pointer = FramePointer::from_address(address);
     let value = Word::frame_pointer(pointer);
 
-    // validate reference address space
-    if let Err(error) = check_reference_address_space(machine, reference) {
-        return Transfer::Error(error);
-    }
-
-    // store result
     machine.set_word_at(dest, value);
 
-    // continue to next instruction
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute static address.
 pub(crate) fn execute_address_static(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let dest = instruction.a;
-    let reference = ReferenceMeta::from_bits(instruction.c as u8);
 
     let global: mir::LocalNodeId<mir::Global> = mir::LocalNodeId::new(instruction.b);
     let pointer = match machine.static_pointer(global) {
         Some(pointer) => pointer,
-        None => return Transfer::Error(Error::UndefinedGlobal { global }),
+        None => return Err(Error::UndefinedGlobal { global }),
     };
     let pointer = Word::static_pointer(pointer);
 
-    // validate reference address space
-    if let Err(error) = check_reference_address_space(machine, reference) {
-        return Transfer::Error(error);
-    }
-
-    // store result
     machine.set_word_at(dest, pointer);
 
-    // continue to next instruction
-    Transfer::Continue
+    Ok(())
 }
 
 /// Return the immutable static region for one static address.
@@ -469,17 +374,13 @@ fn store_fields(machine: &Machine<'_, '_>, instruction: &Instruction) -> (Word, 
 pub(crate) fn execute_load_heap_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (dest, pointer, byte_offset) = load_fields(machine, instruction);
 
-    let value = match access::load_heap_scalar::<BYTE_LEN, IS_SIGNED>(machine, pointer, byte_offset)
-    {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
+    let value = access::load_heap_scalar::<BYTE_LEN, IS_SIGNED>(machine, pointer, byte_offset);
     machine.set_word_at(dest, value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute shared heap scalar load.
@@ -487,18 +388,14 @@ pub(crate) fn execute_load_heap_scalar<const BYTE_LEN: usize, const IS_SIGNED: b
 pub(crate) fn execute_load_shared_heap_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (dest, pointer, byte_offset) = load_fields(machine, instruction);
 
     let value =
-        match access::load_shared_heap_scalar::<BYTE_LEN, IS_SIGNED>(machine, pointer, byte_offset)
-        {
-            Ok(value) => value,
-            Err(error) => return Transfer::Error(error),
-        };
+        access::load_shared_heap_scalar::<BYTE_LEN, IS_SIGNED>(machine, pointer, byte_offset);
     machine.set_word_at(dest, value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute local raw scalar load.
@@ -506,17 +403,13 @@ pub(crate) fn execute_load_shared_heap_scalar<const BYTE_LEN: usize, const IS_SI
 pub(crate) fn execute_load_raw_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (dest, pointer, byte_offset) = load_fields(machine, instruction);
 
-    let value = match access::load_raw_scalar::<BYTE_LEN, IS_SIGNED>(machine, pointer, byte_offset)
-    {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
+    let value = access::load_raw_scalar::<BYTE_LEN, IS_SIGNED>(machine, pointer, byte_offset);
     machine.set_word_at(dest, value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute shared raw scalar load.
@@ -524,20 +417,14 @@ pub(crate) fn execute_load_raw_scalar<const BYTE_LEN: usize, const IS_SIGNED: bo
 pub(crate) fn execute_load_shared_raw_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (dest, pointer, byte_offset) = load_fields(machine, instruction);
 
-    let value = match access::load_shared_raw_scalar::<BYTE_LEN, IS_SIGNED>(
-        machine,
-        pointer,
-        byte_offset,
-    ) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
+    let value =
+        access::load_shared_raw_scalar::<BYTE_LEN, IS_SIGNED>(machine, pointer, byte_offset);
     machine.set_word_at(dest, value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute stack scalar load.
@@ -545,20 +432,17 @@ pub(crate) fn execute_load_shared_raw_scalar<const BYTE_LEN: usize, const IS_SIG
 pub(crate) fn execute_load_stack_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (dest, pointer, byte_offset) = load_fields(machine, instruction);
 
-    let value = match access::load_stack_scalar::<BYTE_LEN, IS_SIGNED>(
+    let value = access::load_stack_scalar::<BYTE_LEN, IS_SIGNED>(
         machine,
         pointer.as_stack_pointer(),
         byte_offset,
-    ) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
+    );
     machine.set_word_at(dest, value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute static scalar load.
@@ -566,20 +450,17 @@ pub(crate) fn execute_load_stack_scalar<const BYTE_LEN: usize, const IS_SIGNED: 
 pub(crate) fn execute_load_static_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (dest, pointer, byte_offset) = load_fields(machine, instruction);
 
-    let value = match access::load_static_scalar::<BYTE_LEN, IS_SIGNED>(
+    let value = access::load_static_scalar::<BYTE_LEN, IS_SIGNED>(
         machine,
         pointer.as_static_pointer(),
         byte_offset,
-    ) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
+    );
     machine.set_word_at(dest, value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute local heap scalar store.
@@ -587,14 +468,11 @@ pub(crate) fn execute_load_static_scalar<const BYTE_LEN: usize, const IS_SIGNED:
 pub(crate) fn execute_store_heap_scalar<const BYTE_LEN: usize>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (pointer, value, byte_offset) = store_fields(machine, instruction);
-    if let Err(error) = access::store_heap_scalar::<BYTE_LEN>(machine, pointer, byte_offset, value)
-    {
-        return Transfer::Error(error);
-    }
+    access::store_heap_scalar::<BYTE_LEN>(machine, pointer, byte_offset, value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute shared heap scalar store.
@@ -602,15 +480,11 @@ pub(crate) fn execute_store_heap_scalar<const BYTE_LEN: usize>(
 pub(crate) fn execute_store_shared_heap_scalar<const BYTE_LEN: usize>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (pointer, value, byte_offset) = store_fields(machine, instruction);
-    if let Err(error) =
-        access::store_shared_heap_scalar::<BYTE_LEN>(machine, pointer, byte_offset, value)
-    {
-        return Transfer::Error(error);
-    }
+    access::store_shared_heap_scalar::<BYTE_LEN>(machine, pointer, byte_offset, value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute local raw scalar store.
@@ -618,13 +492,11 @@ pub(crate) fn execute_store_shared_heap_scalar<const BYTE_LEN: usize>(
 pub(crate) fn execute_store_raw_scalar<const BYTE_LEN: usize>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (pointer, value, byte_offset) = store_fields(machine, instruction);
-    if let Err(error) = access::store_raw_scalar::<BYTE_LEN>(machine, pointer, byte_offset, value) {
-        return Transfer::Error(error);
-    }
+    access::store_raw_scalar::<BYTE_LEN>(machine, pointer, byte_offset, value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute shared raw scalar store.
@@ -632,15 +504,11 @@ pub(crate) fn execute_store_raw_scalar<const BYTE_LEN: usize>(
 pub(crate) fn execute_store_shared_raw_scalar<const BYTE_LEN: usize>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (pointer, value, byte_offset) = store_fields(machine, instruction);
-    if let Err(error) =
-        access::store_shared_raw_scalar::<BYTE_LEN>(machine, pointer, byte_offset, value)
-    {
-        return Transfer::Error(error);
-    }
+    access::store_shared_raw_scalar::<BYTE_LEN>(machine, pointer, byte_offset, value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute stack scalar store.
@@ -648,15 +516,12 @@ pub(crate) fn execute_store_shared_raw_scalar<const BYTE_LEN: usize>(
 pub(crate) fn execute_store_stack_scalar<const BYTE_LEN: usize>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (pointer, value, byte_offset) = store_fields(machine, instruction);
     let pointer = pointer.as_stack_pointer();
-    if let Err(error) = access::store_stack_scalar::<BYTE_LEN>(machine, pointer, byte_offset, value)
-    {
-        return Transfer::Error(error);
-    }
+    access::store_stack_scalar::<BYTE_LEN>(machine, pointer, byte_offset, value);
 
-    Transfer::Continue
+    Ok(())
 }
 
 /// Execute static scalar store.
@@ -664,19 +529,15 @@ pub(crate) fn execute_store_stack_scalar<const BYTE_LEN: usize>(
 pub(crate) fn execute_store_static_scalar<const BYTE_LEN: usize>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> Transfer {
+) -> Result<(), Error> {
     let (pointer, value, byte_offset) = store_fields(machine, instruction);
     let pointer = pointer.as_static_pointer();
 
     if let Some(global) = immutable_static_region_for_pointer(machine, pointer) {
-        return Transfer::Error(Error::ImmutableGlobalWrite { global });
+        return Err(Error::ImmutableGlobalWrite { global });
     }
 
-    if let Err(error) =
-        access::store_static_scalar::<BYTE_LEN>(machine, pointer, byte_offset, value)
-    {
-        return Transfer::Error(error);
-    }
+    access::store_static_scalar::<BYTE_LEN>(machine, pointer, byte_offset, value);
 
-    Transfer::Continue
+    Ok(())
 }

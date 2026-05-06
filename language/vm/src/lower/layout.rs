@@ -1,14 +1,15 @@
 use destack_mir as mir;
 
-use crate::program::{ElementAccess, FieldAccess, Layout};
+use crate::program::{Layout, Projection};
 use crate::{Error, Result};
 
-use super::access::{array_element_count, element_access, field_access, field_count_for_layout};
 use super::lower::BlockLowerer;
+use super::projection::{
+    array_element_count, element_projection, field_count_for_layout, field_projection,
+};
 use super::value::{
-    heap_pointee_type_for_value, heap_pointee_type_for_value_layout, pointer_class_for_value,
-    raw_pointee_type_for_value, raw_pointee_type_for_value_layout, reference_meta_for_value,
-    value_type_for_value as lookup_value_type_for_value,
+    heap_pointee_type_for_value, heap_pointee_type_for_value_layout, raw_pointee_type_for_value,
+    raw_pointee_type_for_value_layout, value_type_for_value as lookup_value_type_for_value,
 };
 
 impl<'a> BlockLowerer<'a> {
@@ -77,40 +78,28 @@ impl<'a> BlockLowerer<'a> {
         Ok(Some(self.value_type_for_value(value)?))
     }
 
-    /// Return one lowered field access for a value.
-    pub(super) fn field_access_for_value(
+    /// Return one lowered field projection for a value.
+    pub(super) fn field_projection_for_value(
         &self,
         value: mir::Value,
         index: u32,
-    ) -> Result<FieldAccess> {
+    ) -> Result<Projection> {
         let field_count = self.field_count_for_value(value)? as usize;
         let value_type = self.projection_type_for_value(value)?;
         let Some(value_type) = value_type else {
             return Err(Error::InvalidFieldAccess { index, field_count });
         };
-        let pointer_class = pointer_class_for_value(self.value_layout_map(), value);
-
-        field_access(self.tree, self.layouts(), value_type, pointer_class, index)
+        field_projection(self.tree, self.layouts(), value_type, index)
             .ok_or(Error::InvalidFieldAccess { index, field_count })
     }
 
-    /// Return one lowered element access for a value.
-    pub(super) fn element_access_for_value(&self, value: mir::Value) -> Result<ElementAccess> {
+    /// Return one lowered element projection for a value.
+    pub(super) fn element_projection_for_value(&self, value: mir::Value) -> Result<Projection> {
         let value_type = self.projection_type_for_value(value)?;
         let Some(value_type) = value_type else {
             return Err(Error::InvalidInstruction);
         };
-        let pointer_class = pointer_class_for_value(self.value_layout_map(), value);
-        let reference = reference_meta_for_value(self.value_layout_map(), value);
-
-        element_access(
-            self.tree,
-            self.layouts(),
-            value_type,
-            pointer_class,
-            reference,
-        )
-        .ok_or(Error::InvalidInstruction)
+        element_projection(self.tree, self.layouts(), value_type).ok_or(Error::InvalidInstruction)
     }
 
     /// Return one field count from a concrete type.

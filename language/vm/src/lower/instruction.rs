@@ -10,38 +10,38 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_instructions(
         &self,
         inst: &mir::Instruction,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Vec<Instruction>> {
         match inst {
             mir::Instruction::Struct {
                 destination,
                 fields,
                 ..
-            } => self.lower_frame_constructor(pool, *destination, *fields),
+            } => self.lower_frame_constructor(*destination, *fields),
             mir::Instruction::Tuple {
                 destination,
                 elements,
                 ..
-            } => self.lower_frame_constructor(pool, *destination, *elements),
+            } => self.lower_frame_constructor(*destination, *elements),
             mir::Instruction::Array {
                 destination,
                 elements,
                 ..
-            } => self.lower_frame_constructor(pool, *destination, *elements),
+            } => self.lower_frame_constructor(*destination, *elements),
             mir::Instruction::FieldSet {
                 destination,
                 aggregate: base,
                 index,
                 value,
-            } => self.lower_field_update(pool, *destination, *base, *index, *value),
-            mir::Instruction::FieldGet { .. } => self.lower_field_read(pool, inst),
-            mir::Instruction::ElementGet { .. } => self.lower_element_read(pool, inst),
+            } => self.lower_field_update(*destination, *base, *index, *value),
+            mir::Instruction::FieldGet { .. } => self.lower_field_read(inst),
+            mir::Instruction::ElementGet { .. } => self.lower_element_read(inst),
             mir::Instruction::ElementSet {
                 destination,
                 array,
                 index,
                 value,
-            } => self.lower_element_update(pool, *destination, *array, *index, *value),
+            } => self.lower_element_update(*destination, *array, *index, *value),
             mir::Instruction::Drop { value } => self.lower_drop(pool, *value),
             _ => Ok(vec![self.lower_instruction(inst, pool)?]),
         }
@@ -51,7 +51,7 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_instruction(
         &self,
         inst: &mir::Instruction,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         Ok(match inst {
             mir::Instruction::Error => {

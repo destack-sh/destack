@@ -1,24 +1,14 @@
 use destack_mir as mir;
 
 use crate::program::{
-    FrameSelect, Instruction, Op, ValueLayout, WordLayout, value_layout_from_type,
-    word_layout_from_type,
+    FrameSelect, Instruction, IntegerCast, Op, PointerCast, ValueLayout, WideIntegerCast,
+    value_layout_from_type, word_layout_from_type,
 };
 use crate::{Error, Result};
 
 use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
 use super::pool::Pool;
-
-const CAST_SIGN_BIT: u32 = 1 << 8;
-const WORD_LAYOUT_HEAP_REFERENCE: u32 = 1;
-const WORD_LAYOUT_SHARED_HEAP_REFERENCE: u32 = 2;
-const WORD_LAYOUT_RAW_POINTER: u32 = 3;
-const WORD_LAYOUT_SHARED_RAW_POINTER: u32 = 4;
-const WORD_LAYOUT_STACK_POINTER: u32 = 5;
-const WORD_LAYOUT_FRAME_POINTER: u32 = 6;
-const WORD_LAYOUT_STATIC_POINTER: u32 = 7;
-const WORD_LAYOUT_FUNCTION_POINTER: u32 = 8;
 
 impl<'a> BlockLowerer<'a> {
     /// Lower one cast instruction.
@@ -63,6 +53,7 @@ impl<'a> BlockLowerer<'a> {
         let (source_width, source_signed) = integer_layout(self.tree, argument_type)?;
         let (dest_width, dest_signed) = integer_layout(self.tree, to_type)?;
         let source_signed = wide_source_signed(operator, source_signed);
+        let cast = WideIntegerCast::new(source_width, dest_width, source_signed, false);
 
         // expand a word into frame bytes
         if argument_is_word {
@@ -70,19 +61,21 @@ impl<'a> BlockLowerer<'a> {
                 Op::CastWordToWideInt,
                 value_offset(self, destination)?,
                 word_offset(self, argument)?,
-                wide_cast_flag_field(source_signed, false),
-                wide_cast_layout_field(source_width, dest_width),
+                cast.flags(),
+                cast.widths(),
             ));
         }
 
         // collapse frame bytes into a word
         if destination_is_word {
+            let cast = WideIntegerCast::new(source_width, dest_width, source_signed, dest_signed);
+
             return Ok(Instruction::new(
                 Op::CastWideIntToWord,
                 word_offset(self, destination)?,
                 value_offset(self, argument)?,
-                wide_cast_flag_field(source_signed, dest_signed),
-                wide_cast_layout_field(source_width, dest_width),
+                cast.flags(),
+                cast.widths(),
             ));
         }
 
@@ -91,15 +84,15 @@ impl<'a> BlockLowerer<'a> {
             Op::CastWideInt,
             value_offset(self, destination)?,
             value_offset(self, argument)?,
-            wide_cast_flag_field(source_signed, false),
-            wide_cast_layout_field(source_width, dest_width),
+            cast.flags(),
+            cast.widths(),
         ))
     }
 
     /// Lower one select instruction.
     pub(super) fn lower_select(
         &self,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
         destination: mir::ValueReference,
         condition: mir::ValueReference,
         then_value: mir::ValueReference,
@@ -141,7 +134,7 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // select frame-backed values by copying their frame slot
-        Ok(pool.instruction_with_side_record(
+        Ok(pool.instruction_with_side(
             Op::SelectFrame,
             FrameSelect {
                 destination_offset: value_offset(self, destination)?,
@@ -186,37 +179,6 @@ fn word_cast_op(
     }
 }
 
-/// Pack one pointer word cast target.
-fn wide_cast_flag_field(source_signed: bool, dest_signed: bool) -> u32 {
-    let source_signed = u32::from(source_signed) << 8;
-    let dest_signed = u32::from(dest_signed) << 9;
-
-    source_signed | dest_signed
-}
-
-/// Return one word cast shape field.
-fn integer_cast_field(width: u16, signed: bool) -> Result<u32> {
-    let width = u8::try_from(width).map_err(|_| Error::InvalidCast)?;
-    let sign = if signed { CAST_SIGN_BIT } else { 0 };
-
-    Ok(u32::from(width) | sign)
-}
-
-/// Return one wide integer cast layout field.
-fn pointer_cast_field(layout: WordLayout) -> Result<u32> {
-    match layout {
-        WordLayout::HeapReference => Ok(WORD_LAYOUT_HEAP_REFERENCE),
-        WordLayout::SharedHeapReference => Ok(WORD_LAYOUT_SHARED_HEAP_REFERENCE),
-        WordLayout::RawPointer => Ok(WORD_LAYOUT_RAW_POINTER),
-        WordLayout::SharedRawPointer => Ok(WORD_LAYOUT_SHARED_RAW_POINTER),
-        WordLayout::StackPointer => Ok(WORD_LAYOUT_STACK_POINTER),
-        WordLayout::FramePointer => Ok(WORD_LAYOUT_FRAME_POINTER),
-        WordLayout::StaticPointer => Ok(WORD_LAYOUT_STATIC_POINTER),
-        WordLayout::FunctionPointer => Ok(WORD_LAYOUT_FUNCTION_POINTER),
-        _ => Err(Error::InvalidCast),
-    }
-}
-
 /// Return one integer value layout.
 fn word_cast_field(
     tree: &mir::Tree,
@@ -237,20 +199,15 @@ fn word_cast_field(
         | mir::CastOperator::PointerToInt => {
             let (width, signed) = integer_layout(tree, to_type)?;
 
-            integer_cast_field(width, signed)
+            Ok(IntegerCast::new(width, signed)?.field())
         }
         mir::CastOperator::SignedIntToFloat | mir::CastOperator::UnsignedIntToFloat => Ok(0),
         mir::CastOperator::IntToPointer => {
             let layout = word_layout_from_type(tree, to_type).ok_or(Error::InvalidCast)?;
 
-            pointer_cast_field(layout)
+            Ok(PointerCast::new(layout)?.field())
         }
     }
-}
-
-/// Return whether one wide source should be sign extended.
-fn wide_cast_layout_field(source_width: u16, dest_width: u16) -> u32 {
-    u32::from(source_width) | (u32::from(dest_width) << 16)
 }
 
 /// Return one word cast operation.

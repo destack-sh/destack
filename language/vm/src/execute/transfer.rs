@@ -40,7 +40,6 @@ impl Interpreter {
     /// Complete one jump transfer within the current frame.
     fn complete_jump(
         &mut self,
-        program: &Program,
         current_func: &Function,
         target: u32,
         moves: MoveRange,
@@ -50,7 +49,7 @@ impl Interpreter {
             .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        move_values_within_frame(program, frame, moves, current_func.move_pool.as_slice())
+        move_values_within_frame(frame, moves, current_func.move_pool.as_slice())
             .map_err(RuntimeError::new)?;
 
         // retarget the frame to the destination block
@@ -125,10 +124,9 @@ impl Interpreter {
     ) -> RuntimeResult<Option<Outcome>> {
         // complete the concrete transfer
         match transfer {
-            Transfer::Continue => Err(self.runtime_error(program, Error::InvalidInstruction)),
             Transfer::Enter => Ok(None),
             Transfer::Jump { block, moves } => {
-                self.complete_jump(program, current_func, block, moves)?;
+                self.complete_jump(current_func, block, moves)?;
                 Ok(None)
             }
             Transfer::Call {

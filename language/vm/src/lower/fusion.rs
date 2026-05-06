@@ -13,7 +13,7 @@ impl<'a> BlockLowerer<'a> {
         &self,
         block: &mir::Block,
         instructions: &mut Vec<Instruction>,
-        pool: &mut Pool<'_>,
+        pool: &mut Pool<'_, '_>,
     ) -> Option<Instruction> {
         let terminator = self.tree.get(block.terminator);
         let mir::Terminator::Branch {

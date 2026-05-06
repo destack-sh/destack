@@ -137,7 +137,6 @@ impl Interpreter {
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         if let Some(moves) = moves {
             move_values(
-                program,
                 caller,
                 &mut new_frame,
                 moves,
@@ -247,13 +246,7 @@ impl Interpreter {
 
             // collect explicit call arguments in caller order
             let arguments = if let Some(moves) = moves {
-                load_moved_arguments(
-                    program,
-                    self.frames.as_slice(),
-                    caller,
-                    current_func.move_pool.as_slice(),
-                    moves,
-                )?
+                load_moved_arguments(program, caller, current_func.move_pool.as_slice(), moves)?
             } else {
                 load_arguments(
                     program,
@@ -410,13 +403,7 @@ impl Interpreter {
             .last()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let argument_values = if let Some(moves) = moves {
-            load_moved_arguments(
-                program,
-                self.frames.as_slice(),
-                caller,
-                current_func.move_pool.as_slice(),
-                moves,
-            )?
+            load_moved_arguments(program, caller, current_func.move_pool.as_slice(), moves)?
         } else {
             load_arguments(
                 program,
