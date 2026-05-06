@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use cranelift_codegen::binemit::CodeOffset;
 use cranelift_codegen::isa::TargetIsa;
 use cranelift_codegen::{Context, ir as cir};
 use cranelift_module::{DataId, FuncId, Linkage, Module};
@@ -9,7 +10,7 @@ use destack_core::StringPool;
 use destack_mir as mir;
 
 use super::FunctionLowerer;
-use super::layout::compute_type_layout;
+use super::r#static::lower_static_data;
 use super::r#type::lower_type;
 use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarning};
 
@@ -71,11 +72,11 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Lower an entire MIR module.
     pub(crate) fn lower_module(&mut self, tree: &mir::Tree) -> CodegenCraneliftResult<()> {
-        // phase 1: declare and define all globals
-        self.lower_globals(tree)?;
-
-        // phase 2: declare all functions
+        // phase 1: declare all functions
         self.declare_functions(tree)?;
+
+        // phase 2: declare and define all globals
+        self.lower_globals(tree)?;
 
         // phase 3: lower function bodies
         self.lower_functions(tree)?;
@@ -132,9 +133,24 @@ impl<'a> ModuleLowerer<'a> {
             // define the data if we have an initializer (not for imports)
             if let Some(ref init) = global.initializer {
                 let ty = self.type_id(global.ty, "global type")?;
-                let bytes = self.lower_initializer(tree, init, ty, pointer_bytes)?;
+                let data = lower_static_data(tree, init, ty, pointer_bytes)?;
                 let mut data_description = cranelift_module::DataDescription::new();
-                data_description.define(bytes.into_boxed_slice());
+                data_description.define(data.bytes.into_boxed_slice());
+                for relocation in data.relocations {
+                    let function = self
+                        .cl_function_ids
+                        .get(&relocation.target)
+                        .copied()
+                        .ok_or_else(|| CodegenCraneliftError::Internal {
+                            message: "missing function declaration for static initializer"
+                                .to_string(),
+                        })?;
+                    let function = self
+                        .cl_module
+                        .declare_func_in_data(function, &mut data_description);
+                    data_description
+                        .write_function_addr(relocation.byte_offset as CodeOffset, function);
+                }
                 self.cl_module.define_data(data_id, &data_description)?;
             }
 
@@ -142,124 +158,6 @@ impl<'a> ModuleLowerer<'a> {
         }
 
         Ok(())
-    }
-
-    /// Lower a GlobalInitializer to raw bytes.
-    fn lower_initializer(
-        &self,
-        tree: &mir::Tree,
-        init: &mir::GlobalInitializer,
-        ty: mir::LocalNodeId<mir::Type>,
-        pointer_bytes: u8,
-    ) -> CodegenCraneliftResult<Vec<u8>> {
-        match init {
-            mir::GlobalInitializer::Zero => {
-                // compute size from type and return zero bytes
-                let layout = compute_type_layout(tree, ty, pointer_bytes)?;
-                Ok(vec![0u8; layout.size as usize])
-            }
-
-            mir::GlobalInitializer::Scalar(constant) => self.lower_scalar_constant(constant, ty),
-
-            mir::GlobalInitializer::Bytes(bytes) => Ok(bytes.clone()),
-
-            mir::GlobalInitializer::Aggregate(elements) => {
-                // get the element types from the type
-                let mir_type = tree.get(ty);
-                let element_types = match mir_type {
-                    mir::Type::Tuple { elements, copy: _ } => elements
-                        .iter()
-                        .map(|element| self.type_id(*element, "tuple element type"))
-                        .collect::<CodegenCraneliftResult<Vec<_>>>()?,
-                    mir::Type::Struct { fields, copy: _ } => fields
-                        .iter()
-                        .map(|field| self.type_id(tree.get(*field).ty, "struct field type"))
-                        .collect::<CodegenCraneliftResult<Vec<_>>>()?,
-                    mir::Type::Array {
-                        element,
-                        length,
-                        copy: _,
-                    } => {
-                        let element = self.type_id(*element, "array element type")?;
-                        vec![element; *length as usize]
-                    }
-                    _ => {
-                        return Err(CodegenCraneliftError::unsupported_type(
-                            format!("aggregate initializer for non-aggregate type: {mir_type:?}"),
-                            ty.into_any(),
-                        ));
-                    }
-                };
-
-                // lower each element and concatenate
-                // NOTE #Broken: cranelift initializers don't handle alignment padding between fields
-                let mut bytes = Vec::new();
-                for (elem_init, elem_ty) in elements.iter().zip(element_types.iter()) {
-                    let elem_bytes =
-                        self.lower_initializer(tree, elem_init, *elem_ty, pointer_bytes)?;
-                    bytes.extend(elem_bytes);
-                }
-                Ok(bytes)
-            }
-        }
-    }
-
-    /// Lower a scalar constant to bytes.
-    fn lower_scalar_constant(
-        &self,
-        constant: &mir::Constant,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) -> CodegenCraneliftResult<Vec<u8>> {
-        match constant {
-            // null reference -> pointer-sized zero
-            mir::Constant::Null => Ok(vec![0u8; usize::from(self.isa.pointer_bytes())]),
-            // boolean -> 1 or 0
-            mir::Constant::Boolean { value } => Ok(vec![if *value { 1 } else { 0 }]),
-
-            // integer -> bytes
-            mir::Constant::Int { width, .. } | mir::Constant::UInt { width, .. } => {
-                let value = match constant {
-                    mir::Constant::Int { value, .. } => *value as u128,
-                    mir::Constant::UInt { value, .. } => *value,
-                    _ => unreachable!(),
-                };
-                let bytes = match width {
-                    8 => vec![value as u8],
-                    16 => (value as u16).to_le_bytes().to_vec(),
-                    32 => (value as u32).to_le_bytes().to_vec(),
-                    64 => (value as u64).to_le_bytes().to_vec(),
-                    128 => value.to_le_bytes().to_vec(),
-                    _ => {
-                        return Err(CodegenCraneliftError::unsupported_type(
-                            format!("unsupported integer width for global initializer: {width}"),
-                            ty.into_any(),
-                        ));
-                    }
-                };
-                Ok(bytes)
-            }
-
-            // float -> bytes
-            mir::Constant::Float { bits, width } => {
-                let bytes = match width {
-                    32 => (*bits as u32).to_le_bytes().to_vec(),
-                    64 => bits.to_le_bytes().to_vec(),
-                    _ => {
-                        return Err(CodegenCraneliftError::unsupported_type(
-                            format!("unsupported float width for global initializer: {width}"),
-                            ty.into_any(),
-                        ));
-                    }
-                };
-                Ok(bytes)
-            }
-
-            // char -> bytes
-            mir::Constant::Char { value } => {
-                // char is stored as u32 (unicode codepoint)
-                Ok((*value as u32).to_le_bytes().to_vec())
-            }
-        }
     }
 
     /// Lower / define all function bodies (third pass after declaration).
