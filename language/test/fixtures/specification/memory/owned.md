@@ -1,101 +1,92 @@
 # Owned
 
-## values
+## construction
 
-### owned expression yields owned type
+### owned expression yields owned storage
 
-> Owned expressions yield `^T` types.
-
-```ds
-struct Point {
-    x: int32;
-}
-
-let owned: ^Point = ^Point { x: 1 };
-```
-
-### owned values are not assignable to plain values
-
-> Owned values are not assignable to plain `T`.
+Owned expressions create `^T`.
 
 ```ds
 struct Point {
     x: int32;
 }
 
-let value: Point = ^Point { x: 1 };
+let point = ^Point { x: 1 };
+
+point satisfies ^Point;
 ```
 
-- contains: not assignable
+### plain values do not satisfy owned destinations
 
-### owned annotations require ownership
-
-> Owned types require explicit ownership conversion.
+Owned destinations require ownership.
 
 ```ds
 struct Point {
     x: int32;
 }
 
-let value: ^Point = Point { x: 1 };
+let point: ^Point = Point { x: 1 };
 ```
 
 - contains: not assignable
 
-### owned parameters require explicit ownership
+### owned parameters consume owned values
 
-> Owned parameters require explicit ownership conversion.
+Passing a value to an owned parameter moves it.
 
 ```ds
-struct Data {
-    value: int32;
+struct Point {
+    x: int32;
 }
 
-function consume(value: ^Data): void {
-    value.value;
+function consume(point: ^Point): void {
+    point.x;
 }
 
-let data = Data { value: 1 };
-consume(data);
+let point = ^Point { x: 1 };
+consume(point);
+point.x;
 ```
 
-- contains: not assignable
+- contains: use of moved value
 
-### owned parameters accept explicit ownership conversion
+### owned conversion moves plain values
 
-> Owned parameters accept explicit ownership conversion.
+`^expr` converts a plain value into owned storage.
 
 ```ds
-struct Data {
-    value: int32;
+struct Point {
+    x: int32;
 }
 
-function consume(value: ^Data): void {
-    value.value;
+function consume(point: ^Point): void {
+    point.x;
 }
 
-let data = Data { value: 1 };
-consume(^data);
+let point = Point { x: 1 };
+consume(^point);
 ```
 
 ### owned conversion rejects owned values
 
-> `^expr` only applies to unowned values.
+Owned storage cannot be owned again.
 
 ```ds
-struct Data {
-    value: int32;
+struct Point {
+    x: int32;
 }
 
-let data = ^Data { value: 1 };
-let again = ^data;
+let point = ^Point { x: 1 };
+let again = ^point;
 ```
 
 - contains: ownership operator requires an unowned value
 
-### owned fields are allowed in structs
+## fields
 
-> Structs can store owned fields directly.
+### structs can store owned fields
+
+Owned fields keep their ownership form.
 
 ```ds
 struct Data {
@@ -107,43 +98,30 @@ struct Container {
 }
 
 const container = Container { data: ^Data { value: 1 } };
+
 container.data satisfies ^Data;
 ```
 
-## mutability
-
-### owned values are mutable by default
-
-> Owned values are mutable unless wrapped in `readonly`.
-
-```ds
-struct Point {
-    x: int32;
-}
-
-let owned: ^Point = ^Point { x: 1 };
-owned.x = 2;
-owned satisfies ^Point;
-```
+## readonly
 
 ### readonly owned values forbid mutation
 
-> `^readonly T` allows ownership transfer but forbids mutation through the handle.
+`^readonly T` owns storage but forbids mutation through that handle.
 
 ```ds
 struct Point {
     x: int32;
 }
 
-let owned: ^readonly Point = ^readonly Point { x: 1 };
-owned.x = 2;
+let point: ^readonly Point = ^readonly Point { x: 1 };
+point.x = 2;
 ```
 
 - contains: cannot assign
 
-### readonly owned values forbid nested mutation
+### readonly owned values are deep
 
-> `^readonly T` is readonly through nested fields.
+Readonly owned handles protect nested fields.
 
 ```ds
 struct Profile {
@@ -154,11 +132,11 @@ struct User {
     profile: Profile;
 }
 
-let owned: ^readonly User = ^readonly User {
+let user: ^readonly User = ^readonly User {
     profile: Profile { name: "Ada" },
 };
 
-owned.profile.name = "Grace";
+user.profile.name = "Grace";
 ```
 
 - contains: cannot assign

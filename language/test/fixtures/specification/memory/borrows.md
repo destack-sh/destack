@@ -1,70 +1,60 @@
 # Borrows
 
-## shared references
+## sources
 
-### shared reference expression yields reference type
+### managed fields can be borrowed
 
-> Reference expressions yield `&readonly T` types.
+Managed values can produce borrowed access.
+
+```ds
+class User {
+    name: string = "";
+}
+
+let user: User = new User();
+let name = &user.name;
+
+name satisfies &string;
+```
+
+### owned fields can be borrowed
+
+Borrowing an owned value does not move it.
 
 ```ds
 struct Point {
     x: int32;
 }
 
-let point = Point { x: 1 };
-let shared: &readonly Point = &readonly point;
+let point = ^Point { x: 1 };
+let x = &readonly point.x;
+
+x satisfies &readonly int32;
+point.x satisfies int32;
 ```
 
-### shared reference is not assignable to owned type
+## readonly
 
-> References are not assignable to owned values.
+### readonly borrows may overlap
+
+Readonly borrows of the same place can overlap.
 
 ```ds
 struct Point {
     x: int32;
 }
 
-let point = Point { x: 1 };
-let value: Point = &readonly point;
+let point = ^Point { x: 1 };
+let first = &readonly point.x;
+let second = &readonly point.x;
+
+first satisfies &readonly int32;
+second satisfies &readonly int32;
 ```
 
-- contains: not assignable
+### readonly borrows are deep
 
-### shared reference is not assignable to mutable reference
-
-> Shared references cannot be assigned to mutable references.
-
-```ds
-struct Point {
-    x: int32;
-}
-
-let point = Point { x: 1 };
-let shared: &readonly Point = &readonly point;
-let mutableRef: &Point = shared;
-```
-
-- contains: not assignable
-
-### shared reference rejects member assignment
-
-> Shared references cannot be used to mutate through members.
-
-```ds
-struct Point {
-    x: int32;
-}
-
-let point = Point { x: 1 };
-let shared = &readonly point;
-shared.x = 2;
-```
-
-- contains: immutable reference
-
-### shared reference rejects nested member assignment
-
-> Shared references are readonly through nested fields.
+Readonly borrowed access cannot mutate nested fields.
 
 ```ds
 struct Profile {
@@ -79,197 +69,202 @@ let user = User {
     profile: Profile { name: "Ada" },
 };
 
-let shared = &readonly user;
-shared.profile.name = "Grace";
+let borrow = &readonly user;
+borrow.profile.name = "Grace";
 ```
 
-- contains: immutable reference
+- contains: readonly
 
-### shared reference rejects index assignment
+### readonly borrows protect indexed elements
 
-> Shared references cannot be used to mutate through index assignment.
+Readonly borrowed access cannot mutate through indexes.
 
 ```ds
 let values: int32[] = [1, 2, 3];
-let shared: &readonly int32[] = &readonly values;
-shared[0] = 4;
+let borrow = &readonly values;
+
+borrow[0] = 4;
 ```
 
-- contains: immutable reference
+- contains: readonly
 
-## mutable references
+## mutable
 
-### mutable reference expression yields mutable reference type
+### mutable borrows can mutate
 
-> Mutable reference expressions yield `&T` types.
+Mutable borrowed access can mutate through the borrow.
 
 ```ds
 struct Point {
     x: int32;
 }
 
-let point = Point { x: 1 };
-let mutableRef: &Point = &point;
+let point = ^Point { x: 1 };
+let x = &point.x;
+
+*x = 2;
 ```
 
-### mutable reference allows member assignment
+### mutable borrows may overlap readonly borrows
 
-> Mutable references allow member mutation.
+Mutable borrowed access may alias.
 
 ```ds
 struct Point {
     x: int32;
 }
 
-let point = Point { x: 1 };
-let mutableRef: &Point = &point;
-mutableRef.x = 2;
-mutableRef.x satisfies int32;
+let point = ^Point { x: 1 };
+let read = &readonly point.x;
+let write = &point.x;
+
+read satisfies &readonly int32;
+*write = 2;
 ```
 
-### mutable reference is not assignable to shared reference
+### mutable borrows may overlap mutable borrows
 
-> Mutable references are invariant and do not coerce to shared references.
+Mutable borrowed access may alias another mutable borrow.
 
 ```ds
 struct Point {
     x: int32;
 }
 
-let point = Point { x: 1 };
-let mutableRef: &Point = &point;
-let shared: &readonly Point = mutableRef;
+let point = ^Point { x: 1 };
+let first = &point.x;
+let second = &point.x;
+
+*first = 2;
+*second = 3;
 ```
 
-- contains: not assignable
+## exclusive
 
-## borrow conflicts
+### exclusive borrows can mutate
 
-### mutable borrow conflicts with shared borrow
-
-> Mutable borrows cannot overlap with shared borrows.
-
-```ds native=true
-struct Data {
-    value: int32;
-}
-
-struct Container {
-    data: Data;
-}
-
-function run(): void {
-    let container = ^Container { data: Data { value: 1 } };
-    let sharedRef = &readonly container.data;
-    let mutableRef = &container.data;
-    sharedRef.value;
-    mutableRef.value;
-}
-```
-
-- contains: cannot borrow as mutable
-
-### mutable borrow conflicts with mutable borrow
-
-> Mutable borrows cannot overlap with other mutable borrows.
-
-```ds native=true
-struct Data {
-    value: int32;
-}
-
-struct Container {
-    data: Data;
-}
-
-function run(): void {
-    let container = ^Container { data: Data { value: 1 } };
-    let firstRef = &container.data;
-    let secondRef = &container.data;
-    firstRef.value;
-    secondRef.value;
-}
-```
-
-- contains: cannot borrow as mutable
-
-### shared borrows do not conflict
-
-> Shared borrows of the same field can overlap.
-
-```ds native=true
-struct Data {
-    value: int32;
-}
-
-struct Container {
-    data: Data;
-}
-
-function run(): void {
-    let container = ^Container { data: Data { value: 1 } };
-    let firstRef = &readonly container.data;
-    let secondRef = &readonly container.data;
-    firstRef.value;
-    secondRef.value;
-}
-```
-
-### mutable borrow after shared use is allowed
-
-> Borrows expire after their last use.
-
-```ds native=true
-struct Data {
-    value: int32;
-}
-
-struct Container {
-    data: Data;
-}
-
-function run(): void {
-    let container = ^Container { data: Data { value: 1 } };
-    let sharedRef = &readonly container.data;
-    sharedRef.value;
-    let mutableRef = &container.data;
-    mutableRef.value;
-}
-```
-
-## annotations
-
-### reference annotations are accepted
-
-> Reference annotations can appear in signatures.
+Exclusive borrowed access can mutate through the borrow.
 
 ```ds
 struct Point {
     x: int32;
 }
 
-function read(value: &Point): int32 {
-    return value.x;
-}
+let point = ^Point { x: 1 };
+let x = &exclusive point.x;
+
+*x = 2;
 ```
 
-### owned annotations are accepted
+### exclusive borrows exclude readonly borrows
 
-> Owned annotations can appear in signatures.
+Exclusive borrowed access cannot overlap another borrow of the same place.
 
 ```ds
 struct Point {
     x: int32;
 }
 
-function copy(value: ^Point): ^Point {
-    return value;
+let point = ^Point { x: 1 };
+let read = &readonly point.x;
+let write = &exclusive point.x;
+
+read satisfies &readonly int32;
+*write = 2;
+```
+
+- contains: cannot borrow as exclusive
+
+### exclusive borrows exclude mutable borrows
+
+Exclusive borrowed access cannot overlap ordinary mutable borrowed access.
+
+```ds
+struct Point {
+    x: int32;
+}
+
+let point = ^Point { x: 1 };
+let first = &exclusive point.x;
+let second = &point.x;
+
+*first = 2;
+*second = 3;
+```
+
+- contains: cannot borrow as exclusive
+
+## paths
+
+### disjoint fields can be borrowed separately
+
+Borrow checking is based on access paths.
+
+```ds
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+let point = ^Point { x: 1, y: 2 };
+let x = &readonly point.x;
+let y = &point.y;
+
+x satisfies &readonly int32;
+*y = 3;
+```
+
+### borrow ends after last use
+
+Last use ends the borrow.
+
+```ds
+struct Point {
+    x: int32;
+}
+
+let point = ^Point { x: 1 };
+let read = &readonly point.x;
+
+read satisfies &readonly int32;
+
+let write = &exclusive point.x;
+*write = 2;
+```
+
+## signatures
+
+### borrowed parameters use surface syntax
+
+Common borrowed parameters use `&T`.
+
+```ds
+struct Point {
+    x: int32;
+}
+
+function read(point: &Point): int32 {
+    return point.x;
 }
 ```
 
-### generic reference annotations are accepted
+### exclusive parameters use surface syntax
 
-> Reference annotations accept generic types.
+Exclusive borrowed parameters use `&exclusive T`.
+
+```ds
+struct Point {
+    x: int32;
+}
+
+function write(point: &exclusive Point): void {
+    point.x = 2;
+}
+```
+
+### borrowed generics preserve type arguments
+
+Borrowed access composes with generic types.
 
 ```ds
 class Box<T> {
@@ -280,46 +275,17 @@ class Box<T> {
     }
 }
 
-function read<T>(value: &Box<T>): T {
-    return value.value;
+function read<T>(box: &Box<T>): T {
+    return box.value;
 }
 ```
 
-### reference annotations can use fixed arrays
+### borrowed fixed arrays keep their length
 
-> Reference annotations support fixed arrays parameterized by generic values.
+Borrowed access composes with fixed arrays.
 
 ```ds
 function readLane<comptime N: number>(value: &[uint8; N]): uint8 {
-    return value[0];
-}
-```
-
-### reference annotations can use associated types
-
-> Reference annotations can use associated types in type position.
-
-```ds
-interface BufferLike<T> {
-    type Item = T;
-}
-
-class TextBuffer implements BufferLike<string> {}
-
-function read(value: &TextBuffer.Item): void {
-}
-```
-
-### reference annotations can use associated constants
-
-> Associated constants can size fixed arrays in reference annotations.
-
-```ds
-class Segment<Row> {
-    comptime const Width: number = Row extends string ? 8 : 4;
-}
-
-function read(value: &[uint8; Segment<string>.Width]): uint8 {
     return value[0];
 }
 ```

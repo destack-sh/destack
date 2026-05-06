@@ -2,64 +2,68 @@
 
 ## ownership
 
-### new creates managed values for managed destinations
+### new follows managed destinations
 
-> `new` follows the destination ownership form.
-
-```ds
-class Box {
-    value: int32 = 0;
-}
-
-let value: Box = new Box();
-value satisfies Box;
-```
-
-### new creates owned values for owned destinations
-
-> Owned destinations receive owned heap values.
+Managed destinations receive managed values.
 
 ```ds
 class Box {
     value: int32 = 0;
 }
 
-let value: ^Box = new Box();
-value satisfies ^Box;
+let box: Box = new Box();
+
+box satisfies Box;
 ```
 
-### new creates owned values in shared space
+### new follows owned destinations
 
-> `new` follows ownership and space in the destination type.
+Owned destinations receive owned values.
 
 ```ds
 class Box {
     value: int32 = 0;
 }
 
-let value: shared ^Box = new Box();
-value satisfies shared ^Box;
-value satisfies ^shared Box;
+let box: ^Box = new Box();
+
+box satisfies ^Box;
 ```
 
-## space
+### new follows owned shared destinations
 
-### new creates shared values for shared destinations
-
-> Shared destinations allocate in shared space.
+Ownership and placement both come from the destination.
 
 ```ds
 class Box {
     value: int32 = 0;
 }
 
-let value: shared Box = new Box();
-value satisfies shared Box;
+let box: shared ^Box = new Box();
+
+box satisfies shared ^Box;
+box satisfies ^shared Box;
 ```
 
-### new places ambient fields in the destination space
+## placement
 
-> Ambient fields follow the placement of the constructed value.
+### new follows shared destinations
+
+Shared destinations allocate in shared space.
+
+```ds
+class Box {
+    value: int32 = 0;
+}
+
+let box: shared Box = new Box();
+
+box satisfies shared Box;
+```
+
+### ambient fields follow the destination
+
+Ambient fields are placed with the containing value.
 
 ```ds
 class Header {
@@ -80,6 +84,39 @@ class Request<T> {
 }
 
 let request: shared Request<Payload> = new Request(new Payload());
+
 request.header satisfies shared Header;
 request.body satisfies shared Payload;
+```
+
+## address
+
+### address expression can borrow
+
+`&expr` creates borrowed access when the destination expects `&T`.
+
+```ds
+class Box {
+    value: int32 = 0;
+}
+
+let box = new Box();
+let borrow: &Box = &box;
+
+borrow satisfies &Box;
+```
+
+### address expression can create raw pointers
+
+`&expr` creates raw access when the destination expects `*T`.
+
+```ds
+class Box {
+    value: int32 = 0;
+}
+
+let box = new Box();
+let pointer: *Box = &box;
+
+pointer satisfies *Box;
 ```

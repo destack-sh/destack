@@ -4,7 +4,7 @@
 
 ### copy requires capability
 
-> APIs that duplicate implicitly can require `Copy`.
+APIs that duplicate implicitly can require `Copy`.
 
 ```ds
 function duplicate<T: Copy>(value: T): (T, T) {
@@ -22,7 +22,7 @@ duplicate(NotCopy { value: 1 });
 
 ### clone requires capability
 
-> APIs that duplicate explicitly can require `Clone`.
+APIs that duplicate explicitly can require `Clone`.
 
 ```ds
 function cloneValue<T: Clone>(value: T): T {
@@ -42,7 +42,7 @@ cloneValue(NotClone { value: 1 });
 
 ### shared does not imply sync
 
-> Shared placement is separate from `Sync`.
+Shared placement is separate from `Sync`.
 
 ```ds
 struct Cell {
@@ -61,7 +61,7 @@ requiresSync(cell);
 
 ### worker transfer can require send
 
-> APIs that cross Worker boundaries can require `Send`.
+APIs that cross Worker boundaries can require `Send`.
 
 ```ds
 function postToWorker<T: Send>(value: T): void {}
