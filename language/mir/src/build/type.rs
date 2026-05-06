@@ -8,17 +8,6 @@ use crate::{
 
 #[allow(clippy::too_many_arguments)]
 impl ModuleBuilder {
-    /// Ensure the canonical hidden base type for one slice header.
-    fn ensure_slice_data_type(
-        &mut self,
-        kind: ReferenceKind,
-        element: LocalNodeId<Type>,
-        mutability: Mutability,
-        address_space: AddressSpace,
-    ) -> LocalNodeId<Type> {
-        self.type_reference(kind, element, mutability, address_space, false)
-    }
-
     /// Create a void type.
     pub fn type_void(&mut self) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Void)
@@ -314,8 +303,6 @@ impl ModuleBuilder {
         mutability: Mutability,
         address_space: AddressSpace,
     ) -> LocalNodeId<Type> {
-        self.ensure_slice_data_type(kind, element, mutability, address_space.clone());
-
         self.tree.insert_type(Type::Slice {
             kind,
             element: element.into(),

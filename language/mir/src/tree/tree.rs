@@ -8,11 +8,10 @@ use serde::{Deserialize, Serialize};
 use crate::parse::Token;
 use crate::{
     AddressSpace, ArgumentSlice, Attribute, Block, CommentSpan, Field, FieldSpan, Function,
-    FunctionHeaderSpans, Global, Instruction, InterfaceDispatchShape, Itab, ItabId, Layout,
-    LayoutId, LayoutMetadata, Local, LocalNodeId, Metadata, Mutability, Node, NodeType,
-    ProvenanceId, ProvenanceReason, ReferenceKind, Terminator, Type, TypeAlias,
-    TypeDeclarationSpans, TypeLineage, TypeReference, TypedValueSpan, ValueReference, Vtable,
-    VtableId,
+    FunctionHeaderSpans, Global, Instruction, InterfaceDispatchShape, Itab, Layout, LayoutId,
+    Local, LocalNodeId, Metadata, Mutability, Node, NodeType, ProvenanceId, ProvenanceReason,
+    ReferenceKind, Terminator, Type, TypeAlias, TypeDeclarationSpans, TypeLineage, TypeMetadata,
+    TypeReference, TypedValueSpan, ValueReference, Vtable,
 };
 
 #[inline]
@@ -251,33 +250,33 @@ impl Tree {
         LocalNodeId::new(global_id)
     }
 
-    /// Insert a type node into the tree and update the primitive type index.
+    /// Insert a type node into the tree and update the primitive type cache.
     pub fn insert_type(&mut self, ty: Type) -> LocalNodeId<Type> {
-        // determine the primitive type key before moving the type
-        let type_key = LayoutMetadata::primitive_type_key(&ty);
+        // determine the primitive shape before moving the type
+        let primitive = TypeMetadata::primitive_type(&ty);
         let type_id = self.insert(ty);
 
-        // record the type in the primitive type index
-        if let Some(type_key) = type_key {
+        // record the type in the primitive type cache
+        if let Some(primitive) = primitive {
             self.metadata
-                .layout
-                .record_primitive_type(type_id, type_key);
+                .types
+                .record_primitive_type(type_id, primitive);
         }
 
         type_id
     }
 
-    /// Insert a type node into the tree with a source DIR id and update the primitive type index.
+    /// Insert a type node into the tree with a source DIR id and update the primitive type cache.
     pub fn insert_type_from(&mut self, ty: Type, source_dir_id: u32) -> LocalNodeId<Type> {
-        // determine the primitive type key before moving the type
-        let type_key = LayoutMetadata::primitive_type_key(&ty);
+        // determine the primitive shape before moving the type
+        let primitive = TypeMetadata::primitive_type(&ty);
         let type_id = self.insert_from(ty, source_dir_id);
 
-        // record the type in the primitive type index
-        if let Some(type_key) = type_key {
+        // record the type in the primitive type cache
+        if let Some(primitive) = primitive {
             self.metadata
-                .layout
-                .record_primitive_type(type_id, type_key);
+                .types
+                .record_primitive_type(type_id, primitive);
         }
 
         type_id
@@ -285,8 +284,8 @@ impl Tree {
 
     /// Return the boolean type id.
     pub fn boolean_type(&self) -> LocalNodeId<Type> {
-        // use the primitive type index when available
-        if let Some(type_id) = self.metadata.layout.boolean_type() {
+        // use the primitive type cache when available
+        if let Some(type_id) = self.metadata.types.boolean_type() {
             return type_id;
         }
 
@@ -295,13 +294,13 @@ impl Tree {
             return type_id;
         }
 
-        panic!("missing boolean type id in MIR primitive type index");
+        panic!("missing boolean type id in MIR primitive type cache");
     }
 
     /// Return the void type id.
     pub fn void_type(&self) -> LocalNodeId<Type> {
-        // use the primitive type index when available
-        if let Some(type_id) = self.metadata.layout.void_type() {
+        // use the primitive type cache when available
+        if let Some(type_id) = self.metadata.types.void_type() {
             return type_id;
         }
 
@@ -310,13 +309,13 @@ impl Tree {
             return type_id;
         }
 
-        panic!("missing void type id in MIR primitive type index");
+        panic!("missing void type id in MIR primitive type cache");
     }
 
     /// Return the type descriptor type id.
     pub fn type_descriptor_type(&self) -> LocalNodeId<Type> {
-        // use the primitive type index when available
-        if let Some(type_id) = self.metadata.layout.type_descriptor_type() {
+        // use the primitive type cache when available
+        if let Some(type_id) = self.metadata.types.type_descriptor_type() {
             return type_id;
         }
 
@@ -326,13 +325,13 @@ impl Tree {
             return type_id;
         }
 
-        panic!("missing type descriptor type id in MIR primitive type index");
+        panic!("missing type descriptor type id in MIR primitive type cache");
     }
 
     /// Return the type id type id.
     pub fn type_id_type(&self) -> LocalNodeId<Type> {
-        // use the primitive type index when available
-        if let Some(type_id) = self.metadata.layout.type_id_type() {
+        // use the primitive type cache when available
+        if let Some(type_id) = self.metadata.types.type_id_type() {
             return type_id;
         }
 
@@ -341,13 +340,13 @@ impl Tree {
             return type_id;
         }
 
-        panic!("missing type id type in MIR primitive type index");
+        panic!("missing type id type in MIR primitive type cache");
     }
 
     /// Return the isize type id.
     pub fn isize_type(&self) -> LocalNodeId<Type> {
-        // use the primitive type index when available
-        if let Some(type_id) = self.metadata.layout.isize_type() {
+        // use the primitive type cache when available
+        if let Some(type_id) = self.metadata.types.isize_type() {
             return type_id;
         }
 
@@ -356,12 +355,12 @@ impl Tree {
             return type_id;
         }
 
-        panic!("missing isize type id in MIR primitive type index");
+        panic!("missing isize type id in MIR primitive type cache");
     }
 
     /// Return lineage metadata for a type when present.
     pub fn type_lineage(&self, ty: LocalNodeId<Type>) -> Option<&TypeLineage> {
-        self.metadata.layout.lineage(ty)
+        self.metadata.types.lineage(ty)
     }
 
     /// Return the layout id for a type when present.
@@ -377,13 +376,12 @@ impl Tree {
 
     /// Return the type descriptor global for a type when present.
     pub fn type_descriptor_global(&self, ty: LocalNodeId<Type>) -> Option<LocalNodeId<Global>> {
-        self.metadata.layout.descriptor_global(ty)
+        self.metadata.types.descriptor_global(ty)
     }
 
     /// Return the vtable metadata for a type when present.
-    pub fn vtable_for_type(&self, ty: LocalNodeId<Type>) -> Option<(VtableId, &Vtable)> {
-        let vtable_id = self.metadata.dispatch.vtable_id(ty)?;
-        Some((vtable_id, self.metadata.dispatch.vtable(vtable_id)))
+    pub fn vtable_for_type(&self, ty: LocalNodeId<Type>) -> Option<&Vtable> {
+        self.metadata.dispatch.vtable(ty)
     }
 
     /// Return the itab metadata for a concrete type and interface when present.
@@ -391,14 +389,13 @@ impl Tree {
         &self,
         concrete: LocalNodeId<Type>,
         interface: LocalNodeId<Type>,
-    ) -> Option<(ItabId, &Itab)> {
-        let itab_id = self.metadata.dispatch.itab_id(concrete, interface)?;
-        Some((itab_id, self.metadata.dispatch.itab(itab_id)))
+    ) -> Option<&Itab> {
+        self.metadata.dispatch.itab(concrete, interface)
     }
 
     /// Return the display name for a type when present.
     pub fn type_display_name(&self, ty: LocalNodeId<Type>) -> Option<destack_core::StringId> {
-        self.metadata.layout.display_name(ty)
+        self.metadata.types.display_name(ty)
     }
 
     /// Return the canonical interface dispatch shape when present.
@@ -411,8 +408,8 @@ impl Tree {
 
     /// Return the usize type id.
     pub fn usize_type(&self) -> LocalNodeId<Type> {
-        // use the primitive type index when available
-        if let Some(type_id) = self.metadata.layout.usize_type() {
+        // use the primitive type cache when available
+        if let Some(type_id) = self.metadata.types.usize_type() {
             return type_id;
         }
 
@@ -421,13 +418,13 @@ impl Tree {
             return type_id;
         }
 
-        panic!("missing usize type id in MIR primitive type index");
+        panic!("missing usize type id in MIR primitive type cache");
     }
 
     /// Return an integer type id for width and signedness.
     pub fn int_type(&self, width: u16, signed: bool) -> LocalNodeId<Type> {
-        // use the primitive type index when available
-        if let Some(type_id) = self.metadata.layout.int_type(width, signed) {
+        // use the primitive type cache when available
+        if let Some(type_id) = self.metadata.types.int_type(width, signed) {
             return type_id;
         }
 
@@ -449,8 +446,8 @@ impl Tree {
 
     /// Return a float type id for width.
     pub fn float_type(&self, width: u16) -> LocalNodeId<Type> {
-        // use the primitive type index when available
-        if let Some(type_id) = self.metadata.layout.float_type(width) {
+        // use the primitive type cache when available
+        if let Some(type_id) = self.metadata.types.float_type(width) {
             return type_id;
         }
 
@@ -466,7 +463,7 @@ impl Tree {
 
     /// Return the canonical storage type for the hidden environment field in one callable.
     pub fn callable_environment_type(&self) -> LocalNodeId<Type> {
-        let void_type = if let Some(type_id) = self.metadata.layout.void_type() {
+        let void_type = if let Some(type_id) = self.metadata.types.void_type() {
             type_id
         } else if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
             type_id
@@ -495,7 +492,7 @@ impl Tree {
     /// Ensure the canonical storage type for the hidden environment field in one callable.
     pub fn ensure_callable_environment_type(&mut self) -> LocalNodeId<Type> {
         // reuse or create the canonical void type
-        let void_type = if let Some(type_id) = self.metadata.layout.void_type() {
+        let void_type = if let Some(type_id) = self.metadata.types.void_type() {
             type_id
         } else if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
             type_id
@@ -531,19 +528,19 @@ impl Tree {
 
     /// Return module pointer size in bytes.
     pub fn pointer_bytes(&self) -> u8 {
-        self.metadata.layout.storage.native_pointer_bytes
+        self.metadata.data_layout.pointer_bytes
     }
 
     /// Return module pointer size in bits.
     pub fn pointer_bits(&self) -> u16 {
-        self.metadata.layout.storage.pointer_bits()
+        self.metadata.data_layout.pointer_bits()
     }
 
     /// Update module pointer size in bytes.
     pub fn set_pointer_bytes(&mut self, pointer_bytes: u8) {
         match pointer_bytes {
             4 | 8 => {
-                self.metadata.layout.storage.native_pointer_bytes = pointer_bytes;
+                self.metadata.data_layout.pointer_bytes = pointer_bytes;
             }
             _ => {
                 panic!("unsupported pointer size {pointer_bytes} bytes");
@@ -551,25 +548,25 @@ impl Tree {
         }
     }
 
-    /// Rebuild the primitive type index from canonical type nodes.
-    pub fn rebuild_primitive_type_index(&mut self) {
+    /// Rebuild the primitive type cache from canonical type nodes.
+    pub fn rebuild_primitive_types(&mut self) {
         // reset the index state
-        self.metadata.layout.primitive_type_index = Default::default();
+        self.metadata.types.primitive_types.clear();
 
         // collect primitive entries before mutating the table
         let mut type_entries = Vec::new();
         for (type_id, ty) in self.iter_nodes::<Type>() {
-            let Some(type_key) = LayoutMetadata::primitive_type_key(ty) else {
+            let Some(primitive) = TypeMetadata::primitive_type(ty) else {
                 continue;
             };
-            type_entries.push((type_id, type_key));
+            type_entries.push((type_id, primitive));
         }
 
-        // repopulate the primitive type index in node order
-        for (type_id, type_key) in type_entries {
+        // repopulate the primitive type cache in node order
+        for (type_id, primitive) in type_entries {
             self.metadata
-                .layout
-                .record_primitive_type(type_id, type_key);
+                .types
+                .record_primitive_type(type_id, primitive);
         }
     }
 

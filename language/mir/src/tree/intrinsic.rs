@@ -589,8 +589,8 @@ impl Intrinsic {
         false
     }
 
-    /// Whether this intrinsic requires a scope and memory semantics.
-    pub fn requires_memory_semantics(self) -> bool {
+    /// Whether this intrinsic requires memory scopes and flags.
+    pub fn requires_memory_flags(self) -> bool {
         false
     }
 

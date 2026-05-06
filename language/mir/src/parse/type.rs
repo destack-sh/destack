@@ -1,5 +1,6 @@
 use destack_source::Span;
 
+use crate::metadata::record_type_layout;
 use crate::{
     AddressSpace, Attribute, Copy, Field, FieldSpan, LocalNodeId, Mutability, ReferenceKind,
     TensorDimension, TensorLayout, Type, TypeDeclarationSpans, Value,
@@ -11,23 +12,6 @@ use super::parser::Parser;
 use super::token::TokenType;
 
 impl Parser {
-    /// Ensure the canonical hidden base type for one slice header.
-    fn ensure_slice_data_type(
-        &mut self,
-        kind: ReferenceKind,
-        element: LocalNodeId<Type>,
-        mutability: Mutability,
-        address_space: AddressSpace,
-    ) {
-        self.intern_type(Type::Reference {
-            kind,
-            address_space,
-            mutability,
-            pointee: element.into(),
-            is_nullable: false,
-        });
-    }
-
     /// Parse a type expression and return its enclosing span.
     pub(super) fn parse_type_part(&mut self) -> ParseResult<(LocalNodeId<Type>, Span)> {
         let type_start = self.pos();
@@ -100,7 +84,6 @@ impl Parser {
                     self.eat_token(TokenType::LessThan)?;
                     let element = self.parse_type()?;
                     let (kind, address_space, mutability) = self.parse_slice_qualifiers()?;
-                    self.ensure_slice_data_type(kind, element, mutability, address_space.clone());
                     self.eat_token(TokenType::GreaterThan)?;
                     Type::Slice {
                         kind,
@@ -126,7 +109,7 @@ impl Parser {
                                 element: type_id.into(),
                                 length,
                                 copy: Copy::default(),
-                            });
+                            })?;
                         }
                     }
 
@@ -198,7 +181,7 @@ impl Parser {
                     let signature = self.intern_type(Type::FunctionSignature {
                         parameters,
                         result: result.into(),
-                    });
+                    })?;
                     Type::FunctionPointer {
                         signature: signature.into(),
                     }
@@ -207,7 +190,7 @@ impl Parser {
                     let signature = self.intern_type(Type::FunctionSignature {
                         parameters,
                         result: result.into(),
-                    });
+                    })?;
                     self.tree.ensure_callable_environment_type();
                     Type::Callable {
                         signature: signature.into(),
@@ -229,7 +212,7 @@ impl Parser {
         };
 
         // intern the base type first so postfix array syntax can wrap it
-        let mut type_id = self.intern_type(ty);
+        let mut type_id = self.intern_type(ty)?;
         // parse postfix array suffixes like `int32[4]`
         while self.eat_token_maybe(TokenType::OpenBracket) {
             if self.eat_token_maybe(TokenType::CloseBracket) {
@@ -244,7 +227,7 @@ impl Parser {
                     element: type_id.into(),
                     length,
                     copy: Copy::default(),
-                });
+                })?;
             }
         }
 
@@ -350,7 +333,7 @@ impl Parser {
             fields,
             copy: Copy::default(),
         };
-        let type_id = self.intern_type(struct_type);
+        let type_id = self.intern_type(struct_type)?;
 
         Ok((
             type_id,
@@ -658,16 +641,19 @@ impl Parser {
     }
 
     /// Return a canonical type id for the provided type shape.
-    pub(super) fn intern_type(&mut self, ty: Type) -> LocalNodeId<Type> {
+    pub(super) fn intern_type(&mut self, ty: Type) -> ParseResult<LocalNodeId<Type>> {
         // reuse existing type
         let key = TypeKey::from_type(&ty);
         if let Some(existing) = self.type_intern.get(&key) {
-            return *existing;
+            return Ok(*existing);
         }
 
         // insert a new type
         let type_id = self.tree.insert_type(ty);
+        record_type_layout(&mut self.tree, type_id)
+            .map_err(|error| ParseError::new(error.to_string(), self.pos()))?;
         self.type_intern.insert(key, type_id);
-        type_id
+
+        Ok(type_id)
     }
 }

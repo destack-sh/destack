@@ -119,6 +119,9 @@ fn format_data_init<'a>(
     match init {
         GlobalInitializer::Zero => write!(f, [token("zeroInit")]),
         GlobalInitializer::Scalar(constant) => format_constant(constant, f),
+        GlobalInitializer::FunctionAddress(function) => {
+            write!(f, [token("functionAddress"), space(), function])
+        }
         GlobalInitializer::Bytes(bytes) => format_byte_literal(bytes, f),
         GlobalInitializer::Aggregate(elements) => {
             write!(f, [token("{")])?;

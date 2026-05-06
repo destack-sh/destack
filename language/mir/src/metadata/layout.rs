@@ -7,9 +7,206 @@ use destack_core::StringId;
 
 use crate::tree::compute_type_layout;
 use crate::{
-    AddressSpace, Global, LocalNodeId, PrimitiveTypeIndex, ReferenceKind, Tree, Type, TypeLineage,
-    TypeReference, UnionLayout, UnionPayloadKind, slice_header_types,
+    AddressSpace, Field, LocalNodeId, Mutability, ReferenceKind, Tree, Type, TypeReference,
+    UnionLayout, UnionPayloadKind, slice_header_types,
 };
+
+/// Canonical layout facts for one MIR module.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct LayoutMetadata {
+    /// Layout metadata table for aggregate types.
+    pub layout_table: LayoutTable,
+    /// Concrete layout ids keyed by type id.
+    pub layout_by_type: HashMap<LocalNodeId<Type>, LayoutId>,
+    /// Union layout metadata keyed by type id.
+    pub union_layout_by_type: HashMap<LocalNodeId<Type>, UnionLayout>,
+}
+
+impl LayoutMetadata {
+    /// Create a new empty layout table.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Return the layout entry for a type id when available.
+    pub fn type_layout(&self, ty: LocalNodeId<Type>) -> Option<&Layout> {
+        let layout_id = self.layout_by_type.get(&ty)?;
+        self.layout_table.layouts.get(layout_id.index())
+    }
+
+    /// Return the layout id for a type when present.
+    pub fn layout_id(&self, ty: LocalNodeId<Type>) -> Option<LayoutId> {
+        self.layout_by_type.get(&ty).copied()
+    }
+
+    /// Record the layout id for a type.
+    pub fn set_layout_id(
+        &mut self,
+        ty: LocalNodeId<Type>,
+        layout_id: LayoutId,
+    ) -> Option<LayoutId> {
+        self.layout_by_type.insert(ty, layout_id)
+    }
+
+    /// Return union layout metadata for a type when present.
+    pub fn union_layout(&self, ty: LocalNodeId<Type>) -> Option<&UnionLayout> {
+        self.union_layout_by_type.get(&ty)
+    }
+
+    /// Record union layout metadata for a type.
+    pub fn set_union_layout(
+        &mut self,
+        ty: LocalNodeId<Type>,
+        union_layout: UnionLayout,
+    ) -> Option<UnionLayout> {
+        self.union_layout_by_type.insert(ty, union_layout)
+    }
+
+    /// Copy structural layout metadata from one type id to another.
+    pub fn copy_type_metadata(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
+        if let Some(layout_id) = self.layout_id(from) {
+            self.set_layout_id(to, layout_id);
+        }
+
+        if let Some(union_layout) = self.union_layout(from).cloned() {
+            self.set_union_layout(to, union_layout);
+        }
+    }
+}
+
+/// Shared layout table for all aggregate types.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct LayoutTable {
+    /// Layout entries indexed by LayoutId.
+    pub layouts: Vec<Layout>,
+}
+
+impl LayoutTable {
+    /// Create an empty layout table.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Insert a layout entry and return its id.
+    pub fn insert(&mut self, layout: Layout) -> LayoutId {
+        let next_index = self.layouts.len() + 1;
+        let id = LayoutId::new(next_index as u32);
+        self.layouts.push(layout);
+        id
+    }
+
+    /// Return a layout entry for an id.
+    pub fn layout(&self, id: LayoutId) -> &Layout {
+        let index = id.index();
+        self.layouts
+            .get(index)
+            .unwrap_or_else(|| panic!("missing layout entry {index}"))
+    }
+}
+
+/// Opaque identifier for a concrete memory layout.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct LayoutId(NonZeroU32);
+
+impl LayoutId {
+    /// Create a layout identifier from one raw value.
+    #[inline]
+    pub const fn new(raw: u32) -> Self {
+        match NonZeroU32::new(raw) {
+            Some(raw) => Self(raw),
+            None => panic!("layout identifiers must be non-zero"),
+        }
+    }
+
+    /// Return the raw layout identifier value.
+    #[inline]
+    pub const fn raw(self) -> u32 {
+        self.0.get()
+    }
+
+    /// Return the zero based layout-table index.
+    #[inline]
+    pub const fn index(self) -> usize {
+        self.raw() as usize - 1
+    }
+}
+
+/// Concrete memory layout for an aggregate type.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Layout {
+    /// The layout kind and kind specific data.
+    pub kind: LayoutKind,
+    /// Total size in bytes, including trailing padding.
+    pub size: u32,
+    /// Alignment requirement in bytes.
+    pub alignment: u32,
+    /// Managed-reference metadata for this layout.
+    pub reference_map: ReferenceMap,
+    /// Field layouts in concrete memory order.
+    pub fields: Vec<LayoutField>,
+}
+
+/// Aggregate layout kinds with kind specific data.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum LayoutKind {
+    /// Plain struct layout.
+    Struct,
+    /// Heap object layout with a virtual dispatch table header.
+    Object {
+        /// The byte offset of the virtual dispatch table pointer.
+        vtable_offset: u32,
+    },
+    /// Tuple layout with ordered elements.
+    Tuple,
+    /// Slice header layout with data and length fields.
+    Slice,
+    /// Array layout with stride and optional fixed count.
+    Array {
+        /// The array element type.
+        element_type: LocalNodeId<Type>,
+        /// The stride between array elements in bytes.
+        element_stride: u32,
+        /// The fixed element count when known.
+        element_count: Option<u32>,
+    },
+    /// Union layout with tag and payload offsets.
+    Union {
+        /// The tag type used for discriminants.
+        tag_type: LocalNodeId<Type>,
+        /// The byte offset of the tag field.
+        tag_offset: u32,
+        /// The byte offset of the payload field.
+        payload_offset: u32,
+    },
+    /// Interface layout with object and table offsets.
+    Interface {
+        /// The byte offset of the object pointer.
+        object_offset: u32,
+        /// The byte offset of the table pointer.
+        table_offset: u32,
+    },
+    /// Function environment layout.
+    CallableEnvironment,
+    /// Function value layout.
+    Callable,
+}
+
+/// Memory layout for a single field.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LayoutField {
+    /// Field name for lookup and debugging.
+    pub name: Option<StringId>,
+    /// MIR type of the field.
+    pub ty: LocalNodeId<Type>,
+    /// Byte offset from the start of the aggregate.
+    pub offset: u32,
+    /// Size of the field in bytes.
+    pub size: u32,
+    /// Alignment requirement of the field in bytes.
+    pub alignment: u32,
+    /// Original source index for stable mapping.
+    pub source_index: Option<u32>,
+}
 
 /// Heap-reference metadata for one runtime payload.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -119,147 +316,14 @@ impl ReferenceMap {
     }
 }
 
-/// Canonical module storage metadata.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Storage {
-    /// Native pointer size in bytes for this module.
-    pub native_pointer_bytes: u8,
-}
-
-impl Default for Storage {
-    fn default() -> Self {
-        Self {
-            native_pointer_bytes: 8,
-        }
-    }
-}
-
-impl Storage {
-    /// Create storage metadata with a specific pointer size.
-    pub fn with_pointer_bytes(pointer_bytes: u8) -> Self {
-        Self {
-            native_pointer_bytes: pointer_bytes,
-        }
-    }
-
-    /// Return pointer width in bits.
-    pub fn pointer_bits(self) -> u16 {
-        u16::from(self.native_pointer_bytes) * 8
-    }
-}
-
-/// Canonical layout facts for one MIR module.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct LayoutMetadata {
-    /// Canonical module storage metadata.
-    pub storage: Storage,
-    /// Cached primitive type ids.
-    #[serde(skip, default)]
-    pub(crate) primitive_type_index: PrimitiveTypeIndex,
-    /// Layout metadata table for aggregate types.
-    pub layout_table: LayoutTable,
-    /// Concrete layout ids keyed by type id.
-    pub layout_by_type: HashMap<LocalNodeId<Type>, LayoutId>,
-    /// Nominal lineage keyed by type id.
-    pub lineage_by_type: HashMap<LocalNodeId<Type>, TypeLineage>,
-    /// Union layout metadata keyed by type id.
-    pub union_layout_by_type: HashMap<LocalNodeId<Type>, UnionLayout>,
-    /// Runtime type descriptor globals keyed by type id.
-    pub descriptor_by_type: HashMap<LocalNodeId<Type>, LocalNodeId<Global>>,
-    /// Canonical display names keyed by type id.
-    pub display_name_by_type: HashMap<LocalNodeId<Type>, StringId>,
-}
-
-impl LayoutMetadata {
-    /// Create a new empty layout table.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Return the layout entry for a type id when available.
-    pub fn type_layout(&self, ty: LocalNodeId<Type>) -> Option<&crate::Layout> {
-        let layout_id = self.layout_by_type.get(&ty)?;
-        self.layout_table.layouts.get(layout_id.index())
-    }
-
-    /// Return the layout id for a type when present.
-    pub fn layout_id(&self, ty: LocalNodeId<Type>) -> Option<LayoutId> {
-        self.layout_by_type.get(&ty).copied()
-    }
-
-    /// Record the layout id for a type.
-    pub fn set_layout_id(
-        &mut self,
-        ty: LocalNodeId<Type>,
-        layout_id: LayoutId,
-    ) -> Option<LayoutId> {
-        self.layout_by_type.insert(ty, layout_id)
-    }
-
-    /// Return union layout metadata for a type when present.
-    pub fn union_layout(&self, ty: LocalNodeId<Type>) -> Option<&UnionLayout> {
-        self.union_layout_by_type.get(&ty)
-    }
-
-    /// Record union layout metadata for a type.
-    pub fn set_union_layout(
-        &mut self,
-        ty: LocalNodeId<Type>,
-        union_layout: UnionLayout,
-    ) -> Option<UnionLayout> {
-        self.union_layout_by_type.insert(ty, union_layout)
-    }
-
-    /// Return the runtime type descriptor global for a type when present.
-    pub fn descriptor_global(&self, ty: LocalNodeId<Type>) -> Option<LocalNodeId<Global>> {
-        self.descriptor_by_type.get(&ty).copied()
-    }
-
-    /// Record the runtime type descriptor global for a type.
-    pub fn set_descriptor_global(
-        &mut self,
-        ty: LocalNodeId<Type>,
-        descriptor: LocalNodeId<Global>,
-    ) -> Option<LocalNodeId<Global>> {
-        self.descriptor_by_type.insert(ty, descriptor)
-    }
-
-    /// Copy structural layout metadata from one type id to another.
-    pub fn copy_type_metadata(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
-        if let Some(layout_id) = self.layout_id(from) {
-            self.set_layout_id(to, layout_id);
-        }
-
-        if let Some(lineage) = self.lineage(from).cloned() {
-            self.set_lineage(to, lineage);
-        }
-
-        if let Some(union_layout) = self.union_layout(from).cloned() {
-            self.set_union_layout(to, union_layout);
-        }
-
-        if let Some(descriptor) = self.descriptor_global(from) {
-            self.set_descriptor_global(to, descriptor);
-        }
-
-        if let Some(display_name) = self.display_name(from) {
-            self.set_display_name(to, display_name);
-        }
-    }
-}
-
-/// One layout metadata completion result.
+/// One layout metadata recording result.
 pub(crate) type LayoutMetadataResult<T> = Result<T, LayoutMetadataError>;
 
-/// One layout metadata completion failure.
+/// One layout metadata recording failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum LayoutMetadataError {
     /// One array length did not fit in the metadata representation.
     ArrayLengthOverflow,
-    /// One aggregate layout id was missing unexpectedly.
-    MissingLayoutId { type_id: LocalNodeId<Type> },
-    /// One layout entry was missing unexpectedly.
-    MissingLayoutEntry { index: usize },
     /// One layout computation overflowed.
     Overflow { context: &'static str },
 }
@@ -270,20 +334,8 @@ impl std::fmt::Display for LayoutMetadataError {
             Self::ArrayLengthOverflow => {
                 write!(formatter, "array length exceeds layout metadata")
             }
-            Self::MissingLayoutId { type_id } => {
-                write!(
-                    formatter,
-                    "missing layout id during layout metadata completion: {type_id:?}"
-                )
-            }
-            Self::MissingLayoutEntry { index } => {
-                write!(
-                    formatter,
-                    "missing layout entry during layout metadata completion: index={index}"
-                )
-            }
             Self::Overflow { context } => {
-                write!(formatter, "layout metadata completion overflow: {context}")
+                write!(formatter, "layout metadata recording overflow: {context}")
             }
         }
     }
@@ -291,28 +343,23 @@ impl std::fmt::Display for LayoutMetadataError {
 
 impl std::error::Error for LayoutMetadataError {}
 
-/// Complete canonical layout metadata for every concrete MIR aggregate type.
-pub(crate) fn complete_layout_metadata(tree: &mut Tree) -> LayoutMetadataResult<()> {
-    let type_ids: Vec<_> = tree
-        .iter_nodes::<Type>()
-        .map(|(type_id, _)| type_id)
-        .collect();
-    let mut complete = LayoutMetadataCompletion { tree };
+/// Record canonical layout metadata for one concrete MIR type.
+pub(crate) fn record_type_layout(
+    tree: &mut Tree,
+    type_id: LocalNodeId<Type>,
+) -> LayoutMetadataResult<()> {
+    let mut recorder = LayoutRecorder { tree };
 
-    for type_id in type_ids {
-        complete.record_layout_for_type(type_id)?;
-    }
-
-    Ok(())
+    recorder.record_layout_for_type(type_id)
 }
 
-/// One in-place layout metadata completion pass.
-struct LayoutMetadataCompletion<'a> {
-    /// The MIR tree being completed.
+/// One layout metadata recorder.
+struct LayoutRecorder<'a> {
+    /// The MIR tree receiving layout metadata.
     tree: &'a mut Tree,
 }
 
-impl LayoutMetadataCompletion<'_> {
+impl LayoutRecorder<'_> {
     /// Record layout metadata for one concrete aggregate type.
     fn record_layout_for_type(&mut self, type_id: LocalNodeId<Type>) -> LayoutMetadataResult<()> {
         if self.tree.metadata.layout.layout_id(type_id).is_some() {
@@ -353,7 +400,7 @@ impl LayoutMetadataCompletion<'_> {
     fn record_struct_layout(
         &mut self,
         type_id: LocalNodeId<Type>,
-        fields: &[LocalNodeId<crate::Field>],
+        fields: &[LocalNodeId<Field>],
     ) -> LayoutMetadataResult<()> {
         let mut layout_fields = Vec::with_capacity(fields.len());
         let mut offset = 0u32;
@@ -487,14 +534,14 @@ impl LayoutMetadataCompletion<'_> {
     fn record_slice_layout(
         &mut self,
         type_id: LocalNodeId<Type>,
-        kind: crate::ReferenceKind,
+        kind: ReferenceKind,
         element: TypeReference,
         address_space: &AddressSpace,
-        mutability: crate::Mutability,
+        mutability: Mutability,
     ) -> LayoutMetadataResult<()> {
         let (data, length) = slice_header_types(kind, element, mutability, address_space.clone());
-        let data = self.tree.insert_type(data);
-        let length = self.tree.insert_type(length);
+        let data = ensure_type(self.tree, data);
+        let length = ensure_type(self.tree, length);
 
         let components = [data, length];
         let mut layout_fields = Vec::with_capacity(components.len());
@@ -522,7 +569,7 @@ impl LayoutMetadataCompletion<'_> {
 
         let layout = compute_type_layout(self.tree, type_id, self.tree.pointer_bytes());
         let layout_entry = Layout {
-            kind: LayoutKind::Tuple,
+            kind: LayoutKind::Slice,
             size: layout.size,
             alignment,
             reference_map: ReferenceMap::empty(),
@@ -599,19 +646,15 @@ impl LayoutMetadataCompletion<'_> {
             .metadata
             .layout
             .layout_id(type_id)
-            .ok_or(LayoutMetadataError::MissingLayoutId { type_id })?;
-        let Some(layout) = self
+            .unwrap_or_else(|| panic!("missing layout id for recorded type {type_id:?}"));
+        let layout = self
             .tree
             .metadata
             .layout
             .layout_table
             .layouts
             .get_mut(layout_id.index())
-        else {
-            return Err(LayoutMetadataError::MissingLayoutEntry {
-                index: layout_id.index(),
-            });
-        };
+            .unwrap_or_else(|| panic!("missing layout entry {}", layout_id.index()));
 
         layout.reference_map = reference_map;
 
@@ -666,7 +709,7 @@ impl LayoutMetadataCompletion<'_> {
                     .metadata
                     .layout
                     .layout_id(type_id)
-                    .ok_or(LayoutMetadataError::MissingLayoutId { type_id })?;
+                    .unwrap_or_else(|| panic!("missing layout id for recorded type {type_id:?}"));
                 let fields = self
                     .tree
                     .metadata
@@ -731,7 +774,7 @@ impl LayoutMetadataCompletion<'_> {
             .metadata
             .layout
             .layout_id(type_id)
-            .ok_or(LayoutMetadataError::MissingLayoutId { type_id })?;
+            .unwrap_or_else(|| panic!("missing layout id for union type {type_id:?}"));
         let layout = self.tree.metadata.layout.layout_table.layout(layout_id);
         let LayoutKind::Union {
             tag_offset,
@@ -791,6 +834,18 @@ fn concrete_type(reference: TypeReference) -> Option<LocalNodeId<Type>> {
     }
 }
 
+/// Return an existing type id for a shape or insert it.
+fn ensure_type(tree: &mut Tree, ty: Type) -> LocalNodeId<Type> {
+    if let Some(type_id) = tree
+        .iter_nodes::<Type>()
+        .find_map(|(type_id, existing)| (existing == &ty).then_some(type_id))
+    {
+        return type_id;
+    }
+
+    tree.insert_type(ty)
+}
+
 /// Align one size up to the requested alignment.
 fn align_up(value: u32, alignment: u32) -> u32 {
     if alignment == 0 {
@@ -828,154 +883,29 @@ fn group_reference_map(maps: Vec<ReferenceMap>) -> ReferenceMap {
     }
 }
 
-/// Opaque identifier for a concrete memory layout.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct LayoutId(NonZeroU32);
-
-impl LayoutId {
-    /// Create a layout identifier from one raw value.
-    #[inline]
-    pub const fn new(raw: u32) -> Self {
-        match NonZeroU32::new(raw) {
-            Some(raw) => Self(raw),
-            None => panic!("layout identifiers must be non-zero"),
-        }
-    }
-
-    /// Return the raw layout identifier value.
-    #[inline]
-    pub const fn raw(self) -> u32 {
-        self.0.get()
-    }
-
-    /// Return the zero based layout-table index.
-    #[inline]
-    pub const fn index(self) -> usize {
-        self.raw() as usize - 1
-    }
-}
-
-/// Shared layout table for all aggregate types.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct LayoutTable {
-    /// Layout entries indexed by LayoutId.
-    pub layouts: Vec<crate::Layout>,
-}
-
-impl LayoutTable {
-    /// Create an empty layout table.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Insert a layout entry and return its id.
-    pub fn insert(&mut self, layout: crate::Layout) -> LayoutId {
-        let next_index = self.layouts.len() + 1;
-        let id = LayoutId::new(next_index as u32);
-        self.layouts.push(layout);
-        id
-    }
-
-    /// Return a layout entry for an id.
-    pub fn layout(&self, id: LayoutId) -> &crate::Layout {
-        let index = id.index();
-        self.layouts
-            .get(index)
-            .unwrap_or_else(|| panic!("missing layout entry {index}"))
-    }
-}
-
-/// Concrete memory layout for an aggregate type.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Layout {
-    /// The layout kind and kind specific data.
-    pub kind: LayoutKind,
-    /// Total size in bytes, including trailing padding.
-    pub size: u32,
-    /// Alignment requirement in bytes.
-    pub alignment: u32,
-    /// Managed-reference metadata for this layout.
-    pub reference_map: ReferenceMap,
-    /// Field layouts in concrete memory order.
-    pub fields: Vec<LayoutField>,
-}
-
-/// Memory layout for a single field.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LayoutField {
-    /// Field name for lookup and debugging.
-    pub name: Option<StringId>,
-    /// MIR type of the field.
-    pub ty: LocalNodeId<Type>,
-    /// Byte offset from the start of the aggregate.
-    pub offset: u32,
-    /// Size of the field in bytes.
-    pub size: u32,
-    /// Alignment requirement of the field in bytes.
-    pub alignment: u32,
-    /// Original source index for stable mapping.
-    pub source_index: Option<u32>,
-}
-
-/// Aggregate layout kinds with kind specific data.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum LayoutKind {
-    /// Plain struct layout.
-    Struct,
-    /// Tuple layout with ordered elements.
-    Tuple,
-    /// Array layout with stride and optional fixed count.
-    Array {
-        /// The array element type.
-        element_type: LocalNodeId<Type>,
-        /// The stride between array elements in bytes.
-        element_stride: u32,
-        /// The fixed element count when known.
-        element_count: Option<u32>,
-    },
-    /// Union layout with tag and payload offsets.
-    Union {
-        /// The tag type used for discriminants.
-        tag_type: LocalNodeId<Type>,
-        /// The byte offset of the tag field.
-        tag_offset: u32,
-        /// The byte offset of the payload field.
-        payload_offset: u32,
-    },
-    /// Interface layout with object and table offsets.
-    Interface {
-        /// The byte offset of the object pointer.
-        object_offset: u32,
-        /// The byte offset of the table pointer.
-        table_offset: u32,
-    },
-    /// Function environment layout.
-    CallableEnvironment,
-    /// Function value layout.
-    Callable,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::parse::{ParseOptions, Parser};
-    use crate::{Storage, TypeAlias};
+    use crate::{DataLayout, TypeAlias};
     use destack_core::ImmutableStringPool;
     use destack_source::FileId;
 
-    /// Parse one MIR module and complete its layout metadata.
-    fn parse_tree_with_layout(mir_text: &str, storage: Storage) -> (Tree, ImmutableStringPool) {
+    /// Parse one MIR module with layout metadata.
+    fn parse_tree_with_layout(
+        mir_text: &str,
+        data_layout: DataLayout,
+    ) -> (Tree, ImmutableStringPool) {
         let (mut tree, strings) = Parser::parse(
             FileId::new(0),
             mir_text,
             ParseOptions {
-                pointer_bytes: storage.native_pointer_bytes,
+                pointer_bytes: data_layout.pointer_bytes,
             },
         )
         .validate()
         .expect("failed to parse MIR");
-        tree.metadata.layout.storage = storage;
-        complete_layout_metadata(&mut tree).expect("failed to complete layout metadata");
+        tree.metadata.data_layout = data_layout;
 
         (tree, strings)
     }
@@ -1000,14 +930,14 @@ mod tests {
 
     /// Canonical layout metadata should match one parsed struct layout.
     #[test]
-    fn test_complete_layout_metadata_imports_struct_layout() {
+    fn test_record_type_layout_imports_struct_layout() {
         let mir_text = r#"
 type Mixed {
     first: uint8;
     second: int64;
     third: uint8;
 }"#;
-        let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
+        let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Mixed");
         let raw_layout = tree.type_layout(ty).expect("missing MIR raw layout");
 
@@ -1024,14 +954,14 @@ type Mixed {
 
     /// Canonical layout metadata should record one heap-reference trace.
     #[test]
-    fn test_complete_layout_metadata_records_struct_trace() {
+    fn test_record_type_layout_records_struct_trace() {
         let mir_text = r#"
 type Packed {
     first: uint8;
     inner: ref<int32, managed, readonly>;
     third: uint8;
 }"#;
-        let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
+        let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Packed");
         let layout = tree.type_layout(ty).expect("missing MIR raw layout");
 

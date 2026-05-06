@@ -5,11 +5,11 @@ use crate::parse::{ParseError, ParseOptions, Parser};
 use crate::{
     AddressSpace, AllocationMode, ArgumentAttribute, ArgumentSlice, Attribute, AttributeArgs,
     AttributeIdentifier, AttributeValue, Block, Call, CallBehavior, Constant, Copy,
-    DebugBindingKind, DebugRangeStart, DebugScopeKind, DebugValueLocation, EffectClass, Field,
+    DebugBindingKind, DebugLocation, DebugValueLocation, DispatchSlot, EffectClass, Field,
     Function, FunctionReference, Instruction, Layout, LayoutField, LayoutKind, Local, LocalNodeId,
     LocalReference, Mutability, Ownership, ProvenanceAnchor, ProvenanceKey, ReferenceKind,
     ReferenceMap, SuspendBehavior, Terminator, Tree, Type, TypeReference, UnwindBehavior, Value,
-    ValueReference, VtableSlotId,
+    ValueReference,
 };
 
 use super::Validator;
@@ -597,10 +597,7 @@ fn test_reject_debug_binding_empty_range() {
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
 
-    let scope_id =
-        tree.metadata
-            .debug
-            .create_scope(DebugScopeKind::Function, Some(name), None, None);
+    let scope_id = tree.metadata.debug.create_scope(Some(name), None, None);
     tree.metadata
         .debug
         .set_function_scope(function_id, scope_id);
@@ -612,10 +609,10 @@ fn test_reject_debug_binding_empty_range() {
         None,
         DebugBindingKind::Local,
     );
-    tree.metadata.debug.add_binding_location_range(
+    tree.metadata.debug.add_binding_range(
         binding_id,
         DebugValueLocation::Value(Value::new(0)),
-        DebugRangeStart::instruction(instruction),
+        Some(instruction),
         Some(instruction),
     );
 
@@ -626,6 +623,221 @@ fn test_reject_debug_binding_empty_range() {
     assert_eq!(
         error.to_string(),
         "metadata invariant violation: debug binding ranges must be non-empty and ordered"
+    );
+}
+
+/// Accept one inlined callee source location in a caller function.
+#[test]
+fn test_validate_accepts_inlined_callee_location() {
+    let mut tree = Tree::new();
+    let pool = StringPool::new();
+    let caller_name = pool.intern("caller");
+    let callee_name = pool.intern("callee");
+
+    let void_type = tree.insert_type(Type::Void);
+    let value_type = tree.insert_type(Type::Int {
+        width: 32,
+        is_signed: true,
+    });
+
+    let instruction = tree.insert(Instruction::Const {
+        destination: value_reference(Value::new(0)),
+        value: Constant::int32(1),
+    });
+    let caller_terminator = tree.insert(Terminator::Return { value: None });
+    let callee_terminator = tree.insert(Terminator::Return { value: None });
+
+    let caller_block = tree.insert(Block {
+        name: Some(pool.intern("caller_entry")),
+        parameters: Vec::new(),
+        instructions: vec![instruction],
+        terminator: caller_terminator,
+    });
+    let callee_block = tree.insert(Block {
+        name: Some(pool.intern("callee_entry")),
+        parameters: Vec::new(),
+        instructions: Vec::new(),
+        terminator: callee_terminator,
+    });
+
+    let mut caller = Function::local(
+        caller_name,
+        Vec::new(),
+        type_reference(void_type),
+        caller_block,
+    );
+    caller.set_value_type(Value::new(0), value_type);
+    caller.value_names[0] = Some(pool.intern("value0"));
+    caller.blocks = vec![caller_block];
+    caller.entry = Some(caller_block);
+    let caller_id = tree.insert(caller);
+
+    let mut callee = Function::local(
+        callee_name,
+        Vec::new(),
+        type_reference(void_type),
+        callee_block,
+    );
+    callee.blocks = vec![callee_block];
+    callee.entry = Some(callee_block);
+    let callee_id = tree.insert(callee);
+
+    let caller_scope = tree
+        .metadata
+        .debug
+        .create_scope(Some(caller_name), None, None);
+    let callee_scope = tree
+        .metadata
+        .debug
+        .create_scope(Some(callee_name), None, None);
+    tree.metadata
+        .debug
+        .set_function_scope(caller_id, caller_scope);
+    tree.metadata
+        .debug
+        .set_function_scope(callee_id, callee_scope);
+
+    let inline_call = tree.metadata.debug.create_inline_call(
+        callee_scope,
+        DebugLocation {
+            scope: caller_scope,
+            provenance: None,
+            inline_call: None,
+        },
+    );
+    tree.metadata.debug.set_instruction_location(
+        instruction,
+        DebugLocation {
+            scope: callee_scope,
+            provenance: None,
+            inline_call: Some(inline_call),
+        },
+    );
+
+    let validator = Validator::new(&tree);
+    validator.validate().expect("expected validation success");
+}
+
+/// Reject one inlined location whose source scope is not owned by the callee.
+#[test]
+fn test_reject_debug_inline_scope_mismatch() {
+    let mut tree = Tree::new();
+    let pool = StringPool::new();
+    let caller_name = pool.intern("caller");
+    let callee_name = pool.intern("callee");
+    let unrelated_name = pool.intern("unrelated");
+
+    let void_type = tree.insert_type(Type::Void);
+    let value_type = tree.insert_type(Type::Int {
+        width: 32,
+        is_signed: true,
+    });
+    let instruction = tree.insert(Instruction::Const {
+        destination: value_reference(Value::new(0)),
+        value: Constant::int32(1),
+    });
+
+    let caller_terminator = tree.insert(Terminator::Return { value: None });
+    let callee_terminator = tree.insert(Terminator::Return { value: None });
+    let unrelated_terminator = tree.insert(Terminator::Return { value: None });
+
+    let caller_block = tree.insert(Block {
+        name: Some(pool.intern("caller_entry")),
+        parameters: Vec::new(),
+        instructions: vec![instruction],
+        terminator: caller_terminator,
+    });
+    let callee_block = tree.insert(Block {
+        name: Some(pool.intern("callee_entry")),
+        parameters: Vec::new(),
+        instructions: Vec::new(),
+        terminator: callee_terminator,
+    });
+    let unrelated_block = tree.insert(Block {
+        name: Some(pool.intern("unrelated_entry")),
+        parameters: Vec::new(),
+        instructions: Vec::new(),
+        terminator: unrelated_terminator,
+    });
+
+    let mut caller = Function::local(
+        caller_name,
+        Vec::new(),
+        type_reference(void_type),
+        caller_block,
+    );
+    caller.set_value_type(Value::new(0), value_type);
+    caller.value_names[0] = Some(pool.intern("value0"));
+    caller.blocks = vec![caller_block];
+    caller.entry = Some(caller_block);
+    let caller_id = tree.insert(caller);
+
+    let mut callee = Function::local(
+        callee_name,
+        Vec::new(),
+        type_reference(void_type),
+        callee_block,
+    );
+    callee.blocks = vec![callee_block];
+    callee.entry = Some(callee_block);
+    let callee_id = tree.insert(callee);
+
+    let mut unrelated = Function::local(
+        unrelated_name,
+        Vec::new(),
+        type_reference(void_type),
+        unrelated_block,
+    );
+    unrelated.blocks = vec![unrelated_block];
+    unrelated.entry = Some(unrelated_block);
+    let unrelated_id = tree.insert(unrelated);
+
+    let caller_scope = tree
+        .metadata
+        .debug
+        .create_scope(Some(caller_name), None, None);
+    let callee_scope = tree
+        .metadata
+        .debug
+        .create_scope(Some(callee_name), None, None);
+    let unrelated_scope = tree
+        .metadata
+        .debug
+        .create_scope(Some(unrelated_name), None, None);
+    tree.metadata
+        .debug
+        .set_function_scope(caller_id, caller_scope);
+    tree.metadata
+        .debug
+        .set_function_scope(callee_id, callee_scope);
+    tree.metadata
+        .debug
+        .set_function_scope(unrelated_id, unrelated_scope);
+
+    let inline_call = tree.metadata.debug.create_inline_call(
+        callee_scope,
+        DebugLocation {
+            scope: caller_scope,
+            provenance: None,
+            inline_call: None,
+        },
+    );
+    tree.metadata.debug.set_instruction_location(
+        instruction,
+        DebugLocation {
+            scope: unrelated_scope,
+            provenance: None,
+            inline_call: Some(inline_call),
+        },
+    );
+
+    let validator = Validator::new(&tree);
+    let error = validator
+        .validate()
+        .expect_err("expected validation failure");
+    assert_eq!(
+        error.to_string(),
+        "metadata invariant violation: debug inlined location scope must belong to the inline callee"
     );
 }
 
@@ -1204,7 +1416,7 @@ fn test_dynamic_call_declared_target_is_inline() {
             type_reference(LocalNodeId::new(0)),
         ),
         declaring_type: type_reference(LocalNodeId::new(0)),
-        slot_id: VtableSlotId::new(0),
+        slot: DispatchSlot::new(0),
         declared_target: Some(function_reference(LocalNodeId::new(1))),
     };
 

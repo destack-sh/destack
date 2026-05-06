@@ -532,7 +532,7 @@ fn metadata_name_for_type(
 ) -> Option<String> {
     // read the metadata name when available
     tree.metadata
-        .layout
+        .types
         .display_name(ty)
         .map(|name_id| strings.get(name_id).to_string())
         .map(|name| {

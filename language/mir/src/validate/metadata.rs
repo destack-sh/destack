@@ -1,9 +1,6 @@
-use std::collections::HashSet;
-
 use crate::{
-    AddressSpace, AstNodeKey, DirNodeKey, Instruction, InterfaceDispatchEntry, ItabEntry,
-    LayoutKind, NodeType, ProvenanceAnchor, ProvenanceId, ProvenanceKey, ProvenanceRecord,
-    ReferenceKind, Type, TypeReference,
+    AddressSpace, Instruction, InterfaceDispatchEntry, ItabEntry, LayoutKind, NodeType,
+    ProvenanceAnchor, ProvenanceId, ProvenanceKey, ReferenceKind, Type, TypeReference,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -113,7 +110,7 @@ impl<'a> Validator<'a> {
         }
 
         // itab contents
-        for (_itab_id, itab) in self.tree.metadata.dispatch.iter_itabs() {
+        for itab in self.tree.metadata.dispatch.iter_itabs() {
             let anchor = ValidateAnchor::node(itab.interface);
             let Some(shape) = self
                 .tree
@@ -192,6 +189,7 @@ impl<'a> Validator<'a> {
                 (
                     Type::Struct { fields, .. },
                     LayoutKind::Struct
+                    | LayoutKind::Object { .. }
                     | LayoutKind::Union { .. }
                     | LayoutKind::Interface { .. }
                     | LayoutKind::CallableEnvironment,
@@ -249,6 +247,14 @@ impl<'a> Validator<'a> {
                         });
                     }
                 }
+                (Type::Slice { .. }, LayoutKind::Slice) => {
+                    if layout.fields.len() != 2 {
+                        return Err(ValidateError::MetadataInvariantViolation {
+                            message: "slice layout must have exactly two fields".to_string(),
+                            anchor: ValidateAnchor::node(type_id),
+                        });
+                    }
+                }
                 (Type::Array { .. }, LayoutKind::Array { .. }) => {}
                 _ => {
                     return Err(ValidateError::MetadataInvariantViolation {
@@ -264,9 +270,6 @@ impl<'a> Validator<'a> {
 
         // origin graph
         self.validate_origin_records()?;
-
-        // reverse index
-        self.validate_origin_reverse_index()?;
 
         Ok(())
     }
@@ -359,170 +362,5 @@ impl<'a> Validator<'a> {
         states[origin_id.index()] = OriginVisitState::Done;
 
         Ok(())
-    }
-
-    /// Validate the reverse origin index.
-    fn validate_origin_reverse_index(&self) -> ValidateResult<()> {
-        // AST reverse index entries
-        for (&ast_key, records) in &self.tree.metadata.provenance.record_by_ast {
-            let mut seen = HashSet::new();
-
-            for &origin_id in records {
-                if !seen.insert(origin_id) {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "origin reverse index must not contain duplicates".to_string(),
-                        anchor: self.module_anchor(),
-                    });
-                }
-
-                if !self.tree.metadata.provenance.contains(origin_id) {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "origin reverse index references a missing record".to_string(),
-                        anchor: self.module_anchor(),
-                    });
-                }
-
-                let record = self.tree.metadata.provenance.record(origin_id);
-                if !self.record_mentions_ast(record, ast_key) {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "origin reverse index does not match AST references".to_string(),
-                        anchor: self.module_anchor(),
-                    });
-                }
-            }
-        }
-
-        // DIR reverse index entries
-        for (&dir_key, records) in &self.tree.metadata.provenance.record_by_dir {
-            let mut seen = HashSet::new();
-
-            for &origin_id in records {
-                if !seen.insert(origin_id) {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "origin reverse index must not contain duplicates".to_string(),
-                        anchor: self.module_anchor(),
-                    });
-                }
-
-                if !self.tree.metadata.provenance.contains(origin_id) {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "origin reverse index references a missing record".to_string(),
-                        anchor: self.module_anchor(),
-                    });
-                }
-
-                let record = self.tree.metadata.provenance.record(origin_id);
-                if !self.record_mentions_dir(record, dir_key) {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "origin reverse index does not match DIR references".to_string(),
-                        anchor: self.module_anchor(),
-                    });
-                }
-            }
-        }
-
-        // forward AST and DIR references
-        for (index, record) in self
-            .tree
-            .metadata
-            .provenance
-            .record_by_id
-            .iter()
-            .enumerate()
-        {
-            let origin_id = ProvenanceId::new(index as u32);
-
-            for ast_key in self.record_ast_keys(record) {
-                let Some(records) = self.tree.metadata.provenance.record_by_ast.get(&ast_key)
-                else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "origin record AST reference is missing from the reverse index"
-                            .to_string(),
-                        anchor: self.module_anchor(),
-                    });
-                };
-
-                if !records.contains(&origin_id) {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "origin record AST reference is missing from the reverse index"
-                            .to_string(),
-                        anchor: self.module_anchor(),
-                    });
-                }
-            }
-
-            for dir_key in self.record_dir_keys(record) {
-                let Some(records) = self.tree.metadata.provenance.record_by_dir.get(&dir_key)
-                else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "origin record DIR reference is missing from the reverse index"
-                            .to_string(),
-                        anchor: self.module_anchor(),
-                    });
-                };
-
-                if !records.contains(&origin_id) {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "origin record DIR reference is missing from the reverse index"
-                            .to_string(),
-                        anchor: self.module_anchor(),
-                    });
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Return true when one record mentions one AST key.
-    fn record_mentions_ast(&self, record: &ProvenanceRecord, ast_key: AstNodeKey) -> bool {
-        self.record_ast_keys(record).contains(&ast_key)
-    }
-
-    /// Return true when one record mentions one DIR key.
-    fn record_mentions_dir(&self, record: &ProvenanceRecord, dir_key: DirNodeKey) -> bool {
-        self.record_dir_keys(record).contains(&dir_key)
-    }
-
-    /// Collect unique AST keys mentioned by one origin record.
-    fn record_ast_keys(&self, record: &ProvenanceRecord) -> Vec<AstNodeKey> {
-        let mut keys = Vec::new();
-
-        if let ProvenanceAnchor::Ast(ast_key) = record.anchor {
-            keys.push(ast_key);
-        }
-
-        for input in &record.contributors {
-            let ProvenanceKey::Ast(ast_key) = *input else {
-                continue;
-            };
-
-            if !keys.contains(&ast_key) {
-                keys.push(ast_key);
-            }
-        }
-
-        keys
-    }
-
-    /// Collect unique DIR keys mentioned by one origin record.
-    fn record_dir_keys(&self, record: &ProvenanceRecord) -> Vec<DirNodeKey> {
-        let mut keys = Vec::new();
-
-        if let ProvenanceAnchor::Dir(dir_key) = record.anchor {
-            keys.push(dir_key);
-        }
-
-        for input in &record.contributors {
-            let ProvenanceKey::Dir(dir_key) = *input else {
-                continue;
-            };
-
-            if !keys.contains(&dir_key) {
-                keys.push(dir_key);
-            }
-        }
-
-        keys
     }
 }

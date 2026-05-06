@@ -6,12 +6,12 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{
     AllocationSize, ArgumentAttribute, AtomicRmwOperator, AtomicScope, BinaryOperator, Call,
-    CallBehavior, Constant, FunctionReference, GlobalReference, InterfaceSlotId, Intrinsic,
-    LocalReference, MemoryEffect, MemoryOrdering, MemoryScope, MemorySemantics, Node, NodeType,
+    CallBehavior, Constant, DispatchSlot, FunctionReference, GlobalReference, Intrinsic,
+    LocalReference, MemoryEffect, MemoryFlags, MemoryOrdering, MemoryScope, Node, NodeType,
     PointerAttribute, TensorConvertMode, TensorConvolutionDimensionNumbers,
     TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
     TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, TypeReference,
-    UnaryOperator, ValueReference, VectorConvertMode, VectorReduceOperator, VtableSlotId,
+    UnaryOperator, ValueReference, VectorConvertMode, VectorReduceOperator,
 };
 
 /// Compact representation of an argument slice stored in an external buffer.
@@ -53,13 +53,13 @@ pub enum CallDispatchKind {
     Direct,
     /// Virtual call through a vtable slot.
     Virtual {
-        /// The vtable slot id for the method.
-        slot_id: VtableSlotId,
+        /// The dispatch slot for the method.
+        slot: DispatchSlot,
     },
     /// Interface call through an itab slot.
     Interface {
-        /// The itab slot id for the method.
-        slot_id: InterfaceSlotId,
+        /// The dispatch slot for the method.
+        slot: DispatchSlot,
     },
     /// Indirect call through a function pointer.
     Indirect,
@@ -656,8 +656,8 @@ pub enum Instruction {
         receiver: ValueReference,
         /// The declaring type for this virtual call.
         declaring_type: TypeReference,
-        /// The vtable slot id for the method.
-        slot_id: VtableSlotId,
+        /// The dispatch slot for the method.
+        slot: DispatchSlot,
         /// The declared method target when known.
         declared_target: Option<FunctionReference>,
         /// The shared call payload.
@@ -671,8 +671,8 @@ pub enum Instruction {
         receiver: ValueReference,
         /// The declaring interface type for this call.
         declaring_type: TypeReference,
-        /// The itab slot id for the method.
-        slot_id: InterfaceSlotId,
+        /// The dispatch slot for the method.
+        slot: DispatchSlot,
         /// The declared method target when known.
         declared_target: Option<FunctionReference>,
         /// The shared call payload.
@@ -800,8 +800,8 @@ pub enum Instruction {
         scope: AtomicScope,
         /// The memory scope for the operation.
         memory_scope: MemoryScope,
-        /// The memory semantics for the operation.
-        semantics: MemorySemantics,
+        /// The memory flags.
+        flags: MemoryFlags,
     },
     /// Store to memory atomically.
     AtomicStore {
@@ -815,8 +815,8 @@ pub enum Instruction {
         scope: AtomicScope,
         /// The memory scope for the operation.
         memory_scope: MemoryScope,
-        /// The memory semantics for the operation.
-        semantics: MemorySemantics,
+        /// The memory flags.
+        flags: MemoryFlags,
     },
     /// Compare exchange one memory location atomically.
     AtomicCompareExchange {
@@ -836,8 +836,8 @@ pub enum Instruction {
         scope: AtomicScope,
         /// The memory scope for the operation.
         memory_scope: MemoryScope,
-        /// The memory semantics for the operation.
-        semantics: MemorySemantics,
+        /// The memory flags.
+        flags: MemoryFlags,
     },
     /// Apply one atomic read modify write operation.
     AtomicRmw {
@@ -855,8 +855,8 @@ pub enum Instruction {
         scope: AtomicScope,
         /// The memory scope for the operation.
         memory_scope: MemoryScope,
-        /// The memory semantics for the operation.
-        semantics: MemorySemantics,
+        /// The memory flags.
+        flags: MemoryFlags,
     },
     /// Publish one memory fence.
     AtomicFence {
@@ -866,8 +866,8 @@ pub enum Instruction {
         scope: AtomicScope,
         /// The memory scope for the operation.
         memory_scope: MemoryScope,
-        /// The memory semantics for the operation.
-        semantics: MemorySemantics,
+        /// The memory flags.
+        flags: MemoryFlags,
     },
     // assumptions and hints
     /// Assume a condition is true (UB if false).
@@ -1138,11 +1138,11 @@ impl Instruction {
     pub fn call_dispatch_kind(&self) -> Option<CallDispatchKind> {
         match self {
             Instruction::Call { .. } => Some(CallDispatchKind::Direct),
-            Instruction::CallVirtual { slot_id, .. } => {
-                Some(CallDispatchKind::Virtual { slot_id: *slot_id })
+            Instruction::CallVirtual { slot, .. } => {
+                Some(CallDispatchKind::Virtual { slot: *slot })
             }
-            Instruction::CallInterface { slot_id, .. } => {
-                Some(CallDispatchKind::Interface { slot_id: *slot_id })
+            Instruction::CallInterface { slot, .. } => {
+                Some(CallDispatchKind::Interface { slot: *slot })
             }
             Instruction::CallIndirect { .. } => Some(CallDispatchKind::Indirect),
             _ => None,

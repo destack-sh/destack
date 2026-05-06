@@ -127,7 +127,7 @@ impl<'a> Validator<'a> {
             }
             Terminator::InvokeVirtual {
                 declaring_type,
-                slot_id,
+                slot,
                 call,
                 normal_target,
                 unwind_target,
@@ -136,7 +136,7 @@ impl<'a> Validator<'a> {
                 let declaring_type =
                     self.require_type_reference(*declaring_type, anchor, "invoke virtual type")?;
                 self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
-                self.validate_virtual_dispatch_slot(declaring_type, *slot_id, anchor)?;
+                self.validate_virtual_dispatch_slot(declaring_type, *slot, anchor)?;
                 let (parameters, result) =
                     self.function_pointer_signature(call.signature, anchor, "call signature")?;
 
@@ -153,7 +153,7 @@ impl<'a> Validator<'a> {
             }
             Terminator::InvokeInterface {
                 declaring_type,
-                slot_id,
+                slot,
                 call,
                 normal_target,
                 unwind_target,
@@ -162,7 +162,7 @@ impl<'a> Validator<'a> {
                 let declaring_type =
                     self.require_type_reference(*declaring_type, anchor, "invoke interface type")?;
                 self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
-                self.validate_interface_dispatch_slot(declaring_type, *slot_id, anchor)?;
+                self.validate_interface_dispatch_slot(declaring_type, *slot, anchor)?;
                 let (parameters, result) =
                     self.function_pointer_signature(call.signature, anchor, "call signature")?;
 
@@ -221,14 +221,14 @@ impl<'a> Validator<'a> {
             }
             Terminator::TailCallVirtual {
                 declaring_type,
-                slot_id,
+                slot,
                 call,
                 ..
             } => {
                 let declaring_type =
                     self.require_type_reference(*declaring_type, anchor, "tail call virtual type")?;
                 self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
-                self.validate_virtual_dispatch_slot(declaring_type, *slot_id, anchor)?;
+                self.validate_virtual_dispatch_slot(declaring_type, *slot, anchor)?;
                 let (parameters, result) =
                     self.function_pointer_signature(call.signature, anchor, "tailCall signature")?;
 
@@ -242,7 +242,7 @@ impl<'a> Validator<'a> {
             }
             Terminator::TailCallInterface {
                 declaring_type,
-                slot_id,
+                slot,
                 call,
                 ..
             } => {
@@ -252,7 +252,7 @@ impl<'a> Validator<'a> {
                     "tail call interface type",
                 )?;
                 self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
-                self.validate_interface_dispatch_slot(declaring_type, *slot_id, anchor)?;
+                self.validate_interface_dispatch_slot(declaring_type, *slot, anchor)?;
                 let (parameters, result) =
                     self.function_pointer_signature(call.signature, anchor, "tailCall signature")?;
 

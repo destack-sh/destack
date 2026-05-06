@@ -103,11 +103,11 @@ impl TryFrom<&str> for MemorySpaceSet {
 pub enum MemoryOrdering {
     /// No ordering constraints (weakest).
     Relaxed,
-    /// Acquire semantics (reads can't be reordered before this).
+    /// Acquire ordering prevents reads from moving before this.
     Acquire,
-    /// Release semantics (writes can't be reordered after this).
+    /// Release ordering prevents writes from moving after this.
     Release,
-    /// Both acquire and release semantics.
+    /// Acquire and release ordering.
     AcquireRelease,
     /// Sequentially consistent (strongest, default).
     #[default]
@@ -407,53 +407,53 @@ impl TryFrom<&str> for MemoryScope {
     }
 }
 
-/// Memory semantics for atomics and barriers.
+/// Memory flags for atomics and fences.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct MemorySemantics {
-    /// Effect spaces participating in the synchronization.
+pub struct MemoryFlags {
+    /// Effect spaces participating in the operation.
     pub spaces: MemorySpaceSet,
     /// Whether the access is volatile.
     pub is_volatile: bool,
     /// Whether this makes writes available to other scopes.
-    pub is_make_available: bool,
+    pub makes_available: bool,
     /// Whether this makes writes visible to other scopes.
-    pub is_make_visible: bool,
+    pub makes_visible: bool,
 }
 
-impl MemorySemantics {
-    /// Create semantics for the provided spaces.
+impl MemoryFlags {
+    /// Create flags for the provided spaces.
     pub fn new(spaces: MemorySpaceSet) -> Self {
         Self {
             spaces,
             is_volatile: false,
-            is_make_available: false,
-            is_make_visible: false,
+            makes_available: false,
+            makes_visible: false,
         }
     }
 
-    /// Create semantics with explicit flags.
+    /// Create flags with explicit predicates.
     pub fn with_flags(
         spaces: MemorySpaceSet,
         is_volatile: bool,
-        is_make_available: bool,
-        is_make_visible: bool,
+        makes_available: bool,
+        makes_visible: bool,
     ) -> Self {
         Self {
             spaces,
             is_volatile,
-            is_make_available,
-            is_make_visible,
+            makes_available,
+            makes_visible,
         }
     }
 }
 
-impl Default for MemorySemantics {
+impl Default for MemoryFlags {
     fn default() -> Self {
         Self {
             spaces: MemorySpaceSet::ANY,
             is_volatile: false,
-            is_make_available: false,
-            is_make_visible: false,
+            makes_available: false,
+            makes_visible: false,
         }
     }
 }
