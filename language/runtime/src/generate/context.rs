@@ -1,12 +1,38 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPinSet, ArtifactStore, ArtifactVersion, DirPatched, DirResolved,
+    ArtifactKey, ArtifactPinSet, ArtifactStore, ArtifactVersion, DirChecked, DirDeclared,
     LanguageEnvironment, LibraryEnvironment,
 };
-use destack_compiler::Compiler;
+use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::{Module, PinnedRevision, ProfileId, Repository, RepositoryError, Revision};
+
+/// DIR surface used by runtime generation.
+#[derive(Debug, Clone)]
+pub(crate) struct GeneratorDir {
+    /// The declared DIR artifact.
+    declared: Arc<DirDeclared>,
+    /// The checked DIR artifact.
+    checked: Arc<DirChecked>,
+}
+
+impl GeneratorDir {
+    /// Return the declared DIR tree.
+    pub(crate) fn tree(&self) -> &dir::Tree {
+        &self.declared.tree
+    }
+
+    /// Return the declared DIR symbol table.
+    pub(crate) fn symbols(&self) -> &dir::SymbolTable {
+        &self.declared.symbols
+    }
+
+    /// Return the checked DIR type table.
+    pub(crate) fn types(&self) -> &dir::TypeTable {
+        &self.checked.types
+    }
+}
 
 /// Revision-scoped semantic context for runtime generation.
 #[derive(Debug)]
@@ -77,31 +103,22 @@ impl GeneratorContext {
         .unwrap_or_else(|| panic!("missing library environment for profile {profile_id:?}"))
     }
 
-    /// Return one retained resolved DIR artifact.
-    pub(crate) fn dir_resolved(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> Arc<DirResolved> {
-        self.current_artifact(
-            ArtifactKey::dir_resolved(module_id, profile_id),
-            |artifacts, version| artifacts.dir_resolved(version),
-        )
-        .unwrap_or_else(|| panic!("missing resolved dir artifact for module {module_id:?}"))
-    }
+    /// Return one retained DIR surface for runtime generation.
+    pub(crate) fn dir(&self, module_id: ModuleId, profile_id: ProfileId) -> GeneratorDir {
+        let declared = self
+            .current_artifact(
+                ArtifactKey::dir_declared(module_id, profile_id),
+                |artifacts, version| artifacts.dir_declared(version),
+            )
+            .unwrap_or_else(|| panic!("missing declared DIR artifact for module {module_id:?}"));
+        let checked = self
+            .current_artifact(
+                ArtifactKey::dir_checked(module_id, profile_id),
+                |artifacts, version| artifacts.dir_checked(version),
+            )
+            .unwrap_or_else(|| panic!("missing checked DIR artifact for module {module_id:?}"));
 
-    /// Return one retained patched DIR artifact.
-    pub(crate) fn dir_patched(
-        &self,
-        _compiler: &Compiler,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> Arc<DirPatched> {
-        self.current_artifact(
-            ArtifactKey::dir_patched(module_id, profile_id),
-            |artifacts, version| artifacts.dir_patched(version),
-        )
-        .unwrap_or_else(|| panic!("missing patched dir artifact for module {module_id:?}"))
+        GeneratorDir { declared, checked }
     }
 
     /// Return one retained current live artifact for the active revision.

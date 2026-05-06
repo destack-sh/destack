@@ -27,10 +27,10 @@ pub(crate) fn collect_platform_types(
         let module = context.get(*module_id);
         let module = module.as_ref();
 
-        let dir = context.dir_patched(compiler, module.id, profile_id);
-        let tree = &dir.tree;
-        let types = &dir.types;
-        let symbols = &dir.symbols;
+        let dir = context.dir(module.id, profile_id);
+        let tree = dir.tree();
+        let types = dir.types();
+        let symbols = dir.symbols();
         let domain = module_platform_domain(context.repository(), module)
             .unwrap_or_else(|| "global".to_string());
 

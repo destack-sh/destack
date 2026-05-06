@@ -190,9 +190,9 @@ pub(crate) fn format_declared_signature(
     profile_id: ProfileId,
 ) -> String {
     // load the relevant module state for formatting
-    let dir = context.dir_patched(compiler, module.id, profile_id);
-    let tree = &dir.tree;
-    let types = &dir.types;
+    let dir = context.dir(module.id, profile_id);
+    let tree = dir.tree();
+    let types = dir.types();
 
     // gather declaration naming and export metadata
     let descriptor = declaration.descriptor();
@@ -469,8 +469,8 @@ pub(crate) fn binding_type_from_type_id(
             domain,
         ),
         dir::Type::Unevaluated(expression_id) => {
-            let dir = context.dir_patched(compiler, types.module_id, profile_id);
-            let tree = &dir.tree;
+            let dir = context.dir(types.module_id, profile_id);
+            let tree = dir.tree();
             let expression_text =
                 format_type_expression(*expression_id, tree, strings).unwrap_or(type_text.clone());
 
@@ -795,10 +795,10 @@ pub(crate) fn binding_type_from_symbol(
 ) -> BindingType {
     let module = modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let dir = context.dir_patched(compiler, module.id, profile_id);
-    let tree = &dir.tree;
-    let types = &dir.types;
-    let symbol_table = &dir.symbols;
+    let dir = context.dir(module.id, profile_id);
+    let tree = dir.tree();
+    let types = dir.types();
+    let symbol_table = dir.symbols();
 
     let symbol = symbol_table.get_symbol(symbol_id.local_id);
     if let Some(target_symbol) = symbol.canonical_symbol.or(symbol.target_symbol)
