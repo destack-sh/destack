@@ -21,7 +21,7 @@ impl<'a> BlockLowerer<'a> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> Result<Instruction> {
         // require SSA values
         let destination = destination
@@ -47,7 +47,7 @@ impl<'a> BlockLowerer<'a> {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
             },
         ))
     }
@@ -61,7 +61,7 @@ impl<'a> BlockLowerer<'a> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> Result<Instruction> {
         // require SSA values
         let pointer = pointer
@@ -85,7 +85,7 @@ impl<'a> BlockLowerer<'a> {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
             },
         ))
     }
@@ -102,7 +102,7 @@ impl<'a> BlockLowerer<'a> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> Result<Instruction> {
         // require SSA values
         let destination = destination
@@ -141,7 +141,7 @@ impl<'a> BlockLowerer<'a> {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
             },
         ))
     }
@@ -157,7 +157,7 @@ impl<'a> BlockLowerer<'a> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> Result<Instruction> {
         // require SSA values
         let destination = destination
@@ -187,7 +187,7 @@ impl<'a> BlockLowerer<'a> {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
             },
         ))
     }
@@ -199,7 +199,7 @@ impl<'a> BlockLowerer<'a> {
         ordering: mir::MemoryOrdering,
         scope: mir::AtomicScope,
         memory_scope: mir::MemoryScope,
-        semantics: mir::MemorySemantics,
+        flags: mir::MemoryFlags,
     ) -> Instruction {
         pool.instruction_with_side(
             Op::AtomicFence,
@@ -207,7 +207,7 @@ impl<'a> BlockLowerer<'a> {
                 ordering,
                 scope,
                 memory_scope,
-                semantics,
+                flags,
             },
         )
     }
