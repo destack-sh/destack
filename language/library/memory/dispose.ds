@@ -1,4 +1,12 @@
-import { type Promise } from "../core/result.ds";
+import { type Promise } from "../core/async/promise.ds";
+
+/// Deterministic ownership finalization capability.
+///
+/// The compiler uses `Drop` when an owned value reaches its end of life.
+/// Explicit `drop(value)` also consumes the value and calls this protocol when available.
+export newtype interface Drop {
+    drop(): void;
+}
 
 /// Deterministic synchronous cleanup capability.
 ///

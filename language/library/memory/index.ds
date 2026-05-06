@@ -35,5 +35,5 @@ export {
     type AsRaw,
 } from "./ownership.ds";
 export { type Copy, type Clone, type Send, type Sync } from "./capability.ds";
-export { type Dispose, type AsyncDispose } from "./dispose.ds";
+export { type Drop, type Dispose, type AsyncDispose } from "./dispose.ds";
 export { type Bytes, type Buffer } from "./bytes.ds";

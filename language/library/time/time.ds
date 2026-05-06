@@ -1,5 +1,5 @@
 import * as platform from "library/platform/index.ds";
-import type { PlatformError } from "../error/index.ds";
+import type { PlatformError } from "../platform/error/index.ds";
 
 /// Return wall clock time in nanoseconds since the runtime epoch.
 export function wallNs(): Result<uint64, PlatformError> {

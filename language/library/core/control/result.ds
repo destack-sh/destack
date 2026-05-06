@@ -1,0 +1,245 @@
+import { type Promise } from "../async/promise.ds";
+import { panic } from "./panic.ds";
+import { type FromFailure, type Try, type TryBranch, TryContinue, TryFailure } from "./try.ds";
+import { type Equal } from "../operator/equality.ds";
+
+/// Successful result variant.
+export struct Ok<T> {
+    kind: "Ok" = "Ok";
+    value: T;
+}
+
+/// Failed result variant.
+export struct Err<E> {
+    kind: "Err" = "Err";
+    error: E;
+}
+
+/// Recoverable success or failure.
+export newtype Result<T, E> = Ok<T> | Err<E>;
+
+extension<T, E> of Result<T, E> {
+    /// Create a successful result.
+    static ok(value: T): Result<T, E> {
+        Result(Ok { kind: "Ok", value })
+    }
+
+    /// Create a failed result.
+    static err(error: E): Result<T, E> {
+        Result(Err { kind: "Err", error })
+    }
+
+    /// Return true when this result is successful.
+    isOk(): boolean {
+        this.kind == "Ok"
+    }
+
+    /// Return true when this result is failed.
+    isErr(): boolean {
+        this.kind == "Err"
+    }
+
+    /// Return the success value or panic.
+    unwrap(): T {
+        match (this) {
+            Ok { value } => value
+            Err { error: _ } => panic("called Result.unwrap() on Err")
+        }
+    }
+
+    /// Return the success value or `default`.
+    unwrapOr(default: T): T {
+        match (this) {
+            Ok { value } => value
+            Err { error: _ } => default
+        }
+    }
+
+    /// Return the success value or compute one from the error.
+    unwrapOrElse(f: (error: E) => T): T {
+        match (this) {
+            Ok { value } => value
+            Err { error } => f(error)
+        }
+    }
+
+    /// Return the failure value or panic.
+    unwrapErr(): E {
+        match (this) {
+            Ok { value: _ } => panic("called Result.unwrapErr() on Ok")
+            Err { error } => error
+        }
+    }
+
+    /// Map the success value.
+    map<U>(f: (value: T) => U): Result<U, E> {
+        match (this) {
+            Ok { value } => Result.ok(f(value))
+            Err { error } => Result.err(error)
+        }
+    }
+
+    /// Map the failure value.
+    mapErr<F>(f: (error: E) => F): Result<T, F> {
+        match (this) {
+            Ok { value } => Result.ok(value)
+            Err { error } => Result.err(f(error))
+        }
+    }
+
+    /// Continue with another result-returning operation.
+    andThen<U, F>(f: (value: T) => Result<U, F>): Result<U, E | F> {
+        match (this) {
+            Ok { value } => f(value)
+            Err { error } => Result.err(error)
+        }
+    }
+
+    /// Recover from a failure.
+    orElse<F>(f: (error: E) => Result<T, F>): Result<T, F> {
+        match (this) {
+            Ok { value } => Result.ok(value)
+            Err { error } => f(error)
+        }
+    }
+}
+
+extension<T, E> of Result<T, E> implements Try {
+    /// The success value.
+    type Value = T;
+
+    /// The failure value.
+    type Failure = E;
+
+    /// Create a successful result.
+    static fromValue(value: T): Result<T, E> {
+        Result.ok(value)
+    }
+
+    /// Branch into success or failure control flow.
+    branch(): TryBranch<T, E> {
+        match (this) {
+            Ok { value } => TryContinue { kind: "continue", value }
+            Err { error } => TryFailure { kind: "failure", failure: error }
+        }
+    }
+}
+
+extension<T, E> of Result<T, E> implements FromFailure<E> {
+    /// Create a result from a propagated failure.
+    static fromFailure(failure: E): Result<T, E> {
+        Result.err(failure)
+    }
+}
+
+extension<T: Equal<T>, E: Equal<E>> of Result<T, E> implements Equal<Result<T, E>> {
+    /// Compare two results.
+    equal(other: Result<T, E>): boolean {
+        match (this) {
+            Ok { value: a } => {
+                match (other) {
+                    Ok { value: b } => a.equal(b)
+                    Err { error: _ } => false
+                }
+            }
+            Err { error: a } => {
+                match (other) {
+                    Err { error: b } => a.equal(b)
+                    Ok { value: _ } => false
+                }
+            }
+        }
+    }
+}
+
+/// Async recoverable success or failure.
+export newtype AsyncResult<T, E> = Promise<Result<T, E>>;
+
+extension<T, E> of AsyncResult<T, E> {
+    /// Create a successful async result.
+    static ok(value: T): AsyncResult<T, E> {
+        AsyncResult(Promise.resolve(Result.ok(value)))
+    }
+
+    /// Create a failed async result.
+    static err(error: E): AsyncResult<T, E> {
+        AsyncResult(Promise.resolve(Result.err(error)))
+    }
+
+    /// Wrap an already computed result.
+    static from(result: Result<T, E>): AsyncResult<T, E> {
+        AsyncResult(Promise.resolve(result))
+    }
+
+    /// Wrap a promise by mapping rejection into a typed error.
+    static fromPromise(promise: Promise<T>, recover: (error: unknown) => E): AsyncResult<T, E> {
+        AsyncResult(
+            promise.then(
+                (value) => Result.ok(value),
+                (error) => Result.err(recover(error)),
+            ),
+        )
+    }
+
+    /// Run an async operation and map rejection into a typed error.
+    static try(body: () => Promise<T>, recover: (error: unknown) => E): AsyncResult<T, E> {
+        AsyncResult.fromPromise(body(), recover)
+    }
+
+    /// Map the success value.
+    map<U>(f: (value: T) => U): AsyncResult<U, E> {
+        AsyncResult(this.then((result) => result.map(f)))
+    }
+
+    /// Map the failure value.
+    mapErr<F>(f: (error: E) => F): AsyncResult<T, F> {
+        AsyncResult(this.then((result) => result.mapErr(f)))
+    }
+
+    /// Continue with another async result-returning operation.
+    andThen<U, F>(f: (value: T) => AsyncResult<U, F>): AsyncResult<U, E | F> {
+        AsyncResult(
+            this.then(async (result) => {
+                match (result) {
+                    Ok { value } => await f(value)
+                    Err { error } => Result.err(error)
+                }
+            }),
+        )
+    }
+
+    /// Continue with a synchronous result-returning operation.
+    andThenSync<U, F>(f: (value: T) => Result<U, F>): AsyncResult<U, E | F> {
+        AsyncResult(this.then((result) => result.andThen(f)))
+    }
+
+    /// Recover from a failure with another async result.
+    orElse<F>(f: (error: E) => AsyncResult<T, F>): AsyncResult<T, F> {
+        AsyncResult(
+            this.then(async (result) => {
+                match (result) {
+                    Ok { value } => Result.ok(value)
+                    Err { error } => await f(error)
+                }
+            }),
+        )
+    }
+
+    /// Return a promise for the success value or panic.
+    async unwrap(): Promise<T> {
+        const result = await this;
+        result.unwrap()
+    }
+
+    /// Return a promise for the success value or `default`.
+    async unwrapOr(default: T): Promise<T> {
+        const result = await this;
+        result.unwrapOr(default)
+    }
+
+    /// Return a promise for the success value or compute one from the error.
+    async unwrapOrElse(f: (error: E) => T): Promise<T> {
+        const result = await this;
+        result.unwrapOrElse(f)
+    }
+}

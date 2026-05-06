@@ -1,0 +1,14 @@
+/// Standard error protocol.
+export newtype interface Error {
+    /// Error name.
+    name: string;
+
+    /// Human-readable error message.
+    message: string;
+
+    /// Original cause, when this error wraps another failure.
+    cause?: unknown;
+
+    /// Stack trace or debugging detail.
+    stack?: string;
+}

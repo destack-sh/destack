@@ -11,7 +11,6 @@ export * as crypto from "./crypto/index.ds";
 export * as debug from "./debug/index.ds";
 export * as dgram from "./dgram/index.ds";
 export * as dns from "./dns/index.ds";
-export * as error from "./error/index.ds";
 export * as events from "./events/index.ds";
 export * as fs from "./fs/index.ds";
 export * as http from "./http/index.ds";

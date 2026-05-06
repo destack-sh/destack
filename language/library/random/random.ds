@@ -1,5 +1,5 @@
 import { Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
+import type { PlatformError } from "../platform/error/index.ds";
 import * as platform from "library/platform/index.ds";
 
 /// Opaque identifier for a deterministic random stream.

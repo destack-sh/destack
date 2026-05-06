@@ -1,0 +1,48 @@
+import { Symbol } from "./symbol.ds";
+
+/// A yielded iterator value.
+export type IteratorYield<TYield> = {
+    /// The iterator is not complete.
+    done: false;
+    /// The yielded value.
+    value: TYield;
+};
+
+/// A completed iterator value.
+export type IteratorReturn<TReturn> = {
+    /// The iterator is complete.
+    done: true;
+    /// The return value.
+    value: TReturn;
+};
+
+/// The union of iterator yield and return results.
+export type IteratorResult<T, TReturn = unknown> =
+    | IteratorYield<T>
+    | IteratorReturn<TReturn>;
+
+/// A protocol for producing a sequence of values.
+export interface Iterator<T, TReturn = unknown, TNext = unknown> {
+    /// Advance the iterator and return the next result.
+    next(...value: [] | [TNext]): IteratorResult<T, TReturn>;
+    /// Finalize the iterator and return the completion value.
+    return?(value?: TReturn): IteratorResult<T, TReturn>;
+    /// Signal an error to the iterator.
+    throw?(error?: unknown): IteratorResult<T, TReturn>;
+}
+
+/// A value that can produce an iterator.
+export interface Iterable<T, TReturn = unknown, TNext = unknown> {
+    /// Return a new iterator for this value.
+    [Symbol.iterator](): Iterator<T, TReturn, TNext>;
+}
+
+/// A value that is both iterable and its own iterator.
+export interface IterableIterator<
+    T,
+    TReturn = unknown,
+    TNext = unknown,
+> extends Iterator<T, TReturn, TNext> {
+    /// Return an iterator for this value.
+    [Symbol.iterator](): IterableIterator<T, TReturn, TNext>;
+}

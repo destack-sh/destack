@@ -1,0 +1,9 @@
+import { intrinsic } from "../primitive/decorator.ds";
+
+/// Trigger a debugger breakpoint.
+@intrinsic("breakpoint")
+export declare function breakpoint(): void;
+
+/// Hide a value from optimization.
+@intrinsic("blackBox")
+export declare function blackBox<T>(value: T): T;

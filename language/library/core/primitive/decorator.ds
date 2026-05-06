@@ -241,20 +241,24 @@ export extension<Target> of Debug implements Patcher<Target> {
     static patch(target: Target, context: PatchContext, config: this): Patch[];
 }
 
+/// Inline policy for a function.
+export type InlineHint = "hint" | "always" | "never";
+
 /// Inline hint for the optimizer.
 ///
-/// Suggests that this function should be inlined at call sites.
-/// The compiler may ignore this hint based on heuristics.
+/// `@inline` is the same as `@inline("hint")`.
+/// `@inline("always")` asks the compiler to inline and report when it cannot.
+/// `@inline("never")` prevents inlining.
 ///
 /// ```
 /// @inline
 /// function add(a: int, b: int): int { a + b }
 /// ```
-export newtype inline = ();
+export newtype inline = () | (InlineHint,);
 
 /// No-inline hint for the optimizer.
 ///
-/// Prevents this function from being inlined.
+/// This is the same as `@inline("never")`.
 ///
 /// ```
 /// @noinline
