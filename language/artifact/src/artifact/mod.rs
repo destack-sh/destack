@@ -12,6 +12,7 @@ mod map;
 mod mir;
 mod output;
 mod payload;
+mod query;
 mod script;
 mod symbol;
 
@@ -29,5 +30,6 @@ pub use map::*;
 pub use mir::*;
 pub use output::*;
 pub use payload::*;
+pub use query::*;
 pub use script::*;
 pub use symbol::*;

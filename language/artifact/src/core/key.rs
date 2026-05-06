@@ -11,6 +11,8 @@ pub enum ArtifactProvider {
     Compiler,
     /// Linter artifacts derived by lint rules.
     Linter,
+    /// Query indexes derived for navigation and refactoring.
+    Query,
 }
 
 /// Semantic artifact identity.
@@ -60,6 +62,14 @@ pub enum ArtifactKey {
         target: TargetId,
     },
 
+    /// Query index for one module profile.
+    ModuleQueryIndex {
+        module: ModuleId,
+        profile: ProfileId,
+    },
+    /// Query index for one workspace profile.
+    WorkspaceQueryIndex { profile: ProfileId },
+
     /// One generated module output for one target.
     ModuleOutput { module: ModuleId, target: TargetId },
     /// Output entries for one package target.
@@ -96,6 +106,9 @@ impl ArtifactKey {
             | Self::PackageOutput { .. } => ArtifactProvider::Compiler,
             Self::ModuleLinted { .. } | Self::PackageLinted { .. } | Self::WorkspaceLinted => {
                 ArtifactProvider::Linter
+            }
+            Self::ModuleQueryIndex { .. } | Self::WorkspaceQueryIndex { .. } => {
+                ArtifactProvider::Query
             }
         }
     }
@@ -166,6 +179,16 @@ impl ArtifactKey {
         }
     }
 
+    /// Build one module query index artifact key.
+    pub fn module_query_index(module: ModuleId, profile: ProfileId) -> Self {
+        Self::ModuleQueryIndex { module, profile }
+    }
+
+    /// Build one workspace query index artifact key.
+    pub fn workspace_query_index(profile: ProfileId) -> Self {
+        Self::WorkspaceQueryIndex { profile }
+    }
+
     /// Build one module output key.
     pub fn module_output(module: ModuleId, target: TargetId) -> Self {
         Self::ModuleOutput { module, target }
@@ -204,6 +227,8 @@ impl ArtifactKey {
             Self::DirElaborated { .. } => "dir_elaborated",
             Self::MirLowered { .. } => "mir_lowered",
             Self::MirOptimized { .. } => "mir_optimized",
+            Self::ModuleQueryIndex { .. } => "module_query_index",
+            Self::WorkspaceQueryIndex { .. } => "workspace_query_index",
             Self::ModuleOutput { .. } => "module_output",
             Self::PackageOutput { .. } => "package_output",
             Self::ModuleLinted { .. } => "module_linted",
@@ -223,10 +248,12 @@ impl ArtifactKey {
             | Self::DirElaborated { module, .. }
             | Self::MirLowered { module, .. }
             | Self::MirOptimized { module, .. }
+            | Self::ModuleQueryIndex { module, .. }
             | Self::ModuleOutput { module, .. }
             | Self::ModuleLinted { module, .. } => Some(*module),
             Self::LanguageEnvironment { .. }
             | Self::AmbientEnvironment { .. }
+            | Self::WorkspaceQueryIndex { .. }
             | Self::PackageOutput { .. }
             | Self::PackageLinted { .. }
             | Self::WorkspaceLinted => None,
@@ -246,6 +273,8 @@ impl ArtifactKey {
             | Self::DirElaborated { profile, .. }
             | Self::MirLowered { profile, .. }
             | Self::MirOptimized { profile, .. }
+            | Self::ModuleQueryIndex { profile, .. }
+            | Self::WorkspaceQueryIndex { profile }
             | Self::ModuleLinted { profile, .. } => Some(*profile),
             Self::Ast { .. }
             | Self::Data { .. }

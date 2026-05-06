@@ -23,6 +23,7 @@ destack_dir = { workspace = true }
 destack_html = { workspace = true }
 destack_js = { workspace = true }
 destack_mir = { workspace = true }
+destack_qir = { workspace = true }
 destack_source = { workspace = true }
 
 # general

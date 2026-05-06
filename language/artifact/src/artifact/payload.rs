@@ -1,7 +1,7 @@
 use crate::{
     AmbientEnvironment, Ast, Data, DirChecked, DirDeclared, DirElaborated, DirExported,
-    LanguageEnvironment, MirLowered, MirOptimized, ModuleLinted, ModuleOutput, PackageLinted,
-    PackageOutput, WorkspaceLinted,
+    LanguageEnvironment, MirLowered, MirOptimized, ModuleLinted, ModuleOutput, ModuleQueryIndex,
+    PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
 };
 
 /// One typed artifact payload.
@@ -27,6 +27,10 @@ pub enum ArtifactPayload {
     MirLowered(MirLowered),
     /// Optimized MIR.
     MirOptimized(MirOptimized),
+    /// Query index for one module profile.
+    ModuleQueryIndex(ModuleQueryIndex),
+    /// Query index for one workspace profile.
+    WorkspaceQueryIndex(WorkspaceQueryIndex),
     /// One generated module output for one target.
     ModuleOutput(ModuleOutput),
     /// Output entries for one package target.
@@ -106,6 +110,20 @@ impl From<MirOptimized> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: MirOptimized) -> Self {
         Self::MirOptimized(payload)
+    }
+}
+
+impl From<ModuleQueryIndex> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: ModuleQueryIndex) -> Self {
+        Self::ModuleQueryIndex(payload)
+    }
+}
+
+impl From<WorkspaceQueryIndex> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: WorkspaceQueryIndex) -> Self {
+        Self::WorkspaceQueryIndex(payload)
     }
 }
 
