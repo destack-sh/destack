@@ -286,14 +286,14 @@ impl FunctionLowerer<'_> {
                 match dispatch_target {
                     DispatchTarget::Interface {
                         declaring_type,
-                        slot_id,
+                        slot,
                         function_id,
                     } => {
                         if returns_void {
                             self.state.builder.call_interface_void(
                                 receiver_value,
                                 declaring_type,
-                                slot_id,
+                                slot,
                                 Some(function_id),
                                 signature,
                                 argument_values,
@@ -303,7 +303,7 @@ impl FunctionLowerer<'_> {
                             self.state.builder.call_interface(
                                 receiver_value,
                                 declaring_type,
-                                slot_id,
+                                slot,
                                 Some(function_id),
                                 signature,
                                 argument_values,
@@ -312,14 +312,14 @@ impl FunctionLowerer<'_> {
                     }
                     DispatchTarget::Virtual {
                         declaring_type,
-                        slot_id,
+                        slot,
                         function_id,
                     } => {
                         if returns_void {
                             self.state.builder.call_virtual_void(
                                 receiver_value,
                                 declaring_type,
-                                slot_id,
+                                slot,
                                 Some(function_id),
                                 signature,
                                 argument_values,
@@ -329,7 +329,7 @@ impl FunctionLowerer<'_> {
                             self.state.builder.call_virtual(
                                 receiver_value,
                                 declaring_type,
-                                slot_id,
+                                slot,
                                 Some(function_id),
                                 signature,
                                 argument_values,

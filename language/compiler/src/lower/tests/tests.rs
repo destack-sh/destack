@@ -10,8 +10,8 @@ use crate::lower::string_literal_global_name_for_content;
 pub(crate) struct InterfaceCall {
     /// The declaring interface type.
     pub(crate) declaring_type: mir::LocalNodeId<mir::Type>,
-    /// The interface slot id.
-    pub(crate) slot_id: mir::InterfaceSlotId,
+    /// The dispatch slot.
+    pub(crate) slot: mir::DispatchSlot,
 }
 
 /// Virtual call information extracted from MIR.
@@ -19,8 +19,8 @@ pub(crate) struct InterfaceCall {
 pub(crate) struct VirtualCall {
     /// The declaring type for dispatch.
     pub(crate) declaring_type: mir::LocalNodeId<mir::Type>,
-    /// The vtable slot id.
-    pub(crate) slot_id: mir::VtableSlotId,
+    /// The dispatch slot.
+    pub(crate) slot: mir::DispatchSlot,
 }
 
 impl TestProgram {
@@ -208,7 +208,7 @@ type String {
         name: &str,
     ) -> Option<mir::LocalNodeId<mir::Type>> {
         // scan type display names for a matching name
-        for (ty, name_id) in &tree.metadata.layout.display_name_by_type {
+        for (ty, name_id) in &tree.metadata.types.display_name_by_type {
             if strings.get(*name_id) != name {
                 continue;
             }
@@ -237,7 +237,7 @@ type String {
         type_id: mir::LocalNodeId<mir::Type>,
     ) -> &'a mir::TypeLineage {
         tree.metadata
-            .layout
+            .types
             .lineage(type_id)
             .unwrap_or_else(|| panic!("missing lineage metadata for '{type_id:?}'"))
     }
@@ -254,16 +254,16 @@ type String {
             .unwrap_or_else(|| panic!("missing parent type for '{type_id:?}'"))
     }
 
-    /// Resolve a vtable id for a type or panic.
-    pub(crate) fn type_vtable_id(
+    /// Resolve a vtable for a type or panic.
+    pub(crate) fn type_vtable<'a>(
         &self,
-        tree: &mir::Tree,
+        tree: &'a mir::Tree,
         type_id: mir::LocalNodeId<mir::Type>,
-    ) -> mir::VtableId {
+    ) -> &'a mir::Vtable {
         tree.metadata
             .dispatch
-            .vtable_id(type_id)
-            .unwrap_or_else(|| panic!("missing vtable id for '{type_id:?}'"))
+            .vtable(type_id)
+            .unwrap_or_else(|| panic!("missing vtable for '{type_id:?}'"))
     }
 
     /// Resolve union layout metadata for a type id or panic.
@@ -513,7 +513,7 @@ type String {
             for instruction_id in &block.instructions {
                 if let mir::Instruction::CallInterface {
                     declaring_type,
-                    slot_id,
+                    slot,
                     ..
                 } = tree.get(*instruction_id)
                 {
@@ -521,7 +521,7 @@ type String {
                         declaring_type: declaring_type
                             .ty()
                             .expect("interface call should name a concrete declaring type"),
-                        slot_id: *slot_id,
+                        slot: *slot,
                     });
                 }
             }
@@ -543,7 +543,7 @@ type String {
             for instruction_id in &block.instructions {
                 if let mir::Instruction::CallVirtual {
                     declaring_type,
-                    slot_id,
+                    slot,
                     ..
                 } = tree.get(*instruction_id)
                 {
@@ -551,7 +551,7 @@ type String {
                         declaring_type: declaring_type
                             .ty()
                             .expect("virtual call should name a concrete declaring type"),
-                        slot_id: *slot_id,
+                        slot: *slot,
                     });
                 }
             }

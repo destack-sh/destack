@@ -335,11 +335,9 @@ entry0(value0: ref<Dog, managed, readonly>):
 
         // resolve vtables by class metadata names
         let animal_type = test.type_by_metadata_name(tree, strings, "test/test:Animal");
-        let animal_table_id = test.type_vtable_id(tree, animal_type);
-        let animal_table = tree.metadata.dispatch.vtable(animal_table_id);
+        let animal_table = test.type_vtable(tree, animal_type);
         let dog_type = test.type_by_metadata_name(tree, strings, "test/test:Dog");
-        let dog_table_id = test.type_vtable_id(tree, dog_type);
-        let dog_table = tree.metadata.dispatch.vtable(dog_table_id);
+        let dog_table = test.type_vtable(tree, dog_type);
 
         // assert the fixed vtable prefix
         test.assert_vtable_prefix(animal_table);
@@ -419,10 +417,8 @@ entry0(value0: ref<Vehicle, managed, readonly>):
         let base_type = test.type_by_metadata_name(tree, strings, "test/test:Vehicle");
         let derived_type = test.type_by_metadata_name(tree, strings, "test/test:Car");
 
-        let base_table_id = test.type_vtable_id(tree, base_type);
-        let derived_table_id = test.type_vtable_id(tree, derived_type);
-        let base_table = tree.metadata.dispatch.vtable(base_table_id);
-        let derived_table = tree.metadata.dispatch.vtable(derived_table_id);
+        let base_table = test.type_vtable(tree, base_type);
+        let derived_table = test.type_vtable(tree, derived_type);
 
         let base_methods = test.vtable_method_names(base_table, tree, strings);
         let derived_methods = test.vtable_method_names(derived_table, tree, strings);
@@ -514,7 +510,7 @@ entry0(value0: ref<FileLogger, managed, readonly>):
         let base_type = test.type_parent(tree, derived_type);
 
         let call_logger_info = test.virtual_call_info_by_name(tree, strings, "callLogger");
-        assert_eq!(call_logger_info.slot_id, mir::VtableSlotId::new(2));
+        assert_eq!(call_logger_info.slot, mir::DispatchSlot::new(2));
         assert_eq!(call_logger_info.declaring_type, base_type);
     });
 }

@@ -8,26 +8,24 @@ use crate::{LowerError, LowerResult};
 use crate::lower::{InterfaceEntry, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
-    /// Return itabs for interface dispatch.
-    pub(crate) fn emit_itabs(&mut self) -> LowerResult<Vec<mir::ItabId>> {
-        // generate itabs for each pair
-        let mut tables = Vec::new();
+    /// Write interface dispatch tables.
+    pub(crate) fn emit_itabs(&mut self) -> LowerResult<()> {
+        // concrete interface pairs
         for (concrete, interface) in self.interface_itab_pairs.clone() {
-            let table_id = self.itab_for_pair(concrete, interface)?;
-            tables.push(table_id);
+            self.itab_for_pair(concrete, interface)?;
         }
 
-        Ok(tables)
+        Ok(())
     }
 
-    /// Return a single interface itab for a concrete type.
+    /// Write one interface dispatch table.
     fn itab_for_pair(
         &mut self,
         concrete: dir::GlobalSymbolId,
         interface: dir::GlobalSymbolId,
-    ) -> LowerResult<mir::ItabId> {
-        if let Some(table_id) = self.itab_by_pair.get(&(concrete, interface)).copied() {
-            return Ok(table_id);
+    ) -> LowerResult<()> {
+        if self.lowered_itabs.contains(&(concrete, interface)) {
+            return Ok(());
         }
 
         // check for cycles
@@ -161,28 +159,36 @@ impl ModuleLowerer<'_> {
             }
         }
 
-        // insert the dispatch table
-        let table_id = {
-            let table_id = self.require_itab_id((concrete, interface))?;
+        // table metadata and static storage
+        {
+            let itab_global = self
+                .itab_globals_by_pair
+                .get(&(concrete, interface))
+                .copied()
+                .ok_or_else(|| LowerError::Internal {
+                    module: self.module_id,
+                    message: "missing itab global for interface pair".to_string(),
+                })?;
+            let initializer = self.itab_initializer(&entries)?;
+            self.builder
+                .tree_mut()
+                .get_mut(itab_global.global_id)
+                .initializer = Some(initializer);
+
             let table = mir::Itab {
                 concrete: concrete_mir_type,
                 interface: interface_mir_type,
-                storage: mir::ItabStorage::Handle,
+                global: itab_global.global_id,
                 entries,
             };
-            self.builder
-                .tree_mut()
-                .metadata
-                .dispatch
-                .insert_itab_at(table_id, table);
-            table_id
-        };
+            self.builder.tree_mut().metadata.dispatch.insert_itab(table);
+        }
 
-        // register the lowered itab table
-        self.insert_itab_table((concrete, interface), table_id)?;
+        // lowered table guard
+        self.record_itab((concrete, interface))?;
         self.itab_in_progress.shift_remove(&(concrete, interface));
 
-        Ok(table_id)
+        Ok(())
     }
 
     /// Resolve the interface method function id for an itab slot.
@@ -367,5 +373,44 @@ impl ModuleLowerer<'_> {
         }
 
         pairs
+    }
+
+    /// Build the static initializer for one interface dispatch table.
+    fn itab_initializer(&self, entries: &[mir::ItabEntry]) -> LowerResult<mir::GlobalInitializer> {
+        let mut elements = Vec::with_capacity(entries.len());
+
+        // table entries
+        for entry in entries {
+            let element = match entry {
+                mir::ItabEntry::Method { target_method, .. } => {
+                    mir::GlobalInitializer::function_address((*target_method).into())
+                }
+                mir::ItabEntry::FieldOffset { offset, .. } => {
+                    let constant = self.itab_field_offset_constant(*offset)?;
+
+                    mir::GlobalInitializer::scalar(constant)
+                }
+                mir::ItabEntry::TypeDescriptor => mir::GlobalInitializer::zero(),
+            };
+            elements.push(element);
+        }
+
+        Ok(mir::GlobalInitializer::aggregate(elements))
+    }
+
+    /// Build one pointer sized field offset constant.
+    fn itab_field_offset_constant(&self, offset: u32) -> LowerResult<mir::Constant> {
+        let constant = match self.type_lowerer.pointer_width_bits() {
+            32 => mir::Constant::uint32(offset),
+            64 => mir::Constant::uint64(u64::from(offset)),
+            width => {
+                return Err(LowerError::Internal {
+                    module: self.module_id,
+                    message: format!("unsupported pointer width for itab offset: {width}"),
+                });
+            }
+        };
+
+        Ok(constant)
     }
 }

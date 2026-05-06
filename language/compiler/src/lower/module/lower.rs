@@ -12,9 +12,9 @@ use indexmap::IndexSet;
 use crate::{Compiler, CompilerContext, LowerError, LowerResult, RequirementError};
 
 use crate::lower::{
-    BuiltinTypeLayouts, FunctionEnvironmentLayout, GlobalBinding, InstanceKey, InterfaceEntry,
-    MethodKey, RUNTIME_CHECK_MESSAGES, RuntimeCheckConfig, RuntimeStatusLayout, TypeCacheEntry,
-    TypeLowerer, VtableGlobal,
+    BuiltinTypeLayouts, DispatchTableGlobal, FunctionEnvironmentLayout, GlobalBinding, InstanceKey,
+    InterfaceEntry, MethodKey, RUNTIME_CHECK_MESSAGES, RuntimeCheckConfig, RuntimeStatusLayout,
+    TypeCacheEntry, TypeLowerer,
 };
 
 /// Context for lowering a DIR module to MIR.
@@ -89,32 +89,31 @@ pub(crate) struct ModuleLowerer<'a> {
 
     /// Track class symbols that require vtable headers.
     pub(crate) vtable_layout_symbols: Option<HashSet<dir::GlobalSymbolId>>,
-    /// Track vtables that have been lowered.
-    pub(crate) vtable_by_symbol: HashMap<dir::GlobalSymbolId, mir::VtableId>,
+    /// Vtables that have been lowered.
+    pub(crate) lowered_vtables: HashSet<dir::GlobalSymbolId>,
     /// Track vtable lowering in progress.
     pub(crate) vtable_in_progress: IndexSet<dir::GlobalSymbolId>,
-    /// Precomputed dispatch table ids for class vtables.
-    pub(crate) vtable_ids_by_symbol: HashMap<dir::GlobalSymbolId, mir::VtableId>,
 
-    /// Track itabs that have been lowered.
-    pub(crate) itab_by_pair: HashMap<(dir::GlobalSymbolId, dir::GlobalSymbolId), mir::ItabId>,
+    /// Itabs that have been lowered.
+    pub(crate) lowered_itabs: HashSet<(dir::GlobalSymbolId, dir::GlobalSymbolId)>,
     /// Track itab lowering in progress.
     pub(crate) itab_in_progress: IndexSet<(dir::GlobalSymbolId, dir::GlobalSymbolId)>,
 
     /// Track whether dispatch declarations are initialized.
     pub(crate) dispatch_declared: bool,
-    /// Virtual dispatch slot ids keyed by method symbol.
+    /// Virtual dispatch slots keyed by method symbol.
     pub(crate) virtual_method_slots_by_key: HashMap<(dir::GlobalSymbolId, MethodKey), u32>,
 
     /// Ordered list of class symbols that require vtables.
     pub(crate) vtable_class_symbols: Vec<dir::GlobalSymbolId>,
     /// Predeclared vtable globals keyed by class symbol.
-    pub(crate) vtable_globals_by_symbol: HashMap<dir::GlobalSymbolId, VtableGlobal>,
+    pub(crate) vtable_globals_by_symbol: HashMap<dir::GlobalSymbolId, DispatchTableGlobal>,
 
-    /// Ordered interface itab pairs for deterministic table ids.
+    /// Ordered interface itab pairs for deterministic lowering.
     pub(crate) interface_itab_pairs: Vec<(dir::GlobalSymbolId, dir::GlobalSymbolId)>,
-    /// Precomputed itab ids keyed by concrete and interface symbols.
-    pub(crate) interface_itab_ids: HashMap<(dir::GlobalSymbolId, dir::GlobalSymbolId), mir::ItabId>,
+    /// Predeclared itab globals keyed by concrete and interface symbols.
+    pub(crate) itab_globals_by_pair:
+        HashMap<(dir::GlobalSymbolId, dir::GlobalSymbolId), DispatchTableGlobal>,
 
     /// Set of symbols marked as bindings.
     pub(crate) binding_symbols: HashSet<dir::GlobalSymbolId>,
@@ -223,17 +222,16 @@ impl<'a> ModuleLowerer<'a> {
             nominal_layouts_by_symbol: HashMap::new(),
             nominal_layouts_in_progress: IndexSet::new(),
             vtable_layout_symbols: None,
-            vtable_by_symbol: HashMap::new(),
+            lowered_vtables: HashSet::new(),
             vtable_in_progress: IndexSet::new(),
-            vtable_ids_by_symbol: HashMap::new(),
-            itab_by_pair: HashMap::new(),
+            lowered_itabs: HashSet::new(),
             itab_in_progress: IndexSet::new(),
             dispatch_declared: false,
             virtual_method_slots_by_key: HashMap::new(),
             vtable_class_symbols: Vec::new(),
             vtable_globals_by_symbol: HashMap::new(),
             interface_itab_pairs: Vec::new(),
-            interface_itab_ids: HashMap::new(),
+            itab_globals_by_pair: HashMap::new(),
             binding_symbols: HashSet::new(),
             binding_abi_lowering,
             runtime_status_layout: None,
@@ -444,7 +442,7 @@ impl<'a> ModuleLowerer<'a> {
     pub(crate) fn insert_vtable_global(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        vtable: VtableGlobal,
+        vtable: DispatchTableGlobal,
     ) -> LowerResult<()> {
         // record the vtable global once
         Self::insert_unique_entry(
@@ -456,44 +454,25 @@ impl<'a> ModuleLowerer<'a> {
         )
     }
 
-    /// Insert a vtable id for a class symbol.
-    pub(crate) fn insert_vtable_id(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        table_id: mir::VtableId,
-    ) -> LowerResult<()> {
-        // record the vtable id once
-        Self::insert_unique_entry(
-            self.module_id,
-            &mut self.vtable_ids_by_symbol,
-            symbol,
-            table_id,
-            "vtable id",
-        )
+    /// Record a lowered vtable for a class symbol.
+    pub(crate) fn record_vtable(&mut self, symbol: dir::GlobalSymbolId) -> LowerResult<()> {
+        // record the lowered vtable once
+        if !self.lowered_vtables.insert(symbol) {
+            return Err(LowerError::Internal {
+                module: self.module_id,
+                message: format!("duplicate vtable for class {symbol:?}"),
+            });
+        }
+
+        Ok(())
     }
 
-    /// Insert a vtable table id for a class symbol.
-    pub(crate) fn insert_vtable_table(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        table_id: mir::VtableId,
-    ) -> LowerResult<()> {
-        // record the lowered vtable table once
-        Self::insert_unique_entry(
-            self.module_id,
-            &mut self.vtable_by_symbol,
-            symbol,
-            table_id,
-            "vtable table",
-        )
-    }
-
-    /// Insert a virtual method slot id for a method symbol.
+    /// Insert a virtual method slot for a method symbol.
     pub(crate) fn insert_virtual_method_slot(
         &mut self,
         class_symbol: dir::GlobalSymbolId,
         key: MethodKey,
-        slot_id: u32,
+        slot: u32,
         member_id: dir::LocalNodeId<dir::Member>,
     ) -> LowerResult<()> {
         let slot_key = (class_symbol, key);
@@ -506,68 +485,40 @@ impl<'a> ModuleLowerer<'a> {
             });
         }
 
-        self.virtual_method_slots_by_key.insert(slot_key, slot_id);
+        self.virtual_method_slots_by_key.insert(slot_key, slot);
         Ok(())
     }
 
-    /// Insert a precomputed itab id for an interface pair.
-    pub(crate) fn insert_interface_itab_id(
+    /// Insert an itab global for an interface pair.
+    pub(crate) fn insert_itab_global(
         &mut self,
         pair: (dir::GlobalSymbolId, dir::GlobalSymbolId),
-        table_id: mir::ItabId,
+        itab: DispatchTableGlobal,
     ) -> LowerResult<()> {
-        // record the interface itab id once
+        // record the itab global once
         Self::insert_unique_entry(
             self.module_id,
-            &mut self.interface_itab_ids,
+            &mut self.itab_globals_by_pair,
             pair,
-            table_id,
-            "interface itab id",
+            itab,
+            "itab global",
         )
     }
 
-    /// Require a precomputed vtable id for a class symbol.
-    pub(crate) fn require_vtable_id(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> LowerResult<mir::VtableId> {
-        self.vtable_ids_by_symbol
-            .get(&symbol)
-            .copied()
-            .ok_or_else(|| LowerError::Internal {
-                module: self.module_id,
-                message: format!("missing vtable id for class {symbol:?}"),
-            })
-    }
-
-    /// Require a precomputed itab id for a concrete/interface pair.
-    pub(crate) fn require_itab_id(
-        &self,
-        pair: (dir::GlobalSymbolId, dir::GlobalSymbolId),
-    ) -> LowerResult<mir::ItabId> {
-        self.interface_itab_ids
-            .get(&pair)
-            .copied()
-            .ok_or_else(|| LowerError::Internal {
-                module: self.module_id,
-                message: "missing itab id for interface pair".to_string(),
-            })
-    }
-
-    /// Insert a lowered itab table id for an interface pair.
-    pub(crate) fn insert_itab_table(
+    /// Record a lowered itab for an interface pair.
+    pub(crate) fn record_itab(
         &mut self,
         pair: (dir::GlobalSymbolId, dir::GlobalSymbolId),
-        table_id: mir::ItabId,
     ) -> LowerResult<()> {
-        // record the lowered itab table once
-        Self::insert_unique_entry(
-            self.module_id,
-            &mut self.itab_by_pair,
-            pair,
-            table_id,
-            "itab table",
-        )
+        // record the lowered itab once
+        if !self.lowered_itabs.insert(pair) {
+            return Err(LowerError::Internal {
+                module: self.module_id,
+                message: "duplicate itab for interface pair".to_string(),
+            });
+        }
+
+        Ok(())
     }
 
     /// Insert a key into a map and reject duplicates.
@@ -784,7 +735,7 @@ impl<'a> ModuleLowerer<'a> {
         Ok(())
     }
 
-    /// Ensure all nominal types are lowered into the primitive type index.
+    /// Ensure all nominal types are lowered into the primitive type cache.
     fn lower_declared_types(&mut self) -> LowerResult<()> {
         // track symbols we've already finalized
         let mut seen = HashSet::new();

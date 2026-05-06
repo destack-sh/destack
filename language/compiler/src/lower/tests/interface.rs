@@ -449,7 +449,7 @@ entry0(value0: Circle):
         let interface_type = test.type_by_metadata_name(tree, strings, "test/test:Drawable#object");
 
         // assert the dispatch payload
-        assert_eq!(info.slot_id, mir::InterfaceSlotId::new(2));
+        assert_eq!(info.slot, mir::DispatchSlot::new(2));
         assert_eq!(info.declaring_type, interface_type);
     });
 }

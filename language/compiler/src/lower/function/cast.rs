@@ -9,44 +9,40 @@ use crate::lower::r#type::UnionPayloadKind;
 impl FunctionLowerer<'_> {
     /// Return whether one type may carry one local or shared heap address.
     fn is_heap_address_source_type(&self, ty: mir::LocalNodeId<mir::Type>) -> bool {
-        match self.state.builder.tree().get(ty) {
+        matches!(
+            self.state.builder.tree().get(ty),
             mir::Type::Reference {
                 kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
                 address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
                 ..
-            }
-            | mir::Type::Reference {
+            } | mir::Type::Reference {
                 kind: mir::ReferenceKind::Borrowed,
                 address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
                 ..
-            }
-            | mir::Type::TensorView {
+            } | mir::Type::TensorView {
                 kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
                 address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
                 ..
-            }
-            | mir::Type::TensorView {
+            } | mir::Type::TensorView {
                 kind: mir::ReferenceKind::Borrowed,
                 address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
                 ..
-            } => true,
-            _ => false,
-        }
+            }
+        )
     }
 
     /// Return whether one type is a raw pointer like result.
     fn is_raw_pointer_type(&self, ty: mir::LocalNodeId<mir::Type>) -> bool {
-        match self.state.builder.tree().get(ty) {
+        matches!(
+            self.state.builder.tree().get(ty),
             mir::Type::Reference {
                 kind: mir::ReferenceKind::Raw,
                 ..
-            }
-            | mir::Type::TensorView {
+            } | mir::Type::TensorView {
                 kind: mir::ReferenceKind::Raw,
                 ..
-            } => true,
-            _ => false,
-        }
+            }
+        )
     }
 
     /// Reject one cast that would expose one heap address without explicit pinning.
@@ -736,10 +732,10 @@ impl FunctionLowerer<'_> {
             });
         };
 
-        // resolve the itab id for the concrete and interface pair
-        let itab_id = self
+        // resolve the itab global for the concrete and interface pair
+        let itab = self
             .context
-            .interface_itab_ids
+            .itab_globals_by_pair
             .get(&(concrete_symbol, interface_symbol))
             .copied()
             .ok_or_else(|| LowerError::UnsupportedConstruct {
@@ -753,13 +749,18 @@ impl FunctionLowerer<'_> {
         let object_ptr =
             self.object_pointer_for_instance(value, source_mir_type, layout.object_type);
 
-        // encode the itab id as a pointer sized value
-        let tag_width = self.context.type_lowerer.pointer_width_bits();
+        // load the itab pointer from static space
         let itab_value = self
             .state
             .builder
-            .iconst(itab_id.index() as i128, tag_width, false);
-        let itab_value = self.state.builder.bitcast(itab_value, layout.itab_type);
+            .global_addr(itab.global_id, itab.address_type);
+        let itab_value = if itab.address_type == layout.itab_type {
+            itab_value
+        } else {
+            self.state
+                .builder
+                .cast(mir::CastOperator::Bitcast, itab_value, layout.itab_type)
+        };
 
         // assemble the interface reference value
         let mut fields = vec![object_ptr, itab_value];

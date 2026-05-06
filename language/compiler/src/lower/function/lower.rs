@@ -12,9 +12,9 @@ use crate::{Compiler, LowerError, LowerResult, RequirementError};
 use super::constructor::ConstructorState;
 use super::policy::RuntimeCheckConfig;
 use crate::lower::{
-    BreakContext, FunctionEnvironmentLayout, GlobalBinding, InstanceKey, InterfaceEntry,
-    LocalBinding, LoopContext, MethodKey, RuntimeStatusLayout, Terminates, TypeLowerer,
-    VtableGlobal,
+    BreakContext, DispatchTableGlobal, FunctionEnvironmentLayout, GlobalBinding, InstanceKey,
+    InterfaceEntry, LocalBinding, LoopContext, MethodKey, RuntimeStatusLayout, Terminates,
+    TypeLowerer,
 };
 
 /// Shared, immutable inputs for lowering a single function body.
@@ -71,13 +71,13 @@ pub(crate) struct FunctionLoweringContext<'a> {
 
     /// Resolve interface dispatch slots for call lowering.
     pub(crate) interface_slots_by_symbol: &'a HashMap<dir::GlobalSymbolId, Vec<InterfaceEntry>>,
-    /// Resolve interface itab ids for interface upcasts.
-    pub(crate) interface_itab_ids:
-        &'a HashMap<(dir::GlobalSymbolId, dir::GlobalSymbolId), mir::ItabId>,
-    /// Resolve virtual dispatch slot ids for method calls.
+    /// Resolve interface itab globals for interface upcasts.
+    pub(crate) itab_globals_by_pair:
+        &'a HashMap<(dir::GlobalSymbolId, dir::GlobalSymbolId), DispatchTableGlobal>,
+    /// Resolve virtual dispatch slots for method calls.
     pub(crate) virtual_method_slots_by_key: &'a HashMap<(dir::GlobalSymbolId, MethodKey), u32>,
     /// Resolve vtable globals for class allocations.
-    pub(crate) vtable_globals_by_symbol: &'a HashMap<dir::GlobalSymbolId, VtableGlobal>,
+    pub(crate) vtable_globals_by_symbol: &'a HashMap<dir::GlobalSymbolId, DispatchTableGlobal>,
     /// Synthetic name for call signatures in dispatch tables.
     pub(crate) dispatch_call_name: StringId,
     /// Synthetic name for construct signatures in dispatch tables.
