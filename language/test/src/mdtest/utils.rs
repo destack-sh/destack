@@ -10,7 +10,7 @@ use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_session::Session;
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId};
-use destack_workspace::{HostEnvironment, Profile, Ref, Repository, Revision, Target};
+use destack_workspace::{HostEnvironment, Profile, Ref, Repository, Revision};
 
 use crate::core::{CaseResult, discover_file_cases, load_expected_failures};
 
@@ -33,25 +33,22 @@ pub enum MdTestLibs {
 /// Profile overrides for mdtest cases.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct MdTestProfileOverrides {
-    /// Emit format override for profile identity and lib derivation.
+    /// Emit format override for profile identity.
     pub emit: Option<EmitFormat>,
-    /// Runtime override for import.meta and lib derivation.
+    /// Runtime override for import.meta.
     pub runtime: Option<Runtime>,
-    /// Runtime version override for versioned libs.
+    /// Runtime version override for versioned globals.
     pub runtime_version: Option<String>,
-    /// Platform override for import.meta and lib derivation.
+    /// Platform override for import.meta.
     pub platform: Option<Platform>,
     /// Debug override for import.meta.
     pub debug: Option<bool>,
 }
 
 impl MdTestProfileOverrides {
-    /// Return true if any override affects lib derivation.
-    fn has_lib_overrides(&self) -> bool {
-        self.emit.is_some()
-            || self.runtime.is_some()
-            || self.runtime_version.is_some()
-            || self.platform.is_some()
+    /// Return true if versioned globals were requested.
+    fn has_versioned_globals(&self) -> bool {
+        self.runtime_version.is_some()
     }
 }
 
@@ -166,22 +163,16 @@ pub fn select_profile_for_mdtest(
         match lib_override {
             MdTestLibs::None => {
                 load_libraries = false;
-                key.lib.clear();
+                key.globals.clear();
             }
             MdTestLibs::Default => {
                 load_libraries = true;
-                if overrides.has_lib_overrides() {
-                    let target = Target {
-                        runtime: key.runtime,
-                        platform: key.platform,
-                        runtime_version: overrides.runtime_version.clone(),
-                        ..Target::default()
-                    };
-                    key.lib = target.derived_lib();
+                if overrides.has_versioned_globals() {
+                    panic!("mdtest runtime_version no longer derives profile globals");
                 }
             }
             MdTestLibs::Explicit(libs) => {
-                key.lib = libs;
+                key.globals = libs;
                 load_libraries = true;
             }
         }
