@@ -53,6 +53,31 @@ b0:
     run_mir_expect(mir, "tensorSplat", &[], Value::int32(7));
 }
 
+/// Tensor binary arithmetic walks contiguous tensor values elementwise.
+#[test]
+fn test_tensor_binary() {
+    let mir = r#"
+function tensorBinary(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>): int32 {
+b0(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
+    v2: tensor<int32, (2, 2)> = int.add v0, v1
+    v3: int64 = 1int64
+    v4: int64 = 0int64
+    v5: int32 = tensor.extract v2, [v3, v4]
+    return v5
+}"#;
+    run_tensor_expect(
+        mir,
+        "tensorBinary",
+        |interp| {
+            vec![
+                tensor_from_values(interp, "tensorBinary", 0, &[1, 2, 3, 4]),
+                tensor_from_values(interp, "tensorBinary", 1, &[10, 20, 30, 40]),
+            ]
+        },
+        Value::int32(33),
+    );
+}
+
 /// Tensor load and store operate on tensor references.
 #[test]
 fn test_tensor_load_store() {
