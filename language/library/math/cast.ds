@@ -1,8 +1,4 @@
-// Cast-related intrinsics.
-//
-// Operations here map directly to MIR cast operators.
-
-import { intrinsic } from "./decorator.ds";
+import { intrinsic } from "../core/decorator/intrinsic.ds";
 
 // saturating conversions: clamp to bounds and map NaN to zero
 

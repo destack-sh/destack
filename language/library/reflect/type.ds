@@ -1,4 +1,4 @@
-import { intrinsic } from "../core/primitive/decorator.ds";
+import { intrinsic } from "../core/decorator/intrinsic.ds";
 import { type Type as DirType } from "./dir/type.ds";
 
 export { type TypeId } from "./dir/type.ds";

@@ -1,4 +1,4 @@
-import { intrinsic } from "core/primitive/decorator.ds";
+import { intrinsic } from "core/decorator/intrinsic.ds";
 
 /// A contiguous view into storage.
 export type Slice<T> = [T];

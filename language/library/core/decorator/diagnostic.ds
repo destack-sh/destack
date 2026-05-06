@@ -1,0 +1,39 @@
+/// Allow some diagnostic.
+///
+/// ```
+/// @allow(E001)
+/// function oldAPI() { }
+/// ```
+export newtype allow = (string,) | ();
+
+/// Warn on some diagnostic.
+///
+/// ```
+/// @warn(E001)
+/// function oldAPI() { }
+/// ```
+export newtype warn = (string,) | ();
+
+/// Deny some diagnostic with an error.
+///
+/// ```
+/// @deny(E001)
+/// function oldAPI() { }
+/// ```
+export newtype deny = (string,) | ();
+
+/// Forbid some diagnostic.
+///
+/// ```
+/// @forbid(E001)
+/// function oldAPI() { }
+/// ```
+export newtype forbid = (string,) | ();
+
+/// Expect some diagnostic.
+///
+/// ```
+/// @expect(E001)
+/// function oldAPI() { }
+/// ```
+export newtype expect = (string,) | ();

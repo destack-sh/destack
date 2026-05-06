@@ -1,7 +1,7 @@
 import { type Promise } from "../async/promise.ds";
-import { panic } from "./panic.ds";
-import { type FromFailure, type Try, type TryBranch, TryContinue, TryFailure } from "./try.ds";
 import { type Equal } from "../operator/equality.ds";
+import { type FromFailure, type Try, type TryBranch, TryContinue, TryFailure } from "../operator/try.ds";
+import { panic } from "./panic.ds";
 
 /// Successful result variant.
 export struct Ok<T> {

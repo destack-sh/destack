@@ -1,0 +1,23 @@
+/// Lifetime marker for borrowed validity.
+export type Lifetime = intrinsic;
+
+/// Concrete memory space tag kind.
+export type Space = intrinsic;
+
+/// Placement tag kind for qualified storage.
+export type Place = "ambient" | Space;
+
+/// Ownership kind for qualified storage.
+export type Ownership = "managed" | "owned" | "borrowed" | "raw";
+
+/// Access mode for qualified storage.
+export type Access = "readonly" | "mutable" | "exclusive";
+
+/// Canonical qualified storage form.
+export newtype Form<
+    T,
+    O: Ownership = "managed",
+    P: Place = "ambient",
+    L: Lifetime = never,
+    A: Access = "mutable",
+> = intrinsic;

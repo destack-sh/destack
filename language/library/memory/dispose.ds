@@ -1,4 +1,5 @@
 import { type Promise } from "../core/async/promise.ds";
+import { intrinsic } from "../core/decorator/intrinsic.ds";
 
 /// Deterministic ownership finalization capability.
 ///
@@ -25,3 +26,7 @@ export newtype interface Dispose {
 export newtype interface AsyncDispose {
     asyncDispose(): Promise<void>;
 }
+
+/// End ownership of `value` at this point.
+@intrinsic("drop")
+export declare function drop<T>(value: ^T): void;

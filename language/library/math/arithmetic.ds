@@ -1,11 +1,4 @@
-// Arithmetic intrinsics for overflow handling.
-//
-// Provides checked, unchecked, saturating, and wrapping variants
-// of arithmetic operations for precise control over overflow behavior.
-
-import { intrinsic } from "./decorator.ds";
-
-// checked arithmetic (returns [result, overflowed] tuple)
+import { intrinsic } from "../core/decorator/intrinsic.ds";
 
 /// Add with overflow detection.
 ///
@@ -27,8 +20,6 @@ export declare function subOverflow<T: int>(a: T, b: T): [T, boolean];
 /// The result is the wrapped value if overflow occurred.
 @intrinsic("mul.overflow")
 export declare function mulOverflow<T: int>(a: T, b: T): [T, boolean];
-
-// unchecked arithmetic (undefined behavior on overflow)
 
 /// Unchecked add.
 ///
@@ -81,8 +72,6 @@ export declare function shlUnchecked<T: int>(value: T, amount: T): T;
 /// Sign extension applies of signed types.
 @intrinsic("shr.unchecked")
 export declare function shrUnchecked<T: int>(value: T, amount: T): T;
-
-// saturating arithmetic (clamps to min/max on overflow)
 
 /// Saturating add.
 ///

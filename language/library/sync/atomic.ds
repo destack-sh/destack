@@ -1,9 +1,4 @@
-// Atomic operation intrinsics.
-//
-// Lock-free atomic operations for concurrent programming.
-// All operations require explicit ordering and scope metadata.
-
-import { intrinsic } from "./decorator.ds";
+import { intrinsic } from "../core/decorator/intrinsic.ds";
 
 /// Memory ordering for atomic operations.
 ///

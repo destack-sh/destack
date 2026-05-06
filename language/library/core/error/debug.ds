@@ -1,4 +1,4 @@
-import { intrinsic } from "../primitive/decorator.ds";
+import { intrinsic } from "../decorator/intrinsic.ds";
 
 /// Trigger a debugger breakpoint.
 @intrinsic("breakpoint")

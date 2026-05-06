@@ -1,0 +1,26 @@
+/// Capture policy for function environments.
+export type CapturePolicy = "borrow" | "copy" | "move";
+
+/// Capture policy for individual bindings.
+export type CaptureKind = CapturePolicy;
+
+/// Capture directive value for the capture decorator.
+export type CaptureDirective =
+    | CapturePolicy
+    | {
+        default?: CapturePolicy;
+        [name: string]: CaptureKind;
+    };
+
+/// Configure closure capture policy for a lambda.
+///
+/// ```
+/// @capture("copy")
+/// const f = () => value;
+/// ```
+///
+/// ```
+/// @capture("move")
+/// const f = () => resource.use();
+/// ```
+export newtype capture = (CaptureDirective,) | ();

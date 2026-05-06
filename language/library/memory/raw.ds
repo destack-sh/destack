@@ -1,8 +1,4 @@
-// Memory operation intrinsics.
-//
-// Low-level memory manipulation and type reinterpretation
-
-import { intrinsic } from "./decorator.ds";
+import { intrinsic } from "../core/decorator/intrinsic.ds";
 
 /// Copy memory from source to destination (non-overlapping).
 ///
@@ -48,7 +44,7 @@ export declare function prefetchWrite(address: *void): void;
 /// Reinterpret bytes as a different type.
 ///
 /// Reinterprets the bits of `value` as type `U` without any conversion.
-/// Both types must have the same size. This is an unsafe operation.
+/// Both types must have the same size. This is an unchecked operation.
 @intrinsic("transmute")
 export declare function transmute<T, U>(value: T): U;
 
@@ -59,7 +55,7 @@ export declare function transmute<T, U>(value: T): U;
 @intrinsic("ptr_offset_from")
 export declare function ptrOffsetFrom(start: *void, end: *void): int;
 
-/// Byte-wise equality comparison.
+/// Compare values byte-wise.
 ///
 /// Compares two values by their raw byte representation.
 /// Returns true if all bytes are identical.

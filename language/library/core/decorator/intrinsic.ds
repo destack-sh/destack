@@ -1,0 +1,22 @@
+/// Compiler intrinsic marker.
+///
+/// Marks a declaration as implemented by the compiler.
+/// The declaration body, if any, is ignored.
+///
+/// ```
+/// @intrinsic
+/// declare function typeOf<T>(value: T): Type<T>;
+/// ```
+export newtype intrinsic = (string,) | ();
+
+/// Compiler language item marker.
+///
+/// Marks a declaration as a compiler-known language item.
+/// `@intrinsic` controls implementation, while `@languageItem` gives the toolchain a stable symbol identity.
+/// A declaration may use either marker or both.
+///
+/// ```
+/// @languageItem("Type")
+/// declare function typeOf<T>(value: T): Type<T>;
+/// ```
+export newtype languageItem = (string,) | ();

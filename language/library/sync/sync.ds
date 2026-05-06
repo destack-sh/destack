@@ -21,7 +21,7 @@ import {
     atomicFetchXor,
     atomicLoad,
     atomicStore,
-} from "core";
+} from "./atomic.ds";
 import * as platform from "library/platform/index.ds";
 import type { PlatformError } from "../platform/error/index.ds";
 

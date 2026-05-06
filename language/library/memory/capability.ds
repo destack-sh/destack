@@ -4,8 +4,8 @@ export newtype interface Copy {}
 /// Mark a type as explicitly cloneable.
 export newtype interface Clone {}
 
-/// Mark a type as safe to send across threads.
+/// Mark a type as safe to send across Workers.
 export newtype interface Send {}
 
-/// Mark a type as safe to share across threads.
+/// Mark a type as safe to share through shared storage.
 export newtype interface Sync {}
