@@ -1,19 +1,27 @@
 export {
-    type Region,
+    type Lifetime,
     type Space,
     type Place,
     type Ownership,
+    type Access,
     type Form,
+} from "./form.ds";
+export {
     type Managed,
     type Borrowed,
+    type ReadonlyBorrowed,
+    type ExclusiveBorrowed,
     type Raw,
     type Owned,
     type Shared,
+    type Local,
+    type Ambient,
     type BaseOf,
     type OwnershipOf,
     type PlaceOf,
     type SpaceOf,
-    type RegionOf,
+    type LifetimeOf,
+    type AccessOf,
     type OwnershipOr,
     type PlaceOr,
     type SpaceOr,
@@ -28,12 +36,33 @@ export {
     type WithOwnership,
     type WithPlace,
     type WithSpace,
-    type WithRegion,
+    type WithLifetime,
+    type WithAccess,
     type AsManaged,
     type AsOwned,
     type AsBorrowed,
+    type AsReadonlyBorrowed,
+    type AsExclusiveBorrowed,
     type AsRaw,
-} from "./ownership.ds";
+} from "./algebra.ds";
+export {
+    type AllocationLayout,
+    type AllocationErrorKind,
+    type AllocationError,
+    type Allocation,
+    type Allocator,
+    defaultAllocator,
+} from "./allocator.ds";
 export { type Copy, type Clone, type Send, type Sync } from "./capability.ds";
-export { type Drop, type Dispose, type AsyncDispose } from "./dispose.ds";
-export { type Bytes, type Buffer } from "./bytes.ds";
+export { type Drop, type Dispose, type AsyncDispose, drop } from "./dispose.ds";
+export {
+    memcpy,
+    memmove,
+    memset,
+    memcmp,
+    prefetchRead,
+    prefetchWrite,
+    transmute,
+    ptrOffsetFrom,
+    rawEq,
+} from "./raw.ds";

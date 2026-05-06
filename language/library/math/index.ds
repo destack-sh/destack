@@ -1,4 +1,3 @@
-// bit manipulation
 export {
     clz,
     ctz,
@@ -9,7 +8,6 @@ export {
     rotateRight,
 } from "./bits.ds";
 
-// float math
 export {
     sqrt,
     abs,
@@ -36,12 +34,34 @@ export {
     round,
 } from "./float.ds";
 
-// checked arithmetic
 export {
-    OverflowResult,
     addOverflow,
     subOverflow,
     mulOverflow,
-    satAdd,
-    satSub,
-} from "./checked.ds";
+    addUnchecked,
+    subUnchecked,
+    mulUnchecked,
+    divUnchecked,
+    remUnchecked,
+    shlUnchecked,
+    shrUnchecked,
+    addSaturating,
+    subSaturating,
+} from "./arithmetic.ds";
+export {
+    floatToSignedIntSaturating,
+    floatToUnsignedIntSaturating,
+} from "./cast.ds";
+export {
+    Vector,
+    splat,
+    shuffle,
+    select,
+    reduceAdd,
+    reduceMul,
+    reduceMin,
+    reduceMax,
+    reduceAnd,
+    reduceOr,
+    reduceXor,
+} from "./vector.ds";

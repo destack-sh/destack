@@ -1,4 +1,4 @@
-import { intrinsic } from "../primitive/decorator.ds";
+import { intrinsic } from "../decorator/intrinsic.ds";
 import { type Drop } from "../../memory/index.ds";
 
 /// Worker-local handle to a suspended execution frame.

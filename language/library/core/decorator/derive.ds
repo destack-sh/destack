@@ -1,0 +1,52 @@
+import { intrinsic } from "./intrinsic.ds";
+import { type Patch, type PatchContext, type Patcher } from "../module/patch.ds";
+
+/// Constructor naming policy for tagged newtype unions.
+export type TaggedCase =
+    | "preserve"
+    | "camelCase"
+    | "UpperCamelCase"
+    | "snake_case"
+    | "SCREAMING_SNAKE_CASE";
+
+/// Explicit constructor names keyed by discriminant spelling.
+export type TaggedNames = {
+    readonly [discriminant: string]: string;
+};
+
+/// Derive constructor helpers for tagged newtype unions.
+///
+/// ```ds
+/// @derive(Tagged({ case: "UpperCamelCase" }))
+/// newtype Shape =
+///     | { kind: "rectangle"; width: int32; height: int32 }
+///     | { kind: "circle"; radius: int32 };
+/// ```
+export newtype Tagged = () | {
+    case?: TaggedCase;
+    names?: TaggedNames;
+};
+
+/// Implement `Tagged` as a patch provider.
+export extension<Target> of Tagged implements Patcher<Target> {
+    @intrinsic
+    static patch(target: Target, context: PatchContext, config: this): Patch[];
+}
+
+/// Derive `Clone` implementations.
+export newtype Clone = ();
+
+/// Implement `Clone` as a patch provider.
+export extension<Target> of Clone implements Patcher<Target> {
+    @intrinsic
+    static patch(target: Target, context: PatchContext, config: this): Patch[];
+}
+
+/// Derive `Debug` implementations.
+export newtype Debug = ();
+
+/// Implement `Debug` as a patch provider.
+export extension<Target> of Debug implements Patcher<Target> {
+    @intrinsic
+    static patch(target: Target, context: PatchContext, config: this): Patch[];
+}

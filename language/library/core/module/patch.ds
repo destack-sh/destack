@@ -1,0 +1,57 @@
+import {
+    type Declaration,
+    type Scope,
+    type Symbol,
+} from "../../reflect/dir/index.ds";
+
+/// Context passed to patch providers.
+export struct PatchContext {
+    /// The decorated target symbol.
+    symbol: Symbol;
+
+    /// The containing scope.
+    scope: Scope;
+
+    /// The local name of the decorated target when one exists.
+    name?: string;
+}
+
+/// Patch that adds a generated declaration.
+export newtype PatchAdd = {
+    kind: "add";
+    scope: Scope;
+    declaration: Declaration;
+};
+
+/// Patch that replaces one symbol with a generated declaration.
+export newtype PatchReplace = {
+    kind: "replace";
+    symbol: Symbol;
+    declaration: Declaration;
+};
+
+/// Patch that renames one symbol.
+export newtype PatchRename = {
+    kind: "rename";
+    symbol: Symbol;
+    name: string;
+};
+
+/// Patch that removes one symbol.
+export newtype PatchRemove = {
+    kind: "remove";
+    symbol: Symbol;
+};
+
+/// One static patch operation.
+export newtype Patch =
+    | PatchAdd
+    | PatchReplace
+    | PatchRename
+    | PatchRemove;
+
+/// Protocol for decorator values that provide patches.
+export newtype interface Patcher<Target> {
+    /// Return the patches for the decorated target.
+    static patch(target: Target, context: PatchContext, config: this): Patch[];
+}

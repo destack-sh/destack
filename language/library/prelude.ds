@@ -1,23 +1,29 @@
 // reflection
 export * from "./reflect/index.ds";
 
-// ownership
+// memory
 export {
-    type Region,
+    type Lifetime,
     type Space,
     type Place,
     type Ownership,
+    type Access,
     type Form,
     type Managed,
     type Borrowed,
+    type ReadonlyBorrowed,
+    type ExclusiveBorrowed,
     type Raw,
     type Owned,
     type Shared,
+    type Local,
+    type Ambient,
     type BaseOf,
     type OwnershipOf,
     type PlaceOf,
     type SpaceOf,
-    type RegionOf,
+    type LifetimeOf,
+    type AccessOf,
     type OwnershipOr,
     type PlaceOr,
     type SpaceOr,
@@ -32,13 +38,19 @@ export {
     type WithOwnership,
     type WithPlace,
     type WithSpace,
-    type WithRegion,
+    type WithLifetime,
+    type WithAccess,
     type AsManaged,
     type AsOwned,
     type AsBorrowed,
+    type AsReadonlyBorrowed,
+    type AsExclusiveBorrowed,
     type AsRaw,
-    type Bytes,
-    type Buffer,
+    type AllocationLayout,
+    type AllocationErrorKind,
+    type AllocationError,
+    type Allocation,
+    type Allocator,
     type Copy,
     type Clone,
     type Drop,
@@ -46,6 +58,8 @@ export {
     type AsyncDispose,
     type Send,
     type Sync,
+    defaultAllocator,
+    drop,
 } from "./memory/index.ds";
 
 // control flow
@@ -55,8 +69,8 @@ export {
     type TryBranch,
     type TryContinue,
     type TryFailure,
-} from "./core/control/try.ds";
-export { type Error } from "./core/control/error.ds";
+} from "./core/operator/try.ds";
+export { type Error } from "./core/error/error.ds";
 export {
     type StackFrameId,
     type SourceLocation,
@@ -65,13 +79,13 @@ export {
     type StackTraceOptions,
     captureStackTrace,
     formatStackTrace,
-} from "./core/control/stack.ds";
+} from "./core/error/stack.ds";
 export {
     Ok,
     Err,
     Result,
     AsyncResult,
-} from "./core/control/result.ds";
+} from "./core/error/result.ds";
 export {
     type Promise,
     type PromiseConstructor,
@@ -108,9 +122,9 @@ export {
     reduceAnd,
     reduceOr,
     reduceXor,
-} from "./core/primitive/vector.ds";
+} from "./math/vector.ds";
 
-// annotation and decorator markers
+// decorator markers
 export {
     deprecated,
     experimental,
@@ -134,13 +148,6 @@ export {
     type InlineHint,
     type TaggedCase,
     type TaggedNames,
-    type PatchContext,
-    type PatchAdd,
-    type PatchReplace,
-    type PatchRename,
-    type PatchRemove,
-    type Patch,
-    type Patcher,
     inline,
     noinline,
     unroll,
@@ -157,16 +164,28 @@ export {
     sink,
     sanitizer,
     tag,
-    lifetime,
-} from "./core/primitive/decorator.ds";
+} from "./core/decorator/index.ds";
 
-// binding annotations
+// module patches
+export {
+    type PatchContext,
+    type PatchAdd,
+    type PatchReplace,
+    type PatchRename,
+    type PatchRemove,
+    type Patch,
+    type Patcher,
+} from "./core/module/patch.ds";
+
+// platform decorators
 export {
     binding,
-    require,
     type BindingOptions,
+} from "./platform/core/binding.ds";
+export {
+    require,
     type PlatformCapability,
-} from "./core/primitive/binding.ds";
+} from "./platform/core/capability.ds";
 
 // operator interfaces
 export { type Add, type Plus } from "./core/operator/plus.ds";

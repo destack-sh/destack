@@ -38,3 +38,4 @@ export {
 export { type Display, type Debug } from "./format.ds";
 export { type Index, type IndexSet } from "./subscript.ds";
 export { type ReadonlyDereference, type Dereference } from "./dereference.ds";
+export * from "./try.ds";

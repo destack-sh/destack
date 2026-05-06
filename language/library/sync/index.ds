@@ -21,5 +21,5 @@ export {
     atomicFetchXor,
     atomicLoad,
     atomicStore,
-} from "core/primitive/atomic.ds";
+} from "./atomic.ds";
 export { sync } from "./sync.ds";

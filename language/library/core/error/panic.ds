@@ -1,4 +1,4 @@
-import { intrinsic } from "../primitive/decorator.ds";
+import { intrinsic } from "../decorator/intrinsic.ds";
 
 /// Stop execution with a panic diagnostic.
 @intrinsic("panic")

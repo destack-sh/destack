@@ -1,0 +1,15 @@
+/// Forbid managed values in a function.
+///
+/// ```
+/// @noManaged
+/// function processFrame() { }
+/// ```
+export newtype noManaged = ();
+
+/// Forbid managed values and raw heap allocations in a function.
+///
+/// ```
+/// @stackOnly
+/// function processFrame() { }
+/// ```
+export newtype stackOnly = ();

@@ -1,0 +1,107 @@
+/// Inline policy for a function.
+export type InlineHint = "hint" | "always" | "never";
+
+/// Inline hint for generated code.
+///
+/// `@inline` is the same as `@inline("hint")`.
+/// `@inline("always")` asks the compiler to inline and report when it cannot.
+/// `@inline("never")` prevents inlining.
+///
+/// ```
+/// @inline
+/// function add(a: int, b: int): int { a + b }
+/// ```
+export newtype inline = () | (InlineHint,);
+
+/// No-inline hint for generated code.
+///
+/// This is the same as `@inline("never")`.
+///
+/// ```
+/// @noinline
+/// function complexCalculation() { ... }
+/// ```
+export newtype noinline = ();
+
+/// Specify the representation for a declaration.
+///
+/// ```
+/// @repr(uint8)
+/// enum Color { Red = 1, Green = 2 }
+/// ```
+export newtype repr = (unknown,);
+
+/// Specify the layout policy for an aggregate declaration.
+///
+/// ```
+/// @layout("C")
+/// struct Point { x: int32, y: int32 }
+/// ```
+export newtype layout = (unknown,);
+
+/// Loop unroll hint for generated code.
+///
+/// ```
+/// @unroll
+/// for (let i = 0; i < 4; i++) { }
+///
+/// @unroll(4)
+/// for (let i = 0; i < 16; i++) { }
+/// ```
+export newtype unroll = (int,) | ();
+
+/// Hint that a function is on a hot path.
+///
+/// ```
+/// @hot
+/// function parse() { }
+/// ```
+export newtype hot = ();
+
+/// Hint that a function is on a cold path.
+///
+/// ```
+/// @cold
+/// function logError() { }
+/// ```
+export newtype cold = ();
+
+/// Hint that a branch is likely to be taken.
+///
+/// ```
+/// @likely
+/// function handleHotPath() { }
+/// ```
+export newtype likely = ();
+
+/// Hint that a branch is unlikely to be taken.
+///
+/// ```
+/// @unlikely
+/// function handleColdPath() { }
+/// ```
+export newtype unlikely = ();
+
+/// Warn when a return value is ignored.
+///
+/// ```
+/// @mustUse
+/// function read(): FileHandle { }
+/// ```
+export newtype mustUse = ();
+
+/// Mark a function as free of observable side effects.
+///
+/// ```
+/// @pure
+/// function add(a: int, b: int): int { a + b }
+/// ```
+export newtype pure = ();
+
+/// Hint that a function should use a tail call.
+///
+/// ```
+/// @tailcall
+/// function loop(n: int): int { loop(n - 1) }
+/// ```
+export newtype tailcall = ();

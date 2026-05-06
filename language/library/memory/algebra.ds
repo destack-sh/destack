@@ -1,28 +1,25 @@
-/// Region marker for borrowed validity.
-export type Region = unknown;
+import {
+    type Access,
+    type Form,
+    type Lifetime,
+    type Ownership,
+    type Place,
+    type Space,
+} from "./form.ds";
 
-/// Concrete memory space tag kind.
-export type Space = intrinsic;
-
-/// Placement tag kind for qualified storage.
-export type Place = "ambient" | Space;
-
-/// Ownership or access kind for qualified storage.
-export type Ownership = "managed" | "owned" | "borrowed" | "raw";
-
-/// Canonical qualified storage form.
-export newtype Form<
-    T,
-    O: Ownership = "managed",
-    P: Place = "ambient",
-    R = never,
-> = intrinsic;
-
-/// Managed heap storage or handle for `T` in the ambient space.
+/// Managed/default storage or handle for `T` in the ambient space.
 export type Managed<T> = Form<BaseOf<T>, "managed", PlaceOr<T, "ambient">>;
 
-/// Borrowed semantic access to `T` within region `R`.
-export type Borrowed<T, R: Region> = Form<BaseOf<T>, "borrowed", PlaceOr<T, "ambient">, R>;
+/// Borrowed access to `T` within lifetime `L`.
+export type Borrowed<T, L: Lifetime> = Form<BaseOf<T>, "borrowed", PlaceOr<T, "ambient">, L>;
+
+/// Readonly borrowed access to `T` within lifetime `L`.
+export type ReadonlyBorrowed<T, L: Lifetime> =
+    Form<BaseOf<T>, "borrowed", PlaceOr<T, "ambient">, L, "readonly">;
+
+/// Exclusive borrowed access to `T` within lifetime `L`.
+export type ExclusiveBorrowed<T, L: Lifetime> =
+    Form<BaseOf<T>, "borrowed", PlaceOr<T, "ambient">, L, "exclusive">;
 
 /// Unsafe raw pointer to `T`.
 export type Raw<T> = Form<BaseOf<T>, "raw", PlaceOr<T, "ambient">>;
@@ -41,17 +38,17 @@ export type Ambient<T> = WithPlace<T, "ambient">;
 
 /// Extract the unqualified base type of `T`.
 export type BaseOf<T> =
-    T extends Form<infer U, infer O, infer P, infer R> ? U :
+    T extends Form<infer U, infer O, infer P, infer L, infer A> ? U :
     T;
 
 /// Extract the explicit ownership of `T`.
 export type OwnershipOf<T> =
-    T extends Form<infer U, infer O, infer P, infer R> ? O :
+    T extends Form<infer U, infer O, infer P, infer L, infer A> ? O :
     never;
 
 /// Extract the placement of `T`.
 export type PlaceOf<T> =
-    T extends Form<infer U, infer O, infer P, infer R> ? P :
+    T extends Form<infer U, infer O, infer P, infer L, infer A> ? P :
     never;
 
 /// Extract the explicit concrete space of `T`.
@@ -59,11 +56,17 @@ export type SpaceOf<T> =
     PlaceOf<T> extends Space ? PlaceOf<T> :
     never;
 
-/// Extract the borrow region of `T`.
-export type RegionOf<T> =
-    T extends Form<infer U, infer O, infer P, infer R> ?
-        O extends "borrowed" ? R : never :
+/// Extract the borrow lifetime of `T`.
+export type LifetimeOf<T> =
+    T extends Form<infer U, infer O, infer P, infer L, infer A> ?
+        O extends "borrowed" ? L : never :
     never;
+
+/// Extract the access mode of `T`.
+export type AccessOf<T> =
+    T extends Form<infer U, infer O, infer P, infer L, infer A> ?
+        A :
+    "mutable";
 
 /// Extract the ownership of `T`, or fall back to `D`.
 export type OwnershipOr<T, D: Ownership> =
@@ -117,27 +120,43 @@ export type IsSharedIn<T, S: Space> =
 
 /// Reformulate `Q` with base type `T`.
 export type WithBase<Q, T> =
-    Form<T, OwnershipOr<Q, "managed">, PlaceOr<Q, "ambient">, RegionOf<Q>>;
+    Form<
+        T,
+        OwnershipOr<Q, "managed">,
+        PlaceOr<Q, "ambient">,
+        LifetimeOf<Q>,
+        AccessOf<Q>
+    >;
 
 /// Reformulate `Q` with ownership `O`.
-export type WithOwnership<Q, O: Ownership, R = RegionOf<Q>> =
+export type WithOwnership<Q, O: Ownership, L = LifetimeOf<Q>> =
     O extends "borrowed" ?
-        Form<BaseOf<Q>, O, PlaceOr<Q, "ambient">, R> :
-        Form<BaseOf<Q>, O, PlaceOr<Q, "ambient">>;
+        Form<BaseOf<Q>, O, PlaceOr<Q, "ambient">, L, AccessOf<Q>> :
+        Form<BaseOf<Q>, O, PlaceOr<Q, "ambient">, never, AccessOf<Q>>;
 
 /// Reformulate `Q` with placement `P`.
 export type WithPlace<Q, P: Place> =
-    Form<BaseOf<Q>, OwnershipOr<Q, "managed">, P, RegionOf<Q>>;
+    Form<
+        BaseOf<Q>,
+        OwnershipOr<Q, "managed">,
+        P,
+        LifetimeOf<Q>,
+        AccessOf<Q>
+    >;
 
 /// Reformulate `Q` in space `S`.
 export type WithSpace<Q, S: Space> =
     WithPlace<Q, S>;
 
-/// Reformulate borrowed `Q` with region `R`.
-export type WithRegion<Q, R: Region> =
+/// Reformulate borrowed `Q` with lifetime `L`.
+export type WithLifetime<Q, L: Lifetime> =
     OwnershipOr<Q, "managed"> extends "borrowed" ?
-        Form<BaseOf<Q>, "borrowed", PlaceOr<Q, "ambient">, R> :
-        never;
+        Form<BaseOf<Q>, "borrowed", PlaceOr<Q, "ambient">, L, AccessOf<Q>> :
+    never;
+
+/// Reformulate `Q` with access mode `A`.
+export type WithAccess<Q, A: Access> =
+    Form<BaseOf<Q>, OwnershipOr<Q, "managed">, PlaceOr<Q, "ambient">, LifetimeOf<Q>, A>;
 
 /// Convert `T` to the managed heap form while preserving place.
 export type AsManaged<T> = Managed<T>;
@@ -145,8 +164,14 @@ export type AsManaged<T> = Managed<T>;
 /// Convert `T` to the owned heap form while preserving place.
 export type AsOwned<T> = Owned<T>;
 
-/// Convert `T` to the borrowed form within region `R` while preserving place.
-export type AsBorrowed<T, R: Region> = Borrowed<T, R>;
+/// Convert `T` to the borrowed form within lifetime `L` while preserving place.
+export type AsBorrowed<T, L: Lifetime> = Borrowed<T, L>;
+
+/// Convert `T` to the readonly borrowed form within lifetime `L` while preserving place.
+export type AsReadonlyBorrowed<T, L: Lifetime> = ReadonlyBorrowed<T, L>;
+
+/// Convert `T` to the exclusive borrowed form within lifetime `L` while preserving place.
+export type AsExclusiveBorrowed<T, L: Lifetime> = ExclusiveBorrowed<T, L>;
 
 /// Convert `T` to the raw pointer form while preserving place.
 export type AsRaw<T> = Raw<T>;

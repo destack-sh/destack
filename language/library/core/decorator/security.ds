@@ -1,0 +1,39 @@
+/// Mark a declaration as unsafe.
+///
+/// ```
+/// @unsafe
+/// function readPtr(ptr: *u8): u8 { ... }
+/// ```
+export newtype unsafe = ();
+
+/// Mark a declaration as transmute-like.
+///
+/// ```
+/// @transmute
+/// function bits<T, U>(value: T): U { ... }
+/// ```
+export newtype transmute = ();
+
+/// Taint a value or expression.
+///
+/// ```
+/// @taint("unsafe")
+/// function oldAPI() { }
+/// ```
+export newtype taint = (string,) | ();
+
+/// Mark a declaration as a taint sink.
+///
+/// ```
+/// @sink("url")
+/// function redirect(value: string) { }
+/// ```
+export newtype sink = (string,) | ();
+
+/// Mark a declaration as a taint sanitizer.
+///
+/// ```
+/// @sanitizer("url")
+/// function sanitizeURL(value: string): string { value }
+/// ```
+export newtype sanitizer = (string,) | ();

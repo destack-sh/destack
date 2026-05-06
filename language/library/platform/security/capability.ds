@@ -1,12 +1,8 @@
 import { Slice } from "core";
-import type { PlatformCapability as NativePlatformCapability } from "core";
+import type { PlatformCapability } from "../core/capability.ds";
 import type { PlatformError } from "../error/index.ds";
 
-/// Platform capability selector.
-///
-/// Capability names are validated by runtime policy and binding metadata.
-/// The canonical list is defined by binding metadata declarations.
-export type PlatformCapability = NativePlatformCapability;
+export type { PlatformCapability } from "../core/capability.ds";
 
 /// Security capability bindings.
 /// List active capabilities.
