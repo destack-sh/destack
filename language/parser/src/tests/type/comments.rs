@@ -130,7 +130,7 @@ fn test_parse_type_reference_prefix_decorator_on_owner() {
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::ReferenceOf { target_type, .. } => {
+            assert_node!(parser.tree, *value, TypeExpression::BorrowedOf { target_type, .. } => {
                 assert_expression_path!(parser, parser.tree.get(*target_type), "Buffer");
 
                 let annotations = parser.tree.get_decorators(value.id);

@@ -204,7 +204,7 @@ fn test_parse_reference_variable() {
     let mut test = TestParser::new("&x");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::ReferenceOf { mutability: Some(mutability), variance: None, right } => {
+    assert_node!(parser.tree, expr_id, Expression::BorrowOf { mutability: Some(mutability), variance: None, right } => {
         assert_eq!(*mutability, Mutability::Mutable);
         assert_expression_path!(parser, parser.tree.get(*right), "x");
     });
@@ -216,7 +216,7 @@ fn test_parse_reference_member_call() {
     let mut test = TestParser::new("&self.foo()");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::ReferenceOf { mutability: Some(Mutability::Mutable), variance: None, right } => {
+    assert_node!(parser.tree, expr_id, Expression::BorrowOf { mutability: Some(Mutability::Mutable), variance: None, right } => {
         assert_node!(parser.tree, *right, Expression::Call { left, generic_arguments: _, arguments, .. } => {
             assert!(arguments.is_empty());
             assert_expression_path!(parser, parser.tree.get(*left), "self.foo");
@@ -230,7 +230,7 @@ fn test_parse_bound_reference_expression() {
     let mut test = TestParser::new("&readonly super T");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::ReferenceOf { mutability: Some(mutability), variance, right } => {
+    assert_node!(parser.tree, expr_id, Expression::BorrowOf { mutability: Some(mutability), variance, right } => {
         assert_eq!(*mutability, Mutability::Immutable);
         assert_eq!(*variance, Some(VarianceBound::Super));
         assert_expression_path!(parser, parser.tree.get(*right), "T");
@@ -243,7 +243,7 @@ fn test_parse_value_expression() {
     let mut test = TestParser::new("^super T");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::ValueOf { mutability, variance, right, .. } => {
+    assert_node!(parser.tree, expr_id, Expression::MoveOf { mutability, variance, right, .. } => {
         assert_eq!(*mutability, Some(Mutability::Mutable));
         assert_eq!(*variance, Some(VarianceBound::Super));
         assert_expression_path!(parser, parser.tree.get(*right), "T");
