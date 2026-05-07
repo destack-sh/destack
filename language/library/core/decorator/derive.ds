@@ -1,9 +1,7 @@
 import { intrinsic } from "./intrinsic.ds";
 import {
-    type MaterializeContext,
-    type MaterializePatch,
-    type ExpandContext,
-    type ExpandPatch,
+    type ExpansionContext,
+    type MaterializationContext,
     type Patcher,
 } from "../module/patch.ds";
 
@@ -36,10 +34,10 @@ export newtype Tagged = () | {
 /// Implement `Tagged` as a patch provider.
 export extension<Target> of Tagged implements Patcher<Target> {
     @intrinsic
-    static expand(target: Target, context: ExpandContext, config: this): ExpandPatch[];
+    static expand(target: Target, context: ExpansionContext, config: this): void;
 
     @intrinsic
-    static materialize(target: Target, context: MaterializeContext, config: this): MaterializePatch[];
+    static materialize(target: Target, context: MaterializationContext, config: this): void;
 }
 
 /// Derive `Clone` implementations.
@@ -48,10 +46,10 @@ export newtype Clone = ();
 /// Implement `Clone` as a patch provider.
 export extension<Target> of Clone implements Patcher<Target> {
     @intrinsic
-    static expand(target: Target, context: ExpandContext, config: this): ExpandPatch[];
+    static expand(target: Target, context: ExpansionContext, config: this): void;
 
     @intrinsic
-    static materialize(target: Target, context: MaterializeContext, config: this): MaterializePatch[];
+    static materialize(target: Target, context: MaterializationContext, config: this): void;
 }
 
 /// Derive `Debug` implementations.
@@ -60,8 +58,8 @@ export newtype Debug = ();
 /// Implement `Debug` as a patch provider.
 export extension<Target> of Debug implements Patcher<Target> {
     @intrinsic
-    static expand(target: Target, context: ExpandContext, config: this): ExpandPatch[];
+    static expand(target: Target, context: ExpansionContext, config: this): void;
 
     @intrinsic
-    static materialize(target: Target, context: MaterializeContext, config: this): MaterializePatch[];
+    static materialize(target: Target, context: MaterializationContext, config: this): void;
 }
