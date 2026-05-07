@@ -17,6 +17,7 @@ mod revision;
 mod target;
 mod tsconfig;
 
+pub use artifact::*;
 pub(crate) use cache::*;
 pub use discovery::*;
 pub use edit::*;
