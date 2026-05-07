@@ -171,15 +171,13 @@ fn import_space_rank(space: SymbolSpace, expected_space: Option<SymbolSpace>) ->
     match expected_space {
         Some(SymbolSpace::Type) => match space {
             SymbolSpace::Type => 0,
-            SymbolSpace::TypeValue => 1,
-            SymbolSpace::Value => 2,
-            SymbolSpace::Label => 3,
+            SymbolSpace::Value => 1,
+            SymbolSpace::Label => 2,
         },
         _ => match space {
             SymbolSpace::Value => 0,
-            SymbolSpace::TypeValue => 1,
-            SymbolSpace::Type => 2,
-            SymbolSpace::Label => 3,
+            SymbolSpace::Type => 1,
+            SymbolSpace::Label => 2,
         },
     }
 }
