@@ -1,18 +1,10 @@
 use crate::{Asynchrony, GenericParameter, Keyword, LocalNodeId, Parameter, TypeExpression};
 
 use serde::{Deserialize, Serialize};
-/// The cardinality of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum FunctionCardinality {
-    /// Scalar function.
-    Scalar,
-    /// Generator function.
-    Generator,
-}
 
-/// The mode of a function.
+/// The role of a function.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum FunctionMode {
+pub enum FunctionRole {
     /// Getter method.
     Getter,
     /// Setter method.
@@ -21,21 +13,21 @@ pub enum FunctionMode {
     Constructor,
 }
 
-impl FunctionMode {
+impl FunctionRole {
     /// Get the keyword for the function accessor.
     #[inline]
     pub fn to_keyword(&self) -> Option<Keyword> {
         match self {
-            FunctionMode::Getter => Some(Keyword::Get),
-            FunctionMode::Setter => Some(Keyword::Set),
-            FunctionMode::Constructor => Some(Keyword::Constructor),
+            FunctionRole::Getter => Some(Keyword::Get),
+            FunctionRole::Setter => Some(Keyword::Set),
+            FunctionRole::Constructor => Some(Keyword::Constructor),
         }
     }
 }
 
 /// The style of a function.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum FunctionKind {
+pub enum FunctionForm {
     /// Function with a body.
     Function,
     /// Lambda function with a return type.
@@ -45,18 +37,12 @@ pub enum FunctionKind {
 /// The signature of a function.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunctionSignature {
-    /// Whether the function is abstract.
-    pub is_abstract: bool,
-    /// Whether the function is an override.
-    pub is_override: bool,
     /// The asynchrony of the function.
     pub asynchrony: Asynchrony,
-    /// The cardinality of the function.
-    pub cardinality: FunctionCardinality,
-    /// The mode of the function.
-    pub mode: Option<FunctionMode>,
-    /// The kind of the function.
-    pub kind: FunctionKind,
+    /// The role of the function.
+    pub role: Option<FunctionRole>,
+    /// The form of the function.
+    pub form: FunctionForm,
     /// The generic parameters of the function.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The optional `this` parameter of the function.
@@ -65,4 +51,10 @@ pub struct FunctionSignature {
     pub parameters: Vec<LocalNodeId<Parameter>>,
     /// The return type of the function.
     pub return_type: Option<LocalNodeId<TypeExpression>>,
+    /// Whether the function is abstract.
+    pub is_abstract: bool,
+    /// Whether the function is an override.
+    pub is_override: bool,
+    /// Whether the function is a generator.
+    pub is_generator: bool,
 }

@@ -1,6 +1,6 @@
 use crate::{
-    Asynchrony, Declaration, DependencyMode, EnumField, FunctionCardinality, InterfaceHeritage,
-    Keyword, LocalNodeId, TypeExpression, Visibility,
+    Asynchrony, Declaration, DependencyBinding, EnumField, InterfaceHeritage, Keyword, LocalNodeId,
+    TypeExpression, Visibility,
 };
 use destack_fir::format::FormatResult;
 
@@ -84,12 +84,12 @@ impl<'ast> Format<JsFormatContext<'ast>> for Visibility {
     }
 }
 
-impl<'ast> Format<JsFormatContext<'ast>> for DependencyMode {
+impl<'ast> Format<JsFormatContext<'ast>> for DependencyBinding {
     fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
-            DependencyMode::Item => write!(f, [Keyword::Export]),
-            DependencyMode::Default => write!(f, [Keyword::Export, space(), Keyword::Default]),
-            DependencyMode::Namespace => write!(f, [Keyword::Export]),
+            DependencyBinding::Item => write!(f, [Keyword::Export]),
+            DependencyBinding::Default => write!(f, [Keyword::Export, space(), Keyword::Default]),
+            DependencyBinding::Namespace => write!(f, [Keyword::Export]),
         }
     }
 }
@@ -351,8 +351,8 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 // keyword
                 write!(f, [Keyword::Function])?;
 
-                // cardinality
-                if signature.cardinality == FunctionCardinality::Generator {
+                // generator
+                if signature.is_generator {
                     write!(f, [token("*")])?;
                 }
 

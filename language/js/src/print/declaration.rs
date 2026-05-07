@@ -1,8 +1,7 @@
 use super::printer::Printer;
 use crate::{
-    Asynchrony, BindingModifier, Declaration, Declarator, DependencyMode, FunctionCardinality,
-    FunctionSignature, JsPrintResult, Key, Keyword, LocalNodeId, Member, Name, Precedence,
-    Property,
+    Asynchrony, BindingModifier, Declaration, Declarator, DependencyBinding, FunctionSignature,
+    JsPrintResult, Key, Keyword, LocalNodeId, Member, Name, Precedence, Property,
 };
 
 impl<'a> Printer<'a> {
@@ -169,7 +168,7 @@ impl<'a> Printer<'a> {
 
                 self.write_keyword(Keyword::Function);
 
-                if signature.cardinality == FunctionCardinality::Generator {
+                if signature.is_generator {
                     self.write_punct("*");
                 }
 
@@ -193,11 +192,11 @@ impl<'a> Printer<'a> {
     /// Print one type declaration prefix.
     pub(crate) fn print_type_declaration_prefix(
         &mut self,
-        export: Option<DependencyMode>,
+        export: Option<DependencyBinding>,
         name: Option<Name>,
     ) {
         if let Some(export) = export {
-            self.write_dependency_mode(export);
+            self.write_dependency_binding(export);
         }
 
         self.write_keyword(Keyword::Type);
@@ -211,7 +210,7 @@ impl<'a> Printer<'a> {
     pub(crate) fn print_class_like_prefix(
         &mut self,
         keyword: Keyword,
-        export: Option<DependencyMode>,
+        export: Option<DependencyBinding>,
         is_ambient: bool,
         is_abstract: bool,
         name: Option<Name>,
@@ -398,13 +397,13 @@ impl<'a> Printer<'a> {
             self.write_keyword(Keyword::Async);
         }
 
-        if let Some(mode) = signature.mode
-            && let Some(keyword) = mode.to_keyword()
+        if let Some(role) = signature.role
+            && let Some(keyword) = role.to_keyword()
         {
             self.write_keyword(keyword);
         }
 
-        if signature.cardinality == FunctionCardinality::Generator {
+        if signature.is_generator {
             self.write_punct("*");
         }
 

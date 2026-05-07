@@ -1,4 +1,4 @@
-use crate::{DependencyItem, DependencyKind, DependencyMode, Keyword, LocalNodeId, Name};
+use crate::{DependencyBinding, DependencyItem, DependencySpace, Keyword, LocalNodeId, Name};
 use destack_core::StringId;
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -66,19 +66,19 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
         let alias_span = f.context().source_part_span(node_id.id, NodeSpanType::Main);
 
         // type
-        if self.kind == Some(DependencyKind::Type) {
+        if self.space == Some(DependencySpace::Type) {
             write!(f, [Keyword::Type, space()])?;
         }
 
-        // default mode
-        if self.mode == DependencyMode::Default {
+        // default binding
+        if self.binding == DependencyBinding::Default {
             write!(f, [Keyword::Default])?;
             if let Some(alias) = self.alias {
                 write!(f, [space(), Keyword::As, space()])?;
                 format_dependency_item_alias(f, alias, alias_span)?;
             }
         }
-        // item mode (regular)
+        // item binding (regular)
         else {
             if let Some(name) = self.name {
                 format_dependency_item_name(f, name, name_span)?;
@@ -105,7 +105,7 @@ pub(crate) fn format_import_binding<'ast>(
     // namespace (like `import * as foo from "bar"`)
     if items.len() == 1
         && let Some(first_item) = first_item
-        && first_item.mode == DependencyMode::Namespace
+        && first_item.binding == DependencyBinding::Namespace
     {
         write!(f, [token("*"), space(), Keyword::As, space()])?;
 
@@ -120,7 +120,7 @@ pub(crate) fn format_import_binding<'ast>(
     else {
         // default (like `import foo, { bar } from "baz"`)
         if let Some(first_item) = first_item
-            && first_item.mode == DependencyMode::Default
+            && first_item.binding == DependencyBinding::Default
         {
             if let Some(item_id) = items.first()
                 && let Some(alias) = first_item.alias
@@ -174,7 +174,7 @@ pub(crate) fn format_export_binding<'ast>(
     // namespace (like `export * from "foo"` or `export * as bar from "foo"`)
     if items.len() == 1
         && let Some(first_item) = first_item
-        && first_item.mode == DependencyMode::Namespace
+        && first_item.binding == DependencyBinding::Namespace
     {
         write!(f, [token("*")])?;
         if let Some(item_id) = items.first()

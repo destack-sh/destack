@@ -274,7 +274,7 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
 
     match statement {
         Statement::Import {
-            kind: _,
+            space: _,
             target: _,
             target_module: _,
             items,
@@ -294,7 +294,7 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             }
         }
         Statement::Export {
-            kind: _,
+            space: _,
             target: _,
             target_module: _,
             items,
@@ -412,7 +412,7 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
                         visitor.visit_expression(tree, *initialization, initialization_expr);
                     }
                     crate::ForInitialization::Declaration {
-                        declaration_kind: _,
+                        keyword: _,
                         declarators,
                     } => {
                         for declarator_id in declarators {
@@ -434,7 +434,7 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *body, body_block);
         }
         Statement::ForIn {
-            declaration_kind: _,
+            keyword: _,
             pattern,
             iterator,
             body,
@@ -448,7 +448,7 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
         }
         Statement::ForOf {
             asynchrony: _,
-            declaration_kind: _,
+            keyword: _,
             pattern,
             iterator,
             body,

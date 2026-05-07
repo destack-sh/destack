@@ -1,8 +1,8 @@
 use super::printer::Printer;
 use crate::{
     Argument, AssignPattern, AssignPatternField, EnumField, GenericParameter, JsPrintResult,
-    Keyword, LocalNodeId, Mutability, Parameter, Pattern, PatternField, TupleElement,
-    TypeExpression, TypeMember, TypeModifier, TypePredicateSubject,
+    Keyword, LocalNodeId, MappedTypeModifier, Mutability, Parameter, Pattern, PatternField,
+    TupleElement, TypeExpression, TypeMember, TypePredicateSubject,
 };
 
 impl<'a> Printer<'a> {
@@ -89,21 +89,21 @@ impl<'a> Printer<'a> {
                 self.write_punct("{");
 
                 match modifiers.readonly {
-                    TypeModifier::Present => {
+                    MappedTypeModifier::Present => {
                         self.write_keyword(Keyword::Readonly);
                         self.write_punct(" ");
                     }
-                    TypeModifier::Add => {
+                    MappedTypeModifier::Add => {
                         self.write_punct("+");
                         self.write_keyword(Keyword::Readonly);
                         self.write_punct(" ");
                     }
-                    TypeModifier::Remove => {
+                    MappedTypeModifier::Remove => {
                         self.write_punct("-");
                         self.write_keyword(Keyword::Readonly);
                         self.write_punct(" ");
                     }
-                    TypeModifier::None => {}
+                    MappedTypeModifier::None => {}
                 }
 
                 self.write_punct("[");
@@ -123,10 +123,10 @@ impl<'a> Printer<'a> {
                 self.write_punct("]");
 
                 match modifiers.optional {
-                    TypeModifier::Present => self.write_punct("?"),
-                    TypeModifier::Add => self.write_punct("+?"),
-                    TypeModifier::Remove => self.write_punct("-?"),
-                    TypeModifier::None => {}
+                    MappedTypeModifier::Present => self.write_punct("?"),
+                    MappedTypeModifier::Add => self.write_punct("+?"),
+                    MappedTypeModifier::Remove => self.write_punct("-?"),
+                    MappedTypeModifier::None => {}
                 }
 
                 self.write_punct(":");
@@ -778,8 +778,8 @@ mod tests {
 
     use crate::{
         FunctionTypeDeclaration, GenericParameter, JsFormatContext, JsFormatOptions, LocalNodeId,
-        LocalNodeIdAny, NOOP_JS_SOURCE_MAP, Parameter, Path, PrimitiveType, ScalarLiteral, Tree,
-        TypeExpression, TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier,
+        LocalNodeIdAny, MappedTypeModifier, NOOP_JS_SOURCE_MAP, Parameter, Path, PrimitiveType,
+        ScalarLiteral, Tree, TypeExpression, TypeLiteral, TypeMappedModifiers, TypeMappedParameter,
         TypePredicateSubject, TypeTemplateLiteral, format_roots, print_roots_minified,
     };
 
@@ -937,8 +937,8 @@ mod tests {
                     key_remap: Some(key_remap),
                 },
                 modifiers: TypeMappedModifiers {
-                    readonly: TypeModifier::Present,
-                    optional: TypeModifier::Present,
+                    readonly: MappedTypeModifier::Present,
+                    optional: MappedTypeModifier::Present,
                 },
                 value: mapped_value,
             },

@@ -1,6 +1,6 @@
 use crate::{
     AccessorKind, Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
-    FunctionCardinality, Keyword, LocalNodeId, Member, Mutability, Property, VarianceModifier,
+    Keyword, LocalNodeId, Member, Mutability, Property, VarianceModifier,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -64,7 +64,7 @@ pub(crate) fn format_binding_modifiers_postfix<'ast>(
     f: &mut JsFormatter<'ast, '_>,
     modifiers: BindingModifier,
 ) -> FormatResult<()> {
-    // kind
+    // form
     if modifiers.kind == Some(BindingKind::Maybe) {
         write!(f, [token("?")])?;
     }
@@ -132,17 +132,17 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 if signature.asynchrony == Asynchrony::Async {
                     write!(f, [Keyword::Async, space()])?;
                 }
-                // mode
-                if let Some(mode) = signature.mode {
-                    if let Some(keyword) = mode.to_keyword() {
+                // role
+                if let Some(role) = signature.role {
+                    if let Some(keyword) = role.to_keyword() {
                         write!(f, [keyword])?;
                     }
                     if key.is_some() {
                         write!(f, [space()])?;
                     }
                 }
-                // cardinality
-                if signature.cardinality == FunctionCardinality::Generator {
+                // generator
+                if signature.is_generator {
                     write!(f, [token("*")])?;
                 }
                 // key
@@ -226,17 +226,17 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 if signature.asynchrony == Asynchrony::Async {
                     write!(f, [Keyword::Async, space()])?;
                 }
-                // mode
-                if let Some(mode) = signature.mode {
-                    if let Some(keyword) = mode.to_keyword() {
+                // role
+                if let Some(role) = signature.role {
+                    if let Some(keyword) = role.to_keyword() {
                         write!(f, [keyword])?;
                     }
                     if key.is_some() {
                         write!(f, [space()])?;
                     }
                 }
-                // cardinality
-                if signature.cardinality == FunctionCardinality::Generator {
+                // generator
+                if signature.is_generator {
                     write!(f, [token("*")])?;
                 }
                 // key

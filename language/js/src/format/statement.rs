@@ -1,7 +1,7 @@
 use crate::format::argument::list_like;
 use crate::format::dependency::{format_export_binding, format_import_binding};
 use crate::{
-    Asynchrony, CatchClause, Declaration, DependencyKind, Expression, ForEachDeclarationKind,
+    Asynchrony, BindingKeyword, CatchClause, Declaration, DependencySpace, Expression,
     ForInitialization, FormatNode, JsFormatContext, JsFormatter, Keyword, LocalNodeId,
     LocalNodeIdAny, Mutability, NodeType, Statement,
 };
@@ -94,14 +94,14 @@ fn format_variable_declarators<'ast>(
     Ok(())
 }
 
-fn format_for_each_declaration_keyword<'ast>(
+fn format_for_each_binding_keyword<'ast>(
     f: &mut JsFormatter<'ast, '_>,
-    declaration_kind: ForEachDeclarationKind,
+    keyword: BindingKeyword,
 ) -> FormatResult<()> {
-    let declaration_keyword = match declaration_kind {
-        ForEachDeclarationKind::Var => Keyword::Var,
-        ForEachDeclarationKind::Let => Keyword::Let,
-        ForEachDeclarationKind::Const => Keyword::Const,
+    let declaration_keyword = match keyword {
+        BindingKeyword::Var => Keyword::Var,
+        BindingKeyword::Let => Keyword::Let,
+        BindingKeyword::Const => Keyword::Const,
     };
 
     write!(f, [declaration_keyword, space()])
@@ -135,7 +135,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
     ) -> FormatResult<()> {
         match self {
             Statement::Import {
-                kind,
+                space: dependency_space,
                 target,
                 target_module: _,
                 items,
@@ -145,7 +145,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 let items = items.as_deref().unwrap_or(&[]);
 
                 write!(f, [Keyword::Import, space()])?;
-                if *kind == DependencyKind::Type {
+                if *dependency_space == DependencySpace::Type {
                     write!(f, [Keyword::Type, space()])?;
                 }
                 format_import_binding(f, *target, items, target_span)?;
@@ -154,7 +154,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 }
             }
             Statement::Export {
-                kind,
+                space: dependency_space,
                 target,
                 target_module: _,
                 items,
@@ -163,7 +163,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 let target_span = f.context().source_part_span(node_id.id, NodeSpanType::Main);
 
                 write!(f, [Keyword::Export, space()])?;
-                if *kind == DependencyKind::Type {
+                if *dependency_space == DependencySpace::Type {
                     write!(f, [Keyword::Type, space()])?;
                 }
                 format_export_binding(f, *target, items, target_span)?;
@@ -315,10 +315,10 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                             write!(f, [initialization, token(";"), space()])?;
                         }
                         ForInitialization::Declaration {
-                            declaration_kind,
+                            keyword,
                             declarators,
                         } => {
-                            format_for_each_declaration_keyword(f, *declaration_kind)?;
+                            format_for_each_binding_keyword(f, *keyword)?;
                             for (index, declarator) in declarators.iter().enumerate() {
                                 if index > 0 {
                                     write!(f, [token(","), space()])?;
@@ -348,15 +348,15 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 write!(f, [token(")"), space(), body])?;
             }
             Statement::ForIn {
-                declaration_kind,
+                keyword,
                 pattern,
                 iterator,
                 body,
             } => {
                 write!(f, [Keyword::For, token("(")])?;
 
-                if let Some(declaration_kind) = declaration_kind {
-                    format_for_each_declaration_keyword(f, *declaration_kind)?;
+                if let Some(keyword) = keyword {
+                    format_for_each_binding_keyword(f, *keyword)?;
                 }
 
                 write!(
@@ -367,7 +367,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
             }
             Statement::ForOf {
                 asynchrony,
-                declaration_kind,
+                keyword,
                 pattern,
                 iterator,
                 body,
@@ -380,8 +380,8 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
 
                 write!(f, [token("(")])?;
 
-                if let Some(declaration_kind) = declaration_kind {
-                    format_for_each_declaration_keyword(f, *declaration_kind)?;
+                if let Some(keyword) = keyword {
+                    format_for_each_binding_keyword(f, *keyword)?;
                 }
 
                 write!(

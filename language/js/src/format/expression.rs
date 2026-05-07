@@ -1,8 +1,5 @@
 use crate::tree::Precedence;
-use crate::{
-    ArrayElement, Asynchrony, Expression, FunctionCardinality, Keyword, LocalNodeId,
-    PostfixPosition,
-};
+use crate::{ArrayElement, Asynchrony, Expression, Keyword, LocalNodeId, PostfixPosition};
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
@@ -75,8 +72,8 @@ fn format_expression_with_precedence<'ast>(
                 write!(f, [Keyword::Async, space()])?;
             }
 
-            // cardinality
-            if signature.cardinality == FunctionCardinality::Generator {
+            // generator
+            if signature.is_generator {
                 write!(f, [token("*")])?;
             }
 
