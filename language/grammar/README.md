@@ -23,10 +23,8 @@ just -f language/justfile test-grammar-typescript-tsx
 just -f language/justfile test-grammar-destack
 just -f language/justfile test-grammar-mir
 
-# coverage and specification sweeps
+# coverage
 just -f language/justfile test-grammar-destack-node-coverage
-just -f language/justfile test-grammar-specification-sweep
-just -f language/justfile test-grammar-specification-sweep-positive
 
 # full stack
 just -f language/justfile test-grammar
