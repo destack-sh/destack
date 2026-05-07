@@ -1550,7 +1550,7 @@ const LOOKUP_TABLE: uint8[] = comptime {
 };
 ```
 
-It is important to note that functions do not declare themselves as either "comptime" or "runtime": the same function can run at compile time when all inputs are static, and at runtime when some input is only known at runtime:
+It is important to note that functions do not need to declare themselves as either "comptime" or "runtime": the same function can run at compile time when all inputs are static, and at runtime when some input is only known at runtime:
 
 ```ds
 function factorial(n: int): int {
@@ -1624,14 +1624,22 @@ function blockCost<comptime Width: uint>(): int32 {
         return 2;
     }
 }
+
+function blockMultiply<comptime Width: uint>(a: int32, b: int32): int32 {
+    comptime {
+        assert isPowerOfTwo(Width);
+    }
+
+    // ...
+}
 ```
 
 Of course, comptime results must also be lowerable into the target artifact.
-Plain data such as numbers, strings, arrays, tuples, objects, structs, and enums are all fine, but dynamic runtime resources like pointers and handles and such are not allowed.
+Plain data such as numbers, strings, arrays, tuples, objects, structs, and enums are all fine, but dynamic runtime resources like pointers and handles and such don't work because we can't meaningfully serialize them.
 
 #### Dynamic Code
 
-Generating and evaluating arbitrary code is supported via `eval` and `new Function` at _compile-time_, just by passing the static term of a string to a comptime-scoped `eval` or `new Function` call:
+Generating and evaluating arbitrary code is supported via `eval` and `new Function` at _compile-time_ by passing the static term of a string:
 
 ```ds
 const source = comptime renderParser(grammar);
@@ -1803,23 +1811,21 @@ function interruptHandler(input: &[Sample]): Frame {
 
 ### Borrowing
 
-When working with owned and borrowed values, lifetimes are the compiler-known validity relations for borrowed access.
-In Destack, lifetimes are ordinary static parameters, and most code never names one: every `&T` gets an inferred lifetime from the expression being borrowed.
-Explicit lifetimes are only needed when a signature or type stores a borrow or relates an output borrow to an input borrow.
-Lifetime parameters are inferred from borrowed inputs and field initializers, but they do not create validity by themselves.
+There are a different ways of ensuring memory safety, and Destack (mostly) follows the Rust tradition of making lifetimes explicit regions for describing how `&T` and `T` relate.
+When borrowing a value with `&T`, the compiler needs to ensure that the borrow remains valid - that is, `T` must remain alive (must not be deallocated) while `&T` is active.
 
-Borrow checking - that is, ensuring a borrow to some reference remains valid - starts from two simple rules:
-
-1. a place cannot move or drop while an overlapping borrow is live;
-2. a borrow cannot outlive the owner or access path it came from.
-
-Borrowers then choose the level of access:
+Like in Rust, even when working with borrowed values, most of the time all lifetimes are inferred correctly and we don't need to think too much.
+Unlike in Rust, mutability is decoupled from borrowing: we can have a multiple mutable borrows `&T` and readonly borrows `&readonly T` of the same `T` _at the same time_, as long as there is no concurrent `&exclusive T` borrow (which mirrors Rust's `&mut T`). 
 
 | Form | Access |
 |------|--------|
 | `&readonly T` | may overlap, cannot mutate through the borrow |
 | `&T` | may overlap, can mutate through the borrow |
 | `&exclusive T` | cannot overlap another borrow of the same place, can mutate through the borrow |
+
+The entirety of borrow checking behavior - ensuring that a borrow to some reference remains valid - follows from two simple rules:
+1. a place cannot move or drop while an overlapping borrow is live;
+2. a borrow cannot outlive the owner or access path it came from.
 
 The rules are applied to access paths, so disjoint fields can be borrowed independently when the compiler can prove they do not overlap.
 Borrow lifetimes are also based on use, not block scope: once the last use of a borrow has passed, the original place can be borrowed differently, moved, or dropped again.
@@ -1863,7 +1869,8 @@ let exclusiveX = &exclusive point.x;
 *exclusiveX = 4;
 ```
 
-Escaping borrowed access must be tied to the input it came from:
+Sometimes we need to spell out explicit lifetimes explicitly to clarify the relationship between owners and borrowsers, and for that purpose we have explicit `<L: Lifetime>` and `Borrowed<T, L>` generics. 
+Instead of reifying lifetimes as special `'a`-style lifetime parameters, Destack's `<L: Lifetime>`s are standard static parameters that are also available to regular TypeScript-style type algebra:
 
 ```ds
 function read(user: &User): string {
@@ -1882,7 +1889,7 @@ struct View<T, L: Lifetime> {
 }
 ```
 
-The usual failure cases have straightforward fixes, and sometimes simpler than in Rust since we can just bail out to managed ownership:
+The usual failure cases of borrowing rules usually have straightforward solutions, and sometimes simpler than in Rust since we can just bail out to managed ownership:
 
 ```ds
 /* INVALID: borrow of a local owned Point cannot escape */
@@ -1908,37 +1915,6 @@ function borrowInput<L: Lifetime>(point: Borrowed<Point, L>): Borrowed<Point, L>
     // return borrowed access tied to an input lifetime
     return point;
 }
-```
-
-### Synchronisation
-
-The standard library provides the usual memory and synchronisation primitives on top of all of the above, without making them part of the ownership syntax itself.
-The main axes are:
- - **ownership sharing**: `Rc`, `Arc`
- - **interior mutability**: `Cell`, `RefCell`
- - **single-location atomic access**: `Atomic`
- - **critical sections**: `AsyncLock`, `SharedLock`
-
-| Primitive | Contract |
-|-----------|----------|
-| `Box<T>` | unique heap ownership for `T`, with deterministic drop when `T: Drop` |
-| `Rc<T>` | local shared ownership, non-atomic refcount, not transferable across Workers |
-| `Arc<T>` | shared ownership, atomic refcount, transferable when `T` satisfies the required `Send` / `Sync` bounds |
-| `Cell<T>` | local interior mutation by value, for small `Copy`-like state |
-| `RefCell<T>` | local runtime borrow checking for cases static borrowing cannot express cleanly |
-| `Atomic<T>` | lock-free scalar storage with explicit ordering and scope |
-| `AsyncLock<T>` | local mutual exclusion that suspends the current async task, not the Worker |
-| `SharedLock<T>` | shared mutual exclusion backed by atomics and runtime wait/wake support |
-
-
-Because ownership and placement are part of our type system, and we can query and gate based on contextual type information, Destack can provide more ergonomic aliases that are context-aware and do what you want 90% of the time:
-
-```ds
-type Ref<T> =
-    PlaceIn<T, "local"> extends "shared" ? Arc<T> : Rc<T>;
-
-type Lock<T> =
-    PlaceIn<T, "local"> extends "shared" ? SharedLock<T> : AsyncLock<T>;
 ```
 
 ### Algebra
@@ -2064,6 +2040,33 @@ declare const sharedBuffer: shared Buffer<string>;
 sharedBuffer.lock satisfies SharedLock;
 PlaceOf<typeof localBuffer> satisfies "ambient";
 PlaceOf<typeof sharedBuffer> satisfies "shared";
+```
+
+### Synchronisation
+
+The standard library provides the usual memory and synchronisation primitives on top of this unified memory system.
+The full details are documented in the library, but the basics should be familiar to anyone with a systems-level background.
+
+| Primitive | Contract |
+|-----------|----------|
+| `Box<T>` | unique heap ownership for `T`, with deterministic drop when `T: Drop` |
+| `Rc<T>` | local shared ownership, non-atomic refcount, not transferable across Workers |
+| `Arc<T>` | shared ownership, atomic refcount, transferable when `T` satisfies the required `Send` / `Sync` bounds |
+| `Cell<T>` | local interior mutation by value, for small `Copy`-like state |
+| `RefCell<T>` | local runtime borrow checking for cases static borrowing cannot express cleanly |
+| `Atomic<T>` | lock-free scalar storage with explicit ordering and scope |
+| `AsyncLock<T>` | local mutual exclusion that suspends the current async task, not the Worker |
+| `SharedLock<T>` | shared mutual exclusion backed by atomics and runtime wait/wake support |
+
+Because ownership and placement are part of our type system, and we can query and gate based on contextual type information using regular TypeScript algebra, we have a lot of flexibility and gain some nice ergonomics.
+For example, we can provide ergonomic context-aware aliases that conform to the way they are used:
+
+```ds
+type Ref<T> =
+    PlaceIn<T, "local"> extends "shared" ? Arc<T> : Rc<T>;
+
+type Lock<T> =
+    PlaceIn<T, "local"> extends "shared" ? SharedLock<T> : AsyncLock<T>;
 ```
 
 # Runtime
