@@ -1586,7 +1586,7 @@ Generated code is parsed and typechecked as `.ds`, attached to the same module g
 
 ### Macros
 
-Detack is statically typed and compiled, but supports decorators and macro like behavior via `comptime` execution and restricted "patching" of modules during compilation.
+Destack is statically typed and compiled, but supports decorators and macro-like behavior via `comptime` execution and restricted "patching" of modules during compilation.
 As an example, consider a `memoize` decorator that turns a function into a cached ("memoized") version of itself that stores results in a cache to avoid recomputation on equal arguments.
 
 ```ds
@@ -1600,40 +1600,38 @@ function load(id: UserId): Result<User, Error> {
 }
 ```
 
-As explained in the annotations and decorator piece, `memoize` by itself is just an inert annotation. 
-An annotation receives behavior by implementing the `Patcher` protocol.
-The `Patcher` protocol is based on three rules:
- 1. Patchers must not generate or implement other `Patcher`s to avoid recursion nightmares.
- 2. Patchers are run in two phases during compilation: `expand` may contribute new (externally visible) symbols, but lacks final type information, while `patch` may modify existing ones and "fill them in", but has final type information.
- 3. Patchers edit their containing module and any symbols within their scope they are responsible for with four well defined operations (`add`, `replace`, `rename`, `remove`).
+As explained in the annotations and decorator piece, `memoize` by itself is just an inert annotation and it only receives behavior by implementing the `Patcher`.
+The general `Patcher` protocol is based on three rules:
+ 1. Patchers must not generate or implement other `Patcher`s, so expansion cannot recursively change the macro system itself.
+ 2. Patchers are run in two phases during compilation: `expand` may contribute new (externally visible) symbols, but lacks final type information, while `materialize` may replace checked implementation details.
+ 3. Patchers edit their containing module through phase-specific context methods (`add`, `addChild`, `replace`, `rename`, `remove`).
 
 | Operation | Example | Meaning |
 |-----------|---------|---------|
-| `add` | `Patch.add({ scope, declaration })` | add a generated declaration to a scope |
-| `replace` | `Patch.replace({ symbol, declaration })` | redirect a symbol to a generated declaration |
-| `rename` | `Patch.rename({ symbol, name })` | keep a declaration but change its visible name |
-| `remove` | `Patch.remove({ symbol })` | remove a symbol from the visible declaration set |
+| `add` | `context.add(declaration)` | add a generated declaration to the current scope |
+| `addChild` | `context.addChild(member)` | add a generated child to the target declaration |
+| `replace` | `context.replace(declaration)` | redirect the target symbol to a generated declaration |
+| `rename` | `context.rename(name)` | keep the target declaration but change its visible name |
+| `remove` | `context.remove()` | remove the target symbol from the visible declaration set |
 
 Most basic wrapper-shaped decorators are just `rename` plus `add`.
 
 ```ds
-extension<F: FunctionDeclaration> of memoize implements Patcher<F>
+extension of memoize implements Patcher<FunctionDeclaration>
 {
-    static expand(target: F, context: PatchContext, config: this): Patch[] {
+    static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {
         const innerName = `${context.name}Inner`;
         const wrapper = comptime eval<Declaration>(ds`
             function ${context.name}(id: UserId): Result<User, Error>;
         `);
 
-        return [
-            Patch.rename({ symbol: context.symbol, name: innerName }),
-            Patch.add({ scope: context.scope, declaration: wrapper }),
-        ];
+        context.rename(innerName);
+        context.add(wrapper);
     }
 
-    static materialize(target: F, context: PatchContext, config: this): Patch[] {
-        const body = comptime eval<Expression>(ds`
-            {
+    static materialize(target: FunctionDeclaration, context: MaterializationContext, config: this): void {
+        const implementation = comptime eval<Declaration>(ds`
+            function ${context.name}(id: UserId): Result<User, Error> {
                 const cached = cache.get(id);
                 if (cached != undefined) {
                     return cached;
@@ -1645,9 +1643,7 @@ extension<F: FunctionDeclaration> of memoize implements Patcher<F>
             }
         `);
 
-        return [
-            Patch.body({ symbol: context.symbol, body }),
-        ];
+        context.replace(implementation);
     }
 }
 ```
