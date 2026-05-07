@@ -219,7 +219,7 @@ pub(crate) fn format_operator_expression<'ast>(
         }
 
         // value
-        Expression::ValueOf {
+        Expression::MoveOf {
             mutability,
             variance,
             right,
@@ -290,7 +290,7 @@ pub(crate) fn format_operator_expression<'ast>(
         }
 
         // reference
-        Expression::ReferenceOf {
+        Expression::BorrowOf {
             mutability,
             variance,
             right,

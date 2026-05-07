@@ -651,11 +651,11 @@ fn declarator_pattern_has_default_assignment(
 
         // transparent wrappers
         Pattern::Must(inner_pattern_id)
-        | Pattern::ReferenceOf {
+        | Pattern::BorrowOf {
             right: inner_pattern_id,
             ..
         }
-        | Pattern::ValueOf {
+        | Pattern::MoveOf {
             right: inner_pattern_id,
             ..
         } => declarator_pattern_has_default_assignment(context, *inner_pattern_id),
@@ -724,11 +724,11 @@ fn declarator_pattern_is_complex_destructuring(
 
         // transparent wrappers
         Pattern::Must(inner_pattern_id)
-        | Pattern::ReferenceOf {
+        | Pattern::BorrowOf {
             right: inner_pattern_id,
             ..
         }
-        | Pattern::ValueOf {
+        | Pattern::MoveOf {
             right: inner_pattern_id,
             ..
         } => declarator_pattern_is_complex_destructuring(context, *inner_pattern_id),

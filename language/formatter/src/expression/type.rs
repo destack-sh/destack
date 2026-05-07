@@ -70,8 +70,8 @@ fn type_needs_postfix_parentheses(
         | TypeExpression::Must { .. }
         | TypeExpression::AsComptime { .. }
         | TypeExpression::Not { .. }
-        | TypeExpression::ValueOf { .. }
-        | TypeExpression::ReferenceOf { .. }
+        | TypeExpression::OwnedOf { .. }
+        | TypeExpression::BorrowedOf { .. }
         | TypeExpression::PointerOf { .. }
         | TypeExpression::Infer { .. }
         | TypeExpression::Predicate { .. }
@@ -97,8 +97,8 @@ fn type_needs_index_object_parentheses(
         | TypeExpression::Must { .. }
         | TypeExpression::AsComptime { .. }
         | TypeExpression::Not { .. }
-        | TypeExpression::ValueOf { .. }
-        | TypeExpression::ReferenceOf { .. }
+        | TypeExpression::OwnedOf { .. }
+        | TypeExpression::BorrowedOf { .. }
         | TypeExpression::PointerOf { .. }
         | TypeExpression::Infer { .. }
         | TypeExpression::Predicate { .. }
@@ -1520,8 +1520,8 @@ fn type_parent_requires_parentheses(
         TypeExpression::Must { target_type }
         | TypeExpression::AsComptime { target_type }
         | TypeExpression::Not { target_type }
-        | TypeExpression::ValueOf { target_type, .. }
-        | TypeExpression::ReferenceOf { target_type, .. }
+        | TypeExpression::OwnedOf { target_type, .. }
+        | TypeExpression::BorrowedOf { target_type, .. }
         | TypeExpression::PointerOf { target_type, .. } => *target_type == child_id,
 
         // value space typeof keeps its own precedence
@@ -1704,8 +1704,8 @@ pub(crate) fn type_expression_needs_parentheses_in_parent(
         | TypeExpression::Must { .. }
         | TypeExpression::AsComptime { .. }
         | TypeExpression::Not { .. }
-        | TypeExpression::ValueOf { .. }
-        | TypeExpression::ReferenceOf { .. }
+        | TypeExpression::OwnedOf { .. }
+        | TypeExpression::BorrowedOf { .. }
         | TypeExpression::PointerOf { .. } => {
             type_parent_requires_parentheses(context, parent_id, parent_child_id)
         }
@@ -2606,7 +2606,7 @@ pub(crate) fn write_type_expression_body<'ast>(
         TypeExpression::Not { target_type } => {
             write!(f, [token("!"), target_type])?;
         }
-        TypeExpression::ValueOf {
+        TypeExpression::OwnedOf {
             mutability,
             variance,
             target_type,
@@ -2627,7 +2627,7 @@ pub(crate) fn write_type_expression_body<'ast>(
 
             write_prefix_type_operand(f, node_id, *target_type)?;
         }
-        TypeExpression::ReferenceOf {
+        TypeExpression::BorrowedOf {
             mutability,
             variance,
             target_type,
