@@ -1,8 +1,0 @@
-{
-  "compilerOptions": {
-    "paths": {
-      "@angular/compiler-cli/private/localize": ["./packages/compiler-cli/private/localize"],
-      "@angular/*": ["./packages/*/index"]
-    }
-  }
-}

@@ -24,9 +24,8 @@ The language suite taxonomy is:
 | **Conformance** | Conformance | Mixed | `fixtures/conformance/` | External compatibility suites organized by domain, with `ecma` remaining corpus-first and `web` and `node` becoming feature-first |
 | **Query** | Correctness | Quick | `fixtures/query/` | Query-layer IDE behavior |
 | **LSP** | Correctness | Quick | `fixtures/lsp/` | Applied editor scenarios over the real in-process LSP server |
-| **Resolver** | Correctness | Quick | `fixtures/resolver/` | Module and package resolution |
+| **Resolver** | Correctness | Quick | crate local tests | Module path resolution |
 | **Formatter** | Correctness | Quick | `fixtures/formatter/` | Formatting behavior on first-party fixtures |
-| **Ecosystem** | Conformance | Full | `fixtures/ecosystem/` | Curated TS-first Node, backend, and tooling packages |
 | **Stress** | Correctness | Full | `fixtures/stress/` | Shared hostile corpora and invariant-based consumers for parser, checker, query, and LSP |
 
 The shared conformance catalog is generated from `suite.json` and `status.json`.
@@ -124,8 +123,6 @@ just test-conformance
 just test-conformance-ecma
 just test-conformance-formatter
 just update-conformance-catalog
-just fetch-ecosystem
-just test-ecosystem
 
 # robustness
 just generate-stress

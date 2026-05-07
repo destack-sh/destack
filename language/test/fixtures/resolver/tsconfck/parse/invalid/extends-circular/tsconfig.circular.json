@@ -1,3 +1,0 @@
-{
-  "extends": "./deep/tsconfig.circular2.json"
-}

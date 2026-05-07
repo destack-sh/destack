@@ -1,8 +1,0 @@
-{
-  "include": ["./*.test.ts"],
-  "extends": "../tsconfig",
-  "compilerOptions": {
-    "composite": true,
-    "strict": false
-  }
-}

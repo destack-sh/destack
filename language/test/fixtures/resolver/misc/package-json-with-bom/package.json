@@ -1,7 +1,0 @@
-﻿{
-  "name": "fixture-test-package-json-with-bom",
-  "private": true,
-  "version": "0.0.0",
-  "main": "index.js",
-  "type": "module"
-}
