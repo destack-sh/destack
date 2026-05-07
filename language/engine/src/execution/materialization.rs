@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{FrameLayoutId, FrameSlotId, FrameStateId, SafepointId, SlotSource, ValueSource};
+use crate::{FrameLayoutId, FrameSlotId, SafepointId, SlotSource, ValueSource};
 
 /// One materialization id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -11,8 +11,6 @@ pub struct MaterializationId(pub u32);
 pub struct FrameMaterialization {
     /// The reconstructed frame layout.
     pub frame_layout: FrameLayoutId,
-    /// The reconstructed frame state.
-    pub frame_state: FrameStateId,
     /// Sources for reconstructed slots.
     pub sources: Vec<SlotSource>,
 }

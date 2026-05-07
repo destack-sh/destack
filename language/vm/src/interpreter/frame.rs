@@ -5,15 +5,15 @@ use serde::{Deserialize, Serialize};
 use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::program::{Function, FunctionTable, Program};
+use crate::program::{Function, Program};
 use crate::{RootSink, Word};
 use destack_heap::{HeapResult, RootSlot};
 
 /// Call frame in the interpreter.
+///
+/// The raw byte pointer is owned by the page-backed VM stack.
 #[derive(Debug)]
 pub struct Frame {
-    /// The logical frame layout.
-    pub(crate) frame_layout: engine::FrameLayoutId,
     /// Pointer to the lowered function.
     pub(crate) function_ptr: NonNull<Function>,
     /// The current block index in the lowered function.
@@ -33,12 +33,10 @@ pub struct Frame {
 /// Immutable frame image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FrameImage {
-    /// The logical frame layout.
-    pub frame_layout: engine::FrameLayoutId,
     /// The function being executed.
     pub function: mir::LocalNodeId<mir::Function>,
-    /// The current block being executed.
-    pub current_block: mir::LocalNodeId<mir::Block>,
+    /// The captured MIR block.
+    pub block: mir::LocalNodeId<mir::Block>,
     /// The program counter within the current block.
     pub pc: usize,
     /// The active exceptional call owned by this frame while one callee runs.
@@ -57,7 +55,6 @@ unsafe impl Send for Frame {}
 impl Frame {
     /// Create a new frame for a function.
     pub(crate) fn new(
-        frame_layout: engine::FrameLayoutId,
         function_ptr: NonNull<Function>,
         block: u32,
         layout: &engine::FrameLayout,
@@ -65,7 +62,6 @@ impl Frame {
         base: *mut u8,
     ) -> Self {
         Self {
-            frame_layout,
             function_ptr,
             block,
             pc: 0,
@@ -82,9 +78,15 @@ impl Frame {
         unsafe { self.function_ptr.as_ref().mir_function }
     }
 
-    /// Return the current MIR block id.
+    /// Return the logical frame layout id.
     #[inline(always)]
-    pub(crate) fn current_block(&self) -> mir::LocalNodeId<mir::Block> {
+    pub(crate) fn frame_layout(&self) -> engine::FrameLayoutId {
+        unsafe { self.function_ptr.as_ref().frame_layout }
+    }
+
+    /// Return the active MIR block id.
+    #[inline(always)]
+    pub(crate) fn block_id(&self) -> mir::LocalNodeId<mir::Block> {
         unsafe { self.function_ptr.as_ref().blocks[self.block as usize].mir_block }
     }
 
@@ -225,7 +227,10 @@ impl Frame {
     }
 
     /// Return the callable environment for this frame.
-    pub(crate) fn environment(&self, layout: &engine::FrameLayout) -> Result<Option<Word>, Error> {
+    pub(crate) fn load_environment(
+        &self,
+        layout: &engine::FrameLayout,
+    ) -> Result<Option<Word>, Error> {
         let Some(slot) = layout.environment() else {
             return Ok(None);
         };
@@ -234,12 +239,19 @@ impl Frame {
     }
 
     /// Store the callable environment for this frame.
-    pub(crate) fn set_environment(&mut self, layout: &engine::FrameLayout, value: Option<Word>) {
+    pub(crate) fn store_environment(
+        &mut self,
+        layout: &engine::FrameLayout,
+        value: Option<Word>,
+    ) -> Result<(), Error> {
         let Some(slot) = layout.environment() else {
-            return;
+            return Ok(());
         };
+        let value = value.ok_or(Error::InvalidInstruction)?;
 
-        self.write_word(slot, value.unwrap_or(Word::VOID));
+        self.write_word(slot, value);
+
+        Ok(())
     }
 
     /// Clear all values (but keep locals).
@@ -369,28 +381,7 @@ impl Frame {
         slot: &engine::FrameSlot,
         roots: &mut impl RootSink,
     ) -> Result<(), Error> {
-        let layout =
-            program
-                .layout_for_layout(slot.layout)
-                .ok_or_else(|| Error::InvariantViolation {
-                    context: format!(
-                        "missing frame slot layout for root scan: layout={:?}",
-                        slot.layout
-                    ),
-                })?;
-        if !layout.is_word() {
-            return program.visit_byte_roots(
-                program.type_for_layout(slot.layout),
-                self.slot_bytes(slot),
-                roots,
-            );
-        }
-
-        program.visit_value_root(
-            program.type_for_layout(slot.layout),
-            self.read_word(slot),
-            roots,
-        )
+        visit_frame_slot_roots(program, slot, self.slot_bytes(slot), roots)
     }
 
     /// Visit local root slots stored in one frame slot.
@@ -400,34 +391,12 @@ impl Frame {
         slot: &engine::FrameSlot,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
-        let layout =
-            program
-                .layout_for_layout(slot.layout)
-                .ok_or_else(|| Error::InvariantViolation {
-                    context: format!(
-                        "missing frame slot layout for heap roots: layout={:?}",
-                        slot.layout
-                    ),
-                })?;
-        if !layout.is_word() {
-            return program.visit_byte_root_slots(
-                program.type_for_layout(slot.layout),
-                self.slot_bytes_mut(slot),
-                visit,
-            );
-        }
-
-        if program.is_local_root_type(program.type_for_layout(slot.layout))? {
-            visit(RootSlot::Bytes(self.slot_bytes_mut(slot))).map_err(Error::from)?;
-        }
-
-        Ok(())
+        visit_frame_slot_root_slots(program, slot, self.slot_bytes_mut(slot), visit)
     }
 
     /// Clone this frame over one already forked stack address.
     pub(crate) fn clone_for_fork(&self, base: *mut u8) -> Self {
         Self {
-            frame_layout: self.frame_layout,
             function_ptr: self.function_ptr,
             block: self.block,
             pc: self.pc,
@@ -441,9 +410,8 @@ impl Frame {
     /// Capture one immutable frame image.
     pub(crate) fn image(&self) -> FrameImage {
         FrameImage {
-            frame_layout: self.frame_layout,
             function: self.function(),
-            current_block: self.current_block(),
+            block: self.block_id(),
             pc: self.pc,
             exceptional_call: self.exceptional_call.clone(),
             bytes: self.bytes().to_vec(),
@@ -453,38 +421,42 @@ impl Frame {
     /// Create one frame from an immutable image.
     pub(crate) fn from_image(
         image: &FrameImage,
-        functions: &FunctionTable,
-        layout: &engine::FrameLayout,
+        program: &Program,
         stack_offset: usize,
         base: *mut u8,
     ) -> RuntimeResult<Self> {
         // resolve the lowered function for this frame
-        let function_index = functions.index_for(image.function).ok_or_else(|| {
-            RuntimeError::new(Error::UndefinedFunction {
-                function: image.function,
-            })
-        })?;
+        let function_index = program
+            .functions
+            .local_index(image.function)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::UndefinedFunction {
+                    function: image.function,
+                })
+            })?;
 
-        let function_ptr = functions.pointer(function_index).ok_or_else(|| {
-            RuntimeError::new(Error::UndefinedFunction {
-                function: image.function,
-            })
-        })?;
+        let function_ptr = program
+            .functions
+            .pointer_by_index(function_index)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::UndefinedFunction {
+                    function: image.function,
+                })
+            })?;
 
-        // resolve the current block index from the lowered function
+        // resolve the captured block index from the lowered function
         let function_ref = unsafe { function_ptr.as_ref() };
         let block = function_ref
             .blocks
             .iter()
-            .position(|block| block.mir_block == image.current_block)
-            .ok_or_else(|| {
-                RuntimeError::new(Error::UndefinedBlock {
-                    block: image.current_block,
-                })
-            })?;
+            .position(|block| block.mir_block == image.block)
+            .ok_or_else(|| RuntimeError::new(Error::UndefinedBlock { block: image.block }))?;
+        let layout_id = unsafe { function_ptr.as_ref().frame_layout };
+        let layout = program
+            .frame_layout_by_id(layout_id)
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
         Ok(Self {
-            frame_layout: image.frame_layout,
             function_ptr,
             block: block as u32,
             pc: image.pc,
@@ -518,4 +490,73 @@ pub(crate) fn visit_materialized_slots(
     }
 
     Ok(())
+}
+
+/// Visit heap roots stored in one frame slot byte range.
+pub(crate) fn visit_frame_slot_roots(
+    program: &Program,
+    slot: &engine::FrameSlot,
+    bytes: &[u8],
+    roots: &mut impl RootSink,
+) -> Result<(), Error> {
+    let ty = program.type_for_layout(slot.layout);
+    let layout = program
+        .layout_for_id(slot.layout)
+        .ok_or_else(|| Error::InvariantViolation {
+            context: format!(
+                "missing frame slot layout for root scan: layout={:?}",
+                slot.layout
+            ),
+        })?;
+
+    // aggregate slots are scanned precisely from their byte payload
+    if !layout.is_word() {
+        return program.visit_byte_roots(ty, bytes, roots);
+    }
+
+    let word = read_frame_slot_word(bytes)?;
+
+    program.visit_value_root(ty, word, roots)
+}
+
+/// Visit mutable local roots stored in one frame slot byte range.
+pub(crate) fn visit_frame_slot_root_slots(
+    program: &Program,
+    slot: &engine::FrameSlot,
+    bytes: &mut [u8],
+    visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+) -> Result<(), Error> {
+    let ty = program.type_for_layout(slot.layout);
+    let layout = program
+        .layout_for_id(slot.layout)
+        .ok_or_else(|| Error::InvariantViolation {
+            context: format!(
+                "missing frame slot layout for heap roots: layout={:?}",
+                slot.layout
+            ),
+        })?;
+
+    // aggregate slots may contain several local roots
+    if !layout.is_word() {
+        return program.visit_byte_root_slots(ty, bytes, visit);
+    }
+
+    // scalar slots are mutable roots only for local heap references
+    if program.is_local_root_type(ty)? {
+        visit(RootSlot::Bytes(bytes)).map_err(Error::from)?;
+    }
+
+    Ok(())
+}
+
+/// Read one word from a frame slot byte range.
+fn read_frame_slot_word(bytes: &[u8]) -> Result<Word, Error> {
+    if bytes.len() < Word::BYTE_LEN {
+        return Err(Error::InvalidInstruction);
+    }
+
+    let mut raw = [0u8; Word::BYTE_LEN];
+    raw.copy_from_slice(&bytes[..Word::BYTE_LEN]);
+
+    Ok(Word::from_bits(u64::from_le_bytes(raw)))
 }
