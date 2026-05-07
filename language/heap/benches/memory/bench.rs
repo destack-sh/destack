@@ -1,6 +1,9 @@
 mod address;
 mod allocation;
-mod common;
+mod config;
+mod graph;
+mod heap;
+mod space;
 mod workload;
 
 use criterion::{criterion_group, criterion_main};
