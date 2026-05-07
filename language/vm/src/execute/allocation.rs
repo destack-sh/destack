@@ -4,7 +4,7 @@ use crate::diagnostic::Error;
 use crate::interpreter::Machine;
 use crate::program::{AllocationLayoutId, Instruction, ProjectionId, SliceProjectionId};
 use crate::{StackPointer, Word};
-use destack_heap::{AllocationShape, HeapError, Payload, repeated_layout};
+use destack_heap::{AllocationShape, HeapError, Payload, RawAllocationShape, repeated_layout};
 
 /// Decode one power-of-two alignment from an instruction field.
 fn decode_alignment(alignment_log2: u32) -> usize {
@@ -210,9 +210,11 @@ pub(crate) fn execute_allocate_raw(
     let dest = instruction.a;
     let byte_len = instruction.b as u64 | ((instruction.c as u64) << 32);
     let byte_len = byte_len as usize;
+    let alignment = decode_alignment(instruction.d);
+    let shape = RawAllocationShape::new(byte_len, alignment);
 
     // allocate raw heap bytes
-    let pointer = machine.heap_mut().allocate_raw(byte_len, Payload::Zeroed);
+    let pointer = machine.heap_mut().allocate_raw(shape, Payload::Zeroed);
     let pointer = match pointer {
         Ok(pointer) => pointer,
         Err(error) => return Err(Error::from(error)),
@@ -232,9 +234,11 @@ pub(crate) fn execute_allocate_shared_raw(
     let dest = instruction.a;
     let byte_len = instruction.b as u64 | ((instruction.c as u64) << 32);
     let byte_len = byte_len as usize;
+    let alignment = decode_alignment(instruction.d);
+    let shape = RawAllocationShape::new(byte_len, alignment);
 
     // allocate shared raw heap bytes
-    let pointer = machine.shared().allocate_raw(byte_len, Payload::Zeroed);
+    let pointer = machine.shared().allocate_raw(shape, Payload::Zeroed);
     let pointer = match pointer {
         Ok(pointer) => pointer,
         Err(error) => return Err(Error::from(error)),

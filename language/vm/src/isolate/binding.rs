@@ -8,7 +8,8 @@ use crate::diagnostic::Error;
 use crate::program::{Layout, Program};
 use crate::{SharedHeap, Word};
 use destack_heap::{
-    Heap, HeapReference, Payload, RawPointer, SharedRawBudget, SharedRawLimits, SharedRawPointer,
+    Heap, HeapReference, Payload, RawAllocationShape, RawPointer, SharedRawBudget, SharedRawLimits,
+    SharedRawPointer,
 };
 use destack_mir as mir;
 
@@ -173,14 +174,18 @@ impl<'ctx> BindingContext<'ctx> {
     /// Allocate a raw heap byte buffer and return its pointer.
     pub fn allocate_raw_bytes(&mut self, bytes: &[u8]) -> Result<RawPointer, Error> {
         let heap = self.heap();
-        heap.allocate_raw(bytes.len(), Payload::Bytes(bytes))
+        let shape = RawAllocationShape::bytes(bytes.len());
+
+        heap.allocate_raw(shape, Payload::Bytes(bytes))
             .map_err(Error::from)
     }
 
     /// Allocate one zeroed raw heap byte buffer and return its pointer.
     pub fn allocate_zeroed_raw_bytes(&mut self, byte_len: usize) -> Result<RawPointer, Error> {
         let heap = self.heap();
-        heap.allocate_raw(byte_len, Payload::Zeroed)
+        let shape = RawAllocationShape::bytes(byte_len);
+
+        heap.allocate_raw(shape, Payload::Zeroed)
             .map_err(Error::from)
     }
 
@@ -203,12 +208,13 @@ impl<'ctx> BindingContext<'ctx> {
 
     /// Allocate a shared heap byte region and return its pointer.
     pub fn allocate_shared_bytes(&mut self, bytes: &[u8]) -> Result<SharedRawPointer, Error> {
-        let retained_delta = self.shared().raw_alloc_retained_byte_delta(bytes.len());
+        let shape = RawAllocationShape::bytes(bytes.len());
+        let retained_delta = self.shared().raw_alloc_retained_byte_delta(shape);
         self.shared_raw_budget()
             .check_retained_byte_delta(retained_delta)?;
 
         self.shared()
-            .allocate_raw(bytes.len(), Payload::Bytes(bytes))
+            .allocate_raw(shape, Payload::Bytes(bytes))
             .map_err(Error::from)
     }
 

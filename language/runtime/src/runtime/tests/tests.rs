@@ -8,7 +8,7 @@ use destack_source::FileId;
 use destack_workspace::{RuntimeOptions, SchedulerOptions};
 use {destack_engine as engine, destack_heap as heap, destack_vm as vm};
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{
     HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState,
     Session,
@@ -27,8 +27,8 @@ use crate::runtime::scheduler::{
 use crate::runtime::time::{HostClockSource, Nanos};
 use crate::runtime::world::{Branch, CheckpointId, Revision, WorldEntityKindDefinition};
 use crate::runtime::{
-    BindingCallContext, DropCounts, RuntimeId, RuntimeSharedHeap, TickOutcome, Worker, WorkerId,
-    World, WorldScope,
+    BindingCallContext, DropCounts, Runtime, RuntimeId, RuntimeSharedHeap, TickOutcome, Worker,
+    WorkerId, World, WorldScope,
 };
 
 /// Test host clock source for deterministic host-time runtime tests.
@@ -134,7 +134,7 @@ b1(v1: int32, v2: int32):
 }
 "#;
 
-/// VM-backed test engine factory.
+/// VM-backed test engine builder.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct TestEngine {
     /// MIR text used to build the VM engine.
@@ -439,7 +439,10 @@ impl TestWorld {
 
         worker
             .heap
-            .allocate_raw(bytes.len(), heap::Payload::Bytes(bytes))
+            .allocate_raw(
+                heap::RawAllocationShape::bytes(bytes.len()),
+                heap::Payload::Bytes(bytes),
+            )
             .expect("raw heap allocation should succeed")
     }
 
@@ -539,7 +542,7 @@ impl TestWorld {
     }
 }
 
-impl crate::runtime::Runtime {
+impl Runtime {
     /// Run one closure with one worker and its runtime context.
     pub(super) fn with_worker_context<R>(
         &mut self,
@@ -901,7 +904,7 @@ impl TestRuntime {
             &mut poller,
         )?;
         let Some(output) = output else {
-            return Err(crate::diagnostic::RuntimeError::EventLoopIdle { task_id }.boxed());
+            return Err(RuntimeError::EventLoopIdle { task_id }.boxed());
         };
 
         Ok(output)
