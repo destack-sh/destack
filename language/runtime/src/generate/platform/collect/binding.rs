@@ -5,7 +5,7 @@ use destack_artifact::Platform;
 use destack_compiler::Compiler;
 use destack_core::StringPool;
 use destack_dir::{
-    self as dir, Annotation, Argument, Declaration, Expression, GlobalSymbolId, LanguageSymbol,
+    self as dir, Annotation, Argument, Declaration, Expression, GlobalSymbolId, LanguageItem,
     ScalarLiteral,
 };
 use destack_source::ModuleId;
@@ -116,7 +116,7 @@ pub(crate) fn collect_platform_bindings(
     let binding_symbols = binding_type_symbols(context, profile_id);
     let binding_decorator_symbol = context
         .language_environment(profile_id)
-        .item(LanguageSymbol::Binding)
+        .item(LanguageItem::Binding)
         .unwrap_or_else(|| panic!("missing Binding symbol for profile {profile_id:?}"));
 
     // collect bindings by domain

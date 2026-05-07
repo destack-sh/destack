@@ -9,6 +9,7 @@ use destack_artifact::{
 };
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_linter::Linter;
+use destack_query::Query;
 use destack_session::Session;
 use destack_source::{DiagnosticCollection, DiagnosticSeverity, FileSystem, PhysicalFileSystem};
 use destack_workspace::{HostEnvironment, Profile, ProfileId, Ref, Repository, Revision};
@@ -129,6 +130,7 @@ impl RuntimeGenerator {
             revision,
             compiler.clone(),
             Arc::new(Linter::new(repository.clone())),
+            Arc::new(Query::new(repository.clone())),
             1,
             None,
         )
