@@ -1,12 +1,12 @@
 use std::path::Path;
 
 use destack_ast::{
-    DependencyItem, DependencyKind, DependencyMode as AstDependencyMode, Expression, ImportTarget,
-    ScalarLiteral, TokenType, Tree, TypeExpression,
+    DependencyBinding as AstDependencyBinding, DependencyItem, DependencySpace, Expression,
+    ImportTarget, ScalarLiteral, TokenType, Tree, TypeExpression,
 };
 use destack_core::StringId;
 use destack_dir::{
-    Declaration, DependencyItem as DirDependencyItem, DependencyMode as DirDependencyMode,
+    Declaration, DependencyBinding as DirDependencyBinding, DependencyItem as DirDependencyItem,
     LocalNodeId, LocalSymbolId, NodeType, SymbolSpace, SymbolType,
 };
 use destack_source::{Edit, FileId, LanguageType, PathExt, Span};
@@ -49,10 +49,10 @@ pub(crate) struct ImportClauseBounds {
     pub end_boundary: Span,
 }
 
-/// Return one dependency item's mode when the item is valid.
-fn dependency_item_mode(item: &DependencyItem) -> Option<AstDependencyMode> {
+/// Return one dependency item's binding when the item is valid.
+fn dependency_item_binding(item: &DependencyItem) -> Option<AstDependencyBinding> {
     match item {
-        DependencyItem::Item { mode, .. } => Some(*mode),
+        DependencyItem::Item { binding, .. } => Some(*binding),
         DependencyItem::Error => None,
     }
 }
@@ -227,19 +227,19 @@ pub(crate) fn is_dependency_alias_for_target(
     // check for an alias that targets the canonical symbol
     let dir_tree = dir.tree();
     let item = dir_tree.get::<DirDependencyItem>(item_id);
-    let (alias, target_symbol, mode) = match item {
+    let (alias, target_symbol, binding) = match item {
         DirDependencyItem::Local {
             alias,
             target_symbol,
-            mode,
+            binding,
             ..
         }
         | DirDependencyItem::Remote {
             alias,
             target_symbol,
-            mode,
+            binding,
             ..
-        } => (alias, target_symbol, mode),
+        } => (alias, target_symbol, binding),
         _ => return false,
     };
 
@@ -249,7 +249,7 @@ pub(crate) fn is_dependency_alias_for_target(
     }
 
     // allow default imports to be renamed with their targets
-    if *mode == DirDependencyMode::Default {
+    if *binding == DirDependencyBinding::Default {
         return false;
     }
 
@@ -287,12 +287,18 @@ fn dependency_item_local_import_alias_name(
     match item {
         // default imports: use the local binding name
         DirDependencyItem::Remote {
-            mode, name, alias, ..
+            binding,
+            name,
+            alias,
+            ..
         }
         | DirDependencyItem::UnresolvedRemote {
-            mode, name, alias, ..
+            binding,
+            name,
+            alias,
+            ..
         } => {
-            if *mode == DirDependencyMode::Default {
+            if *binding == DirDependencyBinding::Default {
                 name.as_ref().map(|name| name.string()).or(*alias)
             } else {
                 *alias
@@ -300,8 +306,8 @@ fn dependency_item_local_import_alias_name(
         }
 
         // local dependency items are not import aliases
-        DirDependencyItem::Local { mode, alias, .. } => {
-            if *mode == DirDependencyMode::Default {
+        DirDependencyItem::Local { binding, alias, .. } => {
+            if *binding == DirDependencyBinding::Default {
                 None
             } else {
                 *alias
@@ -316,9 +322,9 @@ fn dependency_item_default_import_alias_name(
     item: &DirDependencyItem,
 ) -> Option<destack_core::StringId> {
     match item {
-        DirDependencyItem::Remote { mode, name, .. }
-        | DirDependencyItem::UnresolvedRemote { mode, name, .. } => {
-            if *mode != DirDependencyMode::Default {
+        DirDependencyItem::Remote { binding, name, .. }
+        | DirDependencyItem::UnresolvedRemote { binding, name, .. } => {
+            if *binding != DirDependencyBinding::Default {
                 return None;
             }
 
@@ -396,17 +402,17 @@ pub(crate) fn import_clause_bounds(
     })
 }
 
-/// The mode for a new import edit.
+/// The import space for a new import edit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ImportEditMode {
+pub(crate) enum ImportEditSpace {
     /// A value import.
     Value,
     /// A type only import.
     Type,
 }
 
-impl ImportEditMode {
-    /// Resolve the auto import edit mode for one requested space and exported symbol space.
+impl ImportEditSpace {
+    /// Resolve the auto import edit space for one requested space and exported symbol space.
     pub(crate) fn for_auto_import(
         requested_space: Option<destack_dir::SymbolSpace>,
         symbol_space: destack_dir::SymbolSpace,
@@ -428,25 +434,25 @@ impl ImportEditMode {
     }
 }
 
-/// Resolve a module specifier and dependency kind for an AST expression.
+/// Resolve a module specifier and dependency space for an AST expression.
 pub(crate) fn module_specifier_in_expression(
     tree: &Tree,
     expression: &Expression,
-) -> Option<(StringId, DependencyKind)> {
+) -> Option<(StringId, DependencySpace)> {
     match expression {
         Expression::Import {
             target: ImportTarget::String(target),
-            kind,
+            space,
             ..
-        } => Some((*target, *kind)),
-        Expression::Export { target, kind, .. } => target.map(|target| (target, *kind)),
+        } => Some((*target, *space)),
+        Expression::Export { target, space, .. } => target.map(|target| (target, *space)),
         Expression::Type { value } => {
             let TypeExpression::Import { target, .. } = tree.get(*value) else {
                 return None;
             };
 
             if let Expression::ScalarLiteral(ScalarLiteral::String(target)) = tree.get(*target) {
-                Some((*target, DependencyKind::Type))
+                Some((*target, DependencySpace::Type))
             } else {
                 None
             }
@@ -479,7 +485,7 @@ pub(crate) fn collect_existing_imports(
         if let Expression::Import {
             target,
             items,
-            kind,
+            space,
             ..
         } = expr
         {
@@ -487,16 +493,16 @@ pub(crate) fn collect_existing_imports(
                 continue;
             };
 
-            // resolve import path, span, and kind
+            // resolve import path, span, and space
             let path = ctx.ast().strings().get(*target).to_string();
             let span = ctx.ast().tree().source_map.get(node_id.id);
-            let is_type_only = *kind == DependencyKind::Type;
+            let is_type_only = *space == DependencySpace::Type;
             let items = items.as_deref().unwrap_or(&[]);
 
             // check if it's a namespace import
             let is_namespace = items.iter().any(|item_id| {
                 let item = ctx.ast().tree().get(*item_id);
-                dependency_item_mode(item) == Some(AstDependencyMode::Namespace)
+                dependency_item_binding(item) == Some(AstDependencyBinding::Namespace)
             });
 
             // collect specifier names
@@ -504,7 +510,7 @@ pub(crate) fn collect_existing_imports(
                 .iter()
                 .filter_map(|item_id| {
                     let item = ctx.ast().tree().get(*item_id);
-                    if dependency_item_mode(item) == Some(AstDependencyMode::Namespace) {
+                    if dependency_item_binding(item) == Some(AstDependencyBinding::Namespace) {
                         return None;
                     }
 
@@ -539,17 +545,17 @@ pub(crate) fn collect_existing_imports(
     imports
 }
 
-/// Build edit(s) to add an import for a symbol with a mode.
+/// Build edit(s) to add an import for a symbol.
 ///
 /// If there's an existing import from the same path, merges into it.
 /// Otherwise, inserts a new import at the appropriate position based on import groups.
-pub(crate) fn build_import_edits_with_mode(
+pub(crate) fn build_import_edits(
     repository: &Repository,
     revision: Revision,
     file_id: FileId,
     symbol_name: &str,
     import_path: &str,
-    mode: ImportEditMode,
+    import_space: ImportEditSpace,
 ) -> Vec<Edit> {
     // collect existing imports for the file
     let existing_imports = collect_existing_imports(repository, revision, file_id);
@@ -568,14 +574,14 @@ pub(crate) fn build_import_edits_with_mode(
                 symbol_name,
                 import_path,
                 &existing_imports,
-                mode,
+                import_space,
             );
         }
 
         // decide whether to merge into the existing import
-        let can_merge = match mode {
-            ImportEditMode::Value => !existing.is_type_only,
-            ImportEditMode::Type => true,
+        let can_merge = match import_space {
+            ImportEditSpace::Value => !existing.is_type_only,
+            ImportEditSpace::Type => true,
         };
 
         if can_merge {
@@ -594,7 +600,13 @@ pub(crate) fn build_import_edits_with_mode(
     }
 
     // no existing import, add new one
-    build_new_import_edit(file_id, symbol_name, import_path, &existing_imports, mode)
+    build_new_import_edit(
+        file_id,
+        symbol_name,
+        import_path,
+        &existing_imports,
+        import_space,
+    )
 }
 
 /// Build a display path for an import.
@@ -752,15 +764,15 @@ fn build_new_import_edit(
     symbol_name: &str,
     import_path: &str,
     existing_imports: &[ExistingImport],
-    mode: ImportEditMode,
+    import_space: ImportEditSpace,
 ) -> Vec<Edit> {
     // resolve the import group
     let new_group = ImportGroup::from_path(import_path);
 
-    // choose the import text for the mode
-    let import_text = match mode {
-        ImportEditMode::Value => format!("import {{ {symbol_name} }} from \"{import_path}\";\n"),
-        ImportEditMode::Type => {
+    // choose the import text for the space
+    let import_text = match import_space {
+        ImportEditSpace::Value => format!("import {{ {symbol_name} }} from \"{import_path}\";\n"),
+        ImportEditSpace::Type => {
             format!("import type {{ {symbol_name} }} from \"{import_path}\";\n")
         }
     };

@@ -217,8 +217,8 @@ fn document_links_with_ast(
         for expression_id in ast.tree().iter_nodes::<ast::Expression>() {
             let expression = ast.tree().get(expression_id);
 
-            // resolve the module specifier and dependency kind
-            let Some((specifier, _kind)) = module_specifier_in_expression(ast.tree(), expression)
+            // resolve the module specifier and dependency space
+            let Some((specifier, _space)) = module_specifier_in_expression(ast.tree(), expression)
             else {
                 continue;
             };

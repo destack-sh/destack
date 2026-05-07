@@ -155,7 +155,7 @@ pub fn supertypes(
     };
     let supertype_ids: Vec<GlobalSymbolId> = {
         let types = ctx.dir().types();
-        let Some(lineage) = types.get_lineage_for_symbol(canonical_id) else {
+        let Some(lineage) = types.symbol_lineage(canonical_id) else {
             return Vec::new();
         };
 

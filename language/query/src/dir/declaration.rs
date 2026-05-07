@@ -5,6 +5,7 @@ use destack_dir::{self as dir, Declaration, Name};
 pub(crate) fn declaration_name(declaration: &Declaration) -> Option<Name> {
     match declaration {
         Declaration::Global(_) => None,
+        Declaration::Module(_) => None,
         Declaration::Namespace(declaration) => Some(declaration.name),
         Declaration::Type(declaration) => Some(declaration.name),
         Declaration::ImportAlias(declaration) => Some(declaration.name),
@@ -17,10 +18,11 @@ pub(crate) fn declaration_name(declaration: &Declaration) -> Option<Name> {
     }
 }
 
-/// Resolve the export mode when one exists.
-pub(crate) fn declaration_export(declaration: &Declaration) -> Option<dir::ExportMode> {
+/// Resolve the export kind when one exists.
+pub(crate) fn declaration_export(declaration: &Declaration) -> Option<dir::ExportKind> {
     match declaration {
         Declaration::Global(_) => None,
+        Declaration::Module(_) => None,
         Declaration::Namespace(declaration) => declaration.export,
         Declaration::Type(declaration) => declaration.export,
         Declaration::ImportAlias(declaration) => declaration.export,
@@ -36,16 +38,17 @@ pub(crate) fn declaration_export(declaration: &Declaration) -> Option<dir::Expor
 /// Return whether the declaration is ambient.
 pub(crate) fn declaration_is_ambient(declaration: &Declaration) -> bool {
     match declaration {
-        Declaration::Global(declaration) => declaration.ambient.is_ambient(),
-        Declaration::Namespace(declaration) => declaration.ambient.is_ambient(),
-        Declaration::Type(declaration) => declaration.ambient.is_ambient(),
-        Declaration::ImportAlias(declaration) => declaration.ambient.is_ambient(),
-        Declaration::Struct(declaration) => declaration.ambient.is_ambient(),
-        Declaration::Class(declaration) => declaration.ambient.is_ambient(),
-        Declaration::Enum(declaration) => declaration.ambient.is_ambient(),
-        Declaration::Interface(declaration) => declaration.ambient.is_ambient(),
-        Declaration::Extension(declaration) => declaration.ambient.is_ambient(),
-        Declaration::Function(declaration) => declaration.ambient.is_ambient(),
+        Declaration::Global(declaration) => declaration.is_ambient,
+        Declaration::Module(_) => false,
+        Declaration::Namespace(declaration) => declaration.is_ambient,
+        Declaration::Type(declaration) => declaration.is_ambient,
+        Declaration::ImportAlias(declaration) => declaration.is_ambient,
+        Declaration::Struct(declaration) => declaration.is_ambient,
+        Declaration::Class(declaration) => declaration.is_ambient,
+        Declaration::Enum(declaration) => declaration.is_ambient,
+        Declaration::Interface(declaration) => declaration.is_ambient,
+        Declaration::Extension(declaration) => declaration.is_ambient,
+        Declaration::Function(declaration) => declaration.is_ambient,
     }
 }
 
@@ -60,9 +63,12 @@ pub(crate) fn declaration_is_abstract(declaration: &Declaration) -> bool {
 
 /// Resolve a display name for a declaration.
 pub(crate) fn declaration_display_name(strings: &StringPool, declaration: &Declaration) -> String {
-    // default global declarations to the keyword label
+    // default block declarations to keyword labels
     if matches!(declaration, Declaration::Global { .. }) {
         return "global".to_string();
+    }
+    if matches!(declaration, Declaration::Module { .. }) {
+        return "module".to_string();
     }
 
     // prefer the explicit declaration name

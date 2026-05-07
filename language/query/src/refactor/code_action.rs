@@ -14,8 +14,8 @@ use crate::assist::{CompletionContext, completion_input_at_offset};
 use crate::ast::{get_module_by_file_id, is_simple_identifier, token_at_offset};
 use crate::core::{import_sort_key, query_context, repository_import_relevance};
 use crate::dir::{
-    ImportEditMode, build_import_display_path, build_import_edits_with_mode,
-    matches_symbol_space_filter, search_importable_symbols,
+    ImportEditSpace, build_import_display_path, build_import_edits, matches_symbol_space_filter,
+    search_importable_symbols,
 };
 use crate::format::{ImportDeclarationKey, categorize_import, sort_import_declaration_indices};
 use destack_dir::SymbolSpace;
@@ -498,17 +498,17 @@ fn collect_auto_import_actions_for_symbol(
     });
 
     for (_, export, display_path) in ranked_candidates {
-        let import_mode =
-            ImportEditMode::for_auto_import(space_filter, export.space, current_language_type);
+        let import_space =
+            ImportEditSpace::for_auto_import(space_filter, export.space, current_language_type);
 
         // build import edits and skip already imported symbols
-        let import_edits = build_import_edits_with_mode(
+        let import_edits = build_import_edits(
             repository,
             revision,
             file,
             symbol_name,
             &display_path,
-            import_mode,
+            import_space,
         );
         if import_edits.is_empty() {
             continue;

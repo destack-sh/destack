@@ -46,7 +46,7 @@ fn assign_pattern_contains_expression(
             assign_pattern_contains_expression(tree, *pattern, expression_id)
                 || *value == expression_id
         }
-        ast::AssignPattern::Array { fields } | ast::AssignPattern::Object { fields } => {
+        ast::AssignPattern::Sequence { fields } | ast::AssignPattern::Object { fields } => {
             fields.iter().any(|field_id| {
                 assign_pattern_field_contains_expression(tree, *field_id, expression_id)
             })
@@ -612,7 +612,7 @@ fn collect_pattern_binding_names(
             collect_pattern_binding_names(ast_tree, *right, names);
         }
         ast::Pattern::Tuple { fields }
-        | ast::Pattern::Array { fields }
+        | ast::Pattern::Sequence { fields }
         | ast::Pattern::Object { fields }
         | ast::Pattern::TaggedTuple { fields, .. }
         | ast::Pattern::TaggedObject { fields, .. } => {

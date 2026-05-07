@@ -941,7 +941,7 @@ fn pattern_symbol_at_offset(
         Pattern::TypeExpression { .. } => None,
         Pattern::Tuple { fields }
         | Pattern::TaggedTuple { fields, .. }
-        | Pattern::Array { fields }
+        | Pattern::Sequence { fields }
         | Pattern::Object { fields }
         | Pattern::TaggedObject { fields, .. } => {
             for field_id in fields {

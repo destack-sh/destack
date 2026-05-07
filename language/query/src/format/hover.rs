@@ -218,7 +218,7 @@ pub fn format_local_variable_hover(
     let name = name.unwrap_or("<anonymous>");
 
     // resolve the local type when available
-    if let Some(type_id) = types.get_type_id_for_symbol(symbols, symbol_id) {
+    if let Some(type_id) = types.symbol_type_id(symbols, symbol_id) {
         let type_text = format_local_type(type_id, types, repository, revision, strings);
         format!("let {name}: {type_text}")
     } else {

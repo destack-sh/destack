@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use destack_ast as ast;
 use destack_dir::{
-    self as dir, DependencyItem, DependencyKind, DependencyMode, Expression, GlobalSymbolId,
+    self as dir, DependencyBinding, DependencyItem, DependencySpace, Expression, GlobalSymbolId,
     NodeType, Resolution,
 };
 use destack_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, ProfileId, Span};
@@ -78,7 +78,7 @@ pub(crate) fn build_reference_targets_for_module(
 
         let resolution_id = dir
             .types()
-            .get_resolution_for_node(expression_id.into_global_any(dir.module_id()));
+            .node_resolution_id(expression_id.into_global_any(dir.module_id()));
         if let Some(resolution_id) = resolution_id {
             let resolution = dir.types().get_resolution(resolution_id);
             match resolution {
@@ -746,8 +746,7 @@ fn member_resolution_matches_reference_target(
     canonical_id: GlobalSymbolId,
 ) -> bool {
     let types = dir.types();
-    let resolution_id =
-        types.get_resolution_for_node(expression_id.into_global_any(dir.module_id()));
+    let resolution_id = types.node_resolution_id(expression_id.into_global_any(dir.module_id()));
     let Some(resolution_id) = resolution_id else {
         return false;
     };
@@ -886,8 +885,8 @@ fn namespace_import_aliases_for_module(
         .iter_nodes_of_type::<DependencyItem>()
         .filter_map(|(_item_id, item)| {
             let DependencyItem::Remote {
-                mode,
-                kind,
+                binding,
+                space,
                 symbol,
                 target_module,
                 ..
@@ -897,13 +896,13 @@ fn namespace_import_aliases_for_module(
             };
 
             // require namespace value imports with a concrete symbol
-            if *mode != DependencyMode::Namespace || *kind != DependencyKind::Value {
+            if *binding != DependencyBinding::Namespace || *space != DependencySpace::Value {
                 return None;
             }
 
             let local_symbol = symbol.as_ref()?;
             let target_module_id = target_module
-                .for_kind(*kind)
+                .for_space(*space)
                 .and_then(|target| target.module_id())?;
             if target_module_id != module_id {
                 return None;

@@ -409,7 +409,7 @@ fn collect_pattern_bindings(
         }
         dir::Pattern::Tuple { fields }
         | dir::Pattern::TaggedTuple { fields, .. }
-        | dir::Pattern::Array { fields }
+        | dir::Pattern::Sequence { fields }
         | dir::Pattern::Object { fields }
         | dir::Pattern::TaggedObject { fields, .. } => {
             for field_id in fields {
@@ -494,7 +494,7 @@ fn pattern_access_path(
         }
         dir::Pattern::Tuple { fields }
         | dir::Pattern::TaggedTuple { fields, .. }
-        | dir::Pattern::Array { fields } => {
+        | dir::Pattern::Sequence { fields } => {
             pattern_access_path_indexed(strings, dir_tree, fields, target_symbol)
         }
         dir::Pattern::Union { patterns } => {
@@ -1088,7 +1088,7 @@ fn assign_pattern_target_symbol(
         dir::AssignPattern::Assign { pattern, .. } => {
             assign_pattern_target_symbol(dir_tree, *pattern)
         }
-        dir::AssignPattern::Array { .. } | dir::AssignPattern::Object { .. } => None,
+        dir::AssignPattern::Sequence { .. } | dir::AssignPattern::Object { .. } => None,
     }
 }
 

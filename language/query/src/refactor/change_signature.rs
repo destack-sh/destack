@@ -211,7 +211,7 @@ fn constructor_owner_symbol(
     };
     let member = dir_tree.get::<dir::Member>(member_id);
     let signature = member.signature()?;
-    if signature.mode != Some(dir::FunctionMode::Constructor) {
+    if signature.role != Some(dir::FunctionRole::Constructor) {
         return None;
     }
 
