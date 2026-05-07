@@ -23,8 +23,8 @@ pub struct ProfileFlags {
     pub no_internal_import: bool,
     /// Require static dispatch.
     pub no_implicit_dynamic_dispatch: bool,
-    /// Forbid exceptions.
-    pub no_exceptions: bool,
+    /// Forbid `throw`.
+    pub no_throw: bool,
 }
 
 /// Canonical profile key for semantic identity.
@@ -52,8 +52,6 @@ pub struct ProfileKey {
     pub debug: bool,
     /// Test flag exposed to `import.meta`.
     pub test: bool,
-    /// Skip declaration diagnostics in compatibility mode.
-    pub skip_lib_check: bool,
     /// Compile-time environment identity for `import.meta.env`.
     pub env: HostEnvironmentKey,
     /// Flags that affect semantic behavior.
@@ -75,7 +73,6 @@ impl ProfileKey {
         derive: Vec<String>,
         debug: bool,
         test: bool,
-        skip_lib_check: bool,
         env: HostEnvironmentKey,
         flags: ProfileFlags,
     ) -> Self {
@@ -94,7 +91,6 @@ impl ProfileKey {
             derive,
             debug,
             test,
-            skip_lib_check,
             env,
             flags,
         }
