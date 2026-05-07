@@ -35,8 +35,8 @@ fn compare_branch_words<'a>(
     machine: &Machine<'_, 'a>,
     instruction: &'a Instruction,
 ) -> (Word, Word, Edge, Edge) {
-    let left = machine.get_word_at(instruction.a);
-    let right = machine.get_word_at(instruction.b);
+    let left = machine.load_word_at(instruction.a);
+    let right = machine.load_word_at(instruction.b);
     let then_edge = control_edge(machine, instruction.c);
     let else_edge = control_edge(machine, instruction.d);
 
@@ -96,7 +96,7 @@ fn load_wide_switch_value<const IS_SIGNED: bool>(
 /// Load one word switch value as an integer case value.
 #[inline(always)]
 fn load_word_switch_value<const IS_SIGNED: bool>(machine: &Machine<'_, '_>, offset: u32) -> i128 {
-    let value = machine.get_word_at(offset);
+    let value = machine.load_word_at(offset);
 
     if IS_SIGNED {
         return value.as_i64() as i128;
@@ -158,13 +158,13 @@ fn switch_layout(field: u32) -> (u32, bool) {
 /// Load one word as a signed integer.
 #[inline(always)]
 fn load_signed_word(machine: &Machine<'_, '_>, offset: u32) -> i64 {
-    machine.get_word_at(offset).as_i64()
+    machine.load_word_at(offset).as_i64()
 }
 
 /// Load one word as an unsigned integer.
 #[inline(always)]
 fn load_unsigned_word(machine: &Machine<'_, '_>, offset: u32) -> u64 {
-    machine.get_word_at(offset).as_u64()
+    machine.load_word_at(offset).as_u64()
 }
 
 /// Load one unsigned word as a non-negative length.
@@ -383,7 +383,7 @@ fn evaluate_check(machine: &Machine<'_, '_>, constraint: &Check) -> Result<bool,
         Check::BoundsUintInt(check) => bounds_check::<false, true>(machine, *check),
         Check::BoundsUintUint(check) => bounds_check::<false, false>(machine, *check),
         Check::Null { value } => {
-            let value = machine.get_word_at(*value);
+            let value = machine.load_word_at(*value);
 
             Ok(value.bits() != 0)
         }
@@ -410,7 +410,7 @@ fn evaluate_check(machine: &Machine<'_, '_>, constraint: &Check) -> Result<bool,
         Check::OverflowDivInt(check) => overflow_div_int(machine, *check),
         Check::OverflowDivUint(check) => overflow_div_uint(machine, *check),
         Check::Type { value, expected } => {
-            let value = machine.get_word_at(*value);
+            let value = machine.load_word_at(*value);
 
             Ok(value.as_u64() == u64::from(*expected))
         }
@@ -440,7 +440,7 @@ pub(crate) fn execute_return_word(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let return_value = machine.get_word_at(instruction.a);
+    let return_value = machine.load_word_at(instruction.a);
 
     Transfer::Return(return_value)
 }
@@ -470,7 +470,7 @@ pub(crate) fn execute_yield_word(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let yield_value = machine.get_word_at(instruction.a);
+    let yield_value = machine.load_word_at(instruction.a);
     let source_type = mir::LocalNodeId::new(instruction.b);
     let frame_state = engine::FrameStateId(instruction.c);
 
@@ -523,7 +523,7 @@ pub(crate) fn execute_branch_bool(
     let else_edge = control_edge(machine, instruction.c);
 
     // evaluate branch condition
-    let condition = machine.get_word_at(condition);
+    let condition = machine.load_word_at(condition);
     let is_truthy = condition.bits() != 0;
 
     branch_transfer(is_truthy, then_edge, else_edge)
@@ -975,7 +975,7 @@ pub(crate) fn execute_abort(
 
 /// Execute panic.
 pub(crate) fn execute_panic(machine: &mut Machine<'_, '_>, instruction: &Instruction) -> Transfer {
-    let payload = machine.get_word_at(instruction.a);
+    let payload = machine.load_word_at(instruction.a);
     let message = format!("panic payload: {payload:?}");
 
     Transfer::Error(Error::Panic { message })
@@ -986,7 +986,7 @@ pub(crate) fn execute_throw_word(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let value = machine.get_word_at(instruction.a);
+    let value = machine.load_word_at(instruction.a);
 
     Transfer::Throw(value)
 }

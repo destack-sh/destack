@@ -34,11 +34,14 @@ impl Interpreter {
         };
 
         // load the lowered function pointer
-        let function_ptr = program.functions.pointer(function_index).ok_or_else(|| {
-            RuntimeError::new(Error::UndefinedFunction {
-                function: function_id,
-            })
-        })?;
+        let function_ptr = program
+            .functions
+            .pointer_by_index(function_index)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::UndefinedFunction {
+                    function: function_id,
+                })
+            })?;
 
         Ok(function_ptr)
     }
@@ -120,15 +123,10 @@ impl Interpreter {
         caller_frame.pc = resume_pc;
         caller_frame.exceptional_call = exceptional_call;
 
-        let mut new_frame = Frame::new(
-            unsafe { callee.as_ref().frame_layout },
-            callee,
-            entry_block,
-            frame_layout,
-            stack_offset,
-            frame_base,
-        );
-        new_frame.set_environment(frame_layout, env);
+        let mut new_frame = Frame::new(callee, entry_block, frame_layout, stack_offset, frame_base);
+        new_frame
+            .store_environment(frame_layout, env)
+            .map_err(|error| self.runtime_error(program, error))?;
 
         // bind arguments from the caller into the new frame
         let caller = self
@@ -195,13 +193,14 @@ impl Interpreter {
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-        frame.frame_layout = unsafe { callee.as_ref().frame_layout };
         frame.function_ptr = callee;
         frame.block = entry_block;
         frame.pc = 0;
         frame.exceptional_call = None;
         frame.replace_bytes(stack_offset, frame_layout.byte_len as usize, frame_base);
-        frame.set_environment(frame_layout, env);
+        frame
+            .store_environment(frame_layout, env)
+            .map_err(RuntimeError::new)?;
 
         // bind the new arguments into the reused frame
         let callee_function = unsafe { callee.as_ref() };
@@ -272,12 +271,12 @@ impl Interpreter {
                 .frames
                 .last_mut()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-            let point = program.point(frame.function(), frame.current_block(), resume_pc as u32);
+            let point = program.point(frame.function(), frame.block_id(), resume_pc as u32);
             let return_destination = program.return_destination_at(point)?.or(destination);
 
             if let Some(return_destination) = return_destination {
                 let frame_layout = program
-                    .frame_layout_by_id(frame.frame_layout)
+                    .frame_layout_by_id(frame.frame_layout())
                     .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
                 frame
                     .write_value_word(frame_layout, return_destination, result)
@@ -450,10 +449,10 @@ impl Interpreter {
                 .frames
                 .last_mut()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-            let point = program.point(caller.function(), caller.current_block(), caller.pc as u32);
+            let point = program.point(caller.function(), caller.block_id(), caller.pc as u32);
             if let Some(destination) = program.return_destination_at(point)? {
                 let frame_layout = program
-                    .frame_layout_by_id(caller.frame_layout)
+                    .frame_layout_by_id(caller.frame_layout())
                     .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
                 caller
                     .write_value_word(frame_layout, destination, result)

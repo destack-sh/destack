@@ -13,7 +13,7 @@ fn instruction_byte_offset(instruction: &Instruction) -> usize {
 /// Publish one offset address.
 #[inline(always)]
 fn publish_offset_address(machine: &mut Machine<'_, '_>, dest: u32, value: Word) {
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 }
 
 /// Execute fixed-offset address on heap references.
@@ -22,7 +22,7 @@ pub(crate) fn execute_address_heap_offset(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let base = machine.get_word_at(instruction.b);
+    let base = machine.load_word_at(instruction.b);
     let byte_offset = instruction_byte_offset(instruction);
     let value = address::offset_heap(machine, base.as_heap_reference(), byte_offset);
     publish_offset_address(machine, dest, value);
@@ -36,7 +36,7 @@ pub(crate) fn execute_address_shared_heap_offset(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let base = machine.get_word_at(instruction.b);
+    let base = machine.load_word_at(instruction.b);
     let byte_offset = instruction_byte_offset(instruction);
 
     let value = address::offset_shared_heap(machine, base.as_shared_heap_reference(), byte_offset);
@@ -51,7 +51,7 @@ pub(crate) fn execute_address_raw_offset(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let base = machine.get_word_at(instruction.b);
+    let base = machine.load_word_at(instruction.b);
     let byte_offset = instruction_byte_offset(instruction);
     let value = address::offset_raw(machine, base.as_raw_pointer(), byte_offset);
     publish_offset_address(machine, dest, value);
@@ -65,7 +65,7 @@ pub(crate) fn execute_address_shared_raw_offset(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let base = machine.get_word_at(instruction.b);
+    let base = machine.load_word_at(instruction.b);
     let byte_offset = instruction_byte_offset(instruction);
 
     let value = address::offset_shared_raw(machine, base.as_shared_raw_pointer(), byte_offset);
@@ -80,7 +80,7 @@ pub(crate) fn execute_address_stack_offset(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let base = machine.get_word_at(instruction.b);
+    let base = machine.load_word_at(instruction.b);
     let byte_offset = instruction_byte_offset(instruction);
     let value = address::offset_stack(base.as_stack_pointer(), byte_offset);
     publish_offset_address(machine, dest, value);
@@ -94,7 +94,7 @@ pub(crate) fn execute_address_static_offset(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let base = machine.get_word_at(instruction.b);
+    let base = machine.load_word_at(instruction.b);
     let byte_offset = instruction_byte_offset(instruction);
     let value = address::offset_static(base.as_static_pointer(), byte_offset);
     publish_offset_address(machine, dest, value);

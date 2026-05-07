@@ -127,7 +127,7 @@ fn require_call_target(
     machine
         .program
         .functions
-        .resolve(function)
+        .call_target(function)
         .ok_or(Error::UndefinedFunction { function })
 }
 
@@ -142,7 +142,7 @@ pub(crate) fn execute_address_function(
     let value = Word::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
 
     // store result
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 
     Ok(())
 }
@@ -159,7 +159,7 @@ pub(crate) fn execute_bind_callable_word(
         callable_layout,
         object_layout,
         environment,
-    } = *machine.side_with_id::<CallableBind>(instruction.d);
+    } = *machine.side_record::<CallableBind>(instruction.d);
 
     // bind the function pointer and environment into a callable object
     let function_id = mir::LocalNodeId::<mir::Function>::new(function);
@@ -174,7 +174,7 @@ pub(crate) fn execute_bind_callable_word(
     )?;
 
     // store result
-    machine.set_word_at(dest_offset, value);
+    machine.store_word_at(dest_offset, value);
 
     Ok(())
 }
@@ -191,7 +191,7 @@ pub(crate) fn execute_bind_callable_address(
         callable_layout,
         object_layout,
         environment,
-    } = *machine.side_with_id::<CallableBind>(instruction.d);
+    } = *machine.side_record::<CallableBind>(instruction.d);
 
     // bind the function pointer and environment into a callable object
     let function_id = mir::LocalNodeId::<mir::Function>::new(function);
@@ -206,7 +206,7 @@ pub(crate) fn execute_bind_callable_address(
     )?;
 
     // store result
-    machine.set_word_at(dest_offset, value);
+    machine.store_word_at(dest_offset, value);
 
     Ok(())
 }
@@ -221,14 +221,14 @@ pub(crate) fn execute_load_callable_environment(
     // load current frame environment
     let frame_layout = machine.frame_layout() as *const engine::FrameLayout;
     let environment = machine
-        .current_frame_mut()
-        .environment(unsafe { &*frame_layout })?;
+        .active_frame_mut()
+        .load_environment(unsafe { &*frame_layout })?;
     let Some(environment) = environment else {
         return Err(Error::InvalidInstruction);
     };
 
     // store result
-    machine.set_word_at(dest, environment);
+    machine.store_word_at(dest, environment);
 
     Ok(())
 }
@@ -238,7 +238,7 @@ pub(crate) fn execute_load_callable_environment(
 fn local_function(machine: &Machine<'_, '_>, target: CallTarget) -> Option<NonNull<Function>> {
     // only local callees can enter directly
     match target {
-        CallTarget::Local(index) => machine.program.functions.pointer(index),
+        CallTarget::Local(index) => machine.program.functions.pointer_by_index(index),
         CallTarget::Import => None,
     }
 }
@@ -266,7 +266,7 @@ fn enter_local_call(
 
     // store the caller pc before allocating the callee
     {
-        let caller = machine.current_frame_mut();
+        let caller = machine.active_frame_mut();
         caller.pc = resume_pc;
     }
 
@@ -278,20 +278,15 @@ fn enter_local_call(
         Ok(frame) => frame,
         Err(error) => return Some(Transfer::Error(error.error)),
     };
-    let mut new_frame = Frame::new(
-        callee.frame_layout,
-        callee_ptr,
-        callee.entry,
-        layout,
-        stack_offset,
-        frame_base,
-    );
-    new_frame.set_environment(layout, env);
+    let mut new_frame = Frame::new(callee_ptr, callee.entry, layout, stack_offset, frame_base);
+    if let Err(error) = new_frame.store_environment(layout, env) {
+        return Some(Transfer::Error(error));
+    }
 
     // bind parameters from the current caller frame
     let caller_index = machine.frame_index;
     let current_function_ptr = {
-        let frame = machine.current_frame_mut();
+        let frame = machine.active_frame_mut();
         frame.function_ptr
     };
     let current_function = unsafe { current_function_ptr.as_ref() };
@@ -445,7 +440,7 @@ fn execute_call_virtual<const IS_SHARED: bool>(
     } = machine.side::<CallVirtual>(instruction);
 
     // resolve dynamic callee
-    let receiver_value = machine.get_word_at(*receiver_offset);
+    let receiver_value = machine.load_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
     let function_id =
         match resolve_virtual_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
@@ -505,7 +500,7 @@ fn execute_invoke_virtual<const IS_SHARED: bool>(
         unwind_state,
     } = machine.side::<CallVirtualBranch>(instruction);
 
-    let receiver_value = machine.get_word_at(*receiver_offset);
+    let receiver_value = machine.load_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
     let function_id =
         match resolve_virtual_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
@@ -559,7 +554,7 @@ fn execute_call_interface<const IS_SHARED: bool>(
     } = machine.side::<CallInterface>(instruction);
 
     // resolve dynamic callee
-    let receiver_value = machine.get_word_at(*receiver_offset);
+    let receiver_value = machine.load_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
     let function_id =
         match resolve_interface_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
@@ -619,7 +614,7 @@ fn execute_invoke_interface<const IS_SHARED: bool>(
         unwind_state,
     } = machine.side::<CallInterfaceBranch>(instruction);
 
-    let receiver_value = machine.get_word_at(*receiver_offset);
+    let receiver_value = machine.load_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
     let function_id =
         match resolve_interface_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
@@ -672,7 +667,7 @@ fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
     } = machine.side::<CallIndirect>(instruction);
 
     // load callee value
-    let callee_value = machine.get_word_at(*callee_offset);
+    let callee_value = machine.load_word_at(*callee_offset);
 
     // resolve callable function and environment
     let (function_id, env) = match resolve_indirect_callee::<HAS_ENVIRONMENT>(machine, callee_value)
@@ -682,10 +677,11 @@ fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
     };
     let function = function_id.id;
 
-    if let Err(error) = machine
-        .program
-        .functions
-        .validate_signature(function_id, *signature)
+    if let Err(error) =
+        machine
+            .program
+            .functions
+            .validate_signature(machine.tree(), function_id, *signature)
     {
         return Transfer::Error(error);
     }
@@ -739,16 +735,17 @@ fn execute_indirect_invoke<const HAS_ENVIRONMENT: bool>(
         unwind_state,
     } = machine.side::<CallIndirectBranch>(instruction);
 
-    let callee_value = machine.get_word_at(*callee_offset);
+    let callee_value = machine.load_word_at(*callee_offset);
     let (function_id, env) = match resolve_indirect_callee::<HAS_ENVIRONMENT>(machine, callee_value)
     {
         Ok(callee) => callee,
         Err(error) => return Transfer::Error(error),
     };
-    if let Err(error) = machine
-        .program
-        .functions
-        .validate_signature(function_id, *signature)
+    if let Err(error) =
+        machine
+            .program
+            .functions
+            .validate_signature(machine.tree(), function_id, *signature)
     {
         return Transfer::Error(error);
     }
@@ -797,20 +794,19 @@ fn enter_tail_call(
         .ok_or(Error::InvalidInstruction)?;
 
     // replace the current frame bytes in place
-    let stack_offset = machine.current_frame_mut().stack_offset;
+    let stack_offset = machine.active_frame_mut().stack_offset;
     machine.interpreter.truncate_stack(stack_offset);
     let (stack_offset, frame_base) = machine
         .interpreter
         .allocate_frame(layout)
         .map_err(|error| error.error)?;
     {
-        let frame = machine.current_frame_mut();
-        frame.frame_layout = callee.frame_layout;
+        let frame = machine.active_frame_mut();
         frame.function_ptr = NonNull::from(callee);
         frame.block = callee.entry;
         frame.pc = 0;
         frame.replace_bytes(stack_offset, layout.byte_len as usize, frame_base);
-        frame.set_environment(layout, env);
+        frame.store_environment(layout, env)?;
     }
 
     // refresh cached pointers for the new function
@@ -818,7 +814,7 @@ fn enter_tail_call(
 
     // bind function parameters
     let program = machine.program;
-    let frame_ptr = machine.current_frame_mut() as *mut Frame;
+    let frame_ptr = machine.active_frame_mut() as *mut Frame;
     let frame = unsafe { &mut *frame_ptr };
     store_parameters(
         program,
@@ -859,7 +855,7 @@ pub(crate) fn execute_tail_call(
             moves: Some(*moves),
         };
     };
-    let Some(callee_ptr) = machine.program.functions.pointer(local_index) else {
+    let Some(callee_ptr) = machine.program.functions.pointer_by_index(local_index) else {
         return Transfer::TailCall {
             function: *function,
             target: *target,
@@ -872,7 +868,7 @@ pub(crate) fn execute_tail_call(
 
     // collect argument values
     let argument_values = {
-        let function_ptr = machine.current_frame_mut().function_ptr;
+        let function_ptr = machine.active_frame_mut().function_ptr;
         let current_func = unsafe { function_ptr.as_ref() };
         let caller = match machine.frame(machine.frame_index) {
             Ok(frame) => frame,
@@ -911,7 +907,7 @@ pub(crate) fn execute_tail_call_self(
 
     // load current function entry block
     let function_ptr = {
-        let frame = machine.current_frame_mut();
+        let frame = machine.active_frame_mut();
         frame.function_ptr
     };
     let function = unsafe { function_ptr.as_ref() };
@@ -940,7 +936,7 @@ pub(crate) fn execute_tail_call_self(
     // discard stack allocations from the previous self call
     {
         let (stack_offset, frame_base) = {
-            let frame = machine.current_frame_mut();
+            let frame = machine.active_frame_mut();
             (frame.stack_offset, frame.base_address() as *mut u8)
         };
         let frame_byte_len = frame_layout.byte_len as usize;
@@ -948,14 +944,14 @@ pub(crate) fn execute_tail_call_self(
         machine
             .interpreter
             .truncate_stack(stack_offset + frame_byte_len);
-        let frame = machine.current_frame_mut();
+        let frame = machine.active_frame_mut();
         frame.replace_bytes(stack_offset, frame_byte_len, frame_base);
         frame.clear_values(frame_layout);
     }
 
     // update frame to entry block
     {
-        let frame = machine.current_frame_mut();
+        let frame = machine.active_frame_mut();
         frame.block = entry;
         frame.pc = 0;
     }
@@ -967,7 +963,7 @@ pub(crate) fn execute_tail_call_self(
 
     // bind function parameters
     let program = machine.program;
-    let frame_ptr = machine.current_frame_mut() as *mut Frame;
+    let frame_ptr = machine.active_frame_mut() as *mut Frame;
     let frame = unsafe { &mut *frame_ptr };
     if let Err(error) = store_parameters(
         program,
@@ -1012,7 +1008,7 @@ fn execute_tail_call_virtual<const IS_SHARED: bool>(
     } = machine.side::<TailCallVirtual>(instruction);
 
     // resolve dynamic callee
-    let receiver_value = machine.get_word_at(*receiver_offset);
+    let receiver_value = machine.load_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
     let function_id =
         match resolve_virtual_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
@@ -1063,7 +1059,7 @@ fn execute_tail_call_interface<const IS_SHARED: bool>(
     } = machine.side::<TailCallInterface>(instruction);
 
     // resolve dynamic callee
-    let receiver_value = machine.get_word_at(*receiver_offset);
+    let receiver_value = machine.load_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
     let function_id =
         match resolve_interface_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
@@ -1113,7 +1109,7 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     } = machine.side::<TailCallIndirect>(instruction);
 
     // load callee value
-    let callee_value = machine.get_word_at(*callee_offset);
+    let callee_value = machine.load_word_at(*callee_offset);
 
     // resolve callable function and environment
     let (function_id, env) = match resolve_indirect_callee::<HAS_ENVIRONMENT>(machine, callee_value)
@@ -1123,10 +1119,11 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     };
     let function = function_id.id;
 
-    if let Err(error) = machine
-        .program
-        .functions
-        .validate_signature(function_id, *signature)
+    if let Err(error) =
+        machine
+            .program
+            .functions
+            .validate_signature(machine.tree(), function_id, *signature)
     {
         return Transfer::Error(error);
     }
@@ -1151,7 +1148,7 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
             moves: None,
         };
     };
-    let Some(callee_ptr) = machine.program.functions.pointer(local_index) else {
+    let Some(callee_ptr) = machine.program.functions.pointer_by_index(local_index) else {
         return Transfer::TailCall {
             function,
             target,

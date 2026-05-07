@@ -22,7 +22,7 @@ pub(super) fn frame_element_offset(
     access: Projection,
     index: u32,
 ) -> usize {
-    let index = machine.get_word_at(index).as_u64();
+    let index = machine.load_word_at(index).as_u64();
 
     access.byte_offset + access.byte_stride * index as usize
 }
@@ -40,7 +40,7 @@ pub(crate) fn execute_address_frame_offset(
     let pointer = machine.frame_pointer_at(base).add_bytes(byte_offset);
     let value = Word::frame_pointer(pointer);
 
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 
     Ok(())
 }
@@ -61,7 +61,7 @@ pub(crate) fn execute_address_frame_element(
     let pointer = machine.frame_pointer_at(base).add_bytes(offset);
     let value = Word::frame_pointer(pointer);
 
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 
     Ok(())
 }
@@ -73,12 +73,12 @@ pub(crate) fn execute_load_frame_scalar<const BYTE_LEN: usize, const IS_SIGNED: 
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let base = machine.get_word_at(instruction.b);
+    let base = machine.load_word_at(instruction.b);
     let byte_offset = instruction.c as usize;
     let pointer = base.as_frame_pointer().add_bytes(byte_offset);
 
     let value = access::load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(pointer.address());
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 
     Ok(())
 }
@@ -95,7 +95,7 @@ pub(crate) fn execute_load_frame_value_scalar<const BYTE_LEN: usize, const IS_SI
     let pointer = machine.frame_pointer_at(base).add_bytes(byte_offset);
 
     let value = access::load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(pointer.address());
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 
     Ok(())
 }
@@ -106,12 +106,12 @@ pub(crate) fn execute_store_frame_scalar<const BYTE_LEN: usize>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let base = machine.get_word_at(instruction.a);
+    let base = machine.load_word_at(instruction.a);
     let value = instruction.b;
     let byte_offset = instruction.c as usize;
 
     let pointer = base.as_frame_pointer().add_bytes(byte_offset);
-    let value = machine.get_word_at(value);
+    let value = machine.load_word_at(value);
 
     access::store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
 
@@ -129,7 +129,7 @@ pub(crate) fn execute_store_frame_value_scalar<const BYTE_LEN: usize>(
     let byte_offset = instruction.c as usize;
 
     let pointer = machine.frame_pointer_at(base).add_bytes(byte_offset);
-    let value = machine.get_word_at(value);
+    let value = machine.load_word_at(value);
 
     access::store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
 
@@ -319,7 +319,7 @@ pub(crate) fn frame_value_type(
     value: mir::Value,
 ) -> Result<mir::LocalNodeId<mir::Type>, Error> {
     let frame_layout = program
-        .frame_layout_by_id(frame.frame_layout)
+        .frame_layout_by_id(frame.frame_layout())
         .ok_or(Error::InvalidInstruction)?;
     let slot = frame_layout
         .value(value.0)
@@ -331,17 +331,16 @@ pub(crate) fn frame_value_type(
 /// Return the addressable word for one frame value.
 fn frame_value_word(program: &Program, frame: &Frame, value: mir::Value) -> Result<Word, Error> {
     let frame_layout = program
-        .frame_layout_by_id(frame.frame_layout)
+        .frame_layout_by_id(frame.frame_layout())
         .ok_or(Error::InvalidInstruction)?;
     let slot = frame_layout
         .value(value.0)
         .ok_or(Error::InvalidInstruction)?;
-    let layout =
-        program
-            .layout_for_layout(slot.layout)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing frame value layout: layout={:?}", slot.layout),
-            })?;
+    let layout = program
+        .layout_for_id(slot.layout)
+        .ok_or_else(|| Error::InvariantViolation {
+            context: format!("missing frame value layout: layout={:?}", slot.layout),
+        })?;
 
     if layout.is_word() {
         return Ok(frame.read_word(slot));
@@ -445,17 +444,16 @@ pub(crate) fn store_frame_value(
     value: FrameValue,
 ) -> Result<(), Error> {
     let frame_layout = program
-        .frame_layout_by_id(dest_frame.frame_layout)
+        .frame_layout_by_id(dest_frame.frame_layout())
         .ok_or(Error::InvalidInstruction)?;
     let slot = frame_layout
         .value(destination.0)
         .ok_or(Error::InvalidInstruction)?;
-    let layout =
-        program
-            .layout_for_layout(slot.layout)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing destination value layout: layout={:?}", slot.layout),
-            })?;
+    let layout = program
+        .layout_for_id(slot.layout)
+        .ok_or_else(|| Error::InvariantViolation {
+            context: format!("missing destination value layout: layout={:?}", slot.layout),
+        })?;
 
     match (layout.is_word(), value.body) {
         (true, FrameValueBody::Word(value)) => dest_frame.write_word(slot, value),
@@ -485,11 +483,11 @@ pub(crate) fn store_frame_value(
     Ok(())
 }
 
-/// One buffered same-frame move value.
-enum FrameMoveValue {
-    /// One word value.
+/// One buffered frame slot value.
+enum BufferedSlotValue {
+    /// Word slot value.
     Word(Word),
-    /// One byte value.
+    /// Byte slot value.
     Bytes(SmallVec<[u8; 32]>),
 }
 
@@ -782,10 +780,10 @@ pub(crate) fn move_frame_value(
     destination: mir::Value,
 ) -> Result<(), Error> {
     let source_layout = program
-        .frame_layout_by_id(source_frame.frame_layout)
+        .frame_layout_by_id(source_frame.frame_layout())
         .ok_or(Error::InvalidInstruction)?;
     let dest_layout = program
-        .frame_layout_by_id(dest_frame.frame_layout)
+        .frame_layout_by_id(dest_frame.frame_layout())
         .ok_or(Error::InvalidInstruction)?;
 
     let source_slot = source_layout
@@ -855,7 +853,7 @@ fn store_void_value(
     destination: mir::Value,
 ) -> Result<(), Error> {
     let frame_layout = program
-        .frame_layout_by_id(frame.frame_layout)
+        .frame_layout_by_id(frame.frame_layout())
         .ok_or(Error::InvalidInstruction)?;
     let slot = frame_layout
         .value(destination.0)
@@ -995,7 +993,7 @@ pub(crate) fn move_values_within_frame(
         return Ok(());
     }
 
-    let mut values = SmallVec::<[FrameMoveValue; 16]>::with_capacity(pairs.len());
+    let mut values = SmallVec::<[BufferedSlotValue; 16]>::with_capacity(pairs.len());
 
     // collect sources before writing destinations
     for pair in pairs {
@@ -1012,23 +1010,23 @@ pub(crate) fn move_values_within_frame(
                 }
 
                 if source.is_word {
-                    FrameMoveValue::Word(frame.read_word_at(source.offset))
+                    BufferedSlotValue::Word(frame.read_word_at(source.offset))
                 } else {
                     let mut bytes = SmallVec::<[u8; 32]>::with_capacity(source.byte_len as usize);
                     bytes.extend_from_slice(move_slot_bytes(frame, source));
 
-                    FrameMoveValue::Bytes(bytes)
+                    BufferedSlotValue::Bytes(bytes)
                 }
             }
             MoveSource::Void => {
                 if pair.dest.is_word {
-                    FrameMoveValue::Word(Word::VOID)
+                    BufferedSlotValue::Word(Word::VOID)
                 } else {
                     let mut bytes =
                         SmallVec::<[u8; 32]>::with_capacity(pair.dest.byte_len as usize);
                     bytes.resize(pair.dest.byte_len as usize, 0);
 
-                    FrameMoveValue::Bytes(bytes)
+                    BufferedSlotValue::Bytes(bytes)
                 }
             }
         };
@@ -1039,10 +1037,10 @@ pub(crate) fn move_values_within_frame(
     // store destinations after preserving parallel move semantics
     for (pair, value) in pairs.iter().zip(values) {
         match value {
-            FrameMoveValue::Word(value) => {
+            BufferedSlotValue::Word(value) => {
                 frame.write_word_at(pair.dest.offset, value);
             }
-            FrameMoveValue::Bytes(bytes) => {
+            BufferedSlotValue::Bytes(bytes) => {
                 move_slot_bytes_mut(frame, pair.dest).copy_from_slice(&bytes);
             }
         }

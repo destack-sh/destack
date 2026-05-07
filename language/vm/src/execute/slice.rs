@@ -11,7 +11,7 @@ pub(crate) fn load_slice_length_at(
     machine: &Machine<'_, '_>,
     value_offset: u32,
 ) -> Result<usize, Error> {
-    let value = machine.get_word_at(value_offset);
+    let value = machine.load_word_at(value_offset);
     let length = value.as_uint();
 
     usize::try_from(length).map_err(|_| Error::AllocationFailed)
@@ -45,7 +45,7 @@ fn load_slice_data(machine: &mut Machine<'_, '_>, slice: Word, access: SliceProj
 /// Store a computed slice element address.
 #[inline(always)]
 fn store_slice_element_address(machine: &mut Machine<'_, '_>, dest: u32, value: Word) {
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 }
 
 /// Return one lowered slice element projection.

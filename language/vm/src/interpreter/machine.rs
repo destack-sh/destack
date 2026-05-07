@@ -16,7 +16,10 @@ use crate::program::{
 };
 use crate::{FramePointer, SharedHeap, StackPointer, StaticPointer, Word};
 
-/// Execution context for one interpreter frame.
+/// Execution context for one active interpreter frame.
+///
+/// Raw pointers cache borrows that are proven by the interpreter dispatch loop.
+/// This keeps the hot path address-based while the caller owns the real lifetimes.
 pub(crate) struct Machine<'ctx, 'iso> {
     /// Program being executed.
     pub(crate) program: &'iso Program,
@@ -24,24 +27,24 @@ pub(crate) struct Machine<'ctx, 'iso> {
     pub(crate) options: &'iso IsolateOptions,
     /// Mutable static byte arena.
     pub(crate) statics: &'iso mut StaticSpace,
-    /// The worker-local heap.
+    /// The worker-local heap borrowed for this dispatch step.
     heap: *mut Heap,
-    /// The world-shared heap.
+    /// The world-shared heap borrowed for this dispatch step.
     shared: *const SharedHeap,
     /// Shared collector worker for allocation assist.
     shared_gc: &'iso SharedGcWorker,
-    /// The worker cache for shared heap allocations.
+    /// The worker cache for shared heap allocations borrowed for this dispatch step.
     shared_allocator: *mut SharedAllocator,
     /// Interpreter owning the live stack.
     pub(crate) interpreter: &'ctx mut Interpreter,
 
     /// Index of the current frame in the stack.
     pub frame_index: usize,
-    /// Pointer to the current frame.
+    /// Pointer to the active frame.
     frame: *mut Frame,
-    /// Native address of the current frame bytes.
+    /// Native address of the active frame bytes.
     frame_base: usize,
-    /// Pointer to the current frame layout.
+    /// Pointer to the active frame layout.
     frame_layout: *const engine::FrameLayout,
     /// Pointer to the program side table.
     side_table: *const SideTable,
@@ -74,7 +77,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         frame_index: usize,
         function: &'iso Function,
     ) -> Result<Self, Error> {
-        // get frame pointer
+        // frame cache
         debug_assert!(
             frame_index < interpreter.frames.len(),
             "frame index out of bounds"
@@ -83,7 +86,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let frame = unsafe { interpreter.frames.get_unchecked_mut(frame_index) as *mut Frame };
         let frame_base = unsafe { (*frame).base_address() };
 
-        let frame_layout = unsafe { (*frame).frame_layout };
+        let frame_layout = unsafe { (*frame).frame_layout() };
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
             .ok_or(Error::InvalidInstruction)?
@@ -122,7 +125,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
     /// Borrow one pooled side record by id.
     #[inline(always)]
-    pub(crate) fn side_with_id<T: SideRecord>(&self, id: u32) -> &'iso T {
+    pub(crate) fn side_record<T: SideRecord>(&self, id: u32) -> &'iso T {
         unsafe { T::get(&*self.side_table, id) }
     }
 
@@ -176,7 +179,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     #[inline]
     pub(crate) fn value_bytes_mut(&mut self, value: mir::Value) -> Result<&mut [u8], Error> {
         let slot = self.value_slot(value)? as *const engine::FrameSlot;
-        let frame = self.current_frame_mut();
+        let frame = self.active_frame_mut();
 
         Ok(frame.slot_bytes_mut(unsafe { &*slot }))
     }
@@ -197,7 +200,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     pub(crate) fn refresh_frame(&mut self, function: &Function) -> Result<(), Error> {
         self.frame_base = unsafe { (*self.frame).base_address() };
 
-        let frame_layout = unsafe { (*self.frame).frame_layout };
+        let frame_layout = unsafe { (*self.frame).frame_layout() };
         let frame_layout = self
             .program
             .frame_layout_by_id(frame_layout)
@@ -359,15 +362,15 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         self.refresh_frame(function)
     }
 
-    /// Get the current frame mutably.
+    /// Borrow the active frame mutably.
     #[inline(always)]
-    pub(crate) fn current_frame_mut(&mut self) -> &mut Frame {
+    pub(crate) fn active_frame_mut(&mut self) -> &mut Frame {
         unsafe { &mut *self.frame }
     }
 
-    /// Borrow the current frame.
+    /// Borrow the active frame.
     #[inline(always)]
-    pub(crate) fn current_frame(&self) -> &Frame {
+    pub(crate) fn active_frame(&self) -> &Frame {
         unsafe { &*self.frame }
     }
 
@@ -398,13 +401,14 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             .allocate(byte_len, alignment)
             .map_err(|_| Error::StackOverflow)?;
         let end = self.interpreter.stack.len();
-        self.current_frame_mut().extend_bytes_to(end);
-
-        Ok(self
+        self.active_frame_mut().extend_bytes_to(end);
+        let address = self
             .interpreter
             .stack
             .address(base, byte_len)
-            .map_err(|_| Error::StackOverflow)? as usize)
+            .map_err(|_| Error::StackOverflow)? as usize;
+
+        Ok(address)
     }
 
     /// Retire the most recent stack allocation owned by the current frame.
@@ -432,7 +436,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         }
 
         // the current frame owns all stack allocations made while it runs
-        let frame = self.current_frame_mut();
+        let frame = self.active_frame_mut();
         if offset < frame.stack_offset {
             return Err(Error::InvalidAddressSpace {
                 expected: "current frame stack".to_string(),
@@ -441,7 +445,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         }
 
         self.interpreter.truncate_stack(offset);
-        let frame = self.current_frame_mut();
+        let frame = self.active_frame_mut();
         frame.truncate_bytes_to(offset);
 
         Ok(())
@@ -458,9 +462,9 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             .or_else(|| self.program.static_pointer(global))
     }
 
-    /// Get value by SSA id.
+    /// Load one SSA value as a VM word.
     #[inline(always)]
-    pub(crate) fn get(&self, v: mir::Value) -> Word {
+    pub(crate) fn load_value(&self, v: mir::Value) -> Word {
         let slot = self.value_slot_unchecked(v);
 
         // word values live inline in the frame
@@ -476,7 +480,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
     /// Read one word by frame byte offset.
     #[inline(always)]
-    pub(crate) fn get_word_at(&self, offset: u32) -> Word {
+    pub(crate) fn load_word_at(&self, offset: u32) -> Word {
         self.read_frame_word(offset)
     }
 
@@ -510,9 +514,9 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         unsafe { layout.values().get_unchecked(index) }
     }
 
-    /// Write one word by SSA id.
+    /// Store one word into an SSA value.
     #[inline(always)]
-    pub(crate) fn set_word(&mut self, v: mir::Value, val: Word) {
+    pub(crate) fn store_value_word(&mut self, v: mir::Value, val: Word) {
         let index = v.0 as usize;
         let layout = self.frame_layout();
         debug_assert!(
@@ -527,7 +531,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
     /// Write one word by frame byte offset.
     #[inline(always)]
-    pub(crate) fn set_word_at(&mut self, offset: u32, val: Word) {
+    pub(crate) fn store_word_at(&mut self, offset: u32, val: Word) {
         self.write_frame_word(offset, val);
     }
 
@@ -556,14 +560,14 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         // lower guarantees that both ranges are inside the frame layout
         unsafe {
             ptr::copy(
-                self.frame_base.wrapping_add(source_offset) as *const u8,
-                self.frame_base.wrapping_add(destination_offset) as *mut u8,
+                (self.frame_base + source_offset) as *const u8,
+                (self.frame_base + destination_offset) as *mut u8,
                 byte_len,
             );
         }
     }
 
-    /// Get the argument slice for the given range.
+    /// Return the argument slice for the given range.
     #[inline(always)]
     pub(crate) fn argument_slice(&self, range: ArgumentRange) -> &[mir::Value] {
         let start = range.start as usize;

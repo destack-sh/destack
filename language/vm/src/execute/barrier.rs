@@ -12,9 +12,9 @@ pub(crate) fn execute_barrier_write_heap(
     let byte_len = instruction.c;
 
     // load barrier range
-    let object = machine.get_word_at(object);
-    let offset = machine.get_word_at(offset).as_uint() as usize;
-    let byte_len = machine.get_word_at(byte_len).as_uint() as usize;
+    let object = machine.load_word_at(object);
+    let offset = machine.load_word_at(offset).as_uint() as usize;
+    let byte_len = machine.load_word_at(byte_len).as_uint() as usize;
 
     // publish to the local collector
     let result = machine
@@ -39,9 +39,9 @@ pub(crate) fn execute_barrier_write_shared_heap(
     let byte_len = instruction.c;
 
     // load barrier range
-    let object = machine.get_word_at(object);
-    let offset = machine.get_word_at(offset).as_uint() as usize;
-    let byte_len = machine.get_word_at(byte_len).as_uint() as usize;
+    let object = machine.load_word_at(object);
+    let offset = machine.load_word_at(offset).as_uint() as usize;
+    let byte_len = machine.load_word_at(byte_len).as_uint() as usize;
 
     // publish to the shared collector
     let result =

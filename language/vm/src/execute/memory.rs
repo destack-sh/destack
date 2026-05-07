@@ -16,8 +16,8 @@ pub(crate) fn execute_move_word(
     let destination_offset = instruction.a;
     let source_offset = instruction.b;
 
-    let value = machine.get_word_at(source_offset);
-    machine.set_word_at(destination_offset, value);
+    let value = machine.load_word_at(source_offset);
+    machine.store_word_at(destination_offset, value);
 
     Ok(())
 }
@@ -268,7 +268,7 @@ fn load_bytes(
     let access = ProjectionId(instruction.c);
     let access = machine.projection(access);
 
-    let address = machine.get_word_at(address);
+    let address = machine.load_word_at(address);
     let destination = machine.frame_pointer_at(destination).address() as *mut u8;
     let destination_len = access.byte_len;
 
@@ -285,7 +285,7 @@ fn store_bytes(
     let access = ProjectionId(instruction.c);
     let access = machine.projection(access);
 
-    let address = machine.get_word_at(address);
+    let address = machine.load_word_at(address);
     let source = machine.frame_pointer_at(source).address() as *const u8;
     let byte_len = access.byte_len;
 
@@ -303,12 +303,12 @@ pub(crate) fn execute_address_local(
 
     let local = mir::LocalNodeId::new(local);
     let address = machine
-        .current_frame()
+        .active_frame()
         .local_address(machine.frame_layout(), local)?;
     let pointer = FramePointer::from_address(address);
     let value = Word::frame_pointer(pointer);
 
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 
     Ok(())
 }
@@ -327,7 +327,7 @@ pub(crate) fn execute_address_static(
     };
     let pointer = Word::static_pointer(pointer);
 
-    machine.set_word_at(dest, pointer);
+    machine.store_word_at(dest, pointer);
 
     Ok(())
 }
@@ -353,7 +353,7 @@ fn immutable_static_region_for_pointer(
 #[inline(always)]
 fn load_fields(machine: &Machine<'_, '_>, instruction: &Instruction) -> (u32, Word, usize) {
     let dest = instruction.a;
-    let pointer = machine.get_word_at(instruction.b);
+    let pointer = machine.load_word_at(instruction.b);
     let byte_offset = instruction.c as usize;
 
     (dest, pointer, byte_offset)
@@ -362,8 +362,8 @@ fn load_fields(machine: &Machine<'_, '_>, instruction: &Instruction) -> (u32, Wo
 /// Store scalar instruction fields.
 #[inline(always)]
 fn store_fields(machine: &Machine<'_, '_>, instruction: &Instruction) -> (Word, Word, usize) {
-    let pointer = machine.get_word_at(instruction.a);
-    let value = machine.get_word_at(instruction.b);
+    let pointer = machine.load_word_at(instruction.a);
+    let value = machine.load_word_at(instruction.b);
     let byte_offset = instruction.c as usize;
 
     (pointer, value, byte_offset)
@@ -378,7 +378,7 @@ pub(crate) fn execute_load_heap_scalar<const BYTE_LEN: usize, const IS_SIGNED: b
     let (dest, pointer, byte_offset) = load_fields(machine, instruction);
 
     let value = access::load_heap_scalar::<BYTE_LEN, IS_SIGNED>(machine, pointer, byte_offset);
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 
     Ok(())
 }
@@ -393,7 +393,7 @@ pub(crate) fn execute_load_shared_heap_scalar<const BYTE_LEN: usize, const IS_SI
 
     let value =
         access::load_shared_heap_scalar::<BYTE_LEN, IS_SIGNED>(machine, pointer, byte_offset);
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 
     Ok(())
 }
@@ -407,7 +407,7 @@ pub(crate) fn execute_load_raw_scalar<const BYTE_LEN: usize, const IS_SIGNED: bo
     let (dest, pointer, byte_offset) = load_fields(machine, instruction);
 
     let value = access::load_raw_scalar::<BYTE_LEN, IS_SIGNED>(machine, pointer, byte_offset);
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 
     Ok(())
 }
@@ -422,7 +422,7 @@ pub(crate) fn execute_load_shared_raw_scalar<const BYTE_LEN: usize, const IS_SIG
 
     let value =
         access::load_shared_raw_scalar::<BYTE_LEN, IS_SIGNED>(machine, pointer, byte_offset);
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 
     Ok(())
 }
@@ -440,7 +440,7 @@ pub(crate) fn execute_load_stack_scalar<const BYTE_LEN: usize, const IS_SIGNED: 
         pointer.as_stack_pointer(),
         byte_offset,
     );
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 
     Ok(())
 }
@@ -458,7 +458,7 @@ pub(crate) fn execute_load_static_scalar<const BYTE_LEN: usize, const IS_SIGNED:
         pointer.as_static_pointer(),
         byte_offset,
     );
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 
     Ok(())
 }
