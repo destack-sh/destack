@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{Block, Function, Local, LocalNodeId, NodeType, Value, ValueReference};
+use crate::{Block, Function, Local, LocalNodeId, NodeType, Type, Value, ValueReference};
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
 
@@ -35,7 +35,7 @@ impl<'tree> Validator<'tree> {
 
         // function metadata
         self.validate_function_metadata(function_id, function)?;
-        self.validate_callable_types(function_id, function, &defined_values)?;
+        self.validate_value_types(function_id, function, &defined_values)?;
 
         // block bodies
         for &block_id in &function.blocks {
@@ -334,17 +334,24 @@ impl<'tree> Validator<'tree> {
         Ok(())
     }
 
-    /// Validate that every defined value has a type.
-    fn validate_callable_types(
+    /// Validate that every defined SSA value has a concrete value type.
+    fn validate_value_types(
         &self,
         function_id: LocalNodeId<Function>,
         function: &Function,
         defined_values: &HashSet<Value>,
     ) -> ValidateResult<()> {
         for &value in defined_values {
-            if function.value_type(value).is_none() {
+            let Some(value_type) = function.value_type(value) else {
                 return Err(ValidateError::MissingValueType {
                     value,
+                    anchor: ValidateAnchor::node(function_id),
+                });
+            };
+
+            if matches!(self.tree.get(value_type), Type::Atomic { .. }) {
+                return Err(ValidateError::MetadataInvariantViolation {
+                    message: "atomic storage type cannot be used as a value type".to_string(),
                     anchor: ValidateAnchor::node(function_id),
                 });
             }

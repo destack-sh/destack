@@ -3,12 +3,13 @@ use std::str::FromStr;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
-    ArgumentSlice, AtomicAccess, AtomicRmwOperator, AtomicScope, BinaryOperator, Call,
-    CastOperator, DispatchSlot, Instruction, LocalNodeId, MemoryFlags, MemoryOrdering, MemoryScope,
-    MemorySpaceSet, TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
-    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorReduceOperator,
-    TensorScatterDimensionNumbers, TensorScatterMode, Type, UnaryOperator, ValueReference,
-    VectorConvertMode, VectorReduceOperator,
+    ArgumentSlice, AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CastOperator,
+    CompareExchangeAccess, DispatchSlot, FenceAccess, FunctionReference, Instruction, LocalNodeId,
+    MemoryFlags, MemoryOrdering, MemoryScope, MemorySpaceSet, SyncScope, TensorConvertMode,
+    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
+    TensorGatherDimensionNumbers, TensorReduceOperator, TensorScatterDimensionNumbers,
+    TensorScatterMode, Type, TypeReference, UnaryOperator, ValueReference, VectorConvertMode,
+    VectorReduceOperator,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -144,7 +145,7 @@ impl Parser {
                 let pointer = self.parse_value_segment(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value_segment(&mut segment_spans)?;
-                let access = self.parse_atomic_access(true)?;
+                let access = self.parse_atomic_access()?;
                 Instruction::AtomicStore {
                     pointer,
                     value,
@@ -152,7 +153,7 @@ impl Parser {
                 }
             }
             "atomic.fence" => {
-                let access = self.parse_atomic_access(false)?;
+                let access = self.parse_fence_access()?;
                 Instruction::AtomicFence { access }
             }
             "assume" => {
@@ -919,7 +920,7 @@ impl Parser {
                     // atomic memory operations
                     "atomic.load" => {
                         let pointer = self.parse_value()?;
-                        let access = self.parse_atomic_access(true)?;
+                        let access = self.parse_atomic_access()?;
                         Instruction::AtomicLoad {
                             destination,
                             pointer,
@@ -933,7 +934,7 @@ impl Parser {
                         let expected = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
                         let new_value = self.parse_value()?;
-                        let access = self.parse_atomic_access(true)?;
+                        let access = self.parse_atomic_compare_exchange_access()?;
                         Instruction::AtomicCompareExchange {
                             destination,
                             pointer,
@@ -948,7 +949,7 @@ impl Parser {
                         let pointer = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let value = self.parse_value_segment(&mut segment_spans)?;
-                        let access = self.parse_atomic_access(true)?;
+                        let access = self.parse_atomic_access()?;
                         Instruction::AtomicRmw {
                             destination,
                             operator,
@@ -1633,11 +1634,7 @@ impl Parser {
     /// Parse one direct call target and arguments.
     pub(super) fn parse_direct_call_target(
         &mut self,
-    ) -> ParseResult<(
-        crate::FunctionReference,
-        Vec<crate::ValueReference>,
-        crate::TypeReference,
-    )> {
+    ) -> ParseResult<(FunctionReference, Vec<ValueReference>, TypeReference)> {
         let mut segment_spans = Vec::new();
         self.parse_direct_call_target_segments(&mut segment_spans)
     }
@@ -1646,11 +1643,7 @@ impl Parser {
     pub(super) fn parse_direct_call_target_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<(
-        crate::FunctionReference,
-        Vec<crate::ValueReference>,
-        crate::TypeReference,
-    )> {
+    ) -> ParseResult<(FunctionReference, Vec<ValueReference>, TypeReference)> {
         let function = self.parse_function_segment(segment_spans)?;
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
@@ -1661,11 +1654,11 @@ impl Parser {
     pub(super) fn parse_virtual_call_target(
         &mut self,
     ) -> ParseResult<(
-        crate::ValueReference,
-        crate::TypeReference,
+        ValueReference,
+        TypeReference,
         DispatchSlot,
-        Vec<crate::ValueReference>,
-        crate::TypeReference,
+        Vec<ValueReference>,
+        TypeReference,
     )> {
         let mut segment_spans = Vec::new();
         self.parse_virtual_call_target_segments(&mut segment_spans)
@@ -1676,11 +1669,11 @@ impl Parser {
         &mut self,
         segment_spans: &mut Vec<Span>,
     ) -> ParseResult<(
-        crate::ValueReference,
-        crate::TypeReference,
+        ValueReference,
+        TypeReference,
         DispatchSlot,
-        Vec<crate::ValueReference>,
-        crate::TypeReference,
+        Vec<ValueReference>,
+        TypeReference,
     )> {
         let receiver = self.parse_value_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
@@ -1700,11 +1693,11 @@ impl Parser {
     pub(super) fn parse_interface_call_target(
         &mut self,
     ) -> ParseResult<(
-        crate::ValueReference,
-        crate::TypeReference,
+        ValueReference,
+        TypeReference,
         DispatchSlot,
-        Vec<crate::ValueReference>,
-        crate::TypeReference,
+        Vec<ValueReference>,
+        TypeReference,
     )> {
         let mut segment_spans = Vec::new();
         self.parse_interface_call_target_segments(&mut segment_spans)
@@ -1715,11 +1708,11 @@ impl Parser {
         &mut self,
         segment_spans: &mut Vec<Span>,
     ) -> ParseResult<(
-        crate::ValueReference,
-        crate::TypeReference,
+        ValueReference,
+        TypeReference,
         DispatchSlot,
-        Vec<crate::ValueReference>,
-        crate::TypeReference,
+        Vec<ValueReference>,
+        TypeReference,
     )> {
         let receiver = self.parse_value_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
@@ -1738,11 +1731,7 @@ impl Parser {
     /// Parse one indirect call target and signature.
     pub(super) fn parse_indirect_call_target(
         &mut self,
-    ) -> ParseResult<(
-        crate::ValueReference,
-        Vec<crate::ValueReference>,
-        crate::TypeReference,
-    )> {
+    ) -> ParseResult<(ValueReference, Vec<ValueReference>, TypeReference)> {
         let mut segment_spans = Vec::new();
         self.parse_indirect_call_target_segments(&mut segment_spans)
     }
@@ -1751,11 +1740,7 @@ impl Parser {
     pub(super) fn parse_indirect_call_target_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<(
-        crate::ValueReference,
-        Vec<crate::ValueReference>,
-        crate::TypeReference,
-    )> {
+    ) -> ParseResult<(ValueReference, Vec<ValueReference>, TypeReference)> {
         let callee = self.parse_value_segment(segment_spans)?;
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
@@ -1767,7 +1752,7 @@ impl Parser {
     fn parse_required_call_signature_segment(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<crate::TypeReference> {
+    ) -> ParseResult<TypeReference> {
         let signature_start = self.pos();
         self.eat_token(TokenType::Colon)?;
         self.eat_token(TokenType::OpenParen)?;
@@ -1795,10 +1780,8 @@ impl Parser {
     }
 
     /// Parse one atomic access suffix.
-    fn parse_atomic_access(&mut self, expect_leading_comma: bool) -> ParseResult<AtomicAccess> {
-        if expect_leading_comma {
-            self.eat_token(TokenType::Comma)?;
-        }
+    fn parse_atomic_access(&mut self) -> ParseResult<AtomicAccess> {
+        self.eat_token(TokenType::Comma)?;
 
         let ordering = self.parse_memory_ordering()?;
         let mut access = AtomicAccess::ordered(ordering);
@@ -1810,7 +1793,66 @@ impl Parser {
             let token_text = self.tree.source_text(token.span).to_string();
 
             if token_text == "scope" {
-                access.scope = self.parse_atomic_scope_clause()?;
+                access.scope = self.parse_sync_scope_clause()?;
+            } else if token_text == "volatile" {
+                self.eat_token(TokenType::Identifier)?;
+                access.is_volatile = true;
+            } else {
+                return Err(ParseError::invalid("atomic access", self.pos()));
+            }
+        }
+
+        Ok(access)
+    }
+
+    /// Parse one compare exchange access suffix.
+    fn parse_atomic_compare_exchange_access(&mut self) -> ParseResult<CompareExchangeAccess> {
+        self.eat_token(TokenType::Comma)?;
+
+        let ordering = self.parse_memory_ordering()?;
+        let mut success = AtomicAccess::ordered(ordering);
+        let mut failure_ordering = CompareExchangeAccess::default_failure_ordering(ordering);
+
+        while self.eat_token_maybe(TokenType::Comma) {
+            let token = self
+                .peek()
+                .ok_or_else(|| ParseError::unexpected_end("atomic compare exchange", self.pos()))?;
+            let token_text = self.tree.source_text(token.span).to_string();
+
+            if token_text == "scope" {
+                success.scope = self.parse_sync_scope_clause()?;
+            } else if token_text == "volatile" {
+                self.eat_token(TokenType::Identifier)?;
+                success.is_volatile = true;
+            } else if token_text == "failure" {
+                self.eat_token(TokenType::Identifier)?;
+                self.eat_token(TokenType::OpenParen)?;
+                failure_ordering = self.parse_memory_ordering()?;
+                self.eat_token(TokenType::CloseParen)?;
+            } else {
+                return Err(ParseError::invalid(
+                    "atomic compare exchange access",
+                    self.pos(),
+                ));
+            }
+        }
+
+        Ok(CompareExchangeAccess::new(success, failure_ordering))
+    }
+
+    /// Parse one fence access suffix.
+    fn parse_fence_access(&mut self) -> ParseResult<FenceAccess> {
+        let ordering = self.parse_memory_ordering()?;
+        let mut access = FenceAccess::ordered(ordering);
+
+        while self.eat_token_maybe(TokenType::Comma) {
+            let token = self
+                .peek()
+                .ok_or_else(|| ParseError::unexpected_end("atomic fence", self.pos()))?;
+            let token_text = self.tree.source_text(token.span).to_string();
+
+            if token_text == "scope" {
+                access.scope = self.parse_sync_scope_clause()?;
             } else if token_text == "memory" {
                 access.memory_scope = self.parse_memory_scope_clause()?;
             } else {
@@ -1821,17 +1863,17 @@ impl Parser {
         Ok(access)
     }
 
-    /// Parse one `scope(...)` atomic clause.
-    fn parse_atomic_scope_clause(&mut self) -> ParseResult<AtomicScope> {
+    /// Parse one `scope(...)` synchronization clause.
+    fn parse_sync_scope_clause(&mut self) -> ParseResult<SyncScope> {
         self.eat_token(TokenType::Identifier)?;
         self.eat_token(TokenType::OpenParen)?;
-        let scope = self.parse_atomic_scope()?;
+        let scope = self.parse_sync_scope()?;
         self.eat_token(TokenType::CloseParen)?;
 
         Ok(scope)
     }
 
-    /// Parse one `memory(...)` atomic clause.
+    /// Parse one `memory(...)` fence clause.
     fn parse_memory_scope_clause(&mut self) -> ParseResult<MemoryScope> {
         self.eat_token(TokenType::Identifier)?;
         self.eat_token(TokenType::OpenParen)?;
@@ -1851,14 +1893,14 @@ impl Parser {
             .map_err(|_| ParseError::invalid("memory ordering", token_start))
     }
 
-    /// Parse one atomic scope like `device`.
-    fn parse_atomic_scope(&mut self) -> ParseResult<AtomicScope> {
+    /// Parse one synchronization scope like `device`.
+    fn parse_sync_scope(&mut self) -> ParseResult<SyncScope> {
         let token_start = self.pos();
         let token = self.eat_token(TokenType::Identifier)?;
         self.tree
             .source_text(token.span)
-            .parse::<AtomicScope>()
-            .map_err(|_| ParseError::invalid("atomic scope", token_start))
+            .parse::<SyncScope>()
+            .map_err(|_| ParseError::invalid("synchronization scope", token_start))
     }
 
     /// Parse one memory scope like `device`.
@@ -1871,13 +1913,12 @@ impl Parser {
             .map_err(|_| ParseError::invalid("memory scope", token_start))
     }
 
-    /// Parse memory flags for atomic operations.
+    /// Parse memory flags for one fence.
     fn parse_memory_flags(&mut self) -> ParseResult<MemoryFlags> {
         // flags state
         let mut spaces = MemorySpaceSet::NONE;
         let mut has_space = false;
         let mut is_space_locked = false;
-        let mut is_volatile = false;
         let mut makes_available = false;
         let mut makes_visible = false;
         let is_list = self.eat_token_maybe(TokenType::OpenBracket);
@@ -1904,9 +1945,6 @@ impl Parser {
 
             // flags and spaces
             match token_text.as_str() {
-                "volatile" => {
-                    is_volatile = true;
-                }
                 "makeAvailable" => {
                     makes_available = true;
                 }
@@ -1967,13 +2005,12 @@ impl Parser {
 
         Ok(MemoryFlags::with_flags(
             spaces,
-            is_volatile,
             makes_available,
             makes_visible,
         ))
     }
 
-    /// Parse one atomic read modify write opcode suffix.
+    /// Parse one atomic read-modify-write opcode suffix.
     fn parse_atomic_rmw_operator(
         &self,
         text: &str,

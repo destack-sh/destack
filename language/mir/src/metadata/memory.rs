@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use destack_core::StringId;
 
 use crate::{
-    AddressSpace, AtomicScope, Global, Instruction, Local, LocalNodeId, MemoryFlags,
-    MemoryOrdering, MemoryScope, Value,
+    AddressSpace, Global, Instruction, Local, LocalNodeId, MemoryFlags, MemoryOrdering,
+    MemoryScope, SyncScope, Value,
 };
 
 /// Table of memory metadata entries.
@@ -81,11 +81,11 @@ pub struct MemoryAccessMetadata {
     pub is_load_invariant: bool,
     /// Memory ordering for atomic accesses.
     pub ordering: Option<MemoryOrdering>,
-    /// Atomic scope for synchronization.
-    pub scope: Option<AtomicScope>,
-    /// Memory scope for synchronization.
+    /// Synchronization scope for atomic accesses and fences.
+    pub scope: Option<SyncScope>,
+    /// Memory visibility scope for fences.
     pub memory_scope: Option<MemoryScope>,
-    /// Memory flags for atomic operations and fences.
+    /// Memory flags for fences.
     pub flags: Option<MemoryFlags>,
     /// Address space override for the access.
     pub address_space: Option<AddressSpace>,
@@ -106,7 +106,7 @@ pub enum MemoryAccessKind {
     Write,
     /// Reads and writes memory.
     ReadWrite,
-    /// Read modify write memory access.
+    /// Read-modify-write memory access.
     ReadModifyWrite,
     /// Atomic memory fence.
     Fence,

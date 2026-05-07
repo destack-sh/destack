@@ -1,4 +1,4 @@
-use super::assert_format;
+use super::{assert_format, assert_format_eq};
 
 /// Formats allocation and deallocation operations canonically.
 #[test]
@@ -50,9 +50,9 @@ fn test_format_atomic_load_store_and_fence_family() {
         r#"
 function atomics(value0: ref<atomic<int32>, raw>): int32 {
 entry0(value0: ref<atomic<int32>, raw>):
-    value1: int32 = atomic.load value0, acquire, scope(device), memory(device), [static, makeVisible]
-    atomic.store value0, value1, release, scope(device), memory(device), static
-    atomic.fence sequentiallyConsistent
+    value1: int32 = atomic.load value0, acquire, scope(device), volatile
+    atomic.store value0, value1, release, scope(device)
+    atomic.fence sequentiallyConsistent, scope(device), memory(device), [static, makeVisible]
     return value1
 }
 "#,
@@ -68,9 +68,34 @@ function atomics(value0: ref<atomic<uint32>, raw>): uint32 {
 entry0(value0: ref<atomic<uint32>, raw>):
     value1: uint32 = 1uint32
     value2: uint32 = 2uint32
-    value3: (uint32, boolean) = atomic.cas value0, value1, value2, relaxed
+    value3: (uint32, boolean) = atomic.cas value0, value1, value2, acquireRelease, failure(acquire)
     value4: uint32 = atomic.rmw.umin value0, value2, relaxed
     return value4
+}
+"#,
+    );
+}
+
+/// Formats default compare-exchange failure ordering canonically.
+#[test]
+fn test_format_atomic_compare_exchange_default_failure_ordering() {
+    assert_format_eq(
+        r#"
+function atomics(value0: ref<atomic<uint32>, raw>): (uint32, boolean) {
+entry0(value0: ref<atomic<uint32>, raw>):
+    value1: uint32 = 1uint32
+    value2: uint32 = 2uint32
+    value3: (uint32, boolean) = atomic.cas value0, value1, value2, acquireRelease
+    return value3
+}
+"#,
+        r#"
+function atomics(value0: ref<atomic<uint32>, raw>): (uint32, boolean) {
+entry0(value0: ref<atomic<uint32>, raw>):
+    value1: uint32 = 1uint32
+    value2: uint32 = 2uint32
+    value3: (uint32, boolean) = atomic.cas value0, value1, value2, acquireRelease, failure(acquire)
+    return value3
 }
 "#,
     );

@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    AtomicAccess, AtomicRmwOperator, BinaryOperator, CastOperator, Constant, Instruction,
-    Intrinsic, LocalNodeId, Type, UnaryOperator, Value, ValueReference,
+    AtomicAccess, AtomicRmwOperator, BinaryOperator, CastOperator, CompareExchangeAccess, Constant,
+    FenceAccess, Instruction, Intrinsic, LocalNodeId, Type, UnaryOperator, Value, ValueReference,
 };
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
@@ -361,7 +361,7 @@ impl<'a> FunctionBuilder<'a> {
         expected: Value,
         new_value: Value,
         is_weak: bool,
-        access: AtomicAccess,
+        access: CompareExchangeAccess,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
@@ -377,7 +377,7 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Apply one atomic read modify write operation.
+    /// Apply one atomic read-modify-write operation.
     pub fn atomic_rmw(
         &mut self,
         operator: AtomicRmwOperator,
@@ -399,7 +399,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Publish one atomic fence.
-    pub fn atomic_fence(&mut self, access: AtomicAccess) {
+    pub fn atomic_fence(&mut self, access: FenceAccess) {
         self.insert_instruction(Instruction::AtomicFence { access });
     }
 

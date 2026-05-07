@@ -163,7 +163,7 @@ impl TryFrom<&str> for MemoryOrdering {
     }
 }
 
-/// Read modify write operator for atomic memory operations.
+/// Read-modify-write operator for atomic memory operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AtomicRmwOperator {
     /// Swap the memory value with the new value.
@@ -249,104 +249,83 @@ impl FromStr for AtomicRmwOperator {
     }
 }
 
-/// Execution scope for atomic operations and barriers.
+/// Synchronization scope for atomic operations and fences.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum AtomicScope {
-    /// Single invocation or thread scope.
+pub enum SyncScope {
+    /// One invocation or thread.
     Invocation,
-    /// Subgroup or warp scope.
+    /// One SIMD subgroup or warp.
     Subgroup,
-    /// Workgroup or threadgroup scope.
+    /// One workgroup or threadgroup.
     Workgroup,
-    /// Device scope.
+    /// One device.
     Device,
-    /// Cross device scope.
-    CrossDevice,
-    /// Queue family scope.
-    QueueFamily,
-    /// Shader call group scope.
-    ShaderCallGroup,
-    /// System scope.
+    /// The whole host system.
     #[default]
     System,
 }
 
-impl AtomicScope {
+impl SyncScope {
     /// Text representation for formatting and parsing.
     pub fn to_str(self) -> &'static str {
         match self {
-            AtomicScope::Invocation => "invocation",
-            AtomicScope::Subgroup => "subgroup",
-            AtomicScope::Workgroup => "workgroup",
-            AtomicScope::Device => "device",
-            AtomicScope::CrossDevice => "crossDevice",
-            AtomicScope::QueueFamily => "queueFamily",
-            AtomicScope::ShaderCallGroup => "shaderCallGroup",
-            AtomicScope::System => "system",
+            SyncScope::Invocation => "invocation",
+            SyncScope::Subgroup => "subgroup",
+            SyncScope::Workgroup => "workgroup",
+            SyncScope::Device => "device",
+            SyncScope::System => "system",
         }
     }
 }
 
-impl fmt::Display for AtomicScope {
+impl fmt::Display for SyncScope {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.to_str())
     }
 }
 
-impl FromStr for AtomicScope {
+impl FromStr for SyncScope {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "invocation" => Ok(AtomicScope::Invocation),
-            "subgroup" => Ok(AtomicScope::Subgroup),
-            "workgroup" => Ok(AtomicScope::Workgroup),
-            "device" => Ok(AtomicScope::Device),
-            "crossDevice" => Ok(AtomicScope::CrossDevice),
-            "queueFamily" => Ok(AtomicScope::QueueFamily),
-            "shaderCallGroup" => Ok(AtomicScope::ShaderCallGroup),
-            "system" => Ok(AtomicScope::System),
+            "invocation" => Ok(SyncScope::Invocation),
+            "subgroup" => Ok(SyncScope::Subgroup),
+            "workgroup" => Ok(SyncScope::Workgroup),
+            "device" => Ok(SyncScope::Device),
+            "system" => Ok(SyncScope::System),
             _ => Err(()),
         }
     }
 }
 
-impl TryFrom<&str> for AtomicScope {
+impl TryFrom<&str> for SyncScope {
     type Error = ();
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "Invocation" => Ok(AtomicScope::Invocation),
-            "Subgroup" => Ok(AtomicScope::Subgroup),
-            "Workgroup" => Ok(AtomicScope::Workgroup),
-            "Device" => Ok(AtomicScope::Device),
-            "CrossDevice" => Ok(AtomicScope::CrossDevice),
-            "QueueFamily" => Ok(AtomicScope::QueueFamily),
-            "ShaderCallGroup" => Ok(AtomicScope::ShaderCallGroup),
-            "System" => Ok(AtomicScope::System),
+            "Invocation" => Ok(SyncScope::Invocation),
+            "Subgroup" => Ok(SyncScope::Subgroup),
+            "Workgroup" => Ok(SyncScope::Workgroup),
+            "Device" => Ok(SyncScope::Device),
+            "System" => Ok(SyncScope::System),
             _ => Err(()),
         }
     }
 }
 
-/// Memory scope for atomic operations and barriers.
+/// Memory scope for fences.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MemoryScope {
-    /// Single invocation or thread scope.
+    /// One invocation or thread.
     Invocation,
-    /// Subgroup or warp scope.
+    /// One SIMD subgroup or warp.
     Subgroup,
-    /// Workgroup or threadgroup scope.
+    /// One workgroup or threadgroup.
     Workgroup,
-    /// Device scope.
+    /// One device.
     Device,
-    /// Cross device scope.
-    CrossDevice,
-    /// Queue family scope.
-    QueueFamily,
-    /// Shader call group scope.
-    ShaderCallGroup,
-    /// System scope.
+    /// The whole host system.
     #[default]
     System,
 }
@@ -359,9 +338,6 @@ impl MemoryScope {
             MemoryScope::Subgroup => "subgroup",
             MemoryScope::Workgroup => "workgroup",
             MemoryScope::Device => "device",
-            MemoryScope::CrossDevice => "crossDevice",
-            MemoryScope::QueueFamily => "queueFamily",
-            MemoryScope::ShaderCallGroup => "shaderCallGroup",
             MemoryScope::System => "system",
         }
     }
@@ -382,9 +358,6 @@ impl FromStr for MemoryScope {
             "subgroup" => Ok(MemoryScope::Subgroup),
             "workgroup" => Ok(MemoryScope::Workgroup),
             "device" => Ok(MemoryScope::Device),
-            "crossDevice" => Ok(MemoryScope::CrossDevice),
-            "queueFamily" => Ok(MemoryScope::QueueFamily),
-            "shaderCallGroup" => Ok(MemoryScope::ShaderCallGroup),
             "system" => Ok(MemoryScope::System),
             _ => Err(()),
         }
@@ -400,22 +373,17 @@ impl TryFrom<&str> for MemoryScope {
             "Subgroup" => Ok(MemoryScope::Subgroup),
             "Workgroup" => Ok(MemoryScope::Workgroup),
             "Device" => Ok(MemoryScope::Device),
-            "CrossDevice" => Ok(MemoryScope::CrossDevice),
-            "QueueFamily" => Ok(MemoryScope::QueueFamily),
-            "ShaderCallGroup" => Ok(MemoryScope::ShaderCallGroup),
             "System" => Ok(MemoryScope::System),
             _ => Err(()),
         }
     }
 }
 
-/// Memory flags for atomics and fences.
+/// Memory flags for fences.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MemoryFlags {
-    /// Effect spaces participating in the operation.
+    /// The memory spaces affected by the fence.
     pub spaces: MemorySpaceSet,
-    /// Whether the access is volatile.
-    pub is_volatile: bool,
     /// Whether this makes writes available to other scopes.
     pub makes_available: bool,
     /// Whether this makes writes visible to other scopes.
@@ -426,7 +394,6 @@ impl MemoryFlags {
     /// Default memory flags.
     pub const DEFAULT: Self = Self {
         spaces: MemorySpaceSet::ANY,
-        is_volatile: false,
         makes_available: false,
         makes_visible: false,
     };
@@ -435,22 +402,15 @@ impl MemoryFlags {
     pub fn new(spaces: MemorySpaceSet) -> Self {
         Self {
             spaces,
-            is_volatile: false,
             makes_available: false,
             makes_visible: false,
         }
     }
 
     /// Create flags with explicit predicates.
-    pub fn with_flags(
-        spaces: MemorySpaceSet,
-        is_volatile: bool,
-        makes_available: bool,
-        makes_visible: bool,
-    ) -> Self {
+    pub fn with_flags(spaces: MemorySpaceSet, makes_available: bool, makes_visible: bool) -> Self {
         Self {
             spaces,
-            is_volatile,
             makes_available,
             makes_visible,
         }
@@ -463,24 +423,101 @@ impl Default for MemoryFlags {
     }
 }
 
-/// Atomic ordering, scope, and flags for one operation.
+/// Atomic ordering and scope for one memory operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AtomicAccess {
     /// The memory ordering.
     pub ordering: MemoryOrdering,
     /// The synchronization scope.
-    pub scope: AtomicScope,
+    pub scope: SyncScope,
+    /// Whether the access must be preserved as a volatile operation.
+    pub is_volatile: bool,
+}
+
+impl AtomicAccess {
+    /// Create one atomic access.
+    pub const fn new(ordering: MemoryOrdering, scope: SyncScope, is_volatile: bool) -> Self {
+        Self {
+            ordering,
+            scope,
+            is_volatile,
+        }
+    }
+
+    /// Create one atomic access with system scope and nonvolatile access.
+    pub const fn ordered(ordering: MemoryOrdering) -> Self {
+        Self::new(ordering, SyncScope::System, false)
+    }
+}
+
+impl Default for AtomicAccess {
+    fn default() -> Self {
+        Self::ordered(MemoryOrdering::default())
+    }
+}
+
+/// Access for one compare exchange operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CompareExchangeAccess {
+    /// Access used when the comparison succeeds.
+    pub success: AtomicAccess,
+    /// Ordering used by the failed comparison load.
+    pub failure_ordering: MemoryOrdering,
+}
+
+impl CompareExchangeAccess {
+    /// Create one compare exchange access.
+    pub const fn new(success: AtomicAccess, failure_ordering: MemoryOrdering) -> Self {
+        Self {
+            success,
+            failure_ordering,
+        }
+    }
+
+    /// Create one compare exchange access with default failure ordering.
+    pub const fn with_success(success: AtomicAccess) -> Self {
+        Self::new(success, Self::default_failure_ordering(success.ordering))
+    }
+
+    /// Create one compare exchange access with default scope and failure ordering.
+    pub const fn ordered(ordering: MemoryOrdering) -> Self {
+        Self::with_success(AtomicAccess::ordered(ordering))
+    }
+
+    /// Return the default failure ordering for one success ordering.
+    pub const fn default_failure_ordering(success: MemoryOrdering) -> MemoryOrdering {
+        match success {
+            MemoryOrdering::Release => MemoryOrdering::Relaxed,
+            MemoryOrdering::AcquireRelease => MemoryOrdering::Acquire,
+            other => other,
+        }
+    }
+}
+
+impl Default for CompareExchangeAccess {
+    fn default() -> Self {
+        Self::ordered(MemoryOrdering::default())
+    }
+}
+
+/// Fence ordering, scope, and memory visibility.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct FenceAccess {
+    /// The memory ordering.
+    pub ordering: MemoryOrdering,
+    /// The synchronization scope.
+    pub scope: SyncScope,
     /// The memory visibility scope.
     pub memory_scope: MemoryScope,
     /// The memory flags.
     pub flags: MemoryFlags,
 }
 
-impl AtomicAccess {
-    /// Create one atomic access record.
+impl FenceAccess {
+    /// Create one fence access.
     pub const fn new(
         ordering: MemoryOrdering,
-        scope: AtomicScope,
+        scope: SyncScope,
         memory_scope: MemoryScope,
         flags: MemoryFlags,
     ) -> Self {
@@ -492,18 +529,18 @@ impl AtomicAccess {
         }
     }
 
-    /// Create one atomic access record with default scope and flags.
+    /// Create one fence access with system scope and default flags.
     pub const fn ordered(ordering: MemoryOrdering) -> Self {
         Self::new(
             ordering,
-            AtomicScope::System,
+            SyncScope::System,
             MemoryScope::System,
             MemoryFlags::DEFAULT,
         )
     }
 }
 
-impl Default for AtomicAccess {
+impl Default for FenceAccess {
     fn default() -> Self {
         Self::ordered(MemoryOrdering::default())
     }

@@ -6,12 +6,12 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{
     AllocationSize, ArgumentAttribute, AtomicAccess, AtomicRmwOperator, BinaryOperator, Call,
-    CallBehavior, Constant, DispatchSlot, FunctionReference, GlobalReference, Intrinsic,
-    LocalReference, MemoryEffect, Node, NodeType, PointerAttribute, TensorConvertMode,
-    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
-    TensorGatherDimensionNumbers, TensorReduceOperator, TensorScatterDimensionNumbers,
-    TensorScatterMode, TypeReference, UnaryOperator, ValueReference, VectorConvertMode,
-    VectorReduceOperator,
+    CallBehavior, CompareExchangeAccess, Constant, DispatchSlot, FenceAccess, FunctionReference,
+    GlobalReference, Intrinsic, LocalReference, MemoryEffect, Node, NodeType, PointerAttribute,
+    TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
+    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorReduceOperator,
+    TensorScatterDimensionNumbers, TensorScatterMode, TypeReference, UnaryOperator, ValueReference,
+    VectorConvertMode, VectorReduceOperator,
 };
 
 /// Compact representation of an argument slice stored in an external buffer.
@@ -818,8 +818,8 @@ pub enum Instruction {
         new_value: ValueReference,
         /// Whether the compare exchange is weak.
         is_weak: bool,
-        /// The atomic access.
-        access: AtomicAccess,
+        /// The compare exchange access.
+        access: CompareExchangeAccess,
     },
     /// Apply one atomic read modify write operation.
     AtomicRmw {
@@ -836,8 +836,8 @@ pub enum Instruction {
     },
     /// Publish one memory fence.
     AtomicFence {
-        /// The atomic access.
-        access: AtomicAccess,
+        /// The fence access.
+        access: FenceAccess,
     },
     // assumptions and hints
     /// Assume a condition is true (UB if false).
