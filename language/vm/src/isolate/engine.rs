@@ -68,9 +68,9 @@ impl engine::Engine for Isolate {
 
     fn restore(
         &mut self,
-        context: engine::Context<'_>,
+        _context: engine::Context<'_>,
         image: &Self::Image,
     ) -> Result<(), Self::Error> {
-        Isolate::restore_image(self, context.heap, image)
+        Isolate::restore_image(self, image)
     }
 }

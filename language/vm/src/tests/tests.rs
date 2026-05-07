@@ -115,7 +115,7 @@ impl TestIsolate {
         values: Vec<Word>,
     ) -> Word {
         self.with_heaps(|vm, heap, shared| {
-            vm.with_runtime_context(heap, shared, Default::default(), |context| {
+            vm.with_binding_context(heap, shared, Default::default(), |context| {
                 context.materialize_heap_value(ty, values)
             })
             .unwrap_or_else(|error| panic!("failed to materialize heap value: {error}"))

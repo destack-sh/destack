@@ -207,7 +207,7 @@ b0:
 
     let pointer = isolate.with_heaps(|isolate, heap, shared| {
         isolate
-            .with_runtime_context(heap, shared, Default::default(), |context| {
+            .with_binding_context(heap, shared, Default::default(), |context| {
                 let pointer = context
                     .allocate_shared_bytes(&[1, 2, 3])
                     .expect("shared allocation should succeed");

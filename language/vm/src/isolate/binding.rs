@@ -1,8 +1,8 @@
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet};
-use std::fmt;
+use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 use std::sync::Arc;
+use std::{fmt, mem};
 
 use crate::diagnostic::Error;
 use crate::program::{Layout, Program};
@@ -18,14 +18,16 @@ pub type BindingFn =
     Arc<dyn for<'ctx> Fn(&mut BindingContext<'ctx>, &[Word]) -> Result<Word, Error> + Send + Sync>;
 
 /// Runtime binding context with restricted access to isolate state.
+///
+/// Raw heap pointers carry one exclusive VM binding borrow through generated ABI helpers.
 pub struct BindingContext<'ctx> {
     /// The immutable program metadata for this isolate.
     program: &'ctx Program,
-    /// The worker-local heap.
+    /// The worker-local heap borrowed for this binding call.
     heap: *mut Heap,
-    /// The world-shared heap.
+    /// The world-shared heap borrowed for this binding call.
     shared: *const SharedHeap,
-    /// The configured shared raw-space limits.
+    /// The configured shared raw space limits.
     shared_raw_limits: SharedRawLimits,
     /// The binding pin scope for this call.
     pin_scope: PinScope,
@@ -34,7 +36,7 @@ pub struct BindingContext<'ctx> {
 /// Read capability for one binding call.
 #[derive(Debug)]
 pub struct BindingRead<'call, 'ctx> {
-    /// The owning binding context.
+    /// The active binding context pointer.
     pub(super) context: *const BindingContext<'ctx>,
     /// The lifetime marker for the call context.
     _marker: PhantomData<&'call BindingContext<'ctx>>,
@@ -43,7 +45,7 @@ pub struct BindingRead<'call, 'ctx> {
 /// Write capability for one binding call.
 #[derive(Debug)]
 pub struct BindingWrite<'call, 'ctx> {
-    /// The owning binding context.
+    /// The active binding context pointer.
     pub(super) context: *mut BindingContext<'ctx>,
     /// The lifetime marker for the call context.
     _marker: PhantomData<&'call mut BindingContext<'ctx>>,
@@ -55,9 +57,9 @@ struct PinScope {
     /// The local heap references pinned for the call lifetime.
     heap_references: Vec<HeapReference>,
     /// The unique pinned heap references for the call lifetime.
-    pinned_heap_references: BTreeSet<HeapReference>,
-    /// The per-call rewrites from original to pinned heap references.
-    heap_reference_rewrites: BTreeMap<HeapReference, HeapReference>,
+    pinned_heap_references: HashSet<HeapReference>,
+    /// The call-local rewrites from original to pinned heap references.
+    heap_reference_rewrites: HashMap<HeapReference, HeapReference>,
 }
 
 impl PinScope {
@@ -142,7 +144,7 @@ impl<'ctx> BindingContext<'ctx> {
         payload: Payload<'_>,
     ) -> Result<HeapReference, Error> {
         let shape = self.program.allocation_shape(layout_id)?;
-        let heap = unsafe { &mut *self.heap };
+        let heap = self.heap();
         let layout = heap.allocation_layout(shape);
 
         heap.allocate(&layout, payload).map_err(Error::from)
@@ -155,7 +157,7 @@ impl<'ctx> BindingContext<'ctx> {
         bytes: &[u8],
     ) -> Result<HeapReference, Error> {
         let shape = self.program.allocation_shape(layout_id)?;
-        let heap = unsafe { &mut *self.heap };
+        let heap = self.heap();
         let layout = heap.allocation_layout(shape);
 
         heap.allocate_bytes(&layout, bytes).map_err(Error::from)
@@ -166,7 +168,7 @@ impl<'ctx> BindingContext<'ctx> {
         unsafe { &*self.shared }
     }
 
-    /// Return the current shared raw-space budget.
+    /// Return the current shared raw space budget.
     fn shared_raw_budget(&self) -> SharedRawBudget {
         SharedRawBudget::new(self.shared_raw_limits, self.shared().raw_retained_bytes())
     }
@@ -189,7 +191,7 @@ impl<'ctx> BindingContext<'ctx> {
             .map_err(Error::from)
     }
 
-    /// Allocate one raw packed-value buffer and return its pointer.
+    /// Allocate one raw packed value buffer and return its pointer.
     pub fn allocate_raw_values(&mut self, values: Vec<Word>) -> Result<RawPointer, Error> {
         let bytes = values
             .into_iter()
@@ -199,7 +201,7 @@ impl<'ctx> BindingContext<'ctx> {
         self.allocate_raw_bytes(&bytes)
     }
 
-    /// Allocate one zeroed raw packed-value buffer and return its pointer.
+    /// Allocate one zeroed raw packed value buffer and return its pointer.
     pub fn allocate_raw_value_slots(&mut self, slot_count: usize) -> Result<RawPointer, Error> {
         let byte_len = slot_count * Word::BYTE_LEN;
 
@@ -369,7 +371,7 @@ impl<'ctx> BindingContext<'ctx> {
 
     /// Release all heap pins captured for this call.
     pub(crate) fn release_pins(&mut self) -> Result<(), Error> {
-        let heap_references = std::mem::take(&mut self.pin_scope.heap_references);
+        let heap_references = mem::take(&mut self.pin_scope.heap_references);
         let mut error = None;
 
         // release every call scoped local heap pin
@@ -388,12 +390,6 @@ impl<'ctx> BindingContext<'ctx> {
             Some(error) => Err(error),
             None => Ok(()),
         }
-    }
-}
-
-impl Drop for BindingContext<'_> {
-    fn drop(&mut self) {
-        let _ = self.release_pins();
     }
 }
 
@@ -423,7 +419,7 @@ impl<'call, 'ctx> BindingRead<'call, 'ctx> {
         self.context().raw_value_at(pointer, index)
     }
 
-    /// Return one raw packed-value payload copy.
+    /// Return one raw packed value payload copy.
     pub fn raw_values(&self, pointer: RawPointer) -> Result<Vec<Word>, Error> {
         self.context().raw_values(pointer)
     }
@@ -445,14 +441,19 @@ impl<'call, 'ctx> BindingRead<'call, 'ctx> {
 }
 
 impl<'call, 'ctx> BindingWrite<'call, 'ctx> {
+    /// Return the binding context immutably.
+    pub(super) fn context(&self) -> &BindingContext<'ctx> {
+        unsafe { &*self.context }
+    }
+
     /// Return the binding context mutably.
-    pub(super) fn context_mut(&self) -> &mut BindingContext<'ctx> {
+    pub(super) fn context_mut(&mut self) -> &mut BindingContext<'ctx> {
         unsafe { &mut *self.context }
     }
 
     /// Return the raw byte length for one pointer.
     pub fn raw_byte_len(&self, pointer: RawPointer) -> Result<usize, Error> {
-        self.context_mut().raw_byte_len(pointer)
+        self.context().raw_byte_len(pointer)
     }
 
     /// Allocate one raw byte buffer.
@@ -465,12 +466,12 @@ impl<'call, 'ctx> BindingWrite<'call, 'ctx> {
         self.context_mut().allocate_zeroed_raw_bytes(byte_len)
     }
 
-    /// Allocate one raw packed-value buffer.
+    /// Allocate one raw packed value buffer.
     pub fn allocate_raw_values(&mut self, values: Vec<Word>) -> Result<RawPointer, Error> {
         self.context_mut().allocate_raw_values(values)
     }
 
-    /// Allocate one zeroed raw packed-value buffer.
+    /// Allocate one zeroed raw packed value buffer.
     pub fn allocate_raw_value_slots(&mut self, slot_count: usize) -> Result<RawPointer, Error> {
         self.context_mut().allocate_raw_value_slots(slot_count)
     }
@@ -489,7 +490,7 @@ impl<'call, 'ctx> BindingWrite<'call, 'ctx> {
         self.context_mut().write_raw_bytes(pointer, bytes)
     }
 
-    /// Write one raw packed-value payload.
+    /// Write one raw packed value payload.
     pub fn write_raw_values(
         &mut self,
         pointer: RawPointer,

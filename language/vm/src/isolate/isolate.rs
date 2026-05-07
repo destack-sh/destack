@@ -62,18 +62,15 @@ impl Isolate {
     pub fn new(image: Arc<IsolateImage>) -> RuntimeResult<Self> {
         let program = Arc::new(Program::new(image.tree.clone(), image.strings.clone())?);
         Self::require_host_pointer_width(program.as_ref())?;
+        let interpreter = Interpreter::from_image(&program, &image.interpreter, &image.options)?;
 
-        let mut isolate = Self {
+        Ok(Self {
             id: image.isolate_id,
             program,
             options: image.options.clone(),
             bindings: HashMap::new(),
-            interpreter: Interpreter::new(&image.options)?,
-        };
-        isolate.interpreter =
-            Interpreter::from_image(&isolate.program, &image.interpreter, &isolate.options)?;
-
-        Ok(isolate)
+            interpreter,
+        })
     }
 
     /// Build a new isolate with default options.
@@ -126,13 +123,13 @@ impl Isolate {
             .initialize_statics(self.program.as_ref(), statics)
     }
 
-    /// Get the isolate options.
+    /// Return the isolate options.
     pub fn options(&self) -> &IsolateOptions {
         &self.options
     }
 
-    /// Register a VM binding handler.
-    pub fn register_vm_binding<F>(&mut self, name: &str, handler: F)
+    /// Register a binding handler.
+    pub fn register_binding<F>(&mut self, name: &str, handler: F)
     where
         F: for<'ctx> Fn(&mut BindingContext<'ctx>, &[Word]) -> Result<Word, Error>
             + Send
@@ -152,8 +149,8 @@ impl Isolate {
         Ok(())
     }
 
-    /// Run a callback with a runtime context for this isolate.
-    pub fn with_runtime_context<F, R>(
+    /// Run a callback with a binding context for this isolate.
+    pub fn with_binding_context<F, R>(
         &mut self,
         heap: &mut Heap,
         shared: &SharedHeap,
@@ -182,16 +179,11 @@ impl Isolate {
         &self,
         name: &str,
     ) -> Result<mir::LocalNodeId<mir::Function>, RuntimeError> {
-        let func_id = self
-            .program
-            .function_id_by_name
-            .get(name)
-            .copied()
-            .ok_or_else(|| {
-                self.runtime_error(Error::BindingFunctionNotFound {
-                    name: name.to_string(),
-                })
-            })?;
+        let func_id = self.program.function_id_by_name(name).ok_or_else(|| {
+            self.runtime_error(Error::BindingFunctionNotFound {
+                name: name.to_string(),
+            })
+        })?;
 
         Ok(func_id)
     }
@@ -427,10 +419,11 @@ impl Isolate {
         &self,
         image: &ContinuationImage,
     ) -> RuntimeResult<Continuation> {
-        let mut continuation = Continuation::from_image(image, &self.program, &self.options)?;
-        continuation.isolate_id = self.id;
+        if image.engine_id != self.id {
+            return Err(self.runtime_error(Error::InvalidContinuation));
+        }
 
-        Ok(continuation)
+        Continuation::from_image(image, &self.program, &self.options)
     }
 
     /// Visit one complete root set from live state and optional continuations.
@@ -522,8 +515,11 @@ impl Isolate {
     }
 
     /// Restore this isolate from one immutable VM image.
-    pub fn restore_image(&mut self, _heap: &mut Heap, image: &IsolateImage) -> RuntimeResult<()> {
-        self.program = Arc::new(Program::new(image.tree.clone(), image.strings.clone())?);
+    pub fn restore_image(&mut self, image: &IsolateImage) -> RuntimeResult<()> {
+        let program = Arc::new(Program::new(image.tree.clone(), image.strings.clone())?);
+        Self::require_host_pointer_width(program.as_ref())?;
+
+        self.program = program;
         self.options = image.options.clone();
 
         self.id = image.isolate_id;
@@ -596,9 +592,9 @@ impl Capture for Isolate {
     fn restore_image(
         &mut self,
         image: &Self::Image,
-        heap: Self::RestoreContext<'_>,
+        _heap: Self::RestoreContext<'_>,
     ) -> Result<(), Self::Error> {
-        Isolate::restore_image(self, heap, image).map_err(Box::<RuntimeError>::from)
+        Isolate::restore_image(self, image).map_err(Box::<RuntimeError>::from)
     }
 }
 
