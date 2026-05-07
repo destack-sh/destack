@@ -1,6 +1,0 @@
-{
-  "extends": ["../extends-extension", "../extends-paths"],
-  "compilerOptions": {
-    "baseUrl": ".",
-  },
-}

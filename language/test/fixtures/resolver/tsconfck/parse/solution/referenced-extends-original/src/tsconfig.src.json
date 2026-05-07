@@ -1,8 +1,0 @@
-{
-  "include": ["./foo.ts"],
-  "extends": "../tsconfig",
-  "compilerOptions": {
-    "composite": true,
-    "strict": true
-  }
-}

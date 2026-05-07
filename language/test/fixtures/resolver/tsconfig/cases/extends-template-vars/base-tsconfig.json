@@ -1,8 +1,0 @@
-{
-  "compilerOptions": {
-    "baseUrl": "${configDir}/src",
-    "paths": {
-      "@/*": ["*"]
-    }
-  }
-}
