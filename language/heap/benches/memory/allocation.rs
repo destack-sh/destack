@@ -1,16 +1,18 @@
 use std::hint::black_box;
 use std::sync::{Arc, Barrier};
+use std::thread;
 use std::time::{Duration, Instant};
 
 use criterion::{BenchmarkId, Criterion, Throughput};
 use destack_heap::AllocationShape;
 use destack_mir::ReferenceMap;
 
-use crate::common::{
+use crate::config::{
     ALLOCATION_MATRIX_BYTES, LARGE_ALLOCATIONS, LARGE_BYTES, MATRIX_MAX_ALLOCATIONS,
     MATRIX_MIN_ALLOCATIONS, MATRIX_SAMPLE_BYTES, PARALLEL_ALLOCATIONS_PER_WORKER, PARALLEL_WORKERS,
-    SMALL_ALLOCATIONS, SMALL_BYTES, local_heap, shared_fixture,
+    SMALL_ALLOCATIONS, SMALL_BYTES,
 };
+use crate::heap::{local_heap, shared_worker_heap};
 
 /// Return the allocation count for one matrix size.
 #[inline(always)]
@@ -104,13 +106,13 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 
             // isolate heap setup from the timed allocation run
             for _ in 0..iterations {
-                let mut fixture = shared_fixture();
-                let layout = fixture.heap.allocation_layout(shape);
+                let mut shared_worker = shared_worker_heap();
+                let layout = shared_worker.heap.allocation_layout(shape);
 
                 // prime the allocation run outside the timed loop
-                let warm_reference = fixture
+                let warm_reference = shared_worker
                     .heap
-                    .allocate_zeroed(&fixture.worker, &mut fixture.allocator, &layout)
+                    .allocate_zeroed(&shared_worker.worker, &mut shared_worker.allocator, &layout)
                     .expect("shared heap allocation should prime");
                 black_box(warm_reference);
 
@@ -118,15 +120,19 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 
                 // measure the shared zeroed allocation path with one worker cache
                 for _ in 0..SMALL_ALLOCATIONS {
-                    let reference = fixture
+                    let reference = shared_worker
                         .heap
-                        .allocate_zeroed(&fixture.worker, &mut fixture.allocator, &layout)
+                        .allocate_zeroed(
+                            &shared_worker.worker,
+                            &mut shared_worker.allocator,
+                            &layout,
+                        )
                         .expect("shared heap allocation should succeed");
                     black_box(reference);
                 }
 
                 elapsed += start.elapsed();
-                black_box(fixture);
+                black_box(shared_worker);
             }
 
             elapsed
@@ -139,13 +145,18 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 
             // isolate heap setup from the timed allocation run
             for _ in 0..iterations {
-                let mut fixture = shared_fixture();
-                let layout = fixture.heap.allocation_layout(shape);
+                let mut shared_worker = shared_worker_heap();
+                let layout = shared_worker.heap.allocation_layout(shape);
 
                 // prime the allocation run outside the timed loop
-                let warm_reference = fixture
+                let warm_reference = shared_worker
                     .heap
-                    .allocate_bytes(&fixture.worker, &mut fixture.allocator, &layout, &payload)
+                    .allocate_bytes(
+                        &shared_worker.worker,
+                        &mut shared_worker.allocator,
+                        &layout,
+                        &payload,
+                    )
                     .expect("shared heap allocation should prime");
                 black_box(warm_reference);
 
@@ -153,15 +164,20 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 
                 // measure the shared initialized allocation path with one worker cache
                 for _ in 0..SMALL_ALLOCATIONS {
-                    let reference = fixture
+                    let reference = shared_worker
                         .heap
-                        .allocate_bytes(&fixture.worker, &mut fixture.allocator, &layout, &payload)
+                        .allocate_bytes(
+                            &shared_worker.worker,
+                            &mut shared_worker.allocator,
+                            &layout,
+                            &payload,
+                        )
                         .expect("shared heap allocation should succeed");
                     black_box(reference);
                 }
 
                 elapsed += start.elapsed();
-                black_box(fixture);
+                black_box(shared_worker);
             }
 
             elapsed
@@ -229,21 +245,25 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 
             // isolate heap setup from the timed allocation run
             for _ in 0..iterations {
-                let mut fixture = shared_fixture();
-                let layout = fixture.heap.allocation_layout(large_shape);
+                let mut shared_worker = shared_worker_heap();
+                let layout = shared_worker.heap.allocation_layout(large_shape);
                 let start = Instant::now();
 
                 // measure shared large zeroed allocations through one worker cache
                 for _ in 0..LARGE_ALLOCATIONS {
-                    let reference = fixture
+                    let reference = shared_worker
                         .heap
-                        .allocate_zeroed(&fixture.worker, &mut fixture.allocator, &layout)
+                        .allocate_zeroed(
+                            &shared_worker.worker,
+                            &mut shared_worker.allocator,
+                            &layout,
+                        )
                         .expect("shared large allocation should succeed");
                     black_box(reference);
                 }
 
                 elapsed += start.elapsed();
-                black_box(fixture);
+                black_box(shared_worker);
             }
 
             elapsed
@@ -256,17 +276,17 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 
             // isolate heap setup from the timed allocation run
             for _ in 0..iterations {
-                let mut fixture = shared_fixture();
-                let layout = fixture.heap.allocation_layout(large_shape);
+                let mut shared_worker = shared_worker_heap();
+                let layout = shared_worker.heap.allocation_layout(large_shape);
                 let start = Instant::now();
 
                 // measure shared large initialized allocations through one worker cache
                 for _ in 0..LARGE_ALLOCATIONS {
-                    let reference = fixture
+                    let reference = shared_worker
                         .heap
                         .allocate_bytes(
-                            &fixture.worker,
-                            &mut fixture.allocator,
+                            &shared_worker.worker,
+                            &mut shared_worker.allocator,
                             &layout,
                             &large_payload,
                         )
@@ -275,7 +295,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 }
 
                 elapsed += start.elapsed();
-                black_box(fixture);
+                black_box(shared_worker);
             }
 
             elapsed
@@ -385,13 +405,17 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
 
                     // isolate heap setup from the timed allocation run
                     for _ in 0..iterations {
-                        let mut fixture = shared_fixture();
-                        let layout = fixture.heap.allocation_layout(shape);
+                        let mut shared_worker = shared_worker_heap();
+                        let layout = shared_worker.heap.allocation_layout(shape);
 
                         // prime the allocation run outside the timed loop
-                        let warm_reference = fixture
+                        let warm_reference = shared_worker
                             .heap
-                            .allocate_zeroed(&fixture.worker, &mut fixture.allocator, &layout)
+                            .allocate_zeroed(
+                                &shared_worker.worker,
+                                &mut shared_worker.allocator,
+                                &layout,
+                            )
                             .expect("shared zeroed allocation should prime");
                         black_box(warm_reference);
 
@@ -399,15 +423,19 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
 
                         // measure shared zeroed allocations at this size
                         for _ in 0..allocation_count {
-                            let reference = fixture
+                            let reference = shared_worker
                                 .heap
-                                .allocate_zeroed(&fixture.worker, &mut fixture.allocator, &layout)
+                                .allocate_zeroed(
+                                    &shared_worker.worker,
+                                    &mut shared_worker.allocator,
+                                    &layout,
+                                )
                                 .expect("shared zeroed allocation should succeed");
                             black_box(reference);
                         }
 
                         elapsed += start.elapsed();
-                        black_box(fixture);
+                        black_box(shared_worker);
                     }
 
                     elapsed
@@ -427,15 +455,15 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
 
                     // isolate heap setup from the timed allocation run
                     for _ in 0..iterations {
-                        let mut fixture = shared_fixture();
-                        let layout = fixture.heap.allocation_layout(shape);
+                        let mut shared_worker = shared_worker_heap();
+                        let layout = shared_worker.heap.allocation_layout(shape);
 
                         // prime the allocation run outside the timed loop
-                        let warm_reference = fixture
+                        let warm_reference = shared_worker
                             .heap
                             .allocate_bytes(
-                                &fixture.worker,
-                                &mut fixture.allocator,
+                                &shared_worker.worker,
+                                &mut shared_worker.allocator,
                                 &layout,
                                 &payload,
                             )
@@ -446,11 +474,11 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
 
                         // measure shared initialized allocations at this size
                         for _ in 0..allocation_count {
-                            let reference = fixture
+                            let reference = shared_worker
                                 .heap
                                 .allocate_bytes(
-                                    &fixture.worker,
-                                    &mut fixture.allocator,
+                                    &shared_worker.worker,
+                                    &mut shared_worker.allocator,
                                     &layout,
                                     &payload,
                                 )
@@ -459,7 +487,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                         }
 
                         elapsed += start.elapsed();
-                        black_box(fixture);
+                        black_box(shared_worker);
                     }
 
                     elapsed
@@ -495,13 +523,13 @@ pub(crate) fn bench_shared_parallel_allocation(criterion: &mut Criterion) {
 
                     // isolate shared heap setup from the timed worker run
                     for _ in 0..iterations {
-                        let fixture = shared_fixture();
-                        let shared = Arc::new(fixture.heap);
+                        let shared_worker = shared_worker_heap();
+                        let shared = Arc::new(shared_worker.heap);
                         let layout = shared.allocation_layout(shape);
                         let barrier = Arc::new(Barrier::new(*worker_count + 1));
 
                         let start = Instant::now();
-                        std::thread::scope(|scope| {
+                        thread::scope(|scope| {
                             // each worker allocates from its own shared allocator cache
                             for _ in 0..*worker_count {
                                 let shared = Arc::clone(&shared);
