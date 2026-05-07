@@ -2,8 +2,8 @@ use crate::DestackFormatContext;
 use crate::declaration::expression_is_in_statement_position;
 use crate::operator::{binary_operator_format_precedence, should_flatten_binary};
 use destack_ast::{
-    Argument, AssignPattern, BinaryOperator, Declaration, Expression, FunctionKind, IfCondition,
-    IfKind, LocalNodeId, MatchCase, NodeType, OperatorPrecedence, Property,
+    Argument, AssignPattern, BinaryOperator, Declaration, Expression, FunctionForm, IfCondition,
+    IfForm, LocalNodeId, MatchCase, NodeType, OperatorPrecedence, Property,
 };
 use destack_source::Span;
 
@@ -41,7 +41,7 @@ fn class_extends_expression_needs_parentheses(expression: &Expression) -> bool {
             | Expression::Is { .. }
             | Expression::InstanceOf { .. }
             | Expression::If {
-                kind: IfKind::Ternary,
+                form: IfForm::Ternary,
                 ..
             }
             | Expression::As { .. }
@@ -90,7 +90,7 @@ fn expression_is_statement_like_value(expression: &Expression) -> bool {
     matches!(
         expression,
         Expression::If {
-            kind: IfKind::If,
+            form: IfForm::If,
             ..
         } | Expression::Match { .. }
             | Expression::Try { .. }
@@ -202,7 +202,7 @@ fn expression_is_type_relation_left_chain_in_statement_position(
                 matches!(
                     context.tree.get(parent_declaration_id),
                     Declaration::Function(function)
-                        if function.signature.kind == FunctionKind::Lambda
+                        if function.signature.form == FunctionForm::Lambda
                             && function
                                 .body
                                 .is_some_and(|body_expression_id| body_expression_id == current_id)
@@ -280,7 +280,7 @@ fn expression_is_lambda_declaration(
 
     matches!(
         context.tree.get(*declaration_id),
-        Declaration::Function(function) if function.signature.kind == FunctionKind::Lambda
+        Declaration::Function(function) if function.signature.form == FunctionForm::Lambda
     )
 }
 
@@ -316,7 +316,7 @@ fn expression_is_named_declaration_statement(
     ) || matches!(
         context.tree.get(*declaration_id),
         Declaration::Function(function)
-            if function.name.is_some() && function.signature.kind == FunctionKind::Function
+            if function.name.is_some() && function.signature.form == FunctionForm::Function
     )
 }
 
@@ -337,7 +337,7 @@ fn expression_is_lambda_body_position(
         return false;
     };
 
-    function.signature.kind == FunctionKind::Lambda
+    function.signature.form == FunctionForm::Lambda
         && function
             .body
             .is_some_and(|body_expression_id| body_expression_id == node_id)
@@ -396,7 +396,7 @@ fn expression_lambda_needs_parentheses_in_parent(
     if matches!(
         parent_expression,
         Expression::If {
-            kind: IfKind::Ternary,
+            form: IfForm::Ternary,
             condition,
             ..
         } if matches!(
@@ -426,7 +426,7 @@ fn expression_as_or_satisfies_needs_parentheses_in_parent(
     match parent_expression {
         // ternary branches
         Expression::If {
-            kind: IfKind::Ternary,
+            form: IfForm::Ternary,
             ..
         } => true,
 
@@ -466,7 +466,7 @@ fn expression_await_like_needs_parentheses_in_parent(
     if matches!(
         parent_expression,
         Expression::If {
-            kind: IfKind::Ternary,
+            form: IfForm::Ternary,
             condition,
             ..
         } if matches!(
@@ -510,7 +510,7 @@ fn expression_binary_like_needs_parentheses_in_parent(
         && matches!(
             parent_expression,
             Expression::If {
-                kind: IfKind::Ternary,
+                form: IfForm::Ternary,
                 ..
             }
         )
@@ -660,7 +660,10 @@ fn expression_is_update_or_lower_precedence(
             | Expression::Binary { .. }
             | Expression::Is { .. }
             | Expression::InstanceOf { .. }
-            | Expression::If { .. }
+            | Expression::If {
+                form: IfForm::Ternary,
+                ..
+            }
             | Expression::Match { .. }
             | Expression::Try { .. }
             | Expression::As { .. }
@@ -862,7 +865,7 @@ pub(crate) fn expression_needs_parentheses_in_parent(
     if matches!(
         context.tree.get(node_id),
         Expression::If {
-            kind: IfKind::Ternary,
+            form: IfForm::Ternary,
             ..
         }
     ) {
@@ -871,7 +874,7 @@ pub(crate) fn expression_needs_parentheses_in_parent(
             || matches!(
                 parent_expression,
                 Expression::If {
-                    kind: IfKind::Ternary,
+                    form: IfForm::Ternary,
                     condition,
                     ..
                 } if matches!(

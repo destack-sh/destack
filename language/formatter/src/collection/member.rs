@@ -15,7 +15,7 @@ use crate::file::{
 };
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{
-    Ambientness, Declaration, Keyword, LocalNodeId, Member, NodeType, TypeExpression, Visibility,
+    Declaration, Keyword, LocalNodeId, Member, NodeType, TypeExpression, Visibility,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{space, token};
@@ -114,13 +114,13 @@ fn write_visibility_prefix<'ast>(
     Ok(())
 }
 
-/// Write one ambient prefix.
+/// Write one is_ambient prefix.
 fn write_ambient_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    ambient: Ambientness,
+    is_ambient: bool,
 ) -> FormatResult<()> {
-    // ambient
-    if ambient.is_ambient() {
+    // is_ambient
+    if is_ambient {
         write!(f, [Keyword::Declare, space()])?;
     }
 
@@ -202,7 +202,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
             signature,
             body,
             visibility,
-            ambient,
+            is_ambient,
             is_static,
             is_accessor,
             is_comptime,
@@ -217,7 +217,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     f,
                     node_id,
                     *visibility,
-                    *ambient,
+                    *is_ambient,
                     *is_static,
                     *is_accessor,
                     *is_comptime,
@@ -267,13 +267,13 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     constraint,
                     value,
                     visibility,
-                    ambient,
+                    is_ambient,
                     is_abstract,
                     is_override,
                     is_static,
                 } => {
                     // prefixes
-                    write_ambient_prefix(f, *ambient)?;
+                    write_ambient_prefix(f, *is_ambient)?;
                     write_visibility_prefix(f, *visibility)?;
                     write_static_prefix(f, *is_static)?;
                     write_abstract_prefix(f, *is_abstract)?;
@@ -309,11 +309,11 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     declared_type,
                     value,
                     visibility,
-                    ambient,
+                    is_ambient,
                     is_static,
                 } => {
                     // prefixes
-                    write_ambient_prefix(f, *ambient)?;
+                    write_ambient_prefix(f, *is_ambient)?;
                     write_visibility_prefix(f, *visibility)?;
                     write_static_prefix(f, *is_static)?;
 
@@ -337,7 +337,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     is_readonly,
                     mutability,
                     visibility,
-                    ambient,
+                    is_ambient,
                     is_abstract,
                     is_override,
                     is_static,
@@ -353,7 +353,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                         *key,
                         *declared_type,
                         *visibility,
-                        *ambient,
+                        *is_ambient,
                         *is_static,
                         *is_abstract,
                         *is_override,
@@ -369,11 +369,11 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 Member::Embed {
                     value,
                     visibility,
-                    ambient,
+                    is_ambient,
                     is_static,
                 } => {
                     // prefixes
-                    write_ambient_prefix(f, *ambient)?;
+                    write_ambient_prefix(f, *is_ambient)?;
                     write_visibility_prefix(f, *visibility)?;
                     write_static_prefix(f, *is_static)?;
 

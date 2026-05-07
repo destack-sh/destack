@@ -223,7 +223,7 @@ impl DestackLanguageServer {
     }
 
     /// Create a new language server instance with an explicit worker count.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test"))]
     pub(crate) fn with_workers(client: Client, workers: usize) -> Self {
         let mut server = Self::new(client);
         server.workers = workers;

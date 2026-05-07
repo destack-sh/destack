@@ -10,7 +10,7 @@ use crate::tree::{
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Declaration, Expression, FunctionKind, GenericArgument, IfKind, LocalNodeId,
+    Argument, Declaration, Expression, FunctionForm, GenericArgument, IfForm, LocalNodeId,
     NodeType, ScalarLiteral, Tree,
 };
 use destack_fir::format::{Buffer, FormatNodes, FormatResult};
@@ -739,7 +739,7 @@ fn tree_literal_is_lambda_body(
     matches!(
         context.tree.get(declaration_id),
         Declaration::Function(function)
-            if function.signature.kind == FunctionKind::Lambda
+            if function.signature.form == FunctionForm::Lambda
                 && function.body.is_some_and(|body_id| body_id == node_id)
     )
 }
@@ -769,7 +769,7 @@ pub(crate) fn tree_literal_wraps_on_break(
                 | Expression::TupleExpression { .. }
                 | Expression::TreeExpression { .. }
                 | Expression::If {
-                    kind: IfKind::Ternary,
+                    form: IfForm::Ternary,
                     ..
                 } => false,
                 // declaration expressions own their initializer grouping
@@ -796,7 +796,7 @@ pub(crate) fn tree_literal_wraps_on_break(
                     | Expression::TupleExpression { .. }
                     | Expression::TreeExpression { .. }
                     | Expression::If {
-                        kind: IfKind::Ternary,
+                        form: IfForm::Ternary,
                         ..
                     }
             )
@@ -806,7 +806,7 @@ pub(crate) fn tree_literal_wraps_on_break(
             let is_lambda_body = matches!(
                 context.tree.get(declaration_id),
                 Declaration::Function(function)
-                    if function.signature.kind == FunctionKind::Lambda
+                    if function.signature.form == FunctionForm::Lambda
                         && function.body.is_some_and(|body_id| body_id.id == node_id.id)
             );
 
@@ -865,7 +865,7 @@ fn tree_literal_should_expand_in_parent(
             let Declaration::Function(function) = context.tree.get(declaration_id) else {
                 return false;
             };
-            if function.signature.kind != FunctionKind::Lambda
+            if function.signature.form != FunctionForm::Lambda
                 || !function
                     .body
                     .is_some_and(|body_id| body_id.id == current_id)
@@ -915,7 +915,7 @@ pub(crate) fn tree_literal_uses_conditional_trailing_comments(
 
     let parent_id = LocalNodeId::<Expression>::new(parent_id);
     let Expression::If {
-        kind: IfKind::Ternary,
+        form: IfForm::Ternary,
         then_expression,
         else_expression,
         ..

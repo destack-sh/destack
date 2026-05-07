@@ -6,8 +6,8 @@ use crate::chain::{
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Block, BlockFormat, Comment, Declaration, Expression, FunctionDeclaration,
-    FunctionKind, IfCondition, IfKind, LocalNodeId, MatchCase, Node, NodeType, ScalarLiteral,
+    Argument, Block, BlockForm, Comment, Declaration, Expression, FunctionDeclaration,
+    FunctionForm, IfCondition, IfForm, LocalNodeId, MatchCase, Node, NodeType, ScalarLiteral,
     TokenType, Tree, TreeImpl,
 };
 use destack_fir::format::{Buffer, FormatResult};
@@ -165,7 +165,7 @@ pub(crate) fn tree_child_should_inline_braced_expression(
         | Expression::Maybe { .. }
         | Expression::Must { .. } => !expression_chain_has_separator_comment(context, value_id),
         Expression::If {
-            kind: IfKind::Ternary,
+            form: IfForm::Ternary,
             condition,
             then_expression,
             else_expression,
@@ -185,7 +185,7 @@ pub(crate) fn tree_child_should_inline_braced_expression(
         Expression::Declaration(declaration_id) => matches!(
             context.tree.get(*declaration_id),
             Declaration::Function(FunctionDeclaration { signature, .. })
-                if signature.kind == FunctionKind::Lambda
+                if signature.form == FunctionForm::Lambda
         ),
         _ => false,
     }
@@ -269,7 +269,7 @@ pub(crate) fn tree_child_breaks_element(
     // ternary branch comments and wrappers
     let ternary_has_comment_or_parenthesized_branch = match value_expression {
         Expression::If {
-            kind: IfKind::Ternary,
+            form: IfForm::Ternary,
             condition,
             then_expression,
             else_expression,
@@ -295,7 +295,7 @@ pub(crate) fn tree_child_breaks_element(
         if matches!(
             value_expression,
             Expression::If {
-                kind: IfKind::Ternary,
+                form: IfForm::Ternary,
                 ..
             }
         ) {
@@ -308,7 +308,7 @@ pub(crate) fn tree_child_breaks_element(
     match value_expression {
         Expression::Stub => context.options.language_type.is_destack(),
         Expression::If {
-            kind: IfKind::Ternary,
+            form: IfForm::Ternary,
             ..
         } => ternary_has_comment_or_parenthesized_branch,
         Expression::Block(_) | Expression::Match { .. } | Expression::Try { .. } => true,
@@ -338,7 +338,7 @@ pub(crate) fn tree_control_child_should_expand(
 
     let expression_id = tree_child_control_expression(context, expression_id);
     let Expression::If {
-        kind: IfKind::If,
+        form: IfForm::If,
         then_expression,
         else_expression,
         ..
@@ -379,7 +379,7 @@ fn tree_child_control_argument(
 
     let block_id = LocalNodeId::<Block>::new(parent_id);
     let block = context.tree.get(block_id);
-    if block.format != BlockFormat::Implicit || block.len() != 1 {
+    if block.form != BlockForm::Implicit || block.len() != 1 {
         return None;
     }
 
@@ -405,7 +405,7 @@ fn tree_child_control_expression(
     };
 
     let block = context.tree.get(*block_id);
-    if block.format != BlockFormat::Implicit || block.len() != 1 {
+    if block.form != BlockForm::Implicit || block.len() != 1 {
         return expression_id;
     }
 

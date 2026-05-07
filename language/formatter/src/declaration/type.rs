@@ -566,7 +566,7 @@ pub(crate) fn format_struct_declaration<'ast>(
 ) -> FormatResult<()> {
     // prefixes
     format_declaration_export_modifier(f, node_id, declaration.export)?;
-    if declaration.ambient.is_ambient() {
+    if declaration.is_ambient {
         write!(f, [Keyword::Declare, space()])?;
     }
 
@@ -638,7 +638,7 @@ pub(crate) fn format_class_declaration<'ast>(
         }
 
         // declaration prefixes
-        if declaration.ambient.is_ambient() {
+        if declaration.is_ambient {
             write!(f, [Keyword::Declare, space()])?;
         }
 
@@ -1018,7 +1018,7 @@ pub(crate) fn format_enum_declaration<'ast>(
 ) -> FormatResult<()> {
     // prefixes
     format_declaration_export_modifier(f, node_id, declaration.export)?;
-    if declaration.ambient.is_ambient() {
+    if declaration.is_ambient {
         write!(f, [Keyword::Declare, space()])?;
     }
 
@@ -1053,7 +1053,7 @@ pub(crate) fn format_interface_declaration<'ast>(
     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         // prefixes
         format_declaration_export_modifier(f, node_id, declaration.export)?;
-        if declaration.ambient.is_ambient() {
+        if declaration.is_ambient {
             write!(f, [Keyword::Declare, space()])?;
         }
 

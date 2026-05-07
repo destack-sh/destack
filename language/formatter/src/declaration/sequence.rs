@@ -16,8 +16,8 @@ use crate::file::{
     ignore_range_for_node, ignore_ranges_for_nodes, node_has_ignore_directive, write_ignored_span,
 };
 use destack_ast::{
-    Block, BlockContext, Comment, Declaration, DecoratorPosition, Expression, FunctionKind,
-    FunctionMode, FunctionSignature, IfKind, LocalNodeId, Member, NodeType, Property, TokenSpan,
+    Block, BlockContext, Comment, Declaration, DecoratorPosition, Expression, FunctionForm,
+    FunctionRole, FunctionSignature, IfForm, LocalNodeId, Member, NodeType, Property, TokenSpan,
     Tree, TypeExpression, TypeLiteral,
 };
 use destack_fir::format::FormatResult;
@@ -309,7 +309,7 @@ fn write_expression_postfix_annotations<'ast>(
     let if_chain_handles_annotations = matches!(
         expression,
         Expression::If {
-            kind: IfKind::If,
+            form: IfForm::If,
             ..
         }
     );
@@ -331,7 +331,7 @@ fn expression_is_lambda_declaration(tree: &Tree, expression: &Expression) -> boo
             if matches!(
                 tree.get(*declaration_id),
                 Declaration::Function(function)
-                    if function.signature.kind == FunctionKind::Lambda
+                    if function.signature.form == FunctionForm::Lambda
             )
     )
 }
@@ -1372,8 +1372,8 @@ fn function_body_is_statement_position(
     signature: &FunctionSignature,
 ) -> bool {
     if matches!(
-        signature.mode,
-        Some(FunctionMode::Constructor | FunctionMode::Setter)
+        signature.role,
+        Some(FunctionRole::Constructor | FunctionRole::Setter)
     ) {
         return true;
     }

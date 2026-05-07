@@ -185,7 +185,7 @@ fn print_library_parse_diagnostics(path: &Path, source: &str) {
     }
 
     let options = PrintOptions::new().with_colorizer(source_colorizer());
-    print_diagnostics(&file_for_id, &diagnostics, options);
+    let _ = print_diagnostics(&file_for_id, &diagnostics, options);
 }
 
 /// Assert parser and formatter idempotence over the checked-in library corpus.

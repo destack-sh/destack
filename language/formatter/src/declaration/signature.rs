@@ -11,9 +11,9 @@ use crate::operator::{
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Asynchrony, Expression, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
-    GenericParameter, Keyword, LocalNodeId, Node, Parameter, Pattern, TokenType, Tree, TreeImpl,
-    TypeExpression, VarianceModifier, Visibility, WhereClause,
+    Asynchrony, Expression, FunctionForm, FunctionRole, FunctionSignature, GenericParameter,
+    Keyword, LocalNodeId, Node, Parameter, Pattern, TokenType, Tree, TreeImpl, TypeExpression,
+    VarianceModifier, Visibility, WhereClause,
 };
 use destack_core::StringId;
 use destack_fir::format::{FormatNodes, FormatResult};
@@ -287,7 +287,7 @@ fn parameter_pattern_is_destructuring(
         context.tree.get(pattern_id),
         Pattern::Object { .. }
             | Pattern::TaggedObject { .. }
-            | Pattern::Array { .. }
+            | Pattern::Sequence { .. }
             | Pattern::Tuple { .. }
             | Pattern::TaggedTuple { .. }
     )
@@ -819,31 +819,31 @@ pub(crate) fn write_function_header_prefix(
     // asynchrony
     write_function_asynchrony_prefix(f, signature.asynchrony)?;
 
-    // mode
-    if let Some(mode) = signature.mode {
-        if let Some(keyword) = mode.to_keyword() {
+    // role
+    if let Some(role) = signature.role {
+        if let Some(keyword) = role.to_keyword() {
             write!(f, [keyword])?;
         }
 
-        if has_name_or_key || mode == FunctionMode::New {
+        if has_name_or_key || role == FunctionRole::New {
             write!(f, [space()])?;
         }
     }
 
     // keyword and generator
     if is_declaration_style
-        && signature.kind == FunctionKind::Function
-        && signature.mode != Some(FunctionMode::Constructor)
-        && signature.mode != Some(FunctionMode::New)
+        && signature.form == FunctionForm::Function
+        && signature.role != Some(FunctionRole::Constructor)
+        && signature.role != Some(FunctionRole::New)
     {
         write!(f, [Keyword::Function])?;
 
-        if signature.cardinality == FunctionCardinality::Generator {
+        if signature.is_generator {
             write!(f, [token("*")])?;
         }
 
         write!(f, [space()])?;
-    } else if signature.cardinality == FunctionCardinality::Generator {
+    } else if signature.is_generator {
         write!(f, [token("*")])?;
 
         if is_declaration_style {

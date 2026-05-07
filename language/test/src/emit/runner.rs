@@ -12,6 +12,7 @@ use crate::core::{
 use destack_artifact::{ArtifactKey, MemoryCacheStore, OutputContent, OutputFile};
 use destack_compiler::Compiler;
 use destack_linter::Linter;
+use destack_query::Query;
 use destack_session::Session;
 use destack_source::{FileSystem, PhysicalFileSystem, TargetId};
 use destack_workspace::{HostEnvironment, Ref, Repository, Target};
@@ -154,6 +155,7 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
 
     // materialize the workspace state before reading semantic repository data
     let linter = Arc::new(Linter::new(repository.clone()));
+    let query = Arc::new(Query::new(repository.clone()));
     let session = Session::new(
         test.path.clone(),
         test.path.clone(),
@@ -161,6 +163,7 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
         Ref::for_workspace_root(repository.workspace_root()),
         compiler.clone(),
         linter,
+        query,
         1,
         None,
     )

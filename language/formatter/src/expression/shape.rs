@@ -1,7 +1,7 @@
 use crate::DestackFormatContext;
 use crate::operator::assign_pattern_target_expression;
 use destack_ast::{
-    Argument, Expression, GenericArgument, IfCondition, IfKind, LocalNodeId, NodeType, Pattern,
+    Argument, Expression, GenericArgument, IfCondition, IfForm, LocalNodeId, NodeType, Pattern,
     Property, ScalarLiteral, TokenType, Tree, TypeExpression, UnaryOperator,
 };
 use destack_source::Span;
@@ -50,7 +50,7 @@ impl ExpressionLeftSide {
             Expression::Is { value, .. } | Expression::InstanceOf { value, .. } => Some(*value),
             Expression::TaggedTemplateExpression { tag, .. } => Some(*tag),
             Expression::If {
-                kind: IfKind::Ternary,
+                form: IfForm::Ternary,
                 condition: IfCondition::Expression { condition },
                 ..
             } => Some(*condition),
@@ -212,6 +212,7 @@ fn is_type_expression_breakable(tree: &Tree, expression_id: LocalNodeId<TypeExpr
         TypeExpression::Tuple { elements } | TypeExpression::ArrayTuple { elements } => {
             !elements.is_empty()
         }
+        TypeExpression::Slice { .. } => true,
         TypeExpression::Object { members } => !members.is_empty(),
         TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
             !elements.is_empty()
@@ -227,7 +228,7 @@ fn is_type_expression_breakable(tree: &Tree, expression_id: LocalNodeId<TypeExpr
 pub fn is_pattern_breakable(tree: &Tree, pattern_id: LocalNodeId<Pattern>) -> bool {
     match tree.get(pattern_id) {
         Pattern::Object { fields } | Pattern::TaggedObject { fields, .. } => !fields.is_empty(),
-        Pattern::Array { fields }
+        Pattern::Sequence { fields }
         | Pattern::Tuple { fields }
         | Pattern::TaggedTuple { fields, .. } => !fields.is_empty(),
         _ => false,

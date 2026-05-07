@@ -11,7 +11,10 @@ use crate::annotation::{
 use crate::chain::transparent_inner_expression;
 use crate::expression::argument_value;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Argument, Comment, Expression, LocalNodeId, NodeType, ScalarLiteral, TokenType};
+use destack_ast::{
+    Argument, Comment, Expression, IfCondition, IfForm, LocalNodeId, NodeType, ScalarLiteral,
+    TokenType,
+};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
     block_indent, format_with, group, hard_line_break, line_suffix_boundary, soft_block_indent,
@@ -279,6 +282,29 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                         )?;
                     } else if expression_chain_has_separator_comment(f.context(), *value)
                         || tree_control_child_should_expand(f.context(), *value)
+                        || matches!(
+                            f.context().tree.get(*value),
+                            Expression::If {
+                                form: IfForm::Ternary,
+                                condition,
+                                then_expression,
+                                else_expression,
+                                ..
+                            } if {
+                                let condition_has_line_comment = match condition {
+                                    IfCondition::Expression { condition } => {
+                                        node_has_line_comment(f.context(), *condition)
+                                    }
+                                    IfCondition::Let { .. } => false,
+                                };
+
+                                condition_has_line_comment
+                                    || node_has_line_comment(f.context(), *then_expression)
+                                    || else_expression.is_some_and(|expression_id| {
+                                        node_has_line_comment(f.context(), expression_id)
+                                    })
+                            }
+                        )
                     {
                         write!(
                             f,

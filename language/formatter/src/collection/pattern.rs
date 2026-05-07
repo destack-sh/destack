@@ -301,7 +301,7 @@ fn object_pattern_has_assignment_wrapper_parent(
     )
 }
 
-/// Return whether one pattern field contains a direct nested object or array pattern.
+/// Return whether one pattern field contains a direct nested object or sequence pattern.
 fn object_pattern_field_has_direct_nested_pattern(
     tree: &Tree,
     field_id: LocalNodeId<PatternField>,
@@ -333,7 +333,7 @@ fn pattern_is_direct_object_or_array_like(tree: &Tree, pattern_id: LocalNodeId<P
         // direct nested destructuring
         Pattern::Object { .. }
         | Pattern::TaggedObject { .. }
-        | Pattern::Array { .. }
+        | Pattern::Sequence { .. }
         | Pattern::TaggedTuple { .. }
         | Pattern::Tuple { .. } => true,
 
@@ -523,7 +523,7 @@ fn object_assign_pattern_is_assignment_target(
     matches!(expression, Expression::Assign { left, .. } if *left == node_id)
 }
 
-/// Return whether one assign-pattern field contains a direct nested object or array pattern.
+/// Return whether one assign-pattern field contains a direct nested object or sequence pattern.
 fn object_assign_pattern_field_has_direct_nested_pattern(
     tree: &Tree,
     field_id: LocalNodeId<AssignPatternField>,
@@ -556,7 +556,7 @@ fn assign_pattern_is_direct_object_or_array_like(
 ) -> bool {
     match tree.get(pattern_id) {
         // direct nested destructuring
-        AssignPattern::Object { .. } | AssignPattern::Array { .. } => true,
+        AssignPattern::Object { .. } | AssignPattern::Sequence { .. } => true,
 
         // assignment wrappers stay owned by assignment-like layout
         AssignPattern::Assign { .. } => false,
@@ -815,7 +815,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 format_pattern_field_list(f, node_id, "(", ")", fields, false)?;
             }
 
-            Pattern::Array { fields } => {
+            Pattern::Sequence { fields } => {
                 format_pattern_field_list(f, node_id, "[", "]", fields, false)?;
             }
 
@@ -946,7 +946,7 @@ impl<'ast> FormatNode<'ast, AssignPattern> for AssignPattern {
 
             AssignPattern::Assign { .. } => unreachable!("assignment pattern is formatted above"),
 
-            AssignPattern::Array { fields } => {
+            AssignPattern::Sequence { fields } => {
                 format_assign_pattern_field_list(f, node_id, "[", "]", fields, false)?;
             }
 

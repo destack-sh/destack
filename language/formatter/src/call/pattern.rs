@@ -4,7 +4,7 @@ use crate::chain::{
 };
 use crate::declaration::expression_is_in_statement_position;
 use destack_ast::{
-    Argument, Declaration, Expression, FunctionKind, LocalNodeId, NodeType, ScalarLiteral,
+    Argument, Declaration, Expression, FunctionForm, LocalNodeId, NodeType, ScalarLiteral,
     TemplateLiteral,
 };
 use destack_source::Span;
@@ -535,7 +535,7 @@ fn expression_is_zero_parameter_block_callback(
         return false;
     };
 
-    function.signature.kind == FunctionKind::Lambda
+    function.signature.form == FunctionForm::Lambda
         && function.signature.parameters.is_empty()
         && matches!(context.tree.get(body_id), Expression::Block(_))
 }

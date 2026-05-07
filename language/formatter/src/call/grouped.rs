@@ -11,7 +11,7 @@ use crate::declaration::{
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Declaration, Expression, FunctionKind, FunctionSignature, GenericArgument,
+    Argument, Declaration, Expression, FunctionForm, FunctionSignature, GenericArgument,
     LocalNodeId, Parameter, ScalarLiteral, TypeExpression, UnaryOperator,
 };
 use destack_fir::format::{
@@ -96,7 +96,7 @@ fn can_group_lambda_argument(
             else {
                 return false;
             };
-            if next_function.signature.kind != FunctionKind::Lambda {
+            if next_function.signature.form != FunctionForm::Lambda {
                 return false;
             }
 
@@ -119,7 +119,7 @@ fn can_group_function_argument(
         return false;
     };
 
-    if function.signature.kind != FunctionKind::Lambda {
+    if function.signature.form != FunctionForm::Lambda {
         return true;
     }
 
@@ -283,7 +283,7 @@ fn should_group_first_argument(
         return false;
     };
 
-    if function.signature.kind == FunctionKind::Lambda {
+    if function.signature.form == FunctionForm::Lambda {
         let body_id = transparent_inner_expression(ctx, body_id);
 
         if !matches!(ctx.tree.get(body_id), Expression::Block(_)) {
@@ -409,7 +409,7 @@ fn is_zero_parameter_block_lambda(
     };
 
     let body_id = transparent_inner_expression(ctx, body_id);
-    function.signature.kind == FunctionKind::Lambda
+    function.signature.form == FunctionForm::Lambda
         && function.signature.parameters.is_empty()
         && matches!(ctx.tree.get(body_id), Expression::Block(_))
 }
@@ -565,10 +565,10 @@ fn grouped_function_argument_declaration_id(
     };
 
     if layout == GroupedCallArgumentLayout::GroupedFirstArgument {
-        return (function.signature.kind == FunctionKind::Lambda).then_some(*declaration_id);
+        return (function.signature.form == FunctionForm::Lambda).then_some(*declaration_id);
     }
 
-    if function.signature.kind == FunctionKind::Lambda
+    if function.signature.form == FunctionForm::Lambda
         || (!is_only_argument && grouped_function_signature_is_simple(context, &function.signature))
     {
         return Some(*declaration_id);
@@ -617,8 +617,8 @@ fn write_function_argument_with_options<'ast>(
     }
 
     // declaration
-    match function.signature.kind {
-        FunctionKind::Lambda => {
+    match function.signature.form {
+        FunctionForm::Lambda => {
             let options = FormatLambdaDeclarationOptions {
                 assignment_layout: None,
                 call_argument_layout,
@@ -629,19 +629,19 @@ fn write_function_argument_with_options<'ast>(
                 f,
                 declaration_id,
                 function.export,
-                function.ambient,
+                function.is_ambient,
                 function.name,
                 &function.signature,
                 &function.body,
                 options,
             )?;
         }
-        FunctionKind::Function => {
+        FunctionForm::Function => {
             format_function_declaration(
                 f,
                 declaration_id,
                 function.export,
-                function.ambient,
+                function.is_ambient,
                 function.name,
                 &function.signature,
                 &function.body,

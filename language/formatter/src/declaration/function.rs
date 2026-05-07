@@ -16,8 +16,8 @@ use crate::declaration::statement::format_block;
 use crate::operator::write_type_expression_with_inline_prefix_annotations;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Ambientness, Argument, Declaration, ExportMode, Expression, FunctionCardinality, FunctionKind,
-    FunctionSignature, GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter,
+    Argument, Declaration, ExportKind, Expression, FunctionForm, FunctionSignature,
+    GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -83,18 +83,18 @@ fn file_uses_module_only_extension(file_name: &str) -> bool {
 pub(crate) fn write_function_export_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
-    export: Option<ExportMode>,
+    export: Option<ExportKind>,
 ) -> FormatResult<()> {
     match export {
         // named export
-        Some(ExportMode::Named) => {
+        Some(ExportKind::Named) => {
             write!(f, [Keyword::Export, space()])?;
-            write_declaration_export_head_comments(f, node_id, ExportMode::Named)?;
+            write_declaration_export_head_comments(f, node_id, ExportKind::Named)?;
         }
         // default export
-        Some(ExportMode::Default) => {
+        Some(ExportKind::Default) => {
             write!(f, [Keyword::Export, space(), Keyword::Default, space()])?;
-            write_declaration_export_head_comments(f, node_id, ExportMode::Default)?;
+            write_declaration_export_head_comments(f, node_id, ExportKind::Default)?;
         }
         // local declaration
         None => {}
@@ -103,13 +103,13 @@ pub(crate) fn write_function_export_prefix<'ast>(
     Ok(())
 }
 
-/// Write one declaration ambient prefix.
+/// Write one declaration is_ambient prefix.
 pub(crate) fn write_function_ambient_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    ambient: Ambientness,
+    is_ambient: bool,
 ) -> FormatResult<()> {
-    // ambient
-    if ambient.is_ambient() {
+    // is_ambient
+    if is_ambient {
         write!(f, [Keyword::Declare, space()])?;
     }
 
@@ -185,10 +185,10 @@ pub(crate) fn function_can_omit_lambda_parameter_parentheses(
     parameters: &[LocalNodeId<Parameter>],
     has_generic_parameters: bool,
 ) -> bool {
-    signature.kind == FunctionKind::Lambda
+    signature.form == FunctionForm::Lambda
         && signature.this_parameter.is_none()
         && !has_generic_parameters
-        && signature.cardinality != FunctionCardinality::Generator
+        && !signature.is_generator
         && parameters.len() == 1
         && matches!(
             f.context().options.arrow_parentheses,
@@ -215,7 +215,7 @@ fn single_lambda_generic_parameter_needs_trailing_separator(
     f: &DestackFormatter<'_, '_>,
     signature: &FunctionSignature,
 ) -> bool {
-    if signature.kind != FunctionKind::Lambda || signature.generic_parameters.len() != 1 {
+    if signature.form != FunctionForm::Lambda || signature.generic_parameters.len() != 1 {
         return false;
     }
 
@@ -293,7 +293,7 @@ pub(crate) fn write_function_parameters<'ast>(
     let disallow_trailing_parameter_separator = parameters
         .last()
         .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id))
-        || (signature.kind == FunctionKind::Lambda && parameters.len() == 1);
+        || (signature.form == FunctionForm::Lambda && parameters.len() == 1);
 
     write_signature_parameter_list(f, parameters, disallow_trailing_parameter_separator)
 }
@@ -311,7 +311,7 @@ pub(crate) fn write_function_return_type<'ast>(
     };
 
     // lambda type head
-    if signature.kind == FunctionKind::Lambda && body.is_none() {
+    if signature.form == FunctionForm::Lambda && body.is_none() {
         write_lambda_arrow_with_infix_annotations(f, node_id, FunctionCacheMode::NoCache)?;
         write!(f, [space()])?;
         return write_type_expression_with_inline_prefix_annotations(f, return_type);
@@ -488,17 +488,17 @@ fn write_function_head<'ast>(
 pub(crate) fn format_function_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
-    export: Option<ExportMode>,
-    ambient: Ambientness,
+    export: Option<ExportKind>,
+    is_ambient: bool,
     name: Option<Name>,
     signature: &FunctionSignature,
     body: &Option<LocalNodeId<Expression>>,
     cache_mode: FunctionCacheMode,
 ) -> FormatResult<()> {
-    debug_assert_eq!(signature.kind, FunctionKind::Function);
+    debug_assert_eq!(signature.form, FunctionForm::Function);
 
     write_function_export_prefix(f, node_id, export)?;
-    write_function_ambient_prefix(f, ambient)?;
+    write_function_ambient_prefix(f, is_ambient)?;
     write_function_head(f, node_id, name, signature, body, cache_mode)?;
     write_function_body_and_terminator(f, node_id, signature, body, cache_mode)
 }

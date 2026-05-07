@@ -22,7 +22,7 @@ use crate::expression::{
 use crate::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Comment, CommentPosition, Declaration, DecoratorPosition, Expression, FunctionKind, IfKind,
+    Comment, CommentPosition, Declaration, DecoratorPosition, Expression, FunctionForm, IfForm,
     LocalNodeId, Member, NodeType, PostfixPosition,
 };
 use destack_core::StringId;
@@ -341,7 +341,7 @@ fn expression_is_standalone_statement(
                 function
                     .body
                     .is_some_and(|body_id| body_id == expression_id)
-                    && function.signature.kind != FunctionKind::Lambda
+                    && function.signature.form != FunctionForm::Lambda
             }
             _ => false,
         };
@@ -927,7 +927,7 @@ fn write_chain_root_expression<'ast>(
         && matches!(
             f.context().tree.get(expression_id),
             Expression::If {
-                kind: IfKind::If,
+                form: IfForm::If,
                 ..
             }
         );

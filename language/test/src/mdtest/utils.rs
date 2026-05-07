@@ -8,6 +8,7 @@ use std::{io, thread};
 use destack_artifact::{EmitFormat, MemoryCacheStore, Platform, Runtime};
 use destack_compiler::Compiler;
 use destack_linter::Linter;
+use destack_query::Query;
 use destack_session::Session;
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId};
 use destack_workspace::{HostEnvironment, Profile, Ref, Repository, Revision};
@@ -262,6 +263,7 @@ pub fn setup_test_environment_with_repository(
     let head = Ref::for_workspace_root(repository.workspace_root());
     let compiler = Arc::new(Compiler::new(repository.clone()));
     let linter = Arc::new(Linter::new(repository.clone()));
+    let query = Arc::new(Query::new(repository.clone()));
     let session = Session::new(
         repository.workspace_root().to_path_buf(),
         root.clone(),
@@ -269,6 +271,7 @@ pub fn setup_test_environment_with_repository(
         head,
         compiler,
         linter,
+        query,
         1,
         None,
     )

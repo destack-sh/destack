@@ -20,7 +20,7 @@ use crate::declaration::{
     write_statement_terminator,
 };
 use crate::tree::tree_control_child_should_expand;
-use destack_ast::{Comment, Expression, IfKind, LocalNodeId, TokenType};
+use destack_ast::{Comment, Expression, IfForm, LocalNodeId, TokenType};
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{format_with, group, space, token};
 use destack_fir::write;
@@ -31,7 +31,7 @@ pub(crate) fn statement_expression_owns_trailing_annotations(expression: &Expres
     matches!(
         expression,
         Expression::If {
-            kind: IfKind::If,
+            form: IfForm::If,
             ..
         }
     )
@@ -160,11 +160,11 @@ pub(crate) fn format_statement_expression<'ast>(
         Expression::Let {
             kind,
             export,
-            ambient,
+            is_ambient,
             declarators,
             ..
         } => {
-            format_let_statement_expression(f, *kind, *export, *ambient, declarators)?;
+            format_let_statement_expression(f, *kind, *export, *is_ambient, declarators)?;
         }
 
         // let else
@@ -181,16 +181,16 @@ pub(crate) fn format_statement_expression<'ast>(
         Expression::Using {
             asynchrony,
             export,
-            ambient,
+            is_ambient,
             declarators,
             ..
         } => {
-            format_using_statement_expression(f, *asynchrony, *export, *ambient, declarators)?;
+            format_using_statement_expression(f, *asynchrony, *export, *is_ambient, declarators)?;
         }
 
         // if (ternary)
         Expression::If {
-            kind: IfKind::Ternary,
+            form: IfForm::Ternary,
             ..
         } => {
             format_ternary(f, node_id)?;
@@ -198,7 +198,7 @@ pub(crate) fn format_statement_expression<'ast>(
 
         // if (regular)
         Expression::If {
-            kind: IfKind::If, ..
+            form: IfForm::If, ..
         } => {
             let expand_branches = value_branch_expression_should_expand(f, node_id);
             let if_chain = format_with(|f| format_if_else_chain(f, node_id, expand_branches));
@@ -212,22 +212,30 @@ pub(crate) fn format_statement_expression<'ast>(
 
         // while
         Expression::While {
-            kind,
+            form,
             condition,
             body,
         } => {
-            format_while_expression(f, *kind, *condition, *body)?;
+            format_while_expression(f, *form, *condition, *body)?;
         }
 
         // for each
         Expression::ForEach {
             asynchrony,
-            kind,
+            operator,
             binding,
             iterator,
             body,
         } => {
-            format_for_each_expression(f, node_id, *asynchrony, *kind, binding, *iterator, *body)?;
+            format_for_each_expression(
+                f,
+                node_id,
+                *asynchrony,
+                *operator,
+                binding,
+                *iterator,
+                *body,
+            )?;
         }
 
         // for condition

@@ -1,6 +1,6 @@
 use destack_ast::{
-    Comment, Declaration, DependencyItem, DependencyMode, Expression, FunctionKind, IfKind,
-    LocalNodeId, WhileKind,
+    Comment, Declaration, DependencyBinding, DependencyItem, Expression, FunctionForm, IfForm,
+    LocalNodeId, WhileForm,
 };
 use destack_core::StringId;
 use destack_fir::format::{Buffer, FormatResult, hard_line_break};
@@ -294,9 +294,11 @@ fn export_expression_needs_statement_terminator(
 
     let writes_own_terminator = items.len() == 1
         && first_item.is_some_and(|item| match item {
-            DependencyItem::Item { mode, value, .. } => {
-                (*mode == DependencyMode::Default && value.is_some())
-                    || (*mode == DependencyMode::Namespace && value.is_some() && target.is_none())
+            DependencyItem::Item { binding, value, .. } => {
+                (*binding == DependencyBinding::Default && value.is_some())
+                    || (*binding == DependencyBinding::Namespace
+                        && value.is_some()
+                        && target.is_none())
             }
             DependencyItem::Error => false,
         });
@@ -326,13 +328,13 @@ pub(crate) fn expression_needs_statement_terminator(
     ) || matches!(
         expression,
         Expression::If {
-            kind: IfKind::Ternary,
+            form: IfForm::Ternary,
             ..
         }
     ) || matches!(
         expression,
         Expression::While {
-            kind: WhileKind::DoWhile,
+            form: WhileForm::DoWhile,
             ..
         }
     ) || matches!(
@@ -341,7 +343,7 @@ pub(crate) fn expression_needs_statement_terminator(
             if matches!(
                 context.tree.get(*declaration_id),
                 Declaration::Function(function)
-                    if function.name.is_none() && function.signature.kind == FunctionKind::Lambda
+                    if function.name.is_none() && function.signature.form == FunctionForm::Lambda
             )
     ) || matches!(
         expression,
@@ -396,10 +398,10 @@ pub(crate) fn statement_wrapper_needs_semicolon(
     if matches!(
         expression,
         Expression::If {
-            kind: IfKind::If,
+            form: IfForm::If,
             ..
         } | Expression::While {
-            kind: WhileKind::While,
+            form: WhileForm::While,
             ..
         } | Expression::ForEach { .. }
             | Expression::For { .. }
