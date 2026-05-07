@@ -224,6 +224,68 @@ fn bench_memory(criterion: &mut Criterion) {
     group.finish();
 }
 
+/// Benchmark VM dispatch over atomic memory operations.
+fn bench_atomic(criterion: &mut Criterion) {
+    // group atomic programs by address class
+    let mut group = dispatch_group(criterion, "vm_dispatch_atomic");
+
+    // measure local managed heap atomic add
+    bench_program(
+        &mut group,
+        ProgramBench {
+            name: "atomic_managed_heap_add_loop",
+            entry: "atomicManagedHeapAddLoop",
+        },
+    );
+
+    // measure local owned heap atomic add
+    bench_program(
+        &mut group,
+        ProgramBench {
+            name: "atomic_owned_heap_add_loop",
+            entry: "atomicOwnedHeapAddLoop",
+        },
+    );
+
+    // measure local raw atomic add
+    bench_program(
+        &mut group,
+        ProgramBench {
+            name: "atomic_raw_add_loop",
+            entry: "atomicRawAddLoop",
+        },
+    );
+
+    // measure shared managed heap atomic add
+    bench_program(
+        &mut group,
+        ProgramBench {
+            name: "atomic_shared_heap_add_loop",
+            entry: "atomicSharedHeapAddLoop",
+        },
+    );
+
+    // measure shared owned heap atomic add
+    bench_program(
+        &mut group,
+        ProgramBench {
+            name: "atomic_shared_owned_heap_add_loop",
+            entry: "atomicSharedOwnedHeapAddLoop",
+        },
+    );
+
+    // measure shared raw atomic add
+    bench_program(
+        &mut group,
+        ProgramBench {
+            name: "atomic_shared_raw_add_loop",
+            entry: "atomicSharedRawAddLoop",
+        },
+    );
+
+    group.finish();
+}
+
 /// Create one benchmark group with VM dispatch throughput.
 fn dispatch_group<'a>(criterion: &'a mut Criterion, name: &str) -> BenchmarkGroup<'a, WallTime> {
     // report throughput in MIR loop iterations
@@ -281,6 +343,7 @@ criterion_group!(
     bench_integer_arithmetic,
     bench_vector,
     bench_tensor,
-    bench_memory
+    bench_memory,
+    bench_atomic
 );
 criterion_main!(benches);

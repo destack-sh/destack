@@ -1,0 +1,20 @@
+function atomicRawAddLoop(v0: int32): int64 {
+b0(v0: int32):
+    v1: ref<atomic<int64>, raw> = raw.alloc atomic<int64>
+    v2: int64 = 0int64
+    v3: int64 = 1int64
+    atomic.store v1, v2, relaxed
+    jump b1(v2)
+b1(v4: int64):
+    v5: int32 = cast.truncate v4 -> int32
+    v6: boolean = int.lt.s v5, v0
+    branch v6, b2(v4), b3
+b2(v7: int64):
+    v8: int64 = atomic.rmw.add v1, v3, relaxed
+    v9: int64 = int.add v7, v3
+    jump b1(v9)
+b3:
+    v10: int64 = atomic.load v1, relaxed
+    raw.free v1
+    return v10
+}
