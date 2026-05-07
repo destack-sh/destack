@@ -102,16 +102,12 @@ impl Interpreter {
 
         // restore frame bytes before frame metadata points into them
         for frame_image in &image.stack {
-            let layout = program
-                .frame_layout_by_id(frame_image.frame_layout)
-                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
             let base = interpreter
                 .stack
                 .allocate(frame_image.bytes.len(), Word::BYTE_LEN)?;
             interpreter.stack.write(base, &frame_image.bytes)?;
             let frame_base = interpreter.stack.address(base, frame_image.bytes.len())?;
-            let frame =
-                Frame::from_image(frame_image, &program.functions, layout, base, frame_base)?;
+            let frame = Frame::from_image(frame_image, program, base, frame_base)?;
 
             interpreter.frames.push(frame);
         }
@@ -195,7 +191,7 @@ impl Interpreter {
             .iter()
             .map(|f| {
                 let function = f.function();
-                let block = f.current_block();
+                let block = f.block_id();
                 let func = program.tree.get(function);
                 let name = program.strings.get(func.name).to_string();
                 StackTraceFrame {

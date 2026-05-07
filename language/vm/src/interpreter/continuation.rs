@@ -1,7 +1,10 @@
 use destack_engine as engine;
 use serde::{Deserialize, Serialize};
 
-use super::{ExceptionalCall, Frame, Stack, visit_materialized_slots};
+use super::{
+    ExceptionalCall, Frame, Stack, visit_frame_slot_root_slots, visit_frame_slot_roots,
+    visit_materialized_slots,
+};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::options::IsolateOptions;
 use crate::program::Program;
@@ -35,8 +38,6 @@ pub struct ContinuationImage {
 /// Immutable frame image captured inside one continuation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContinuationFrame {
-    /// The frame layout used by this frame.
-    pub frame_layout: engine::FrameLayoutId,
     /// The logical frame state captured by this frame.
     pub frame_state: engine::FrameStateId,
     /// The active exceptional call owned by this frame when another frame is active.
@@ -166,8 +167,11 @@ impl Continuation {
         let mut frames = Vec::with_capacity(image.frames.len());
 
         for frame_image in &image.frames {
+            let materialization = program
+                .frame_materialization(frame_image.frame_state)
+                .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
             let layout = program
-                .frame_layout_by_id(frame_image.frame_layout)
+                .frame_layout_by_id(materialization.frame_layout)
                 .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
             if frame_image.bytes.len() != layout.byte_len as usize {
                 return Err(RuntimeError::new(Error::InvalidContinuation));
@@ -228,11 +232,8 @@ impl Continuation {
             })?;
 
         debug_assert_eq!(
-            frame_materialization.frame_state, frame_state,
-            "vm safepoint materialization should target the captured frame state"
-        );
-        debug_assert_eq!(
-            frame_materialization.frame_layout, frame.frame_layout,
+            frame_materialization.frame_layout,
+            frame.frame_layout(),
             "vm safepoint materialization should target the captured frame layout"
         );
 
@@ -250,7 +251,7 @@ impl Continuation {
             return Ok(self.frame_state);
         }
 
-        let point = program.point(frame.function(), frame.current_block(), frame.pc as u32);
+        let point = program.point(frame.function(), frame.block_id(), frame.pc as u32);
 
         program
             .frame_state_at(point)
@@ -258,7 +259,7 @@ impl Continuation {
                 context: format!(
                     "missing frame state for frame position: {:?} {:?} {}",
                     frame.function(),
-                    frame.current_block(),
+                    frame.block_id(),
                     frame.pc
                 ),
             })
@@ -269,7 +270,6 @@ impl ContinuationFrame {
     /// Capture one durable frame from one live frame.
     fn capture(frame: &Frame, frame_state: engine::FrameStateId) -> Self {
         Self {
-            frame_layout: frame.frame_layout,
             frame_state,
             exceptional_call: frame.exceptional_call.clone(),
             bytes: frame.bytes().to_vec(),
@@ -305,21 +305,24 @@ impl ContinuationFrame {
         stack_offset: usize,
         frame_base: *mut u8,
     ) -> RuntimeResult<Frame> {
-        let layout = program
-            .frame_layout_by_id(self.frame_layout)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
         let point = program
             .point_for_frame_state(self.frame_state)
             .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
 
         let function_id = point.function;
         let block_id = point.block;
-        let function_ptr = program.functions.pointer_for(function_id).ok_or_else(|| {
-            RuntimeError::new(Error::UndefinedFunction {
-                function: function_id,
-            })
-        })?;
+        let function_ptr = program
+            .functions
+            .pointer_for_function(function_id)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::UndefinedFunction {
+                    function: function_id,
+                })
+            })?;
         let function = unsafe { function_ptr.as_ref() };
+        let layout = program
+            .frame_layout_by_id(function.frame_layout)
+            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
 
         let block_index = function
             .blocks
@@ -327,7 +330,6 @@ impl ContinuationFrame {
             .position(|block| block.mir_block == block_id)
             .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
         let mut frame = Frame::new(
-            self.frame_layout,
             function_ptr,
             block_index as u32,
             layout,
@@ -340,21 +342,20 @@ impl ContinuationFrame {
         Ok(frame)
     }
 
-    /// Resolve the layout and frame materialization for this captured frame.
+    /// Return the layout and frame materialization for this captured frame.
     fn materialization<'a>(
         &self,
         program: &'a Program,
     ) -> Result<(&'a engine::FrameLayout, &'a engine::FrameMaterialization), Error> {
+        let materialization = program
+            .frame_materialization(self.frame_state)
+            .ok_or(Error::InvalidContinuation)?;
         let layout = program
-            .frame_layout_by_id(self.frame_layout)
+            .frame_layout_by_id(materialization.frame_layout)
             .ok_or(Error::InvalidContinuation)?;
         if self.bytes.len() != layout.byte_len as usize {
             return Err(Error::InvalidContinuation);
         }
-
-        let materialization = program
-            .frame_materialization(self.frame_state)
-            .ok_or(Error::InvalidContinuation)?;
 
         Ok((layout, materialization))
     }
@@ -366,26 +367,11 @@ impl ContinuationFrame {
         slot: &engine::FrameSlot,
         roots: &mut impl RootSink,
     ) -> Result<(), Error> {
-        let layout =
-            program
-                .layout_for_layout(slot.layout)
-                .ok_or_else(|| Error::InvariantViolation {
-                    context: format!(
-                        "missing image frame layout for root scan: layout={:?}",
-                        slot.layout
-                    ),
-                })?;
         let start = slot.offset as usize;
         let end = start + slot.byte_len as usize;
         let bytes = &self.bytes[start..end];
 
-        if !layout.is_word() {
-            return program.visit_byte_roots(program.type_for_layout(slot.layout), bytes, roots);
-        }
-
-        let word = Self::read_word(bytes)?;
-
-        program.visit_value_root(program.type_for_layout(slot.layout), word, roots)
+        visit_frame_slot_roots(program, slot, bytes, roots)
     }
 
     /// Visit mutable local root slots from one frame slot.
@@ -399,18 +385,6 @@ impl ContinuationFrame {
         let end = start + slot.byte_len as usize;
         let bytes = &mut self.bytes[start..end];
 
-        program.visit_byte_root_slots(program.type_for_layout(slot.layout), bytes, visit)
-    }
-
-    /// Read one word from captured frame bytes.
-    fn read_word(bytes: &[u8]) -> Result<Word, Error> {
-        if bytes.len() < Word::BYTE_LEN {
-            return Err(Error::InvalidContinuation);
-        }
-
-        let mut raw = [0u8; Word::BYTE_LEN];
-        raw.copy_from_slice(&bytes[..Word::BYTE_LEN]);
-
-        Ok(Word::from_bits(u64::from_le_bytes(raw)))
+        visit_frame_slot_root_slots(program, slot, bytes, visit)
     }
 }

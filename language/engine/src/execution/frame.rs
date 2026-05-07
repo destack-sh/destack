@@ -5,8 +5,6 @@ use crate::{FrameStateId, LayoutId};
 /// Captured frame.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Frame {
-    /// The frame layout.
-    pub frame_layout: FrameLayoutId,
     /// The captured frame state.
     pub frame_state: FrameStateId,
     /// The captured frame bytes.
