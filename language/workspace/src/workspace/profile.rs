@@ -88,6 +88,7 @@ impl ProfileEnvironment {
 pub fn profile_flags_for_compiler_options(options: &CompilerOptions) -> ProfileFlags {
     ProfileFlags {
         no_managed: !options.no_managed.is_allow(),
+        no_heap: !options.no_heap.is_allow(),
         no_runtime: !options.no_runtime.is_allow(),
         no_referential_equality: !options.no_referential_equality.is_allow(),
         no_dynamic_evaluation: !options.no_dynamic_evaluation.is_allow(),

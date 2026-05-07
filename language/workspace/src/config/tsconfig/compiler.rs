@@ -41,6 +41,10 @@ pub struct TsCompilerOptions {
     /// How to detect modules vs scripts.
     pub module_detection: ModuleDetection,
 
+    // output
+    /// Output directory used by TypeScript build layouts.
+    pub out_dir: Option<PathBuf>,
+
     // declarations
     /// Skip type checking of declaration files.
     pub skip_lib_check: bool,
@@ -62,6 +66,8 @@ impl Default for TsCompilerOptions {
             module: ModuleTarget::default(),
             es_target: EsTarget::default(),
             module_detection: ModuleDetection::default(),
+
+            out_dir: None,
 
             skip_lib_check: false,
         }
@@ -111,6 +117,8 @@ impl From<&TsCompilerOptionsJson> for TsCompilerOptions {
                 .as_deref()
                 .and_then(ModuleDetection::parse)
                 .unwrap_or_default(),
+
+            out_dir: json.out_dir.clone(),
 
             skip_lib_check: json.skip_lib_check.unwrap_or(false),
         }
@@ -169,6 +177,10 @@ pub struct TsCompilerOptionsJson {
     /// Module (e.g. `"ESNext"`, `"NodeNext"`, `"Preserve"`)
     /// <https://www.typescriptlang.org/tsconfig/#module>
     pub module: Option<String>,
+
+    /// Output directory.
+    /// <https://www.typescriptlang.org/tsconfig/#outDir>
+    pub out_dir: Option<PathBuf>,
 
     /// Skip type checking of declaration files.
     /// <https://www.typescriptlang.org/tsconfig/#skipLibCheck>

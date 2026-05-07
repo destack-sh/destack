@@ -494,6 +494,17 @@
             }
           ]
         },
+        "noHeap": {
+          "description": "Policy for all heap allocation.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "noRuntime": {
           "description": "Policy for runtime usage (no managed memory, no Promise, no exceptions, ...).",
           "anyOf": [
