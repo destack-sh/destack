@@ -2,9 +2,10 @@ use destack_engine as engine;
 use destack_mir::{self as mir, LayoutId};
 
 use super::{
-    ArgumentRange, CallTarget, CallableObjectLayout, MoveRange, Projection, ProjectionId,
-    ScalarLayout, TensorConvolutionId, TensorDotId, TensorGatherId, TensorLayoutId,
-    TensorScatterId, TensorWindowId, U32RangeId, ValueLayout, WordLayout,
+    ArgumentRange, AtomicOrder, AtomicShape, CallTarget, CallableObjectLayout, MoveRange,
+    Projection, ProjectionId, ScalarLayout, TensorAddress, TensorConvolutionId, TensorDotId,
+    TensorGatherId, TensorLayoutId, TensorScatterId, TensorWindowId, U32RangeId, ValueLayout,
+    WordLayout,
 };
 
 const INTRINSIC_ARGUMENT_CAPACITY: usize = 16;
@@ -24,109 +25,23 @@ pub(crate) struct FrameSelect {
     pub(crate) byte_len: usize,
 }
 
-/// Atomic load over one word.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct AtomicLoad {
-    /// The destination word offset.
-    pub(crate) dest_offset: u32,
-    /// The pointer word offset.
-    pub(crate) pointer_offset: u32,
-    /// The atomic memory layout.
-    pub(crate) layout: WordLayout,
-    /// The atomic byte width.
-    pub(crate) byte_len: usize,
-    /// The memory ordering to apply.
-    pub(crate) ordering: mir::MemoryOrdering,
-    /// The execution scope for the operation.
-    pub(crate) scope: mir::AtomicScope,
-    /// The memory scope for the operation.
-    pub(crate) memory_scope: mir::MemoryScope,
-    /// The memory flags.
-    pub(crate) flags: mir::MemoryFlags,
-}
-
-/// Atomic store over one word.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct AtomicStore {
-    /// The pointer word offset.
-    pub(crate) pointer_offset: u32,
-    /// The stored value word offset.
-    pub(crate) value_offset: u32,
-    /// The atomic memory layout.
-    pub(crate) layout: WordLayout,
-    /// The atomic byte width.
-    pub(crate) byte_len: usize,
-    /// The memory ordering to apply.
-    pub(crate) ordering: mir::MemoryOrdering,
-    /// The execution scope for the operation.
-    pub(crate) scope: mir::AtomicScope,
-    /// The memory scope for the operation.
-    pub(crate) memory_scope: mir::MemoryScope,
-    /// The memory flags.
-    pub(crate) flags: mir::MemoryFlags,
-}
-
-/// Atomic read modify write over one word.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct AtomicRmw {
-    /// The destination word offset.
-    pub(crate) dest_offset: u32,
-    /// The pointer word offset.
-    pub(crate) pointer_offset: u32,
-    /// The operator value word offset.
-    pub(crate) value_offset: u32,
-    /// The atomic memory layout.
-    pub(crate) layout: WordLayout,
-    /// The atomic byte width.
-    pub(crate) byte_len: usize,
-    /// The memory ordering to apply.
-    pub(crate) ordering: mir::MemoryOrdering,
-    /// The execution scope for the operation.
-    pub(crate) scope: mir::AtomicScope,
-    /// The memory scope for the operation.
-    pub(crate) memory_scope: mir::MemoryScope,
-    /// The memory flags.
-    pub(crate) flags: mir::MemoryFlags,
-}
-
-/// Atomic compare exchange over one word.
+/// Atomic compare exchange over one scalar value.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct AtomicCompareExchange {
     /// The aggregate destination value.
-    pub(crate) dest: mir::Value,
+    pub(crate) destination: mir::Value,
     /// The pointer word offset.
     pub(crate) pointer_offset: u32,
     /// The expected value word offset.
     pub(crate) expected_offset: u32,
     /// The replacement value word offset.
     pub(crate) new_value_offset: u32,
-    /// The atomic memory layout.
-    pub(crate) layout: WordLayout,
-    /// The atomic byte width.
-    pub(crate) byte_len: usize,
+    /// The atomic memory shape.
+    pub(crate) shape: AtomicShape,
+    /// The failure ordering.
+    pub(crate) failure_order: AtomicOrder,
     /// Whether the compare exchange is weak.
     pub(crate) is_weak: bool,
-    /// The memory ordering to apply.
-    pub(crate) ordering: mir::MemoryOrdering,
-    /// The execution scope for the operation.
-    pub(crate) scope: mir::AtomicScope,
-    /// The memory scope for the operation.
-    pub(crate) memory_scope: mir::MemoryScope,
-    /// The memory flags.
-    pub(crate) flags: mir::MemoryFlags,
-}
-
-/// Atomic fence.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct AtomicFence {
-    /// The memory ordering to apply.
-    pub(crate) ordering: mir::MemoryOrdering,
-    /// The execution scope for the operation.
-    pub(crate) scope: mir::AtomicScope,
-    /// The memory scope for the operation.
-    pub(crate) memory_scope: mir::MemoryScope,
-    /// The memory flags.
-    pub(crate) flags: mir::MemoryFlags,
 }
 
 /// Vector splat operation.

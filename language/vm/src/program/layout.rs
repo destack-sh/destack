@@ -359,6 +359,13 @@ fn build_layout(
         | mir::Type::Float { .. }
         | mir::Type::TensorView { .. } => raw_scalar_layout(tree, ty),
         mir::Type::FunctionSignature { .. } => scalar_layout(0, 1),
+        mir::Type::Atomic { value } => {
+            let value = value.ty().ok_or_else(|| Error::MissingRepresentation {
+                context: "atomic value type".to_string(),
+            })?;
+
+            build_layout(tree, layouts, value)?
+        }
         mir::Type::Newtype { .. } => unreachable!("repr_type must peel newtypes"),
         mir::Type::Struct { fields, .. } => {
             let field_types = fields
