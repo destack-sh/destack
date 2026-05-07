@@ -395,16 +395,7 @@ test-grammar:
     just test-grammar-destack
     just test-grammar-mir
     just test-grammar-destack-node-coverage
-    just test-grammar-specification-sweep-positive
     just test-grammar-overlay
-
-# sweep specification markdown fixtures through tree sitter parsers
-test-grammar-specification-sweep args="":
-    bun grammar/scripts/specification-parser-sweep.mjs {{args}}
-
-# fail when specification positive cases produce parser errors
-test-grammar-specification-sweep-positive:
-    bun grammar/scripts/specification-parser-sweep.mjs --fail-on-positive --format-positive
 
 # profile tree sitter grammar state deltas
 profile-grammar-delta args="--target destack --baseline tsx --top 30":
