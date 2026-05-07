@@ -4,7 +4,44 @@ use destack_mir as mir;
 
 use crate::{Error, Result};
 
-use super::{Layout, Projection, ScalarLayout, scalar_layout_from_type, word_layout_from_type};
+use super::{
+    Layout, PointerClass, Projection, ScalarLayout, scalar_layout_from_type, word_layout_from_type,
+};
+
+/// Tensor view backing memory selected by lowering.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TensorAddress {
+    /// Local heap memory.
+    Heap,
+    /// Shared heap memory.
+    SharedHeap,
+    /// Local raw memory.
+    Raw,
+    /// Shared raw memory.
+    SharedRaw,
+    /// Stack memory.
+    Stack,
+    /// Frame memory.
+    Frame,
+    /// Static memory.
+    Static,
+}
+
+impl TensorAddress {
+    /// Return the tensor address for one pointer class.
+    pub(crate) fn from_pointer_class(pointer_class: PointerClass) -> Result<Self> {
+        Ok(match pointer_class {
+            PointerClass::Heap | PointerClass::HeapAddress => Self::Heap,
+            PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Self::SharedHeap,
+            PointerClass::Raw => Self::Raw,
+            PointerClass::SharedRaw => Self::SharedRaw,
+            PointerClass::Stack => Self::Stack,
+            PointerClass::Frame => Self::Frame,
+            PointerClass::Static => Self::Static,
+            PointerClass::Unknown => return Err(Error::InvalidInstruction),
+        })
+    }
+}
 
 /// Flattened tensor layout compiled for VM execution.
 #[derive(Clone, Debug, PartialEq, Eq)]

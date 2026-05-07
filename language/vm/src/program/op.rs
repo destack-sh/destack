@@ -948,148 +948,16 @@ pub(crate) enum Op {
     // ============================================================================
     /// Broadcast a scalar to a tensor.
     TensorSplat,
-    /// Load one tensor element from a local heap view.
-    TensorLoadHeap,
-    /// Load one tensor element from a shared heap view.
-    TensorLoadSharedHeap,
-    /// Load one tensor element from a local raw view.
-    TensorLoadRaw,
-    /// Load one tensor element from a shared raw view.
-    TensorLoadSharedRaw,
-    /// Load one tensor element from a stack view.
-    TensorLoadStack,
-    /// Load one tensor element from a frame view.
-    TensorLoadFrame,
-    /// Load one tensor element from a static view.
-    TensorLoadStatic,
+    /// Load one tensor element from a view.
+    TensorLoad,
     /// Extract one tensor element from a tensor value.
     TensorExtract,
-    /// Store one tensor element into a local heap view.
-    TensorStoreHeap,
-    /// Store one tensor element into a shared heap view.
-    TensorStoreSharedHeap,
-    /// Store one tensor element into a local raw view.
-    TensorStoreRaw,
-    /// Store one tensor element into a shared raw view.
-    TensorStoreSharedRaw,
-    /// Store one tensor element into a stack view.
-    TensorStoreStack,
-    /// Store one tensor element into a frame view.
-    TensorStoreFrame,
-    /// Store one tensor element into a static view.
-    TensorStoreStatic,
-    /// Fill a local heap tensor view.
-    TensorFillHeap,
-    /// Fill a shared heap tensor view.
-    TensorFillSharedHeap,
-    /// Fill a local raw tensor view.
-    TensorFillRaw,
-    /// Fill a shared raw tensor view.
-    TensorFillSharedRaw,
-    /// Fill a stack tensor view.
-    TensorFillStack,
-    /// Fill a frame tensor view.
-    TensorFillFrame,
-    /// Fill a static tensor view.
-    TensorFillStatic,
-    /// Copy tensor elements from local heap memory into local heap memory.
-    TensorCopyHeapFromHeap,
-    /// Copy tensor elements from shared heap memory into local heap memory.
-    TensorCopyHeapFromSharedHeap,
-    /// Copy tensor elements from local raw memory into local heap memory.
-    TensorCopyHeapFromRaw,
-    /// Copy tensor elements from shared raw memory into local heap memory.
-    TensorCopyHeapFromSharedRaw,
-    /// Copy tensor elements from stack memory into local heap memory.
-    TensorCopyHeapFromStack,
-    /// Copy tensor elements from frame memory into local heap memory.
-    TensorCopyHeapFromFrame,
-    /// Copy tensor elements from static memory into local heap memory.
-    TensorCopyHeapFromStatic,
-    /// Copy tensor elements from local heap memory into shared heap memory.
-    TensorCopySharedHeapFromHeap,
-    /// Copy tensor elements from shared heap memory into shared heap memory.
-    TensorCopySharedHeapFromSharedHeap,
-    /// Copy tensor elements from local raw memory into shared heap memory.
-    TensorCopySharedHeapFromRaw,
-    /// Copy tensor elements from shared raw memory into shared heap memory.
-    TensorCopySharedHeapFromSharedRaw,
-    /// Copy tensor elements from stack memory into shared heap memory.
-    TensorCopySharedHeapFromStack,
-    /// Copy tensor elements from frame memory into shared heap memory.
-    TensorCopySharedHeapFromFrame,
-    /// Copy tensor elements from static memory into shared heap memory.
-    TensorCopySharedHeapFromStatic,
-    /// Copy tensor elements from local heap memory into local raw memory.
-    TensorCopyRawFromHeap,
-    /// Copy tensor elements from shared heap memory into local raw memory.
-    TensorCopyRawFromSharedHeap,
-    /// Copy tensor elements from local raw memory into local raw memory.
-    TensorCopyRawFromRaw,
-    /// Copy tensor elements from shared raw memory into local raw memory.
-    TensorCopyRawFromSharedRaw,
-    /// Copy tensor elements from stack memory into local raw memory.
-    TensorCopyRawFromStack,
-    /// Copy tensor elements from frame memory into local raw memory.
-    TensorCopyRawFromFrame,
-    /// Copy tensor elements from static memory into local raw memory.
-    TensorCopyRawFromStatic,
-    /// Copy tensor elements from local heap memory into shared raw memory.
-    TensorCopySharedRawFromHeap,
-    /// Copy tensor elements from shared heap memory into shared raw memory.
-    TensorCopySharedRawFromSharedHeap,
-    /// Copy tensor elements from local raw memory into shared raw memory.
-    TensorCopySharedRawFromRaw,
-    /// Copy tensor elements from shared raw memory into shared raw memory.
-    TensorCopySharedRawFromSharedRaw,
-    /// Copy tensor elements from stack memory into shared raw memory.
-    TensorCopySharedRawFromStack,
-    /// Copy tensor elements from frame memory into shared raw memory.
-    TensorCopySharedRawFromFrame,
-    /// Copy tensor elements from static memory into shared raw memory.
-    TensorCopySharedRawFromStatic,
-    /// Copy tensor elements from local heap memory into stack memory.
-    TensorCopyStackFromHeap,
-    /// Copy tensor elements from shared heap memory into stack memory.
-    TensorCopyStackFromSharedHeap,
-    /// Copy tensor elements from local raw memory into stack memory.
-    TensorCopyStackFromRaw,
-    /// Copy tensor elements from shared raw memory into stack memory.
-    TensorCopyStackFromSharedRaw,
-    /// Copy tensor elements from stack memory into stack memory.
-    TensorCopyStackFromStack,
-    /// Copy tensor elements from frame memory into stack memory.
-    TensorCopyStackFromFrame,
-    /// Copy tensor elements from static memory into stack memory.
-    TensorCopyStackFromStatic,
-    /// Copy tensor elements from local heap memory into frame memory.
-    TensorCopyFrameFromHeap,
-    /// Copy tensor elements from shared heap memory into frame memory.
-    TensorCopyFrameFromSharedHeap,
-    /// Copy tensor elements from local raw memory into frame memory.
-    TensorCopyFrameFromRaw,
-    /// Copy tensor elements from shared raw memory into frame memory.
-    TensorCopyFrameFromSharedRaw,
-    /// Copy tensor elements from stack memory into frame memory.
-    TensorCopyFrameFromStack,
-    /// Copy tensor elements from frame memory into frame memory.
-    TensorCopyFrameFromFrame,
-    /// Copy tensor elements from static memory into frame memory.
-    TensorCopyFrameFromStatic,
-    /// Copy tensor elements from local heap memory into static memory.
-    TensorCopyStaticFromHeap,
-    /// Copy tensor elements from shared heap memory into static memory.
-    TensorCopyStaticFromSharedHeap,
-    /// Copy tensor elements from local raw memory into static memory.
-    TensorCopyStaticFromRaw,
-    /// Copy tensor elements from shared raw memory into static memory.
-    TensorCopyStaticFromSharedRaw,
-    /// Copy tensor elements from stack memory into static memory.
-    TensorCopyStaticFromStack,
-    /// Copy tensor elements from frame memory into static memory.
-    TensorCopyStaticFromFrame,
-    /// Copy tensor elements from static memory into static memory.
-    TensorCopyStaticFromStatic,
+    /// Store one tensor element into a view.
+    TensorStore,
+    /// Fill a tensor view.
+    TensorFill,
+    /// Copy tensor elements between views.
+    TensorCopy,
     /// Reshape a tensor value.
     TensorReshape,
     /// Broadcast a tensor value.
@@ -1118,20 +986,8 @@ pub(crate) enum Op {
     TensorConvert,
     /// Cast tensor storage.
     TensorCast,
-    /// Create a local heap tensor view.
-    TensorViewHeap,
-    /// Create a shared heap tensor view.
-    TensorViewSharedHeap,
-    /// Create a local raw tensor view.
-    TensorViewRaw,
-    /// Create a shared raw tensor view.
-    TensorViewSharedRaw,
-    /// Create a stack tensor view.
-    TensorViewStack,
-    /// Create a frame tensor view.
-    TensorViewFrame,
-    /// Create a static tensor view.
-    TensorViewStatic,
+    /// Create a tensor view.
+    TensorView,
 }
 
 // op should fit in 2 bytes

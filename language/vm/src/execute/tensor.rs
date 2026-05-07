@@ -19,10 +19,10 @@ use crate::Word;
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
 use crate::program::{
-    ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, ScalarLayout, TensorBinary,
-    TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorContiguousUnary, TensorConvert,
-    TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather,
-    TensorLayout, TensorLayoutId, TensorLoad, TensorPad, TensorReduce, TensorReshape,
+    ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, ScalarLayout, TensorAddress,
+    TensorBinary, TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorContiguousUnary,
+    TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill,
+    TensorGather, TensorLayout, TensorLayoutId, TensorLoad, TensorPad, TensorReduce, TensorReshape,
     TensorScatter, TensorSelect, TensorSlice, TensorStore, TensorTranspose, TensorUnary,
     TensorView, U32RangeId, WordLayout,
 };
@@ -302,6 +302,49 @@ fn store_static_tensor_element(
     access::store_static_scalar_by_layout(machine, pointer.as_static_pointer(), access, value);
 
     Ok(())
+}
+
+/// Load one tensor-view element through selected memory.
+#[inline(always)]
+fn load_tensor_element(
+    machine: &mut Machine<'_, '_>,
+    pointer: Word,
+    element: Projection,
+    address: TensorAddress,
+) -> Result<Word, Error> {
+    match address {
+        TensorAddress::Heap => load_heap_tensor_element(machine, pointer, element),
+        TensorAddress::SharedHeap => load_shared_heap_tensor_element(machine, pointer, element),
+        TensorAddress::Raw => load_raw_tensor_element(machine, pointer, element),
+        TensorAddress::SharedRaw => load_shared_raw_tensor_element(machine, pointer, element),
+        TensorAddress::Stack => load_stack_tensor_element(machine, pointer, element),
+        TensorAddress::Frame => load_frame_tensor_element(machine, pointer, element),
+        TensorAddress::Static => load_static_tensor_element(machine, pointer, element),
+    }
+}
+
+/// Store one tensor-view element through selected memory.
+#[inline(always)]
+fn store_tensor_element(
+    machine: &mut Machine<'_, '_>,
+    pointer: Word,
+    element: Projection,
+    value: Word,
+    address: TensorAddress,
+) -> Result<(), Error> {
+    match address {
+        TensorAddress::Heap => store_heap_tensor_element(machine, pointer, element, value),
+        TensorAddress::SharedHeap => {
+            store_shared_heap_tensor_element(machine, pointer, element, value)
+        }
+        TensorAddress::Raw => store_raw_tensor_element(machine, pointer, element, value),
+        TensorAddress::SharedRaw => {
+            store_shared_raw_tensor_element(machine, pointer, element, value)
+        }
+        TensorAddress::Stack => store_stack_tensor_element(machine, pointer, element, value),
+        TensorAddress::Frame => store_frame_tensor_element(machine, pointer, element, value),
+        TensorAddress::Static => store_static_tensor_element(machine, pointer, element, value),
+    }
 }
 
 /// Return one frame tensor element pointer.
@@ -1717,17 +1760,98 @@ pub(crate) fn offset_static_view_pointer(
     Ok(Word::static_pointer(pointer))
 }
 
-/// Execute tensor.load with a concrete view pointer class.
-fn execute_tensor_load_with<O, L>(
+/// Offset a tensor view pointer through selected memory.
+#[inline(always)]
+fn offset_tensor_view_pointer(
+    value: Word,
+    element: Projection,
+    offset: usize,
+    length: usize,
+    address: TensorAddress,
+) -> Result<Word, Error> {
+    match address {
+        TensorAddress::Heap => offset_heap_view_pointer(value, element, offset, length),
+        TensorAddress::SharedHeap => {
+            offset_shared_heap_view_pointer(value, element, offset, length)
+        }
+        TensorAddress::Raw => offset_raw_view_pointer(value, element, offset, length),
+        TensorAddress::SharedRaw => offset_shared_raw_view_pointer(value, element, offset, length),
+        TensorAddress::Stack => offset_stack_view_pointer(value, element, offset, length),
+        TensorAddress::Frame => offset_frame_view_pointer(value, element, offset, length),
+        TensorAddress::Static => offset_static_view_pointer(value, element, offset, length),
+    }
+}
+
+/// Fill a tensor view through one concrete address space.
+fn fill_tensor_view<O, S>(
     machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-    offset_pointer: O,
-    load_element: L,
+    base_pointer: Word,
+    layout: &TensorLayout,
+    element: Projection,
+    fill_value: Word,
+    mut offset_pointer: O,
+    mut store_element: S,
 ) -> Result<(), Error>
 where
-    O: Fn(Word, Projection, usize, usize) -> Result<Word, Error>,
-    L: Fn(&mut Machine<'_, '_>, Word, Projection) -> Result<Word, Error>,
+    O: FnMut(Word, Projection, usize, usize) -> Result<Word, Error>,
+    S: FnMut(&mut Machine<'_, '_>, Word, Projection, Word) -> Result<(), Error>,
 {
+    // write each addressable element through the selected concrete accessor
+    for offset in 0..layout.element_span_len {
+        let pointer = offset_pointer(base_pointer, element, offset, layout.element_span_len)?;
+        store_element(machine, pointer, element, fill_value)?
+    }
+
+    Ok(())
+}
+
+/// Copy tensor elements through one concrete address pair.
+fn copy_tensor_view<TO, SO, L, S>(
+    machine: &mut Machine<'_, '_>,
+    target_pointer: Word,
+    source_pointer: Word,
+    target_layout: &TensorLayout,
+    source_layout: &TensorLayout,
+    target_element: Projection,
+    source_element: Projection,
+    mut target_offset: TO,
+    mut source_offset: SO,
+    mut load_element: L,
+    mut store_element: S,
+) -> Result<(), Error>
+where
+    TO: FnMut(Word, Projection, usize, usize) -> Result<Word, Error>,
+    SO: FnMut(Word, Projection, usize, usize) -> Result<Word, Error>,
+    L: FnMut(&mut Machine<'_, '_>, Word, Projection) -> Result<Word, Error>,
+    S: FnMut(&mut Machine<'_, '_>, Word, Projection, Word) -> Result<(), Error>,
+{
+    // copy each addressable element through the selected concrete accessors
+    for offset in 0..target_layout.element_span_len {
+        let source_pointer = source_offset(
+            source_pointer,
+            source_element,
+            offset,
+            source_layout.element_span_len,
+        )?;
+        let target_pointer = target_offset(
+            target_pointer,
+            target_element,
+            offset,
+            target_layout.element_span_len,
+        )?;
+        let value = load_element(machine, source_pointer, source_element)?;
+
+        store_element(machine, target_pointer, target_element, value)?
+    }
+
+    Ok(())
+}
+
+/// Execute tensor.load.
+pub(crate) fn execute_tensor_load(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
     // decode the precomputed tensor view descriptor
     let TensorLoad {
         dest_offset,
@@ -1735,6 +1859,7 @@ where
         indices,
         view_layout,
         element,
+        address,
     } = machine.side::<TensorLoad>(instruction);
 
     // compute the logical element offset
@@ -1746,116 +1871,25 @@ where
     // load through the concrete memory accessors selected by lower
     let view_value = machine.get_word_at(*view_offset);
     let element = machine.projection(*element);
-    let pointer = offset_pointer(view_value, element, offset, layout.element_span_len)?;
+    let pointer = offset_tensor_view_pointer(
+        view_value,
+        element,
+        offset,
+        layout.element_span_len,
+        *address,
+    )?;
 
-    let value = load_element(machine, pointer, element)?;
+    let value = load_tensor_element(machine, pointer, element, *address)?;
     machine.set_word_at(*dest_offset, value);
 
     Ok(())
 }
 
-/// Execute tensor.load from local heap memory.
-pub(crate) fn execute_tensor_load_heap(
+/// Execute tensor.store.
+pub(crate) fn execute_tensor_store(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_tensor_load_with(
-        machine,
-        instruction,
-        offset_heap_view_pointer,
-        load_heap_tensor_element,
-    )
-}
-
-/// Execute tensor.load from shared heap memory.
-pub(crate) fn execute_tensor_load_shared_heap(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_load_with(
-        machine,
-        instruction,
-        offset_shared_heap_view_pointer,
-        load_shared_heap_tensor_element,
-    )
-}
-
-/// Execute tensor.load from local raw memory.
-pub(crate) fn execute_tensor_load_raw(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_load_with(
-        machine,
-        instruction,
-        offset_raw_view_pointer,
-        load_raw_tensor_element,
-    )
-}
-
-/// Execute tensor.load from shared raw memory.
-pub(crate) fn execute_tensor_load_shared_raw(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_load_with(
-        machine,
-        instruction,
-        offset_shared_raw_view_pointer,
-        load_shared_raw_tensor_element,
-    )
-}
-
-/// Execute tensor.load from stack memory.
-pub(crate) fn execute_tensor_load_stack(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_load_with(
-        machine,
-        instruction,
-        offset_stack_view_pointer,
-        load_stack_tensor_element,
-    )
-}
-
-/// Execute tensor.load from frame memory.
-pub(crate) fn execute_tensor_load_frame(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_load_with(
-        machine,
-        instruction,
-        offset_frame_view_pointer,
-        load_frame_tensor_element,
-    )
-}
-
-/// Execute tensor.load from static memory.
-pub(crate) fn execute_tensor_load_static(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_load_with(
-        machine,
-        instruction,
-        offset_static_view_pointer,
-        load_static_tensor_element,
-    )
-}
-
-/// Execute tensor.store with a concrete view pointer class.
-fn execute_tensor_store_with<O, S>(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-    offset_pointer: O,
-    store_element: S,
-) -> Result<(), Error>
-where
-    O: Fn(Word, Projection, usize, usize) -> Result<Word, Error>,
-    S: Fn(&mut Machine<'_, '_>, Word, Projection, Word) -> Result<(), Error>,
-{
     // decode the precomputed tensor view descriptor
     let TensorStore {
         view_offset,
@@ -1863,6 +1897,7 @@ where
         value_offset,
         view_layout,
         element,
+        address,
     } = machine.side::<TensorStore>(instruction);
 
     // compute the logical element offset
@@ -1874,122 +1909,32 @@ where
     // store through the concrete memory accessors selected by lower
     let view_value = machine.get_word_at(*view_offset);
     let element = machine.projection(*element);
-    let pointer = offset_pointer(view_value, element, offset, layout.element_span_len)?;
+    let pointer = offset_tensor_view_pointer(
+        view_value,
+        element,
+        offset,
+        layout.element_span_len,
+        *address,
+    )?;
 
     let value = machine.get_word_at(*value_offset);
-    store_element(machine, pointer, element, value)?;
+    store_tensor_element(machine, pointer, element, value, *address)?;
 
     Ok(())
 }
 
-/// Execute tensor.store into local heap memory.
-pub(crate) fn execute_tensor_store_heap(
+/// Execute tensor.fill.
+pub(crate) fn execute_tensor_fill(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_tensor_store_with(
-        machine,
-        instruction,
-        offset_heap_view_pointer,
-        store_heap_tensor_element,
-    )
-}
-
-/// Execute tensor.store into shared heap memory.
-pub(crate) fn execute_tensor_store_shared_heap(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_store_with(
-        machine,
-        instruction,
-        offset_shared_heap_view_pointer,
-        store_shared_heap_tensor_element,
-    )
-}
-
-/// Execute tensor.store into local raw memory.
-pub(crate) fn execute_tensor_store_raw(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_store_with(
-        machine,
-        instruction,
-        offset_raw_view_pointer,
-        store_raw_tensor_element,
-    )
-}
-
-/// Execute tensor.store into shared raw memory.
-pub(crate) fn execute_tensor_store_shared_raw(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_store_with(
-        machine,
-        instruction,
-        offset_shared_raw_view_pointer,
-        store_shared_raw_tensor_element,
-    )
-}
-
-/// Execute tensor.store into stack memory.
-pub(crate) fn execute_tensor_store_stack(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_store_with(
-        machine,
-        instruction,
-        offset_stack_view_pointer,
-        store_stack_tensor_element,
-    )
-}
-
-/// Execute tensor.store into frame memory.
-pub(crate) fn execute_tensor_store_frame(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_store_with(
-        machine,
-        instruction,
-        offset_frame_view_pointer,
-        store_frame_tensor_element,
-    )
-}
-
-/// Execute tensor.store into static memory.
-pub(crate) fn execute_tensor_store_static(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_store_with(
-        machine,
-        instruction,
-        offset_static_view_pointer,
-        store_static_tensor_element,
-    )
-}
-
-/// Execute tensor.fill with a concrete view pointer class.
-fn execute_tensor_fill_with<O, S>(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-    offset_pointer: O,
-    store_element: S,
-) -> Result<(), Error>
-where
-    O: Fn(Word, Projection, usize, usize) -> Result<Word, Error>,
-    S: Fn(&mut Machine<'_, '_>, Word, Projection, Word) -> Result<(), Error>,
-{
     // decode the precomputed tensor view descriptor
     let TensorFill {
         view_offset,
         value_offset,
         view_layout,
         element,
+        address,
     } = machine.side::<TensorFill>(instruction);
 
     // resolve the repeated value and base view once
@@ -1997,122 +1942,82 @@ where
     let fill_value = machine.get_word_at(*value_offset);
     let base_pointer = machine.get_word_at(*view_offset);
 
-    // write each addressable element through the concrete memory accessor
+    // write each addressable element through one concrete memory accessor
     let element = machine.projection(*element);
-    for offset in 0..layout.element_span_len {
-        let pointer = offset_pointer(base_pointer, element, offset, layout.element_span_len)?;
-        store_element(machine, pointer, element, fill_value)?
+    match address {
+        TensorAddress::Heap => fill_tensor_view(
+            machine,
+            base_pointer,
+            layout,
+            element,
+            fill_value,
+            offset_heap_view_pointer,
+            store_heap_tensor_element,
+        )?,
+        TensorAddress::SharedHeap => fill_tensor_view(
+            machine,
+            base_pointer,
+            layout,
+            element,
+            fill_value,
+            offset_shared_heap_view_pointer,
+            store_shared_heap_tensor_element,
+        )?,
+        TensorAddress::Raw => fill_tensor_view(
+            machine,
+            base_pointer,
+            layout,
+            element,
+            fill_value,
+            offset_raw_view_pointer,
+            store_raw_tensor_element,
+        )?,
+        TensorAddress::SharedRaw => fill_tensor_view(
+            machine,
+            base_pointer,
+            layout,
+            element,
+            fill_value,
+            offset_shared_raw_view_pointer,
+            store_shared_raw_tensor_element,
+        )?,
+        TensorAddress::Stack => fill_tensor_view(
+            machine,
+            base_pointer,
+            layout,
+            element,
+            fill_value,
+            offset_stack_view_pointer,
+            store_stack_tensor_element,
+        )?,
+        TensorAddress::Frame => fill_tensor_view(
+            machine,
+            base_pointer,
+            layout,
+            element,
+            fill_value,
+            offset_frame_view_pointer,
+            store_frame_tensor_element,
+        )?,
+        TensorAddress::Static => fill_tensor_view(
+            machine,
+            base_pointer,
+            layout,
+            element,
+            fill_value,
+            offset_static_view_pointer,
+            store_static_tensor_element,
+        )?,
     }
 
     Ok(())
 }
 
-/// Execute tensor.fill over local heap memory.
-pub(crate) fn execute_tensor_fill_heap(
+/// Execute tensor.copy.
+pub(crate) fn execute_tensor_copy(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_tensor_fill_with(
-        machine,
-        instruction,
-        offset_heap_view_pointer,
-        store_heap_tensor_element,
-    )
-}
-
-/// Execute tensor.fill over shared heap memory.
-pub(crate) fn execute_tensor_fill_shared_heap(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_fill_with(
-        machine,
-        instruction,
-        offset_shared_heap_view_pointer,
-        store_shared_heap_tensor_element,
-    )
-}
-
-/// Execute tensor.fill over local raw memory.
-pub(crate) fn execute_tensor_fill_raw(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_fill_with(
-        machine,
-        instruction,
-        offset_raw_view_pointer,
-        store_raw_tensor_element,
-    )
-}
-
-/// Execute tensor.fill over shared raw memory.
-pub(crate) fn execute_tensor_fill_shared_raw(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_fill_with(
-        machine,
-        instruction,
-        offset_shared_raw_view_pointer,
-        store_shared_raw_tensor_element,
-    )
-}
-
-/// Execute tensor.fill over stack memory.
-pub(crate) fn execute_tensor_fill_stack(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_fill_with(
-        machine,
-        instruction,
-        offset_stack_view_pointer,
-        store_stack_tensor_element,
-    )
-}
-
-/// Execute tensor.fill over frame memory.
-pub(crate) fn execute_tensor_fill_frame(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_fill_with(
-        machine,
-        instruction,
-        offset_frame_view_pointer,
-        store_frame_tensor_element,
-    )
-}
-
-/// Execute tensor.fill over static memory.
-pub(crate) fn execute_tensor_fill_static(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_fill_with(
-        machine,
-        instruction,
-        offset_static_view_pointer,
-        store_static_tensor_element,
-    )
-}
-
-/// Execute tensor.copy with concrete source and target pointer classes.
-fn execute_tensor_copy_with<TO, TS, SO, SL>(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-    target_offset: TO,
-    target_store: TS,
-    source_offset: SO,
-    source_load: SL,
-) -> Result<(), Error>
-where
-    TO: Fn(Word, Projection, usize, usize) -> Result<Word, Error>,
-    TS: Fn(&mut Machine<'_, '_>, Word, Projection, Word) -> Result<(), Error>,
-    SO: Fn(Word, Projection, usize, usize) -> Result<Word, Error>,
-    SL: Fn(&mut Machine<'_, '_>, Word, Projection) -> Result<Word, Error>,
-{
     // decode the precomputed tensor copy descriptor
     let TensorCopy {
         target_offset: target_frame_offset,
@@ -2121,6 +2026,8 @@ where
         source_layout,
         target_element,
         source_element,
+        target_address,
+        source_address,
     } = machine.side::<TensorCopy>(instruction);
 
     // resolve compiled tensor descriptors
@@ -2144,390 +2051,747 @@ where
     let source_element = machine.projection(*source_element);
     let target_element = machine.projection(*target_element);
 
-    // copy the concrete memory pair without per-element pointer-class dispatch
-    for offset in 0..target_layout.element_span_len {
-        let source_pointer = source_offset(
-            source_pointer,
-            source_element,
-            offset,
-            source_layout.element_span_len,
-        )?;
-        let target_pointer = target_offset(
-            target_pointer,
-            target_element,
-            offset,
-            target_layout.element_span_len,
-        )?;
-        let value = source_load(machine, source_pointer, source_element)?;
-
-        target_store(machine, target_pointer, target_element, value)?
+    // copy through one concrete address pair
+    match (*target_address, *source_address) {
+        (TensorAddress::Heap, TensorAddress::Heap) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_heap_view_pointer,
+                offset_heap_view_pointer,
+                load_heap_tensor_element,
+                store_heap_tensor_element,
+            )?;
+        }
+        (TensorAddress::Heap, TensorAddress::SharedHeap) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_heap_view_pointer,
+                offset_shared_heap_view_pointer,
+                load_shared_heap_tensor_element,
+                store_heap_tensor_element,
+            )?;
+        }
+        (TensorAddress::Heap, TensorAddress::Raw) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_heap_view_pointer,
+                offset_raw_view_pointer,
+                load_raw_tensor_element,
+                store_heap_tensor_element,
+            )?;
+        }
+        (TensorAddress::Heap, TensorAddress::SharedRaw) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_heap_view_pointer,
+                offset_shared_raw_view_pointer,
+                load_shared_raw_tensor_element,
+                store_heap_tensor_element,
+            )?;
+        }
+        (TensorAddress::Heap, TensorAddress::Stack) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_heap_view_pointer,
+                offset_stack_view_pointer,
+                load_stack_tensor_element,
+                store_heap_tensor_element,
+            )?;
+        }
+        (TensorAddress::Heap, TensorAddress::Frame) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_heap_view_pointer,
+                offset_frame_view_pointer,
+                load_frame_tensor_element,
+                store_heap_tensor_element,
+            )?;
+        }
+        (TensorAddress::Heap, TensorAddress::Static) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_heap_view_pointer,
+                offset_static_view_pointer,
+                load_static_tensor_element,
+                store_heap_tensor_element,
+            )?;
+        }
+        (TensorAddress::SharedHeap, TensorAddress::Heap) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_shared_heap_view_pointer,
+                offset_heap_view_pointer,
+                load_heap_tensor_element,
+                store_shared_heap_tensor_element,
+            )?;
+        }
+        (TensorAddress::SharedHeap, TensorAddress::SharedHeap) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_shared_heap_view_pointer,
+                offset_shared_heap_view_pointer,
+                load_shared_heap_tensor_element,
+                store_shared_heap_tensor_element,
+            )?;
+        }
+        (TensorAddress::SharedHeap, TensorAddress::Raw) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_shared_heap_view_pointer,
+                offset_raw_view_pointer,
+                load_raw_tensor_element,
+                store_shared_heap_tensor_element,
+            )?;
+        }
+        (TensorAddress::SharedHeap, TensorAddress::SharedRaw) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_shared_heap_view_pointer,
+                offset_shared_raw_view_pointer,
+                load_shared_raw_tensor_element,
+                store_shared_heap_tensor_element,
+            )?;
+        }
+        (TensorAddress::SharedHeap, TensorAddress::Stack) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_shared_heap_view_pointer,
+                offset_stack_view_pointer,
+                load_stack_tensor_element,
+                store_shared_heap_tensor_element,
+            )?;
+        }
+        (TensorAddress::SharedHeap, TensorAddress::Frame) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_shared_heap_view_pointer,
+                offset_frame_view_pointer,
+                load_frame_tensor_element,
+                store_shared_heap_tensor_element,
+            )?;
+        }
+        (TensorAddress::SharedHeap, TensorAddress::Static) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_shared_heap_view_pointer,
+                offset_static_view_pointer,
+                load_static_tensor_element,
+                store_shared_heap_tensor_element,
+            )?;
+        }
+        (TensorAddress::Raw, TensorAddress::Heap) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_raw_view_pointer,
+                offset_heap_view_pointer,
+                load_heap_tensor_element,
+                store_raw_tensor_element,
+            )?;
+        }
+        (TensorAddress::Raw, TensorAddress::SharedHeap) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_raw_view_pointer,
+                offset_shared_heap_view_pointer,
+                load_shared_heap_tensor_element,
+                store_raw_tensor_element,
+            )?;
+        }
+        (TensorAddress::Raw, TensorAddress::Raw) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_raw_view_pointer,
+                offset_raw_view_pointer,
+                load_raw_tensor_element,
+                store_raw_tensor_element,
+            )?;
+        }
+        (TensorAddress::Raw, TensorAddress::SharedRaw) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_raw_view_pointer,
+                offset_shared_raw_view_pointer,
+                load_shared_raw_tensor_element,
+                store_raw_tensor_element,
+            )?;
+        }
+        (TensorAddress::Raw, TensorAddress::Stack) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_raw_view_pointer,
+                offset_stack_view_pointer,
+                load_stack_tensor_element,
+                store_raw_tensor_element,
+            )?;
+        }
+        (TensorAddress::Raw, TensorAddress::Frame) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_raw_view_pointer,
+                offset_frame_view_pointer,
+                load_frame_tensor_element,
+                store_raw_tensor_element,
+            )?;
+        }
+        (TensorAddress::Raw, TensorAddress::Static) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_raw_view_pointer,
+                offset_static_view_pointer,
+                load_static_tensor_element,
+                store_raw_tensor_element,
+            )?;
+        }
+        (TensorAddress::SharedRaw, TensorAddress::Heap) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_shared_raw_view_pointer,
+                offset_heap_view_pointer,
+                load_heap_tensor_element,
+                store_shared_raw_tensor_element,
+            )?;
+        }
+        (TensorAddress::SharedRaw, TensorAddress::SharedHeap) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_shared_raw_view_pointer,
+                offset_shared_heap_view_pointer,
+                load_shared_heap_tensor_element,
+                store_shared_raw_tensor_element,
+            )?;
+        }
+        (TensorAddress::SharedRaw, TensorAddress::Raw) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_shared_raw_view_pointer,
+                offset_raw_view_pointer,
+                load_raw_tensor_element,
+                store_shared_raw_tensor_element,
+            )?;
+        }
+        (TensorAddress::SharedRaw, TensorAddress::SharedRaw) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_shared_raw_view_pointer,
+                offset_shared_raw_view_pointer,
+                load_shared_raw_tensor_element,
+                store_shared_raw_tensor_element,
+            )?;
+        }
+        (TensorAddress::SharedRaw, TensorAddress::Stack) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_shared_raw_view_pointer,
+                offset_stack_view_pointer,
+                load_stack_tensor_element,
+                store_shared_raw_tensor_element,
+            )?;
+        }
+        (TensorAddress::SharedRaw, TensorAddress::Frame) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_shared_raw_view_pointer,
+                offset_frame_view_pointer,
+                load_frame_tensor_element,
+                store_shared_raw_tensor_element,
+            )?;
+        }
+        (TensorAddress::SharedRaw, TensorAddress::Static) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_shared_raw_view_pointer,
+                offset_static_view_pointer,
+                load_static_tensor_element,
+                store_shared_raw_tensor_element,
+            )?;
+        }
+        (TensorAddress::Stack, TensorAddress::Heap) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_stack_view_pointer,
+                offset_heap_view_pointer,
+                load_heap_tensor_element,
+                store_stack_tensor_element,
+            )?;
+        }
+        (TensorAddress::Stack, TensorAddress::SharedHeap) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_stack_view_pointer,
+                offset_shared_heap_view_pointer,
+                load_shared_heap_tensor_element,
+                store_stack_tensor_element,
+            )?;
+        }
+        (TensorAddress::Stack, TensorAddress::Raw) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_stack_view_pointer,
+                offset_raw_view_pointer,
+                load_raw_tensor_element,
+                store_stack_tensor_element,
+            )?;
+        }
+        (TensorAddress::Stack, TensorAddress::SharedRaw) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_stack_view_pointer,
+                offset_shared_raw_view_pointer,
+                load_shared_raw_tensor_element,
+                store_stack_tensor_element,
+            )?;
+        }
+        (TensorAddress::Stack, TensorAddress::Stack) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_stack_view_pointer,
+                offset_stack_view_pointer,
+                load_stack_tensor_element,
+                store_stack_tensor_element,
+            )?;
+        }
+        (TensorAddress::Stack, TensorAddress::Frame) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_stack_view_pointer,
+                offset_frame_view_pointer,
+                load_frame_tensor_element,
+                store_stack_tensor_element,
+            )?;
+        }
+        (TensorAddress::Stack, TensorAddress::Static) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_stack_view_pointer,
+                offset_static_view_pointer,
+                load_static_tensor_element,
+                store_stack_tensor_element,
+            )?;
+        }
+        (TensorAddress::Frame, TensorAddress::Heap) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_frame_view_pointer,
+                offset_heap_view_pointer,
+                load_heap_tensor_element,
+                store_frame_tensor_element,
+            )?;
+        }
+        (TensorAddress::Frame, TensorAddress::SharedHeap) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_frame_view_pointer,
+                offset_shared_heap_view_pointer,
+                load_shared_heap_tensor_element,
+                store_frame_tensor_element,
+            )?;
+        }
+        (TensorAddress::Frame, TensorAddress::Raw) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_frame_view_pointer,
+                offset_raw_view_pointer,
+                load_raw_tensor_element,
+                store_frame_tensor_element,
+            )?;
+        }
+        (TensorAddress::Frame, TensorAddress::SharedRaw) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_frame_view_pointer,
+                offset_shared_raw_view_pointer,
+                load_shared_raw_tensor_element,
+                store_frame_tensor_element,
+            )?;
+        }
+        (TensorAddress::Frame, TensorAddress::Stack) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_frame_view_pointer,
+                offset_stack_view_pointer,
+                load_stack_tensor_element,
+                store_frame_tensor_element,
+            )?;
+        }
+        (TensorAddress::Frame, TensorAddress::Frame) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_frame_view_pointer,
+                offset_frame_view_pointer,
+                load_frame_tensor_element,
+                store_frame_tensor_element,
+            )?;
+        }
+        (TensorAddress::Frame, TensorAddress::Static) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_frame_view_pointer,
+                offset_static_view_pointer,
+                load_static_tensor_element,
+                store_frame_tensor_element,
+            )?;
+        }
+        (TensorAddress::Static, TensorAddress::Heap) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_static_view_pointer,
+                offset_heap_view_pointer,
+                load_heap_tensor_element,
+                store_static_tensor_element,
+            )?;
+        }
+        (TensorAddress::Static, TensorAddress::SharedHeap) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_static_view_pointer,
+                offset_shared_heap_view_pointer,
+                load_shared_heap_tensor_element,
+                store_static_tensor_element,
+            )?;
+        }
+        (TensorAddress::Static, TensorAddress::Raw) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_static_view_pointer,
+                offset_raw_view_pointer,
+                load_raw_tensor_element,
+                store_static_tensor_element,
+            )?;
+        }
+        (TensorAddress::Static, TensorAddress::SharedRaw) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_static_view_pointer,
+                offset_shared_raw_view_pointer,
+                load_shared_raw_tensor_element,
+                store_static_tensor_element,
+            )?;
+        }
+        (TensorAddress::Static, TensorAddress::Stack) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_static_view_pointer,
+                offset_stack_view_pointer,
+                load_stack_tensor_element,
+                store_static_tensor_element,
+            )?;
+        }
+        (TensorAddress::Static, TensorAddress::Frame) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_static_view_pointer,
+                offset_frame_view_pointer,
+                load_frame_tensor_element,
+                store_static_tensor_element,
+            )?;
+        }
+        (TensorAddress::Static, TensorAddress::Static) => {
+            copy_tensor_view(
+                machine,
+                target_pointer,
+                source_pointer,
+                target_layout,
+                source_layout,
+                target_element,
+                source_element,
+                offset_static_view_pointer,
+                offset_static_view_pointer,
+                load_static_tensor_element,
+                store_static_tensor_element,
+            )?;
+        }
     }
 
     Ok(())
 }
-
-macro_rules! tensor_copy_executor {
-    ($function:ident, $target_offset:ident, $target_store:ident, $source_offset:ident, $source_load:ident) => {
-        /// Execute tensor.copy with concrete target and source memory.
-        pub(crate) fn $function(
-            machine: &mut Machine<'_, '_>,
-            instruction: &Instruction,
-        ) -> Result<(), Error> {
-            execute_tensor_copy_with(
-                machine,
-                instruction,
-                $target_offset,
-                $target_store,
-                $source_offset,
-                $source_load,
-            )
-        }
-    };
-}
-
-tensor_copy_executor!(
-    execute_tensor_copy_heap_from_heap,
-    offset_heap_view_pointer,
-    store_heap_tensor_element,
-    offset_heap_view_pointer,
-    load_heap_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_heap_from_shared_heap,
-    offset_heap_view_pointer,
-    store_heap_tensor_element,
-    offset_shared_heap_view_pointer,
-    load_shared_heap_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_heap_from_raw,
-    offset_heap_view_pointer,
-    store_heap_tensor_element,
-    offset_raw_view_pointer,
-    load_raw_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_heap_from_shared_raw,
-    offset_heap_view_pointer,
-    store_heap_tensor_element,
-    offset_shared_raw_view_pointer,
-    load_shared_raw_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_heap_from_stack,
-    offset_heap_view_pointer,
-    store_heap_tensor_element,
-    offset_stack_view_pointer,
-    load_stack_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_heap_from_frame,
-    offset_heap_view_pointer,
-    store_heap_tensor_element,
-    offset_frame_view_pointer,
-    load_frame_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_heap_from_static,
-    offset_heap_view_pointer,
-    store_heap_tensor_element,
-    offset_static_view_pointer,
-    load_static_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_shared_heap_from_heap,
-    offset_shared_heap_view_pointer,
-    store_shared_heap_tensor_element,
-    offset_heap_view_pointer,
-    load_heap_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_shared_heap_from_shared_heap,
-    offset_shared_heap_view_pointer,
-    store_shared_heap_tensor_element,
-    offset_shared_heap_view_pointer,
-    load_shared_heap_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_shared_heap_from_raw,
-    offset_shared_heap_view_pointer,
-    store_shared_heap_tensor_element,
-    offset_raw_view_pointer,
-    load_raw_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_shared_heap_from_shared_raw,
-    offset_shared_heap_view_pointer,
-    store_shared_heap_tensor_element,
-    offset_shared_raw_view_pointer,
-    load_shared_raw_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_shared_heap_from_stack,
-    offset_shared_heap_view_pointer,
-    store_shared_heap_tensor_element,
-    offset_stack_view_pointer,
-    load_stack_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_shared_heap_from_frame,
-    offset_shared_heap_view_pointer,
-    store_shared_heap_tensor_element,
-    offset_frame_view_pointer,
-    load_frame_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_shared_heap_from_static,
-    offset_shared_heap_view_pointer,
-    store_shared_heap_tensor_element,
-    offset_static_view_pointer,
-    load_static_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_raw_from_heap,
-    offset_raw_view_pointer,
-    store_raw_tensor_element,
-    offset_heap_view_pointer,
-    load_heap_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_raw_from_shared_heap,
-    offset_raw_view_pointer,
-    store_raw_tensor_element,
-    offset_shared_heap_view_pointer,
-    load_shared_heap_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_raw_from_raw,
-    offset_raw_view_pointer,
-    store_raw_tensor_element,
-    offset_raw_view_pointer,
-    load_raw_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_raw_from_shared_raw,
-    offset_raw_view_pointer,
-    store_raw_tensor_element,
-    offset_shared_raw_view_pointer,
-    load_shared_raw_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_raw_from_stack,
-    offset_raw_view_pointer,
-    store_raw_tensor_element,
-    offset_stack_view_pointer,
-    load_stack_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_raw_from_frame,
-    offset_raw_view_pointer,
-    store_raw_tensor_element,
-    offset_frame_view_pointer,
-    load_frame_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_raw_from_static,
-    offset_raw_view_pointer,
-    store_raw_tensor_element,
-    offset_static_view_pointer,
-    load_static_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_shared_raw_from_heap,
-    offset_shared_raw_view_pointer,
-    store_shared_raw_tensor_element,
-    offset_heap_view_pointer,
-    load_heap_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_shared_raw_from_shared_heap,
-    offset_shared_raw_view_pointer,
-    store_shared_raw_tensor_element,
-    offset_shared_heap_view_pointer,
-    load_shared_heap_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_shared_raw_from_raw,
-    offset_shared_raw_view_pointer,
-    store_shared_raw_tensor_element,
-    offset_raw_view_pointer,
-    load_raw_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_shared_raw_from_shared_raw,
-    offset_shared_raw_view_pointer,
-    store_shared_raw_tensor_element,
-    offset_shared_raw_view_pointer,
-    load_shared_raw_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_shared_raw_from_stack,
-    offset_shared_raw_view_pointer,
-    store_shared_raw_tensor_element,
-    offset_stack_view_pointer,
-    load_stack_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_shared_raw_from_frame,
-    offset_shared_raw_view_pointer,
-    store_shared_raw_tensor_element,
-    offset_frame_view_pointer,
-    load_frame_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_shared_raw_from_static,
-    offset_shared_raw_view_pointer,
-    store_shared_raw_tensor_element,
-    offset_static_view_pointer,
-    load_static_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_stack_from_heap,
-    offset_stack_view_pointer,
-    store_stack_tensor_element,
-    offset_heap_view_pointer,
-    load_heap_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_stack_from_shared_heap,
-    offset_stack_view_pointer,
-    store_stack_tensor_element,
-    offset_shared_heap_view_pointer,
-    load_shared_heap_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_stack_from_raw,
-    offset_stack_view_pointer,
-    store_stack_tensor_element,
-    offset_raw_view_pointer,
-    load_raw_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_stack_from_shared_raw,
-    offset_stack_view_pointer,
-    store_stack_tensor_element,
-    offset_shared_raw_view_pointer,
-    load_shared_raw_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_stack_from_stack,
-    offset_stack_view_pointer,
-    store_stack_tensor_element,
-    offset_stack_view_pointer,
-    load_stack_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_stack_from_frame,
-    offset_stack_view_pointer,
-    store_stack_tensor_element,
-    offset_frame_view_pointer,
-    load_frame_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_stack_from_static,
-    offset_stack_view_pointer,
-    store_stack_tensor_element,
-    offset_static_view_pointer,
-    load_static_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_frame_from_heap,
-    offset_frame_view_pointer,
-    store_frame_tensor_element,
-    offset_heap_view_pointer,
-    load_heap_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_frame_from_shared_heap,
-    offset_frame_view_pointer,
-    store_frame_tensor_element,
-    offset_shared_heap_view_pointer,
-    load_shared_heap_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_frame_from_raw,
-    offset_frame_view_pointer,
-    store_frame_tensor_element,
-    offset_raw_view_pointer,
-    load_raw_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_frame_from_shared_raw,
-    offset_frame_view_pointer,
-    store_frame_tensor_element,
-    offset_shared_raw_view_pointer,
-    load_shared_raw_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_frame_from_stack,
-    offset_frame_view_pointer,
-    store_frame_tensor_element,
-    offset_stack_view_pointer,
-    load_stack_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_frame_from_frame,
-    offset_frame_view_pointer,
-    store_frame_tensor_element,
-    offset_frame_view_pointer,
-    load_frame_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_frame_from_static,
-    offset_frame_view_pointer,
-    store_frame_tensor_element,
-    offset_static_view_pointer,
-    load_static_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_static_from_heap,
-    offset_static_view_pointer,
-    store_static_tensor_element,
-    offset_heap_view_pointer,
-    load_heap_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_static_from_shared_heap,
-    offset_static_view_pointer,
-    store_static_tensor_element,
-    offset_shared_heap_view_pointer,
-    load_shared_heap_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_static_from_raw,
-    offset_static_view_pointer,
-    store_static_tensor_element,
-    offset_raw_view_pointer,
-    load_raw_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_static_from_shared_raw,
-    offset_static_view_pointer,
-    store_static_tensor_element,
-    offset_shared_raw_view_pointer,
-    load_shared_raw_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_static_from_stack,
-    offset_static_view_pointer,
-    store_static_tensor_element,
-    offset_stack_view_pointer,
-    load_stack_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_static_from_frame,
-    offset_static_view_pointer,
-    store_static_tensor_element,
-    offset_frame_view_pointer,
-    load_frame_tensor_element
-);
-tensor_copy_executor!(
-    execute_tensor_copy_static_from_static,
-    offset_static_view_pointer,
-    store_static_tensor_element,
-    offset_static_view_pointer,
-    load_static_tensor_element
-);
 
 /// Execute tensor.reshape.
 pub(crate) fn execute_tensor_reshape(
@@ -3984,15 +4248,11 @@ pub(crate) fn execute_tensor_cast(
     Ok(())
 }
 
-/// Execute tensor.view with a concrete view pointer class.
-fn execute_tensor_view_with<O>(
+/// Execute tensor.view.
+pub(crate) fn execute_tensor_view(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-    offset_pointer: O,
-) -> Result<(), Error>
-where
-    O: Fn(Word, Projection, usize, usize) -> Result<Word, Error>,
-{
+) -> Result<(), Error> {
     let TensorView {
         dest_offset,
         view_offset,
@@ -4003,6 +4263,7 @@ where
         source_layout,
         dest_layout,
         element,
+        address,
     } = machine.side::<TensorView>(instruction);
 
     let source_layout = tensor_layout(machine, *source_layout);
@@ -4061,65 +4322,15 @@ where
 
     let view_value = machine.get_word_at(*view_offset);
     let element = machine.projection(*element);
-    let pointer = offset_pointer(view_value, element, offset, source_layout.element_span_len)?;
+    let pointer = offset_tensor_view_pointer(
+        view_value,
+        element,
+        offset,
+        source_layout.element_span_len,
+        *address,
+    )?;
 
     machine.set_word_at(*dest_offset, pointer);
 
     Ok(())
-}
-
-/// Execute tensor.view over local heap memory.
-pub(crate) fn execute_tensor_view_heap(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_view_with(machine, instruction, offset_heap_view_pointer)
-}
-
-/// Execute tensor.view over shared heap memory.
-pub(crate) fn execute_tensor_view_shared_heap(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_view_with(machine, instruction, offset_shared_heap_view_pointer)
-}
-
-/// Execute tensor.view over local raw memory.
-pub(crate) fn execute_tensor_view_raw(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_view_with(machine, instruction, offset_raw_view_pointer)
-}
-
-/// Execute tensor.view over shared raw memory.
-pub(crate) fn execute_tensor_view_shared_raw(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_view_with(machine, instruction, offset_shared_raw_view_pointer)
-}
-
-/// Execute tensor.view over stack memory.
-pub(crate) fn execute_tensor_view_stack(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_view_with(machine, instruction, offset_stack_view_pointer)
-}
-
-/// Execute tensor.view over frame memory.
-pub(crate) fn execute_tensor_view_frame(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_view_with(machine, instruction, offset_frame_view_pointer)
-}
-
-/// Execute tensor.view over static memory.
-pub(crate) fn execute_tensor_view_static(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_tensor_view_with(machine, instruction, offset_static_view_pointer)
 }

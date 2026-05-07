@@ -1,11 +1,12 @@
 use destack_mir as mir;
 
 use crate::program::{
-    Instruction, Op, PointerClass, Projection, ScalarLayout, TensorBinary, TensorBroadcast,
-    TensorConcat, TensorContiguousBinary, TensorConvert, TensorConvolution, TensorCopy, TensorDot,
-    TensorExtract, TensorFill, TensorGather, TensorLayout, TensorLayoutId, TensorLoad, TensorPad,
-    TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore,
-    TensorTranspose, TensorView, U32RangeId, scalar_layout_from_type, value_layout_from_type,
+    Instruction, Op, PointerClass, Projection, ScalarLayout, TensorAddress, TensorBinary,
+    TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorConvert, TensorConvolution,
+    TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather, TensorLayout, TensorLayoutId,
+    TensorLoad, TensorPad, TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice,
+    TensorStore, TensorTranspose, TensorView, U32RangeId, scalar_layout_from_type,
+    value_layout_from_type,
 };
 use crate::{Error, Result};
 
@@ -57,17 +58,18 @@ impl<'a> BlockLowerer<'a> {
                     "tensor load index",
                 )?;
                 let (pointer_class, element) = self.tensor_element_projection(view_type)?;
-                let op = tensor_load_op(pointer_class)?;
+                let address = TensorAddress::from_pointer_class(pointer_class)?;
                 let element = pool.projection(element);
 
                 pool.instruction_with_side(
-                    op,
+                    Op::TensorLoad,
                     TensorLoad {
                         dest_offset: word_offset(self, destination)?,
                         view_offset: word_offset(self, view)?,
                         indices,
                         view_layout,
                         element,
+                        address,
                     },
                 )
             }
@@ -113,17 +115,18 @@ impl<'a> BlockLowerer<'a> {
                     "tensor store index",
                 )?;
                 let (pointer_class, element) = self.tensor_element_projection(view_type)?;
-                let op = tensor_store_op(pointer_class)?;
+                let address = TensorAddress::from_pointer_class(pointer_class)?;
                 let element = pool.projection(element);
 
                 pool.instruction_with_side(
-                    op,
+                    Op::TensorStore,
                     TensorStore {
                         view_offset: word_offset(self, view)?,
                         indices,
                         value_offset: word_offset(self, value)?,
                         view_layout,
                         element,
+                        address,
                     },
                 )
             }
@@ -134,16 +137,17 @@ impl<'a> BlockLowerer<'a> {
                 let view_type = self.value_type_for_value(view)?;
                 let view_layout = self.tensor_layout(pool, view_type)?;
                 let (pointer_class, element) = self.tensor_element_projection(view_type)?;
-                let op = tensor_fill_op(pointer_class)?;
+                let address = TensorAddress::from_pointer_class(pointer_class)?;
                 let element = pool.projection(element);
 
                 pool.instruction_with_side(
-                    op,
+                    Op::TensorFill,
                     TensorFill {
                         view_offset: word_offset(self, view)?,
                         value_offset: word_offset(self, value)?,
                         view_layout,
                         element,
+                        address,
                     },
                 )
             }
@@ -157,12 +161,13 @@ impl<'a> BlockLowerer<'a> {
                 let source_layout = self.tensor_layout(pool, source_type)?;
                 let (target_class, target_element) = self.tensor_element_projection(target_type)?;
                 let (source_class, source_element) = self.tensor_element_projection(source_type)?;
-                let op = tensor_copy_op(target_class, source_class)?;
+                let target_address = TensorAddress::from_pointer_class(target_class)?;
+                let source_address = TensorAddress::from_pointer_class(source_class)?;
                 let target_element = pool.projection(target_element);
                 let source_element = pool.projection(source_element);
 
                 pool.instruction_with_side(
-                    op,
+                    Op::TensorCopy,
                     TensorCopy {
                         target_offset: word_offset(self, target)?,
                         source_offset: word_offset(self, source)?,
@@ -170,6 +175,8 @@ impl<'a> BlockLowerer<'a> {
                         source_layout,
                         target_element,
                         source_element,
+                        target_address,
+                        source_address,
                     },
                 )
             }
@@ -721,11 +728,11 @@ impl<'a> BlockLowerer<'a> {
                 let source_layout = self.tensor_layout(pool, source_type)?;
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
                 let (pointer_class, element) = self.tensor_element_projection(source_type)?;
-                let op = tensor_view_op(pointer_class)?;
+                let address = TensorAddress::from_pointer_class(pointer_class)?;
                 let element = pool.projection(element);
 
                 pool.instruction_with_side(
-                    op,
+                    Op::TensorView,
                     TensorView {
                         dest_offset: word_offset(self, destination)?,
                         view_offset: word_offset(self, view)?,
@@ -736,6 +743,7 @@ impl<'a> BlockLowerer<'a> {
                         source_layout,
                         dest_layout,
                         element,
+                        address,
                     },
                 )
             }
@@ -799,172 +807,6 @@ impl<'a> BlockLowerer<'a> {
         }
 
         Ok(pool.u32_range(&offsets))
-    }
-}
-
-/// Select the tensor load op for one view pointer class.
-fn tensor_load_op(pointer_class: PointerClass) -> Result<Op> {
-    match pointer_class {
-        PointerClass::Heap | PointerClass::HeapAddress => Ok(Op::TensorLoadHeap),
-        PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Ok(Op::TensorLoadSharedHeap),
-        PointerClass::Raw => Ok(Op::TensorLoadRaw),
-        PointerClass::SharedRaw => Ok(Op::TensorLoadSharedRaw),
-        PointerClass::Stack => Ok(Op::TensorLoadStack),
-        PointerClass::Frame => Ok(Op::TensorLoadFrame),
-        PointerClass::Static => Ok(Op::TensorLoadStatic),
-        PointerClass::Unknown => Err(Error::InvalidInstruction),
-    }
-}
-
-/// Select the tensor store op for one view pointer class.
-fn tensor_store_op(pointer_class: PointerClass) -> Result<Op> {
-    match pointer_class {
-        PointerClass::Heap | PointerClass::HeapAddress => Ok(Op::TensorStoreHeap),
-        PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Ok(Op::TensorStoreSharedHeap),
-        PointerClass::Raw => Ok(Op::TensorStoreRaw),
-        PointerClass::SharedRaw => Ok(Op::TensorStoreSharedRaw),
-        PointerClass::Stack => Ok(Op::TensorStoreStack),
-        PointerClass::Frame => Ok(Op::TensorStoreFrame),
-        PointerClass::Static => Ok(Op::TensorStoreStatic),
-        PointerClass::Unknown => Err(Error::InvalidInstruction),
-    }
-}
-
-/// Select the tensor fill op for one view pointer class.
-fn tensor_fill_op(pointer_class: PointerClass) -> Result<Op> {
-    match pointer_class {
-        PointerClass::Heap | PointerClass::HeapAddress => Ok(Op::TensorFillHeap),
-        PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Ok(Op::TensorFillSharedHeap),
-        PointerClass::Raw => Ok(Op::TensorFillRaw),
-        PointerClass::SharedRaw => Ok(Op::TensorFillSharedRaw),
-        PointerClass::Stack => Ok(Op::TensorFillStack),
-        PointerClass::Frame => Ok(Op::TensorFillFrame),
-        PointerClass::Static => Ok(Op::TensorFillStatic),
-        PointerClass::Unknown => Err(Error::InvalidInstruction),
-    }
-}
-
-/// Select the tensor copy op for one target and source pointer class.
-fn tensor_copy_op(target: PointerClass, source: PointerClass) -> Result<Op> {
-    match (target, source) {
-        (
-            PointerClass::Heap | PointerClass::HeapAddress,
-            PointerClass::Heap | PointerClass::HeapAddress,
-        ) => Ok(Op::TensorCopyHeapFromHeap),
-        (
-            PointerClass::Heap | PointerClass::HeapAddress,
-            PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
-        ) => Ok(Op::TensorCopyHeapFromSharedHeap),
-        (PointerClass::Heap | PointerClass::HeapAddress, PointerClass::Raw) => {
-            Ok(Op::TensorCopyHeapFromRaw)
-        }
-        (PointerClass::Heap | PointerClass::HeapAddress, PointerClass::SharedRaw) => {
-            Ok(Op::TensorCopyHeapFromSharedRaw)
-        }
-        (PointerClass::Heap | PointerClass::HeapAddress, PointerClass::Stack) => {
-            Ok(Op::TensorCopyHeapFromStack)
-        }
-        (PointerClass::Heap | PointerClass::HeapAddress, PointerClass::Frame) => {
-            Ok(Op::TensorCopyHeapFromFrame)
-        }
-        (PointerClass::Heap | PointerClass::HeapAddress, PointerClass::Static) => {
-            Ok(Op::TensorCopyHeapFromStatic)
-        }
-        (
-            PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
-            PointerClass::Heap | PointerClass::HeapAddress,
-        ) => Ok(Op::TensorCopySharedHeapFromHeap),
-        (
-            PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
-            PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
-        ) => Ok(Op::TensorCopySharedHeapFromSharedHeap),
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, PointerClass::Raw) => {
-            Ok(Op::TensorCopySharedHeapFromRaw)
-        }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, PointerClass::SharedRaw) => {
-            Ok(Op::TensorCopySharedHeapFromSharedRaw)
-        }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, PointerClass::Stack) => {
-            Ok(Op::TensorCopySharedHeapFromStack)
-        }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, PointerClass::Frame) => {
-            Ok(Op::TensorCopySharedHeapFromFrame)
-        }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, PointerClass::Static) => {
-            Ok(Op::TensorCopySharedHeapFromStatic)
-        }
-        (PointerClass::Raw, PointerClass::Heap | PointerClass::HeapAddress) => {
-            Ok(Op::TensorCopyRawFromHeap)
-        }
-        (PointerClass::Raw, PointerClass::SharedHeap | PointerClass::SharedHeapAddress) => {
-            Ok(Op::TensorCopyRawFromSharedHeap)
-        }
-        (PointerClass::Raw, PointerClass::Raw) => Ok(Op::TensorCopyRawFromRaw),
-        (PointerClass::Raw, PointerClass::SharedRaw) => Ok(Op::TensorCopyRawFromSharedRaw),
-        (PointerClass::Raw, PointerClass::Stack) => Ok(Op::TensorCopyRawFromStack),
-        (PointerClass::Raw, PointerClass::Frame) => Ok(Op::TensorCopyRawFromFrame),
-        (PointerClass::Raw, PointerClass::Static) => Ok(Op::TensorCopyRawFromStatic),
-        (PointerClass::SharedRaw, PointerClass::Heap | PointerClass::HeapAddress) => {
-            Ok(Op::TensorCopySharedRawFromHeap)
-        }
-        (PointerClass::SharedRaw, PointerClass::SharedHeap | PointerClass::SharedHeapAddress) => {
-            Ok(Op::TensorCopySharedRawFromSharedHeap)
-        }
-        (PointerClass::SharedRaw, PointerClass::Raw) => Ok(Op::TensorCopySharedRawFromRaw),
-        (PointerClass::SharedRaw, PointerClass::SharedRaw) => {
-            Ok(Op::TensorCopySharedRawFromSharedRaw)
-        }
-        (PointerClass::SharedRaw, PointerClass::Stack) => Ok(Op::TensorCopySharedRawFromStack),
-        (PointerClass::SharedRaw, PointerClass::Frame) => Ok(Op::TensorCopySharedRawFromFrame),
-        (PointerClass::SharedRaw, PointerClass::Static) => Ok(Op::TensorCopySharedRawFromStatic),
-        (PointerClass::Stack, PointerClass::Heap | PointerClass::HeapAddress) => {
-            Ok(Op::TensorCopyStackFromHeap)
-        }
-        (PointerClass::Stack, PointerClass::SharedHeap | PointerClass::SharedHeapAddress) => {
-            Ok(Op::TensorCopyStackFromSharedHeap)
-        }
-        (PointerClass::Stack, PointerClass::Raw) => Ok(Op::TensorCopyStackFromRaw),
-        (PointerClass::Stack, PointerClass::SharedRaw) => Ok(Op::TensorCopyStackFromSharedRaw),
-        (PointerClass::Stack, PointerClass::Stack) => Ok(Op::TensorCopyStackFromStack),
-        (PointerClass::Stack, PointerClass::Frame) => Ok(Op::TensorCopyStackFromFrame),
-        (PointerClass::Stack, PointerClass::Static) => Ok(Op::TensorCopyStackFromStatic),
-        (PointerClass::Frame, PointerClass::Heap | PointerClass::HeapAddress) => {
-            Ok(Op::TensorCopyFrameFromHeap)
-        }
-        (PointerClass::Frame, PointerClass::SharedHeap | PointerClass::SharedHeapAddress) => {
-            Ok(Op::TensorCopyFrameFromSharedHeap)
-        }
-        (PointerClass::Frame, PointerClass::Raw) => Ok(Op::TensorCopyFrameFromRaw),
-        (PointerClass::Frame, PointerClass::SharedRaw) => Ok(Op::TensorCopyFrameFromSharedRaw),
-        (PointerClass::Frame, PointerClass::Stack) => Ok(Op::TensorCopyFrameFromStack),
-        (PointerClass::Frame, PointerClass::Frame) => Ok(Op::TensorCopyFrameFromFrame),
-        (PointerClass::Frame, PointerClass::Static) => Ok(Op::TensorCopyFrameFromStatic),
-        (PointerClass::Static, PointerClass::Heap | PointerClass::HeapAddress) => {
-            Ok(Op::TensorCopyStaticFromHeap)
-        }
-        (PointerClass::Static, PointerClass::SharedHeap | PointerClass::SharedHeapAddress) => {
-            Ok(Op::TensorCopyStaticFromSharedHeap)
-        }
-        (PointerClass::Static, PointerClass::Raw) => Ok(Op::TensorCopyStaticFromRaw),
-        (PointerClass::Static, PointerClass::SharedRaw) => Ok(Op::TensorCopyStaticFromSharedRaw),
-        (PointerClass::Static, PointerClass::Stack) => Ok(Op::TensorCopyStaticFromStack),
-        (PointerClass::Static, PointerClass::Frame) => Ok(Op::TensorCopyStaticFromFrame),
-        (PointerClass::Static, PointerClass::Static) => Ok(Op::TensorCopyStaticFromStatic),
-        (PointerClass::Unknown, _) | (_, PointerClass::Unknown) => Err(Error::InvalidInstruction),
-    }
-}
-
-/// Select the tensor view op for one view pointer class.
-fn tensor_view_op(pointer_class: PointerClass) -> Result<Op> {
-    match pointer_class {
-        PointerClass::Heap | PointerClass::HeapAddress => Ok(Op::TensorViewHeap),
-        PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Ok(Op::TensorViewSharedHeap),
-        PointerClass::Raw => Ok(Op::TensorViewRaw),
-        PointerClass::SharedRaw => Ok(Op::TensorViewSharedRaw),
-        PointerClass::Stack => Ok(Op::TensorViewStack),
-        PointerClass::Frame => Ok(Op::TensorViewFrame),
-        PointerClass::Static => Ok(Op::TensorViewStatic),
-        PointerClass::Unknown => Err(Error::InvalidInstruction),
     }
 }
 

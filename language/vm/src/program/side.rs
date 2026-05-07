@@ -380,6 +380,8 @@ pub(crate) struct TensorLoad {
     pub(crate) view_layout: TensorLayoutId,
     /// The tensor element projection.
     pub(crate) element: ProjectionId,
+    /// The tensor view backing memory.
+    pub(crate) address: TensorAddress,
 }
 
 /// Extract a tensor element from a tensor value.
@@ -594,6 +596,8 @@ pub(crate) struct TensorStore {
     pub(crate) view_layout: TensorLayoutId,
     /// The tensor element projection.
     pub(crate) element: ProjectionId,
+    /// The tensor view backing memory.
+    pub(crate) address: TensorAddress,
 }
 
 /// Fill a tensor reference with a scalar value.
@@ -607,6 +611,8 @@ pub(crate) struct TensorFill {
     pub(crate) view_layout: TensorLayoutId,
     /// The tensor element projection.
     pub(crate) element: ProjectionId,
+    /// The tensor view backing memory.
+    pub(crate) address: TensorAddress,
 }
 
 /// Copy elements between tensor references.
@@ -624,6 +630,10 @@ pub(crate) struct TensorCopy {
     pub(crate) target_element: ProjectionId,
     /// The source element projection.
     pub(crate) source_element: ProjectionId,
+    /// The target tensor backing memory.
+    pub(crate) target_address: TensorAddress,
+    /// The source tensor backing memory.
+    pub(crate) source_address: TensorAddress,
 }
 
 /// Reshape a tensor into a new shape.
@@ -906,6 +916,8 @@ pub(crate) struct TensorView {
     pub(crate) dest_layout: TensorLayoutId,
     /// The tensor element projection.
     pub(crate) element: ProjectionId,
+    /// The tensor view backing memory.
+    pub(crate) address: TensorAddress,
 }
 
 /// Intrinsic destination.
