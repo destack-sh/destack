@@ -169,14 +169,14 @@ impl<'a> Validator<'a> {
                 instruction,
                 Instruction::New { .. } | Instruction::NewSlice { .. }
             )
-            .then_some("noManaged forbids heap allocations"),
-            AllocationMode::StackOnly => matches!(
+            .then_some("noManaged forbids managed allocations"),
+            AllocationMode::NoHeap => matches!(
                 instruction,
                 Instruction::New { .. }
                     | Instruction::NewSlice { .. }
                     | Instruction::RawAlloc { .. }
             )
-            .then_some("stackOnly forbids non-stack allocations"),
+            .then_some("noHeap forbids heap allocations"),
         };
         let Some(violation) = violation else {
             return Ok(());
