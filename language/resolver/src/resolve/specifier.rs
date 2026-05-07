@@ -20,8 +20,8 @@ pub(crate) enum ResolverSpecifierKind {
     Absolute,
     /// One relative filesystem path request.
     Relative,
-    /// One `#` package import request.
-    PackageImport,
+    /// One hash-prefixed request.
+    Hash,
     /// One bare package or module request.
     Bare,
 }
@@ -55,7 +55,7 @@ impl ResolverSpecifier {
             Some(Component::RootDir | Component::Prefix(_)) => ResolverSpecifierKind::Absolute,
             Some(Component::CurDir | Component::ParentDir) => ResolverSpecifierKind::Relative,
             Some(Component::Normal(_)) if specifier.as_bytes()[0] == b'#' => {
-                ResolverSpecifierKind::PackageImport
+                ResolverSpecifierKind::Hash
             }
             _ => ResolverSpecifierKind::Bare,
         }
