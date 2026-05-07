@@ -34,7 +34,7 @@ const DEFAULT_TARGET_OUT_DIR: &str = "dist";
 /// This is the type used by compiler/codegen, independent of config parsing.
 #[derive(Debug, Clone)]
 pub struct Target {
-    /// Target name (e.g., "npm", "wasm", "dev").
+    /// Target name (e.g., "web", "wasm", "dev").
     pub name: String,
 
     // discovery
@@ -956,7 +956,7 @@ impl Target {
     /// and returns the corresponding output path with the given extension.
     /// Resolve the output file path for a module.
     ///
-    /// The `root_dir` parameter (from compilerOptions) specifies the root of source files.
+    /// The `root_dir` parameter (from compiler) specifies the root of source files.
     /// Output structure mirrors source structure minus the root_dir prefix.
     pub fn resolve_out_file(
         &self,
@@ -1801,17 +1801,17 @@ pub struct TargetJson {
     pub artifacts: Option<Vec<EmitArtifactJson>>,
 
     // output paths
-    /// Output directory for this target (overrides compilerOptions.outDir).
+    /// Output directory for this target (overrides compiler.outDir).
     pub out_dir: Option<String>,
     /// Output file for single-file targets like html or wasm (e.g., "./dist/index.html").
     pub out_file: Option<String>,
-    /// Separate directory for declaration files (overrides compilerOptions.declarationDir).
+    /// Separate directory for declaration files (overrides compiler.declarationDir).
     pub declaration_dir: Option<String>,
 
     // JS/TS specific
-    /// Module format for this target (overrides compilerOptions.module).
+    /// Module format for this target (overrides compiler.module).
     pub module: Option<String>,
-    /// ECMAScript target for this target (overrides compilerOptions.target).
+    /// ECMAScript target for this target (overrides compiler.target).
     pub target: Option<String>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
