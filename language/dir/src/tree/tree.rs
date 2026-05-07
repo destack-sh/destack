@@ -2,16 +2,20 @@ use destack_core::StringId;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 
-use destack_source::ModuleId;
+use destack_source::{ModuleId, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     Arena, Argument, AssignPattern, AssignPatternField, Block, Declaration, Declarator, Decorator,
-    DependencyItem, EnumField, Expression, FunctionMode, GenericArgument, GenericParameter,
+    DependencyItem, EnumField, Expression, FunctionRole, GenericArgument, GenericParameter,
     IfCondition, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Member,
     Node, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, Property,
     Provenance, ProvenanceId, ProvenanceReason, TupleElement, TypeExpression, TypeMember,
-    WhereClause,
+    WhereClause, walk_argument, walk_block, walk_declaration, walk_declarator, walk_decorator,
+    walk_dependency_item, walk_enum_field, walk_expression, walk_generic_argument,
+    walk_generic_parameter, walk_match_case, walk_member, walk_parameter, walk_pattern,
+    walk_pattern_field, walk_property, walk_tuple_element, walk_type_expression, walk_type_member,
+    walk_where_clause,
 };
 
 /// Normalized semantic documentation attached to one DIR node.
@@ -145,6 +149,8 @@ pub struct Tree {
     decorators_by_node_id: BTreeMap<u32, Vec<LocalNodeId<Decorator>>>,
     /// The normalized documentation attached to nodes.
     documentation_by_node_id: BTreeMap<u32, Documentation>,
+    /// The final source span by node id when known.
+    source_span_by_node_id: Vec<Option<Span>>,
     /// The node ids explicitly marked inactive.
     inactive_node_ids: BTreeSet<u32>,
 }
@@ -205,6 +211,7 @@ impl Tree {
             alias_node_id_by_node_id: BTreeMap::new(),
             decorators_by_node_id: BTreeMap::new(),
             documentation_by_node_id: BTreeMap::new(),
+            source_span_by_node_id: Vec::with_capacity(capacity),
             inactive_node_ids: BTreeSet::new(),
         }
     }
@@ -294,6 +301,7 @@ impl Tree {
             .push(parent_id.map(|parent_id| parent_id.id));
         let provenance_id = self.provenance.create_source(ast_node_id);
         self.provenance.provenance_by_node_id.push(provenance_id);
+        self.source_span_by_node_id.push(None);
         self.alias_node_id_by_source_id
             .insert(ast_node_id, global_id);
 
@@ -317,13 +325,15 @@ impl Tree {
         self.scopes_by_node_id.push(scope);
         self.parent_id_by_node_id
             .push(parent_id.map(|parent_id| parent_id.id));
-        let parent_provenance =
-            self.provenance.provenance_by_node_id[self.node_index(dir_node_id.id)];
+        let parent_index = self.node_index(dir_node_id.id);
+        let parent_provenance = self.provenance.provenance_by_node_id[parent_index];
         let source_id = self.provenance.source_id(parent_provenance);
         let provenance_id = self
             .provenance
             .create_derived(source_id, parent_provenance, reason);
         self.provenance.provenance_by_node_id.push(provenance_id);
+        self.source_span_by_node_id
+            .push(self.source_span_by_node_id[parent_index]);
         self.alias_node_id_by_node_id
             .insert(dir_node_id.id, global_id);
 
@@ -664,13 +674,13 @@ impl Tree {
                 expression: &Expression,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_expression(self, tree, id, expression);
+                walk_expression(self, tree, id, expression);
                 self.parent_stack.pop();
             }
 
             fn visit_block(&mut self, tree: &Tree, id: LocalNodeId<Block>, block: &Block) {
                 self.push_node(id.into_any());
-                crate::walk_block(self, tree, id, block);
+                walk_block(self, tree, id, block);
                 self.parent_stack.pop();
             }
 
@@ -681,7 +691,7 @@ impl Tree {
                 declaration: &Declaration,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_declaration(self, tree, id, declaration);
+                walk_declaration(self, tree, id, declaration);
                 self.parent_stack.pop();
             }
 
@@ -692,7 +702,7 @@ impl Tree {
                 declarator: &Declarator,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_declarator(self, tree, id, declarator);
+                walk_declarator(self, tree, id, declarator);
                 self.parent_stack.pop();
             }
 
@@ -703,7 +713,7 @@ impl Tree {
                 property: &Property,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_property(self, tree, id, property);
+                walk_property(self, tree, id, property);
                 self.parent_stack.pop();
             }
 
@@ -714,13 +724,13 @@ impl Tree {
                 type_member: &TypeMember,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_type_member(self, tree, id, type_member);
+                walk_type_member(self, tree, id, type_member);
                 self.parent_stack.pop();
             }
 
             fn visit_member(&mut self, tree: &Tree, id: LocalNodeId<Member>, member: &Member) {
                 self.push_node(id.into_any());
-                crate::walk_member(self, tree, id, member);
+                walk_member(self, tree, id, member);
                 self.parent_stack.pop();
             }
 
@@ -731,7 +741,7 @@ impl Tree {
                 enum_field: &EnumField,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_enum_field(self, tree, id, enum_field);
+                walk_enum_field(self, tree, id, enum_field);
                 self.parent_stack.pop();
             }
 
@@ -742,7 +752,7 @@ impl Tree {
                 where_clause: &WhereClause,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_where_clause(self, tree, id, where_clause);
+                walk_where_clause(self, tree, id, where_clause);
                 self.parent_stack.pop();
             }
 
@@ -753,7 +763,7 @@ impl Tree {
                 dependency_item: &DependencyItem,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_dependency_item(self, tree, id, dependency_item);
+                walk_dependency_item(self, tree, id, dependency_item);
                 self.parent_stack.pop();
             }
 
@@ -764,7 +774,7 @@ impl Tree {
                 generic_parameter: &GenericParameter,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_generic_parameter(self, tree, id, generic_parameter);
+                walk_generic_parameter(self, tree, id, generic_parameter);
                 self.parent_stack.pop();
             }
 
@@ -775,7 +785,7 @@ impl Tree {
                 parameter: &Parameter,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_parameter(self, tree, id, parameter);
+                walk_parameter(self, tree, id, parameter);
                 self.parent_stack.pop();
             }
 
@@ -786,7 +796,7 @@ impl Tree {
                 argument: &Argument,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_argument(self, tree, id, argument);
+                walk_argument(self, tree, id, argument);
                 self.parent_stack.pop();
             }
 
@@ -797,7 +807,7 @@ impl Tree {
                 generic_argument: &GenericArgument,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_generic_argument(self, tree, id, generic_argument);
+                walk_generic_argument(self, tree, id, generic_argument);
                 self.parent_stack.pop();
             }
 
@@ -808,7 +818,7 @@ impl Tree {
                 tuple_element: &TupleElement,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_tuple_element(self, tree, id, tuple_element);
+                walk_tuple_element(self, tree, id, tuple_element);
                 self.parent_stack.pop();
             }
 
@@ -819,7 +829,7 @@ impl Tree {
                 type_expression: &TypeExpression,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_type_expression(self, tree, id, type_expression);
+                walk_type_expression(self, tree, id, type_expression);
                 self.parent_stack.pop();
             }
 
@@ -830,13 +840,13 @@ impl Tree {
                 match_case: &MatchCase,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_match_case(self, tree, id, match_case);
+                walk_match_case(self, tree, id, match_case);
                 self.parent_stack.pop();
             }
 
             fn visit_pattern(&mut self, tree: &Tree, id: LocalNodeId<Pattern>, pattern: &Pattern) {
                 self.push_node(id.into_any());
-                crate::walk_pattern(self, tree, id, pattern);
+                walk_pattern(self, tree, id, pattern);
                 self.parent_stack.pop();
             }
 
@@ -847,7 +857,7 @@ impl Tree {
                 pattern_field: &PatternField,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_pattern_field(self, tree, id, pattern_field);
+                walk_pattern_field(self, tree, id, pattern_field);
                 self.parent_stack.pop();
             }
 
@@ -858,7 +868,7 @@ impl Tree {
                 decorator: &Decorator,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_decorator(self, tree, id, decorator);
+                walk_decorator(self, tree, id, decorator);
                 self.parent_stack.pop();
             }
         }
@@ -971,105 +981,90 @@ impl Tree {
                 visit_expression,
                 Expression,
                 NodeType::Expression,
-                crate::walk_expression
+                walk_expression
             );
-            validate_visit!(visit_block, Block, NodeType::Block, crate::walk_block);
+            validate_visit!(visit_block, Block, NodeType::Block, walk_block);
             validate_visit!(
                 visit_declaration,
                 Declaration,
                 NodeType::Declaration,
-                crate::walk_declaration
+                walk_declaration
             );
             validate_visit!(
                 visit_declarator,
                 Declarator,
                 NodeType::Declarator,
-                crate::walk_declarator
+                walk_declarator
             );
-            validate_visit!(
-                visit_property,
-                Property,
-                NodeType::Property,
-                crate::walk_property
-            );
-            validate_visit!(visit_member, Member, NodeType::Member, crate::walk_member);
+            validate_visit!(visit_property, Property, NodeType::Property, walk_property);
+            validate_visit!(visit_member, Member, NodeType::Member, walk_member);
             validate_visit!(
                 visit_enum_field,
                 EnumField,
                 NodeType::EnumField,
-                crate::walk_enum_field
+                walk_enum_field
             );
             validate_visit!(
                 visit_where_clause,
                 WhereClause,
                 NodeType::WhereClause,
-                crate::walk_where_clause
+                walk_where_clause
             );
             validate_visit!(
                 visit_dependency_item,
                 DependencyItem,
                 NodeType::DependencyItem,
-                crate::walk_dependency_item
+                walk_dependency_item
             );
             validate_visit!(
                 visit_generic_parameter,
                 GenericParameter,
                 NodeType::GenericParameter,
-                crate::walk_generic_parameter
+                walk_generic_parameter
             );
             validate_visit!(
                 visit_parameter,
                 Parameter,
                 NodeType::Parameter,
-                crate::walk_parameter
+                walk_parameter
             );
             validate_visit!(
                 visit_generic_argument,
                 GenericArgument,
                 NodeType::GenericArgument,
-                crate::walk_generic_argument
+                walk_generic_argument
             );
             validate_visit!(
                 visit_tuple_element,
                 TupleElement,
                 NodeType::TupleElement,
-                crate::walk_tuple_element
+                walk_tuple_element
             );
-            validate_visit!(
-                visit_argument,
-                Argument,
-                NodeType::Argument,
-                crate::walk_argument
-            );
+            validate_visit!(visit_argument, Argument, NodeType::Argument, walk_argument);
             validate_visit!(
                 visit_type_expression,
                 TypeExpression,
                 NodeType::TypeExpression,
-                crate::walk_type_expression
+                walk_type_expression
             );
             validate_visit!(
                 visit_match_case,
                 MatchCase,
                 NodeType::MatchCase,
-                crate::walk_match_case
+                walk_match_case
             );
-            validate_visit!(
-                visit_pattern,
-                Pattern,
-                NodeType::Pattern,
-                crate::walk_pattern
-            );
+            validate_visit!(visit_pattern, Pattern, NodeType::Pattern, walk_pattern);
             validate_visit!(
                 visit_pattern_field,
                 PatternField,
                 NodeType::PatternField,
-                crate::walk_pattern_field
+                walk_pattern_field
             );
             validate_visit!(
                 visit_decorator,
                 Decorator,
                 NodeType::Decorator,
-                crate::walk_decorator
+                walk_decorator
             );
         }
 
@@ -1210,10 +1205,11 @@ impl Tree {
             Declaration::Function(declaration) => {
                 declaration.body.as_ref().is_some_and(|body_expression_id| {
                     body_expression_id.id == expression_id.id
-                        && self.function_body_is_statement_position(declaration.signature.mode)
+                        && self.function_body_is_statement_position(declaration.signature.role)
                 })
             }
             Declaration::Global(declaration) => declaration.expressions.contains(&expression_id),
+            Declaration::Module(declaration) => declaration.expressions.contains(&expression_id),
             Declaration::Namespace(declaration) => declaration.expressions.contains(&expression_id),
 
             // everything else treats child expressions as operands
@@ -1267,8 +1263,8 @@ impl Tree {
     }
 
     /// Return whether one function body should behave as statement-position.
-    fn function_body_is_statement_position(&self, mode: Option<FunctionMode>) -> bool {
-        if matches!(mode, Some(FunctionMode::Constructor | FunctionMode::Setter)) {
+    fn function_body_is_statement_position(&self, role: Option<FunctionRole>) -> bool {
+        if matches!(role, Some(FunctionRole::Constructor | FunctionRole::Setter)) {
             return true;
         }
 
@@ -1280,6 +1276,20 @@ impl Tree {
     pub fn get_source(&self, node_id: u32) -> u32 {
         let provenance_id = self.provenance.provenance_by_node_id[self.node_index(node_id)];
         self.provenance.source_id(provenance_id)
+    }
+
+    /// Set the final source span for one DIR node.
+    #[inline]
+    pub fn set_span(&mut self, node_id: u32, span: Span) {
+        let index = self.node_index(node_id);
+        self.source_span_by_node_id[index] = Some(span);
+    }
+
+    /// Return the final source span for one DIR node when known.
+    #[inline]
+    pub fn get_span_by_id(&self, node_id: u32) -> Option<Span> {
+        let index = self.node_index(node_id);
+        self.source_span_by_node_id[index]
     }
 
     /// Get the provenance id of one node by its DIR node id.

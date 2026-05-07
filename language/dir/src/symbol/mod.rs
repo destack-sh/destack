@@ -1,17 +1,17 @@
-mod decorator;
+mod attribute;
 mod export;
 mod key;
 mod known;
+mod language;
 mod module;
 mod scope;
 mod symbol;
-mod table;
 
-pub use decorator::*;
+pub use attribute::*;
 pub use export::*;
 pub use key::*;
 pub use known::*;
+pub use language::*;
 pub use module::*;
 pub use scope::*;
 pub use symbol::*;
-pub use table::*;

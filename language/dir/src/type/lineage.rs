@@ -1,4 +1,3 @@
-use destack_source::AdaptImage;
 use std::fmt::Display;
 
 use destack_source::ModuleId;
@@ -8,9 +7,7 @@ use crate::GlobalSymbolId;
 
 /// Unique identifier for Lineages.
 #[repr(transparent)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct LocalLineageId(pub u32);
 
 impl LocalLineageId {
@@ -29,9 +26,7 @@ impl LocalLineageId {
 }
 
 /// Global lineage id across modules.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, AdaptImage,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct GlobalLineageId {
     /// The module id of the global lineage.
     pub module_id: ModuleId,
@@ -68,10 +63,6 @@ impl Display for LocalLineageId {
 
 /// The resolved inheritance lineage of a nominal type.
 ///
-/// Built during the analyze phase by extracting resolved symbols from Heritage expressions.
-/// While Heritage (on Declaration nodes) stores syntactic expression IDs, Lineage stores
-/// the resolved symbol relationships for efficient type checking and codegen.
-///
 /// ### Example
 ///
 /// ```text
@@ -84,7 +75,7 @@ impl Display for LocalLineageId {
 /// - `extends: Some(AnimalSymbol)`
 /// - `implements: [PrintableSymbol]`
 /// - `embedded: []`
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Lineage {
     /// The extended parent type (single inheritance for classes).
     pub extends: Option<GlobalSymbolId>,

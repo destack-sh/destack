@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Ambientness, Expression, FunctionSignature, GenericParameter, Key, LocalNodeId, LocalSymbolId,
-    Mutability, Node, NodeType, StaticExpression, StringId, TypeExpression, Visibility,
-    WhereClause,
+    Expression, FunctionSignature, GenericParameter, Key, LocalNodeId, LocalSymbolId, Mutability,
+    Node, NodeType, StaticExpression, StringId, TypeExpression, Visibility, WhereClause,
 };
 
 /// Static property in some static context.
@@ -57,9 +56,9 @@ pub enum VarianceModifier {
     InOut,
 }
 
-/// The mode of a function.
+/// The special role of a function.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum FunctionMode {
+pub enum FunctionRole {
     /// Getter function.
     Getter,
     /// Setter function.
@@ -79,8 +78,8 @@ pub enum Property {
     Field {
         key: Key,
         value: LocalNodeId<Expression>,
-        is_shorthand: bool,
         symbol: LocalSymbolId,
+        is_shorthand: bool,
     },
     /// Named member function.
     Method {
@@ -142,11 +141,11 @@ pub enum Member {
         constraint: Option<LocalNodeId<TypeExpression>>,
         value: Option<LocalNodeId<TypeExpression>>,
         visibility: Option<Visibility>,
-        ambient: Ambientness,
+        symbol: LocalSymbolId,
+        is_ambient: bool,
         is_abstract: bool,
         is_override: bool,
         is_static: bool,
-        symbol: LocalSymbolId,
     },
     /// Associated compile-time constant.
     AssociatedConst {
@@ -154,50 +153,50 @@ pub enum Member {
         declared_type: Option<LocalNodeId<TypeExpression>>,
         value: Option<LocalNodeId<Expression>>,
         visibility: Option<Visibility>,
-        ambient: Ambientness,
-        is_static: bool,
         symbol: LocalSymbolId,
+        is_ambient: bool,
+        is_static: bool,
     },
     /// Named field.
     Field {
         key: Key,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
-        is_optional: bool,
-        is_readonly: bool,
         mutability: Option<Mutability>,
         visibility: Option<Visibility>,
-        ambient: Ambientness,
+        symbol: LocalSymbolId,
+        is_optional: bool,
+        is_readonly: bool,
+        is_ambient: bool,
         is_abstract: bool,
         is_override: bool,
         is_static: bool,
         is_definite: bool,
         is_accessor: bool,
         is_comptime: bool,
-        symbol: LocalSymbolId,
     },
     /// Named member function.
     Method {
         key: Option<Key>,
         signature: FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
-        is_optional: bool,
         visibility: Option<Visibility>,
-        ambient: Ambientness,
+        symbol: LocalSymbolId,
+        is_optional: bool,
+        is_ambient: bool,
         is_abstract: bool,
         is_override: bool,
         is_static: bool,
         is_accessor: bool,
         is_comptime: bool,
-        symbol: LocalSymbolId,
     },
     /// Type embedding.
     Embed {
         value: LocalNodeId<TypeExpression>,
         visibility: Option<Visibility>,
-        ambient: Ambientness,
-        is_static: bool,
         symbol: LocalSymbolId,
+        is_ambient: bool,
+        is_static: bool,
     },
     /// Static initialization block.
     StaticBlock {

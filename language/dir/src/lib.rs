@@ -2,14 +2,12 @@
 #![feature(if_let_guard)]
 #![feature(str_as_str)]
 
-pub mod capture;
-mod flow;
 mod symbol;
+mod table;
 mod tree;
 mod r#type;
 
-pub use capture::*;
-pub use flow::*;
 pub use symbol::*;
+pub use table::*;
 pub use tree::*;
 pub use r#type::*;

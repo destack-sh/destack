@@ -1,5 +1,3 @@
-//! Declarator node for variable declarations.
-
 use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Node, NodeType, Pattern, TypeExpression};

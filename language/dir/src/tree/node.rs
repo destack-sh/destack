@@ -480,22 +480,6 @@ impl<T: Node> From<GlobalNodeId<T>> for AnchoredGlobalNodeId {
 /// A Node.
 pub trait Node: Sized {
     const TYPE: NodeType;
-
-    /// Whether this node is lexically resolved (ignoring child nodes).
-    ///
-    /// Resolution is name resolution: binding names to symbols. A node is resolved
-    /// when all its name references have been bound to their target symbols.
-    /// For example, `UnresolvedPath` becomes `LocalReference` or `Member` after resolution.
-    fn is_resolved(&self) -> bool {
-        true // most nodes don't need resolution
-    }
-
-    /// Whether this node has been fully evaluated (ignoring child nodes).
-    ///
-    /// Evaluation is type-dependent transformation that happens after resolution.
-    fn is_evaluated(&self) -> bool {
-        true // most nodes don't need evaluation
-    }
 }
 
 /// A Visibility is the visibility of an item.
@@ -516,23 +500,6 @@ pub enum Asynchrony {
     Sync,
     /// Asynchronous function.
     Async,
-}
-
-/// Whether syntax is ambient or concrete.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Ambientness {
-    /// Ambient syntax declared with `declare`.
-    Ambient,
-    /// Concrete syntax with a body or emitted value.
-    Concrete,
-}
-
-impl Ambientness {
-    /// Return whether the syntax is ambient.
-    #[inline]
-    pub fn is_ambient(self) -> bool {
-        matches!(self, Self::Ambient)
-    }
 }
 
 /// The reference type of a binding.

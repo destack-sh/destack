@@ -4,16 +4,16 @@ use crate::{Block, Expression, LocalNodeId, LocalScopeId, Node, NodeType, Patter
 
 /// The style of a match expression.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum MatchKind {
+pub enum MatchForm {
     /// Regular match expression (like `match <expr> { ... }`).
     Match,
     /// Switch expression with cases (like `switch <expr> { ... }`).
     Switch,
 }
 
-/// A MatchSource is where the match was lowered from.
+/// How one match expression entered the DIR.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum MatchSource {
+pub enum MatchOrigin {
     /// Match expression (regular match with cases).
     Match,
     /// Explicit try expression or block (`try { ... }` with optional catch).

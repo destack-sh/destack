@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{LocalNodeIdAny, LocalSymbolId, Tree};
 
-/// A durable structural overlay over one base DIR tree.
+/// A durable overlay over one base DIR tree.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Patch {
     /// The owning module id.

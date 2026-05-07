@@ -1,32 +1,24 @@
-use destack_source::{AdaptImage, ModuleId};
+use std::fmt::Debug;
+
+use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, BindingCategory, ExportMode, LocalMergeGroupId, LocalNodeId, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, Node, Scope, ScopeKind, StaticKey, Symbol, SymbolBinding,
-    SymbolDecorators, SymbolKind, SymbolOrigin, SymbolSpace, SymbolType, Tree,
+    Arena, BindingCategory, DeclarationForm, ExportKind, LocalNodeId, LocalScopeId, LocalScopeMark,
+    LocalSymbolId, Node, Scope, ScopeKind, StaticKey, Symbol, SymbolAttributes, SymbolBinding,
+    SymbolKind, SymbolOrigin, SymbolSpace, Tree,
 };
-use std::fmt::Debug;
 
-/// A SymbolTable is a side table for mapping symbols and scopes. NOT THREAD-SAFE.
-#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
+/// A symbol table maps local symbols and scopes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SymbolTable {
     /// The module id of the symbol table.
     pub module_id: ModuleId,
-
-    /// The next symbol id to allocate.
-    pub(crate) next_symbol_id: u32,
-    /// The next scope id to allocate.
-    pub(crate) next_scope_id: u32,
-    /// The next merge group id to allocate.
-    pub(crate) next_merge_group_id: u32,
 
     /// The symbols in the table.
     pub(crate) symbols: Arena<Symbol>,
     /// The scopes in the table.
     pub(crate) scopes: Arena<Scope>,
-    /// The merge groups in the table.
-    pub(crate) merge_groups: Arena<Vec<LocalSymbolId>>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -35,14 +27,11 @@ impl SymbolTable {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            next_symbol_id: 0,
-            next_scope_id: 0,
-            next_merge_group_id: 0,
             symbols: Arena::new(),
             scopes: Arena::new(),
-            merge_groups: Arena::new(),
         }
     }
+
     /// Get the symbols.
     #[inline]
     pub fn symbols(&self) -> impl Iterator<Item = &Symbol> {
@@ -55,56 +44,6 @@ impl SymbolTable {
         self.symbols.get(symbol_id)
     }
 
-    /// Retype a symbol id and update stored references.
-    pub fn retype_symbol_id(
-        &mut self,
-        symbol_id: LocalSymbolId,
-        symbol_type: SymbolType,
-    ) -> LocalSymbolId {
-        let typed_id = LocalSymbolId::new_typed(symbol_id.id, symbol_type);
-
-        // update the symbol entry type
-        let (scope_id, merge_group) = {
-            let symbol_entry = self.symbols.get_mut(symbol_id.id);
-            symbol_entry.ty = symbol_type;
-            (symbol_entry.scope.0, symbol_entry.merge_group)
-        };
-
-        // update named symbol ids in the scope
-        let scope = self.scopes.get_mut(scope_id.0);
-        for (_, scope_symbol_id) in scope.named_symbols.iter_mut() {
-            if scope_symbol_id.id == symbol_id.id {
-                *scope_symbol_id = typed_id;
-            }
-        }
-
-        // update anonymous symbol ids in the scope
-        for scope_symbol_id in scope.anonymous_symbols.iter_mut() {
-            if scope_symbol_id.id == symbol_id.id {
-                *scope_symbol_id = typed_id;
-            }
-        }
-
-        // update scope ownership when it matches
-        if let Some(owner_id) = scope.owner_id
-            && owner_id.id == symbol_id.id
-        {
-            scope.owner_id = Some(typed_id);
-        }
-
-        // update merge group entries
-        if let Some(group_id) = merge_group {
-            let group = self.merge_groups.get_mut(group_id.0);
-            for merge_symbol_id in group.iter_mut() {
-                if merge_symbol_id.id == symbol_id.id {
-                    *merge_symbol_id = typed_id;
-                }
-            }
-        }
-
-        typed_id
-    }
-
     /// Iterate active symbol ids.
     pub fn active_symbol_ids(&self) -> impl Iterator<Item = LocalSymbolId> + '_ {
         (0..self.symbol_count()).filter_map(|symbol_id| {
@@ -112,14 +51,14 @@ impl SymbolTable {
             if !symbol.is_active {
                 return None;
             }
-            Some(LocalSymbolId::new_typed(symbol_id, symbol.ty))
+            Some(LocalSymbolId::new(symbol_id))
         })
     }
 
     /// Get the number of symbols.
     #[inline]
     pub fn symbol_count(&self) -> u32 {
-        self.next_symbol_id
+        self.symbols.len() as u32
     }
 
     /// Get the scopes.
@@ -132,18 +71,17 @@ impl SymbolTable {
     pub fn insert_symbol(
         &mut self,
         kind: SymbolKind,
-        ty: SymbolType,
+        form: DeclarationForm,
         space: SymbolSpace,
         binding: SymbolBinding,
         key: Option<StaticKey>,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<ExportMode>,
+        export: Option<ExportKind>,
     ) -> (LocalSymbolId, LocalScopeMark) {
-        let symbol_id = LocalSymbolId::new_typed(self.next_symbol_id, ty);
-        self.next_symbol_id += 1;
+        let symbol_id = LocalSymbolId::new(self.symbols.len() as u32);
         let symbol = Symbol {
             kind,
-            ty,
+            form,
             space,
             binding,
             binding_mutability: None,
@@ -153,12 +91,8 @@ impl SymbolTable {
             scope,
             module_id: self.module_id,
             export,
-            primary_declaration: None,
-            secondary_declarations: None,
-            merge_group: None,
-            target_symbol: None,
-            canonical_symbol: None,
-            decorators: SymbolDecorators::default(),
+            declaration: None,
+            attributes: SymbolAttributes::default(),
             is_active: true,
         };
         self.symbols.allocate(symbol);
@@ -173,8 +107,7 @@ impl SymbolTable {
         parent: Option<(LocalScopeId, LocalScopeMark)>,
         owner: Option<LocalSymbolId>,
     ) -> LocalScopeId {
-        let scope_id = LocalScopeId::new(self.next_scope_id);
-        self.next_scope_id += 1;
+        let scope_id = LocalScopeId::new(self.scopes.len() as u32);
         let scope = Scope {
             kind,
             owner_id: owner,
@@ -320,34 +253,5 @@ impl SymbolTable {
             }
         }
         None
-    }
-
-    /// Create a merge group from a list of symbols.
-    pub fn create_merge_group(&mut self, symbols: Vec<LocalSymbolId>) -> LocalMergeGroupId {
-        let group_id = LocalMergeGroupId::new(self.next_merge_group_id);
-        self.next_merge_group_id += 1;
-
-        // attach symbols to the merge group
-        for symbol_id in &symbols {
-            self.symbols.get_mut(symbol_id.id).merge_group = Some(group_id);
-        }
-
-        self.merge_groups.allocate(symbols);
-        group_id
-    }
-
-    /// Add a symbol to an existing merge group.
-    pub fn add_to_merge_group(&mut self, group_id: LocalMergeGroupId, symbol_id: LocalSymbolId) {
-        // attach the symbol to the group
-        self.symbols.get_mut(symbol_id.id).merge_group = Some(group_id);
-
-        // record the symbol in the group list
-        self.merge_groups.get_mut(group_id.0).push(symbol_id);
-    }
-
-    /// Get the symbols in a merge group.
-    #[inline]
-    pub fn merge_group_symbols(&self, group_id: LocalMergeGroupId) -> &[LocalSymbolId] {
-        self.merge_groups.get(group_id.0)
     }
 }
