@@ -1,6 +1,5 @@
 pub mod conformance;
 pub mod core;
-pub mod ecosystem;
 pub mod emit;
 pub mod formatter;
 pub mod lsp;

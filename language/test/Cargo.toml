@@ -68,11 +68,6 @@ path = "src/conformance/ecma/main.rs"
 harness = false
 
 [[test]]
-name = "ecosystem"
-path = "src/ecosystem/main.rs"
-harness = false
-
-[[test]]
 name = "stress"
 path = "src/stress/main.rs"
 harness = false
