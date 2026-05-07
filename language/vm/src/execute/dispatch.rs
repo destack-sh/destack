@@ -1029,46 +1029,9 @@ macro_rules! dispatch_instruction {
             Op::TensorScatter => $step!(super::execute_tensor_scatter($machine, instruction)),
             Op::TensorSelect => $step!(super::execute_tensor_select($machine, instruction)),
             Op::TensorSlice => $step!(super::execute_tensor_slice($machine, instruction)),
-            Op::TensorStoreHeap => $step!(super::execute_tensor_store_heap($machine, instruction)),
-            Op::TensorStoreSharedHeap => {
-                $step!(super::execute_tensor_store_shared_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorStoreRaw => $step!(super::execute_tensor_store_raw($machine, instruction)),
-            Op::TensorStoreSharedRaw => {
-                $step!(super::execute_tensor_store_shared_raw(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorStoreStack => {
-                $step!(super::execute_tensor_store_stack($machine, instruction))
-            }
-            Op::TensorStoreFrame => {
-                $step!(super::execute_tensor_store_frame($machine, instruction))
-            }
-            Op::TensorStoreStatic => {
-                $step!(super::execute_tensor_store_static($machine, instruction))
-            }
+            Op::TensorStore => $step!(super::execute_tensor_store($machine, instruction)),
             Op::TensorTranspose => $step!(super::execute_tensor_transpose($machine, instruction)),
-            Op::TensorViewHeap => $step!(super::execute_tensor_view_heap($machine, instruction)),
-            Op::TensorViewSharedHeap => {
-                $step!(super::execute_tensor_view_shared_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorViewRaw => $step!(super::execute_tensor_view_raw($machine, instruction)),
-            Op::TensorViewSharedRaw => {
-                $step!(super::execute_tensor_view_shared_raw($machine, instruction))
-            }
-            Op::TensorViewStack => $step!(super::execute_tensor_view_stack($machine, instruction)),
-            Op::TensorViewFrame => $step!(super::execute_tensor_view_frame($machine, instruction)),
-            Op::TensorViewStatic => {
-                $step!(super::execute_tensor_view_static($machine, instruction))
-            }
+            Op::TensorView => $step!(super::execute_tensor_view($machine, instruction)),
             Op::Panic => $transfer!(super::execute_panic($machine, instruction)),
             Op::ThrowWord => $transfer!(super::execute_throw_word($machine, instruction)),
             Op::ThrowAddress => $transfer!(super::execute_throw_address($machine, instruction)),
