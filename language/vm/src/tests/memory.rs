@@ -5,7 +5,7 @@ use crate::tests::{
 };
 use crate::{SharedHeap, Value, Word};
 use destack_heap::{
-    AccountingRegion, Allocator, HeapError, HeapReference, Payload, RawPointer,
+    AccountingRegion, Allocator, HeapError, HeapReference, Payload, RawAllocationShape, RawPointer,
     SharedHeapReference, SharedRawBudget, SharedRawLimits,
 };
 use destack_mir::parse::{ParseOptions, Parser};
@@ -262,10 +262,16 @@ fn test_roundtrip_shared_memory_image() {
     )
     .expect("shared heap should build");
     let first = shared
-        .allocate_raw(6, Payload::Bytes(&[1, 2, 3, 4, 5, 6]))
+        .allocate_raw(
+            RawAllocationShape::bytes(6),
+            Payload::Bytes(&[1, 2, 3, 4, 5, 6]),
+        )
         .expect("shared allocation should succeed");
     let second = shared
-        .allocate_raw(6, Payload::Bytes(&[7, 8, 9, 10, 11, 12]))
+        .allocate_raw(
+            RawAllocationShape::bytes(6),
+            Payload::Bytes(&[7, 8, 9, 10, 11, 12]),
+        )
         .expect("shared allocation should succeed");
     let image = shared.image().expect("shared image should succeed");
     let restored =
@@ -313,9 +319,9 @@ fn test_shared_raw_budget_tracks_committed_usage() {
     .expect("shared heap should build");
     let limits = SharedRawLimits { max_bytes: Some(8) };
     shared
-        .allocate_raw(4, Payload::Bytes(&[1, 2, 3, 4]))
+        .allocate_raw(RawAllocationShape::bytes(4), Payload::Bytes(&[1, 2, 3, 4]))
         .expect("nested shared allocation should succeed");
-    let retained_delta = shared.raw_alloc_retained_byte_delta(5);
+    let retained_delta = shared.raw_alloc_retained_byte_delta(RawAllocationShape::bytes(5));
     let retained_bytes =
         u64::try_from(retained_delta).expect("allocation should retain more bytes");
     let used_bytes = shared.raw_retained_bytes() + retained_bytes;

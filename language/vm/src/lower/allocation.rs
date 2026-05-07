@@ -141,14 +141,16 @@ impl<'a> BlockLowerer<'a> {
             }
         };
 
-        let byte_len = self.byte_len_for_type(layout)? as u64;
+        let layout = self.layout_for_type(layout)?;
+        let byte_len = layout.byte_len as u64;
+        let alignment = encode_alignment_log2(layout.alignment());
 
         Ok(Instruction::new(
             op,
             word_offset(self, destination)?,
             byte_len as u32,
             (byte_len >> 32) as u32,
-            0,
+            alignment,
         ))
     }
 
