@@ -601,7 +601,7 @@ pub(crate) fn execute_packed_splat_32x4(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // broadcast one word-sized scalar into packed frame bytes
-    let value = machine.get_word_at(instruction.b).bits() as u32;
+    let value = machine.load_word_at(instruction.b).bits() as u32;
 
     write_packed(machine, instruction.a, [value; 4]);
 
@@ -614,7 +614,7 @@ pub(crate) fn execute_packed_splat_64x2(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // broadcast one word-sized scalar into packed frame bytes
-    let value = machine.get_word_at(instruction.b).bits();
+    let value = machine.load_word_at(instruction.b).bits();
 
     write_packed(machine, instruction.a, [value; 2]);
 
@@ -634,7 +634,7 @@ pub(crate) fn execute_vector_splat(
         element_count,
     } = machine.side::<VectorSplat>(instruction);
 
-    let element_value = machine.get_word_at(*value_offset);
+    let element_value = machine.load_word_at(*value_offset);
 
     // store the same value into each element
     store_vector_elements(
@@ -663,7 +663,7 @@ pub(crate) fn execute_vector_extract(
     } = machine.side::<VectorExtract>(instruction);
 
     // resolve and validate the dynamic element index
-    let index_value = word_to_usize(machine.get_word_at(*index_offset))?;
+    let index_value = word_to_usize(machine.load_word_at(*index_offset))?;
     let element_count = *element_count as usize;
     if index_value >= element_count {
         return Err(Error::IndexOutOfBounds {
@@ -674,7 +674,7 @@ pub(crate) fn execute_vector_extract(
 
     // load the selected element into the destination word
     let result = load_vector_element(machine, *vector_offset, *vector_element, index_value)?;
-    machine.set_word_at(*dest_offset, result);
+    machine.store_word_at(*dest_offset, result);
 
     Ok(())
 }
@@ -696,7 +696,7 @@ pub(crate) fn execute_vector_insert(
     } = machine.side::<VectorInsert>(instruction);
 
     // resolve and validate the dynamic element index
-    let index_value = word_to_usize(machine.get_word_at(*index_offset))?;
+    let index_value = word_to_usize(machine.load_word_at(*index_offset))?;
     let element_count = *element_count;
     let element_count_usize = element_count as usize;
 
@@ -709,7 +709,7 @@ pub(crate) fn execute_vector_insert(
     }
 
     // read the inserted scalar once
-    let inserted_value = machine.get_word_at(*value_offset);
+    let inserted_value = machine.load_word_at(*value_offset);
 
     // write the updated vector one element at a time
     store_vector_elements(
@@ -855,7 +855,7 @@ fn execute_vector_reduce_elements(
         }
     }
 
-    machine.set_word_at(*dest_offset, result);
+    machine.store_word_at(*dest_offset, result);
 
     Ok(())
 }

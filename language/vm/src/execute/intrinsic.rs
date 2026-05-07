@@ -33,7 +33,7 @@ fn load_intrinsic_arguments(
     let mut words = SmallVec::with_capacity(argument_slice.len());
 
     for (argument, layout) in argument_slice.iter().zip(layouts) {
-        let word = machine.get(*argument);
+        let word = machine.load_value(*argument);
 
         stored_layouts.push(*layout);
         words.push(word);
@@ -55,7 +55,7 @@ fn finish_intrinsic_result(
         Ok(result) => {
             match dest {
                 IntrinsicDest::None => {}
-                IntrinsicDest::Word(offset) => machine.set_word_at(offset, result),
+                IntrinsicDest::Word(offset) => machine.store_word_at(offset, result),
                 IntrinsicDest::Frame(value) => {
                     if result != Word::VOID {
                         return Err(Error::TypeMismatch {
@@ -1648,7 +1648,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
     // runtime introspection
 
-    /// Get the return address (synthetic).
+    /// Return the synthetic return address.
     fn return_address(&self) -> RuntimeResult<Word> {
         if self.interpreter.frames.len() < 2 {
             return Ok(Word::uint(0, 64));
@@ -1656,13 +1656,13 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
         let caller_frame = &self.interpreter.frames[self.interpreter.frames.len() - 2];
         let func_id = caller_frame.function().id as u64;
-        let block_id = caller_frame.current_block().id as u64;
+        let block_id = caller_frame.block_id().id as u64;
 
         let synthetic_addr = (func_id << 32) | block_id;
         Ok(Word::uint(synthetic_addr, 64))
     }
 
-    /// Get the frame address (synthetic).
+    /// Return the synthetic frame address.
     fn frame_address(&self) -> RuntimeResult<Word> {
         let frame_idx = self.interpreter.frames.len() as u64;
         let synthetic_addr = 0x7FFF_0000_0000_0000u64 | frame_idx;

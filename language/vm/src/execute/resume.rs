@@ -112,7 +112,7 @@ impl Interpreter {
             .get_mut(frame_index)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let frame_layout = program
-            .frame_layout_by_id(frame.frame_layout)
+            .frame_layout_by_id(frame.frame_layout())
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         if let Some(frame_entry) = &frame_entry {
             bind_frame_parameters(frame_layout, frame, &frame_entry.bindings)?;
@@ -161,7 +161,7 @@ impl Interpreter {
             .get(frame_index)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let layout = program
-            .frame_layout_by_id(frame.frame_layout)
+            .frame_layout_by_id(frame.frame_layout())
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let received_value = layout
             .value_for_slot(received_value_slot)

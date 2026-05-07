@@ -71,7 +71,7 @@ impl Interpreter {
         self.reset_stack(options)?;
 
         // resolve the function target before entering the main loop
-        match program.functions.resolve(function_id) {
+        match program.functions.call_target(function_id) {
             Some(CallTarget::Import) => {
                 // call imports directly without entering the lowered machine
                 let function = program.tree.get(function_id);
@@ -194,7 +194,7 @@ impl Interpreter {
             .get(resume_frame_index)
             .ok_or_else(|| self.runtime_error(program, Error::InvalidContinuation))?;
         let layout = program
-            .frame_layout_by_id(frame.frame_layout)
+            .frame_layout_by_id(frame.frame_layout())
             .ok_or_else(|| self.runtime_error(program, Error::InvalidContinuation))?;
         let received_value_id = layout
             .value_for_slot(received_value_slot)
@@ -251,11 +251,14 @@ impl Interpreter {
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
         // resolve the lowered entry metadata
-        let function_ptr = program.functions.pointer_for(function_id).ok_or_else(|| {
-            RuntimeError::new(Error::UndefinedFunction {
-                function: function_id,
-            })
-        })?;
+        let function_ptr = program
+            .functions
+            .pointer_for_function(function_id)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::UndefinedFunction {
+                    function: function_id,
+                })
+            })?;
         let (entry_block, frame_layout) = unsafe {
             let function = function_ptr.as_ref();
 
@@ -268,7 +271,6 @@ impl Interpreter {
 
         // create the entry frame
         let frame = Frame::new(
-            frame_layout,
             function_ptr,
             entry_block,
             frame_layout_ref,
@@ -314,7 +316,7 @@ impl Interpreter {
                 let value = arguments[index];
                 let is_word = machine.value_is_word(*param).map_err(RuntimeError::new)?;
                 if is_word {
-                    machine.set_word(*param, value);
+                    machine.store_value_word(*param, value);
                     continue;
                 }
 

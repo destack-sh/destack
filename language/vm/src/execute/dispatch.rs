@@ -28,11 +28,11 @@ fn enter_block(
     let move_pool = function.move_pool.as_slice();
 
     // move block parameters before retargeting the frame
-    let frame = machine.current_frame_mut();
+    let frame = machine.active_frame_mut();
     move_values_within_frame(frame, moves, move_pool)?;
 
     // retarget the frame to the destination block
-    let frame = machine.current_frame_mut();
+    let frame = machine.active_frame_mut();
     frame.block = block;
 
     block_bounds(function, block)
@@ -1114,7 +1114,7 @@ fn dispatch_block_inner(
                         continue;
                     }
                     Transfer::Enter => {
-                        let frame = machine.current_frame_mut();
+                        let frame = machine.active_frame_mut();
                         function_ptr = frame.function_ptr.as_ptr();
                         let function_ref = unsafe { frame.function_ptr.as_ref() };
                         (block_start, pc, block_end) = match block_bounds(function_ref, frame.block)

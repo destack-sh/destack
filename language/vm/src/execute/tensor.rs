@@ -55,7 +55,7 @@ fn frame_offsets<'a>(machine: &'a Machine<'_, '_>, range: U32RangeId) -> &'a [u3
 fn tensor_index_values(machine: &Machine<'_, '_>, offsets: &[u32]) -> Result<Vec<u64>, Error> {
     let mut values = Vec::with_capacity(offsets.len());
     for offset in offsets {
-        let value = machine.get_word_at(*offset);
+        let value = machine.load_word_at(*offset);
         values.push(word_to_u64(value)?);
     }
 
@@ -1592,7 +1592,7 @@ pub(crate) fn execute_tensor_splat(
 
     // resolve compiled tensor descriptor
     let layout = tensor_layout(machine, layout);
-    let value = machine.get_word_at(value);
+    let value = machine.load_word_at(value);
 
     // store the same value into each active index
     store_tensor_indexed_elements(machine, dest_offset, layout, |_machine, _index| Ok(value))?;
@@ -1624,7 +1624,7 @@ pub(crate) fn execute_tensor_extract(
     // load the tensor value
     let tensor_value = frame_value(machine, *tensor_offset);
     let value = load_frame_tensor_element_at(machine, tensor_value, layout, element_index)?;
-    machine.set_word_at(*dest_offset, value);
+    machine.store_word_at(*dest_offset, value);
 
     Ok(())
 }
@@ -1869,7 +1869,7 @@ pub(crate) fn execute_tensor_load(
     let offset = tensor_linear_index(&index, &layout.shape, &layout.strides)?;
 
     // load through the concrete memory accessors selected by lower
-    let view_value = machine.get_word_at(*view_offset);
+    let view_value = machine.load_word_at(*view_offset);
     let element = machine.projection(*element);
     let pointer = offset_tensor_view_pointer(
         view_value,
@@ -1880,7 +1880,7 @@ pub(crate) fn execute_tensor_load(
     )?;
 
     let value = load_tensor_element(machine, pointer, element, *address)?;
-    machine.set_word_at(*dest_offset, value);
+    machine.store_word_at(*dest_offset, value);
 
     Ok(())
 }
@@ -1907,7 +1907,7 @@ pub(crate) fn execute_tensor_store(
     let offset = tensor_linear_index(&index, &layout.shape, &layout.strides)?;
 
     // store through the concrete memory accessors selected by lower
-    let view_value = machine.get_word_at(*view_offset);
+    let view_value = machine.load_word_at(*view_offset);
     let element = machine.projection(*element);
     let pointer = offset_tensor_view_pointer(
         view_value,
@@ -1917,7 +1917,7 @@ pub(crate) fn execute_tensor_store(
         *address,
     )?;
 
-    let value = machine.get_word_at(*value_offset);
+    let value = machine.load_word_at(*value_offset);
     store_tensor_element(machine, pointer, element, value, *address)?;
 
     Ok(())
@@ -1939,8 +1939,8 @@ pub(crate) fn execute_tensor_fill(
 
     // resolve the repeated value and base view once
     let layout = tensor_layout(machine, *view_layout);
-    let fill_value = machine.get_word_at(*value_offset);
-    let base_pointer = machine.get_word_at(*view_offset);
+    let fill_value = machine.load_word_at(*value_offset);
+    let base_pointer = machine.load_word_at(*view_offset);
 
     // write each addressable element through one concrete memory accessor
     let element = machine.projection(*element);
@@ -2046,8 +2046,8 @@ pub(crate) fn execute_tensor_copy(
     }
 
     // resolve both view pointers and element descriptors once
-    let target_pointer = machine.get_word_at(*target_frame_offset);
-    let source_pointer = machine.get_word_at(*source_frame_offset);
+    let target_pointer = machine.load_word_at(*target_frame_offset);
+    let source_pointer = machine.load_word_at(*source_frame_offset);
     let source_element = machine.projection(*source_element);
     let target_element = machine.projection(*target_element);
 
@@ -2818,7 +2818,7 @@ pub(crate) fn execute_tensor_reshape(
     let shape_values = frame_offsets(machine, *shape);
     let mut shape_len = 1u64;
     for offset in shape_values {
-        let value = machine.get_word_at(*offset);
+        let value = machine.load_word_at(*offset);
         let size = word_to_u64(value)?;
         shape_len *= size;
     }
@@ -2986,21 +2986,21 @@ pub(crate) fn execute_tensor_slice(
     let mut sizes = Vec::with_capacity(size_values.len());
     let mut strides = Vec::with_capacity(stride_values.len());
     for offset in offset_values {
-        let value = machine.get_word_at(*offset);
+        let value = machine.load_word_at(*offset);
         match word_to_u64(value) {
             Ok(v) => offsets.push(v),
             Err(error) => return Err(error),
         }
     }
     for offset in size_values {
-        let value = machine.get_word_at(*offset);
+        let value = machine.load_word_at(*offset);
         match word_to_u64(value) {
             Ok(v) => sizes.push(v),
             Err(error) => return Err(error),
         }
     }
     for offset in stride_values {
-        let value = machine.get_word_at(*offset);
+        let value = machine.load_word_at(*offset);
         match word_to_u64(value) {
             Ok(v) => strides.push(v),
             Err(error) => return Err(error),
@@ -3086,21 +3086,21 @@ pub(crate) fn execute_tensor_pad(
     let mut high = Vec::with_capacity(high_values.len());
     let mut interior = Vec::with_capacity(interior_values.len());
     for offset in low_values {
-        let value = machine.get_word_at(*offset);
+        let value = machine.load_word_at(*offset);
         match word_to_u64(value) {
             Ok(v) => low.push(v),
             Err(error) => return Err(error),
         }
     }
     for offset in high_values {
-        let value = machine.get_word_at(*offset);
+        let value = machine.load_word_at(*offset);
         match word_to_u64(value) {
             Ok(v) => high.push(v),
             Err(error) => return Err(error),
         }
     }
     for offset in interior_values {
-        let value = machine.get_word_at(*offset);
+        let value = machine.load_word_at(*offset);
         match word_to_u64(value) {
             Ok(v) => interior.push(v),
             Err(error) => return Err(error),
@@ -3115,7 +3115,7 @@ pub(crate) fn execute_tensor_pad(
 
     // resolve source tensor
     let tensor_value = frame_value(machine, *tensor_offset);
-    let pad_value = machine.get_word_at(*value_offset);
+    let pad_value = machine.load_word_at(*value_offset);
     let mut input_index = vec![0u64; source_layout.shape.len()];
 
     // store result
@@ -3273,7 +3273,7 @@ fn execute_tensor_reduce_elements(
 
     // resolve source tensor
     let tensor_value = frame_value(machine, *tensor_offset);
-    let init_value = machine.get_word_at(*initial_offset);
+    let init_value = machine.load_word_at(*initial_offset);
     let reduce_axes: HashSet<u32> = axes.iter().copied().collect();
     let mut reduced_shape = Vec::with_capacity(axes.len());
     for axis in axes {
@@ -4280,21 +4280,21 @@ pub(crate) fn execute_tensor_view(
     let mut sizes = Vec::with_capacity(size_values.len());
     let mut strides = Vec::with_capacity(stride_values.len());
     for offset in offset_values {
-        let value = machine.get_word_at(*offset);
+        let value = machine.load_word_at(*offset);
         match word_to_u64(value) {
             Ok(v) => offsets.push(v),
             Err(error) => return Err(error),
         }
     }
     for offset in size_values {
-        let value = machine.get_word_at(*offset);
+        let value = machine.load_word_at(*offset);
         match word_to_u64(value) {
             Ok(v) => sizes.push(v),
             Err(error) => return Err(error),
         }
     }
     for offset in stride_values {
-        let value = machine.get_word_at(*offset);
+        let value = machine.load_word_at(*offset);
         match word_to_u64(value) {
             Ok(v) => strides.push(v),
             Err(error) => return Err(error),
@@ -4320,7 +4320,7 @@ pub(crate) fn execute_tensor_view(
 
     let offset = tensor_linear_index(&offsets, &source_layout.shape, &source_layout.strides)?;
 
-    let view_value = machine.get_word_at(*view_offset);
+    let view_value = machine.load_word_at(*view_offset);
     let element = machine.projection(*element);
     let pointer = offset_tensor_view_pointer(
         view_value,
@@ -4330,7 +4330,7 @@ pub(crate) fn execute_tensor_view(
         *address,
     )?;
 
-    machine.set_word_at(*dest_offset, pointer);
+    machine.store_word_at(*dest_offset, pointer);
 
     Ok(())
 }

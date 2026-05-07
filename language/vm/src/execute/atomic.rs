@@ -19,13 +19,13 @@ pub(crate) fn execute_atomic_load(
 ) -> Result<(), Error> {
     // decode precomputed addressing and ordering
     let shape = AtomicShape::decode(instruction.d)?;
-    let pointer = machine.get_word_at(instruction.b);
+    let pointer = machine.load_word_at(instruction.b);
     let address = atomic_address(machine, pointer, shape.address)?;
 
     // load and publish the scalar result
     let raw = atomic_load(address, shape)?;
     let value = atomic_word(raw, shape);
-    machine.set_word_at(instruction.a, value);
+    machine.store_word_at(instruction.a, value);
 
     Ok(())
 }
@@ -37,8 +37,8 @@ pub(crate) fn execute_atomic_store(
 ) -> Result<(), Error> {
     // decode precomputed addressing and ordering
     let shape = AtomicShape::decode(instruction.d)?;
-    let pointer = machine.get_word_at(instruction.a);
-    let value = machine.get_word_at(instruction.b);
+    let pointer = machine.load_word_at(instruction.a);
+    let value = machine.load_word_at(instruction.b);
     let address = atomic_address(machine, pointer, shape.address)?;
 
     // store the scalar payload
@@ -54,14 +54,14 @@ pub(crate) fn execute_atomic_exchange(
 ) -> Result<(), Error> {
     // decode precomputed addressing and ordering
     let shape = AtomicShape::decode(instruction.d)?;
-    let pointer = machine.get_word_at(instruction.b);
-    let value = machine.get_word_at(instruction.c);
+    let pointer = machine.load_word_at(instruction.b);
+    let value = machine.load_word_at(instruction.c);
     let address = atomic_address(machine, pointer, shape.address)?;
 
     // exchange and publish the old scalar value
     let raw = atomic_exchange(address, value.bits(), shape)?;
     let value = atomic_word(raw, shape);
-    machine.set_word_at(instruction.a, value);
+    machine.store_word_at(instruction.a, value);
 
     Ok(())
 }
@@ -73,9 +73,9 @@ pub(crate) fn execute_atomic_compare_exchange(
 ) -> Result<(), Error> {
     // decode aggregate result metadata
     let compare_exchange = *machine.side::<AtomicCompareExchange>(instruction);
-    let pointer = machine.get_word_at(compare_exchange.pointer_offset);
-    let expected = machine.get_word_at(compare_exchange.expected_offset);
-    let new_value = machine.get_word_at(compare_exchange.new_value_offset);
+    let pointer = machine.load_word_at(compare_exchange.pointer_offset);
+    let expected = machine.load_word_at(compare_exchange.expected_offset);
+    let new_value = machine.load_word_at(compare_exchange.new_value_offset);
     let address = atomic_address(machine, pointer, compare_exchange.shape.address)?;
 
     // execute compare exchange and build the pair result
@@ -100,14 +100,14 @@ pub(crate) fn execute_atomic_read_modify_write(
 ) -> Result<(), Error> {
     // decode precomputed addressing, ordering, and update operation
     let shape = AtomicReadModifyWriteShape::decode(instruction.d)?;
-    let pointer = machine.get_word_at(instruction.b);
-    let value = machine.get_word_at(instruction.c);
+    let pointer = machine.load_word_at(instruction.b);
+    let value = machine.load_word_at(instruction.c);
     let address = atomic_address(machine, pointer, shape.shape.address)?;
 
     // update and publish the old scalar value
     let raw = atomic_read_modify_write(address, value, shape)?;
     let value = atomic_word(raw, shape.shape);
-    machine.set_word_at(instruction.a, value);
+    machine.store_word_at(instruction.a, value);
 
     Ok(())
 }

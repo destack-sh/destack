@@ -63,7 +63,7 @@ fn store_scalar_value(
     value: ScalarResult,
 ) -> Result<(), Error> {
     match value {
-        ScalarResult::Word(value) => machine.set_word_at(dest, value),
+        ScalarResult::Word(value) => machine.store_word_at(dest, value),
         ScalarResult::Bytes(bytes) => {
             let dest = machine.frame_pointer_at(dest).address() as *mut u8;
             unsafe {
@@ -103,15 +103,19 @@ fn load_binary_word_values(
     let left = instruction.b;
     let right = instruction.c;
 
-    (dest, machine.get_word_at(left), machine.get_word_at(right))
+    (
+        dest,
+        machine.load_word_at(left),
+        machine.load_word_at(right),
+    )
 }
 
 /// Load one lowered binary word operation as raw payloads.
 #[inline(always)]
 fn load_binary_raw_values(machine: &Machine<'_, '_>, instruction: &Instruction) -> (u32, u64, u64) {
     let dest = instruction.a;
-    let left = machine.get_word_at(instruction.b).bits();
-    let right = machine.get_word_at(instruction.c).bits();
+    let left = machine.load_word_at(instruction.b).bits();
+    let right = machine.load_word_at(instruction.c).bits();
 
     (dest, left, right)
 }
@@ -122,14 +126,14 @@ fn load_unary_word_value(machine: &Machine<'_, '_>, instruction: &Instruction) -
     let dest = instruction.a;
     let argument = instruction.b;
 
-    (dest, machine.get_word_at(argument))
+    (dest, machine.load_word_at(argument))
 }
 
 /// Load one lowered unary word operation as a raw payload.
 #[inline(always)]
 fn load_unary_raw_value(machine: &Machine<'_, '_>, instruction: &Instruction) -> (u32, u64) {
     let dest = instruction.a;
-    let argument = machine.get_word_at(instruction.b).bits();
+    let argument = machine.load_word_at(instruction.b).bits();
 
     (dest, argument)
 }
@@ -141,8 +145,8 @@ fn load_binary_integer_values(
     instruction: &Instruction,
 ) -> (u32, u64, u64, u8) {
     let dest = instruction.a;
-    let left = machine.get_word_at(instruction.b).bits();
-    let right = machine.get_word_at(instruction.c).bits();
+    let left = machine.load_word_at(instruction.b).bits();
+    let right = machine.load_word_at(instruction.c).bits();
     let width = integer_width(instruction.d);
 
     (dest, left, right, width)
@@ -155,7 +159,7 @@ fn load_unary_integer_value(
     instruction: &Instruction,
 ) -> (u32, u64, u8) {
     let dest = instruction.a;
-    let argument = machine.get_word_at(instruction.b).bits();
+    let argument = machine.load_word_at(instruction.b).bits();
     let width = integer_width(instruction.d);
 
     (dest, argument, width)
@@ -171,7 +175,7 @@ pub(crate) fn execute_load_const_word(
     let bits = u64::from(instruction.b) | (u64::from(instruction.c) << 32);
 
     // store constant bits
-    machine.set_word_at(dest, Word::from_bits(bits));
+    machine.store_word_at(dest, Word::from_bits(bits));
 
     Ok(())
 }
@@ -287,7 +291,7 @@ pub(crate) fn execute_and_bool(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left.as_bool() && right.as_bool()));
+    machine.store_word_at(dest, Word::bool(left.as_bool() && right.as_bool()));
 
     Ok(())
 }
@@ -299,7 +303,7 @@ pub(crate) fn execute_or_bool(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left.as_bool() || right.as_bool()));
+    machine.store_word_at(dest, Word::bool(left.as_bool() || right.as_bool()));
 
     Ok(())
 }
@@ -311,7 +315,7 @@ pub(crate) fn execute_xor_bool(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left.as_bool() ^ right.as_bool()));
+    machine.store_word_at(dest, Word::bool(left.as_bool() ^ right.as_bool()));
 
     Ok(())
 }
@@ -323,7 +327,7 @@ pub(crate) fn execute_add_f32(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::float32(left.as_f32() + right.as_f32()));
+    machine.store_word_at(dest, Word::float32(left.as_f32() + right.as_f32()));
 
     Ok(())
 }
@@ -335,7 +339,7 @@ pub(crate) fn execute_sub_f32(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::float32(left.as_f32() - right.as_f32()));
+    machine.store_word_at(dest, Word::float32(left.as_f32() - right.as_f32()));
 
     Ok(())
 }
@@ -347,7 +351,7 @@ pub(crate) fn execute_mul_f32(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::float32(left.as_f32() * right.as_f32()));
+    machine.store_word_at(dest, Word::float32(left.as_f32() * right.as_f32()));
 
     Ok(())
 }
@@ -359,7 +363,7 @@ pub(crate) fn execute_div_f32(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::float32(left.as_f32() / right.as_f32()));
+    machine.store_word_at(dest, Word::float32(left.as_f32() / right.as_f32()));
 
     Ok(())
 }
@@ -371,7 +375,7 @@ pub(crate) fn execute_eq_f32(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left.as_f32() == right.as_f32()));
+    machine.store_word_at(dest, Word::bool(left.as_f32() == right.as_f32()));
 
     Ok(())
 }
@@ -383,7 +387,7 @@ pub(crate) fn execute_ne_f32(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left.as_f32() != right.as_f32()));
+    machine.store_word_at(dest, Word::bool(left.as_f32() != right.as_f32()));
 
     Ok(())
 }
@@ -395,7 +399,7 @@ pub(crate) fn execute_lt_f32(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left.as_f32() < right.as_f32()));
+    machine.store_word_at(dest, Word::bool(left.as_f32() < right.as_f32()));
 
     Ok(())
 }
@@ -407,7 +411,7 @@ pub(crate) fn execute_le_f32(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left.as_f32() <= right.as_f32()));
+    machine.store_word_at(dest, Word::bool(left.as_f32() <= right.as_f32()));
 
     Ok(())
 }
@@ -419,7 +423,7 @@ pub(crate) fn execute_gt_f32(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left.as_f32() > right.as_f32()));
+    machine.store_word_at(dest, Word::bool(left.as_f32() > right.as_f32()));
 
     Ok(())
 }
@@ -431,7 +435,7 @@ pub(crate) fn execute_ge_f32(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left.as_f32() >= right.as_f32()));
+    machine.store_word_at(dest, Word::bool(left.as_f32() >= right.as_f32()));
 
     Ok(())
 }
@@ -443,7 +447,7 @@ pub(crate) fn execute_add_f64(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::float64(left.as_f64() + right.as_f64()));
+    machine.store_word_at(dest, Word::float64(left.as_f64() + right.as_f64()));
 
     Ok(())
 }
@@ -455,7 +459,7 @@ pub(crate) fn execute_sub_f64(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::float64(left.as_f64() - right.as_f64()));
+    machine.store_word_at(dest, Word::float64(left.as_f64() - right.as_f64()));
 
     Ok(())
 }
@@ -467,7 +471,7 @@ pub(crate) fn execute_mul_f64(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::float64(left.as_f64() * right.as_f64()));
+    machine.store_word_at(dest, Word::float64(left.as_f64() * right.as_f64()));
 
     Ok(())
 }
@@ -479,7 +483,7 @@ pub(crate) fn execute_div_f64(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::float64(left.as_f64() / right.as_f64()));
+    machine.store_word_at(dest, Word::float64(left.as_f64() / right.as_f64()));
 
     Ok(())
 }
@@ -491,7 +495,7 @@ pub(crate) fn execute_eq_f64(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left.as_f64() == right.as_f64()));
+    machine.store_word_at(dest, Word::bool(left.as_f64() == right.as_f64()));
 
     Ok(())
 }
@@ -503,7 +507,7 @@ pub(crate) fn execute_ne_f64(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left.as_f64() != right.as_f64()));
+    machine.store_word_at(dest, Word::bool(left.as_f64() != right.as_f64()));
 
     Ok(())
 }
@@ -515,7 +519,7 @@ pub(crate) fn execute_lt_f64(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left.as_f64() < right.as_f64()));
+    machine.store_word_at(dest, Word::bool(left.as_f64() < right.as_f64()));
 
     Ok(())
 }
@@ -527,7 +531,7 @@ pub(crate) fn execute_le_f64(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left.as_f64() <= right.as_f64()));
+    machine.store_word_at(dest, Word::bool(left.as_f64() <= right.as_f64()));
 
     Ok(())
 }
@@ -539,7 +543,7 @@ pub(crate) fn execute_gt_f64(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left.as_f64() > right.as_f64()));
+    machine.store_word_at(dest, Word::bool(left.as_f64() > right.as_f64()));
 
     Ok(())
 }
@@ -551,7 +555,7 @@ pub(crate) fn execute_ge_f64(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left.as_f64() >= right.as_f64()));
+    machine.store_word_at(dest, Word::bool(left.as_f64() >= right.as_f64()));
 
     Ok(())
 }
@@ -573,7 +577,7 @@ macro_rules! fixed_binary_executor {
                 let left = left as $ty;
                 let right = right as $ty;
                 let value = left.$operation(right);
-                machine.set_word_at(dest, Word::$word(value));
+                machine.store_word_at(dest, Word::$word(value));
 
                 Ok(())
             }
@@ -594,7 +598,7 @@ macro_rules! fixed_binary_layout_executor {
                 let left = left as $ty;
                 let right = right as $ty;
                 let value = left.$operation(right);
-                machine.set_word_at(dest, integer_word_from_field(value as u64, instruction.d));
+                machine.store_word_at(dest, integer_word_from_field(value as u64, instruction.d));
 
                 Ok(())
             }
@@ -621,7 +625,7 @@ macro_rules! fixed_div_executor {
                 }
 
                 let value = left.$operation(right);
-                machine.set_word_at(dest, Word::$word(value));
+                machine.store_word_at(dest, Word::$word(value));
 
                 Ok(())
             }
@@ -642,7 +646,7 @@ macro_rules! fixed_shift_executor {
                 let left = left as $ty;
                 let right = right as u32;
                 let value = left.$operation(right);
-                machine.set_word_at(dest, Word::$word(value));
+                machine.store_word_at(dest, Word::$word(value));
 
                 Ok(())
             }
@@ -663,7 +667,7 @@ macro_rules! fixed_shift_layout_executor {
                 let left = left as $ty;
                 let right = right as u32;
                 let value = left.$operation(right);
-                machine.set_word_at(dest, integer_word_from_field(value as u64, instruction.d));
+                machine.store_word_at(dest, integer_word_from_field(value as u64, instruction.d));
 
                 Ok(())
             }
@@ -683,7 +687,7 @@ macro_rules! fixed_compare_executor {
                 let (dest, left, right) = load_binary_raw_values(machine, instruction);
                 let left = left as $ty;
                 let right = right as $ty;
-                machine.set_word_at(dest, Word::bool(left $operation right));
+                machine.store_word_at(dest, Word::bool(left $operation right));
 
                 Ok(())
             }
@@ -703,7 +707,7 @@ macro_rules! fixed_unary_executor {
                 let (dest, argument) = load_unary_raw_value(machine, instruction);
                 let argument = argument as $ty;
                 let value = $operation(argument);
-                machine.set_word_at(dest, Word::$word(value));
+                machine.store_word_at(dest, Word::$word(value));
 
                 Ok(())
             }
@@ -848,7 +852,7 @@ pub(crate) fn execute_not_32(
 ) -> Result<(), Error> {
     let (dest, argument) = load_unary_raw_value(machine, instruction);
     let value = !(argument as u32);
-    machine.set_word_at(
+    machine.store_word_at(
         dest,
         integer_word_from_field(u64::from(value), instruction.d),
     );
@@ -864,7 +868,7 @@ pub(crate) fn execute_not_64(
 ) -> Result<(), Error> {
     let (dest, argument) = load_unary_raw_value(machine, instruction);
     let value = !argument;
-    machine.set_word_at(dest, integer_word_from_field(value, instruction.d));
+    machine.store_word_at(dest, integer_word_from_field(value, instruction.d));
 
     Ok(())
 }
@@ -876,7 +880,7 @@ pub(crate) fn execute_add_word_int(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, integer_word::<true>(left.wrapping_add(right), width));
+    machine.store_word_at(dest, integer_word::<true>(left.wrapping_add(right), width));
 
     Ok(())
 }
@@ -888,7 +892,7 @@ pub(crate) fn execute_add_word_uint(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, integer_word::<false>(left.wrapping_add(right), width));
+    machine.store_word_at(dest, integer_word::<false>(left.wrapping_add(right), width));
 
     Ok(())
 }
@@ -900,7 +904,7 @@ pub(crate) fn execute_sub_word_int(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, integer_word::<true>(left.wrapping_sub(right), width));
+    machine.store_word_at(dest, integer_word::<true>(left.wrapping_sub(right), width));
 
     Ok(())
 }
@@ -912,7 +916,7 @@ pub(crate) fn execute_sub_word_uint(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, integer_word::<false>(left.wrapping_sub(right), width));
+    machine.store_word_at(dest, integer_word::<false>(left.wrapping_sub(right), width));
 
     Ok(())
 }
@@ -924,7 +928,7 @@ pub(crate) fn execute_mul_word_int(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, integer_word::<true>(left.wrapping_mul(right), width));
+    machine.store_word_at(dest, integer_word::<true>(left.wrapping_mul(right), width));
 
     Ok(())
 }
@@ -936,7 +940,7 @@ pub(crate) fn execute_mul_word_uint(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, integer_word::<false>(left.wrapping_mul(right), width));
+    machine.store_word_at(dest, integer_word::<false>(left.wrapping_mul(right), width));
 
     Ok(())
 }
@@ -954,7 +958,7 @@ pub(crate) fn execute_div_word_int(
 
     let left = left as i64;
     let right = right as i64;
-    machine.set_word_at(dest, Word::int(left.wrapping_div(right), width));
+    machine.store_word_at(dest, Word::int(left.wrapping_div(right), width));
 
     Ok(())
 }
@@ -972,7 +976,7 @@ pub(crate) fn execute_rem_word_int(
 
     let left = left as i64;
     let right = right as i64;
-    machine.set_word_at(dest, Word::int(left.wrapping_rem(right), width));
+    machine.store_word_at(dest, Word::int(left.wrapping_rem(right), width));
 
     Ok(())
 }
@@ -988,7 +992,7 @@ pub(crate) fn execute_div_word_uint(
         return Err(Error::DivisionByZero);
     }
 
-    machine.set_word_at(dest, Word::uint(left.wrapping_div(right), width));
+    machine.store_word_at(dest, Word::uint(left.wrapping_div(right), width));
 
     Ok(())
 }
@@ -1004,7 +1008,7 @@ pub(crate) fn execute_rem_word_uint(
         return Err(Error::DivisionByZero);
     }
 
-    machine.set_word_at(dest, Word::uint(left.wrapping_rem(right), width));
+    machine.store_word_at(dest, Word::uint(left.wrapping_rem(right), width));
 
     Ok(())
 }
@@ -1016,7 +1020,7 @@ pub(crate) fn execute_and_word(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_raw_values(machine, instruction);
-    machine.set_word_at(dest, integer_word_from_field(left & right, instruction.d));
+    machine.store_word_at(dest, integer_word_from_field(left & right, instruction.d));
 
     Ok(())
 }
@@ -1028,7 +1032,7 @@ pub(crate) fn execute_or_word(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_raw_values(machine, instruction);
-    machine.set_word_at(dest, integer_word_from_field(left | right, instruction.d));
+    machine.store_word_at(dest, integer_word_from_field(left | right, instruction.d));
 
     Ok(())
 }
@@ -1040,7 +1044,7 @@ pub(crate) fn execute_xor_word(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_raw_values(machine, instruction);
-    machine.set_word_at(dest, integer_word_from_field(left ^ right, instruction.d));
+    machine.store_word_at(dest, integer_word_from_field(left ^ right, instruction.d));
 
     Ok(())
 }
@@ -1052,7 +1056,7 @@ pub(crate) fn execute_shl_word(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_raw_values(machine, instruction);
-    machine.set_word_at(
+    machine.store_word_at(
         dest,
         integer_word_from_field(left.wrapping_shl(right as u32), instruction.d),
     );
@@ -1067,7 +1071,7 @@ pub(crate) fn execute_shr_word_int(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(
+    machine.store_word_at(
         dest,
         Word::int((left as i64).wrapping_shr(right as u32), width),
     );
@@ -1082,7 +1086,7 @@ pub(crate) fn execute_shr_word_uint(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, Word::uint(left.wrapping_shr(right as u32), width));
+    machine.store_word_at(dest, Word::uint(left.wrapping_shr(right as u32), width));
 
     Ok(())
 }
@@ -1098,7 +1102,7 @@ pub(crate) fn execute_eq_word(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left == right));
+    machine.store_word_at(dest, Word::bool(left == right));
 
     Ok(())
 }
@@ -1110,7 +1114,7 @@ pub(crate) fn execute_ne_word(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left != right));
+    machine.store_word_at(dest, Word::bool(left != right));
 
     Ok(())
 }
@@ -1122,7 +1126,7 @@ pub(crate) fn execute_lt_word_int(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool((left as i64) < (right as i64)));
+    machine.store_word_at(dest, Word::bool((left as i64) < (right as i64)));
 
     Ok(())
 }
@@ -1134,7 +1138,7 @@ pub(crate) fn execute_le_word_int(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool((left as i64) <= (right as i64)));
+    machine.store_word_at(dest, Word::bool((left as i64) <= (right as i64)));
 
     Ok(())
 }
@@ -1146,7 +1150,7 @@ pub(crate) fn execute_gt_word_int(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool((left as i64) > (right as i64)));
+    machine.store_word_at(dest, Word::bool((left as i64) > (right as i64)));
 
     Ok(())
 }
@@ -1158,7 +1162,7 @@ pub(crate) fn execute_ge_word_int(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool((left as i64) >= (right as i64)));
+    machine.store_word_at(dest, Word::bool((left as i64) >= (right as i64)));
 
     Ok(())
 }
@@ -1170,7 +1174,7 @@ pub(crate) fn execute_lt_word_uint(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left < right));
+    machine.store_word_at(dest, Word::bool(left < right));
 
     Ok(())
 }
@@ -1182,7 +1186,7 @@ pub(crate) fn execute_le_word_uint(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left <= right));
+    machine.store_word_at(dest, Word::bool(left <= right));
 
     Ok(())
 }
@@ -1194,7 +1198,7 @@ pub(crate) fn execute_gt_word_uint(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left > right));
+    machine.store_word_at(dest, Word::bool(left > right));
 
     Ok(())
 }
@@ -1206,7 +1210,7 @@ pub(crate) fn execute_ge_word_uint(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(machine, instruction);
-    machine.set_word_at(dest, Word::bool(left >= right));
+    machine.store_word_at(dest, Word::bool(left >= right));
 
     Ok(())
 }
@@ -1258,7 +1262,7 @@ pub(crate) fn execute_neg_word_int(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, argument, width) = load_unary_integer_value(machine, instruction);
-    machine.set_word_at(dest, integer_word::<true>(argument.wrapping_neg(), width));
+    machine.store_word_at(dest, integer_word::<true>(argument.wrapping_neg(), width));
 
     Ok(())
 }
@@ -1270,7 +1274,7 @@ pub(crate) fn execute_not_word(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, argument) = load_unary_raw_value(machine, instruction);
-    machine.set_word_at(dest, integer_word_from_field(!argument, instruction.d));
+    machine.store_word_at(dest, integer_word_from_field(!argument, instruction.d));
 
     Ok(())
 }
@@ -1282,7 +1286,7 @@ pub(crate) fn execute_neg_f32(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, argument) = load_unary_word_value(machine, instruction);
-    machine.set_word_at(dest, Word::float32(-argument.as_f32()));
+    machine.store_word_at(dest, Word::float32(-argument.as_f32()));
 
     Ok(())
 }
@@ -1294,7 +1298,7 @@ pub(crate) fn execute_neg_f64(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, argument) = load_unary_word_value(machine, instruction);
-    machine.set_word_at(dest, Word::float64(-argument.as_f64()));
+    machine.store_word_at(dest, Word::float64(-argument.as_f64()));
 
     Ok(())
 }
@@ -1305,7 +1309,7 @@ pub(crate) fn execute_not_bool(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, argument) = load_unary_word_value(machine, instruction);
-    machine.set_word_at(dest, Word::bool(!argument.as_bool()));
+    machine.store_word_at(dest, Word::bool(!argument.as_bool()));
 
     Ok(())
 }

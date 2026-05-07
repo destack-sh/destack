@@ -35,7 +35,7 @@ pub(crate) fn execute_allocate_heap_small_noscan(
     };
 
     // store result
-    machine.set_word_at(dest, Word::heap_reference(reference));
+    machine.store_word_at(dest, Word::heap_reference(reference));
 
     Ok(())
 }
@@ -57,7 +57,7 @@ pub(crate) fn execute_allocate_heap(
         machine.allocate_zeroed_heap_layout(&allocation.heap_layout(reference_map, class))?;
 
     // store result
-    machine.set_word_at(dest, Word::heap_reference(reference));
+    machine.store_word_at(dest, Word::heap_reference(reference));
 
     Ok(())
 }
@@ -87,7 +87,7 @@ pub(crate) fn execute_allocate_shared_heap_small_noscan(
     };
 
     // store result
-    machine.set_word_at(dest, Word::shared_heap_reference(reference));
+    machine.store_word_at(dest, Word::shared_heap_reference(reference));
 
     Ok(())
 }
@@ -109,7 +109,7 @@ pub(crate) fn execute_allocate_shared_heap(
         .allocate_zeroed_shared_heap_layout(&allocation.heap_layout(reference_map, class))?;
 
     // store result
-    machine.set_word_at(dest, Word::shared_heap_reference(reference));
+    machine.store_word_at(dest, Word::shared_heap_reference(reference));
 
     Ok(())
 }
@@ -221,7 +221,7 @@ pub(crate) fn execute_allocate_raw(
     };
     let value = Word::raw_pointer(pointer);
 
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 
     Ok(())
 }
@@ -245,7 +245,7 @@ pub(crate) fn execute_allocate_shared_raw(
     };
     let value = Word::shared_raw_pointer(pointer);
 
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 
     Ok(())
 }
@@ -258,7 +258,7 @@ pub(crate) fn execute_free_raw(
     let pointer = instruction.a;
 
     // free the pointed raw allocation
-    let pointer = machine.get_word_at(pointer).as_raw_pointer();
+    let pointer = machine.load_word_at(pointer).as_raw_pointer();
     let heap = machine.heap_mut();
     match heap.free_raw(pointer) {
         Ok(true) => {}
@@ -281,10 +281,10 @@ pub(crate) fn execute_pin_heap(
     let value = instruction.b;
 
     // pin the local heap reference
-    let reference = machine.get_word_at(value).as_heap_reference();
+    let reference = machine.load_word_at(value).as_heap_reference();
     let heap = machine.heap_mut();
     match heap.pin_heap(reference) {
-        Ok(reference) => machine.set_word_at(dest, Word::heap_reference(reference)),
+        Ok(reference) => machine.store_word_at(dest, Word::heap_reference(reference)),
         Err(HeapError::InvalidHeapReference { .. }) => {
             return Err(Error::InvalidHeapReference);
         }
@@ -303,8 +303,8 @@ pub(crate) fn execute_pin_shared_heap(
     let value = instruction.b;
 
     // shared heap references are already stable
-    let reference = machine.get_word_at(value).as_shared_heap_reference();
-    machine.set_word_at(dest, Word::shared_heap_reference(reference));
+    let reference = machine.load_word_at(value).as_shared_heap_reference();
+    machine.store_word_at(dest, Word::shared_heap_reference(reference));
 
     Ok(())
 }
@@ -317,7 +317,7 @@ pub(crate) fn execute_unpin_heap(
     let value = instruction.a;
 
     // release the local heap pin
-    let reference = machine.get_word_at(value).as_heap_reference();
+    let reference = machine.load_word_at(value).as_heap_reference();
     let heap = machine.heap_mut();
     match heap.unpin_heap(reference) {
         Ok(()) => {}
@@ -345,7 +345,7 @@ pub(crate) fn execute_drop_heap(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let value = instruction.a;
-    let reference = machine.get_word_at(value).as_heap_reference();
+    let reference = machine.load_word_at(value).as_heap_reference();
 
     // release local heap storage immediately
     match machine.heap_mut().free_heap(reference) {
@@ -362,7 +362,7 @@ pub(crate) fn execute_drop_shared_heap(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let value = instruction.a;
-    let reference = machine.get_word_at(value).as_shared_heap_reference();
+    let reference = machine.load_word_at(value).as_shared_heap_reference();
 
     // release shared heap storage immediately
     match machine.shared().free_heap(reference) {
@@ -383,7 +383,7 @@ pub(crate) fn execute_drop_stack(
     let byte_len = byte_len as usize;
 
     // release stack bytes from the lowered layout width
-    let pointer = machine.get_word_at(value).as_stack_pointer();
+    let pointer = machine.load_word_at(value).as_stack_pointer();
     machine.retire_stack(pointer, byte_len)?;
 
     Ok(())
@@ -475,7 +475,7 @@ pub(crate) fn execute_free_shared_raw(
     let pointer = instruction.a;
 
     // free the pointed shared raw allocation
-    let pointer = machine.get_word_at(pointer).as_shared_raw_pointer();
+    let pointer = machine.load_word_at(pointer).as_shared_raw_pointer();
     match machine.shared().free_raw(pointer) {
         Ok(true) => {}
         Ok(false) => return Err(Error::InvalidSharedRawPointer),
@@ -503,7 +503,7 @@ pub(crate) fn execute_allocate_stack(
     let sp = StackPointer::from_address(address);
     let value = Word::stack_pointer(sp);
 
-    machine.set_word_at(dest, value);
+    machine.store_word_at(dest, value);
 
     Ok(())
 }

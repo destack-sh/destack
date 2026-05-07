@@ -15,11 +15,11 @@ fn execute_word_cast(
     let cast_field = instruction.c;
 
     // cast the word directly
-    let argument = machine.get_word_at(argument);
+    let argument = machine.load_word_at(argument);
     let result = cast(argument, cast_field)?;
 
     // store result
-    machine.set_word_at(dest, result);
+    machine.store_word_at(dest, result);
 
     Ok(())
 }
@@ -434,7 +434,7 @@ pub(crate) fn execute_cast_word_to_wide_int(
     let (source_width, dest_width) = cast.widths_pair();
 
     // cast from word bits into frame bytes
-    let source = machine.get_word_at(arg).to_byte_array();
+    let source = machine.load_word_at(arg).to_byte_array();
     let result = cast_integer_bytes(&source, source_width, source_signed, dest_width);
 
     // store result bytes
@@ -460,7 +460,7 @@ pub(crate) fn execute_cast_wide_int_to_word(
     let result = integer_bytes_to_word(&bytes, dest_width, dest_signed)?;
 
     // store result word
-    machine.set_word_at(dest, result);
+    machine.store_word_at(dest, result);
 
     Ok(())
 }
@@ -497,12 +497,12 @@ pub(crate) fn execute_select_word(
     let else_value = instruction.d;
 
     // select the source word
-    let condition = machine.get_word_at(condition).as_bool();
+    let condition = machine.load_word_at(condition).as_bool();
     let source = if condition { then_value } else { else_value };
-    let result = machine.get_word_at(source);
+    let result = machine.load_word_at(source);
 
     // store result
-    machine.set_word_at(dest, result);
+    machine.store_word_at(dest, result);
 
     Ok(())
 }
@@ -521,7 +521,7 @@ pub(crate) fn execute_select_frame(
     } = machine.side::<FrameSelect>(instruction);
 
     // select the source frame value
-    let condition = machine.get_word_at(*condition_offset).as_bool();
+    let condition = machine.load_word_at(*condition_offset).as_bool();
     let source_offset = if condition { then_offset } else { else_offset };
 
     // move the selected frame slot directly
