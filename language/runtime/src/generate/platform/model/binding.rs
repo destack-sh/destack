@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use destack_compiler::Compiler;
 use destack_core::{StringPool, stable_hash_text};
 use destack_dir::{
-    self as dir, Argument, Declaration, DependencyItem, Expression, GlobalSymbolId, LanguageSymbol,
+    self as dir, Argument, Declaration, DependencyItem, Expression, GlobalSymbolId, LanguageItem,
     PrimitiveType, StaticArgument, StaticExpression, TypeLiteral, WellKnownSymbol,
 };
 use destack_query::format::{format_local_type, format_type_literal};
@@ -161,9 +161,9 @@ pub(crate) fn binding_type_symbols(
     let language_environment = context.language_environment(profile_id);
     let lib_environment = context.library_environment(profile_id);
     let result = language_environment
-        .item(LanguageSymbol::Result)
+        .item(LanguageItem::Result)
         .unwrap_or_else(|| panic!("missing Result symbol for profile {profile_id:?}"));
-    let async_result = language_environment.item(LanguageSymbol::AsyncResult);
+    let async_result = language_environment.item(LanguageItem::AsyncResult);
 
     let well_known = lib_environment.well_known_symbols();
     let slice = well_known.get_type_symbol(WellKnownSymbol::Slice);
@@ -360,7 +360,7 @@ fn resolve_return_type_id(
     // fall back to signature-inferred function type when return annotation is missing
     let global_declaration_id = declaration_id.into_global_any(types.module_id);
     types
-        .get_signature_type_for_node(global_declaration_id)
+        .signature_type_id(global_declaration_id)
         .and_then(
             |signature_type_id| match types.get_type(signature_type_id) {
                 dir::Type::Function { return_type, .. } => *return_type,
