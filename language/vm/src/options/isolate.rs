@@ -29,14 +29,4 @@ impl IsolateOptions {
             },
         }
     }
-
-    /// Create options for debug execution.
-    pub fn debug() -> Self {
-        Self::default()
-    }
-
-    /// Create options for comptime execution.
-    pub fn comptime() -> Self {
-        Self::default()
-    }
 }

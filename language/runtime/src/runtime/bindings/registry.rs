@@ -154,7 +154,7 @@ impl BindingRegistry {
 
         // NOTE #Incomplete: serialize args/results for replay payloads
         // register the handler through the live binding call context
-        isolate.register_vm_binding(descriptor.name, move |context, args| {
+        isolate.register_binding(descriptor.name, move |context, args| {
             let call_context = BindingCallContext::from_current_worker_for_vm()?;
             let _guard = enter_binding_call_context(&call_context);
             handler(context, args)

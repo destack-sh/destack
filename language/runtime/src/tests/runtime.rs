@@ -254,7 +254,7 @@ impl TestRuntime {
         let mut heap = self.vm_heap.borrow_mut();
         let mut shared = self.vm_shared.borrow_mut();
         isolate
-            .with_runtime_context(&mut heap, &mut shared, Default::default(), |context| {
+            .with_binding_context(&mut heap, &mut shared, Default::default(), |context| {
                 let call_context = BindingCallContext::from_raw(
                     self.worker.as_ref() as *const Worker,
                     self.worker.event_loop.as_ref() as *const _,
