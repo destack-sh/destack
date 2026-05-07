@@ -1,8 +1,8 @@
 use super::printer::Printer;
 use crate::tree::Precedence;
 use crate::{
-    ArrayElement, Asynchrony, Expression, FunctionCardinality, JsPrintResult, Keyword, LocalNodeId,
-    Parameter, PostfixPosition, ScalarLiteral,
+    ArrayElement, Asynchrony, Expression, JsPrintResult, Keyword, LocalNodeId, Parameter,
+    PostfixPosition, ScalarLiteral,
 };
 use destack_source::NodeSpanType;
 
@@ -46,7 +46,7 @@ impl<'a> Printer<'a> {
                     self.write_keyword(Keyword::Async);
                 }
 
-                if signature.cardinality == FunctionCardinality::Generator {
+                if signature.is_generator {
                     self.write_punct("*");
                 }
 

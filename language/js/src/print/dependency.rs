@@ -3,7 +3,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use super::printer::Printer;
 use crate::{
-    Annotation, DependencyItem, DependencyKind, DependencyMode, JsPrintResult, Keyword,
+    Annotation, DependencyBinding, DependencyItem, DependencySpace, JsPrintResult, Keyword,
     LocalNodeId, Path,
 };
 
@@ -32,7 +32,7 @@ impl<'a> Printer<'a> {
 
         if items.len() == 1
             && let Some(first_item) = first_item
-            && first_item.mode == DependencyMode::Namespace
+            && first_item.binding == DependencyBinding::Namespace
         {
             self.write_punct("*");
             self.write_keyword(Keyword::As);
@@ -44,7 +44,7 @@ impl<'a> Printer<'a> {
                 self.write_identifier_with_source_span(alias, alias_span);
             }
         } else if let Some(first_item) = first_item
-            && first_item.mode == DependencyMode::Default
+            && first_item.binding == DependencyBinding::Default
         {
             if let Some(item_id) = items.first()
                 && let Some(alias) = first_item.alias
@@ -96,7 +96,7 @@ impl<'a> Printer<'a> {
 
         if items.len() == 1
             && let Some(first_item) = first_item
-            && first_item.mode == DependencyMode::Namespace
+            && first_item.binding == DependencyBinding::Namespace
         {
             self.write_punct("*");
 
@@ -131,11 +131,11 @@ impl<'a> Printer<'a> {
             self.source_part_span(item_id.id, NodeSpanType::Region(NodeSpanRegion::Type));
         let alias_span = self.source_part_span(item_id.id, NodeSpanType::Main);
 
-        if item.kind == Some(DependencyKind::Type) {
+        if item.space == Some(DependencySpace::Type) {
             self.write_keyword(Keyword::Type);
         }
 
-        if item.mode == DependencyMode::Default {
+        if item.binding == DependencyBinding::Default {
             self.write_keyword(Keyword::Default);
 
             if let Some(alias) = item.alias {

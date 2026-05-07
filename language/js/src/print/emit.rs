@@ -4,7 +4,7 @@ use destack_source::Span;
 use super::printer::Printer;
 use crate::{
     AccessorKind, AssignOperator, BinaryOperator, BindingAnchor, BindingKind, BindingModifier,
-    BindingOperator, DependencyMode, JsPrintResult, Keyword, Mutability, Name, PrimitiveType,
+    BindingOperator, DependencyBinding, JsPrintResult, Keyword, Mutability, Name, PrimitiveType,
     ScalarLiteral, TypeLiteral, UnaryOperator, VarianceModifier, Visibility,
 };
 
@@ -25,15 +25,15 @@ impl<'a> Printer<'a> {
         }
     }
 
-    /// Print one dependency mode keyword.
-    pub(crate) fn write_dependency_mode(&mut self, mode: DependencyMode) {
-        match mode {
-            DependencyMode::Item => self.write_keyword(Keyword::Export),
-            DependencyMode::Default => {
+    /// Print one dependency binding keyword.
+    pub(crate) fn write_dependency_binding(&mut self, binding: DependencyBinding) {
+        match binding {
+            DependencyBinding::Item => self.write_keyword(Keyword::Export),
+            DependencyBinding::Default => {
                 self.write_keyword(Keyword::Export);
                 self.write_keyword(Keyword::Default);
             }
-            DependencyMode::Namespace => self.write_keyword(Keyword::Export),
+            DependencyBinding::Namespace => self.write_keyword(Keyword::Export),
         }
     }
 
@@ -570,7 +570,7 @@ mod tests {
 
     use super::Printer;
     use crate::{
-        Argument, BinaryOperator, DependencyItem, DependencyKind, DependencyMode, Expression,
+        Argument, BinaryOperator, DependencyBinding, DependencyItem, DependencySpace, Expression,
         JsSourceMap, Key, LocalNodeId, LocalNodeIdAny, Name, Path, PostfixPosition, Property,
         ScalarLiteral, Statement, Tree, print_roots_minified, print_roots_minified_with_source_map,
     };
@@ -1113,8 +1113,8 @@ mod tests {
         let item = insert_dependency_item(
             &mut tree,
             DependencyItem {
-                mode: DependencyMode::Item,
-                kind: Some(DependencyKind::Type),
+                binding: DependencyBinding::Item,
+                space: Some(DependencySpace::Type),
                 name: Some(Name::Identifier(strings.intern("value"))),
                 alias: Some(strings.intern("alias")),
                 value: None,
@@ -1123,7 +1123,7 @@ mod tests {
         let statement = insert_statement(
             &mut tree,
             Statement::Import {
-                kind: DependencyKind::Value,
+                space: DependencySpace::Value,
                 target: strings.intern("./shared.js"),
                 target_module: None,
                 items: Some(vec![item]),

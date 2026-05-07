@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AssignOperator, Asynchrony, Block, CatchClause, Declaration, Declarator, DependencyItem,
-    DependencyKind, DependencyMode, Expression, LocalNodeId, Mutability, Node, NodeType, Pattern,
+    AssignOperator, Asynchrony, Block, CatchClause, Declaration, Declarator, DependencyBinding,
+    DependencyItem, DependencySpace, Expression, LocalNodeId, Mutability, Node, NodeType, Pattern,
     Property, StringId, SwitchCase,
 };
 use destack_source::ModuleId;
@@ -30,7 +30,7 @@ pub struct DependencyAttributeClause {
 pub enum Statement {
     /// Import items (including type items).
     Import {
-        kind: DependencyKind,
+        space: DependencySpace,
         target: StringId,
         target_module: Option<ModuleId>,
         items: Option<Vec<LocalNodeId<DependencyItem>>>,
@@ -38,7 +38,7 @@ pub enum Statement {
     },
     /// Export items (including type items).
     Export {
-        kind: DependencyKind,
+        space: DependencySpace,
         target: Option<StringId>,
         target_module: Option<ModuleId>,
         items: Vec<LocalNodeId<DependencyItem>>,
@@ -61,21 +61,21 @@ pub enum Statement {
 
     /// Let binding.
     Let {
-        export: Option<DependencyMode>,
+        export: Option<DependencyBinding>,
         is_ambient: bool,
         mutability: Mutability,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
     /// Var binding.
     Var {
-        export: Option<DependencyMode>,
+        export: Option<DependencyBinding>,
         is_ambient: bool,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
     /// Using binding.
     Using {
         asynchrony: Asynchrony,
-        export: Option<DependencyMode>,
+        export: Option<DependencyBinding>,
         is_ambient: bool,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
@@ -113,7 +113,7 @@ pub enum Statement {
     },
     /// For in statement.
     ForIn {
-        declaration_kind: Option<ForEachDeclarationKind>,
+        keyword: Option<BindingKeyword>,
         pattern: LocalNodeId<Pattern>,
         iterator: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
@@ -121,7 +121,7 @@ pub enum Statement {
     /// For of statement.
     ForOf {
         asynchrony: Asynchrony,
-        declaration_kind: Option<ForEachDeclarationKind>,
+        keyword: Option<BindingKeyword>,
         pattern: LocalNodeId<Pattern>,
         iterator: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
@@ -156,14 +156,14 @@ impl Node for Statement {
     const TYPE: NodeType = NodeType::Statement;
 }
 
-/// The declaration keyword used by a for each binding.
+/// The binding keyword used by a for each binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ForEachDeclarationKind {
-    /// `var` declaration keyword.
+pub enum BindingKeyword {
+    /// `var` binding keyword.
     Var,
-    /// `let` declaration keyword.
+    /// `let` binding keyword.
     Let,
-    /// `const` declaration keyword.
+    /// `const` binding keyword.
     Const,
 }
 
@@ -174,7 +174,7 @@ pub enum ForInitialization {
     Expression(LocalNodeId<Expression>),
     /// One declaration initializer.
     Declaration {
-        declaration_kind: ForEachDeclarationKind,
+        keyword: BindingKeyword,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
 }

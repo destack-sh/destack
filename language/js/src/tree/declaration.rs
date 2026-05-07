@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Block, DependencyMode, Expression, FunctionSignature, GenericParameter, LocalNodeId, Member,
+    Block, DependencyBinding, Expression, FunctionSignature, GenericParameter, LocalNodeId, Member,
     Name, Node, NodeType, Statement, StringId, TypeExpression, TypeMember,
 };
 
@@ -19,8 +19,8 @@ pub struct GlobalDeclaration {
 pub struct NamespaceDeclaration {
     /// The namespace name.
     pub name: Option<Name>,
-    /// The export mode of the declaration.
-    pub export: Option<DependencyMode>,
+    /// The export binding of the declaration.
+    pub export: Option<DependencyBinding>,
     /// Whether the declaration is ambient.
     pub is_ambient: bool,
     /// The statements inside the namespace body.
@@ -32,8 +32,8 @@ pub struct NamespaceDeclaration {
 pub struct TypeDeclaration {
     /// The declared name.
     pub name: Option<Name>,
-    /// The export mode of the declaration.
-    pub export: Option<DependencyMode>,
+    /// The export binding of the declaration.
+    pub export: Option<DependencyBinding>,
     /// Whether the declaration is ambient.
     pub is_ambient: bool,
     /// The generic parameters of the declaration.
@@ -47,8 +47,8 @@ pub struct TypeDeclaration {
 pub struct ClassDeclaration {
     /// The declared name.
     pub name: Option<Name>,
-    /// The export mode of the declaration.
-    pub export: Option<DependencyMode>,
+    /// The export binding of the declaration.
+    pub export: Option<DependencyBinding>,
     /// Whether the declaration is ambient.
     pub is_ambient: bool,
     /// Whether the declaration is abstract.
@@ -79,8 +79,8 @@ pub struct InterfaceHeritage {
 pub struct InterfaceDeclaration {
     /// The declared name.
     pub name: Option<Name>,
-    /// The export mode of the declaration.
-    pub export: Option<DependencyMode>,
+    /// The export binding of the declaration.
+    pub export: Option<DependencyBinding>,
     /// Whether the declaration is ambient.
     pub is_ambient: bool,
     /// The generic parameters of the declaration.
@@ -96,8 +96,8 @@ pub struct InterfaceDeclaration {
 pub struct EnumDeclaration {
     /// The declared name.
     pub name: Option<Name>,
-    /// The export mode of the declaration.
-    pub export: Option<DependencyMode>,
+    /// The export binding of the declaration.
+    pub export: Option<DependencyBinding>,
     /// Whether the declaration is ambient.
     pub is_ambient: bool,
     /// The enum fields.
@@ -109,8 +109,8 @@ pub struct EnumDeclaration {
 pub struct FunctionDeclaration {
     /// The declared name.
     pub name: Option<Name>,
-    /// The export mode of the declaration.
-    pub export: Option<DependencyMode>,
+    /// The export binding of the declaration.
+    pub export: Option<DependencyBinding>,
     /// Whether the declaration is ambient.
     pub is_ambient: bool,
     /// Whether the declaration is abstract.

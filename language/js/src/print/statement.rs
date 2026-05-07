@@ -1,7 +1,7 @@
 use super::printer::Printer;
 use crate::{
-    Asynchrony, Declarator, DependencyKind, DependencyMode, ForEachDeclarationKind,
-    ForInitialization, JsPrintResult, Keyword, LocalNodeId, Mutability, Statement,
+    Asynchrony, BindingKeyword, Declarator, DependencyBinding, DependencySpace, ForInitialization,
+    JsPrintResult, Keyword, LocalNodeId, Mutability, Statement,
 };
 use destack_source::NodeSpanType;
 
@@ -14,7 +14,7 @@ impl<'a> Printer<'a> {
     ) -> JsPrintResult<()> {
         match statement {
             Statement::Import {
-                kind,
+                space,
                 target,
                 items,
                 attributes,
@@ -22,7 +22,7 @@ impl<'a> Printer<'a> {
             } => {
                 self.write_keyword(Keyword::Import);
 
-                if *kind == DependencyKind::Type {
+                if *space == DependencySpace::Type {
                     self.write_keyword(Keyword::Type);
                 }
 
@@ -43,7 +43,7 @@ impl<'a> Printer<'a> {
                 }
             }
             Statement::Export {
-                kind,
+                space,
                 target,
                 items,
                 attributes,
@@ -51,7 +51,7 @@ impl<'a> Printer<'a> {
             } => {
                 self.write_keyword(Keyword::Export);
 
-                if *kind == DependencyKind::Type {
+                if *space == DependencySpace::Type {
                     self.write_keyword(Keyword::Type);
                 }
 
@@ -202,7 +202,7 @@ impl<'a> Printer<'a> {
                 self.print_block_id(*body)?;
             }
             Statement::ForIn {
-                declaration_kind,
+                keyword,
                 pattern,
                 iterator,
                 body,
@@ -210,8 +210,8 @@ impl<'a> Printer<'a> {
                 self.write_keyword(Keyword::For);
                 self.write_punct("(");
 
-                if let Some(declaration_kind) = declaration_kind {
-                    self.write_for_each_declaration_kind(*declaration_kind);
+                if let Some(keyword) = keyword {
+                    self.write_for_each_binding_keyword(*keyword);
                     self.write_punct(" ");
                 }
 
@@ -223,7 +223,7 @@ impl<'a> Printer<'a> {
             }
             Statement::ForOf {
                 asynchrony,
-                declaration_kind,
+                keyword,
                 pattern,
                 iterator,
                 body,
@@ -236,8 +236,8 @@ impl<'a> Printer<'a> {
 
                 self.write_punct("(");
 
-                if let Some(declaration_kind) = declaration_kind {
-                    self.write_for_each_declaration_kind(*declaration_kind);
+                if let Some(keyword) = keyword {
+                    self.write_for_each_binding_keyword(*keyword);
                     self.write_punct(" ");
                 }
 
@@ -311,11 +311,11 @@ impl<'a> Printer<'a> {
     /// Print one statement prefix.
     pub(crate) fn print_statement_prefix(
         &mut self,
-        export: Option<DependencyMode>,
+        export: Option<DependencyBinding>,
         is_ambient: bool,
     ) {
         if let Some(export) = export {
-            self.write_dependency_mode(export);
+            self.write_dependency_binding(export);
         }
 
         if is_ambient {
@@ -347,10 +347,10 @@ impl<'a> Printer<'a> {
         match initialization {
             ForInitialization::Expression(expression) => self.print_expression_id(*expression),
             ForInitialization::Declaration {
-                declaration_kind,
+                keyword,
                 declarators,
             } => {
-                self.write_for_each_declaration_kind(*declaration_kind);
+                self.write_for_each_binding_keyword(*keyword);
                 self.write_punct(" ");
                 self.print_declarator_list(declarators)
             }
@@ -359,12 +359,12 @@ impl<'a> Printer<'a> {
 }
 
 impl<'a> Printer<'a> {
-    /// Print one for each declaration keyword.
-    fn write_for_each_declaration_kind(&mut self, declaration_kind: ForEachDeclarationKind) {
-        match declaration_kind {
-            ForEachDeclarationKind::Var => self.write_keyword(Keyword::Var),
-            ForEachDeclarationKind::Let => self.write_keyword(Keyword::Let),
-            ForEachDeclarationKind::Const => self.write_keyword(Keyword::Const),
+    /// Print one for each binding keyword.
+    fn write_for_each_binding_keyword(&mut self, keyword: BindingKeyword) {
+        match keyword {
+            BindingKeyword::Var => self.write_keyword(Keyword::Var),
+            BindingKeyword::Let => self.write_keyword(Keyword::Let),
+            BindingKeyword::Const => self.write_keyword(Keyword::Const),
         }
     }
 }

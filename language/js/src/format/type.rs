@@ -1,6 +1,6 @@
 use crate::{
-    Keyword, LocalNodeId, PrimitiveType, TupleElement, TypeExpression, TypeLiteral, TypeMember,
-    TypeModifier, TypePredicateSubject,
+    Keyword, LocalNodeId, MappedTypeModifier, PrimitiveType, TupleElement, TypeExpression,
+    TypeLiteral, TypeMember, TypePredicateSubject,
 };
 use destack_fir::format::FormatResult;
 
@@ -265,16 +265,16 @@ impl<'ast> FormatNode<'ast, TypeExpression> for TypeExpression {
                 write!(f, [token("{")])?;
 
                 match modifiers.readonly {
-                    TypeModifier::Present => {
+                    MappedTypeModifier::Present => {
                         write!(f, [Keyword::Readonly, space()])?;
                     }
-                    TypeModifier::Add => {
+                    MappedTypeModifier::Add => {
                         write!(f, [token("+"), Keyword::Readonly, space()])?;
                     }
-                    TypeModifier::Remove => {
+                    MappedTypeModifier::Remove => {
                         write!(f, [token("-"), Keyword::Readonly, space()])?;
                     }
-                    TypeModifier::None => {}
+                    MappedTypeModifier::None => {}
                 }
 
                 write!(
@@ -296,10 +296,10 @@ impl<'ast> FormatNode<'ast, TypeExpression> for TypeExpression {
                 write!(f, [token("]")])?;
 
                 match modifiers.optional {
-                    TypeModifier::Present => write!(f, [token("?")])?,
-                    TypeModifier::Add => write!(f, [token("+?")])?,
-                    TypeModifier::Remove => write!(f, [token("-?")])?,
-                    TypeModifier::None => {}
+                    MappedTypeModifier::Present => write!(f, [token("?")])?,
+                    MappedTypeModifier::Add => write!(f, [token("+?")])?,
+                    MappedTypeModifier::Remove => write!(f, [token("-?")])?,
+                    MappedTypeModifier::None => {}
                 }
 
                 write!(f, [token(":"), space(), value, token("}")])?;

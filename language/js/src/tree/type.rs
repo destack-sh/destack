@@ -47,7 +47,7 @@ pub enum TypeLiteral {
 
 /// One mapped type modifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum TypeModifier {
+pub enum MappedTypeModifier {
     /// Emit the plain modifier without an explicit sign.
     Present,
     /// Add the modifier with an explicit `+` sign.
@@ -62,9 +62,9 @@ pub enum TypeModifier {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypeMappedModifiers {
     /// The readonly modifier.
-    pub readonly: TypeModifier,
+    pub readonly: MappedTypeModifier,
     /// The optional modifier.
-    pub optional: TypeModifier,
+    pub optional: MappedTypeModifier,
 }
 
 /// One mapped type parameter.
