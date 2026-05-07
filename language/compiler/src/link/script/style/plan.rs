@@ -167,7 +167,7 @@ impl<'a> ScriptLinker<'a> {
         let module = self.module(module_id);
 
         match data.as_ref() {
-            Data::Css(css) => Ok(css.clone()),
+            Data::Css(css) => Ok(css.as_ref().clone()),
             Data::Json(_) | Data::Html(_) => Err(LinkError::InvalidModuleKind {
                 anchor: module_id.into(),
                 package: self.package_id,

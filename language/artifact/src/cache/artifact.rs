@@ -43,8 +43,8 @@ impl<'a> ArtifactImageCache<'a> {
         let image = ArtifactImage::<T>::deserialize(&bytes)?;
         if image.version() != *expected {
             return Err(ArtifactImageError::Version {
-                expected: *expected,
-                found: image.version(),
+                expected: Box::new(*expected),
+                found: Box::new(image.version()),
             });
         }
 
@@ -125,7 +125,9 @@ impl<'a> ArtifactImageCache<'a> {
         let image_path = self.image_path(version)?;
         if let Some(existing_bytes) = self.store.read(&image_path)? {
             if existing_bytes != bytes {
-                return Err(ArtifactImageError::Conflict { version: *version });
+                return Err(ArtifactImageError::Conflict {
+                    version: Box::new(*version),
+                });
             }
 
             return Ok(());
@@ -140,7 +142,9 @@ impl<'a> ArtifactImageCache<'a> {
                     ));
                 };
                 if existing_bytes != bytes {
-                    return Err(ArtifactImageError::Conflict { version: *version });
+                    return Err(ArtifactImageError::Conflict {
+                        version: Box::new(*version),
+                    });
                 }
             }
             Err(error) => return Err(error.into()),
@@ -151,7 +155,8 @@ impl<'a> ArtifactImageCache<'a> {
 
     /// Return the cached image path for one exact header.
     fn image_path(&self, version: &ArtifactVersion) -> Result<PathBuf, ArtifactImageError> {
-        let image_key_bytes = postcard::to_allocvec(version).map_err(ArtifactImageError::Codec)?;
+        let image_key_bytes = postcard::to_allocvec(version)
+            .map_err(|error| ArtifactImageError::Codec(Box::new(error)))?;
         let image_token = artifact_image_token(&image_key_bytes);
         let shard = &image_token[0..2];
 
@@ -172,6 +177,6 @@ fn artifact_image_token(bytes: &[u8]) -> String {
 
 impl From<CacheStoreError> for ArtifactImageError {
     fn from(error: CacheStoreError) -> Self {
-        Self::Cache(error)
+        Self::Cache(Box::new(error))
     }
 }

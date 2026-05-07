@@ -51,7 +51,7 @@ impl Compiler {
             self.emit_diagnostic(context, error)?;
         }
 
-        Ok(ModuleOutput::Binary(artifact))
+        Ok(ModuleOutput::Binary(Box::new(artifact)))
     }
 
     /// Map one binary backend error to a compiler error.

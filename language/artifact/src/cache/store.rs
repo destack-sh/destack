@@ -4,7 +4,7 @@ use std::path::Path;
 #[derive(Debug)]
 pub enum CacheStoreError {
     /// The cache store failed to read or write.
-    Io(std::io::Error),
+    Io(Box<std::io::Error>),
     /// The cache entry already exists.
     AlreadyExists,
 }
@@ -23,7 +23,7 @@ impl std::error::Error for CacheStoreError {}
 
 impl From<std::io::Error> for CacheStoreError {
     fn from(error: std::io::Error) -> Self {
-        CacheStoreError::Io(error)
+        CacheStoreError::Io(Box::new(error))
     }
 }
 
