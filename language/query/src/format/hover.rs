@@ -218,7 +218,7 @@ pub fn format_local_variable_hover(
     let name = name.unwrap_or("<anonymous>");
 
     // resolve the local type when available
-    if let Some(type_id) = types.symbol_type_id(symbols, symbol_id) {
+    if let Some(type_id) = types.declaration_form_id(symbols, symbol_id) {
         let type_text = format_local_type(type_id, types, repository, revision, strings);
         format!("let {name}: {type_text}")
     } else {
@@ -227,20 +227,23 @@ pub fn format_local_variable_hover(
 }
 
 /// Format a simple symbol signature without additional metadata.
-pub fn format_simple_signature(symbol_type: dir::SymbolType, name: Option<&str>) -> String {
+pub fn format_simple_signature(
+    declaration_form: dir::DeclarationForm,
+    name: Option<&str>,
+) -> String {
     // resolve the display name
     let name = name.unwrap_or("<anonymous>");
 
-    match symbol_type {
-        dir::SymbolType::Void => format!("let {name}"),
-        dir::SymbolType::Class => format!("class {name}"),
-        dir::SymbolType::Struct => format!("struct {name}"),
-        dir::SymbolType::Interface => format!("interface {name}"),
-        dir::SymbolType::Enum => format!("enum {name}"),
-        dir::SymbolType::Function => format!("function {name}"),
-        dir::SymbolType::Extension => format!("extension {name}"),
-        dir::SymbolType::TypeAlias => format!("type {name}"),
-        dir::SymbolType::Newtype => format!("newtype {name}"),
+    match declaration_form {
+        dir::DeclarationForm::Void => format!("let {name}"),
+        dir::DeclarationForm::Class => format!("class {name}"),
+        dir::DeclarationForm::Struct => format!("struct {name}"),
+        dir::DeclarationForm::Interface => format!("interface {name}"),
+        dir::DeclarationForm::Enum => format!("enum {name}"),
+        dir::DeclarationForm::Function => format!("function {name}"),
+        dir::DeclarationForm::Extension => format!("extension {name}"),
+        dir::DeclarationForm::TypeAlias => format!("type {name}"),
+        dir::DeclarationForm::Newtype => format!("newtype {name}"),
     }
 }
 

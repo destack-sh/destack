@@ -7,9 +7,11 @@ use destack_source::{FileId, NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 use std::str::FromStr;
 use {destack_ast as ast, destack_dir as dir};
 
-use super::expression::{expression_is_type_position, resolve_expression_symbol};
-use super::namespace::{resolve_namespace_receiver_symbol, resolve_path_segment_symbol};
-use super::nominal::resolve_member_access_symbol;
+use super::expression::{
+    dependency_symbol_target, expression_is_type_position, expression_symbol_target,
+};
+use super::namespace::{namespace_receiver_symbol_target, path_segment_symbol_target};
+use super::nominal::member_access_symbol_target;
 use super::symbol::global_symbol;
 use crate::ast::{
     get_module_by_file_id, get_node_tree_main_span, get_node_tree_span, token_at_offset,
@@ -86,10 +88,10 @@ pub(crate) fn binding_symbol_at_offset(
         && let Some(name_span) = get_member_access_name_span(ast, dir, expression_id)
         && offset < name_span.start
     {
-        return resolve_namespace_receiver_symbol(dir, *left);
+        return namespace_receiver_symbol_target(dir, *left);
     }
 
-    resolve_expression_symbol(dir, expression_id)
+    expression_symbol_target(dir, expression_id)
 }
 
 /// Find the symbol referenced at a given offset.
@@ -122,10 +124,7 @@ pub(crate) fn get_path_segment_span(
 ) -> Option<Span> {
     let expression = dir.tree().get::<Expression>(expression_id);
     let path = match expression {
-        Expression::UnresolvedPath { path, .. }
-        | Expression::LocalReference { path, .. }
-        | Expression::ModuleReference { path, .. }
-        | Expression::GlobalReference { path, .. } => path,
+        Expression::Path { path, .. } => path,
         _ => return None,
     };
 
@@ -220,7 +219,7 @@ fn member_access_target_symbol_at_offset(
         && let Some(name_span) = get_member_access_name_span(ast, dir, expression_id)
         && offset < name_span.start
     {
-        return resolve_member_access_symbol(dir, expression_id);
+        return member_access_symbol_target(dir, expression_id);
     }
 
     // otherwise lift the current expression into its enclosing member receiver slot
@@ -243,7 +242,7 @@ fn member_access_target_symbol_at_offset(
         return None;
     }
 
-    resolve_member_access_symbol(dir, parent_expression_id)
+    member_access_symbol_target(dir, parent_expression_id)
 }
 
 /// Resolve a symbol from structural AST and DIR mappings.
@@ -362,7 +361,9 @@ fn find_symbol_at_offset_impl(
                     }
 
                     // use the recorded member target when the cursor is on the member name
-                    if is_member_name_token && let Some(target_symbol) = expr.target_symbol() {
+                    if is_member_name_token
+                        && let Some(target_symbol) = member_access_symbol_target(dir, expr_id)
+                    {
                         let span = get_member_access_name_span(ast, dir, expr_id)
                             .or_else(|| {
                                 token_span_at_offset(
@@ -394,7 +395,7 @@ fn find_symbol_at_offset_impl(
                     {
                         skip_expression_target_symbol = true;
 
-                        if let Some(receiver_symbol) = resolve_namespace_receiver_symbol(dir, *left)
+                        if let Some(receiver_symbol) = namespace_receiver_symbol_target(dir, *left)
                         {
                             let member_span = get_node_tree_span(ast, dir.tree(), dir_node_id);
                             let receiver_end = name_span.start.saturating_sub(1);
@@ -418,7 +419,7 @@ fn find_symbol_at_offset_impl(
                     let left_span = get_node_tree_span(ast, dir.tree(), (*left).into());
                     if offset >= left_span.start
                         && offset <= left_span.end
-                        && let Some(target_symbol) = resolve_namespace_receiver_symbol(dir, *left)
+                        && let Some(target_symbol) = namespace_receiver_symbol_target(dir, *left)
                     {
                         return Some(SymbolAtOffset {
                             symbol_id: target_symbol,
@@ -433,7 +434,7 @@ fn find_symbol_at_offset_impl(
                 }
 
                 if !skip_expression_target_symbol
-                    && let Some(target_symbol) = resolve_expression_symbol(dir, expr_id)
+                    && let Some(target_symbol) = expression_symbol_target(dir, expr_id)
                 {
                     let span = get_node_tree_main_span(ast, dir.tree(), dir_node_id);
                     if !offset_matches_symbol_span(offset, span) {
@@ -586,7 +587,8 @@ fn find_symbol_at_offset_impl(
                     .get_side_span_by_id(ast_node_id, NodeSpanType::Region(NodeSpanRegion::Type))
                     .map(|span| Span::new(ast.file_id(), span.start, span.end))
                     && offset_matches_symbol_span(offset, name_side_span)
-                    && let Some(symbol_id) = item.target_symbol()
+                    && let Ok(item_id) = dir_node_id.try_into_typed::<DependencyItem>()
+                    && let Some(symbol_id) = dependency_symbol_target(dir, item_id)
                 {
                     return Some(SymbolAtOffset {
                         symbol_id,
@@ -625,7 +627,7 @@ fn find_symbol_at_offset_impl(
     None
 }
 
-/// Resolve one plain path segment symbol when the cursor is on that segment.
+/// Return one plain path segment symbol when the cursor is on that segment.
 fn path_segment_symbol_at_offset(
     ast: AstQueryContext<'_>,
     dir: DirQueryContext<'_>,
@@ -643,7 +645,7 @@ fn path_segment_symbol_at_offset(
             continue;
         }
 
-        let symbol_id = resolve_path_segment_symbol(dir, expression_id, segment_index)?;
+        let symbol_id = path_segment_symbol_target(dir, expression_id, segment_index)?;
         return Some(SymbolAtOffset {
             symbol_id,
             node_id: expression_id.into(),
@@ -677,8 +679,8 @@ fn type_expression_symbol_at_offset(
 
         let expression = dir_tree.get::<Expression>(expression_id);
         let symbol_id = match expression {
-            Expression::Member { .. } => resolve_member_access_symbol(dir, expression_id),
-            _ => resolve_expression_symbol(dir, expression_id),
+            Expression::Member { .. } => member_access_symbol_target(dir, expression_id),
+            _ => expression_symbol_target(dir, expression_id),
         }?;
 
         let span = match expression {
@@ -701,10 +703,7 @@ fn type_expression_symbol_at_offset(
 /// Return the number of segments in one plain path expression.
 fn path_segment_count(expression: &Expression) -> Option<usize> {
     let path = match expression {
-        Expression::UnresolvedPath { path, .. }
-        | Expression::LocalReference { path, .. }
-        | Expression::ModuleReference { path, .. }
-        | Expression::GlobalReference { path, .. } => path,
+        Expression::Path { path, .. } => path,
         _ => return None,
     };
 
@@ -934,8 +933,8 @@ fn pattern_symbol_at_offset(
             None
         }
         Pattern::Must(inner)
-        | Pattern::ReferenceOf { right: inner, .. }
-        | Pattern::ValueOf { right: inner, .. } => {
+        | Pattern::BorrowOf { right: inner, .. }
+        | Pattern::MoveOf { right: inner, .. } => {
             pattern_symbol_at_offset(repository, ast, dir, dir_tree, *inner, offset)
         }
         Pattern::TypeExpression { .. } => None,
@@ -978,7 +977,7 @@ fn offset_matches_symbol_span(offset: u32, span: Span) -> bool {
     offset.saturating_add(1) >= span.start && offset < span.end
 }
 
-/// Resolve a member access symbol when the cursor is on the member name.
+/// Return a member access symbol when the cursor is on the member name.
 fn member_symbol_at_offset(
     repository: &Repository,
     ast: AstQueryContext<'_>,
@@ -1000,7 +999,7 @@ fn member_symbol_at_offset(
     if let Some(token_span) = token_span {
         let token_name = source_file.span_str(token_span);
         if member_name == token_name {
-            let symbol_id = resolve_member_access_symbol(dir, expr_id)?;
+            let symbol_id = member_access_symbol_target(dir, expr_id)?;
 
             return Some(SymbolAtOffset {
                 symbol_id,
@@ -1020,7 +1019,7 @@ fn member_symbol_at_offset(
         return None;
     }
 
-    let symbol_id = resolve_member_access_symbol(dir, expr_id)?;
+    let symbol_id = member_access_symbol_target(dir, expr_id)?;
     Some(SymbolAtOffset {
         symbol_id,
         node_id,

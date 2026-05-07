@@ -138,26 +138,72 @@ fn document_links_with_dir(
         let mut links = Vec::new();
         for (expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
             match expr {
-                Expression::Import {
-                    target,
-                    target_module,
-                    ..
-                }
-                | Expression::ReExport {
-                    target,
-                    target_module,
-                    ..
-                } => {
+                Expression::Import { target, space, .. } => {
+                    let dir::ImportTarget::String(target) = target else {
+                        continue;
+                    };
+
                     // skip module bindings for document links
-                    let dir::ModuleTarget::Module(target_module_id) = target_module else {
+                    let node_id = expr_id.into_global_any(ctx.module_id());
+                    let Some(dir::DependencyResolution::Module(resolution)) =
+                        ctx.dir().types().dependency_resolution(node_id)
+                    else {
+                        continue;
+                    };
+                    let Some(dir::ModuleTarget::Module(target_module_id)) =
+                        resolution.for_space(*space)
+                    else {
                         continue;
                     };
 
                     // get the target module's file path
-                    let Some(target_module) = repository
-                        .module(revision, *target_module_id)
-                        .ok()
-                        .flatten()
+                    let Some(target_module) =
+                        repository.module(revision, target_module_id).ok().flatten()
+                    else {
+                        continue;
+                    };
+                    let Some(ref path) = target_module.path else {
+                        continue;
+                    };
+
+                    // get the span of this import expression
+                    let enclosing =
+                        main_or_enclosing_span_for_dir_node(ctx.ast(), dir_tree, expr_id.into());
+                    let Some(file) = repository.file(revision, ctx.file_id()).ok().flatten() else {
+                        continue;
+                    };
+                    let import_path = ctx.dir().strings().get(*target).to_string();
+                    let span = string_literal_span_in_enclosing(
+                        &file,
+                        ctx.ast().tokens(),
+                        enclosing,
+                        &import_path,
+                    )
+                    .unwrap_or(enclosing);
+
+                    // make the link
+                    links.push(
+                        DocumentLink::file(span, path.to_string_lossy().to_string())
+                            .with_tooltip(format!("Go to {import_path}")),
+                    );
+                }
+                Expression::ReExport { target, space, .. } => {
+                    // skip module bindings for document links
+                    let node_id = expr_id.into_global_any(ctx.module_id());
+                    let Some(dir::DependencyResolution::Module(resolution)) =
+                        ctx.dir().types().dependency_resolution(node_id)
+                    else {
+                        continue;
+                    };
+                    let Some(dir::ModuleTarget::Module(target_module_id)) =
+                        resolution.for_space(*space)
+                    else {
+                        continue;
+                    };
+
+                    // get the target module's file path
+                    let Some(target_module) =
+                        repository.module(revision, target_module_id).ok().flatten()
                     else {
                         continue;
                     };

@@ -523,7 +523,7 @@ fn is_type_declaration_value_position(
     // resolve the previous offset for span checks
     let previous_offset = offset.saturating_sub(1);
 
-    // scan enclosing declarations for type values
+    // scan enclosing declarations for type and value declarations
     for enc in enclosing {
         if ast.tree().get_node_type(enc.idx) != ast::NodeType::Declaration {
             continue;

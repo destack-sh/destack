@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use destack_dir::{GlobalSymbolId, SymbolType};
+use destack_dir::{DeclarationForm, GlobalSymbolId};
 use destack_source::{FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
@@ -118,7 +118,7 @@ pub fn prepare_call_hierarchy(
         let symbol = symbols.get_symbol(canonical_id.local_id);
 
         // check if it's a function
-        if symbol.ty != SymbolType::Function {
+        if symbol.form != DeclarationForm::Function {
             return None;
         }
 
@@ -217,7 +217,7 @@ pub fn outgoing_calls(
         let is_function = {
             let target_symbols = target_ctx.dir().symbols();
             let target_symbol = target_symbols.get_symbol(target_symbol_id.local_id);
-            target_symbol.ty == SymbolType::Function
+            target_symbol.form == DeclarationForm::Function
         };
         if !is_function {
             continue;
@@ -276,7 +276,7 @@ fn call_hierarchy_item_from_symbol(
     let name = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
-        if symbol.ty != SymbolType::Function {
+        if symbol.form != DeclarationForm::Function {
             return None;
         }
         resolve_symbol_name(repository, revision, canonical_id)?

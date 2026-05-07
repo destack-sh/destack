@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    AmbientEnvironment, ArtifactKey, ArtifactPin, ArtifactVersion, Ast, DirChecked, DirDeclared,
-    DirExported,
+    ArtifactKey, ArtifactPin, ArtifactVersion, Ast, DirChecked, DirDeclared, DirExported,
+    GlobalEnvironment,
 };
 use destack_ast as ast;
 use destack_core::StringPool;
@@ -207,15 +207,15 @@ impl QueryContext {
         }
     }
 
-    /// Return the ambient environment for this query profile.
-    pub(crate) fn ambient_environment(
+    /// Return the global environment for this query profile.
+    pub(crate) fn global_environment(
         &self,
         repository: &Repository,
-    ) -> Option<Arc<AmbientEnvironment>> {
-        let key = ArtifactKey::ambient_environment(self.profile_id);
+    ) -> Option<Arc<GlobalEnvironment>> {
+        let key = ArtifactKey::global_environment(self.profile_id);
         let version = artifact_version(repository, self.revision, key)?;
 
-        repository.artifact_store().ambient_environment(&version)
+        repository.artifact_store().global_environment(&version)
     }
 }
 

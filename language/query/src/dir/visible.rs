@@ -24,7 +24,7 @@ pub(crate) struct VisibleSymbol<'a> {
 /// * `symbols` - The symbol table
 /// * `scope_id` - Starting scope id
 /// * `mark` - Scope mark (position within the scope)
-/// * `space_filter` - Optional filter for symbol space (Value, Type, or TypeValue)
+/// * `space_filter` - Optional filter for symbol space.
 pub(crate) fn visible_symbols<'a>(
     symbols: &'a SymbolTable,
     scope_id: LocalScopeId,
@@ -68,14 +68,10 @@ impl<'a> Iterator for VisibleSymbolIterator<'a> {
 
                 let symbol = self.symbols.get_symbol(symbol_id);
 
-                // skip inactive symbols
-                if !symbol.is_active {
-                    continue;
-                }
-
                 // filter by space if requested
                 if let Some(space) = self.space_filter {
-                    let matches = matches_symbol_space_filter(symbol.ty, symbol.space, Some(space));
+                    let matches =
+                        matches_symbol_space_filter(symbol.form, symbol.space, Some(space));
                     if !matches {
                         continue;
                     }

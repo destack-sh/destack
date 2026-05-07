@@ -389,7 +389,7 @@ fn scope_mark_at_offset(
 
     for (index, (_, symbol_id)) in scope.named_symbols.iter().enumerate() {
         let symbol = symbols.get_symbol(*symbol_id);
-        let Some(declaration) = symbol.primary_declaration else {
+        let Some(declaration) = symbol.declaration else {
             mark_index = (index + 1) as u32;
             continue;
         };
@@ -419,7 +419,7 @@ fn owned_scope_for_declaration_id(
         };
 
         let owner = symbols.get_symbol(owner_id);
-        let Some(declaration) = owner.primary_declaration else {
+        let Some(declaration) = owner.declaration else {
             continue;
         };
 
@@ -443,7 +443,7 @@ fn owned_scope_for_ast_declaration_id(
         };
 
         let owner = symbols.get_symbol(owner_id);
-        let Some(declaration) = owner.primary_declaration else {
+        let Some(declaration) = owner.declaration else {
             continue;
         };
 

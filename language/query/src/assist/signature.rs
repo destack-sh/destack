@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::ast::span_for_dir_node;
 use crate::core::{QueryContext, query_context, with_query_context_for_file};
 use crate::dir::{
-    ParameterData, doc_text_for_node_without_tags, parameter_data_for_symbol, resolve_call_target,
+    ParameterData, call_target, doc_text_for_node_without_tags, parameter_data_for_symbol,
 };
 use crate::format::format_call_signature;
 
@@ -160,14 +160,14 @@ pub fn signature_help(
                 left, arguments, ..
             } = expression
             {
-                // resolve the call target symbol and name
-                let call_target = resolve_call_target(repository, ctx.dir(), *left);
+                // read the call target symbol and name
+                let call_target = call_target(repository, ctx.dir(), *left);
                 let function_name = call_target.name.unwrap_or_else(|| "<function>".to_string());
                 let Some(symbol_id) = call_target.symbol else {
                     continue;
                 };
 
-                // build signature info from the resolved symbol
+                // build signature info from the target symbol
                 let Some(signature) =
                     build_signature_info(repository, revision, &function_name, symbol_id)
                 else {
@@ -224,11 +224,11 @@ fn signature_info_for_symbol(
     // read the symbol's module and query context
     let ctx = query_context(repository, revision, symbol_id.module_id)?;
 
-    // resolve the symbol declaration
+    // read the symbol declaration
     let declaration_ref = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.primary_declaration?
+        symbol.declaration?
     };
 
     // resolve the source text for doc parsing

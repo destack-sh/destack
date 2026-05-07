@@ -12,10 +12,10 @@ pub(crate) fn container_name_for_symbol(
     revision: Revision,
     symbol_id: GlobalSymbolId,
 ) -> Option<String> {
-    // resolve the module query context
+    // read the module query context
     let ctx = query_context(repository, revision, symbol_id.module_id)?;
 
-    // resolve the symbol scope owner
+    // read the symbol scope owner
     let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
     let scope = symbols.get_scope_by_id(symbol.scope.0);

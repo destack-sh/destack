@@ -3,8 +3,8 @@ use {destack_ast as ast, destack_dir as dir};
 
 use crate::core::{AstQueryContext, DirQueryContext};
 
-/// Resolve the best symbol for an expression from DIR data.
-pub(crate) fn resolve_expression_symbol(
+/// Return the recorded symbol target for one expression.
+pub(crate) fn expression_symbol_target(
     dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<GlobalSymbolId> {
@@ -13,9 +13,40 @@ pub(crate) fn resolve_expression_symbol(
 
     match expression {
         // preserve the underlying symbol through wrappers
-        Expression::Parenthesized { expression } => resolve_expression_symbol(dir, *expression),
-        _ => expression.target_symbol(),
+        Expression::Parenthesized { expression } => expression_symbol_target(dir, *expression),
+        _ => {
+            let node_id = expression_id.into_global_any(dir.module_id());
+            let resolution = dir.types().symbol_resolution(node_id)?;
+
+            match resolution {
+                dir::SymbolResolution::Target(symbol_id) => Some(*symbol_id),
+                dir::SymbolResolution::Candidates(_) => None,
+            }
+        }
     }
+}
+
+/// Return the recorded symbol target for one dependency item.
+pub(crate) fn dependency_symbol_target(
+    dir: DirQueryContext<'_>,
+    item_id: dir::LocalNodeId<dir::DependencyItem>,
+) -> Option<GlobalSymbolId> {
+    let node_id = item_id.into_global_any(dir.module_id());
+    let resolution = dir.types().dependency_resolution(node_id)?;
+
+    match resolution {
+        dir::DependencyResolution::Binding(symbol_id) => Some(*symbol_id),
+        dir::DependencyResolution::Module(_) => None,
+    }
+}
+
+/// Return the local symbol introduced by one dependency item.
+pub(crate) fn dependency_local_symbol(
+    dir: DirQueryContext<'_>,
+    item: &dir::DependencyItem,
+) -> Option<GlobalSymbolId> {
+    item.symbol()
+        .map(|symbol_id| GlobalSymbolId::new(dir.module_id(), symbol_id))
 }
 
 /// Check whether an expression is used in a type position.

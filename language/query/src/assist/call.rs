@@ -8,9 +8,8 @@ use crate::ast::{
 };
 use crate::core::{AstQueryContext, DirQueryContext};
 use crate::dir::{
-    ExpectedParameterHint, ScopeAtOffset, block_scope_at_offset,
-    expected_parameter_hint_for_symbol, expression_scope_at_offset, resolve_call_target,
-    scope_at_offset,
+    ExpectedParameterHint, ScopeAtOffset, block_scope_at_offset, call_target,
+    expected_parameter_hint_for_symbol, expression_scope_at_offset, scope_at_offset,
 };
 
 use super::CompletionContext;
@@ -300,7 +299,7 @@ fn expected_parameter_hint(
     left_expression_id: dir::LocalNodeId<dir::Expression>,
     parameter_index: usize,
 ) -> Option<ExpectedParameterHint> {
-    let target = resolve_call_target(repository, dir, left_expression_id);
+    let target = call_target(repository, dir, left_expression_id);
     let symbol_id = target.symbol?;
 
     expected_parameter_hint_for_symbol(repository, dir.revision(), symbol_id, parameter_index)

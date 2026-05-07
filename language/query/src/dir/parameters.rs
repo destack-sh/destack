@@ -6,7 +6,7 @@ use destack_dir::{
 };
 use destack_workspace::{Repository, Revision};
 
-use crate::core::{AstQueryContext, query_context};
+use crate::core::{AstQueryContext, QueryContext, query_context};
 
 use super::{doc_strings_for_node_or_enclosing, get_canonical_symbol, parse_param_docs};
 
@@ -93,14 +93,14 @@ pub(crate) fn parameter_data_for_symbol(
 /// Collect parameter names and docs from one ready query context.
 fn parameter_data_for_symbol_with_context(
     repository: &Repository,
-    ctx: crate::core::QueryContext,
+    ctx: QueryContext,
     symbol_id: GlobalSymbolId,
 ) -> Option<ParameterData> {
-    // resolve the symbol and its primary declaration
+    // read the symbol declaration
     let global_node_id = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.primary_declaration?
+        symbol.declaration?
     };
 
     // resolve the source text for doc parsing
@@ -160,11 +160,11 @@ pub(crate) fn expected_parameter_hint_for_symbol(
     // read the target module and build a query context
     let ctx = query_context(repository, revision, symbol_id.module_id)?;
 
-    // resolve the symbol and its primary declaration
+    // read the symbol declaration
     let global_node_id = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.primary_declaration?
+        symbol.declaration?
     };
 
     // resolve the parameters for the declaration
@@ -262,13 +262,14 @@ fn collect_expected_type_symbols_inner(
     let ty = types.get_type(type_id);
 
     // direct nominal references
-    if let destack_dir::Type::Reference { symbol, .. } = ty {
-        let canonical_symbol = get_canonical_symbol(repository, revision, *symbol);
+    if let destack_dir::Type::Reference(reference) = ty {
+        let symbol = reference.symbol;
+        let canonical_symbol = get_canonical_symbol(repository, revision, symbol);
         if seen_symbols.insert(canonical_symbol) {
             symbols.push(canonical_symbol);
         }
 
-        if let Some(target_type_id) = types.get_alias_target_type_id(*symbol) {
+        if let Some(target_type_id) = types.get_alias_target_type_id(symbol) {
             collect_expected_type_symbols_inner(
                 repository,
                 revision,
@@ -285,8 +286,8 @@ fn collect_expected_type_symbols_inner(
 
     // nominal combinations
     match ty {
-        destack_dir::Type::Union { elements } | destack_dir::Type::Intersection { elements } => {
-            for &element_id in elements {
+        destack_dir::Type::Union(union) => {
+            for &element_id in &union.elements {
                 collect_expected_type_symbols_inner(
                     repository,
                     revision,
@@ -298,12 +299,25 @@ fn collect_expected_type_symbols_inner(
                 );
             }
         }
-        destack_dir::Type::Value { value } => {
+        destack_dir::Type::Intersection(intersection) => {
+            for &element_id in &intersection.elements {
+                collect_expected_type_symbols_inner(
+                    repository,
+                    revision,
+                    types,
+                    element_id,
+                    seen_types,
+                    seen_symbols,
+                    symbols,
+                );
+            }
+        }
+        destack_dir::Type::Value(value) => {
             collect_expected_type_symbols_inner(
                 repository,
                 revision,
                 types,
-                *value,
+                value.value,
                 seen_types,
                 seen_symbols,
                 symbols,
@@ -338,14 +352,10 @@ fn expected_value_shape(types: &destack_dir::TypeTable, type_id: LocalTypeId) ->
     let ty = types.get_type(type_id);
 
     match ty {
-        destack_dir::Type::Function { .. } => (true, false),
-        destack_dir::Type::Object {
-            call_signatures,
-            construct_signatures,
-            ..
-        } => (
-            !call_signatures.is_empty(),
-            !construct_signatures.is_empty(),
+        destack_dir::Type::Function(_) => (true, false),
+        destack_dir::Type::Object(object) => (
+            !object.call_signatures.is_empty(),
+            !object.construct_signatures.is_empty(),
         ),
         _ => (false, false),
     }

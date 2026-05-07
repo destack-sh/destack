@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::ast::get_module_by_file_id;
 use crate::core::query_context;
-use crate::dir::{declaration_export, declaration_is_abstract};
+use crate::dir::{
+    declaration_export, declaration_is_abstract, dependency_symbol_target, expression_symbol_target,
+};
 
 /// Semantic token type for LSP semantic highlighting.
 ///
@@ -315,9 +317,10 @@ pub fn semantic_tokens(
 
         match expression {
             // symbol references - look up the symbol to determine type
-            dir::Expression::GlobalReference { target_symbol, .. }
-            | dir::Expression::LocalReference { target_symbol, .. }
-            | dir::Expression::ModuleReference { target_symbol, .. } => {
+            dir::Expression::Path { .. } => {
+                let Some(target_symbol) = expression_symbol_target(ctx.dir(), expression_id) else {
+                    continue;
+                };
                 let Some(target_ctx) = query_context(repository, revision, target_symbol.module_id)
                 else {
                     continue;
@@ -325,7 +328,7 @@ pub fn semantic_tokens(
                 let target_symbols = target_ctx.dir().symbols();
                 let symbol = target_symbols.get_symbol(target_symbol.local_id);
 
-                let token_type = symbol_type_to_token_type(symbol.ty);
+                let token_type = declaration_form_to_token_type(symbol.form);
                 tokens.push(SemanticToken::new(span, token_type));
             }
 
@@ -513,7 +516,7 @@ pub fn semantic_tokens(
     }
 
     // collect dependency item tokens (imports/exports)
-    for (item_id, item) in dir_tree.iter_nodes_of_type::<dir::DependencyItem>() {
+    for (item_id, _) in dir_tree.iter_nodes_of_type::<dir::DependencyItem>() {
         let ast_node_id = dir_tree.get_source(item_id.id);
 
         // get the local binding name span
@@ -526,15 +529,14 @@ pub fn semantic_tokens(
         };
 
         // determine token type based on what we're importing
-        let token_type = match item {
-            dir::DependencyItem::Local { target_symbol, .. }
-            | dir::DependencyItem::Remote { target_symbol, .. } => {
+        let token_type = match dependency_symbol_target(ctx.dir(), item_id) {
+            Some(target_symbol) => {
                 if let Some(target_ctx) =
                     query_context(repository, revision, target_symbol.module_id)
                 {
                     let target_symbols = target_ctx.dir().symbols();
                     let symbol = target_symbols.get_symbol(target_symbol.local_id);
-                    symbol_type_to_token_type(symbol.ty)
+                    declaration_form_to_token_type(symbol.form)
                 } else {
                     SemanticTokenType::Variable
                 }
@@ -613,18 +615,18 @@ fn parameter_is_readonly(parameter: &dir::Parameter) -> bool {
     }
 }
 
-/// Map SymbolType to SemanticTokenType.
-fn symbol_type_to_token_type(symbol_type: dir::SymbolType) -> SemanticTokenType {
-    match symbol_type {
-        dir::SymbolType::Void => SemanticTokenType::Variable,
-        dir::SymbolType::Class => SemanticTokenType::Class,
-        dir::SymbolType::Struct => SemanticTokenType::Struct,
-        dir::SymbolType::Interface => SemanticTokenType::Interface,
-        dir::SymbolType::Enum => SemanticTokenType::Enum,
-        dir::SymbolType::Function => SemanticTokenType::Function,
-        dir::SymbolType::Extension => SemanticTokenType::Type,
-        dir::SymbolType::TypeAlias => SemanticTokenType::Type,
-        dir::SymbolType::Newtype => SemanticTokenType::Type,
+/// Map DeclarationForm to SemanticTokenType.
+fn declaration_form_to_token_type(declaration_form: dir::DeclarationForm) -> SemanticTokenType {
+    match declaration_form {
+        dir::DeclarationForm::Void => SemanticTokenType::Variable,
+        dir::DeclarationForm::Class => SemanticTokenType::Class,
+        dir::DeclarationForm::Struct => SemanticTokenType::Struct,
+        dir::DeclarationForm::Interface => SemanticTokenType::Interface,
+        dir::DeclarationForm::Enum => SemanticTokenType::Enum,
+        dir::DeclarationForm::Function => SemanticTokenType::Function,
+        dir::DeclarationForm::Extension => SemanticTokenType::Type,
+        dir::DeclarationForm::TypeAlias => SemanticTokenType::Type,
+        dir::DeclarationForm::Newtype => SemanticTokenType::Type,
     }
 }
 

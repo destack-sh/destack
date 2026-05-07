@@ -6,12 +6,12 @@ use destack_ast::{
 };
 use destack_core::StringId;
 use destack_dir::{
-    Declaration, DependencyBinding as DirDependencyBinding, DependencyItem as DirDependencyItem,
-    LocalNodeId, LocalSymbolId, NodeType, SymbolSpace, SymbolType,
+    Declaration, DeclarationForm, DependencyBinding as DirDependencyBinding,
+    DependencyItem as DirDependencyItem, LocalNodeId, LocalSymbolId, NodeType, SymbolSpace,
 };
-use destack_source::{Edit, FileId, LanguageType, PathExt, Span};
+use destack_source::{Edit, FileId, PathExt, Span};
 
-use super::get_canonical_symbol;
+use super::{dependency_symbol_target, get_canonical_symbol};
 use crate::ast::get_module_by_file_id;
 use crate::core::path::{normalize_separators, relative_path};
 use crate::core::{AstQueryContext, DirQueryContext, modules_referencing_symbol, query_context};
@@ -58,21 +58,21 @@ fn dependency_item_binding(item: &DependencyItem) -> Option<AstDependencyBinding
 }
 
 /// Check whether a symbol type participates in the type namespace.
-pub(crate) fn is_type_symbol(symbol_type: SymbolType) -> bool {
+pub(crate) fn is_type_symbol(declaration_form: DeclarationForm) -> bool {
     matches!(
-        symbol_type,
-        SymbolType::Class
-            | SymbolType::Struct
-            | SymbolType::Interface
-            | SymbolType::Enum
-            | SymbolType::TypeAlias
-            | SymbolType::Newtype
+        declaration_form,
+        DeclarationForm::Class
+            | DeclarationForm::Struct
+            | DeclarationForm::Interface
+            | DeclarationForm::Enum
+            | DeclarationForm::TypeAlias
+            | DeclarationForm::Newtype
     )
 }
 
 /// Check whether a symbol matches a requested symbol space filter.
 pub(crate) fn matches_symbol_space_filter(
-    symbol_type: SymbolType,
+    declaration_form: DeclarationForm,
     symbol_space: SymbolSpace,
     filter: Option<SymbolSpace>,
 ) -> bool {
@@ -83,20 +83,16 @@ pub(crate) fn matches_symbol_space_filter(
     match filter {
         SymbolSpace::Type => match symbol_space {
             SymbolSpace::Type => true,
-            SymbolSpace::TypeValue => true,
-            _ => is_type_symbol(symbol_type),
+            _ => is_type_symbol(declaration_form),
         },
-        SymbolSpace::Value => {
-            symbol_space == SymbolSpace::Value || symbol_space == SymbolSpace::TypeValue
-        }
-        SymbolSpace::TypeValue => symbol_space == SymbolSpace::TypeValue,
+        SymbolSpace::Value => symbol_space == SymbolSpace::Value,
         SymbolSpace::Label => symbol_space == SymbolSpace::Label,
     }
 }
 
 /// Check whether a symbol matches an explicit import-clause space filter.
 pub(crate) fn matches_import_clause_space_filter(
-    symbol_type: SymbolType,
+    declaration_form: DeclarationForm,
     symbol_space: SymbolSpace,
     filter: Option<SymbolSpace>,
 ) -> bool {
@@ -105,8 +101,8 @@ pub(crate) fn matches_import_clause_space_filter(
     };
 
     match filter {
-        SymbolSpace::Type => symbol_space == SymbolSpace::Type || is_type_symbol(symbol_type),
-        _ => matches_symbol_space_filter(symbol_type, symbol_space, Some(filter)),
+        SymbolSpace::Type => symbol_space == SymbolSpace::Type || is_type_symbol(declaration_form),
+        _ => matches_symbol_space_filter(declaration_form, symbol_space, Some(filter)),
     }
 }
 
@@ -127,11 +123,11 @@ pub(crate) fn resolve_local_import_alias_name(
     // resolve query context for the symbol module
     let ctx = query_context(repository, revision, symbol_id.module_id)?;
 
-    // resolve the symbol declaration and support declaration/import forms
+    // read the symbol declaration and support declaration/import forms
     let declaration = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.primary_declaration?
+        symbol.declaration?
     };
     if declaration.local_id.ty == NodeType::Declaration {
         let declaration_id: LocalNodeId<Declaration> = declaration.local_id.try_into().ok()?;
@@ -203,11 +199,11 @@ pub(crate) fn is_dependency_alias_for_target(
     symbol_id: dir::GlobalSymbolId,
     canonical_target: dir::GlobalSymbolId,
 ) -> bool {
-    // resolve the symbol's primary declaration
+    // read the symbol declaration
     let declaration = {
         let symbols = dir.symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.primary_declaration
+        symbol.declaration
     };
     let Some(declaration) = declaration else {
         return false;
@@ -227,19 +223,8 @@ pub(crate) fn is_dependency_alias_for_target(
     // check for an alias that targets the canonical symbol
     let dir_tree = dir.tree();
     let item = dir_tree.get::<DirDependencyItem>(item_id);
-    let (alias, target_symbol, binding) = match item {
-        DirDependencyItem::Local {
-            alias,
-            target_symbol,
-            binding,
-            ..
-        }
-        | DirDependencyItem::Remote {
-            alias,
-            target_symbol,
-            binding,
-            ..
-        } => (alias, target_symbol, binding),
+    let (alias, binding) = match item {
+        DirDependencyItem::Item { alias, binding, .. } => (alias, binding),
         _ => return false,
     };
 
@@ -254,7 +239,10 @@ pub(crate) fn is_dependency_alias_for_target(
     }
 
     // compare canonical targets
-    let target_canonical = get_canonical_symbol(repository, dir.revision(), *target_symbol);
+    let Some(target_symbol) = dependency_symbol_target(dir, item_id) else {
+        return false;
+    };
+    let target_canonical = get_canonical_symbol(repository, dir.revision(), target_symbol);
     target_canonical == canonical_target
 }
 
@@ -266,7 +254,7 @@ fn local_default_import_alias_name_in_context(
     let declaration = {
         let symbols = dir.symbols();
         let symbol = symbols.get_symbol(local_symbol_id);
-        symbol.primary_declaration?
+        symbol.declaration?
     };
 
     if declaration.local_id.ty != NodeType::DependencyItem {
@@ -286,13 +274,7 @@ fn dependency_item_local_import_alias_name(
 ) -> Option<destack_core::StringId> {
     match item {
         // default imports: use the local binding name
-        DirDependencyItem::Remote {
-            binding,
-            name,
-            alias,
-            ..
-        }
-        | DirDependencyItem::UnresolvedRemote {
+        DirDependencyItem::Item {
             binding,
             name,
             alias,
@@ -306,13 +288,6 @@ fn dependency_item_local_import_alias_name(
         }
 
         // local dependency items are not import aliases
-        DirDependencyItem::Local { binding, alias, .. } => {
-            if *binding == DirDependencyBinding::Default {
-                None
-            } else {
-                *alias
-            }
-        }
         _ => None,
     }
 }
@@ -322,8 +297,7 @@ fn dependency_item_default_import_alias_name(
     item: &DirDependencyItem,
 ) -> Option<destack_core::StringId> {
     match item {
-        DirDependencyItem::Remote { binding, name, .. }
-        | DirDependencyItem::UnresolvedRemote { binding, name, .. } => {
+        DirDependencyItem::Item { binding, name, .. } => {
             if *binding != DirDependencyBinding::Default {
                 return None;
             }
@@ -416,17 +390,12 @@ impl ImportEditSpace {
     pub(crate) fn for_auto_import(
         requested_space: Option<destack_dir::SymbolSpace>,
         symbol_space: destack_dir::SymbolSpace,
-        language_type: LanguageType,
     ) -> Self {
         if requested_space != Some(destack_dir::SymbolSpace::Type) {
             return Self::Value;
         }
 
         if symbol_space == destack_dir::SymbolSpace::Type {
-            return Self::Type;
-        }
-
-        if symbol_space == destack_dir::SymbolSpace::TypeValue && !language_type.is_destack() {
             return Self::Type;
         }
 

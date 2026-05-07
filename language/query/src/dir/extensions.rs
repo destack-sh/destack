@@ -73,6 +73,6 @@ fn extension_is_visible(extension: &Extension, current_module_id: ModuleId) -> b
     match extension.kind {
         ExtensionKind::Inherent => true,
         ExtensionKind::Local => extension.symbol.module_id == current_module_id,
-        ExtensionKind::Nominal => true,
+        ExtensionKind::Named => true,
     }
 }

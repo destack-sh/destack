@@ -1,5 +1,5 @@
 use destack_ast as ast;
-use destack_dir::{self as dir, GlobalSymbolId, SymbolType};
+use destack_dir::{self as dir, DeclarationForm, GlobalSymbolId};
 use destack_source::{FileId, NodeSpanType, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
@@ -172,21 +172,22 @@ pub fn code_lenses(repository: &Repository, revision: Revision, file: FileId) ->
                         .get_side_span_by_id(ast_node_id, NodeSpanType::Main);
                     let name = resolve_symbol_name(repository, revision, global_symbol_id);
                     let is_test = has_decorator_named(ast, ast_node_id, "test");
-                    let symbol_type = symbols.get_symbol(symbol_id).ty;
+                    let declaration_form = symbols.get_symbol(symbol_id).form;
                     (
                         decl.clone(),
                         global_symbol_id,
                         main_span,
                         is_test,
                         name,
-                        symbol_type,
+                        declaration_form,
                     )
                 },
             )
             .collect()
     };
 
-    for (declaration, global_symbol_id, main_span, is_test, name, symbol_type) in declarations {
+    for (declaration, global_symbol_id, main_span, is_test, name, declaration_form) in declarations
+    {
         let Some(span) = main_span else {
             continue;
         };
@@ -207,7 +208,7 @@ pub fn code_lenses(repository: &Repository, revision: Revision, file: FileId) ->
         }
 
         // count implementations for interfaces
-        if symbol_type == SymbolType::Interface {
+        if declaration_form == DeclarationForm::Interface {
             let impl_count = count_implementations(repository, revision, global_symbol_id);
             if impl_count > 0 {
                 lenses.push(CodeLens::implementations(span, impl_count));
@@ -215,7 +216,7 @@ pub fn code_lenses(repository: &Repository, revision: Revision, file: FileId) ->
         }
 
         // count subclasses for classes
-        if symbol_type == SymbolType::Class {
+        if declaration_form == DeclarationForm::Class {
             let subclass_count = count_subclasses(repository, revision, global_symbol_id);
             if subclass_count > 0 {
                 lenses.push(CodeLens::implementations(span, subclass_count));
@@ -391,6 +392,6 @@ fn decorator_name_id(
 ///
 /// Some lenses defer computation until the user hovers/clicks.
 pub fn resolve_code_lens(lens: &CodeLens) -> CodeLens {
-    // lenses are resolved eagerly for now, keep this hook for deferred work
+    // lenses are resolved eagerly
     lens.clone()
 }

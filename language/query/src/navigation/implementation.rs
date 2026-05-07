@@ -1,8 +1,6 @@
 use std::collections::HashSet;
 
-use destack_dir::{
-    DependencyItem, Expression, GlobalSymbolId, LocalNodeIdAny, NodeType, SymbolType,
-};
+use destack_dir::{DeclarationForm, Expression, GlobalSymbolId, LocalNodeIdAny, NodeType};
 use destack_source::{FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
@@ -12,8 +10,8 @@ use crate::core::{
     NominalRelation, nominal_relations_for_target, query_context, with_query_context_for_file,
 };
 use crate::dir::{
-    find_symbol_at_offset, get_canonical_symbol, get_symbol_definition_span,
-    resolve_nominal_symbol_from_type_expression,
+    dependency_symbol_target, find_symbol_at_offset, get_canonical_symbol,
+    get_symbol_definition_span, resolve_nominal_symbol_from_type_expression,
 };
 
 /// Result of a goto implementation query.
@@ -123,8 +121,8 @@ pub fn goto_implementation(
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
         (
-            symbol.ty == SymbolType::Interface,
-            symbol.ty == SymbolType::Class,
+            symbol.form == DeclarationForm::Interface,
+            symbol.form == DeclarationForm::Class,
         )
     };
 
@@ -256,22 +254,14 @@ fn collect_target_symbols(
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
 
-        let mut target_symbol = symbol.target_symbol;
-        if target_symbol.is_none() {
-            let Some(primary_decl) = symbol.primary_declaration else {
-                continue;
-            };
-
-            if primary_decl.local_id.ty == NodeType::DependencyItem {
-                let Ok(item_id) = primary_decl.local_id.try_into() else {
-                    continue;
-                };
-
-                let dir_tree = ctx.dir().tree();
-                let item = dir_tree.get::<DependencyItem>(item_id);
-                target_symbol = item.target_symbol();
+        let target_symbol = symbol.declaration.and_then(|declaration| {
+            if declaration.local_id.ty != NodeType::DependencyItem {
+                return None;
             }
-        }
+
+            let item_id = declaration.local_id.try_into().ok()?;
+            dependency_symbol_target(ctx.dir(), item_id)
+        });
 
         // continue walking when a dependency target exists
         if let Some(target_symbol) = target_symbol {
@@ -299,5 +289,5 @@ fn symbol_is_implementable(
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
     // return whether the symbol is implementable
-    symbol.ty == SymbolType::Interface || symbol.ty == SymbolType::Class
+    symbol.form == DeclarationForm::Interface || symbol.form == DeclarationForm::Class
 }

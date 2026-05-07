@@ -3,45 +3,35 @@ use destack_dir::{Expression, GlobalNodeIdAny, GlobalSymbolId, Resolution};
 use destack_source::{ModuleId, ProfileId};
 use destack_workspace::{Repository, Revision};
 
-use super::{is_type_symbol, resolve_expression_symbol};
+use super::{expression_symbol_target, is_type_symbol};
 use crate::core::{
     DirQueryContext, NominalEntry, NominalRelation, query_context_for_profile,
     with_query_context_for_module,
 };
 
-/// Resolve a member access symbol when the cursor is on the member name.
-pub(crate) fn resolve_member_access_symbol(
+/// Return the recorded symbol target for one member access.
+pub(crate) fn member_access_symbol_target(
     dir: DirQueryContext<'_>,
     expr_id: dir::LocalNodeId<Expression>,
 ) -> Option<GlobalSymbolId> {
-    // prefer the direct member target recorded on the expression
-    if let Some(target_symbol) = dir.tree().get::<Expression>(expr_id).target_symbol() {
-        return Some(target_symbol);
-    }
-
-    // otherwise read the recorded resolution candidate
-    if let Some(target_symbol) = recorded_member_resolution(dir, expr_id) {
-        return Some(target_symbol);
-    }
-
-    None
+    recorded_member_resolution(dir, expr_id)
 }
 
-/// Resolve a nominal type symbol from a type expression.
+/// Return the nominal type symbol named by one type expression.
 pub(crate) fn resolve_nominal_symbol_from_type_expression(
     repository: &Repository,
     dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<GlobalSymbolId> {
-    // resolve the expression and target symbol
+    // inspect the expression shape
     let dir_tree = dir.tree();
     let expression = dir_tree.get::<Expression>(expression_id);
 
     // unwrap type operators and wrappers to the underlying nominal expression
     match expression {
-        Expression::ReferenceOf { right, .. }
+        Expression::BorrowOf { right, .. }
         | Expression::PointerOf { right, .. }
-        | Expression::ValueOf { right, .. }
+        | Expression::MoveOf { right, .. }
         | Expression::Maybe { left: right }
         | Expression::Must { left: right } => {
             return resolve_nominal_symbol_from_type_expression(repository, dir, *right);
@@ -53,14 +43,14 @@ pub(crate) fn resolve_nominal_symbol_from_type_expression(
             return resolve_nominal_symbol_from_type_expression(repository, dir, *left);
         }
         Expression::Member { .. } => {
-            if let Some(symbol_id) = resolve_member_access_symbol(dir, expression_id) {
+            if let Some(symbol_id) = member_access_symbol_target(dir, expression_id) {
                 return Some(symbol_id);
             }
         }
         _ => {}
     }
 
-    if let Some(target_symbol) = resolve_expression_symbol(dir, expression_id)
+    if let Some(target_symbol) = expression_symbol_target(dir, expression_id)
         && symbol_is_type_symbol(repository, dir.revision(), target_symbol)
     {
         return Some(target_symbol);
@@ -125,12 +115,12 @@ fn symbol_is_type_symbol(
 
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        is_type_symbol(symbol.ty)
+        is_type_symbol(symbol.form)
     })
     .unwrap_or(false)
 }
 
-/// Resolve the recorded member target for an expression resolution.
+/// Return one unambiguous symbol target from a recorded expression resolution.
 fn recorded_member_resolution(
     dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
@@ -140,19 +130,26 @@ fn recorded_member_resolution(
         module_id: dir.module_id(),
         local_id: expression_id.into(),
     };
-    let resolution_id = types.node_resolution_id(node_id)?;
-
-    let resolution = types.get_resolution(resolution_id);
+    let resolution = types.resolution(node_id)?;
     match resolution {
-        Resolution::Static { candidate, .. } => Some(candidate.target_symbol),
-        Resolution::Dynamic { .. } => None,
-        Resolution::Unresolved { candidates, .. } => {
-            if candidates.len() == 1 {
-                return Some(candidates[0].target_symbol);
+        Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => Some(target.symbol),
+        Resolution::Dispatch(dir::DispatchResolution::Dynamic { targets, .. }) => {
+            if targets.len() == 1 {
+                return Some(targets[0].symbol);
             }
 
             None
         }
-        Resolution::Builtin { .. } => None,
+        Resolution::Symbol(dir::SymbolResolution::Target(symbol_id)) => Some(*symbol_id),
+        Resolution::Symbol(dir::SymbolResolution::Candidates(symbols)) => {
+            if symbols.len() == 1 {
+                return Some(symbols[0]);
+            }
+
+            None
+        }
+        Resolution::Dispatch(dir::DispatchResolution::Builtin { .. })
+        | Resolution::Dependency(_)
+        | Resolution::Control(_) => None,
     }
 }

@@ -1,8 +1,8 @@
 use destack_ast::StringPool;
 use destack_dir as dir;
 use destack_dir::{
-    Declaration, GlobalSymbolId, LocalSymbolId, LocalTypeId, Member, ScalarLiteral, StaticKey,
-    SymbolTable, SymbolType, Type, TypeTable, WellKnownSymbol,
+    Declaration, DeclarationForm, GlobalSymbolId, LocalSymbolId, LocalTypeId, Member,
+    ScalarLiteral, StaticKey, SymbolTable, Type, TypeTable, WellKnownSymbol,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Repository, Revision};
@@ -100,22 +100,17 @@ fn resolve_type_members_inner(
 
     match ty {
         // reference to a declared type: look up symbol's owned scope
-        Type::Reference { symbol, .. } => {
-            resolve_reference_members(*symbol, repository, revision, current_module_id)
+        Type::Reference(reference) => {
+            resolve_reference_members(reference.symbol, repository, revision, current_module_id)
         }
 
         // object type: return fields directly
-        Type::Object {
-            fields,
-            call_signatures,
-            construct_signatures,
-            ..
-        } => {
+        Type::Object(object) => {
             // initialize the member buffer
             let mut members = Vec::new();
 
             // add fields
-            for field in fields {
+            for field in &object.fields {
                 let kind = if is_function_type(types, field.ty) {
                     MemberKind::Method
                 } else {
@@ -131,7 +126,7 @@ fn resolve_type_members_inner(
             }
 
             // add call signatures
-            for sig_type_id in call_signatures {
+            for sig_type_id in &object.call_signatures {
                 members.push(MemberInfo {
                     name: MemberName::Computed,
                     type_id: Some(*sig_type_id),
@@ -141,7 +136,7 @@ fn resolve_type_members_inner(
             }
 
             // add construct signatures
-            for sig_type_id in construct_signatures {
+            for sig_type_id in &object.construct_signatures {
                 members.push(MemberInfo {
                     name: MemberName::Computed,
                     type_id: Some(*sig_type_id),
@@ -154,14 +149,14 @@ fn resolve_type_members_inner(
         }
 
         // union type: intersect members from all elements
-        Type::Union { elements } => {
+        Type::Union(union) => {
             // return no members for empty unions
-            if elements.is_empty() {
+            if union.elements.is_empty() {
                 return Vec::new();
             }
 
             // get members from first element
-            let first_type = types.get_type(elements[0]);
+            let first_type = types.get_type(union.elements[0]);
             let mut common_members = resolve_type_members_inner(
                 first_type,
                 types,
@@ -174,7 +169,7 @@ fn resolve_type_members_inner(
             );
 
             // intersect with remaining elements
-            for element_id in &elements[1..] {
+            for element_id in &union.elements[1..] {
                 // resolve members for the current union element
                 let element_type = types.get_type(*element_id);
                 let element_members = resolve_type_members_inner(
@@ -200,19 +195,21 @@ fn resolve_type_members_inner(
         }
 
         // intersection type: union members from all elements
-        Type::Intersection { elements } => {
+        Type::Intersection(intersection) => {
             // check if this intersection represents an enum's static type
             // by looking for a Value<Reference<Enum>> element
-            let is_enum_static = elements.iter().any(|element_id| {
+            let is_enum_static = intersection.elements.iter().any(|element_id| {
                 let element = types.get_type(*element_id);
-                if let Type::Value { value } = element {
-                    let inner = types.get_type(*value);
-                    if let Type::Reference { symbol, .. } = inner {
+                if let Type::Value(value) = element {
+                    let inner = types.get_type(value.value);
+                    if let Type::Reference(reference) = inner {
                         // load the symbol and check if it's an enum
-                        if let Some(ctx) = query_context(repository, revision, symbol.module_id) {
+                        if let Some(ctx) =
+                            query_context(repository, revision, reference.symbol.module_id)
+                        {
                             let symbols_table = ctx.dir().symbols();
-                            let sym = symbols_table.get_symbol(symbol.local_id);
-                            return sym.ty == SymbolType::Enum;
+                            let sym = symbols_table.get_symbol(reference.symbol.local_id);
+                            return sym.form == DeclarationForm::Enum;
                         }
                     }
                 }
@@ -224,7 +221,7 @@ fn resolve_type_members_inner(
             let mut seen_names = Vec::new();
 
             // collect members from each element
-            for element_id in elements {
+            for element_id in &intersection.elements {
                 // resolve the current element type
                 let element_type = types.get_type(*element_id);
                 let element_members = resolve_type_members_inner(
@@ -258,7 +255,8 @@ fn resolve_type_members_inner(
         }
 
         // tuple type: numeric indices
-        Type::Tuple { elements, .. } => elements
+        Type::Tuple(tuple) => tuple
+            .elements
             // map tuple elements to index members
             .iter()
             .enumerate()
@@ -271,22 +269,20 @@ fn resolve_type_members_inner(
             .collect(),
 
         // array type: resolve members from well known Array type
-        Type::Array { element, .. } => {
-            array_members(*element, repository, revision, current_module_id)
-        }
+        Type::Slice(slice) => array_members(slice.element, repository, revision, current_module_id),
 
-        Type::ArraySized { element, .. } => {
-            array_members(Some(*element), repository, revision, current_module_id)
+        Type::FixedArray(array) => {
+            array_members(Some(array.element), repository, revision, current_module_id)
         }
 
         // primitive types: resolve members from well known types (String, Number, etc.)
-        Type::TypeLiteral { value } => {
-            primitive_members(value, repository, revision, current_module_id)
+        Type::Literal(literal) => {
+            primitive_members(&literal.value, repository, revision, current_module_id)
         }
 
         // follow value types
-        Type::Value { value } => {
-            let inner = types.get_type(*value);
+        Type::Value(value) => {
+            let inner = types.get_type(value.value);
             resolve_type_members_inner(
                 inner,
                 types,
@@ -360,7 +356,7 @@ fn resolve_local_symbol_members(
 
     // check if this symbol is an enum (for member kind detection)
     let symbol = symbols.get_symbol(symbol_id);
-    let is_enum = symbol.ty == SymbolType::Enum;
+    let is_enum = symbol.form == DeclarationForm::Enum;
 
     // first: try to get members from the symbol's instance type
     // this is the primary source for struct/class/interface fields
@@ -368,14 +364,8 @@ fn resolve_local_symbol_members(
         let ty = types.get_type(instance_type_id);
 
         // if the instance type is an Object, get fields from there
-        if let Type::Object {
-            fields,
-            call_signatures,
-            construct_signatures,
-            ..
-        } = ty
-        {
-            for field in fields {
+        if let Type::Object(object) = ty {
+            for field in &object.fields {
                 // use EnumMember kind for enum variants
                 let kind = if is_enum {
                     MemberKind::EnumMember
@@ -394,7 +384,7 @@ fn resolve_local_symbol_members(
             }
 
             // add call signatures
-            for sig_type_id in call_signatures {
+            for sig_type_id in &object.call_signatures {
                 members.push(MemberInfo {
                     name: MemberName::Computed,
                     type_id: Some(*sig_type_id),
@@ -404,7 +394,7 @@ fn resolve_local_symbol_members(
             }
 
             // add construct signatures
-            for sig_type_id in construct_signatures {
+            for sig_type_id in &object.construct_signatures {
                 members.push(MemberInfo {
                     name: MemberName::Computed,
                     type_id: Some(*sig_type_id),
@@ -441,7 +431,7 @@ pub(crate) fn resolve_extension_members_for_symbol(
 
             // resolve the extension declaration
             let ext_symbol = symbols.get_symbol(extension.symbol.local_id);
-            let Some(ext_decl_id) = ext_symbol.primary_declaration else {
+            let Some(ext_decl_id) = ext_symbol.declaration else {
                 return false;
             };
             let Ok(local_decl_id): Result<dir::LocalNodeId<Declaration>, _> =
@@ -509,7 +499,7 @@ fn static_key_to_member_name(key: &StaticKey, strings: &destack_core::StringPool
 /// Check if a type is a function type.
 fn is_function_type(types: &TypeTable, type_id: LocalTypeId) -> bool {
     // return true for function types
-    matches!(types.get_type(type_id), Type::Function { .. })
+    matches!(types.get_type(type_id), Type::Function(_))
 }
 
 /// Check if two member names match.
@@ -592,7 +582,7 @@ fn resolve_well_known_members(
     };
 
     // resolve the exact well known symbol from the current profile
-    let Some(environment) = ctx.ambient_environment(repository) else {
+    let Some(environment) = ctx.global_environment(repository) else {
         return Vec::new();
     };
     let Some(symbol_id) = environment.well_known_symbols().get_type_symbol(well_known) else {

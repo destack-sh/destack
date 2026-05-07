@@ -155,7 +155,7 @@ pub fn hover(
     // prefer declaration nodes for expression hovers
     let mut hover_node_id = symbol_at.node_id;
     if matches!(hover_node_id.ty, NodeType::Expression) {
-        let declaration = symbol.primary_declaration;
+        let declaration = symbol.declaration;
         if let Some(declaration) = declaration {
             hover_node_id = declaration.local_id;
         }
@@ -187,7 +187,7 @@ pub fn hover(
                     container_name.as_deref(),
                 )
             } else {
-                format_simple_signature(symbol.ty, name.as_deref())
+                format_simple_signature(symbol.form, name.as_deref())
             }
         }
         NodeType::EnumField => {
@@ -205,7 +205,7 @@ pub fn hover(
                     container_name.as_deref(),
                 )
             } else {
-                format_simple_signature(symbol.ty, name.as_deref())
+                format_simple_signature(symbol.form, name.as_deref())
             }
         }
         NodeType::Parameter => {
@@ -222,7 +222,7 @@ pub fn hover(
                     types,
                 )
             } else {
-                format_simple_signature(symbol.ty, name.as_deref())
+                format_simple_signature(symbol.form, name.as_deref())
             }
         }
         NodeType::Pattern => {
@@ -237,7 +237,7 @@ pub fn hover(
                 ctx.dir().strings(),
             )
         }
-        _ => format_simple_signature(symbol.ty, name.as_deref()),
+        _ => format_simple_signature(symbol.form, name.as_deref()),
     };
 
     // resolve type and location metadata
@@ -274,7 +274,7 @@ fn resolve_hover_type_text(
 
     // map the hover node to a type id
     let type_id = match hover_node_id.ty {
-        NodeType::Pattern => types.symbol_type_id(symbols, symbol_id),
+        NodeType::Pattern => types.declaration_form_id(symbols, symbol_id),
         NodeType::Member | NodeType::EnumField | NodeType::Parameter => {
             ctx.dir().node_type_id(hover_node_id)
         }

@@ -6,7 +6,7 @@ use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::core::with_query_context_for_file;
-use crate::dir::{parameter_names_for_symbol, resolve_call_target};
+use crate::dir::{call_target, parameter_names_for_symbol};
 use crate::format::format_type_for_inlay_hint;
 
 /// Kind of inlay hint.
@@ -117,8 +117,8 @@ pub fn inlay_hints(
                 continue;
             }
 
-            // resolve the target symbol for this call
-            let call_target = resolve_call_target(repository, ctx.dir(), *left);
+            // read the target symbol for this call
+            let call_target = call_target(repository, ctx.dir(), *left);
             let target_symbol = call_target.symbol;
 
             // get actual parameter names for this function
@@ -319,9 +319,7 @@ fn argument_reference(
 
     // resolve a simple reference name
     match expr {
-        Expression::LocalReference { path, .. }
-        | Expression::ModuleReference { path, .. }
-        | Expression::GlobalReference { path, .. } => path
+        Expression::Path { path, .. } => path
             .last_segment()
             .map(|id| ArgumentReference::Name(strings.get(id).to_string())),
         Expression::This => Some(ArgumentReference::This),
