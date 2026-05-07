@@ -87,44 +87,6 @@ impl<'a> ModuleLowerer<'a> {
         self.set_node_symbol(node_id, ScriptSymbolId::Source(symbol_id));
     }
 
-    /// Return whether one specifier is package-like instead of local.
-    pub(crate) fn is_package_dependency_specifier(specifier: &str) -> bool {
-        !specifier.starts_with('.') && !specifier.starts_with('/') && !specifier.contains(':')
-    }
-
-    /// Return whether the active target externalizes a dependency specifier.
-    pub(crate) fn target_externalizes_dependency_specifier(&self, specifier: &str) -> bool {
-        let dependency = &self.target.bundle_dependencies;
-        dependency
-            .external
-            .iter()
-            .any(|candidate| candidate == specifier)
-            || dependency
-                .never_bundle
-                .iter()
-                .any(|candidate| candidate == specifier)
-    }
-
-    /// Return whether one unresolved dependency expression should remain external.
-    pub(crate) fn allows_unresolved_external_dependency_expression(
-        &self,
-        expression: &dir::Expression,
-    ) -> bool {
-        let specifier = match expression {
-            dir::Expression::UnresolvedImport {
-                target: dir::ImportTarget::String(target),
-                ..
-            }
-            | dir::Expression::UnresolvedReExport { target, .. } => {
-                self.source_strings.get(*target)
-            }
-            _ => return false,
-        };
-
-        Self::is_package_dependency_specifier(&specifier)
-            && self.target_externalizes_dependency_specifier(&specifier)
-    }
-
     /// Create a new module lowerer.
     pub fn new(
         module: &'a Module,

@@ -36,7 +36,7 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source(assign_pattern, self.module.id, assign_pattern_id)
             }
-            dir::AssignPattern::Array { fields } => {
+            dir::AssignPattern::Sequence { fields } => {
                 let fields = fields
                     .iter()
                     .map(|field_id| self.lower_assign_pattern_field(*field_id))
@@ -182,7 +182,7 @@ impl ModuleLowerer<'_> {
                 self.set_source_node_symbol(pattern_id, *symbol);
                 pattern_id
             }
-            dir::Pattern::Array { fields } => {
+            dir::Pattern::Sequence { fields } => {
                 let fields = fields
                     .iter()
                     .map(|field_id| self.lower_array_pattern_field_in_mode(*field_id, mode))
