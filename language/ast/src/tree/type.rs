@@ -423,7 +423,7 @@ pub enum TypeExpression {
     /// ^T
     /// ^mut T
     /// ```
-    ValueOf {
+    OwnedOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         target_type: LocalNodeId<TypeExpression>,
@@ -436,7 +436,7 @@ pub enum TypeExpression {
     /// &T
     /// &mut T
     /// ```
-    ReferenceOf {
+    BorrowedOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         target_type: LocalNodeId<TypeExpression>,

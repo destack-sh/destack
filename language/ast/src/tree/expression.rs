@@ -613,7 +613,7 @@ pub enum Expression {
         right: LocalNodeId<Expression>,
     },
 
-    /// Value of operation (e.g., `^x`).
+    /// Move operation (e.g., `^x`).
     ///
     /// Examples:
     /// ```
@@ -621,13 +621,13 @@ pub enum Expression {
     /// ^readonly x
     /// ^readonly super T
     /// ```
-    ValueOf {
+    MoveOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         right: LocalNodeId<Expression>,
     },
 
-    /// Borrowed reference operation (e.g., `&x`).
+    /// Borrow operation (e.g., `&x`).
     ///
     /// Examples:
     /// ```
@@ -635,7 +635,7 @@ pub enum Expression {
     /// &readonly x
     /// &readonly extends T
     /// ```
-    ReferenceOf {
+    BorrowOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         right: LocalNodeId<Expression>,

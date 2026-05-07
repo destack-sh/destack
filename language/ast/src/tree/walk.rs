@@ -381,12 +381,12 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         | TypeExpression::Must { target_type }
         | TypeExpression::AsComptime { target_type }
         | TypeExpression::Not { target_type }
-        | TypeExpression::ValueOf {
+        | TypeExpression::OwnedOf {
             mutability: _,
             variance: _,
             target_type,
         }
-        | TypeExpression::ReferenceOf {
+        | TypeExpression::BorrowedOf {
             mutability: _,
             variance: _,
             target_type,
@@ -1130,7 +1130,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
 
-        Expression::ValueOf {
+        Expression::MoveOf {
             mutability: _,
             variance: _,
             right,
@@ -1139,7 +1139,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
 
-        Expression::ReferenceOf {
+        Expression::BorrowOf {
             mutability: _,
             variance: _,
             right,
@@ -1865,14 +1865,14 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
-        Pattern::ReferenceOf {
+        Pattern::BorrowOf {
             right,
             mutability: _,
         } => {
             let right_pattern = tree.get(*right);
             visitor.visit_pattern(tree, *right, right_pattern);
         }
-        Pattern::ValueOf {
+        Pattern::MoveOf {
             right,
             mutability: _,
         } => {
