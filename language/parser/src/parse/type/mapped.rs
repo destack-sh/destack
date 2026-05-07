@@ -1,7 +1,8 @@
 use crate::{ParseResult, Parser};
 
 use destack_ast::{
-    Keyword, LocalNodeId, NodeType, TokenType, TypeExpression, TypeMappedParameter, TypeModifier,
+    Keyword, LocalNodeId, MappedTypeModifier, NodeType, TokenType, TypeExpression,
+    TypeMappedParameter,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -160,20 +161,20 @@ impl Parser {
     }
 
     /// Eat one mapped readonly modifier.
-    fn eat_type_mapped_readonly_modifier(&mut self) -> ParseResult<TypeModifier> {
+    fn eat_type_mapped_readonly_modifier(&mut self) -> ParseResult<MappedTypeModifier> {
         // readonly modifier: `readonly`, `+readonly`, `-readonly`
         if self.is_keyword(Keyword::Readonly) {
             self.bump(); // eat readonly
-            return Ok(TypeModifier::Present);
+            return Ok(MappedTypeModifier::Present);
         }
 
         // +/- readonly
         let modifier = if self.peek_is(TokenType::Subtract) {
-            TypeModifier::Remove
+            MappedTypeModifier::Remove
         } else if self.peek_is(TokenType::Add) {
-            TypeModifier::Add
+            MappedTypeModifier::Add
         } else {
-            return Ok(TypeModifier::None);
+            return Ok(MappedTypeModifier::None);
         };
 
         // allow line breaks between `+` or `-` and `readonly`
@@ -187,15 +188,15 @@ impl Parser {
             return Ok(modifier);
         }
 
-        Ok(TypeModifier::None)
+        Ok(MappedTypeModifier::None)
     }
 
     /// Eat one mapped optional modifier.
-    fn eat_type_mapped_optional_modifier(&mut self) -> ParseResult<TypeModifier> {
+    fn eat_type_mapped_optional_modifier(&mut self) -> ParseResult<MappedTypeModifier> {
         // ?
         if self.peek_is(TokenType::Maybe) {
             self.bump(); // eat ?
-            return Ok(TypeModifier::Present);
+            return Ok(MappedTypeModifier::Present);
         }
 
         // -?
@@ -207,7 +208,7 @@ impl Parser {
         {
             self.bump(); // eat -
             self.bump(); // eat ?
-            return Ok(TypeModifier::Remove);
+            return Ok(MappedTypeModifier::Remove);
         }
 
         // +?
@@ -219,9 +220,9 @@ impl Parser {
         {
             self.bump(); // eat +
             self.bump(); // eat ?
-            return Ok(TypeModifier::Add);
+            return Ok(MappedTypeModifier::Add);
         }
 
-        Ok(TypeModifier::None)
+        Ok(MappedTypeModifier::None)
     }
 }

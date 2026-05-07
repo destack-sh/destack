@@ -275,7 +275,7 @@ fn test_parse_export_const_ternary_object_literal_arrow_value() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Let { export, declarators, .. } => {
-        assert_eq!(*export, Some(ExportMode::Named));
+        assert_eq!(*export, Some(ExportKind::Named));
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern, .. } => {
@@ -283,8 +283,8 @@ fn test_parse_export_const_ternary_object_literal_arrow_value() {
                 assert!(pattern.is_none());
             });
             let value_id = value.expect("expected initializer");
-            assert_node!(parser.tree, value_id, Expression::If { kind, then_expression, else_expression, .. } => {
-                assert_eq!(*kind, IfKind::Ternary);
+            assert_node!(parser.tree, value_id, Expression::If { form, then_expression, else_expression, .. } => {
+                assert_eq!(*form, IfForm::Ternary);
                 assert_node!(parser.tree, *then_expression, Expression::ObjectExpression { properties, .. } => {
                     assert!(properties.is_empty());
                 });
@@ -297,7 +297,7 @@ fn test_parse_export_const_ternary_object_literal_arrow_value() {
                         });
                         assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-                                assert_eq!(signature.kind, FunctionKind::Lambda);
+                                assert_eq!(signature.form, FunctionForm::Lambda);
                                 let body_id = body.expect("expected function body");
                                 assert_node!(parser.tree, body_id, Expression::Block(block_id) => {
                                     assert_node!(parser.tree, *block_id, Block { leading_expressions, tail_expression, .. } => {
@@ -330,8 +330,8 @@ fn test_parse_ternary_object_literal_arrow_value_expression() {
     );
     match result {
         Ok(expr_id) => {
-            assert_node!(parser.tree, expr_id, Expression::If { kind, then_expression, else_expression, .. } => {
-                assert_eq!(*kind, IfKind::Ternary);
+            assert_node!(parser.tree, expr_id, Expression::If { form, then_expression, else_expression, .. } => {
+                assert_eq!(*form, IfForm::Ternary);
                 assert_node!(parser.tree, *then_expression, Expression::ObjectExpression { properties, .. } => {
                     assert!(properties.is_empty());
                 });
@@ -344,7 +344,7 @@ fn test_parse_ternary_object_literal_arrow_value_expression() {
                         });
                         assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-                                assert_eq!(signature.kind, FunctionKind::Lambda);
+                                assert_eq!(signature.form, FunctionForm::Lambda);
                                 let body_id = body.expect("expected function body");
                                 assert_node!(parser.tree, body_id, Expression::Block(block_id) => {
                                     assert_node!(parser.tree, *block_id, Block { leading_expressions, tail_expression, .. } => {
@@ -382,7 +382,7 @@ fn test_parse_assignment_object_spread_ternary_value() {
             // ...(tls ? { tls } : {})
             assert_node!(parser.tree, properties[0], Property::Spread { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::If {
-                    kind: IfKind::Ternary,
+                    form: IfForm::Ternary,
                     condition: IfCondition::Expression { condition },
                     then_expression,
                     else_expression,

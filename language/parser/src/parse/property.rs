@@ -1,10 +1,10 @@
 #![allow(clippy::type_complexity)]
 
 use destack_ast::{
-    Ambientness, AssignOperator, AssignPattern, Asynchrony, BlockContext,
-    ConstructorTypeDeclaration, Expression, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, FunctionTypeDeclaration, Key, Keyword, LocalNodeId, Member, Name, NodeType,
-    Parameter, Property, StringId, TokenType, TypeExpression, TypeMember, Visibility,
+    AssignOperator, AssignPattern, Asynchrony, BlockContext, ConstructorTypeDeclaration,
+    Expression, FunctionForm, FunctionRole, FunctionSignature, FunctionTypeDeclaration, Key,
+    Keyword, LocalNodeId, Member, Name, NodeType, Parameter, Property, StringId, TokenType,
+    TypeExpression, TypeMember, Visibility,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
@@ -33,8 +33,8 @@ struct ParsedPropertyMemberHead {
     key: Option<Key>,
     /// The key span.
     key_span: Option<Span>,
-    /// The parsed method mode.
-    mode: Option<FunctionMode>,
+    /// The parsed method role.
+    role: Option<FunctionRole>,
     /// Whether the head is async.
     is_async: bool,
     /// Whether the head is a generator.
@@ -64,7 +64,7 @@ struct ParsedMethodTail {
 fn function_type_declaration_from_signature(
     signature: FunctionSignature,
 ) -> FunctionTypeDeclaration {
-    debug_assert!(signature.mode.is_none() || signature.mode == Some(FunctionMode::Call));
+    debug_assert!(signature.role.is_none() || signature.role == Some(FunctionRole::Call));
 
     FunctionTypeDeclaration {
         generic_parameters: signature.generic_parameters,
@@ -80,8 +80,8 @@ fn constructor_type_declaration_from_signature(
     signature: FunctionSignature,
 ) -> ConstructorTypeDeclaration {
     debug_assert!(matches!(
-        signature.mode,
-        Some(FunctionMode::Constructor | FunctionMode::New)
+        signature.role,
+        Some(FunctionRole::Constructor | FunctionRole::New)
     ));
 
     ConstructorTypeDeclaration {
@@ -160,26 +160,26 @@ impl Parser {
         modifiers
     }
 
-    /// Eat one method mode.
+    /// Eat one method role.
     #[inline]
-    fn eat_method_mode_maybe(
+    fn eat_method_role_maybe(
         &mut self,
-        allow_constructor_mode: bool,
-        allow_new_mode: bool,
-    ) -> Option<FunctionMode> {
+        allow_constructor_role: bool,
+        allow_new_role: bool,
+    ) -> Option<FunctionRole> {
         if self.is_keyword(Keyword::Get)
             && self.next_token_starts_member_name()
             && self.next_token_type() != TokenType::OpenParenthesis
         {
             self.bump(); // eat get keyword
-            Some(FunctionMode::Getter)
+            Some(FunctionRole::Getter)
         } else if self.is_keyword(Keyword::Set)
             && self.next_token_starts_member_name()
             && self.next_token_type() != TokenType::OpenParenthesis
         {
             self.bump(); // eat set keyword
-            Some(FunctionMode::Setter)
-        } else if allow_constructor_mode
+            Some(FunctionRole::Setter)
+        } else if allow_constructor_role
             && self.is_keyword(Keyword::Constructor)
             && (self.lookahead(|parser| {
                 parser.bump();
@@ -190,8 +190,8 @@ impl Parser {
             }))
         {
             self.bump(); // eat constructor keyword
-            Some(FunctionMode::Constructor)
-        } else if allow_new_mode
+            Some(FunctionRole::Constructor)
+        } else if allow_new_role
             && self.is_keyword(Keyword::New)
             && (self.lookahead(|parser| {
                 parser.bump();
@@ -202,7 +202,7 @@ impl Parser {
             }))
         {
             self.bump(); // eat new keyword
-            Some(FunctionMode::New)
+            Some(FunctionRole::New)
         } else {
             None
         }
@@ -212,7 +212,7 @@ impl Parser {
     #[inline]
     fn head_starts_method(
         &mut self,
-        mode: Option<FunctionMode>,
+        role: Option<FunctionRole>,
         is_async: bool,
         is_generator: bool,
     ) -> bool {
@@ -220,7 +220,7 @@ impl Parser {
             || is_generator
             || self.peek_is(TokenType::LessThan)
             || self.peek_is(TokenType::OpenParenthesis)
-            || matches!(mode, Some(FunctionMode::Getter | FunctionMode::Setter))
+            || matches!(role, Some(FunctionRole::Getter | FunctionRole::Setter))
     }
 
     /// Eat one definite member modifier when present.
@@ -365,16 +365,16 @@ impl Parser {
 
     /// Return true when the current type property head must parse as a method.
     #[inline]
-    fn type_member_head_starts_method(&mut self, mode: Option<FunctionMode>) -> bool {
+    fn type_member_head_starts_method(&mut self, role: Option<FunctionRole>) -> bool {
         self.peek_is(TokenType::LessThan)
             || self.peek_is(TokenType::OpenParenthesis)
             || matches!(
-                mode,
+                role,
                 Some(
-                    FunctionMode::Getter
-                        | FunctionMode::Setter
-                        | FunctionMode::Constructor
-                        | FunctionMode::New
+                    FunctionRole::Getter
+                        | FunctionRole::Setter
+                        | FunctionRole::Constructor
+                        | FunctionRole::New
                 )
             )
     }
@@ -424,12 +424,8 @@ impl Parser {
 
     /// Return the ambientness implied by one modifier set.
     #[inline]
-    fn ambientness_for_modifiers(&self, modifiers: Option<&BindingModifiers>) -> Ambientness {
-        if modifiers.is_some_and(|modifiers| modifiers.is_ambient) {
-            Ambientness::Ambient
-        } else {
-            Ambientness::Concrete
-        }
+    fn is_ambient_for_modifiers(&self, modifiers: Option<&BindingModifiers>) -> bool {
+        modifiers.is_some_and(|modifiers| modifiers.is_ambient)
     }
 
     /// Eat method parameters in property or member contexts.
@@ -503,8 +499,8 @@ impl Parser {
         let is_async = self.eat_method_async_maybe();
         modifiers = self.eat_method_late_modifiers_maybe(modifiers, is_async);
 
-        // mode and accessor marker
-        let mode = self.eat_method_mode_maybe(allow_constructor_mode, allow_new_mode);
+        // role and accessor marker
+        let role = self.eat_method_role_maybe(allow_constructor_mode, allow_new_mode);
 
         // generator and key
         let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
@@ -522,13 +518,13 @@ impl Parser {
         // classify the head
         let associated_comptime_name =
             self.associated_comptime_name_maybe(key.as_ref(), modifiers.as_ref())?;
-        let is_method = self.head_starts_method(mode, is_async, is_generator);
+        let is_method = self.head_starts_method(role, is_async, is_generator);
 
         Ok(ParsedPropertyMemberHead {
             modifiers,
             key,
             key_span,
-            mode,
+            role,
             is_async,
             is_generator,
             is_method,
@@ -549,9 +545,9 @@ impl Parser {
     fn eat_method_tail(
         &mut self,
         owner: NodeType,
-        mode: Option<FunctionMode>,
+        role: Option<FunctionRole>,
         asynchrony: Asynchrony,
-        cardinality: FunctionCardinality,
+        is_generator: bool,
         is_abstract: bool,
         is_override: bool,
         allows_body: bool,
@@ -565,8 +561,7 @@ impl Parser {
             (!generic_parameters.is_empty()).then(|| self.get_span_from(&generic_parameter_start));
 
         let parameter_start = self.span_start();
-        let parameters =
-            self.eat_method_parameters(cardinality == FunctionCardinality::Generator)?;
+        let parameters = self.eat_method_parameters(is_generator)?;
         let parameter_span = self.get_span_from(&parameter_start);
 
         // return type
@@ -595,7 +590,7 @@ impl Parser {
 
         // body
         let body = if allows_body && self.peek_is(TokenType::OpenBrace) {
-            Some(self.eat_method_body_expression(cardinality == FunctionCardinality::Generator)?)
+            Some(self.eat_method_body_expression(is_generator)?)
         } else {
             None
         };
@@ -627,17 +622,17 @@ impl Parser {
 
         // build the signature
         let signature = FunctionSignature {
-            is_abstract,
-            is_override,
             asynchrony,
-            cardinality,
-            mode,
-            kind: FunctionKind::Function,
+            role,
+            form: FunctionForm::Function,
             generic_parameters,
             where_clauses,
             this_parameter,
             parameters,
             return_type,
+            is_abstract,
+            is_override,
+            is_generator,
         };
 
         Ok(ParsedMethodTail {
@@ -742,7 +737,7 @@ impl Parser {
             constraint,
             value,
             visibility: modifiers.and_then(|modifiers| modifiers.visibility),
-            ambient: self.ambientness_for_modifiers(modifiers.as_ref()),
+            is_ambient: self.is_ambient_for_modifiers(modifiers.as_ref()),
             is_abstract: modifiers.is_some_and(|modifiers| modifiers.is_abstract),
             is_override: modifiers.is_some_and(|modifiers| modifiers.is_override),
             is_static: modifiers.is_some_and(|modifiers| modifiers.is_static),
@@ -805,7 +800,7 @@ impl Parser {
             modifiers,
             key,
             key_span,
-            mode,
+            role,
             is_async,
             is_generator,
             is_method,
@@ -815,7 +810,7 @@ impl Parser {
         // object fields cannot start with an unkeyed call signature
         if !self.flags.is_in_type()
             && key.is_none()
-            && mode.is_none()
+            && role.is_none()
             && !is_async
             && !is_generator
             && self.peek_is(TokenType::OpenParenthesis)
@@ -829,7 +824,7 @@ impl Parser {
         }
 
         // getters and setters require method form
-        if matches!(mode, Some(FunctionMode::Getter | FunctionMode::Setter)) && !is_method {
+        if matches!(role, Some(FunctionRole::Getter | FunctionRole::Setter)) && !is_method {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
@@ -840,11 +835,11 @@ impl Parser {
             }
 
             // abstraction
-            // methods without key or mode are implicit calls
-            let mode = if key.is_none() && mode.is_none() {
-                Some(FunctionMode::Call)
+            // methods without key or role are implicit calls
+            let role = if key.is_none() && role.is_none() {
+                Some(FunctionRole::Call)
             } else {
-                mode
+                role
             };
 
             // modifiers postfix (again after parameters)
@@ -857,17 +852,13 @@ impl Parser {
                 return_type_span,
             } = self.eat_method_tail(
                 NodeType::Property,
-                mode,
+                role,
                 if is_async {
                     Asynchrony::Async
                 } else {
                     Asynchrony::Sync
                 },
-                if is_generator {
-                    FunctionCardinality::Generator
-                } else {
-                    FunctionCardinality::Scalar
-                },
+                is_generator,
                 modifiers.is_some_and(|modifiers| modifiers.is_abstract),
                 modifiers.is_some_and(|modifiers| modifiers.is_override),
                 true,
@@ -1152,8 +1143,8 @@ impl Parser {
             false
         };
 
-        // mode
-        let mode = self.eat_method_mode_maybe(false, true);
+        // role
+        let role = self.eat_method_role_maybe(false, true);
 
         // index signature
         if self.type_member_starts_index_signature() {
@@ -1228,7 +1219,7 @@ impl Parser {
         }
 
         // key
-        let (key, key_span) = if matches!(mode, Some(FunctionMode::Constructor | FunctionMode::New))
+        let (key, key_span) = if matches!(role, Some(FunctionRole::Constructor | FunctionRole::New))
         {
             (None, None)
         } else if let Some((key, span)) = self.eat_property_key_with_span()? {
@@ -1243,20 +1234,20 @@ impl Parser {
         let optional_span = is_optional.then(|| self.get_span_from(&optional_start));
 
         // method
-        let is_method = self.type_member_head_starts_method(mode);
+        let is_method = self.type_member_head_starts_method(role);
         if is_method {
             if is_readonly {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
-            if matches!(mode, Some(FunctionMode::Getter | FunctionMode::Setter)) && key.is_none() {
+            if matches!(role, Some(FunctionRole::Getter | FunctionRole::Setter)) && key.is_none() {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
-            let mode = if key.is_none() && mode.is_none() {
-                Some(FunctionMode::Call)
+            let role = if key.is_none() && role.is_none() {
+                Some(FunctionRole::Call)
             } else {
-                mode
+                role
             };
 
             let ParsedMethodTail {
@@ -1267,15 +1258,15 @@ impl Parser {
                 return_type_span,
             } = self.eat_method_tail(
                 NodeType::TypeMember,
-                mode,
+                role,
                 Asynchrony::Sync,
-                FunctionCardinality::Scalar,
+                false,
                 is_abstract,
                 false,
                 false,
             )?;
 
-            let member = match (key, mode) {
+            let member = match (key, role) {
                 (Some(key), _) => TypeMember::Method {
                     is_static,
                     is_optional,
@@ -1283,15 +1274,15 @@ impl Parser {
                     signature,
                     body: None,
                 },
-                (None, Some(FunctionMode::New | FunctionMode::Constructor)) => {
+                (None, Some(FunctionRole::New | FunctionRole::Constructor)) => {
                     TypeMember::ConstructSignature {
                         signature: constructor_type_declaration_from_signature(signature),
                     }
                 }
-                (None, None | Some(FunctionMode::Call)) => TypeMember::CallSignature {
+                (None, None | Some(FunctionRole::Call)) => TypeMember::CallSignature {
                     signature: function_type_declaration_from_signature(signature),
                 },
-                (None, Some(FunctionMode::Getter | FunctionMode::Setter)) => {
+                (None, Some(FunctionRole::Getter | FunctionRole::Setter)) => {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
             };
@@ -1481,7 +1472,7 @@ impl Parser {
             let member = Member::Embed {
                 value,
                 visibility: None,
-                ambient: Ambientness::Concrete,
+                is_ambient: false,
                 is_static: false,
             };
 
@@ -1550,7 +1541,7 @@ impl Parser {
             modifiers,
             key,
             key_span,
-            mode,
+            role,
             is_async,
             is_generator,
             is_method,
@@ -1558,7 +1549,7 @@ impl Parser {
         } = self.eat_property_member_head(modifiers, allow_constructor_mode, false)?;
 
         // getters and setters require method form
-        if matches!(mode, Some(FunctionMode::Getter | FunctionMode::Setter)) && !is_method {
+        if matches!(role, Some(FunctionRole::Getter | FunctionRole::Setter)) && !is_method {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
@@ -1569,11 +1560,11 @@ impl Parser {
             }
 
             // abstraction
-            // methods without key or mode are implicit calls
-            let mode = if key.is_none() && mode.is_none() {
-                Some(FunctionMode::Call)
+            // methods without key or role are implicit calls
+            let role = if key.is_none() && role.is_none() {
+                Some(FunctionRole::Call)
             } else {
-                mode
+                role
             };
 
             // modifiers postfix (again after parameters)
@@ -1586,17 +1577,13 @@ impl Parser {
                 return_type_span,
             } = self.eat_method_tail(
                 NodeType::Member,
-                mode,
+                role,
                 if is_async {
                     Asynchrony::Async
                 } else {
                     Asynchrony::Sync
                 },
-                if is_generator {
-                    FunctionCardinality::Generator
-                } else {
-                    FunctionCardinality::Scalar
-                },
+                is_generator,
                 modifiers.is_some_and(|modifiers| modifiers.is_abstract),
                 modifiers.is_some_and(|modifiers| modifiers.is_override),
                 true,
@@ -1609,7 +1596,7 @@ impl Parser {
                 body,
                 is_optional: modifiers.is_some_and(|modifiers| modifiers.is_optional),
                 visibility: modifiers.and_then(|modifiers| modifiers.visibility),
-                ambient: self.ambientness_for_modifiers(modifiers.as_ref()),
+                is_ambient: self.is_ambient_for_modifiers(modifiers.as_ref()),
                 is_abstract: modifiers.is_some_and(|modifiers| modifiers.is_abstract),
                 is_override: modifiers.is_some_and(|modifiers| modifiers.is_override),
                 is_static: modifiers.is_some_and(|modifiers| modifiers.is_static),
@@ -1721,7 +1708,7 @@ impl Parser {
                     declared_type: comptime_type,
                     value: default,
                     visibility: modifiers.and_then(|modifiers| modifiers.visibility),
-                    ambient: self.ambientness_for_modifiers(modifiers.as_ref()),
+                    is_ambient: self.is_ambient_for_modifiers(modifiers.as_ref()),
                     is_static: modifiers.is_some_and(|modifiers| modifiers.is_static),
                 }
             } else {
@@ -1733,7 +1720,7 @@ impl Parser {
                     is_readonly: modifiers.is_some_and(|modifiers| modifiers.is_readonly),
                     mutability: None,
                     visibility: modifiers.and_then(|modifiers| modifiers.visibility),
-                    ambient: self.ambientness_for_modifiers(modifiers.as_ref()),
+                    is_ambient: self.is_ambient_for_modifiers(modifiers.as_ref()),
                     is_abstract: modifiers.is_some_and(|modifiers| modifiers.is_abstract),
                     is_override: modifiers.is_some_and(|modifiers| modifiers.is_override),
                     is_static: modifiers.is_some_and(|modifiers| modifiers.is_static),
@@ -1820,11 +1807,10 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Ambientness, Argument, AssignOperator, Asynchrony, BinaryOperator, Block, ClassDeclaration,
-        CommentKind, Declaration, Expression, FunctionDeclaration, FunctionKind, FunctionMode,
-        GenericArgument, GenericParameter, IntType, InterfaceDeclaration, Key, Member, Name,
-        Parameter, Property, ScalarLiteral, TypeExpression, TypeLiteral, TypeMember,
-        TypePredicateSubject, Visibility,
+        Argument, AssignOperator, Asynchrony, BinaryOperator, Block, ClassDeclaration, CommentKind,
+        Declaration, Expression, FunctionDeclaration, FunctionForm, FunctionRole, GenericArgument,
+        GenericParameter, IntType, InterfaceDeclaration, Key, Member, Name, Parameter, Property,
+        ScalarLiteral, TypeExpression, TypeLiteral, TypeMember, TypePredicateSubject, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1884,10 +1870,10 @@ mod tests {
         let mut parser = test.prepare();
 
         let member = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member, Member::Field { key: Key::Private(name), declared_type: Some(value), visibility, ambient, is_accessor, .. } => {
+        assert_node!(parser.tree, member, Member::Field { key: Key::Private(name), declared_type: Some(value), visibility, is_ambient, is_accessor, .. } => {
             assert_string!(parser, *name, "value");
             assert_eq!(*visibility, Some(Visibility::Private));
-            assert_eq!(*ambient, Ambientness::Ambient);
+            assert_eq!(*is_ambient, true);
             assert!(*is_accessor);
             assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                 assert_eq!(*value, TypeLiteral::String);
@@ -1950,7 +1936,7 @@ port2 = {
                     assert_string!(parser, *name, "postMessage");
                     assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                            assert_eq!(signature.kind, FunctionKind::Lambda);
+                            assert_eq!(signature.form, FunctionForm::Lambda);
                             assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                                 assert_node!(parser.tree, *block_id, Block { .. } => {
                                     let expressions = block_expression_ids(parser.tree.get(*block_id));
@@ -2311,9 +2297,9 @@ port2 = {
                 let mut setter: Option<Key> = None;
                 for member_id in members {
                     if let TypeMember::Method { signature, key, .. } = parser.tree.get(*member_id) {
-                        match signature.mode {
-                            Some(FunctionMode::Getter) => getter = Some(*key),
-                            Some(FunctionMode::Setter) => setter = Some(*key),
+                        match signature.role {
+                            Some(FunctionRole::Getter) => getter = Some(*key),
+                            Some(FunctionRole::Setter) => setter = Some(*key),
                             _ => {}
                         }
                     }
@@ -2409,7 +2395,7 @@ foo(): string;"#,
             assert_string!(parser, *name, "reproFunc");
             assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(_), .. }) => {
-                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_eq!(signature.form, FunctionForm::Lambda);
                     assert_eq!(signature.parameters.len(), 1);
                 });
             });
@@ -2487,7 +2473,7 @@ foo(): string;"#,
         let property_id = parser.eat_property().unwrap();
         // <T = any>(x: T): T
         assert_node!(parser.tree, property_id, Property::Method { signature, .. } => {
-            assert_eq!(signature.mode, Some(FunctionMode::Call));
+            assert_eq!(signature.role, Some(FunctionRole::Call));
             let generic_parameters = &signature.generic_parameters;
             // <T = any>
             assert_eq!(generic_parameters.len(), 1);
@@ -2532,7 +2518,7 @@ foo(): string;"#,
         assert_node!(parser.tree, property_id, Property::Method { key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
             // constructor
             assert_string!(parser, *name, "constructor");
-            assert!(signature.mode.is_none());
+            assert!(signature.role.is_none());
             assert!(signature.generic_parameters.is_empty());
             // x: int32
             assert_eq!(signature.parameters.len(), 1);
@@ -2584,12 +2570,12 @@ foo(): string;"#,
         let mut test = TestParser::new("type Item = string");
         let mut parser = test.prepare();
         let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::AssociatedType { name, generic_parameters, where_clauses, constraint: None, value: Some(value), visibility, ambient, .. } => {
+        assert_node!(parser.tree, member_id, Member::AssociatedType { name, generic_parameters, where_clauses, constraint: None, value: Some(value), visibility, is_ambient, .. } => {
             assert_string!(parser, *name, "Item");
             assert!(generic_parameters.is_empty());
             assert!(where_clauses.is_empty());
             assert!(visibility.is_none());
-            assert_eq!(*ambient, Ambientness::Concrete);
+            assert_eq!(*is_ambient, false);
             assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                 assert_eq!(*value, TypeLiteral::String);
             });
@@ -2673,7 +2659,7 @@ foo(): string;"#,
         assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Name(name)), signature, is_static, .. } => {
             assert_string!(parser, name.string(), "new");
             assert!(*is_static);
-            assert!(signature.mode.is_none());
+            assert!(signature.role.is_none());
             assert_eq!(signature.generic_parameters.len(), 1);
             assert!(signature.return_type.is_some());
         });
@@ -2688,7 +2674,7 @@ foo(): string;"#,
         assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Name(name)), signature, is_static, .. } => {
             assert_string!(parser, name.string(), "constructor");
             assert!(*is_static);
-            assert!(signature.mode.is_none());
+            assert!(signature.role.is_none());
             assert_eq!(signature.generic_parameters.len(), 1);
             assert!(signature.return_type.is_some());
         });

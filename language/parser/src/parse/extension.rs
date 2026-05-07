@@ -108,7 +108,7 @@ impl Parser {
             Declaration::Extension(ExtensionDeclaration {
                 name,
                 export: header.export,
-                ambient: header.ambient,
+                is_ambient: header.is_ambient,
                 generic_parameters: generic_parameters.unwrap_or_default(),
                 where_clauses: where_clauses.unwrap_or_default(),
                 target_type,

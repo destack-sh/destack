@@ -423,8 +423,8 @@ fn test_parse_extension_identifier_in_ternary_expression() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
-    assert_node!(parser.tree, expr_id, Expression::If { kind, condition, then_expression, else_expression } => {
-        assert_eq!(*kind, IfKind::Ternary);
+    assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
+        assert_eq!(*form, IfForm::Ternary);
         assert_node!(condition, IfCondition::Expression { condition } => {
             assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
                 assert_eq!(*operator, BinaryOperator::EqualStrict);

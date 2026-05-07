@@ -208,7 +208,7 @@ fn test_parse_new_class_expression_with_generic_implements_clause() {
                 assert_eq!(implements_types.len(), 1);
                 assert_eq!(members.len(), 1);
                 assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
-                    assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                    assert!(signature.is_generator);
                 });
             });
         });
@@ -231,7 +231,7 @@ fn test_parse_arrow_body_with_anonymous_class_expression() {
     // <P extends Props>(wrapped: ComponentType<P>) => class extends Component<...> { ... }
     assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
 
             // class extends Component<Omit<P, keyof A> & Partial<B>, C>
             assert_node!(parser.tree, *body, Expression::Declaration(class_id) => {
@@ -268,7 +268,7 @@ fn test_parse_arrow_body_with_multiline_class_heritage_generic_arguments() {
     // <P extends Props>(wrapped: React.ComponentType<P>) => class extends React.Component<...> { ... }
     assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
 
             // class extends React.Component<Omit<P, keyof Props> & Partial<Props>, Props>
             assert_node!(parser.tree, *body, Expression::Declaration(class_id) => {

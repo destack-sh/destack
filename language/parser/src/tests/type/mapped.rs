@@ -34,8 +34,8 @@ fn test_parse_mapped_type() {
                 assert_string!(parser, parameter.name, "test");
                 let name_span = parser.tree.get_main_span(mapped_type_id).expect("missing mapped parameter name span");
                 assert_eq!(parser.get_span_str(name_span), "test");
-                assert_eq!(*readonly, TypeModifier::None);
-                assert_eq!(*optional, TypeModifier::None);
+                assert_eq!(*readonly, MappedTypeModifier::None);
+                assert_eq!(*optional, MappedTypeModifier::None);
                 assert_node!(parser.tree, parameter.source_type, TypeExpression::Union { elements } => {
                     assert_eq!(elements.len(), 2);
                     assert_node!(parser.tree, elements[0], TypeExpression::ScalarLiteral { value } => {
@@ -63,8 +63,8 @@ fn test_parse_mapped_type() {
             });
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, readonly, optional, value } => {
                 assert_string!(parser, parameter.name, "Property");
-                assert_eq!(*readonly, TypeModifier::None);
-                assert_eq!(*optional, TypeModifier::None);
+                assert_eq!(*readonly, MappedTypeModifier::None);
+                assert_eq!(*optional, MappedTypeModifier::None);
                 assert!(parameter.key_remap.is_none());
                 assert_node!(parser.tree, parameter.source_type, TypeExpression::KeyOf { target_type } => {
                     assert_expression_path!(parser, parser.tree.get(*target_type), "Type");
@@ -85,8 +85,8 @@ fn test_parse_mapped_type() {
             });
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, readonly, optional, value } => {
                 assert_string!(parser, parameter.name, "Property");
-                assert_eq!(*readonly, TypeModifier::Remove);
-                assert_eq!(*optional, TypeModifier::None);
+                assert_eq!(*readonly, MappedTypeModifier::Remove);
+                assert_eq!(*optional, MappedTypeModifier::None);
                 assert_node!(parser.tree, *value, TypeExpression::Index { left, index } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "Type");
                     assert_expression_path!(parser, parser.tree.get(*index), "Property");
@@ -104,8 +104,8 @@ fn test_parse_mapped_type() {
             });
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, readonly, optional, value } => {
                 assert_string!(parser, parameter.name, "Property");
-                assert_eq!(*readonly, TypeModifier::None);
-                assert_eq!(*optional, TypeModifier::Remove);
+                assert_eq!(*readonly, MappedTypeModifier::None);
+                assert_eq!(*optional, MappedTypeModifier::Remove);
                 assert_node!(parser.tree, *value, TypeExpression::Index { left, index } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "Type");
                     assert_expression_path!(parser, parser.tree.get(*index), "Property");
@@ -123,8 +123,8 @@ fn test_parse_mapped_type() {
             });
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, readonly, optional, value } => {
                 assert_string!(parser, parameter.name, "Property");
-                assert_eq!(*readonly, TypeModifier::None);
-                assert_eq!(*optional, TypeModifier::None);
+                assert_eq!(*readonly, MappedTypeModifier::None);
+                assert_eq!(*optional, MappedTypeModifier::None);
                 assert_node!(parser.tree, parameter.source_type, TypeExpression::KeyOf { target_type } => {
                     assert_expression_path!(parser, parser.tree.get(*target_type), "Type");
                 });
@@ -156,8 +156,8 @@ fn test_parse_type_mapped_expression_in_generic_arguments() {
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Mapped { readonly, optional, .. } => {
-                            assert_eq!(*readonly, TypeModifier::Remove);
-                            assert_eq!(*optional, TypeModifier::None);
+                            assert_eq!(*readonly, MappedTypeModifier::Remove);
+                            assert_eq!(*optional, MappedTypeModifier::None);
                         });
                 });
             });
@@ -175,8 +175,8 @@ fn test_parse_type_mapped_expression_with_newline_between_plus_and_readonly() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { readonly, optional, .. } => {
-                assert_eq!(*readonly, TypeModifier::Add);
-                assert_eq!(*optional, TypeModifier::None);
+                assert_eq!(*readonly, MappedTypeModifier::Add);
+                assert_eq!(*optional, MappedTypeModifier::None);
             });
         });
     });
@@ -195,8 +195,8 @@ fn test_parse_type_mapped_expression_distinguishes_plain_and_explicit_add_modifi
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { readonly, optional, .. } => {
-                assert_eq!(*readonly, TypeModifier::Present);
-                assert_eq!(*optional, TypeModifier::Present);
+                assert_eq!(*readonly, MappedTypeModifier::Present);
+                assert_eq!(*optional, MappedTypeModifier::Present);
             });
         });
     });
@@ -204,8 +204,8 @@ fn test_parse_type_mapped_expression_distinguishes_plain_and_explicit_add_modifi
     assert_node!(parser.tree, expressions[1], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { readonly, optional, .. } => {
-                assert_eq!(*readonly, TypeModifier::Add);
-                assert_eq!(*optional, TypeModifier::Add);
+                assert_eq!(*readonly, MappedTypeModifier::Add);
+                assert_eq!(*optional, MappedTypeModifier::Add);
             });
         });
     });
@@ -237,8 +237,8 @@ fn test_parse_type_mapped_expression_without_value_type() {
     assert_node!(parser.tree, expressions[1], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { readonly, optional, value, .. } => {
-                assert_eq!(*readonly, TypeModifier::None);
-                assert_eq!(*optional, TypeModifier::None);
+                assert_eq!(*readonly, MappedTypeModifier::None);
+                assert_eq!(*optional, MappedTypeModifier::None);
                 assert_node!(parser.tree, *value, TypeExpression::Missing);
             });
         });
@@ -259,8 +259,8 @@ fn test_parse_type_mapped_expression_without_value_type_with_modifiers() {
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { readonly, optional, value, .. } => {
-                assert_eq!(*readonly, TypeModifier::Add);
-                assert_eq!(*optional, TypeModifier::None);
+                assert_eq!(*readonly, MappedTypeModifier::Add);
+                assert_eq!(*optional, MappedTypeModifier::None);
                 assert_node!(parser.tree, *value, TypeExpression::Missing);
             });
         });
@@ -269,8 +269,8 @@ fn test_parse_type_mapped_expression_without_value_type_with_modifiers() {
     assert_node!(parser.tree, expressions[1], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { readonly, optional, value, .. } => {
-                assert_eq!(*readonly, TypeModifier::None);
-                assert_eq!(*optional, TypeModifier::Add);
+                assert_eq!(*readonly, MappedTypeModifier::None);
+                assert_eq!(*optional, MappedTypeModifier::Add);
                 assert_node!(parser.tree, *value, TypeExpression::Missing);
             });
         });

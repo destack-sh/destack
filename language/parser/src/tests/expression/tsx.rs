@@ -13,7 +13,7 @@ fn test_parse_generic_arrow_with_extends_before_tree() {
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             let generic_parameters = &signature.generic_parameters;
             assert_eq!(generic_parameters.len(), 1);
             assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, .. } => {
@@ -57,7 +57,7 @@ fn test_parse_parenthesized_tree_callback_body() {
         assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_eq!(signature.form, FunctionForm::Lambda);
                     assert_eq!(signature.parameters.len(), 1);
 
                     assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, .. } => {
@@ -100,7 +100,7 @@ fn test_parse_generic_arrow_with_trailing_comma_disambiguator() {
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             let generic_parameters = &signature.generic_parameters;
             assert_eq!(generic_parameters.len(), 1);
             assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint: None, default: None, .. } => {
@@ -133,8 +133,8 @@ fn test_parse_ternary_typed_arrow_function_before_tree() {
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::If { kind, condition, then_expression, else_expression } => {
-        assert_eq!(*kind, IfKind::Ternary);
+    assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
+        assert_eq!(*form, IfForm::Ternary);
         assert_node!(condition, IfCondition::Expression { condition } => {
             assert_node!(parser.tree, *condition, Expression::Binary { operator, .. } => {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
@@ -142,7 +142,7 @@ fn test_parse_ternary_typed_arrow_function_before_tree() {
         });
         assert_node!(parser.tree, *then_expression, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert_eq!(signature.form, FunctionForm::Lambda);
                 assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
                     assert_eq!(*value, TypeLiteral::Void);
                 });
@@ -151,7 +151,7 @@ fn test_parse_ternary_typed_arrow_function_before_tree() {
         let else_id = else_expression.expect("expected else branch");
         assert_node!(parser.tree, else_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert_eq!(signature.form, FunctionForm::Lambda);
                 assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
                     assert_eq!(*value, TypeLiteral::Void);
                 });
@@ -170,8 +170,8 @@ fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::If { kind, condition, then_expression, else_expression } => {
-        assert_eq!(*kind, IfKind::Ternary);
+    assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
+        assert_eq!(*form, IfForm::Ternary);
         assert_node!(condition, IfCondition::Expression { condition } => {
             assert_node!(parser.tree, *condition, Expression::Binary { operator, .. } => {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
@@ -180,7 +180,7 @@ fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
         assert_node!(parser.tree, *then_expression, Expression::Parenthesized { expression } => {
             assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_eq!(signature.form, FunctionForm::Lambda);
                     assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
                         assert_eq!(*value, TypeLiteral::Void);
                     });
@@ -191,7 +191,7 @@ fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
         assert_node!(parser.tree, else_id, Expression::Parenthesized { expression } => {
             assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_eq!(signature.form, FunctionForm::Lambda);
                     assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
                         assert_eq!(*value, TypeLiteral::Void);
                     });
@@ -222,7 +222,7 @@ fn test_parse_tree_attribute_typed_arrow_value() {
             assert_name!(parser, *name, "className");
             assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_eq!(signature.form, FunctionForm::Lambda);
                     let return_type = signature.return_type.expect("expected return type");
                     assert_node!(parser.tree, return_type, TypeExpression::Object { .. });
                 });
@@ -239,8 +239,8 @@ fn test_parse_ternary_tree_attribute_typed_arrow() {
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::If { kind, then_expression, else_expression, .. } => {
-        assert_eq!(*kind, IfKind::Ternary);
+    assert_node!(parser.tree, expr_id, Expression::If { form, then_expression, else_expression, .. } => {
+        assert_eq!(*form, IfForm::Ternary);
         assert_node!(parser.tree, *then_expression, Expression::TreeExpression { arguments, .. } => {
             let arguments = arguments.as_ref().expect("expected arguments");
             let class_name_argument = arguments.iter().copied().find(|argument_id| {
@@ -254,7 +254,7 @@ fn test_parse_ternary_tree_attribute_typed_arrow() {
                 assert_name!(parser, *name, "className");
                 assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                     assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                        assert_eq!(signature.kind, FunctionKind::Lambda);
+                        assert_eq!(signature.form, FunctionForm::Lambda);
                         let return_type = signature.return_type.expect("expected return type");
                         assert_node!(parser.tree, return_type, TypeExpression::Object { .. });
                     });

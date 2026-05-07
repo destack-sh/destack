@@ -1,7 +1,7 @@
 use crate::Parser;
 
 use destack_ast::{
-    Declaration, FunctionDeclaration, FunctionKind, GenericArgument, Keyword, LocalNodeId,
+    Declaration, FunctionDeclaration, FunctionForm, GenericArgument, Keyword, LocalNodeId,
     TokenType, TypeExpression,
 };
 
@@ -29,7 +29,7 @@ impl Parser {
                         return false;
                     };
 
-                    signature.kind == FunctionKind::Lambda
+                    signature.form == FunctionForm::Lambda
                         && !signature.generic_parameters.is_empty()
                 }
                 _ => false,

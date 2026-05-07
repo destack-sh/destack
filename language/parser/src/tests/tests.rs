@@ -256,7 +256,7 @@ impl ExpressionPathLike for AssignPattern {
                 let pattern = parser.tree.get(*pattern);
                 pattern.collect_path_segments(parser, segments)
             }
-            AssignPattern::Array { .. } | AssignPattern::Object { .. } => None,
+            AssignPattern::Sequence { .. } | AssignPattern::Object { .. } => None,
         }
     }
 }

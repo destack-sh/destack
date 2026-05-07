@@ -1,9 +1,8 @@
 use crate::parse::expression::common::DeclarationHeader;
-use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
-    Asynchrony, Declaration, EnumKind, ExportMode, Expression, Keyword, LocalNodeId,
+    Asynchrony, Declaration, EnumKind, ExportKind, Expression, Keyword, LocalNodeId,
     OperatorPrecedence, Path, ScalarLiteral, TokenType, TypeExpression, TypeKind, TypeLiteral,
 };
 use smallvec::smallvec;
@@ -304,7 +303,7 @@ impl Parser {
             }
             Keyword::Class => {
                 let allow_anonymous_class = !self.flags.is_in_statement_position()
-                    || header.export == Some(ExportMode::Default);
+                    || header.export == Some(ExportKind::Default);
                 let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
             }
@@ -529,7 +528,7 @@ impl Parser {
                 if self.language.is_destack() && (is_declaration_start || next_has_line_break) =>
             {
                 let allow_anonymous_class = !self.flags.is_in_statement_position()
-                    || header.export == Some(ExportMode::Default);
+                    || header.export == Some(ExportKind::Default);
                 let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
 
                 Ok(Some(
@@ -539,7 +538,7 @@ impl Parser {
 
             // class declaration
             Keyword::Class if is_declaration_start || next_has_line_break => {
-                let allow_anonymous_class = header.export == Some(ExportMode::Default)
+                let allow_anonymous_class = header.export == Some(ExportKind::Default)
                     || !self.flags.is_in_statement_position();
                 let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
 
@@ -836,13 +835,13 @@ impl Parser {
                 if self.language.is_destack() && (is_declaration_start || next_has_line_break) =>
             {
                 let allow_anonymous_class = !self.flags.is_in_statement_position()
-                    || header.export == Some(ExportMode::Default);
+                    || header.export == Some(ExportKind::Default);
                 let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
             }
             // class declaration
             Keyword::Class if is_declaration_start || next_has_line_break => {
-                let allow_anonymous_class = header.export == Some(ExportMode::Default)
+                let allow_anonymous_class = header.export == Some(ExportKind::Default)
                     || !self.flags.is_in_statement_position();
                 let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))

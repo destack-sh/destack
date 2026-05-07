@@ -130,8 +130,8 @@ fn test_parse_sequence_expression_with_ternary_tail() {
         assert_node!(parser.tree, expressions[0], Expression::Binary { operator, .. } => {
             assert_eq!(*operator, BinaryOperator::And);
         });
-        assert_node!(parser.tree, expressions[1], Expression::If { kind, .. } => {
-            assert_eq!(*kind, IfKind::Ternary);
+        assert_node!(parser.tree, expressions[1], Expression::If { form, .. } => {
+            assert_eq!(*form, IfForm::Ternary);
         });
     });
 }
@@ -152,8 +152,8 @@ fn test_parse_sequence_expression_with_nested_ternary() {
         assert_node!(parser.tree, expressions[0], Expression::Binary { operator, .. } => {
             assert_eq!(*operator, BinaryOperator::And);
         });
-        assert_node!(parser.tree, expressions[1], Expression::If { kind, .. } => {
-            assert_eq!(*kind, IfKind::Ternary);
+        assert_node!(parser.tree, expressions[1], Expression::If { form, .. } => {
+            assert_eq!(*form, IfForm::Ternary);
         });
     });
 }
@@ -171,7 +171,7 @@ fn test_parse_async_arrow_statement_comma_continuation() {
         assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                 assert_eq!(signature.asynchrony, Asynchrony::Async);
-                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert_eq!(signature.form, FunctionForm::Lambda);
             });
         });
         assert_expression_path!(parser, parser.tree.get(expressions[1]), "x");
@@ -190,7 +190,7 @@ fn test_parse_arrow_statement_comma_continuation() {
         assert_eq!(expressions.len(), 2);
         assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert_eq!(signature.form, FunctionForm::Lambda);
                 assert_node!(parser.tree, body.expect("expected lambda body"), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
         });

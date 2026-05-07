@@ -3,10 +3,9 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
-    Asynchrony, BlockContext, ConstructorTypeDeclaration, Declaration, ExportMode, Expression,
-    FunctionCardinality, FunctionDeclaration, FunctionKind, FunctionMode, FunctionSignature,
-    FunctionTypeDeclaration, Keyword, LocalNodeId, Name, NodeType, Parameter, TokenType,
-    TypeExpression,
+    Asynchrony, BlockContext, ConstructorTypeDeclaration, Declaration, ExportKind, Expression,
+    FunctionDeclaration, FunctionForm, FunctionRole, FunctionSignature, FunctionTypeDeclaration,
+    Keyword, LocalNodeId, Name, NodeType, Parameter, TokenType, TypeExpression,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
@@ -69,7 +68,7 @@ impl Parser {
             Declaration::Function(FunctionDeclaration {
                 name: function.name,
                 export: function.header.export,
-                ambient: function.header.ambient,
+                is_ambient: function.header.is_ambient,
                 signature: function.signature,
                 body: function.body,
             }),
@@ -126,12 +125,12 @@ impl Parser {
         start: &ParserSpanStart,
         function: ParsedFunctionSignature,
     ) -> LocalNodeId<TypeExpression> {
-        debug_assert_eq!(function.signature.kind, FunctionKind::Lambda);
+        debug_assert_eq!(function.signature.form, FunctionForm::Lambda);
         debug_assert!(function.body.is_none());
 
         // node
-        let type_expression = match function.signature.mode {
-            Some(FunctionMode::New) => {
+        let type_expression = match function.signature.role {
+            Some(FunctionRole::New) => {
                 TypeExpression::ConstructorTypeDeclaration(ConstructorTypeDeclaration {
                     is_abstract: function.signature.is_abstract,
                     generic_parameters: function.signature.generic_parameters,
@@ -147,7 +146,7 @@ impl Parser {
                 parameters: function.signature.parameters,
                 return_type: function.signature.return_type,
             }),
-            _ => unreachable!("expected function or constructor type mode"),
+            _ => unreachable!("expected function or constructor type role"),
         };
         let type_expression_id = self.insert_node(type_expression, self.get_span_from(start));
 
@@ -248,23 +247,23 @@ impl Parser {
     ) -> LocalNodeId<Declaration> {
         let (this_parameter, parameters) = self.split_this_parameter_maybe(parameters);
         let signature = FunctionSignature {
-            is_abstract: false,
-            is_override: false,
             asynchrony: Asynchrony::Sync,
-            cardinality: FunctionCardinality::Scalar,
-            mode: None,
-            kind: FunctionKind::Lambda,
+            role: None,
+            form: FunctionForm::Lambda,
             generic_parameters: vec![],
             where_clauses: vec![],
             this_parameter,
             parameters,
             return_type,
+            is_abstract: false,
+            is_override: false,
+            is_generator: false,
         };
         let function_id = self.insert_node(
             Declaration::Function(FunctionDeclaration {
                 name: None,
                 export: header.export,
-                ambient: header.ambient,
+                is_ambient: header.is_ambient,
                 signature,
                 body: Some(body),
             }),
@@ -838,7 +837,7 @@ impl Parser {
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         let function = self.eat_function_parts(start, header, expect_maybe, expect_body)?;
 
-        if function.signature.kind == FunctionKind::Lambda && function.body.is_none() {
+        if function.signature.form == FunctionForm::Lambda && function.body.is_none() {
             return Ok(self.insert_function_type_expression(start, function));
         }
 
@@ -879,32 +878,32 @@ impl Parser {
             false
         };
 
-        // new
-        let mode = if self.starts_construct_signature_head() {
+        // new role
+        let role = if self.starts_construct_signature_head() {
             self.bump(); // eat new keyword
-            Some(FunctionMode::New)
+            Some(FunctionRole::New)
         } else {
             None
         };
 
-        // function style
+        // function form
         let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
-        let (kind, is_generator) = {
+        let (form, is_generator) = {
             // regular `function` style
             if self.is_keyword(Keyword::Function) {
                 self.bump(); // eat function keyword
                 let is_generator = is_generator || self.eat_token_maybe(TokenType::Multiply)?;
-                (FunctionKind::Function, is_generator)
+                (FunctionForm::Function, is_generator)
             }
             // lambda style
             else {
-                (FunctionKind::Lambda, is_generator)
+                (FunctionForm::Lambda, is_generator)
             }
         };
 
         // function style, name, generic parameters
         let (name, name_span, generic_parameters, generic_parameter_container_span) = {
-            if kind == FunctionKind::Function {
+            if form == FunctionForm::Function {
                 // name
                 let (name, name_span) = if let Some((n, s)) = self.eat_name_maybe_with_span()? {
                     (Some(n), Some(s))
@@ -952,10 +951,10 @@ impl Parser {
         };
 
         // declarations in statement position require a name unless default-exported
-        if kind == FunctionKind::Function
+        if form == FunctionForm::Function
             && self.flags.is_in_statement_position()
             && name.is_none()
-            && header.export != Some(ExportMode::Default)
+            && header.export != Some(ExportKind::Default)
         {
             return Err(ParseError::expected(
                 self.peek()?.span,
@@ -966,7 +965,7 @@ impl Parser {
         // dynamic parameters
         let (parameters, parameter_container_span) = {
             // regular `(...) => ...` function/lambda
-            let has_parenthesized_parameters = kind == FunctionKind::Function
+            let has_parenthesized_parameters = form == FunctionForm::Function
                 || self.flags.is_in_type()
                 || self.peek_is(TokenType::OpenParenthesis)
                 || self.next_token_type() == TokenType::OpenParenthesis;
@@ -1019,7 +1018,7 @@ impl Parser {
         // only for functions or lambda types
         let (return_type, return_type_span, where_clauses) = {
             // lambda with explicit return type
-            if kind == FunctionKind::Lambda && self.has_lambda_return_type_marker() {
+            if form == FunctionForm::Lambda && self.has_lambda_return_type_marker() {
                 let type_start = self.span_start();
                 self.bump(); // eat colon or arrow
 
@@ -1051,7 +1050,7 @@ impl Parser {
                 (Some(return_type), Some(return_type_span), where_clauses)
             }
             // regular function with return type or lambda type
-            else if kind == FunctionKind::Function || self.flags.is_in_type() {
+            else if form == FunctionForm::Function || self.flags.is_in_type() {
                 // return type
                 let has_return_type_marker = self.peek_arrow_is()
                     || self.peek_colon_is()
@@ -1106,7 +1105,7 @@ impl Parser {
             }
 
             // function with body
-            if kind == FunctionKind::Function && self.peek_is(TokenType::OpenBrace) {
+            if form == FunctionForm::Function && self.peek_is(TokenType::OpenBrace) {
                 let mut flags = self
                     .flags
                     .in_statement_position()
@@ -1123,7 +1122,7 @@ impl Parser {
                 (Some(body), Some(body_span))
             }
             // lambda with body
-            else if kind == FunctionKind::Lambda
+            else if form == FunctionForm::Lambda
                 && !self.flags.is_in_type()
                 && self.peek_arrow_is()
             {
@@ -1172,23 +1171,18 @@ impl Parser {
         } else {
             Asynchrony::Sync
         };
-        let cardinality = if is_generator {
-            FunctionCardinality::Generator
-        } else {
-            FunctionCardinality::Scalar
-        };
         let signature = FunctionSignature {
-            is_abstract: header.is_abstract,
-            is_override: false,
             asynchrony,
-            cardinality,
-            kind,
-            mode,
+            form,
+            role,
             generic_parameters: generic_parameters.unwrap_or_default(),
             where_clauses: where_clauses.unwrap_or_default(),
             this_parameter,
             parameters,
             return_type,
+            is_abstract: header.is_abstract,
+            is_override: false,
+            is_generator,
         };
 
         Ok(ParsedFunctionSignature {
@@ -1224,11 +1218,11 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, Asynchrony, BlockContext, BlockFormat, ClassDeclaration, CommentKind,
-        CommentPosition, Declaration, Declarator, Expression, FunctionCardinality,
-        FunctionDeclaration, FunctionKind, FunctionMode, GenericArgument, GenericParameter,
-        IntType, NodeType, Parameter, Pattern, ScalarLiteral, TypeDeclaration, TypeExpression,
-        TypeLiteral, VarianceModifier, WhereClause, YieldCardinality,
+        Argument, Asynchrony, BlockContext, BlockForm, ClassDeclaration, CommentKind,
+        CommentPosition, Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm,
+        FunctionRole, GenericArgument, GenericParameter, IntType, NodeType, Parameter, Pattern,
+        ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral, VarianceModifier, WhereClause,
+        YieldCardinality,
     };
 
     use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
@@ -1255,7 +1249,7 @@ mod tests {
         // (x: number): number => x
         assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, body: Some(body), .. }) => {
             assert_eq!(*name, None);
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             // x: number
             assert_eq!(signature.parameters.len(), 1);
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
@@ -1287,7 +1281,7 @@ export function stableLater(): void {}
         let mut parser = test.prepare();
 
         let expressions = parser
-            .eat_block_body_in_context(BlockFormat::Implicit, BlockContext::Statement)
+            .eat_block_body_in_context(BlockForm::Implicit, BlockContext::Statement)
             .unwrap();
 
         assert_eq!(expressions.len(), 2);
@@ -1321,7 +1315,7 @@ function stableLater(): void {}
         let mut parser = test.prepare();
 
         let expressions = parser
-            .eat_block_body_in_context(BlockFormat::Implicit, BlockContext::Statement)
+            .eat_block_body_in_context(BlockForm::Implicit, BlockContext::Statement)
             .unwrap();
 
         assert_eq!(expressions.len(), 2);
@@ -1355,7 +1349,7 @@ const value = 1
         let mut parser = test.prepare();
 
         let expressions = parser
-            .eat_block_body_in_context(BlockFormat::Implicit, BlockContext::Statement)
+            .eat_block_body_in_context(BlockForm::Implicit, BlockContext::Statement)
             .unwrap();
 
         assert_eq!(expressions.len(), 2);
@@ -1453,7 +1447,7 @@ function setns(
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
         assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             assert_eq!(signature.parameters.len(), 1);
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, default, .. } => {
                 assert_string!(parser, *name, "value");
@@ -1535,7 +1529,7 @@ function setns(
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
         assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             assert_eq!(signature.parameters.len(), 1);
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, default, .. } => {
                 assert_string!(parser, *name, "value");
@@ -1586,7 +1580,7 @@ function setns(
 
         // (this: string) => {}
         assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             assert!(signature.this_parameter.is_some());
             assert!(signature.parameters.is_empty());
             assert!(body.is_some());
@@ -1605,7 +1599,7 @@ function setns(
         // (x): int32 => x
         assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, body: Some(body), .. }) => {
             assert!(name.is_none());
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             // x
             assert_eq!(signature.parameters.len(), 1);
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: None, .. } => {
@@ -1630,7 +1624,7 @@ function setns(
         let expr_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert_eq!(signature.form, FunctionForm::Lambda);
                 assert!(body.is_some());
                 assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Parenthesized { expression } => {
                     assert_node!(parser.tree, *expression, TypeExpression::Literal { value } => {
@@ -1690,8 +1684,8 @@ function setns(
         // new (x) => int32
         assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, .. }) => {
             assert!(name.is_none());
-            assert_eq!(signature.mode, Some(FunctionMode::New));
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.role, Some(FunctionRole::New));
+            assert_eq!(signature.form, FunctionForm::Lambda);
             assert!(signature.parameters.is_empty());
             assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "$");
         });
@@ -1711,8 +1705,8 @@ function setns(
         assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, .. }) => {
             assert!(name.is_none());
             // new
-            assert_eq!(signature.mode, Some(FunctionMode::New));
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.role, Some(FunctionRole::New));
+            assert_eq!(signature.form, FunctionForm::Lambda);
             let generic_parameters = &signature.generic_parameters;
             // <T>
             assert_eq!(generic_parameters.len(), 1);
@@ -1824,8 +1818,8 @@ function compute<Validate: boolean, Precision: uint8>(data: uint8[]) {
         // abstract\nnew (): T
         assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             assert!(signature.is_abstract);
-            assert_eq!(signature.mode, Some(FunctionMode::New));
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.role, Some(FunctionRole::New));
+            assert_eq!(signature.form, FunctionForm::Lambda);
             assert!(signature.parameters.is_empty());
             assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "T");
         });
@@ -2063,7 +2057,7 @@ async function* foo() => int32 {
             // foo
             assert_string!(parser, name.unwrap().string(), "foo");
             assert_eq!(signature.asynchrony, Asynchrony::Async);
-            assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+            assert!(signature.is_generator);
         });
     }
 
@@ -2081,7 +2075,7 @@ async function* foo() => int32 {
         // function* a() { b.c(yield); }
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                assert!(signature.is_generator);
                 // { b.c(yield); }
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
@@ -2214,7 +2208,7 @@ function main() {
         // function *a() { yield yield }
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                assert!(signature.is_generator);
                 // { yield yield }
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
@@ -2247,7 +2241,7 @@ function main() {
         // function *a() { yield *a }
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                assert!(signature.is_generator);
                 // { yield *a }
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
@@ -2278,7 +2272,7 @@ function main() {
         // function *a() { yield *yield }
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                assert!(signature.is_generator);
                 // { yield *yield }
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
@@ -2313,7 +2307,7 @@ function main() {
         // *a}
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                assert!(signature.is_generator);
 
                 // { yield \n *a }
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
@@ -2353,7 +2347,7 @@ function main() {
         // const value = 1}
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                assert!(signature.is_generator);
 
                 // { yield* \n const value = 1 }
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
@@ -2390,7 +2384,7 @@ function main() {
         // function* a(){(class extends (yield) {});}
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                assert!(signature.is_generator);
                 // { (class extends (yield) {}); }
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
@@ -2425,7 +2419,7 @@ function main() {
         let expression_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                assert!(signature.is_generator);
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
                     assert_eq!(block.leading_expressions.len(), 1);
@@ -2444,7 +2438,7 @@ function main() {
         let expression_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                assert!(signature.is_generator);
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
                     assert_eq!(block.leading_expressions.len(), 1);
@@ -2519,7 +2513,7 @@ function onResolve(
 
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert_eq!(signature.form, FunctionForm::Lambda);
                 assert_eq!(signature.parameters.len(), 3);
 
                 // (fiberId?: FiberId.FiberId, options?: Runtime.RunCallbackOptions<any, any> | undefined) => void
@@ -2601,7 +2595,7 @@ function onResolve(
 
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert_eq!(signature.form, FunctionForm::Lambda);
                 assert!(signature.parameters.is_empty());
             });
         });
@@ -2693,7 +2687,7 @@ function onResolve(
             assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
                 assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                     assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                        assert_eq!(signature.kind, FunctionKind::Lambda);
+                        assert_eq!(signature.form, FunctionForm::Lambda);
                     });
                 });
             });
@@ -2716,7 +2710,7 @@ function onResolve(
         assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {
             assert_node!(parser.tree, *left, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_eq!(signature.form, FunctionForm::Lambda);
                 });
             });
         });

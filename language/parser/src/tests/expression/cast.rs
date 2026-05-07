@@ -354,7 +354,7 @@ fn test_parse_typed_arrow_body_with_as_parameter_member_access() {
     // (as: Array<number>) => i > as.length
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             assert_eq!(signature.parameters.len(), 1);
 
             // (as: Array<number>)
@@ -394,7 +394,7 @@ fn test_parse_typed_arrow_with_as_parameter_in_ternary_condition() {
     // <A>(i: number, a: A) =>
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             assert_eq!(signature.parameters.len(), 2);
 
             // (i: number, a: A)
@@ -412,7 +412,7 @@ fn test_parse_typed_arrow_with_as_parameter_in_ternary_condition() {
             // (as: Array<A>): Option<NonEmptyArray<A>> =>
             assert_node!(parser.tree, body.expect("expected body"), Expression::Declaration(inner_declaration_id) => {
                 assert_node!(parser.tree, *inner_declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_eq!(signature.form, FunctionForm::Lambda);
                     assert_eq!(signature.parameters.len(), 1);
                     assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, .. } => {
                         assert_string!(parser, *name, "as");
@@ -619,7 +619,7 @@ fn test_parse_async_arrow_with_as_parameter() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
             assert_eq!(signature.asynchrony, Asynchrony::Async);
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             assert_eq!(signature.parameters.len(), 1);
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, .. } => {
                 assert_string!(parser, *name, "as");
@@ -639,7 +639,7 @@ fn test_parse_async_arrow_with_newline_before_return_type() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
             assert_eq!(signature.asynchrony, Asynchrony::Async);
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             assert_eq!(signature.parameters.len(), 1);
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, .. } => {
                 assert_string!(parser, *name, "f");
@@ -766,8 +766,8 @@ fn test_parse_cast_followed_by_ternary_expression() {
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // perFileCache === (resolvedModuleNames as unknown) ? resolved : fallback
-    assert_node!(parser.tree, expr_id, Expression::If { kind, condition, then_expression, else_expression } => {
-        assert_eq!(*kind, IfKind::Ternary);
+    assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
+        assert_eq!(*form, IfForm::Ternary);
         assert_node!(condition, IfCondition::Expression { condition } => {
             assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::EqualStrict);
@@ -795,8 +795,8 @@ fn test_parse_satisfies_followed_by_ternary_expression() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
-    assert_node!(parser.tree, expr_id, Expression::If { kind, condition, then_expression, else_expression } => {
-        assert_eq!(*kind, IfKind::Ternary);
+    assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
+        assert_eq!(*form, IfForm::Ternary);
         assert_node!(condition, IfCondition::Expression { condition } => {
             assert_node!(parser.tree, *condition, Expression::Satisfies { expression, target_type } => {
                 assert_expression_path!(parser, parser.tree.get(*expression), "value");

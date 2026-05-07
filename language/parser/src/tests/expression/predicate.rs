@@ -107,16 +107,16 @@ fn test_parse_return_type_predicate_with_object_subject() {
 
     // function isAnyArrayBuffer(object: unknown): object is ArrayBufferLike
     assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
-        assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { name, export, ambient, signature, body }) => {
+        assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { name, export, is_ambient, signature, body }) => {
             assert_name!(parser, name.expect("expected function name"), "isAnyArrayBuffer");
             assert!(export.is_none());
-            assert_eq!(*ambient, Ambientness::Concrete);
+            assert_eq!(*is_ambient, false);
             assert!(!signature.is_abstract);
             assert!(!signature.is_override);
             assert_eq!(signature.asynchrony, Asynchrony::Sync);
-            assert_eq!(signature.cardinality, FunctionCardinality::Scalar);
-            assert!(signature.mode.is_none());
-            assert_eq!(signature.kind, FunctionKind::Function);
+            assert!(!signature.is_generator);
+            assert!(signature.role.is_none());
+            assert_eq!(signature.form, FunctionForm::Function);
             assert!(signature.generic_parameters.is_empty());
             assert!(signature.where_clauses.is_empty());
             assert!(signature.this_parameter.is_none());

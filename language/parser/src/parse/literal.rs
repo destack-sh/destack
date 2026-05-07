@@ -1427,7 +1427,7 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, BinaryOperator, CommentKind, Declaration, Expression, FloatType,
-        FunctionDeclaration, FunctionKind, GenericArgument, GenericParameter, IfCondition, IfKind,
+        FunctionDeclaration, FunctionForm, GenericArgument, GenericParameter, IfCondition, IfForm,
         IntType, Key, Name, Parameter, Property, ScalarLiteral, TemplateLiteral, TypeExpression,
         TypeLiteral,
     };
@@ -2694,9 +2694,9 @@ mod tests {
         let mut test = TestParser::new(r#"a ? <>{y && <E />}</> : null"#);
         let mut parser = test.prepare();
         let expr = parser.eat_expression(parser.flags).unwrap();
-        // a ? ... : null -> If with IfKind::Ternary
-        assert_node!(parser.tree, expr, Expression::If { kind, condition, then_expression, else_expression } => {
-            assert_eq!(*kind, IfKind::Ternary);
+        // a ? ... : null -> If with IfForm::Ternary
+        assert_node!(parser.tree, expr, Expression::If { form, condition, then_expression, else_expression } => {
+            assert_eq!(*form, IfForm::Ternary);
             // condition: a
             let condition_id = match condition {
                 IfCondition::Expression { condition } => *condition,
@@ -2957,7 +2957,7 @@ mod tests {
                         assert_string!(parser, *key_name, "resend");
                         assert_node!(parser.tree, *callback, Expression::Declaration(declaration_id) => {
                             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-                                assert_eq!(signature.kind, FunctionKind::Lambda);
+                                assert_eq!(signature.form, FunctionForm::Lambda);
                                 assert_eq!(signature.parameters.len(), 1);
                                 assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, .. } => {
                                     assert_string!(parser, *name, "chunks");
@@ -2969,8 +2969,8 @@ mod tests {
                                         let elements = elements.as_ref().expect("expected button children");
                                         assert_eq!(elements.len(), 1);
                                         assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
-                                            assert_node!(parser.tree, *value, Expression::If { kind, .. } => {
-                                                assert_eq!(*kind, IfKind::Ternary);
+                                            assert_node!(parser.tree, *value, Expression::If { form, .. } => {
+                                                assert_eq!(*form, IfForm::Ternary);
                                             });
                                         });
                                     });
@@ -3462,8 +3462,8 @@ mod tests {
             let elements = elements.as_ref().expect("expected elements");
             assert_eq!(elements.len(), 1);
             assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
-                assert_node!(parser.tree, *value, Expression::If { kind, .. } => {
-                    assert_eq!(*kind, IfKind::Ternary);
+                assert_node!(parser.tree, *value, Expression::If { form, .. } => {
+                    assert_eq!(*form, IfForm::Ternary);
                 });
             });
         });
@@ -3482,8 +3482,8 @@ mod tests {
             let elements = elements.as_ref().expect("expected elements");
             assert_eq!(elements.len(), 1);
             assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
-                assert_node!(parser.tree, *value, Expression::If { kind, .. } => {
-                    assert_eq!(*kind, IfKind::Ternary);
+                assert_node!(parser.tree, *value, Expression::If { form, .. } => {
+                    assert_eq!(*form, IfForm::Ternary);
                 });
             });
         });
@@ -3514,7 +3514,7 @@ mod tests {
                     assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
                         assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-                                assert_eq!(signature.kind, FunctionKind::Lambda);
+                                assert_eq!(signature.form, FunctionForm::Lambda);
 
                                 let body = body.expect("expected lambda body");
                                 assert_node!(parser.tree, body, Expression::Parenthesized { expression } => {
@@ -3552,8 +3552,8 @@ mod tests {
         let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptXml);
         let mut parser = test.prepare();
         let expression = parser.eat_expression(parser.flags).unwrap();
-        assert_node!(parser.tree, expression, Expression::If { kind, condition, then_expression, else_expression } => {
-            assert_eq!(*kind, IfKind::Ternary);
+        assert_node!(parser.tree, expression, Expression::If { form, condition, then_expression, else_expression } => {
+            assert_eq!(*form, IfForm::Ternary);
             assert_node!(condition, IfCondition::Expression { condition } => {
                 assert_expression_path!(parser, parser.tree.get(*condition), "shouldShow");
             });
@@ -3633,8 +3633,8 @@ mod tests {
                         let elements = elements.as_ref().expect("expected fragment children");
                         assert_eq!(elements.len(), 1);
                         assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
-                            assert_node!(parser.tree, *value, Expression::If { kind, .. } => {
-                                assert_eq!(*kind, IfKind::Ternary);
+                            assert_node!(parser.tree, *value, Expression::If { form, .. } => {
+                                assert_eq!(*form, IfForm::Ternary);
                             });
                         });
                     });

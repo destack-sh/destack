@@ -88,7 +88,7 @@ impl Parser {
 
         // let else
         if self.is_keyword(Keyword::Else) {
-            if header.export.is_some() || header.ambient.is_ambient() {
+            if header.export.is_some() || header.is_ambient {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
@@ -152,7 +152,7 @@ impl Parser {
             Expression::Let {
                 kind,
                 export: header.export,
-                ambient: header.ambient,
+                is_ambient: header.is_ambient,
                 mutability,
                 declarators,
             },
@@ -332,7 +332,7 @@ impl Parser {
             Expression::Using {
                 asynchrony,
                 export: header.export,
-                ambient: header.ambient,
+                is_ambient: header.is_ambient,
                 declarators,
             },
             self.get_span_from(start),
@@ -538,7 +538,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Asynchrony, Declaration, Declarator, Expression, FunctionDeclaration, FunctionKind,
+        Asynchrony, Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm,
         GenericArgument, GenericParameter, IntType, Key, LetKind, Mutability, Name, Parameter,
         Pattern, PatternField, ScalarLiteral, TypeExpression, TypeLiteral, TypeMember,
     };
@@ -734,7 +734,7 @@ using x = open()
                 let value_id = value.expect("expected value");
                 assert_node!(parser.tree, value_id, Expression::Declaration(declaration_id) => {
                     assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                        assert_eq!(signature.kind, FunctionKind::Lambda);
+                        assert_eq!(signature.form, FunctionForm::Lambda);
                         assert_eq!(signature.generic_parameters.len(), 1);
                         assert_node!(parser.tree, signature.generic_parameters[0], GenericParameter::Type { name, .. } => {
                             assert_string!(parser, *name, "T");
@@ -800,7 +800,7 @@ using x = open()
         assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
             assert_eq!(declarators.len(), 1);
             assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
-                assert_node!(parser.tree, *pattern, Pattern::Array { fields } => {
+                assert_node!(parser.tree, *pattern, Pattern::Sequence { fields } => {
                     assert_eq!(fields.len(), 2);
                     assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, is_shorthand: true, pattern: None } => {
                         assert_name!(parser, *name, "readonly");
@@ -1302,7 +1302,7 @@ const registry: Map<
                 });
                 assert_node!(parser.tree, value.expect("expected initializer"), Expression::Declaration(declaration_id) => {
                     assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                        assert_eq!(signature.kind, FunctionKind::Lambda);
+                        assert_eq!(signature.form, FunctionForm::Lambda);
                     });
                 });
             });
@@ -1313,7 +1313,7 @@ const registry: Map<
                 assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
                     assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                            assert_eq!(signature.kind, FunctionKind::Function);
+                            assert_eq!(signature.form, FunctionForm::Function);
                         });
                     });
                 });

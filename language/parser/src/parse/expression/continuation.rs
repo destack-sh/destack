@@ -1,11 +1,10 @@
 use crate::parse::parser::ParserFlags;
-use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserCheckpoint, ParserSpanStart};
 
 use super::operator::{ParseInfixOperator, TypeBinaryOperator, TypeUnaryOperator};
 use destack_ast::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Declaration,
-    Expression, FunctionDeclaration, FunctionKind, GenericArgument, IfCondition, IfKind, Key,
+    Expression, FunctionDeclaration, FunctionForm, GenericArgument, IfCondition, IfForm, Key,
     Keyword, LiteralType, LocalNodeId, Name, NodeType, PostfixPosition, Property, TokenType,
     TypeExpression, UnaryOperator,
 };
@@ -206,7 +205,7 @@ impl Parser {
                 if matches!(
                     self.tree.get(*declaration_id),
                     Declaration::Function(FunctionDeclaration { signature, .. })
-                        if signature.kind == FunctionKind::Lambda
+                        if signature.form == FunctionForm::Lambda
                 )
         ) && !self.current_token_is_on_new_line()
             && !matches!(
@@ -327,7 +326,7 @@ impl Parser {
         let inner_expression_id = self.without_parentheses_expression(expression_id);
         let inner_expression = self.tree.get(inner_expression_id).clone();
 
-        // object and array destructuring own recursive assign target lowering
+        // object and sequence destructuring own recursive assign pattern lowering
         let assign_pattern = match inner_expression {
             Expression::ObjectExpression {
                 ty: None,
@@ -339,7 +338,7 @@ impl Parser {
             }
             Expression::ArrayExpression { elements } => {
                 let fields = self.array_elements_to_assign_pattern_fields(elements.as_slice())?;
-                AssignPattern::Array { fields }
+                AssignPattern::Sequence { fields }
             }
             Expression::Assign {
                 left,
@@ -2010,7 +2009,7 @@ impl Parser {
             let else_flags = self.flags.not_in_position().not_in_sequence_expression();
             let else_expression_id = self.eat_expression_with_context_unchecked(else_flags)?;
             let expression = Expression::If {
-                kind: IfKind::Ternary,
+                form: IfForm::Ternary,
                 condition: IfCondition::Expression {
                     condition: left_expression_id,
                 },

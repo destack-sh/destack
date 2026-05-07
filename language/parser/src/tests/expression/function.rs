@@ -101,7 +101,7 @@ fn test_parse_lambda_function_value() {
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             assert!(signature.return_type.is_none());
             assert!(body.is_some());
             assert_eq!(signature.parameters.len(), 1);
@@ -143,7 +143,7 @@ fn test_parse_call_with_function_expression_newline_before_body() {
         assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { name, signature, body, .. }) => {
-                    assert_eq!(signature.kind, FunctionKind::Function);
+                    assert_eq!(signature.form, FunctionForm::Function);
                     assert_string!(parser, name.unwrap().string(), "nextTick_callback");
                     assert_eq!(signature.parameters.len(), 0);
 
@@ -181,7 +181,7 @@ fn test_parse_generic_lambda_function_value() {
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             let generic_parameters = &signature.generic_parameters;
             assert_eq!(generic_parameters.len(), 1);
             assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint: None, default: None, .. } => {
@@ -227,7 +227,7 @@ fn test_parse_generic_lambda_function_value_multiline_after_less_than() {
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             let generic_parameters = &signature.generic_parameters;
             assert_eq!(generic_parameters.len(), 1);
             assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, .. } => {
@@ -267,13 +267,13 @@ fn test_parse_ternary_typed_arrow_with_function_type_parameter() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
-    assert_node!(parser.tree, expr_id, Expression::If { kind, then_expression, else_expression, .. } => {
-        assert_eq!(*kind, IfKind::Ternary);
+    assert_node!(parser.tree, expr_id, Expression::If { form, then_expression, else_expression, .. } => {
+        assert_eq!(*form, IfForm::Ternary);
 
         // (nodes: Node[], test: (node: Node) => boolean, message?: string): void => assert(...)
         assert_node!(parser.tree, *then_expression, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert_eq!(signature.form, FunctionForm::Lambda);
                 assert_eq!(signature.parameters.len(), 3);
                 assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
                     assert_eq!(*value, TypeLiteral::Void);
@@ -295,7 +295,7 @@ fn test_parse_lambda_function_value_with_pattern_parameters() {
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(_), .. }) => {
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             assert!(signature.return_type.is_none());
             assert_eq!(signature.parameters.len(), 2);
             // _
@@ -498,7 +498,7 @@ fn test_parse_lambda_function_value_shorthand() {
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             assert!(signature.return_type.is_none());
             assert_eq!(signature.parameters.len(), 1);
             // x

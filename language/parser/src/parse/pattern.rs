@@ -103,7 +103,7 @@ impl Parser {
                     NodeType::Pattern,
                 )?;
                 self.tree
-                    .insert(Pattern::Array { fields }, self.get_span_from(&start))
+                    .insert(Pattern::Sequence { fields }, self.get_span_from(&start))
             }
             // literal expression
             else if self.is_scalar_literal_start() {
@@ -1315,7 +1315,7 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
-        assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
+        assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
             assert_eq!(fields.len(), 2);
             // 1
             assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
@@ -1329,17 +1329,17 @@ mod tests {
         });
     }
 
-    /// Parse a spread field with an array pattern.
+    /// Parse a spread field with a sequence pattern.
     #[test]
     fn test_parse_pattern_spread_array_pattern() {
         let mut test = TestParser::new("[...[x, y]]");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
-        assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
+        assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
             assert_eq!(fields.len(), 1);
             assert_node!(parser.tree, fields[0], PatternField::Spread { mutability: None, pattern: Some(pattern) } => {
-                assert_node!(parser.tree, *pattern, Pattern::Array { fields } => {
+                assert_node!(parser.tree, *pattern, Pattern::Sequence { fields } => {
                     assert_eq!(fields.len(), 2);
                     assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, .. } => {
                         assert_name!(parser, *name, "x");
@@ -1400,7 +1400,7 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
-        assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
+        assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
             assert_eq!(fields.len(), 2);
             assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, is_shorthand: true, pattern: None } => {
                 assert_name!(parser, *name, "readonly");
@@ -1417,7 +1417,7 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
-        assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
+        assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
             assert_eq!(fields.len(), 2);
             assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, is_shorthand: true, pattern: None } => {
                 assert_name!(parser, *name, "readonly");
@@ -1539,7 +1539,7 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
-        assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
+        assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
             assert_eq!(fields.len(), 2);
 
             // elision (empty slot)
@@ -1559,7 +1559,7 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
-        assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
+        assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
             assert_eq!(fields.len(), 3);
 
             // first elision
@@ -1582,7 +1582,7 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
-        assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
+        assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
             // trailing comma doesn't create elision, just 'a'
             assert_eq!(fields.len(), 1);
 
@@ -1621,7 +1621,7 @@ mod tests {
 
             // [g]:[h]
             assert_node!(parser.tree, fields[4], PatternField::Computed { pattern, .. } => {
-                assert_node!(parser.tree, *pattern, Pattern::Array { .. });
+                assert_node!(parser.tree, *pattern, Pattern::Sequence { .. });
             });
         });
     }

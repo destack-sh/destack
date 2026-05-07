@@ -132,7 +132,7 @@ impl Parser {
             Declaration::Class(ClassDeclaration {
                 name,
                 export: header.export,
-                ambient: header.ambient,
+                is_ambient: header.is_ambient,
                 is_abstract: header.is_abstract,
                 generic_parameters: generic_parameters.unwrap_or_default(),
                 where_clauses: where_clauses.unwrap_or_default(),
@@ -145,7 +145,7 @@ impl Parser {
             Declaration::Struct(StructDeclaration {
                 name: name.expect("structs require a name here"),
                 export: header.export,
-                ambient: header.ambient,
+                is_ambient: header.is_ambient,
                 generic_parameters: generic_parameters.unwrap_or_default(),
                 where_clauses: where_clauses.unwrap_or_default(),
                 implements_types: implements_types.unwrap_or_default(),

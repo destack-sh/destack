@@ -241,8 +241,8 @@ f<x> !== g<y>;
     });
 
     // f<x> ? g<y> : h<z>
-    assert_node!(parser.tree, expressions[2], Expression::If { kind, .. } => {
-        assert_eq!(*kind, IfKind::Ternary);
+    assert_node!(parser.tree, expressions[2], Expression::If { form, .. } => {
+        assert_eq!(*form, IfForm::Ternary);
     });
 
     // f<x> ?? g<y>
