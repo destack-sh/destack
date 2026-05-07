@@ -61,9 +61,9 @@ pub enum CastOperator {
     ObjectDowncast,
 }
 
-/// The source of a cast expression.
+/// How one cast expression entered the DIR.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum CastSource {
+pub enum CastOrigin {
     /// Casts written explicitly in source.
     Explicit,
     /// Casts inserted implicitly at type boundaries.

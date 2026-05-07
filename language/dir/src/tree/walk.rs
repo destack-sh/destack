@@ -248,9 +248,16 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_tuple_element(tree, *element_id, element);
             }
         }
-        TypeExpression::Array { element } => {
+        TypeExpression::Array { element } | TypeExpression::Slice { element } => {
             let element_node = tree.get(*element);
             visitor.visit_type_expression(tree, *element, element_node);
+        }
+        TypeExpression::FixedArray { element, length } => {
+            let element_node = tree.get(*element);
+            visitor.visit_type_expression(tree, *element, element_node);
+
+            let length_node = tree.get(*length);
+            visitor.visit_type_expression(tree, *length, length_node);
         }
         TypeExpression::Object { members } => {
             for member_id in members {
@@ -312,22 +319,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         TypeExpression::Reference {
             path: _,
             generic_arguments,
-            space_order: _,
-        }
-        | TypeExpression::LocalReference {
-            path: _,
-            generic_arguments,
-            target_symbol: _,
-        }
-        | TypeExpression::ModuleReference {
-            path: _,
-            generic_arguments,
-            target_symbol: _,
-        }
-        | TypeExpression::GlobalReference {
-            path: _,
-            generic_arguments,
-            target_symbol: _,
+            space: _,
         } => {
             for argument_id in generic_arguments {
                 let argument = tree.get(*argument_id);
@@ -381,10 +373,10 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         | TypeExpression::Not {
             target_type: right, ..
         }
-        | TypeExpression::ValueOf {
+        | TypeExpression::OwnedOf {
             target_type: right, ..
         }
-        | TypeExpression::ReferenceOf {
+        | TypeExpression::BorrowedOf {
             target_type: right, ..
         }
         | TypeExpression::PointerOf {
@@ -653,9 +645,9 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 let body_expr = tree.get(*body);
                 visitor.visit_expression(tree, *body, body_expr);
             }
-            Expression::UnresolvedImport {
+            Expression::Import {
                 source: _,
-                kind: _,
+                space: _,
                 target,
                 items,
                 attributes: _,
@@ -678,43 +670,9 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                     }
                 }
             }
-            Expression::Import {
-                source: _,
-                kind: _,
-                target: _,
-                target_module: _,
-                items,
-                attributes: _,
-                arguments,
-            } => {
-                if let Some(items) = items {
-                    for item_id in items {
-                        let item = tree.get(*item_id);
-                        visitor.visit_dependency_item(tree, *item_id, item);
-                    }
-                }
-                if let Some(arguments) = arguments {
-                    for argument_id in arguments {
-                        let argument = tree.get(*argument_id);
-                        visitor.visit_argument(tree, *argument_id, argument);
-                    }
-                }
-            }
-            Expression::UnresolvedReExport {
-                target: _,
-                kind: _,
-                items,
-                attributes: _,
-            } => {
-                for item_id in items {
-                    let item = tree.get(*item_id);
-                    visitor.visit_dependency_item(tree, *item_id, item);
-                }
-            }
             Expression::ReExport {
                 target: _,
-                target_module: _,
-                kind: _,
+                space: _,
                 items,
                 attributes: _,
             } => {
@@ -724,7 +682,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 }
             }
             Expression::Export {
-                kind: _,
+                space: _,
                 items,
                 attributes: _,
             } => {
@@ -736,7 +694,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             Expression::ExportNamespace { name: _ } => {}
             Expression::Let {
                 export: _,
-                ambient: _,
+                is_ambient: _,
                 mutability: _,
                 declarators,
             } => {
@@ -760,7 +718,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             Expression::Using {
                 asynchrony: _,
                 export: _,
-                ambient: _,
+                is_ambient: _,
                 declarators,
             } => {
                 for declarator_id in declarators {
@@ -803,12 +761,12 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *target, target_expression);
             }
             Expression::Unary { operator: _, right }
-            | Expression::ValueOf {
+            | Expression::MoveOf {
                 mutability: _,
                 variance: _,
                 right,
             }
-            | Expression::ReferenceOf {
+            | Expression::BorrowOf {
                 mutability: _,
                 variance: _,
                 right,
@@ -918,30 +876,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 let left_expression = tree.get(*left);
                 visitor.visit_expression(tree, *left, left_expression);
             }
-            Expression::UnresolvedPath {
+            Expression::Path {
                 path: _,
                 generic_arguments,
-                space_order: _,
-            } => {
-                for argument_id in generic_arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_generic_argument(tree, *argument_id, argument);
-                }
-            }
-            Expression::LocalReference {
-                path: _,
-                generic_arguments,
-                target_symbol: _,
-            }
-            | Expression::ModuleReference {
-                path: _,
-                generic_arguments,
-                target_symbol: _,
-            }
-            | Expression::GlobalReference {
-                path: _,
-                generic_arguments,
-                target_symbol: _,
+                space: _,
             } => {
                 for argument_id in generic_arguments {
                     let argument = tree.get(*argument_id);
@@ -956,10 +894,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 // nothing to do
             }
 
-            Expression::Type {
-                value,
-                resolved_type: _,
-            } => {
+            Expression::Type { value } => {
                 let value_expression = tree.get(*value);
                 visitor.visit_type_expression(tree, *value, value_expression);
             }
@@ -1092,7 +1027,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
 
             Expression::If {
-                kind: _,
+                form: _,
                 condition,
                 then_expression,
                 else_expression,
@@ -1130,7 +1065,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
             Expression::ForEach {
                 asynchrony: _,
-                kind: _,
+                operator: _,
                 binding,
                 iterator,
                 body,
@@ -1207,7 +1142,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 }
             }
             Expression::Match {
-                kind: _,
+                form: _,
                 value,
                 cases,
                 source: _,
@@ -1221,22 +1156,13 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                     visitor.visit_match_case(tree, *case_id, case);
                 }
             }
-            Expression::Break {
-                target: _,
-                target_symbol: _,
-                value,
-            }
-            | Expression::UnresolvedBreak { target: _, value } => {
+            Expression::Break { target: _, value } => {
                 if let Some(value_id) = value {
                     let value_expression = tree.get(*value_id);
                     visitor.visit_expression(tree, *value_id, value_expression);
                 }
             }
-            Expression::Continue {
-                target: _,
-                target_symbol: _,
-            }
-            | Expression::UnresolvedContinue { target: _ } => {}
+            Expression::Continue { target: _ } => {}
             Expression::Await { expression } => {
                 let expression_node = tree.get(*expression);
                 visitor.visit_expression(tree, *expression, expression_node);
@@ -1301,6 +1227,12 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
         visitor.visit_any(tree, NodeType::Declaration, id.id);
         match declaration {
             Declaration::Global(declaration) => {
+                for expression_id in &declaration.expressions {
+                    let expression = tree.get(*expression_id);
+                    visitor.visit_expression(tree, *expression_id, expression);
+                }
+            }
+            Declaration::Module(declaration) => {
                 for expression_id in &declaration.expressions {
                     let expression = tree.get(*expression_id);
                     visitor.visit_expression(tree, *expression_id, expression);
@@ -1553,7 +1485,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             constraint,
             value,
             visibility: _,
-            ambient: _,
+            is_ambient: _,
             is_abstract: _,
             is_override: _,
             is_static: _,
@@ -1581,7 +1513,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             declared_type,
             value,
             visibility: _,
-            ambient: _,
+            is_ambient: _,
             is_static: _,
             symbol: _,
         } => {
@@ -1602,7 +1534,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             is_readonly: _,
             mutability: _,
             visibility: _,
-            ambient: _,
+            is_ambient: _,
             is_abstract: _,
             is_override: _,
             is_static: _,
@@ -1627,7 +1559,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             body,
             is_optional: _,
             visibility: _,
-            ambient: _,
+            is_ambient: _,
             is_abstract: _,
             is_override: _,
             is_static: _,
@@ -1647,7 +1579,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
         Member::Embed {
             value,
             visibility: _,
-            ambient: _,
+            is_ambient: _,
             is_static: _,
             symbol: _,
         } => {
@@ -1702,21 +1634,9 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::DependencyItem, id.id);
     match dependency_item {
         DependencyItem::Error => {}
-        DependencyItem::UnresolvedRemote {
-            source: _,
-            mode: _,
-            kind: _,
-            name: _,
-            alias: _,
-            target: _,
-            target_module: _,
-            symbol: _,
-        } => {
-            // nothing to do
-        }
-        DependencyItem::UnresolvedLocal {
-            mode: _,
-            kind: _,
+        DependencyItem::Item {
+            binding: _,
+            space: _,
             name: _,
             alias: _,
             symbol: _,
@@ -1726,28 +1646,6 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
         DependencyItem::Value { value, .. } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
-        }
-        DependencyItem::Local {
-            mode: _,
-            kind: _,
-            name: _,
-            alias: _,
-            symbol: _,
-            target_symbol: _,
-        } => {
-            // nothing to do
-        }
-        DependencyItem::Remote {
-            mode: _,
-            kind: _,
-            name: _,
-            alias: _,
-            target: _,
-            target_module: _,
-            symbol: _,
-            target_symbol: _,
-        } => {
-            // nothing to do
         }
     }
 }
@@ -1864,14 +1762,14 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
                 let inner_pattern = tree.get(*inner);
                 visitor.visit_pattern(tree, *inner, inner_pattern);
             }
-            Pattern::ReferenceOf {
+            Pattern::BorrowOf {
                 right,
                 mutability: _,
             } => {
                 let right_pattern = tree.get(*right);
                 visitor.visit_pattern(tree, *right, right_pattern);
             }
-            Pattern::ValueOf {
+            Pattern::MoveOf {
                 right,
                 mutability: _,
             } => {
@@ -1918,7 +1816,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
                     visitor.visit_pattern_field(tree, *field_id, field);
                 }
             }
-            Pattern::Array { fields } => {
+            Pattern::Sequence { fields } => {
                 for field_id in fields {
                     let field = tree.get(*field_id);
                     visitor.visit_pattern_field(tree, *field_id, field);
@@ -2019,7 +1917,7 @@ pub fn walk_assign_pattern<V: NodeVisitor + ?Sized>(
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
-        AssignPattern::Array { fields } | AssignPattern::Object { fields } => {
+        AssignPattern::Sequence { fields } | AssignPattern::Object { fields } => {
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_assign_pattern_field(tree, *field_id, field);

@@ -31,10 +31,6 @@ pub enum ProvenanceReason {
     Evaluated,
     /// The node was reified during elaborate.
     Reified,
-    /// The node was synthesized during resolution.
-    Resolved,
-    /// The node was synthesized by rewriting.
-    Rewritten,
 }
 
 /// One DIR provenance record.

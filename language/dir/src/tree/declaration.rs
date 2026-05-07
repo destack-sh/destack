@@ -1,14 +1,14 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Ambientness, DependencyKind, ExportMode, Expression, FunctionSignature, GenericArgument,
-    GenericParameter, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, Member, Mutability,
-    Name, Node, NodeType, Path, StringId, TypeExpression, TypeMember, WhereClause,
+    DependencySpace, ExportKind, Expression, FunctionSignature, GenericArgument, GenericParameter,
+    LocalNodeId, LocalScopeId, LocalSymbolId, Member, Mutability, Name, Node, NodeType, Path,
+    StringId, TypeExpression, TypeMember, WhereClause,
 };
 
 /// The source keyword used for a namespace declaration.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum NamespaceKind {
+pub enum NamespaceForm {
     /// `namespace Foo {}`.
     #[default]
     Namespace,
@@ -25,17 +25,28 @@ pub enum ImportAliasTarget {
     Path { path: Path },
 }
 
-/// A global augmentation declaration.
+/// A global declaration block.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GlobalDeclaration {
-    /// Whether the declaration is ambient.
-    pub ambient: Ambientness,
+    /// The expressions inside the global body.
+    pub expressions: Vec<LocalNodeId<Expression>>,
     /// The declaration symbol.
     pub symbol: LocalSymbolId,
     /// The declaration scope.
     pub scope: LocalScopeId,
-    /// The expressions inside the global augmentation body.
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
+}
+
+/// A module directive block.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ModuleDeclaration {
+    /// The expressions inside the module body.
     pub expressions: Vec<LocalNodeId<Expression>>,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
 }
 
 /// A namespace declaration.
@@ -43,22 +54,22 @@ pub struct GlobalDeclaration {
 pub struct NamespaceDeclaration {
     /// The namespace name.
     pub name: Name,
-    /// The export mode of the declaration.
-    pub export: Option<ExportMode>,
-    /// Whether the declaration is ambient.
-    pub ambient: Ambientness,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
+    /// The export kind of the declaration.
+    pub export: Option<ExportKind>,
     /// The source namespace keyword.
-    pub kind: NamespaceKind,
+    pub form: NamespaceForm,
     /// The generic parameters of the namespace.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the namespace.
     pub where_clauses: Vec<LocalNodeId<WhereClause>>,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
     /// The expressions inside the namespace body.
     pub expressions: Vec<LocalNodeId<Expression>>,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
 }
 
 /// A type declaration.
@@ -66,16 +77,8 @@ pub struct NamespaceDeclaration {
 pub struct TypeDeclaration {
     /// The declared name.
     pub name: Name,
-    /// The export mode of the declaration.
-    pub export: Option<ExportMode>,
-    /// Whether the declaration is ambient.
-    pub ambient: Ambientness,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
-    /// Whether the declaration is nominal.
-    pub is_nominal: bool,
+    /// The export kind of the declaration.
+    pub export: Option<ExportKind>,
     /// The optional mutability qualifier.
     pub mutability: Option<Mutability>,
     /// The generic parameters of the declaration.
@@ -84,6 +87,14 @@ pub struct TypeDeclaration {
     pub where_clauses: Vec<LocalNodeId<WhereClause>>,
     /// The declared type expression.
     pub value: LocalNodeId<TypeExpression>,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
+    /// Whether the declaration is nominal.
+    pub is_nominal: bool,
 }
 
 /// An import-alias declaration.
@@ -91,16 +102,16 @@ pub struct TypeDeclaration {
 pub struct ImportAliasDeclaration {
     /// The declared name.
     pub name: Name,
-    /// The export mode of the declaration.
-    pub export: Option<ExportMode>,
-    /// Whether the declaration is ambient.
-    pub ambient: Ambientness,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The import alias dependency kind.
-    pub kind: DependencyKind,
+    /// The export kind of the declaration.
+    pub export: Option<ExportKind>,
+    /// The import alias dependency space.
+    pub space: DependencySpace,
     /// The alias target.
     pub target: ImportAliasTarget,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
 }
 
 /// A struct declaration.
@@ -108,14 +119,8 @@ pub struct ImportAliasDeclaration {
 pub struct StructDeclaration {
     /// The declared name.
     pub name: Name,
-    /// The export mode of the declaration.
-    pub export: Option<ExportMode>,
-    /// Whether the declaration is ambient.
-    pub ambient: Ambientness,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
+    /// The export kind of the declaration.
+    pub export: Option<ExportKind>,
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.
@@ -126,6 +131,12 @@ pub struct StructDeclaration {
     pub embedded_types: Vec<LocalNodeId<TypeExpression>>,
     /// The struct members.
     pub members: Vec<LocalNodeId<Member>>,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
 }
 
 /// A class declaration.
@@ -133,18 +144,8 @@ pub struct StructDeclaration {
 pub struct ClassDeclaration {
     /// The declared name.
     pub name: Option<Name>,
-    /// The export mode of the declaration.
-    pub export: Option<ExportMode>,
-    /// Whether the declaration is ambient.
-    pub ambient: Ambientness,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The optional symbol for `self`.
-    pub self_symbol: Option<LocalSymbolId>,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
-    /// Whether the declaration is abstract.
-    pub is_abstract: bool,
+    /// The export kind of the declaration.
+    pub export: Option<ExportKind>,
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.
@@ -157,6 +158,16 @@ pub struct ClassDeclaration {
     pub implements_types: Vec<LocalNodeId<TypeExpression>>,
     /// The class members.
     pub members: Vec<LocalNodeId<Member>>,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The optional symbol for `self`.
+    pub self_symbol: Option<LocalSymbolId>,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
+    /// Whether the declaration is abstract.
+    pub is_abstract: bool,
 }
 
 /// The kind of an enum declaration.
@@ -174,14 +185,8 @@ pub enum EnumKind {
 pub struct EnumDeclaration {
     /// The declared name.
     pub name: Option<Name>,
-    /// The export mode of the declaration.
-    pub export: Option<ExportMode>,
-    /// Whether the declaration is ambient.
-    pub ambient: Ambientness,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
+    /// The export kind of the declaration.
+    pub export: Option<ExportKind>,
     /// The enum kind.
     pub kind: EnumKind,
     /// The generic parameters of the declaration.
@@ -194,6 +199,12 @@ pub struct EnumDeclaration {
     pub fields: Vec<LocalNodeId<EnumField>>,
     /// The enum members.
     pub members: Vec<LocalNodeId<Member>>,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
 }
 
 /// One interface heritage clause item.
@@ -210,16 +221,8 @@ pub struct InterfaceHeritage {
 pub struct InterfaceDeclaration {
     /// The declared name.
     pub name: Option<Name>,
-    /// The export mode of the declaration.
-    pub export: Option<ExportMode>,
-    /// Whether the declaration is ambient.
-    pub ambient: Ambientness,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
-    /// Whether the interface is nominal.
-    pub is_nominal: bool,
+    /// The export kind of the declaration.
+    pub export: Option<ExportKind>,
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.
@@ -228,6 +231,14 @@ pub struct InterfaceDeclaration {
     pub extends: Vec<InterfaceHeritage>,
     /// The interface members.
     pub members: Vec<LocalNodeId<TypeMember>>,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
+    /// Whether the interface is nominal.
+    pub is_nominal: bool,
 }
 
 /// An extension declaration.
@@ -235,26 +246,24 @@ pub struct InterfaceDeclaration {
 pub struct ExtensionDeclaration {
     /// The declared name.
     pub name: Option<Name>,
-    /// The export mode of the declaration.
-    pub export: Option<ExportMode>,
-    /// Whether the declaration is ambient.
-    pub ambient: Ambientness,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
+    /// The export kind of the declaration.
+    pub export: Option<ExportKind>,
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.
     pub where_clauses: Vec<LocalNodeId<WhereClause>>,
     /// The extended target type.
     pub target_type: LocalNodeId<TypeExpression>,
-    /// The resolved target symbol.
-    pub target_symbol: Option<GlobalSymbolId>,
     /// The implemented interfaces.
     pub implements_types: Vec<LocalNodeId<TypeExpression>>,
     /// The extension members.
     pub members: Vec<LocalNodeId<Member>>,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
 }
 
 /// A function declaration.
@@ -262,27 +271,29 @@ pub struct ExtensionDeclaration {
 pub struct FunctionDeclaration {
     /// The declared name.
     pub name: Option<Name>,
-    /// The export mode of the declaration.
-    pub export: Option<ExportMode>,
-    /// Whether the declaration is ambient.
-    pub ambient: Ambientness,
+    /// The export kind of the declaration.
+    pub export: Option<ExportKind>,
+    /// The function signature.
+    pub signature: FunctionSignature,
+    /// The optional function body.
+    pub body: Option<LocalNodeId<Expression>>,
     /// The declaration symbol.
     pub symbol: LocalSymbolId,
     /// The optional symbol for `self`.
     pub self_symbol: Option<LocalSymbolId>,
     /// The declaration scope.
     pub scope: LocalScopeId,
-    /// The function signature.
-    pub signature: FunctionSignature,
-    /// The optional function body.
-    pub body: Option<LocalNodeId<Expression>>,
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
 }
 
 /// Declaration introduces a type or function into its scope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Declaration {
-    /// Global augmentation declaration.
+    /// Global declaration block.
     Global(GlobalDeclaration),
+    /// Module directive block.
+    Module(ModuleDeclaration),
     /// Namespace declaration.
     Namespace(NamespaceDeclaration),
     /// Type declaration.
@@ -312,6 +323,7 @@ impl Declaration {
     pub fn name(&self) -> Option<Name> {
         match self {
             Declaration::Global(_) => None,
+            Declaration::Module(_) => None,
             Declaration::Namespace(declaration) => Some(declaration.name),
             Declaration::Type(declaration) => Some(declaration.name),
             Declaration::ImportAlias(declaration) => Some(declaration.name),
@@ -328,9 +340,10 @@ impl Declaration {
     pub fn kind_name(&self) -> &'static str {
         match self {
             Declaration::Global(_) => "global",
-            Declaration::Namespace(declaration) => match declaration.kind {
-                NamespaceKind::Namespace => "namespace",
-                NamespaceKind::Module => "module",
+            Declaration::Module(_) => "module",
+            Declaration::Namespace(declaration) => match declaration.form {
+                NamespaceForm::Namespace => "namespace",
+                NamespaceForm::Module => "module",
             },
             Declaration::Type(_) => "type",
             Declaration::ImportAlias(_) => "import alias",
@@ -347,6 +360,7 @@ impl Declaration {
     pub fn symbol(&self) -> LocalSymbolId {
         match self {
             Declaration::Global(declaration) => declaration.symbol,
+            Declaration::Module(declaration) => declaration.symbol,
             Declaration::Namespace(declaration) => declaration.symbol,
             Declaration::Type(declaration) => declaration.symbol,
             Declaration::ImportAlias(declaration) => declaration.symbol,
@@ -378,6 +392,7 @@ impl Declaration {
     pub fn scope(&self) -> Option<LocalScopeId> {
         match self {
             Declaration::Global(declaration) => Some(declaration.scope),
+            Declaration::Module(declaration) => Some(declaration.scope),
             Declaration::Namespace(declaration) => Some(declaration.scope),
             Declaration::Type(declaration) => Some(declaration.scope),
             Declaration::ImportAlias(_) => None,
@@ -421,7 +436,7 @@ impl Declaration {
             Declaration::Interface(declaration) => Some(&declaration.generic_parameters),
             Declaration::Extension(declaration) => Some(&declaration.generic_parameters),
             Declaration::Function(declaration) => Some(&declaration.signature.generic_parameters),
-            Declaration::Global(_) | Declaration::ImportAlias(_) => None,
+            Declaration::Global(_) | Declaration::Module(_) | Declaration::ImportAlias(_) => None,
         }
     }
 }

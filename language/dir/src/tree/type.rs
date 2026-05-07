@@ -2,9 +2,9 @@ use destack_source::{NodeSpanList, NodeSpanType};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Argument, Declaration, Expression, FunctionSignature, GenericArgument, GenericParameter,
-    GlobalSymbolId, Key, LocalNodeId, LocalSymbolId, Mutability, Node, NodeType, Parameter, Path,
-    ScalarLiteral, StringId, SymbolSpaceOrder, TupleElement, TypeLiteral, VarianceBound,
+    Argument, Declaration, Expression, FunctionSignature, GenericArgument, GenericParameter, Key,
+    LocalNodeId, LocalSymbolId, MappedTypeModifier, Mutability, Node, NodeType, Parameter, Path,
+    ScalarLiteral, StringId, SymbolSpace, Tree, TupleElement, TypeLiteral, VarianceBound,
     WhereClause,
 };
 
@@ -13,21 +13,21 @@ use crate::{
 pub enum TypeMember {
     /// Named field.
     Field {
-        is_static: bool,
-        is_optional: bool,
-        is_readonly: bool,
         key: Key,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         symbol: LocalSymbolId,
+        is_static: bool,
+        is_optional: bool,
+        is_readonly: bool,
     },
     /// Named method.
     Method {
-        is_static: bool,
-        is_optional: bool,
         key: Key,
         signature: FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
         symbol: LocalSymbolId,
+        is_static: bool,
+        is_optional: bool,
     },
     /// Call signature declaration.
     CallSignature {
@@ -41,12 +41,12 @@ pub enum TypeMember {
     },
     /// Index signature.
     IndexSignature {
-        is_optional: bool,
-        is_readonly: bool,
         name: StringId,
         key_type: LocalNodeId<TypeExpression>,
         value_type: LocalNodeId<TypeExpression>,
         symbol: LocalSymbolId,
+        is_optional: bool,
+        is_readonly: bool,
     },
     /// Type embedding.
     Embed {
@@ -126,25 +126,12 @@ impl TypeMember {
 pub struct TypeMappedParameter {
     /// The parameter name.
     pub name: StringId,
-    /// The parameter symbol.
-    pub symbol: crate::LocalSymbolId,
     /// The source type iterated by `in`.
     pub source_type: LocalNodeId<TypeExpression>,
     /// The optional key remap.
     pub key_remap: Option<LocalNodeId<TypeExpression>>,
-}
-
-/// A mapped-type modifier sign.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum TypeModifier {
-    /// The plain modifier without an explicit sign.
-    Present,
-    /// Add a modifier with an explicit `+` sign.
-    Add,
-    /// Remove a modifier with an explicit `-` sign.
-    Remove,
-    /// No modifier specified.
-    None,
+    /// The parameter symbol.
+    pub symbol: LocalSymbolId,
 }
 
 /// A type predicate subject.
@@ -174,8 +161,6 @@ pub struct FunctionTypeDeclaration {
 /// One constructor type declaration in type space.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ConstructorTypeDeclaration {
-    /// Whether the constructor type is abstract.
-    pub is_abstract: bool,
     /// The generic parameters of the constructor type.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the constructor type.
@@ -184,9 +169,11 @@ pub struct ConstructorTypeDeclaration {
     pub parameters: Vec<LocalNodeId<Parameter>>,
     /// The return type of the constructor type.
     pub return_type: Option<LocalNodeId<TypeExpression>>,
+    /// Whether the constructor type is abstract.
+    pub is_abstract: bool,
 }
 
-/// A type-space syntax node.
+/// A type-space expression.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeExpression {
     /// Parenthesized type expression.
@@ -194,72 +181,65 @@ pub enum TypeExpression {
         expression: LocalNodeId<TypeExpression>,
     },
 
-    /// Scalar literal type syntax.
+    /// Scalar literal type.
     ScalarLiteral { value: ScalarLiteral },
 
-    /// Literal type syntax.
+    /// Literal type.
     Literal { value: TypeLiteral },
 
-    /// Bare `intrinsic` marker syntax in type space.
+    /// Bare `intrinsic` marker in type space.
     Intrinsic,
 
-    /// Parenthesized tuple type syntax.
+    /// Parenthesized tuple type.
     Tuple {
         elements: Vec<LocalNodeId<TupleElement>>,
     },
 
-    /// Bracket tuple type syntax.
+    /// Bracket tuple type.
     ArrayTuple {
         elements: Vec<LocalNodeId<TupleElement>>,
     },
 
-    /// Array type syntax.
+    /// Homogeneous array type.
     Array {
         element: LocalNodeId<TypeExpression>,
     },
 
-    /// Object type syntax.
+    /// Runtime-length homogeneous view type.
+    Slice {
+        /// The element type.
+        element: LocalNodeId<TypeExpression>,
+    },
+
+    /// Fixed-length array type.
+    FixedArray {
+        /// The element type.
+        element: LocalNodeId<TypeExpression>,
+        /// The length expression.
+        length: LocalNodeId<TypeExpression>,
+    },
+
+    /// Object type.
     Object {
         members: Vec<LocalNodeId<TypeMember>>,
     },
 
-    /// Embedded declaration type syntax.
+    /// Embedded declaration type.
     Declaration {
         declaration: LocalNodeId<Declaration>,
     },
 
-    /// Function type declaration syntax.
+    /// Function type declaration.
     FunctionTypeDeclaration(FunctionTypeDeclaration),
 
-    /// Constructor type declaration syntax.
+    /// Constructor type declaration.
     ConstructorTypeDeclaration(ConstructorTypeDeclaration),
 
     /// Qualified type reference with optional generic arguments.
     Reference {
         path: Path,
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        space_order: SymbolSpaceOrder,
-    },
-
-    /// Resolved local type reference.
-    LocalReference {
-        path: Path,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        target_symbol: GlobalSymbolId,
-    },
-
-    /// Resolved module type reference.
-    ModuleReference {
-        path: Path,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        target_symbol: GlobalSymbolId,
-    },
-
-    /// Resolved global type reference.
-    GlobalReference {
-        path: Path,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        target_symbol: GlobalSymbolId,
+        space: SymbolSpace,
     },
 
     /// Type member projection with optional generic arguments.
@@ -312,14 +292,14 @@ pub enum TypeExpression {
     },
 
     /// `^T`.
-    ValueOf {
+    OwnedOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         target_type: LocalNodeId<TypeExpression>,
     },
 
     /// `&T`.
-    ReferenceOf {
+    BorrowedOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         target_type: LocalNodeId<TypeExpression>,
@@ -352,8 +332,8 @@ pub enum TypeExpression {
     /// Mapped type.
     Mapped {
         parameter: TypeMappedParameter,
-        readonly: TypeModifier,
-        optional: TypeModifier,
+        readonly: MappedTypeModifier,
+        optional: MappedTypeModifier,
         value: LocalNodeId<TypeExpression>,
     },
 
@@ -394,29 +374,10 @@ impl Node for TypeExpression {
 }
 
 impl TypeExpression {
-    /// Return the resolved target symbol when one exists.
-    pub fn target_symbol(&self) -> Option<GlobalSymbolId> {
-        match self {
-            TypeExpression::LocalReference { target_symbol, .. }
-            | TypeExpression::ModuleReference { target_symbol, .. }
-            | TypeExpression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
-            _ => None,
-        }
-    }
-
     /// Return attached generic arguments when present.
     pub fn generic_arguments(&self) -> Option<&[LocalNodeId<GenericArgument>]> {
         match self {
             TypeExpression::Reference {
-                generic_arguments, ..
-            }
-            | TypeExpression::LocalReference {
-                generic_arguments, ..
-            }
-            | TypeExpression::ModuleReference {
-                generic_arguments, ..
-            }
-            | TypeExpression::GlobalReference {
                 generic_arguments, ..
             }
             | TypeExpression::Member {
@@ -431,7 +392,7 @@ impl TypeExpression {
 
     /// Resolve the source span kind that identifies this member name token.
     pub fn member_source_part(
-        tree: &crate::Tree,
+        tree: &Tree,
         expression_id: LocalNodeId<TypeExpression>,
     ) -> NodeSpanType {
         let source_id = tree.get_source(expression_id.id);
@@ -458,9 +419,7 @@ impl TypeExpression {
 
         // use indexed path segments for lowered qualified paths
         match tree.get::<TypeExpression>(current_id) {
-            TypeExpression::LocalReference { path, .. }
-            | TypeExpression::ModuleReference { path, .. }
-            | TypeExpression::GlobalReference { path, .. }
+            TypeExpression::Reference { path, .. }
                 if tree.get_source(current_id.id) == source_id
                     && usize::from(segment_index) < path.segments.len() =>
             {

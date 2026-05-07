@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalSymbolId,
-    LocalTypeId, Name, Node, NodeType, Pattern, StaticExpression, StringId, TypeExpression,
-    VarianceModifier, Visibility,
+    Expression, GlobalNodeIdAny, LocalNodeId, LocalSymbolId, Name, Node, NodeType, Pattern,
+    StaticExpression, StringId, TypeExpression, VarianceModifier, Visibility,
 };
 
 /// A generic parameter.
@@ -23,8 +22,8 @@ pub enum GenericParameter {
         name: StringId,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
-        is_comptime: bool,
         symbol: LocalSymbolId,
+        is_comptime: bool,
     },
     /// Malformed generic parameter slot.
     Error { symbol: LocalSymbolId },
@@ -51,28 +50,28 @@ pub enum Parameter {
     /// Named scalar parameter.
     Named {
         name: StringId,
-        visibility: Option<Visibility>,
-        is_readonly: bool,
-        is_optional: bool,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
+        visibility: Option<Visibility>,
         symbol: LocalSymbolId,
+        is_readonly: bool,
+        is_optional: bool,
     },
     /// Pattern parameter.
     Pattern {
         pattern: LocalNodeId<Pattern>,
-        is_optional: bool,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
         symbol: LocalSymbolId,
+        is_optional: bool,
     },
     /// Variadic named parameter.
     VariadicNamed {
         name: StringId,
-        visibility: Option<Visibility>,
-        is_readonly: bool,
         declared_type: Option<LocalNodeId<TypeExpression>>,
+        visibility: Option<Visibility>,
         symbol: LocalSymbolId,
+        is_readonly: bool,
     },
     /// Variadic pattern parameter.
     VariadicPattern {
@@ -220,28 +219,4 @@ impl StaticArgument {
     pub fn value(value: StaticExpression) -> Self {
         Self::Evaluated { name: None, value }
     }
-}
-
-/// Describe how a generic parameter is interpreted.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum GenericParameterKind {
-    /// Use the parameter as a type argument.
-    Type,
-    /// Use the parameter as a value argument.
-    Value,
-}
-
-/// Metadata for resolving and validating a generic parameter.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GenericParameterSpec {
-    /// Whether this is a type or value parameter.
-    pub kind: GenericParameterKind,
-    /// Identify the generic parameter symbol.
-    pub symbol: GlobalSymbolId,
-    /// Parameter name for mapping and diagnostics.
-    pub name: Option<StringId>,
-    /// Declared type for validation.
-    pub declared_type_id: LocalTypeId,
-    /// Default expression for missing arguments.
-    pub default_expression: Option<GlobalNodeId<Expression>>,
 }

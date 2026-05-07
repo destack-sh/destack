@@ -2,13 +2,12 @@ use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Ambientness, Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block,
-    CastOperator, CastSource, Declaration, Declarator, DependencyItem, DependencyKind, ExportMode,
-    GenericArgument, GlobalSymbolId, ImportAttributeClause, ImportSource, ImportTarget,
-    LocalNodeId, LocalScopeId, LocalSymbolId, LocalTypeId, MatchCase, MatchKind, MatchSource,
-    ModuleTarget, Mutability, Node, NodeType, Path, Pattern, Property, ScalarLiteral,
-    StaticArgument, StaticProperty, SymbolSpaceOrder, TemplateLiteral, Tree, TypeExpression,
-    TypeLiteral, UnaryOperator, VarianceBound,
+    Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, CastOperator,
+    CastOrigin, Declaration, Declarator, DependencyItem, DependencySpace, ExportKind,
+    GenericArgument, ImportAttributeClause, ImportSource, ImportTarget, LocalNodeId, LocalScopeId,
+    LocalSymbolId, LocalTypeId, MatchCase, MatchForm, MatchOrigin, Mutability, Node, NodeType,
+    Path, Pattern, Property, ScalarLiteral, StaticArgument, StaticProperty, SymbolSpace,
+    TemplateLiteral, Tree, TypeExpression, TypeLiteral, UnaryOperator, VarianceBound,
 };
 use destack_source::{NodeSpanList, NodeSpanType};
 
@@ -28,43 +27,25 @@ pub enum Expression {
         symbol: LocalSymbolId,
     },
 
-    /// Unresolved import dependency declaration (like `import "foo"`).
-    UnresolvedImport {
+    /// Import dependency declaration.
+    Import {
         source: ImportSource,
-        kind: DependencyKind,
+        space: DependencySpace,
         target: ImportTarget,
         items: Option<Vec<LocalNodeId<DependencyItem>>>,
         attributes: Option<ImportAttributeClause>,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
-    /// Unresolved re-export dependency declaration (like `export { bar } from foo`).
-    UnresolvedReExport {
-        target: StringId,
-        kind: DependencyKind,
-        items: Vec<LocalNodeId<DependencyItem>>,
-        attributes: Option<ImportAttributeClause>,
-    },
-    /// Import dependency (like `import "foo"` or `import { bar } from "foo"`).
-    Import {
-        source: ImportSource,
-        kind: DependencyKind,
-        target: StringId,
-        target_module: ModuleTarget,
-        items: Option<Vec<LocalNodeId<DependencyItem>>>,
-        attributes: Option<ImportAttributeClause>,
-        arguments: Option<Vec<LocalNodeId<Argument>>>,
-    },
-    /// Re-export dependency (like `export { bar } from "foo"` or `export * as foo from "foo"`).
+    /// Re-export dependency declaration.
     ReExport {
         target: StringId,
-        target_module: ModuleTarget,
-        kind: DependencyKind,
+        space: DependencySpace,
         items: Vec<LocalNodeId<DependencyItem>>,
         attributes: Option<ImportAttributeClause>,
     },
     /// Export dependency (like `export { bar }` or `export = foo`).
     Export {
-        kind: DependencyKind,
+        space: DependencySpace,
         items: Vec<LocalNodeId<DependencyItem>>,
         attributes: Option<ImportAttributeClause>,
     },
@@ -73,10 +54,10 @@ pub enum Expression {
 
     /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).
     Let {
-        export: Option<ExportMode>,
-        ambient: Ambientness,
+        export: Option<ExportKind>,
         mutability: Mutability,
         declarators: Vec<LocalNodeId<Declarator>>,
+        is_ambient: bool,
     },
     /// Let-else binding with an early-exit branch.
     /// The else branch is currently an explicit block.
@@ -89,9 +70,9 @@ pub enum Expression {
     /// Using binding for explicit resource management.
     Using {
         asynchrony: Asynchrony,
-        export: Option<ExportMode>,
-        ambient: Ambientness,
+        export: Option<ExportKind>,
         declarators: Vec<LocalNodeId<Declarator>>,
+        is_ambient: bool,
     },
 
     /// TypeScript-style `as` assertion.
@@ -99,7 +80,7 @@ pub enum Expression {
         /// The resolved cast operator after elaborate.
         operator: Option<CastOperator>,
         /// Whether the cast was written in source or inserted during reify.
-        source: CastSource,
+        source: CastOrigin,
         /// The source expression.
         expression: LocalNodeId<Expression>,
         /// The target type.
@@ -131,14 +112,14 @@ pub enum Expression {
         operator: UnaryOperator,
         right: LocalNodeId<Expression>,
     },
-    /// Value operation (e.g., `^x`).
-    ValueOf {
+    /// Move operation (e.g., `^x`).
+    MoveOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         right: LocalNodeId<Expression>,
     },
-    /// Reference of operation (e.g., `&x`).
-    ReferenceOf {
+    /// Borrow operation (e.g., `&x`).
+    BorrowOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         right: LocalNodeId<Expression>,
@@ -209,29 +190,11 @@ pub enum Expression {
     /// Values.
     /// --------------------------------
 
-    /// Unresolved path.
-    UnresolvedPath {
+    /// Qualified value reference with optional generic arguments.
+    Path {
         path: Path,
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        space_order: SymbolSpaceOrder,
-    },
-    /// Local reference.
-    LocalReference {
-        path: Path,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        target_symbol: GlobalSymbolId,
-    },
-    /// Module reference.
-    ModuleReference {
-        path: Path,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        target_symbol: GlobalSymbolId,
-    },
-    /// Global reference.
-    GlobalReference {
-        path: Path,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        target_symbol: GlobalSymbolId,
+        space: SymbolSpace,
     },
     /// Private identifier.
     PrivateIdentifier { name: StringId },
@@ -251,10 +214,7 @@ pub enum Expression {
     TypeLiteral { value: TypeLiteral },
 
     /// Type as a value.
-    Type {
-        value: LocalNodeId<TypeExpression>,
-        resolved_type: LocalTypeId,
-    },
+    Type { value: LocalNodeId<TypeExpression> },
     /// Template expression.
     TemplateExpression { value: TemplateLiteral },
     /// Tagged template expression.
@@ -311,7 +271,7 @@ pub enum Expression {
 
     /// If expression.
     If {
-        kind: IfKind,
+        form: IfForm,
         condition: IfCondition,
         then_expression: LocalNodeId<Expression>,
         else_expression: Option<LocalNodeId<Expression>>,
@@ -327,7 +287,7 @@ pub enum Expression {
     /// For each loop.
     ForEach {
         asynchrony: Asynchrony,
-        kind: ForEachKind,
+        operator: ForEachOperator,
         binding: ForEachBinding,
         iterator: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
@@ -355,31 +315,20 @@ pub enum Expression {
     },
     /// Match expression.
     Match {
-        kind: MatchKind,
+        form: MatchForm,
         value: LocalNodeId<Expression>,
         cases: Vec<LocalNodeId<MatchCase>>,
-        source: MatchSource,
+        source: MatchOrigin,
         scope: LocalScopeId,
         symbol: LocalSymbolId,
     },
     /// Break expression.
-    UnresolvedBreak {
-        target: StringId,
-        value: Option<LocalNodeId<Expression>>,
-    },
-    /// Break expression.
     Break {
         target: Option<StringId>,
-        target_symbol: Option<GlobalSymbolId>,
         value: Option<LocalNodeId<Expression>>,
     },
     /// Continue expression.
-    UnresolvedContinue { target: StringId },
-    /// Continue expression.
-    Continue {
-        target: Option<StringId>,
-        target_symbol: Option<GlobalSymbolId>,
-    },
+    Continue { target: Option<StringId> },
     /// Throw expression.
     Throw { value: LocalNodeId<Expression> },
     /// Await expression.
@@ -414,17 +363,6 @@ pub enum Expression {
 
 impl Node for Expression {
     const TYPE: NodeType = NodeType::Expression;
-
-    fn is_resolved(&self) -> bool {
-        !matches!(
-            self,
-            Expression::UnresolvedImport { .. }
-                | Expression::UnresolvedReExport { .. }
-                | Expression::UnresolvedPath { .. }
-                | Expression::UnresolvedBreak { .. }
-                | Expression::UnresolvedContinue { .. }
-        )
-    }
 }
 
 impl Expression {
@@ -432,8 +370,6 @@ impl Expression {
     pub fn kind_name(&self) -> &'static str {
         match self {
             Expression::Declaration(..) => "declaration",
-            Expression::UnresolvedImport { .. } => "unresolved import",
-            Expression::UnresolvedReExport { .. } => "unresolved re-export",
             Expression::Import { .. } => "import",
             Expression::ReExport { .. } => "re-export",
             Expression::Export { .. } => "export",
@@ -451,8 +387,8 @@ impl Expression {
             Expression::Is { .. } => "is",
             Expression::InstanceOf { .. } => "instanceof",
             Expression::Unary { .. } => "unary",
-            Expression::ValueOf { .. } => "value of",
-            Expression::ReferenceOf { .. } => "reference of",
+            Expression::MoveOf { .. } => "move of",
+            Expression::BorrowOf { .. } => "borrow of",
             Expression::PointerOf { .. } => "pointer of",
             Expression::Binary { .. } => "binary",
             Expression::Assign { .. } => "assign",
@@ -467,10 +403,7 @@ impl Expression {
             Expression::New { .. } => "new",
             Expression::Delete { .. } => "delete",
 
-            Expression::UnresolvedPath { .. } => "unresolved path",
-            Expression::LocalReference { .. } => "local reference",
-            Expression::ModuleReference { .. } => "module reference",
-            Expression::GlobalReference { .. } => "global reference",
+            Expression::Path { .. } => "path",
             Expression::PrivateIdentifier { .. } => "private identifier",
             Expression::ImportMeta => "import meta",
             Expression::NewTarget => "new target",
@@ -498,9 +431,7 @@ impl Expression {
             Expression::For { .. } => "for",
             Expression::Try { .. } => "try",
             Expression::Match { .. } => "match",
-            Expression::UnresolvedBreak { .. } => "unresolved break",
             Expression::Break { .. } => "break",
-            Expression::UnresolvedContinue { .. } => "unresolved continue",
             Expression::Continue { .. } => "continue",
             Expression::Throw { .. } => "throw",
             Expression::Await { .. } => "await",
@@ -539,29 +470,10 @@ impl Expression {
         }
     }
 
-    /// Get the target symbol of the expression.
-    pub fn target_symbol(&self) -> Option<GlobalSymbolId> {
-        match self {
-            Expression::LocalReference { target_symbol, .. } => Some(*target_symbol),
-            Expression::ModuleReference { target_symbol, .. } => Some(*target_symbol),
-            Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
-            _ => None,
-        }
-    }
-
     /// Get the generic arguments attached to the expression, when present.
     pub fn generic_arguments(&self) -> Option<&[LocalNodeId<GenericArgument>]> {
         match self {
-            Expression::UnresolvedPath {
-                generic_arguments, ..
-            }
-            | Expression::LocalReference {
-                generic_arguments, ..
-            }
-            | Expression::ModuleReference {
-                generic_arguments, ..
-            }
-            | Expression::GlobalReference {
+            Expression::Path {
                 generic_arguments, ..
             }
             | Expression::TaggedTemplateExpression {
@@ -609,9 +521,7 @@ impl Expression {
 
         // use indexed path segments for lowered qualified paths
         match tree.get::<Expression>(current_id) {
-            Expression::LocalReference { path, .. }
-            | Expression::ModuleReference { path, .. }
-            | Expression::GlobalReference { path, .. }
+            Expression::Path { path, .. }
                 if tree.get_source(current_id.id) == source_id
                     && usize::from(segment_index) < path.segments.len() =>
             {
@@ -690,7 +600,7 @@ pub enum LoopKind {
 
 /// The style of if expression.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum IfKind {
+pub enum IfForm {
     /// If expression.
     If,
     /// If ternary expression.
@@ -726,7 +636,7 @@ pub enum IfCondition {
 
 /// The kind of a while expression.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum WhileKind {
+pub enum WhileForm {
     /// While expression.
     While,
     /// Do-while expression.
@@ -735,7 +645,7 @@ pub enum WhileKind {
 
 /// The kind of a for each expression.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum ForEachKind {
+pub enum ForEachOperator {
     /// In expression.
     In,
     /// Of expression.
@@ -744,7 +654,7 @@ pub enum ForEachKind {
 
 /// The declaration keyword used by a for each pattern binding.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum ForEachDeclarationKind {
+pub enum BindingKeyword {
     /// `var` declaration keyword.
     Var,
     /// `let` declaration keyword.
@@ -759,7 +669,7 @@ pub enum ForEachBinding {
     /// A normal pattern binding.
     Pattern {
         pattern: LocalNodeId<Pattern>,
-        declaration_kind: Option<ForEachDeclarationKind>,
+        keyword: Option<BindingKeyword>,
     },
     /// A using binding.
     Using {

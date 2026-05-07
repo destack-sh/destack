@@ -1,4 +1,3 @@
-use destack_source::AdaptImage;
 use std::fmt::Display;
 
 use destack_source::ModuleId;
@@ -7,9 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{LocalSymbolId, StaticKey};
 
 /// The kind of a scope.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ScopeKind {
     /// Namespace.
     Namespace,
@@ -23,9 +20,7 @@ pub enum ScopeKind {
 
 /// Unique identifier for local scopes.
 #[repr(transparent)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct LocalScopeId(pub u32);
 
 impl LocalScopeId {
@@ -60,9 +55,7 @@ impl Display for LocalScopeMark {
 }
 
 /// Global scope id across modules.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, AdaptImage,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct GlobalScopeId {
     /// The module id of the global scope.
     pub module_id: ModuleId,
@@ -93,9 +86,7 @@ impl From<GlobalScopeId> for LocalScopeId {
 }
 
 /// Mark a position in a scope.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct LocalScopeMark(pub u32);
 
@@ -110,7 +101,7 @@ impl LocalScopeMark {
 }
 
 /// A Scope is a container for symbols.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Scope {
     /// The kind of the scope.
     pub kind: ScopeKind,

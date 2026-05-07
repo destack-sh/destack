@@ -1,14 +1,11 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Expression, GlobalSymbolId, ImportSource, LocalNodeId, LocalSymbolId, ModuleResolution,
-    ModuleTarget, Name, Node, NodeType,
-};
+use crate::{Expression, LocalNodeId, LocalSymbolId, ModuleTarget, Name, Node, NodeType};
 
-/// The mode of a dependency item.
+/// How one dependency item binds into the local module.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize)]
-pub enum DependencyMode {
+pub enum DependencyBinding {
     /// Regular item (`import { foo } from "foo"` or `export { foo } from "foo"`)
     Item,
     /// Default item (`export default foo`)
@@ -17,86 +14,46 @@ pub enum DependencyMode {
     Namespace,
 }
 
-/// The export mode of a declaration or binding.
+/// The export kind of a declaration or binding.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize)]
-pub enum ExportMode {
+pub enum ExportKind {
     /// Named export (`export const foo = 1`).
     Named,
     /// Default export (`export default foo`).
     Default,
 }
 
-/// The type of a dependency item.
+/// The symbol space one dependency item imports or exports.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize)]
-pub enum DependencyKind {
+pub enum DependencySpace {
     /// Type dependency (`import type foo` or `export type foo`).
     Type,
     /// Value dependency (`import foo` or `export foo`).
     Value,
 }
 
-/// A DependencyItem is an item to use in a import clause.
+/// One dependency item imported from or exported to another module.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DependencyItem {
     /// Malformed dependency item slot.
     Error,
-    /// Unresolved remote item aliased to a local item from a target.
-    UnresolvedRemote {
-        source: ImportSource,
-        mode: DependencyMode,
-        kind: DependencyKind,
-        name: Option<Name>,
-        alias: Option<StringId>,
-        target: StringId,
-        target_module: Option<ModuleResolution>, // item may remain unresolved even if we can resolve the target module
-        symbol: Option<LocalSymbolId>,
-    },
-    /// Unresolved local item from the module.
-    UnresolvedLocal {
-        mode: DependencyMode,
-        kind: DependencyKind,
+    /// Named imported or exported item.
+    Item {
+        binding: DependencyBinding,
+        space: DependencySpace,
         name: Option<Name>,
         alias: Option<StringId>,
         symbol: Option<LocalSymbolId>,
     },
     /// Value expression dependency (like `export = foo` or `export default foo`).
     Value {
-        mode: DependencyMode,
+        binding: DependencyBinding,
         value: LocalNodeId<Expression>,
-    },
-    /// Internal to the module (i.e., plain exports).
-    Local {
-        mode: DependencyMode,
-        kind: DependencyKind,
-        name: Option<Name>,
-        alias: Option<StringId>,
-        symbol: Option<LocalSymbolId>,
-        target_symbol: GlobalSymbolId,
-    },
-    /// Remote to the module (i.e., imports and re-exports).
-    Remote {
-        mode: DependencyMode,
-        kind: DependencyKind,
-        name: Option<Name>,
-        alias: Option<StringId>,
-        target: StringId,
-        target_module: ModuleResolution,
-        symbol: Option<LocalSymbolId>,
-        target_symbol: GlobalSymbolId,
     },
 }
 
 impl Node for DependencyItem {
     const TYPE: NodeType = NodeType::DependencyItem;
-
-    fn is_resolved(&self) -> bool {
-        matches!(
-            self,
-            DependencyItem::Local { .. }
-                | DependencyItem::Remote { .. }
-                | DependencyItem::Value { .. }
-        )
-    }
 }
 
 /// A namespace export edge from `export * from` declarations.
@@ -104,8 +61,8 @@ impl Node for DependencyItem {
 pub struct NamespaceExport {
     /// The target module.
     pub module_id: ModuleTarget,
-    /// The dependency kind for the export.
-    pub kind: DependencyKind,
+    /// The dependency space for the export.
+    pub space: DependencySpace,
     /// The dependency item node that declared the export.
     pub item: LocalNodeId<DependencyItem>,
 }
@@ -115,35 +72,8 @@ impl DependencyItem {
     pub fn symbol(&self) -> Option<LocalSymbolId> {
         match self {
             DependencyItem::Error => None,
-            DependencyItem::UnresolvedRemote { symbol, .. } => *symbol,
-            DependencyItem::UnresolvedLocal { symbol, .. } => *symbol,
             DependencyItem::Value { .. } => None,
-            DependencyItem::Local { symbol, .. } => *symbol,
-            DependencyItem::Remote { symbol, .. } => *symbol,
-        }
-    }
-
-    /// Get the target symbol of the dependency item.
-    pub fn target_symbol(&self) -> Option<GlobalSymbolId> {
-        match self {
-            DependencyItem::Error => None,
-            DependencyItem::UnresolvedRemote { .. } => None,
-            DependencyItem::UnresolvedLocal { .. } => None,
-            DependencyItem::Value { .. } => None,
-            DependencyItem::Local { target_symbol, .. } => Some(*target_symbol),
-            DependencyItem::Remote { target_symbol, .. } => Some(*target_symbol),
-        }
-    }
-
-    /// Get the resolved target module for a dependency kind.
-    pub fn target_module_for_kind(&self, kind: DependencyKind) -> Option<ModuleTarget> {
-        match self {
-            DependencyItem::Error => None,
-            DependencyItem::Remote { target_module, .. } => target_module.for_kind(kind),
-            DependencyItem::UnresolvedRemote { target_module, .. } => {
-                target_module.and_then(|targets| targets.for_kind(kind))
-            }
-            _ => None,
+            DependencyItem::Item { symbol, .. } => *symbol,
         }
     }
 }

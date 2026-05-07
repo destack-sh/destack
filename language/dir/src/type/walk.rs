@@ -22,146 +22,115 @@ pub fn walk_type<V: TypeVisitor + ?Sized>(
 ) {
     visitor.visit_any(types, type_id, ty);
     match ty {
-        Type::TypeLiteral { .. } => {}
-        Type::InferVar { .. } => {}
-        Type::Value { value } => {
-            visitor.visit_type_id(types, *value);
+        Type::Literal(_) => {}
+        Type::InferVariable(_) => {}
+        Type::Value(value) => {
+            visitor.visit_type_id(types, value.value);
         }
         Type::This => {}
-        Type::Reference {
-            generic_arguments, ..
-        } => {
-            if let Some(arguments) = generic_arguments.as_ref() {
+        Type::Reference(reference) => {
+            if let Some(arguments) = reference.generic_arguments.as_ref() {
                 walk_static_arguments(visitor, types, arguments);
             }
         }
         Type::Unevaluated(_) => {}
-        Type::Conditional {
-            left,
-            right,
-            then_type,
-            else_type,
-            ..
-        } => {
-            visitor.visit_type_id(types, *left);
-            visitor.visit_type_id(types, *right);
-            visitor.visit_type_id(types, *then_type);
-            visitor.visit_type_id(types, *else_type);
+        Type::Conditional(conditional) => {
+            visitor.visit_type_id(types, conditional.left);
+            visitor.visit_type_id(types, conditional.right);
+            visitor.visit_type_id(types, conditional.then_type);
+            visitor.visit_type_id(types, conditional.else_type);
         }
-        Type::Mapped {
-            parameter, value, ..
-        } => {
-            walk_type_mapped_parameter(visitor, types, parameter);
-            visitor.visit_type_id(types, *value);
+        Type::Mapped(mapped) => {
+            walk_type_mapped_parameter(visitor, types, &mapped.parameter);
+            visitor.visit_type_id(types, mapped.value);
         }
-        Type::Index { left, index } => {
-            visitor.visit_type_id(types, *left);
-            visitor.visit_type_id(types, *index);
+        Type::Index(index) => {
+            visitor.visit_type_id(types, index.left);
+            visitor.visit_type_id(types, index.index);
         }
-        Type::TemplateLiteral { spans, .. } => {
-            for span in spans {
+        Type::TemplateLiteral(template) => {
+            for span in &template.spans {
                 visitor.visit_type_id(types, *span);
             }
         }
-        Type::Import {
-            generic_arguments, ..
-        } => {
-            if let Some(arguments) = generic_arguments.as_ref() {
+        Type::Import(import) => {
+            if let Some(arguments) = import.generic_arguments.as_ref() {
                 walk_static_arguments(visitor, types, arguments);
             }
         }
-        Type::Infer { constraint, .. } => {
-            if let Some(constraint) = constraint.as_ref() {
+        Type::Infer(infer) => {
+            if let Some(constraint) = infer.constraint.as_ref() {
                 visitor.visit_type_id(types, *constraint);
             }
         }
-        Type::Predicate { target, .. } => {
-            if let Some(target) = target.as_ref() {
+        Type::Predicate(predicate) => {
+            if let Some(target) = predicate.target.as_ref() {
                 visitor.visit_type_id(types, *target);
             }
         }
-        Type::Readonly { target_type }
-        | Type::KeyOf { target_type }
-        | Type::Must { target_type }
-        | Type::AsComptime { target_type }
-        | Type::Not { target_type } => {
-            visitor.visit_type_id(types, *target_type);
+        Type::Form(form) => {
+            visitor.visit_type_id(types, form.base);
+            visitor.visit_type_id(types, form.ownership);
+            visitor.visit_type_id(types, form.place);
+            visitor.visit_type_id(types, form.lifetime);
+            visitor.visit_type_id(types, form.access);
         }
-        Type::ValueOf { right, .. } => {
-            visitor.visit_type_id(types, *right);
+        Type::KeyOf(unary) | Type::Must(unary) | Type::AsComptime(unary) | Type::Not(unary) => {
+            visitor.visit_type_id(types, unary.target_type);
         }
-        Type::ReferenceOf { right, .. } => {
-            visitor.visit_type_id(types, *right);
+        Type::In(binary) | Type::Extends(binary) | Type::Implements(binary) => {
+            visitor.visit_type_id(types, binary.left);
+            visitor.visit_type_id(types, binary.right);
         }
-        Type::PointerOf { right, .. } => {
-            visitor.visit_type_id(types, *right);
+        Type::FixedArray(array) => {
+            visitor.visit_type_id(types, array.element);
+            visitor.visit_type_id(types, array.count);
         }
-        Type::In { left, right }
-        | Type::Extends { left, right }
-        | Type::Implements { left, right } => {
-            visitor.visit_type_id(types, *left);
-            visitor.visit_type_id(types, *right);
-        }
-        Type::ArraySized { element, count, .. } => {
-            visitor.visit_type_id(types, *element);
-            visitor.visit_type_id(types, *count);
-        }
-        Type::Array { element, .. } => {
-            if let Some(element) = element.as_ref() {
+        Type::Slice(slice) => {
+            if let Some(element) = slice.element.as_ref() {
                 visitor.visit_type_id(types, *element);
             }
         }
-        Type::Tuple { elements, .. } => {
-            for element in elements {
+        Type::Tuple(tuple) => {
+            for element in &tuple.elements {
                 walk_type_element(visitor, types, element);
             }
         }
-        Type::Object {
-            fields,
-            call_signatures,
-            construct_signatures,
-            index_signatures,
-        } => {
-            for field in fields {
+        Type::Object(object) => {
+            for field in &object.fields {
                 walk_type_field(visitor, types, field);
             }
-            for signature in call_signatures {
+            for signature in &object.call_signatures {
                 visitor.visit_type_id(types, *signature);
             }
-            for signature in construct_signatures {
+            for signature in &object.construct_signatures {
                 visitor.visit_type_id(types, *signature);
             }
-            for signature in index_signatures {
+            for signature in &object.index_signatures {
                 walk_type_index_signature(visitor, types, signature);
             }
         }
-        Type::Function {
-            generic_parameters,
-            this_parameter,
-            parameters,
-            return_type,
-            ..
-        } => {
-            for parameter in generic_parameters {
+        Type::Function(function) => {
+            for parameter in &function.generic_parameters {
                 visitor.visit_type_id(types, *parameter);
             }
-            if let Some(this_parameter) = this_parameter.as_ref() {
+            if let Some(this_parameter) = function.this_parameter.as_ref() {
                 visitor.visit_type_id(types, *this_parameter);
             }
-            for parameter in parameters {
+            for parameter in &function.parameters {
                 visitor.visit_type_id(types, *parameter);
             }
-            if let Some(return_type) = return_type.as_ref() {
+            if let Some(return_type) = function.return_type.as_ref() {
                 visitor.visit_type_id(types, *return_type);
             }
         }
-        Type::Union { elements } => {
-            for element in elements {
+        Type::Union(union) => {
+            for element in &union.elements {
                 visitor.visit_type_id(types, *element);
             }
         }
-        Type::Intersection { elements } => {
-            for element in elements {
+        Type::Intersection(intersection) => {
+            for element in &intersection.elements {
                 visitor.visit_type_id(types, *element);
             }
         }

@@ -17,13 +17,13 @@ pub enum Pattern {
         pattern: LocalNodeId<Pattern>,
         value: LocalNodeId<Expression>,
     },
-    /// Reference pattern (like `&x`).
-    ReferenceOf {
+    /// Borrow pattern (like `&x`).
+    BorrowOf {
         mutability: Option<Mutability>,
         right: LocalNodeId<Pattern>,
     },
-    /// Value pattern (like `^x`).
-    ValueOf {
+    /// Move pattern (like `^x`).
+    MoveOf {
         mutability: Option<Mutability>,
         right: LocalNodeId<Pattern>,
     },
@@ -47,8 +47,8 @@ pub enum Pattern {
         ty: LocalNodeId<TypeExpression>,
         fields: Vec<LocalNodeId<PatternField>>,
     },
-    /// Array pattern (like `[1, 2, x]` or `[1, y, ..]`).
-    Array {
+    /// Sequence pattern like `[1, 2, x]` or `[1, y, ..]`.
+    Sequence {
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Anonymous object pattern (like `{ x, y }`).
@@ -79,16 +79,16 @@ impl Pattern {
 }
 
 /// A PatternField is a field in a pattern (tuple, struct, union, etc.).
-/// Field resolution (which struct field it maps to) is in ResolutionTable.
+/// Field resolution is stored in the checked type table.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PatternField {
     /// Named field, maybe shorthand and maybe with a nested pattern.
     Named {
         mutability: Option<Mutability>,
         name: StringId,
+        pattern: Option<LocalNodeId<Pattern>>,
         symbol: Option<LocalSymbolId>,
         is_shorthand: bool,
-        pattern: Option<LocalNodeId<Pattern>>,
     },
     /// Computed field (like `[key]: value`).
     Computed {
@@ -103,7 +103,7 @@ pub enum PatternField {
         mutability: Option<Mutability>,
         pattern: Option<LocalNodeId<Pattern>>,
     },
-    /// Elision (hole) in an array pattern (like `[,a]` or `[,,b]`).
+    /// Elision in a sequence pattern like `[,a]` or `[,,b]`.
     Elision,
 }
 
@@ -134,8 +134,8 @@ pub enum AssignPattern {
         pattern: LocalNodeId<AssignPattern>,
         value: LocalNodeId<Expression>,
     },
-    /// Array destructuring target like `[a, , ...rest]`.
-    Array {
+    /// Sequence destructuring target like `[a, , ...rest]`.
+    Sequence {
         fields: Vec<LocalNodeId<AssignPatternField>>,
     },
     /// Object destructuring target like `{ x, y: z }`.
@@ -154,8 +154,8 @@ pub enum AssignPatternField {
     /// Named field like `{ x }` or `{ x: y }`.
     Named {
         name: Name,
-        is_shorthand: bool,
         pattern: Option<LocalNodeId<AssignPattern>>,
+        is_shorthand: bool,
     },
     /// Computed field like `{ [key]: value }`.
     Computed {

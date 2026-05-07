@@ -1,15 +1,15 @@
-use destack_source::{AdaptImage, ModuleId};
+use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Asynchrony, FunctionCardinality, GlobalSymbolId, LocalNodeId, Mutability, Path, ScalarLiteral,
-    StaticArgument, StaticKey, StringId, TypeExpression, VarianceBound,
+    Asynchrony, GlobalSymbolId, LocalNodeId, Path, ScalarLiteral, StaticArgument, StaticKey,
+    StringId, TypeExpression,
 };
 
 use super::PrimitiveType;
 
-/// A TypeLiteral is a scalar type.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+/// A scalar, primitive, intrinsic, or built-in literal type.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeLiteral {
     /// Never type `never`.
     Never,
@@ -36,8 +36,8 @@ pub enum TypeLiteral {
     ScalarLiteral(ScalarLiteral),
 }
 
-/// A TypeIntrinsic is a compiler-provided intrinsic type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+/// A compiler-provided intrinsic type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IntrinsicType {
     /// Uppercase string intrinsic.
     Uppercase,
@@ -54,7 +54,7 @@ pub enum IntrinsicType {
 }
 
 /// A mapped-type modifier in evaluated type space.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MappedTypeModifier {
     /// The plain modifier without an explicit sign.
     Present,
@@ -67,7 +67,7 @@ pub enum MappedTypeModifier {
 }
 
 /// Evaluated mapped-type modifiers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MappedTypeModifiers {
     /// The readonly modifier.
     pub readonly: MappedTypeModifier,
@@ -76,7 +76,7 @@ pub struct MappedTypeModifiers {
 }
 
 /// An evaluated mapped-type parameter.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MappedTypeParameter {
     /// The parameter name (like `K`).
     pub name: StringId,
@@ -88,11 +88,35 @@ pub struct MappedTypeParameter {
     pub key_remap: Option<LocalTypeId>,
 }
 
+/// A type bound for a reference operation.
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+pub enum VarianceBound {
+    /// The left type must implement the right type.
+    Implements,
+    /// The left type must extend the right type.
+    Extends,
+    /// The left type must be a supertype of the right type.
+    Super,
+}
+
+/// Canonical qualified storage form.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TypeForm {
+    /// The unqualified base type.
+    pub base: LocalTypeId,
+    /// The ownership axis type.
+    pub ownership: LocalTypeId,
+    /// The placement axis type.
+    pub place: LocalTypeId,
+    /// The lifetime axis type.
+    pub lifetime: LocalTypeId,
+    /// The access axis type.
+    pub access: LocalTypeId,
+}
+
 /// A predicate subject in evaluated type space.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PredicateSubject {
-    /// Unresolved identifier subject (like `x` in `x is T`).
-    Unresolved(StringId),
     /// Symbol subject (like `x` in `x is T`).
     Symbol(GlobalSymbolId),
     /// `this` subject.
@@ -100,7 +124,7 @@ pub enum PredicateSubject {
 }
 
 /// An index signature in an object type.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeIndexSignature {
     /// The parameter name (like `K`).
     pub name: StringId,
@@ -114,152 +138,275 @@ pub struct TypeIndexSignature {
     pub is_readonly: bool,
 }
 
-/// A Type in the type system.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+/// A scalar or intrinsic literal type.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LiteralType {
+    /// The literal value.
+    pub value: TypeLiteral,
+}
+
+/// An inference variable type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InferVariableType {
+    /// The inference variable id.
+    pub id: InferVarId,
+}
+
+/// Runtime representation of a type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ValueType {
+    /// The represented type.
+    pub value: LocalTypeId,
+}
+
+/// Reference to one declared type.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DeclaredType {
+    /// The referenced declaration symbol.
+    pub symbol: GlobalSymbolId,
+    /// The static arguments applied to the reference.
+    pub generic_arguments: Option<Vec<StaticArgument>>,
+}
+
+/// Source type expression that has not been evaluated.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct UnevaluatedType {
+    /// The source type expression.
+    pub expression: LocalNodeId<TypeExpression>,
+}
+
+/// A conditional type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ConditionalType {
+    /// The symbol distributed over the conditional when present.
+    pub distributive_symbol: Option<GlobalSymbolId>,
+    /// The left operand.
+    pub left: LocalTypeId,
+    /// The right operand.
+    pub right: LocalTypeId,
+    /// The type selected when the condition holds.
+    pub then_type: LocalTypeId,
+    /// The type selected when the condition does not hold.
+    pub else_type: LocalTypeId,
+}
+
+/// A mapped type.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MappedType {
+    /// The mapped parameter.
+    pub parameter: MappedTypeParameter,
+    /// The mapped modifiers.
+    pub modifiers: MappedTypeModifiers,
+    /// The mapped value type.
+    pub value: LocalTypeId,
+}
+
+/// Indexed access type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IndexType {
+    /// The indexed type.
+    pub left: LocalTypeId,
+    /// The index type.
+    pub index: LocalTypeId,
+}
+
+/// A template literal type.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TemplateLiteralType {
+    /// The literal string segments.
+    pub strings: Vec<StringId>,
+    /// The interpolated type spans.
+    pub spans: Vec<LocalTypeId>,
+}
+
+/// An import type.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ImportType {
+    /// The import target.
+    pub target: StringId,
+    /// The optional imported member path.
+    pub qualifier: Option<Path>,
+    /// The static arguments applied to the imported type.
+    pub generic_arguments: Option<Vec<StaticArgument>>,
+}
+
+/// An infer binding type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InferType {
+    /// The inferred binding name.
+    pub name: StringId,
+    /// The optional inferred constraint.
+    pub constraint: Option<LocalTypeId>,
+}
+
+/// A type predicate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PredicateType {
+    /// Whether this is an assertion predicate.
+    pub asserts: bool,
+    /// The predicate subject.
+    pub subject: PredicateSubject,
+    /// The predicate target type.
+    pub target: Option<LocalTypeId>,
+}
+
+/// A unary type operator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UnaryType {
+    /// The target type.
+    pub target_type: LocalTypeId,
+}
+
+/// A binary type relation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BinaryType {
+    /// The left operand.
+    pub left: LocalTypeId,
+    /// The right operand.
+    pub right: LocalTypeId,
+}
+
+/// A fixed-length array type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FixedArrayType {
+    /// The element type.
+    pub element: LocalTypeId,
+    /// The length type.
+    pub count: LocalTypeId,
+    /// Whether the array is readonly.
+    pub is_readonly: bool,
+}
+
+/// Runtime-length homogeneous view type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SliceType {
+    /// The element type when known.
+    pub element: Option<LocalTypeId>,
+    /// Whether the slice is readonly.
+    pub is_readonly: bool,
+}
+
+/// A tuple type.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TupleType {
+    /// The tuple elements.
+    pub elements: Vec<TypeElement>,
+    /// Whether the tuple is readonly.
+    pub is_readonly: bool,
+}
+
+/// An object type.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ObjectType {
+    /// The object fields.
+    pub fields: Vec<TypeField>,
+    /// The call signatures.
+    pub call_signatures: Vec<LocalTypeId>,
+    /// The construct signatures.
+    pub construct_signatures: Vec<LocalTypeId>,
+    /// The index signatures.
+    pub index_signatures: Vec<TypeIndexSignature>,
+}
+
+/// A function type.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FunctionType {
+    /// The function asynchrony.
+    pub asynchrony: Asynchrony,
+    /// The generic parameter types.
+    pub generic_parameters: Vec<LocalTypeId>,
+    /// The optional `this` parameter type.
+    pub this_parameter: Option<LocalTypeId>,
+    /// The parameter types.
+    pub parameters: Vec<LocalTypeId>,
+    /// The optional return type.
+    pub return_type: Option<LocalTypeId>,
+    /// Whether this is a generator function.
+    pub is_generator: bool,
+}
+
+/// A union type.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UnionType {
+    /// The union elements.
+    pub elements: Vec<LocalTypeId>,
+}
+
+/// An intersection type.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IntersectionType {
+    /// The intersection elements.
+    pub elements: Vec<LocalTypeId>,
+}
+
+/// A semantic type.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Type {
     /// Scalar type literal.
-    TypeLiteral { value: TypeLiteral },
+    Literal(LiteralType),
 
     /// Inference variable used during type analysis (should not be used outside of analysis).
-    InferVar { id: InferVarId },
+    InferVariable(InferVariableType),
 
-    /// Type-as-value: runtime representation of a type (for reflection and instanceof).
-    Value { value: LocalTypeId },
+    /// Runtime representation of a type.
+    Value(ValueType),
 
     /// This type in a type predicate or method signature.
     This,
 
-    /// Reference to a declared type (with optional type arguments for generics).
-    Reference {
-        symbol: GlobalSymbolId,
-        generic_arguments: Option<Vec<StaticArgument>>,
-    },
+    /// Reference to one declared type.
+    Reference(DeclaredType),
     /// Unevaluated type expression that resolves to a type.
-    Unevaluated(LocalNodeId<TypeExpression>),
+    Unevaluated(UnevaluatedType),
 
-    /// Type conditional expression.
-    Conditional {
-        distributive_symbol: Option<GlobalSymbolId>,
-        left: LocalTypeId,
-        right: LocalTypeId,
-        then_type: LocalTypeId,
-        else_type: LocalTypeId,
-    },
-    /// Type mapped expression.
-    Mapped {
-        parameter: MappedTypeParameter,
-        modifiers: MappedTypeModifiers,
-        value: LocalTypeId,
-    },
-    /// Type index expression.
-    Index {
-        left: LocalTypeId,
-        index: LocalTypeId,
-    },
-    /// Type template literal expression.
-    TemplateLiteral {
-        strings: Vec<StringId>,
-        spans: Vec<LocalTypeId>,
-    },
-    /// Type import expression.
-    Import {
-        target: StringId,
-        qualifier: Option<Path>,
-        generic_arguments: Option<Vec<StaticArgument>>,
-    },
+    /// Conditional type expression.
+    Conditional(ConditionalType),
+    /// Mapped type expression.
+    Mapped(MappedType),
+    /// Indexed access type expression.
+    Index(IndexType),
+    /// Template literal type expression.
+    TemplateLiteral(TemplateLiteralType),
+    /// Import type expression.
+    Import(ImportType),
     /// Type infer binding.
-    Infer {
-        name: StringId,
-        constraint: Option<LocalTypeId>,
-    },
+    Infer(InferType),
     /// Type predicate expression.
-    Predicate {
-        asserts: bool,
-        subject: PredicateSubject,
-        target: Option<LocalTypeId>,
-    },
+    Predicate(PredicateType),
 
-    /// `readonly T`.
-    Readonly { target_type: LocalTypeId },
+    /// Canonical qualified storage form.
+    Form(TypeForm),
+
     /// `keyof T`.
-    KeyOf { target_type: LocalTypeId },
+    KeyOf(UnaryType),
     /// `T!`.
-    Must { target_type: LocalTypeId },
+    Must(UnaryType),
     /// `T as comptime`.
-    AsComptime { target_type: LocalTypeId },
+    AsComptime(UnaryType),
     /// `!T`.
-    Not { target_type: LocalTypeId },
-    /// Value `^T` of a `T`. Or `^readonly T` for a readonly value.
-    ValueOf {
-        mutability: Option<Mutability>,
-        variance: Option<VarianceBound>,
-        right: LocalTypeId,
-    },
-    /// Borrowed reference type `&T` or `&readonly T`.
-    ReferenceOf {
-        mutability: Option<Mutability>,
-        variance: Option<VarianceBound>,
-        right: LocalTypeId,
-    },
-    /// Raw pointer type `*T` or `*readonly T`.
-    PointerOf {
-        mutability: Option<Mutability>,
-        right: LocalTypeId,
-    },
+    Not(UnaryType),
     /// `left in right`.
-    In {
-        left: LocalTypeId,
-        right: LocalTypeId,
-    },
+    In(BinaryType),
     /// `left extends right`.
-    Extends {
-        left: LocalTypeId,
-        right: LocalTypeId,
-    },
+    Extends(BinaryType),
     /// `left implements right`.
-    Implements {
-        left: LocalTypeId,
-        right: LocalTypeId,
-    },
+    Implements(BinaryType),
 
-    /// Array type with fixed size (like `T[N]`).
-    ArraySized {
-        element: LocalTypeId,
-        count: LocalTypeId,
-        is_readonly: bool,
-    },
-    /// Array type with dynamically sized elements (like `T[]`).
-    Array {
-        element: Option<LocalTypeId>,
-        is_readonly: bool,
-    },
-    /// Tuple type `(T1, T2, ...)`.
-    Tuple {
-        elements: Vec<TypeElement>,
-        is_readonly: bool,
-    },
-    /// Object type `{ a: T1, b: T2, ... }`.
-    Object {
-        fields: Vec<TypeField>,
-        call_signatures: Vec<LocalTypeId>,
-        construct_signatures: Vec<LocalTypeId>,
-        index_signatures: Vec<TypeIndexSignature>,
-    },
-    /// Function type `(T1, T2, ...) -> T`.
-    Function {
-        asynchrony: Asynchrony,
-        cardinality: FunctionCardinality,
-        generic_parameters: Vec<LocalTypeId>,
-        this_parameter: Option<LocalTypeId>,
-        parameters: Vec<LocalTypeId>,
-        return_type: Option<LocalTypeId>,
-    },
+    /// Fixed-length array type.
+    FixedArray(FixedArrayType),
+    /// Runtime-length homogeneous view type.
+    Slice(SliceType),
+    /// Tuple type.
+    Tuple(TupleType),
+    /// Object type.
+    Object(ObjectType),
+    /// Function type.
+    Function(FunctionType),
 
-    // combinators
     /// Union type `A | B | C`.
-    Union { elements: Vec<LocalTypeId> },
+    Union(UnionType),
     /// Intersection type `A & B & C`.
-    Intersection { elements: Vec<LocalTypeId> },
+    Intersection(IntersectionType),
 
     /// Error type that could not be resolved.
     Error,
@@ -268,7 +415,7 @@ pub enum Type {
 impl Type {
     /// Whether the type is evaluated.
     pub fn is_evaluated(&self) -> bool {
-        !matches!(self, Type::Unevaluated(_) | Type::InferVar { .. })
+        !matches!(self, Type::Unevaluated(_) | Type::InferVariable(_))
     }
 
     /// Whether the type is unevaluated.
@@ -285,15 +432,15 @@ impl Type {
     pub fn is_unknown(&self) -> bool {
         matches!(
             self,
-            Type::TypeLiteral {
+            Type::Literal(LiteralType {
                 value: TypeLiteral::Unknown
-            }
+            })
         )
     }
 
     /// Whether the type is one infer-owned placeholder variant.
     pub fn is_infer(&self) -> bool {
-        matches!(self, Type::InferVar { .. } | Type::Infer { .. })
+        matches!(self, Type::InferVariable(_) | Type::Infer(_))
     }
 
     /// Whether the type is an error or unknown literal.
@@ -301,18 +448,18 @@ impl Type {
         self.is_error() || self.is_unknown()
     }
 
-    /// Get the type symbol if this type is a direct reference to a declared type.
+    /// Return the symbol if this type directly references one declaration.
     pub fn symbol(&self) -> Option<GlobalSymbolId> {
         match self {
-            Type::Reference { symbol, .. } => Some(*symbol),
+            Type::Reference(reference) => Some(reference.symbol),
             _ => None,
         }
     }
 }
 
-/// Type fields in an object-like type.
+/// A field in an object-like type.
 /// Methods are represented as fields whose `ty` is a `Type::Function`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeField {
     /// The key of the field.
     pub key: StaticKey,
@@ -324,8 +471,8 @@ pub struct TypeField {
     pub is_readonly: bool,
 }
 
-/// A tuple element in a type tuple.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+/// An element in a tuple type.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeElement {
     /// The optional label for the element.
     pub label: Option<StringId>,
@@ -352,8 +499,8 @@ impl TypeElement {
     }
 }
 
-/// A TypeKind determines nominal vs. structural typing.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, AdaptImage)]
+/// Type identity mode.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum TypeKind {
     /// Structural typing (like `type T = { a: int32, b: boolean }`).
     Structural,
@@ -361,20 +508,18 @@ pub enum TypeKind {
     Nominal,
 }
 
-/// Unique identifier for Types.
+/// Unique identifier for a local type.
 #[repr(transparent)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct LocalTypeId(pub u32);
 
 impl LocalTypeId {
-    /// Wrap an id as a TypeId.
+    /// Wrap a raw id as a LocalTypeId.
     pub fn new(id: u32) -> Self {
         Self(id)
     }
 
-    /// Turn into a GlobalTypeId.
+    /// Convert this id into a global type id.
     pub fn into_global(self, module_id: ModuleId) -> GlobalTypeId {
         GlobalTypeId {
             module_id,
@@ -385,22 +530,18 @@ impl LocalTypeId {
 
 /// Unique identifier for inference variables.
 #[repr(transparent)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct InferVarId(pub u32);
 
 impl InferVarId {
-    /// Wrap an id as an InferVarId.
+    /// Wrap a raw id as an InferVarId.
     pub fn new(id: u32) -> Self {
         Self(id)
     }
 }
 
 /// Global type id across modules.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, AdaptImage,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct GlobalTypeId {
     /// The module id of the global type.
     pub module_id: ModuleId,
@@ -417,7 +558,7 @@ impl GlobalTypeId {
         }
     }
 
-    /// Turn into a LocalTypeId.
+    /// Convert this id into a local type id.
     pub fn into_local(self) -> LocalTypeId {
         self.local_id
     }

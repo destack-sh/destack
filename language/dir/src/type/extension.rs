@@ -1,4 +1,3 @@
-use destack_source::AdaptImage;
 use std::fmt::Display;
 
 use destack_source::ModuleId;
@@ -8,9 +7,7 @@ use crate::{GlobalSymbolId, LocalLineageId};
 
 /// Unique identifier for Extensions.
 #[repr(transparent)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct LocalExtensionId(pub u32);
 
 impl LocalExtensionId {
@@ -29,9 +26,7 @@ impl LocalExtensionId {
 }
 
 /// Global extension id across modules.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, AdaptImage,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct GlobalExtensionId {
     /// The module id of the global extension.
     pub module_id: ModuleId,
@@ -67,7 +62,7 @@ impl Display for LocalExtensionId {
 }
 
 /// How an extension relates to its target type (determines visibility).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExtensionKind {
     /// Inherent extension defined in same module as target type.
     /// Automatically visible wherever the type is used.
@@ -77,7 +72,7 @@ pub enum ExtensionKind {
     Local,
     /// Named extension on a foreign type.
     /// Must be explicitly imported to use (outside of the defining module).
-    Nominal,
+    Named,
 }
 
 /// A resolved extension declaration.
@@ -106,7 +101,7 @@ pub enum ExtensionKind {
 ///     isWeekend(): boolean { ... }
 /// }
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Extension {
     /// The extension declaration's symbol.
     pub symbol: GlobalSymbolId,
@@ -135,18 +130,18 @@ impl Extension {
         }
     }
 
-    /// Check if this extension is native (defined in same module as target).
-    pub fn is_native(&self) -> bool {
+    /// Check if this extension is inherent.
+    pub fn is_inherent(&self) -> bool {
         matches!(self.kind, ExtensionKind::Inherent)
     }
 
     /// Check if this extension is named (can be exported/imported).
     pub fn is_named(&self) -> bool {
-        matches!(self.kind, ExtensionKind::Nominal)
+        matches!(self.kind, ExtensionKind::Named)
     }
 
-    /// Check if this extension is anonymous.
-    pub fn is_anonymous(&self) -> bool {
+    /// Check if this extension is local.
+    pub fn is_local(&self) -> bool {
         matches!(self.kind, ExtensionKind::Local)
     }
 }

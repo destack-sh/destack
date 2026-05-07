@@ -1,25 +1,17 @@
-mod equal;
 mod extension;
 mod instance;
 mod lineage;
 mod primitive;
 mod resolution;
-mod rewrite;
-mod subtype;
-mod table;
 mod r#type;
 mod visitor;
 mod walk;
 
-pub use equal::*;
 pub use extension::*;
 pub use instance::*;
 pub use lineage::*;
 pub use primitive::*;
 pub use resolution::*;
-pub use rewrite::*;
-pub use subtype::*;
-pub use table::*;
 pub use r#type::*;
 pub use visitor::*;
 pub use walk::*;
