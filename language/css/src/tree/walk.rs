@@ -692,11 +692,9 @@ pub fn walk_pseudo_class<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::PseudoClass, id.id);
 
-    if let Some(arguments) = &selector.arguments {
-        if let PseudoArgument::Selector(selector_id) = arguments {
-            let selector_node = tree.get(*selector_id);
-            visitor.visit_selector(tree, *selector_id, selector_node);
-        }
+    if let Some(PseudoArgument::Selector(selector_id)) = &selector.arguments {
+        let selector_node = tree.get(*selector_id);
+        visitor.visit_selector(tree, *selector_id, selector_node);
     }
 }
 
@@ -721,11 +719,9 @@ pub fn walk_pseudo_element<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::PseudoElement, id.id);
 
-    if let Some(arguments) = &selector.arguments {
-        if let PseudoArgument::Selector(selector_id) = arguments {
-            let selector_node = tree.get(*selector_id);
-            visitor.visit_selector(tree, *selector_id, selector_node);
-        }
+    if let Some(PseudoArgument::Selector(selector_id)) = &selector.arguments {
+        let selector_node = tree.get(*selector_id);
+        visitor.visit_selector(tree, *selector_id, selector_node);
     }
 }
 
