@@ -38,7 +38,6 @@ _run-destack-test test_binary *args:
 install:
     just install-conformance
     just fetch-ecosystem
-    just install-resolver
 
 # install conformance suites
 install-conformance:
@@ -58,10 +57,6 @@ install-conformance-formatter:
     python3 ./test/fixtures/conformance/fetch-suite.py \
         ./test/fixtures/conformance/formatter/prettier \
         ./test/fixtures/conformance/formatter/oxfmt
-
-# install resolver fixture dependencies
-install-resolver:
-    bash scripts/install-resolver.sh
 
 # fetch ecosystem packages
 fetch-ecosystem:
@@ -259,7 +254,6 @@ test-unit:
 
 # run the language test aggregate
 test:
-    just install-resolver
     just test-unit
     just test-smoke
     just test-emit

@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::path::Path;
 
 use destack_source::{PathExt, SLASH_START};
-use destack_workspace::PackageDeclaration;
 
 use crate::{
     Alias, AliasValue, Resolution, Resolver, ResolverBase, ResolverContext, ResolverError,
@@ -39,7 +38,7 @@ enum AliasPattern {
         /// The literal suffix after the wildcard.
         suffix: String,
     },
-    /// One package style prefix alias.
+    /// One prefix alias.
     Prefix { key: String },
 }
 
@@ -78,137 +77,11 @@ impl AliasTable {
 
 #[allow(clippy::too_many_arguments)]
 impl Resolver {
-    /// Find one browser field substitution for a path or request.
-    fn find_browser_substitution<'a>(
-        &self,
-        package_declaration: &'a PackageDeclaration,
-        path: &Path,
-        request: Option<&str>,
-    ) -> ResolverResult<Option<&'a str>> {
-        let Some(object) = package_declaration
-            .manifest
-            .browser
-            .as_ref()
-            .and_then(|v| v.as_object())
-        else {
-            return Ok(None);
-        };
-
-        // match by the raw request string first
-        if let Some(request) = request {
-            if let Some(value) = object.get(request) {
-                return match value {
-                    serde_json::Value::String(s) => Ok(Some(s.as_str())),
-                    serde_json::Value::Bool(false) => Err(ResolverError::Ignored {
-                        path: path.to_path_buf(),
-                    }),
-                    _ => Ok(None),
-                };
-            }
-        }
-        // otherwise match by the resolved path
-        else {
-            let directory = package_declaration.path.parent().ok_or_else(|| {
-                ResolverError::InvalidPackageJson {
-                    path: package_declaration.path.clone(),
-                }
-            });
-            let directory = directory?;
-
-            for (key, value) in object {
-                let joined = directory.normalize_with(key.as_str());
-                if joined == path {
-                    return match value {
-                        serde_json::Value::String(s) => Ok(Some(s.as_str())),
-                        serde_json::Value::Bool(false) => Err(ResolverError::Ignored {
-                            path: path.to_path_buf(),
-                        }),
-                        _ => Ok(None),
-                    };
-                }
-            }
-        }
-
-        Ok(None)
-    }
-
-    /// Resolve through browser field substitution.
-    pub(crate) fn resolve_browser_field(
-        &self,
-        path: &Path,
-        module_specifier: Option<&str>,
-        package_declaration: &PackageDeclaration,
-        search: ResolverSearch,
-        ctx: &mut ResolverContext,
-    ) -> ResolverResult<Option<Resolution>> {
-        if search.is_fully_specified() {
-            return Ok(None);
-        }
-
-        // return early when there is no browser rewrite
-        let Some(new_specifier) =
-            self.find_browser_substitution(package_declaration, path, module_specifier)?
-        else {
-            return Ok(None);
-        };
-
-        // ignore trivial self rewrites
-        if module_specifier.is_some_and(|s| s == new_specifier) {
-            return Ok(None);
-        }
-
-        // reject recursive rewrite loops
-        if search.has_rewrite(new_specifier) {
-            // allow self rewrites like `{"./a.js": "./a.js"}`
-            if new_specifier
-                .strip_prefix("./")
-                .filter(|s| path.ends_with(Path::new(s)))
-                .is_some()
-            {
-                return if self.is_file(path, ctx)? {
-                    if self.check_restrictions(path) {
-                        Ok(Some(Resolution::path_only(path.to_path_buf())))
-                    } else {
-                        Ok(None)
-                    }
-                } else {
-                    Err(ResolverError::NotFound {
-                        specifier: new_specifier.to_string(),
-                    })
-                };
-            }
-            return Err(search.recursive_dependency());
-        }
-
-        let package_url =
-            package_declaration
-                .path
-                .parent()
-                .ok_or_else(|| ResolverError::InvalidPackageJson {
-                    path: package_declaration.path.clone(),
-                })?;
-        let package_url = package_url.to_path_buf();
-        let request = ResolverSpecifier::parse(new_specifier);
-        let mut search = search;
-        search.enter_browser_rewrite(new_specifier);
-
-        self.resolve_request(
-            ResolverBase::Directory(&package_url),
-            &package_url,
-            &package_url,
-            &request,
-            search,
-            ctx,
-        )
-        .map(Some)
-    }
-
     /// Resolve through one alias table.
     pub(crate) fn resolve_alias_table(
         &self,
         base: ResolverBase<'_>,
         request_directory: &Path,
-        lookup_path: &Path,
         specifier: &str,
         aliases: &AliasTable,
         search: ResolverSearch,
@@ -236,7 +109,7 @@ impl Resolver {
                     (key.as_str(), true)
                 }
                 AliasPattern::Prefix { key } => {
-                    if Self::strip_package_name(specifier, key).is_none() {
+                    if Self::strip_prefix_alias(specifier, key).is_none() {
                         continue;
                     }
                     (key.as_str(), false)
@@ -251,7 +124,6 @@ impl Resolver {
                         if let Some(resolved) = self.resolve_alias_value(
                             base,
                             request_directory,
-                            lookup_path,
                             alias_key,
                             alias_key_has_wildcard,
                             alias_path,
@@ -284,7 +156,6 @@ impl Resolver {
         &self,
         base: ResolverBase<'_>,
         request_directory: &Path,
-        lookup_path: &Path,
         alias_key: &str,
         alias_key_has_wildcard: bool,
         alias_value: &str,
@@ -335,6 +206,9 @@ impl Resolver {
                 let tail = tail.trim_start_matches(SLASH_START);
                 if tail.is_empty() {
                     Cow::Borrowed(alias_value)
+                } else if alias_value.starts_with('.') {
+                    let alias_value = alias_value.trim_end_matches(SLASH_START);
+                    Cow::Owned(format!("{alias_value}/{tail}"))
                 } else {
                     let normalized = alias_path.normalize_with(tail);
                     Cow::Owned(normalized.to_string_lossy().to_string())
@@ -344,12 +218,15 @@ impl Resolver {
 
         // resolve the substituted specifier
         *should_stop = true;
+        if search.has_rewrite(new_specifier.as_ref()) {
+            return Err(search.recursive_dependency());
+        }
+
         let request = ResolverSpecifier::parse(new_specifier.as_ref());
         let mut search = search;
-        search.enter_alias_rewrite(new_specifier.as_ref());
+        search.enter_rewrite(new_specifier.as_ref());
 
-        let resolution =
-            self.resolve_request(base, request_directory, lookup_path, &request, search, ctx);
+        let resolution = self.resolve_request(base, request_directory, &request, search, ctx);
 
         match resolution {
             Ok(resolved) => Ok(Some(resolved)),
@@ -358,79 +235,10 @@ impl Resolver {
         }
     }
 
-    /// Resolve through extension alias mappings, e.g. `.js` to `.ts`.
-    pub(crate) fn resolve_extension_alias(
-        &self,
-        path: &Path,
-        search: ResolverSearch,
-        ctx: &mut ResolverContext,
-    ) -> ResolverResult<Option<Resolution>> {
-        // return early when no extension alias applies
-        if self.options.extension_alias.is_empty() {
-            return Ok(None);
-        }
-        let Some(path_extension) = path.extension() else {
-            return Ok(None);
-        };
-        let Some(file_name) = path.file_name() else {
-            return Ok(None);
-        };
-        let Some(path_extension_str) = path_extension.to_str() else {
-            return Ok(None);
-        };
-
-        // find the extension alias mapping
-        let extension_key = format!(".{path_extension_str}");
-        let Some(extensions) = self.options.extension_alias.get(&extension_key) else {
-            return Ok(None);
-        };
-
-        let mut search = search;
-        search.enter_extension_alias();
-
-        for extension in extensions {
-            // strip the leading dot for `with_extension`
-            let extension = extension.strip_prefix('.').unwrap_or(extension);
-            let path_with_ext = path.with_extension(extension);
-            if let Some(resolved) =
-                self.probe_file_candidate(&path_with_ext, search.clone(), ctx)?
-            {
-                return Ok(Some(resolved));
-            }
-        }
-
-        // return quietly for unresolved module directory lookups like `ipaddr.js`
-        if !self.is_file(path, ctx)? || !self.check_restrictions(path) {
-            return Ok(None);
-        }
-
-        // report the failed alias candidates
-        let dir = path.parent().map(Path::to_path_buf).ok_or_else(|| {
-            ResolverError::ExpectedFilePath {
-                path: path.to_path_buf(),
-            }
-        })?;
-        let filename_without_extension = Path::new(file_name).with_extension("");
-        let filename_without_extension = filename_without_extension.to_string_lossy();
-        let files = extensions
-            .iter()
-            .map(|ext| format!("{filename_without_extension}{ext}"))
-            .collect::<Vec<_>>()
-            .join(",");
-        Err(ResolverError::ExtensionAliasNotFound {
-            filename: file_name.to_string_lossy().to_string(),
-            tried: files,
-            dir,
-        })
-    }
-
-    /// Strip the package name prefix from a specifier if it matches.
-    pub(crate) fn strip_package_name<'a>(
-        specifier: &'a str,
-        package_name: &'a str,
-    ) -> Option<&'a str> {
+    /// Strip one prefix alias from a specifier if it matches.
+    pub(crate) fn strip_prefix_alias<'a>(specifier: &'a str, alias: &'a str) -> Option<&'a str> {
         specifier
-            .strip_prefix(package_name)
+            .strip_prefix(alias)
             .filter(|tail| tail.is_empty() || tail.starts_with(SLASH_START))
     }
 }

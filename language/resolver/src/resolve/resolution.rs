@@ -30,23 +30,6 @@ impl Resolution {
         }
     }
 
-    /// Override query and fragment when the new values are present.
-    pub(crate) fn override_suffixes(
-        mut self,
-        query: Option<String>,
-        fragment: Option<String>,
-    ) -> Self {
-        if query.is_some() {
-            self.query = query;
-        }
-
-        if fragment.is_some() {
-            self.fragment = fragment;
-        }
-
-        self
-    }
-
     /// Fill query and fragment only when they are still missing.
     pub(crate) fn fill_missing_suffixes(
         mut self,

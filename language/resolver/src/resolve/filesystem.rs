@@ -1,14 +1,11 @@
 use std::collections::HashSet;
 use std::hash::{BuildHasherDefault, Hash, Hasher};
 use std::io;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 #[cfg(target_os = "windows")]
 use destack_source::strip_windows_prefix;
 use destack_source::{FileMetadata, PathExt};
-
-#[cfg(not(target_arch = "wasm32"))]
-use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache, open_zip_via_read_p};
 
 use crate::{
     Resolver, ResolverContext, ResolverError, ResolverResult, ResolverSource, Restriction,
@@ -50,13 +47,6 @@ impl Resolver {
         }
     }
 
-    /// Check if a path is inside a modules directory (node_modules).
-    #[inline]
-    pub(crate) fn is_inside_modules(path: &Path) -> bool {
-        path.components()
-            .any(|c| matches!(c, Component::Normal(name) if name == "node_modules"))
-    }
-
     /// Append an extension to a path (e.g., `foo` + `.js` = `foo.js`).
     pub(crate) fn append_extension(path: &Path, extension: &str) -> PathBuf {
         let mut os_string = path.as_os_str().to_os_string();
@@ -73,67 +63,18 @@ impl Resolver {
             .map_err(|_| ResolverError::UnsupportedPath { path: normalized })
     }
 
-    /// Read symlink metadata from one path, with optional Yarn PnP virtual/zip support.
+    /// Read symlink metadata from one path.
     pub(crate) fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        #[cfg(not(target_arch = "wasm32"))]
-        if self.options.yarn_pnp {
-            let zip_cache = LruZipCache::new(1, open_zip_via_read_p);
-
-            return match VPath::from(path)? {
-                VPath::Zip(zip_path) => {
-                    let file_type = zip_cache
-                        .file_type(zip_path.physical_base_path(), zip_path.zip_path.as_str())?;
-                    Ok(match file_type {
-                        pnp::fs::FileType::File => FileMetadata::new(true, false, false, 0, None),
-                        pnp::fs::FileType::Directory => {
-                            FileMetadata::new(false, true, false, 0, None)
-                        }
-                    })
-                }
-                VPath::Virtual(virtual_path) => {
-                    self.symlink_metadata(&virtual_path.physical_base_path())
-                }
-                VPath::Native(_) => self.fs().symlink_metadata(path),
-            };
-        }
-
         self.fs().symlink_metadata(path)
     }
 
-    /// Canonicalize one path, with optional Yarn PnP virtual/zip support.
+    /// Canonicalize one path.
     pub(crate) fn canonicalize_path(&self, path: &Path) -> io::Result<PathBuf> {
-        #[cfg(not(target_arch = "wasm32"))]
-        if self.options.yarn_pnp {
-            return match VPath::from(path)? {
-                VPath::Zip(zip_path) => self
-                    .fs()
-                    .canonicalize(&zip_path.physical_base_path())
-                    .map(|base| base.join(zip_path.zip_path)),
-                VPath::Virtual(virtual_path) => {
-                    self.canonicalize_path(&virtual_path.physical_base_path())
-                }
-                VPath::Native(path) => self.fs().canonicalize(&path),
-            };
-        }
-
         self.fs().canonicalize(path)
     }
 
-    /// Resolve one symbolic link target path, with optional Yarn PnP virtual/zip support.
+    /// Resolve one symbolic link target path.
     pub(crate) fn resolve_symlink_path(&self, path: &Path) -> io::Result<PathBuf> {
-        #[cfg(not(target_arch = "wasm32"))]
-        if self.options.yarn_pnp {
-            return match VPath::from(path)? {
-                VPath::Zip(zip_path) => self
-                    .fs()
-                    .resolve_symlink(&zip_path.physical_base_path().join(zip_path.zip_path)),
-                VPath::Virtual(virtual_path) => {
-                    self.resolve_symlink_path(&virtual_path.physical_base_path())
-                }
-                VPath::Native(path) => self.fs().resolve_symlink(&path),
-            };
-        }
-
         self.fs().resolve_symlink(path)
     }
 

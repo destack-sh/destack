@@ -2,9 +2,9 @@ use std::fmt;
 use std::sync::Arc;
 
 use destack_source::FileSystem;
-use destack_workspace::{Package, PackageDeclaration, Repository, Revision};
+use destack_workspace::{Repository, Revision};
 
-use crate::{AliasTable, ResolverContext, ResolverOptions};
+use crate::{AliasTable, MountTable, ResolverContext, ResolverOptions};
 
 /// The source truth used for resolver path reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -15,16 +15,7 @@ pub(crate) enum ResolverSource {
     FileSystem,
 }
 
-/// One discovered package scope for one resolve query.
-#[derive(Debug, Clone)]
-pub(crate) struct PackageScope {
-    /// The semantic package view.
-    pub package: Package,
-    /// The parsed package declaration when present.
-    pub package_declaration: Option<PackageDeclaration>,
-}
-
-/// The resolver implementing Node.js style module resolution.
+/// The resolver implementing Destack module identity.
 pub struct Resolver {
     /// The repository source world for resolution.
     pub(crate) repository: Arc<Repository>,
@@ -34,10 +25,10 @@ pub struct Resolver {
     pub(crate) source: ResolverSource,
     /// The configuration options controlling resolution behavior.
     pub(crate) options: ResolverOptions,
-    /// The primary alias matchers for this option set.
+    /// The explicit alias matchers for this option set.
     pub(crate) aliases: AliasTable,
-    /// The fallback alias matchers for this option set.
-    pub(crate) fallback_aliases: AliasTable,
+    /// The mounted package source roots for this option set.
+    pub(crate) mounts: MountTable,
 }
 
 impl fmt::Debug for Resolver {
@@ -54,7 +45,7 @@ impl Resolver {
         source: ResolverSource,
     ) -> Self {
         let aliases = AliasTable::new(&options.alias);
-        let fallback_aliases = AliasTable::new(&options.fallback);
+        let mounts = MountTable::new(&options.mounts);
 
         Self {
             fs: Arc::clone(repository.file_system()),
@@ -62,7 +53,7 @@ impl Resolver {
             source,
             options,
             aliases,
-            fallback_aliases,
+            mounts,
         }
     }
 
