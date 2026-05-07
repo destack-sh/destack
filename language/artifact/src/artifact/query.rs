@@ -1,6 +1,8 @@
 use destack_qir::QueryIndex;
 use serde::{Deserialize, Serialize};
 
+use crate::ArtifactVersion;
+
 /// Query index for one module profile.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModuleQueryIndex {
@@ -11,6 +13,6 @@ pub struct ModuleQueryIndex {
 /// Query index for one workspace profile.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkspaceQueryIndex {
-    /// The indexed query surface.
-    pub index: QueryIndex,
+    /// The module query indexes in this workspace profile.
+    pub modules: Vec<ArtifactVersion>,
 }
