@@ -8,19 +8,19 @@ use crate::{
 
 /// Memory allocation restrictions for a function.
 ///
-/// This allows marking functions as realtime-safe (no heap allocations)
-/// or embedded-safe (stack only).
+/// This allows marking functions as realtime-safe (no managed allocations)
+/// or heap-free.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum AllocationMode {
     /// No restrictions on allocation.
     #[default]
     Any,
-    /// Heap allocation forbidden (realtime-safe).
+    /// Managed allocation forbidden (realtime-safe).
     /// Only `RawAlloc`, `RawFree`, and `StackAlloc` are allowed.
     NoManaged,
-    /// No heap allocation at all (stack only, embedded-safe).
+    /// No heap allocation.
     /// Only `StackAlloc` is allowed.
-    StackOnly,
+    NoHeap,
 }
 
 impl AllocationMode {
@@ -29,7 +29,7 @@ impl AllocationMode {
         match self {
             AllocationMode::Any => "any",
             AllocationMode::NoManaged => "noManaged",
-            AllocationMode::StackOnly => "stackOnly",
+            AllocationMode::NoHeap => "noHeap",
         }
     }
 }

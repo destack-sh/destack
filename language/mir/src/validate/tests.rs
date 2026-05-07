@@ -1655,12 +1655,12 @@ fn test_reject_new_with_no_managed_mode() {
     );
 }
 
-/// Reject raw heap allocations when stackOnly is required.
+/// Reject raw heap allocations when noHeap is required.
 #[test]
-fn test_reject_raw_alloc_with_stack_only_mode() {
+fn test_reject_raw_alloc_with_no_heap_mode() {
     let mut tree = Tree::new();
     let pool = StringPool::new();
-    let name = pool.intern("stackOnly");
+    let name = pool.intern("noHeap");
 
     let void_ty = tree.insert_type(Type::Void);
     let layout_ty = tree.insert_type(Type::Int {
@@ -1690,7 +1690,7 @@ fn test_reject_raw_alloc_with_stack_only_mode() {
 
     let mut function = Function::local(name, Vec::new(), type_reference(void_ty), block_id);
     function.set_value_type(destination, result_ty);
-    function.allocation = AllocationMode::StackOnly;
+    function.allocation = AllocationMode::NoHeap;
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
@@ -1701,7 +1701,7 @@ fn test_reject_raw_alloc_with_stack_only_mode() {
         .expect_err("expected validation failure");
     assert_eq!(
         error.to_string(),
-        "metadata invariant violation: allocation mode violation: 'raw.alloc' is invalid because stackOnly forbids non-stack allocations"
+        "metadata invariant violation: allocation mode violation: 'raw.alloc' is invalid because noHeap forbids heap allocations"
     );
 }
 
