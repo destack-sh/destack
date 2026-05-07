@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use dir::{
-    Declaration, Expression, GlobalSymbolId, IfKind, LocalNodeId, LocalTypeId, Member, Type,
+    Declaration, Expression, GlobalSymbolId, IfForm, LocalNodeId, LocalTypeId, Member, Type,
     TypeLiteral,
 };
 
@@ -110,7 +110,7 @@ impl Compiler {
             }
 
             Expression::If {
-                kind: IfKind::If,
+                form: IfForm::If,
                 condition: _,
                 then_expression,
                 else_expression,
@@ -125,7 +125,7 @@ impl Compiler {
             }
 
             Expression::If {
-                kind: IfKind::Ternary,
+                form: IfForm::Ternary,
                 ..
             } => {
                 // for ternary, return the whole expression as a statement
@@ -148,9 +148,7 @@ impl Compiler {
             | Expression::ForEach { .. }
             | Expression::For { .. }
             | Expression::Break { .. }
-            | Expression::UnresolvedBreak { .. }
             | Expression::Continue { .. }
-            | Expression::UnresolvedContinue { .. }
             | Expression::Throw { .. }
             | Expression::Debugger => {}
 
@@ -187,13 +185,13 @@ impl Compiler {
     /// Check whether a function return type is void.
     fn return_type_is_void(&self, state: &ElaborateState<'_>, type_id: LocalTypeId) -> bool {
         match state.types.get_type(type_id) {
-            Type::Function { return_type, .. } => {
-                let Some(return_type_id) = return_type else {
+            Type::Function(function) => {
+                let Some(return_type_id) = function.return_type else {
                     return false;
                 };
-                self.type_is_void(state, *return_type_id)
+                self.type_is_void(state, return_type_id)
             }
-            Type::Value { value } => self.return_type_is_void(state, *value),
+            Type::Value(value) => self.return_type_is_void(state, value.value),
             _ => false,
         }
     }
@@ -201,10 +199,10 @@ impl Compiler {
     /// Check whether a type id resolves to void.
     fn type_is_void(&self, state: &ElaborateState<'_>, type_id: LocalTypeId) -> bool {
         match state.types.get_type(type_id) {
-            Type::TypeLiteral {
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::Void,
-            } => true,
-            Type::Value { value } => self.type_is_void(state, *value),
+            }) => true,
+            Type::Value(value) => self.type_is_void(state, value.value),
             _ => false,
         }
     }
@@ -212,10 +210,10 @@ impl Compiler {
     /// Check whether a type id resolves to void or never.
     fn type_is_void_or_never(&self, state: &ElaborateState<'_>, type_id: LocalTypeId) -> bool {
         match state.types.get_type(type_id) {
-            Type::TypeLiteral {
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::Void | TypeLiteral::Never,
-            } => true,
-            Type::Value { value } => self.type_is_void_or_never(state, *value),
+            }) => true,
+            Type::Value(value) => self.type_is_void_or_never(state, value.value),
             _ => false,
         }
     }
@@ -233,9 +231,9 @@ impl Compiler {
                 self.expression_type_id_or_error(state.types.module_id, expression_id, state.types)?
             }
             None => {
-                let ty = Type::TypeLiteral {
+                let ty = Type::Literal(dir::LiteralType {
                     value: TypeLiteral::Void,
-                };
+                });
                 state.types.insert_type_from(ty, block_id)
             }
         };

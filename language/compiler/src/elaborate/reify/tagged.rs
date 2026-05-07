@@ -4,7 +4,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use dir::{
     Argument, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeType,
-    SymbolTable, Tree, Type, TypeExpression, TypeTable,
+    SymbolResolution, SymbolTable, Tree, Type, TypeExpression, TypeTable, UnevaluatedType,
 };
 
 use crate::elaborate::ElaborateState;
@@ -51,13 +51,16 @@ impl Compiler {
         else {
             return Ok(false);
         };
-        let Some(callee_symbol) = state.tree.get(callee_id).target_symbol() else {
+        let callee_node = callee_id.into_global_any(state.module_id);
+        let Some(SymbolResolution::Target(callee_symbol)) =
+            state.types.symbol_resolution(callee_node)
+        else {
             return Ok(false);
         };
 
         // determine the constructor kind from the nominal declaration
         let Some(constructor_kind) =
-            self.nominal_constructor_kind_for_symbol(state, callee_symbol)?
+            self.nominal_constructor_kind_for_symbol(state, *callee_symbol)?
         else {
             return Ok(false);
         };
@@ -144,13 +147,13 @@ impl Compiler {
         symbol: GlobalSymbolId,
         view: NominalLookupView<'_>,
     ) -> Option<ConstructorKind> {
-        // use the primary declaration for nominal type aliases
+        // use the declaration for nominal type aliases
         let symbol_entry = view.symbols.get_symbol(symbol.local_id);
-        let primary_declaration = symbol_entry.primary_declaration?;
-        let Ok(primary_declaration) = primary_declaration.try_into_typed::<Declaration>() else {
+        let declaration = symbol_entry.declaration?;
+        let Ok(declaration) = declaration.try_into_typed::<Declaration>() else {
             return None;
         };
-        let declaration_id: LocalNodeId<Declaration> = primary_declaration.into();
+        let declaration_id: LocalNodeId<Declaration> = declaration.into();
         let declaration = view.tree.get(declaration_id);
 
         // only newtype aliases use constructor call tagging
@@ -166,10 +169,13 @@ impl Compiler {
             .types
             .get_declared_type_id(declaration.value.into_global_any(view.module_id))?;
         let constructor_kind = match view.types.get_type(declared_type_id) {
-            Type::Unevaluated(expression_id) => match view.tree.get(*expression_id) {
+            Type::Unevaluated(UnevaluatedType {
+                expression: expression_id,
+            }) => match view.tree.get(*expression_id) {
                 TypeExpression::Tuple { .. }
                 | TypeExpression::ArrayTuple { .. }
-                | TypeExpression::Array { .. } => ConstructorKind::Tuple,
+                | TypeExpression::Array { .. }
+                | TypeExpression::Slice { .. } => ConstructorKind::Tuple,
                 TypeExpression::Object { .. } => ConstructorKind::Object,
                 _ => ConstructorKind::Scalar,
             },
@@ -195,11 +201,11 @@ impl Compiler {
         }
 
         match view.types.get_type(type_id) {
-            Type::Tuple { .. } => ConstructorKind::Tuple,
-            Type::Object { .. } => ConstructorKind::Object,
-            Type::Value { value } => self.constructor_kind_for_type_id(view, *value, visited),
-            Type::Reference { symbol, .. } => {
-                if let Some(instance_id) = view.types.get_instance_type_id(*symbol) {
+            Type::Tuple(_) => ConstructorKind::Tuple,
+            Type::Object(_) => ConstructorKind::Object,
+            Type::Value(value) => self.constructor_kind_for_type_id(view, value.value, visited),
+            Type::Reference(reference) => {
+                if let Some(instance_id) = view.types.get_instance_type_id(reference.symbol) {
                     self.constructor_kind_for_type_id(view, instance_id, visited)
                 } else {
                     ConstructorKind::Scalar
@@ -223,10 +229,10 @@ impl Compiler {
         let generic_arguments = generic_arguments.to_vec();
 
         match callee {
-            Expression::LocalReference {
+            Expression::Path {
                 path,
-                target_symbol,
                 generic_arguments: callee_generic_arguments,
+                space,
             } => {
                 let type_expression_id = state.tree.reserve_from(
                     NodeType::TypeExpression,
@@ -236,70 +242,26 @@ impl Compiler {
                     Some(dir::ProvenanceReason::Elaborated),
                 );
 
-                Some(state.tree.insert(
+                let type_expression_id = state.tree.insert(
                     type_expression_id,
-                    TypeExpression::LocalReference {
+                    TypeExpression::Reference {
                         path,
                         generic_arguments: if generic_arguments.is_empty() {
                             callee_generic_arguments
                         } else {
                             generic_arguments
                         },
-                        target_symbol,
+                        space,
                     },
-                ))
-            }
-            Expression::ModuleReference {
-                path,
-                target_symbol,
-                generic_arguments: callee_generic_arguments,
-            } => {
-                let type_expression_id = state.tree.reserve_from(
-                    NodeType::TypeExpression,
-                    callee_id.into_any(),
-                    scope,
-                    parent_id,
-                    Some(dir::ProvenanceReason::Elaborated),
                 );
 
-                Some(state.tree.insert(
-                    type_expression_id,
-                    TypeExpression::ModuleReference {
-                        path,
-                        generic_arguments: if generic_arguments.is_empty() {
-                            callee_generic_arguments
-                        } else {
-                            generic_arguments
-                        },
-                        target_symbol,
-                    },
-                ))
-            }
-            Expression::GlobalReference {
-                path,
-                target_symbol,
-                generic_arguments: callee_generic_arguments,
-            } => {
-                let type_expression_id = state.tree.reserve_from(
-                    NodeType::TypeExpression,
-                    callee_id.into_any(),
-                    scope,
-                    parent_id,
-                    Some(dir::ProvenanceReason::Elaborated),
-                );
+                let source_node = callee_id.into_global_any(state.module_id);
+                let target_node = type_expression_id.into_global_any(state.module_id);
+                if let Some(resolution) = state.types.symbol_resolution(source_node).cloned() {
+                    state.types.set_symbol_resolution(target_node, resolution);
+                }
 
-                Some(state.tree.insert(
-                    type_expression_id,
-                    TypeExpression::GlobalReference {
-                        path,
-                        generic_arguments: if generic_arguments.is_empty() {
-                            callee_generic_arguments
-                        } else {
-                            generic_arguments
-                        },
-                        target_symbol,
-                    },
-                ))
+                Some(type_expression_id)
             }
             Expression::Member { left, name } => {
                 let name = name?;

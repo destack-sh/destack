@@ -71,6 +71,9 @@ impl Compiler {
         let checked = self
             .dir_checked(context, module_id, profile)
             .map_err(CompilerError::from)?;
+        let elaborated = self
+            .dir_elaborated(context, module_id, profile)
+            .map_err(CompilerError::from)?;
 
         // lower the module
         let (mir_tree, mir_strings) = {
@@ -88,6 +91,7 @@ impl Compiler {
                 declared.module_node,
                 &declared.symbols,
                 &checked.types,
+                &elaborated.guards,
                 &checked.captures,
                 &target_id,
                 pointer_bytes,
@@ -135,12 +139,8 @@ impl Compiler {
         self.require_dir_checked(context, module_id, profile)
             .map_err(CompilerError::from)?;
 
-        // lowering reads compiler known decorators and intrinsic ownership aliases
-        self.require_language_environment(context, profile)
-            .map_err(CompilerError::from)?;
-
         // lowering depends on the selected library surface for well known layouts
-        self.require_ambient_environment(context, profile)
+        self.require_global_environment(context, profile)
             .map_err(CompilerError::from)?;
 
         // resolve target configuration

@@ -26,19 +26,19 @@ pub enum OptimizeWarning {
     #[diagnostic(code = "WO102", message = "borrow may escape scope")]
     PotentialBorrowEscape { anchor: DiagnosticAnchor },
 
-    /// Lifetime annotation does not cover the returned borrow.
+    /// Declared return lifetime does not cover the returned borrow.
     #[diagnostic(
         code = "WO103",
-        message = "lifetime annotation does not cover returned borrow"
+        message = "return lifetime does not cover returned borrow"
     )]
-    PotentialLifetimeAnnotationMismatch { anchor: DiagnosticAnchor },
+    PotentialReturnLifetimeMismatch { anchor: DiagnosticAnchor },
 
-    /// Lifetime annotation was ignored for a non borrowed return.
+    /// Declared return lifetime was ignored for a non borrowed return.
     #[diagnostic(
         code = "WO104",
-        message = "lifetime annotation ignored for non borrowed return"
+        message = "return lifetime ignored for non borrowed return"
     )]
-    LifetimeAnnotationIgnored { anchor: DiagnosticAnchor },
+    ReturnLifetimeIgnored { anchor: DiagnosticAnchor },
 
     // -------------------------------------------------------------------------
     // 2xx: Unused value warnings

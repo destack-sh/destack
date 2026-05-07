@@ -41,7 +41,7 @@ impl Compiler {
         script: &mut js::Module,
         module_id: ModuleId,
         statement_id: js::LocalNodeId<js::Statement>,
-        kind: js::DependencyKind,
+        space: js::DependencySpace,
         specifier: &str,
         target_module: Option<ModuleId>,
         items: &[js::LocalNodeId<js::DependencyItem>],
@@ -68,7 +68,7 @@ impl Compiler {
         }
 
         // erase bundled type-only imports
-        if kind == js::DependencyKind::Type {
+        if space == js::DependencySpace::Type {
             return Ok(None);
         }
 
@@ -132,7 +132,7 @@ impl Compiler {
         script: &mut js::Module,
         module_id: ModuleId,
         statement_id: js::LocalNodeId<js::Statement>,
-        kind: js::DependencyKind,
+        space: js::DependencySpace,
         specifier: Option<String>,
         target_module: Option<ModuleId>,
         items: &[js::LocalNodeId<js::DependencyItem>],
@@ -165,7 +165,7 @@ impl Compiler {
         }
 
         // erase bundled type-only re-exports
-        if kind == js::DependencyKind::Type {
+        if space == js::DependencySpace::Type {
             return Ok(None);
         }
 
@@ -213,7 +213,7 @@ impl Compiler {
 
         match statement {
             js::Statement::Import {
-                kind,
+                space: kind,
                 target: specifier,
                 target_module,
                 items,
@@ -239,7 +239,7 @@ impl Compiler {
                 )
             }
             js::Statement::Export {
-                kind,
+                space: kind,
                 target: export_target,
                 target_module,
                 items,

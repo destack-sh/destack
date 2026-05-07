@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::{
-    Ambientness, BinaryOperator, Block, BlockContext, BlockFormat, Declarator, ExportMode,
-    Expression, IfCondition, IfKind, LocalNodeId, Mutability, NodeType,
+    BinaryOperator, Block, BlockContext, BlockForm, Declarator, ExportKind, Expression,
+    IfCondition, IfForm, LocalNodeId, Mutability, NodeType,
 };
 
 use crate::elaborate::ElaborateState;
@@ -56,7 +56,7 @@ impl Compiler {
                 // let x = if (c) { a } else { b }
                 Expression::Let {
                     export,
-                    ambient,
+                    is_ambient,
                     mutability,
                     declarators,
                 } => {
@@ -77,7 +77,7 @@ impl Compiler {
                     match value {
                         // let x = if (c) { a } else { b }
                         Expression::If {
-                            kind: IfKind::If,
+                            form: IfForm::If,
                             condition,
                             then_expression,
                             else_expression: Some(else_expr),
@@ -107,7 +107,7 @@ impl Compiler {
                                 declarator_id,
                                 &declarator,
                                 *export,
-                                *ambient,
+                                *is_ambient,
                                 *mutability,
                                 &expressions,
                             )?;
@@ -126,7 +126,7 @@ impl Compiler {
                                 declarator_id,
                                 &declarator,
                                 *export,
-                                *ambient,
+                                *is_ambient,
                                 *mutability,
                                 inner_block,
                             )?;
@@ -169,7 +169,7 @@ impl Compiler {
                     let value = state.tree.get(*value_id).clone();
 
                     if let Expression::If {
-                        kind: IfKind::If,
+                        form: IfForm::If,
                         condition,
                         then_expression,
                         else_expression: Some(else_expr),
@@ -236,7 +236,7 @@ impl Compiler {
                 // let x = if (c) { a } else { b }
                 Expression::Let {
                     export,
-                    ambient,
+                    is_ambient,
                     mutability,
                     declarators,
                 } => {
@@ -248,7 +248,7 @@ impl Compiler {
                             let value = state.tree.get(value_id).clone();
                             match value {
                                 Expression::If {
-                                    kind: IfKind::If,
+                                    form: IfForm::If,
                                     condition,
                                     then_expression,
                                     else_expression: Some(else_expr),
@@ -277,7 +277,7 @@ impl Compiler {
                                         declarator_id,
                                         &declarator,
                                         *export,
-                                        *ambient,
+                                        *is_ambient,
                                         *mutability,
                                         &expressions,
                                     )?;
@@ -295,7 +295,7 @@ impl Compiler {
                                         declarator_id,
                                         &declarator,
                                         *export,
-                                        *ambient,
+                                        *is_ambient,
                                         *mutability,
                                         inner_block,
                                     )?;
@@ -339,7 +339,7 @@ impl Compiler {
                     let value = state.tree.get(*value_id).clone();
 
                     if let Expression::If {
-                        kind: IfKind::If,
+                        form: IfForm::If,
                         condition,
                         then_expression,
                         else_expression: Some(else_expr),
@@ -468,7 +468,7 @@ impl Compiler {
         let new_if: LocalNodeId<Expression> = state.tree.insert_as_owner(
             new_if_id,
             Expression::If {
-                kind: IfKind::If,
+                form: IfForm::If,
                 condition,
                 then_expression: then_transformed,
                 else_expression: Some(else_transformed),
@@ -491,8 +491,8 @@ impl Compiler {
         original_let_id: LocalNodeId<Expression>,
         declarator_id: LocalNodeId<Declarator>,
         declarator: &Declarator,
-        export: Option<ExportMode>,
-        ambient: Ambientness,
+        export: Option<ExportKind>,
+        is_ambient: bool,
         mutability: Mutability,
         seq_expressions: &[LocalNodeId<Expression>],
     ) -> ElaborateResult<bool> {
@@ -537,7 +537,7 @@ impl Compiler {
             new_let_id,
             Expression::Let {
                 export,
-                ambient,
+                is_ambient,
                 mutability,
                 declarators: vec![new_declarator],
             },
@@ -558,8 +558,8 @@ impl Compiler {
         new_expressions: &mut Vec<LocalNodeId<Expression>>,
         declarator_id: LocalNodeId<Declarator>,
         declarator: &Declarator,
-        export: Option<ExportMode>,
-        ambient: Ambientness,
+        export: Option<ExportKind>,
+        is_ambient: bool,
         mutability: Mutability,
         inner_block_id: LocalNodeId<Block>,
     ) -> ElaborateResult<bool> {
@@ -598,7 +598,7 @@ impl Compiler {
             uninit_let_id,
             Expression::Let {
                 export,
-                ambient,
+                is_ambient,
                 mutability,
                 declarators: vec![uninit_declarator],
             },
@@ -658,7 +658,7 @@ impl Compiler {
         let else_expr = state.tree.get(else_expression).clone();
         let else_transformed = match else_expr {
             Expression::If {
-                kind: IfKind::If, ..
+                form: IfForm::If, ..
             } => {
                 // normalize nested if for else if chains
                 self.normalize_if_expression_for_return(state, scope, else_expression)?
@@ -670,7 +670,7 @@ impl Compiler {
         state.tree.replace(
             original_return_id,
             Expression::If {
-                kind: IfKind::If,
+                form: IfForm::If,
                 condition,
                 then_expression: then_transformed,
                 else_expression: Some(else_transformed),
@@ -692,7 +692,7 @@ impl Compiler {
         if_id: LocalNodeId<Expression>,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         let Expression::If {
-            kind: IfKind::If,
+            form: IfForm::If,
             condition,
             then_expression,
             else_expression,
@@ -708,7 +708,7 @@ impl Compiler {
                 let else_expr = state.tree.get(else_expression).clone();
                 match else_expr {
                     Expression::If {
-                        kind: IfKind::If, ..
+                        form: IfForm::If, ..
                     } => {
                         // normalize nested else if
                         Some(self.normalize_if_expression_for_return(
@@ -726,7 +726,7 @@ impl Compiler {
         state.tree.replace(
             if_id,
             Expression::If {
-                kind: IfKind::If,
+                form: IfForm::If,
                 condition,
                 then_expression: then_transformed,
                 else_expression: else_transformed,
@@ -877,7 +877,7 @@ impl Compiler {
             block_id,
             Block {
                 context: BlockContext::Expression,
-                format: BlockFormat::Explicit,
+                form: BlockForm::Explicit,
                 scope: scope.0,
                 leading_expressions: Vec::new(),
                 tail_expression: Some(body),

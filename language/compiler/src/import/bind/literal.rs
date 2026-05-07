@@ -2,8 +2,8 @@ use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
     FloatType, IntType, IntrinsicType, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding,
-    PrimitiveType, ScalarLiteral, SymbolSpaceOrder, SymbolTable, TemplateLiteral, Tree,
-    TypeLiteral, TypeTable,
+    PrimitiveType, ScalarLiteral, SymbolSpace, SymbolTable, TemplateLiteral, Tree, TypeLiteral,
+    TypeTable,
 };
 use destack_workspace::Module;
 
@@ -75,7 +75,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::ValueThenType,
+                            SymbolSpace::Value,
                         )
                     })
                     .collect();

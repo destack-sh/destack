@@ -1,9 +1,9 @@
 use destack_artifact::Ast;
 use destack_ast::{self as ast, StringId};
 use destack_dir::{
-    Ambientness, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Member, ModuleBinding,
-    Mutability, NodeType, Property, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, SymbolType, Tree, Type, TypeTable, Visibility,
+    DeclarationForm, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Member,
+    ModuleBinding, Mutability, NodeType, Property, ScopeKind, StaticKey, SymbolBinding, SymbolKind,
+    SymbolSpace, SymbolTable, Tree, Type, TypeTable, UnevaluatedType, Visibility,
 };
 use destack_workspace::Module;
 
@@ -11,12 +11,9 @@ use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Bind an AST ambientness into a DIR ambientness.
-    pub(super) fn bind_ambientness(&self, ambient: ast::Ambientness) -> Ambientness {
-        match ambient {
-            ast::Ambientness::Ambient => Ambientness::Ambient,
-            ast::Ambientness::Concrete => Ambientness::Concrete,
-        }
+    /// Return whether an AST declaration is ambient.
+    pub(super) fn bind_ambientness(&self, is_ambient: bool) -> bool {
+        is_ambient
     }
 
     /// Inject private visibility for private keys when no explicit visibility exists.
@@ -51,8 +48,12 @@ impl Compiler {
             return;
         };
 
-        let declared_type_id =
-            types.insert_type_from(Type::Unevaluated(declared_type), declared_type);
+        let declared_type_id = types.insert_type_from(
+            Type::Unevaluated(UnevaluatedType {
+                expression: declared_type,
+            }),
+            declared_type,
+        );
         types.set_declared_type(node_id.into_global(module.id), declared_type_id);
     }
 
@@ -107,7 +108,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueThenType,
+                    SymbolSpace::Value,
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
@@ -120,9 +121,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols
-                    .get_symbol_mut(symbol_id)
-                    .declare_primary(property_id);
+                symbols.get_symbol_mut(symbol_id).declare(property_id);
                 property_id
             }
             ast::Property::Method {
@@ -196,7 +195,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueThenType,
+                    SymbolSpace::Value,
                 );
                 let property_id = tree.insert(
                     property_id,
@@ -207,18 +206,14 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols
-                    .get_symbol_mut(symbol_id)
-                    .declare_primary(property_id);
+                symbols.get_symbol_mut(symbol_id).declare(property_id);
                 property_id
             }
             ast::Property::Method { .. } => {
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 let property_id = tree.insert(property_id, Property::Error { symbol: symbol_id });
-                symbols
-                    .get_symbol_mut(symbol_id)
-                    .declare_primary(property_id);
+                symbols.get_symbol_mut(symbol_id).declare(property_id);
                 property_id
             }
             ast::Property::Spread { value } => {
@@ -234,7 +229,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueThenType,
+                    SymbolSpace::Value,
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
@@ -245,18 +240,14 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols
-                    .get_symbol_mut(symbol_id)
-                    .declare_primary(property_id);
+                symbols.get_symbol_mut(symbol_id).declare(property_id);
                 property_id
             }
             ast::Property::Error => {
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 let property_id = tree.insert(property_id, Property::Error { symbol: symbol_id });
-                symbols
-                    .get_symbol_mut(symbol_id)
-                    .declare_primary(property_id);
+                symbols.get_symbol_mut(symbol_id).declare(property_id);
                 property_id
             }
         }
@@ -290,7 +281,7 @@ impl Compiler {
                 constraint,
                 value,
                 visibility,
-                ambient,
+                is_ambient,
                 is_abstract,
                 is_override,
                 is_static,
@@ -349,7 +340,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
                 let value = value.map(|value| {
@@ -365,13 +356,13 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
 
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolKind::Item,
-                    SymbolType::TypeAlias,
+                    DeclarationForm::TypeAlias,
                     SymbolSpace::Type,
                     SymbolBinding::Runtime,
                     Some(StaticKey::Name(name)),
@@ -387,14 +378,14 @@ impl Compiler {
                         constraint,
                         value,
                         visibility: visibility.map(|visibility| self.bind_visibility(visibility)),
-                        ambient: self.bind_ambientness(*ambient),
+                        is_ambient: self.bind_ambientness(*is_ambient),
                         is_abstract: *is_abstract,
                         is_override: *is_override,
                         is_static: *is_static,
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 self.bind_declared_type_for_node(module, member_id.into_any(), constraint, types);
                 member_id
             }
@@ -403,7 +394,7 @@ impl Compiler {
                 declared_type,
                 value,
                 visibility,
-                ambient,
+                is_ambient,
                 is_static,
             } => {
                 let name = *name;
@@ -420,7 +411,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
                 let value = value.map(|value| {
@@ -436,13 +427,13 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
 
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolKind::Item,
-                    SymbolType::Void,
+                    DeclarationForm::Void,
                     SymbolSpace::Value,
                     SymbolBinding::Runtime,
                     Some(StaticKey::Name(name)),
@@ -456,12 +447,12 @@ impl Compiler {
                         declared_type,
                         value,
                         visibility: visibility.map(|visibility| self.bind_visibility(visibility)),
-                        ambient: self.bind_ambientness(*ambient),
+                        is_ambient: self.bind_ambientness(*is_ambient),
                         is_static: *is_static,
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 self.bind_declared_type_for_node(
                     module,
                     member_id.into_any(),
@@ -478,7 +469,7 @@ impl Compiler {
                 is_readonly,
                 mutability,
                 visibility,
-                ambient,
+                is_ambient,
                 is_abstract,
                 is_override,
                 is_static,
@@ -513,7 +504,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
                 let default = default.map(|default| {
@@ -529,7 +520,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::ValueThenType,
+                        SymbolSpace::Value,
                     )
                 });
 
@@ -545,7 +536,7 @@ impl Compiler {
                         is_readonly: *is_readonly,
                         mutability: self.bind_member_mutability(*mutability),
                         visibility,
-                        ambient: self.bind_ambientness(*ambient),
+                        is_ambient: self.bind_ambientness(*is_ambient),
                         is_abstract: *is_abstract,
                         is_override: *is_override,
                         is_static: *is_static,
@@ -555,7 +546,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 self.bind_declared_type_for_node(
                     module,
                     member_id.into_any(),
@@ -570,7 +561,7 @@ impl Compiler {
                 body,
                 is_optional,
                 visibility,
-                ambient,
+                is_ambient,
                 is_abstract,
                 is_override,
                 is_static,
@@ -648,7 +639,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::ValueThenType,
+                        SymbolSpace::Value,
                     )
                 });
 
@@ -660,7 +651,7 @@ impl Compiler {
                         body,
                         is_optional: *is_optional,
                         visibility,
-                        ambient: self.bind_ambientness(*ambient),
+                        is_ambient: self.bind_ambientness(*is_ambient),
                         is_abstract: *is_abstract,
                         is_override: *is_override,
                         is_static: *is_static,
@@ -669,13 +660,13 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 member_id
             }
             ast::Member::Embed {
                 value,
                 visibility,
-                ambient,
+                is_ambient,
                 is_static,
             } => {
                 let value = self.bind_type_expression(
@@ -690,7 +681,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::TypeThenValue,
+                    SymbolSpace::Type,
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
@@ -699,12 +690,12 @@ impl Compiler {
                     Member::Embed {
                         value,
                         visibility: visibility.map(|visibility| self.bind_visibility(visibility)),
-                        ambient: self.bind_ambientness(*ambient),
+                        is_ambient: self.bind_ambientness(*is_ambient),
                         is_static: *is_static,
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 member_id
             }
             ast::Member::StaticBlock { body } => {
@@ -720,7 +711,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueThenType,
+                    SymbolSpace::Value,
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
@@ -731,7 +722,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 member_id
             }
             ast::Member::ComptimeBlock { body } => {
@@ -747,7 +738,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueThenType,
+                    SymbolSpace::Value,
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
@@ -758,14 +749,14 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 member_id
             }
             ast::Member::Error => {
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 let member_id = tree.insert(member_id, Member::Error { symbol: symbol_id });
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 member_id
             }
         }

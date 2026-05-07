@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::{
-    Ambientness, Block, Declarator, Expression, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
-    Mutability, NodeType, Path, Pattern,
+    Block, Declarator, Expression, LocalNodeId, LocalNodeIdAny, LocalSymbolId, Mutability,
+    NodeType, Path, Pattern,
 };
 
 use crate::elaborate::ElaborateState;
@@ -60,7 +60,7 @@ impl Compiler {
         let cloned_id = state.tree.insert_as_owner(cloned_id, expression.clone());
 
         // copy inferred type and resolution metadata
-        state.types.copy_node_analysis(
+        state.types.copy_node_relations(
             origin_id.into_global_any(state.module_id),
             cloned_id.into_global_any(state.module_id),
         );
@@ -169,12 +169,16 @@ impl Compiler {
         );
         let reference_id: LocalNodeId<Expression> = state.tree.insert_as_owner(
             reference_id,
-            Expression::LocalReference {
+            Expression::Path {
                 path: Path::from(&[name][..]),
                 generic_arguments: Vec::new(),
-                target_symbol,
+                space: dir::SymbolSpace::Value,
             },
         );
+        let reference_node = reference_id.into_global_any(state.module_id);
+        state
+            .types
+            .set_symbol_resolution(reference_node, dir::SymbolResolution::Target(target_symbol));
 
         // annotate the reference type
         self.set_expression_type(state.types, state.module_id, reference_id, value_type_id);
@@ -241,7 +245,7 @@ impl Compiler {
             let_id,
             Expression::Let {
                 export: None,
-                ambient: Ambientness::Concrete,
+                is_ambient: false,
                 mutability: let_mutability,
                 declarators: vec![declarator_id],
             },

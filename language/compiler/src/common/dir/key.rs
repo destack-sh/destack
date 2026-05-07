@@ -1,5 +1,5 @@
 use destack_core::StringId;
-use destack_dir::{Expression, Key, Name, ScalarLiteral, StaticKey, Tree};
+use destack_dir::{Expression, Key, LocalNodeId, Name, ScalarLiteral, StaticKey, Tree};
 
 /// Resolve a static key from one DIR key when it is locally obvious.
 pub(crate) fn static_key_from_key(
@@ -18,7 +18,7 @@ pub(crate) fn static_key_from_key(
 /// Resolve a static key from one locally constant expression.
 fn static_key_from_expression(
     tree: &Tree,
-    expression_id: destack_dir::LocalNodeId<Expression>,
+    expression_id: LocalNodeId<Expression>,
 ) -> Option<StaticKey> {
     match tree.get(expression_id) {
         Expression::ScalarLiteral {

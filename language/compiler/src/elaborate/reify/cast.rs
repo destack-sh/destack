@@ -1,14 +1,14 @@
 use destack_dir as dir;
 use dir::{
-    Argument, AssignOperator, AssignPattern, BinaryOperator, CastOperator, CastSource, Declarator,
+    Argument, AssignOperator, AssignPattern, BinaryOperator, CastOperator, CastOrigin, Declarator,
     EnumBackingType, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, MatchCase, NodeType,
     Type, TypeExpression,
 };
 
 use super::r#type::{
-    are_types_semantically_equal, has_matching_implicit_value_runtime_family, is_any_type,
-    is_integer_type, is_nullable_union, is_object_type, is_pointer_type, is_string_type,
-    is_union_type, is_unknown_type, numeric_cast_operator,
+    has_matching_implicit_value_runtime_family, is_any_type, is_integer_type, is_nullable_union,
+    is_object_type, is_pointer_type, is_string_type, is_union_type, is_unknown_type,
+    numeric_cast_operator,
 };
 use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};
@@ -66,7 +66,7 @@ impl Compiler {
             expression_id,
             Expression::As {
                 operator: Some(operator),
-                source: CastSource::Explicit,
+                source: CastOrigin::Explicit,
                 expression: value,
                 target_type,
             },
@@ -96,7 +96,7 @@ impl Compiler {
 
         // replace the must wrapper with the reified expression
         state.tree.replace_from(expression_id, reified_value_id);
-        state.types.copy_node_analysis(
+        state.types.copy_node_relations(
             reified_value_id.into_global_any(state.module_id),
             expression_id.into_global_any(state.module_id),
         );
@@ -380,11 +380,9 @@ impl Compiler {
         }
 
         // otherwise fall back to reference symbol value types
-        let expression = state.tree.get(value_id);
-        let symbol = match expression {
-            Expression::LocalReference { target_symbol, .. }
-            | Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
+        let node = value_id.into_global_any(state.module_id);
+        let symbol = match state.types.symbol_resolution(node) {
+            Some(dir::SymbolResolution::Target(symbol)) => Some(*symbol),
             _ => None,
         }?;
         let type_id = state.types.get_value_type_id(symbol)?;
@@ -408,21 +406,19 @@ impl Compiler {
         let target_type_id = state.types.unwrap_value_type_id(target_type_id);
 
         // skip casts that do not change semantics
-        if are_types_semantically_equal(
-            state.types.get_type(value_type_id),
-            state.types.get_type(target_type_id),
-            state.types,
-        ) || has_matching_implicit_value_runtime_family(
-            state.types.get_type(value_type_id),
-            state.types.get_type(target_type_id),
-        ) {
+        if value_type_id == target_type_id
+            || has_matching_implicit_value_runtime_family(
+                state.types.get_type(value_type_id),
+                state.types.get_type(target_type_id),
+            )
+        {
             return Ok(value_id);
         }
 
         // preserve literal-to-literal identity after value unwrapping
         if matches!(
             (state.types.get_type(value_type_id), state.types.get_type(target_type_id)),
-            (Type::TypeLiteral { value: left }, Type::TypeLiteral { value: right }) if left == right
+            (Type::Literal(dir::LiteralType { value: left }), Type::Literal(dir::LiteralType { value: right })) if left == right
         ) {
             return Ok(value_id);
         }
@@ -455,7 +451,7 @@ impl Compiler {
             expression_id,
             Expression::As {
                 operator: Some(operator),
-                source: CastSource::Implicit,
+                source: CastOrigin::Implicit,
                 expression: value_id,
                 target_type,
             },
@@ -511,11 +507,6 @@ impl Compiler {
         let source = state.types.get_type(source_id).clone();
         let target = state.types.get_type(target_id).clone();
 
-        // semantic equality is still identity
-        if are_types_semantically_equal(&source, &target, state.types) {
-            return CastOperator::Identity;
-        }
-
         // any
         if is_any_type(&target) {
             return CastOperator::AnyUpcast;
@@ -558,11 +549,11 @@ impl Compiler {
 
         // sized array to slice
         if let (
-            Type::ArraySized { element, .. },
-            Type::Array {
+            Type::FixedArray(dir::FixedArrayType { element, .. }),
+            Type::Slice(dir::SliceType {
                 element: target_element,
                 ..
-            },
+            }),
         ) = (&source, &target)
         {
             let matches_element = target_element
@@ -611,11 +602,11 @@ impl Compiler {
     ) -> Option<CastOperator> {
         // read one enum backing type when present
         let backing_for_type = |ty: &Type| -> Option<EnumBackingType> {
-            let Type::Reference { symbol, .. } = ty else {
+            let Type::Reference(reference) = ty else {
                 return None;
             };
 
-            state.types.get_enum_backing_type(*symbol)
+            state.types.get_enum_backing_type(reference.symbol)
         };
 
         // enum to primitive

@@ -38,7 +38,7 @@ pub(crate) fn enum_field_value_for_symbol(
 
     // require the member symbol to be an enum field
     let member_entry = symbols.get_symbol(member_symbol.local_id);
-    let primary = member_entry.primary_declaration;
+    let primary = member_entry.declaration;
     let Some(primary) = primary else {
         return Ok(None);
     };
@@ -51,7 +51,8 @@ pub(crate) fn enum_field_value_for_symbol(
     let Some(scope_owner) = scope.owner_id else {
         return Ok(None);
     };
-    if scope_owner.ty != dir::SymbolType::Enum {
+    let scope_owner_entry = symbols.get_symbol(scope_owner);
+    if scope_owner_entry.form != dir::DeclarationForm::Enum {
         return Ok(None);
     }
     let enum_symbol = scope_owner.into_global(member_symbol.module_id);

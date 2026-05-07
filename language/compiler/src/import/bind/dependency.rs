@@ -1,10 +1,10 @@
 use destack_ast::{self as ast};
 use destack_core::StringId;
 use destack_dir::{
-    DependencyItem, DependencyKind, DependencyMode, ImportAttribute, ImportAttributeClause,
+    DependencyBinding, DependencyItem, DependencySpace, ImportAttribute, ImportAttributeClause,
     ImportAttributeClauseKind, ImportAttributeValue, ImportSource, LocalNodeId, LocalNodeIdAny,
     LocalScopeId, LocalScopeMark, ModuleBinding, Mutability, NodeType, StaticKey, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, Tree, TypeTable,
+    SymbolTable, Tree, TypeTable,
 };
 
 use crate::Compiler;
@@ -29,23 +29,23 @@ impl Compiler {
         }
     }
 
-    /// Bind a dependency mode to a DIR dependency mode.
-    pub(super) fn bind_dependency_mode(&self, mode: ast::DependencyMode) -> DependencyMode {
-        match mode {
-            ast::DependencyMode::Item => DependencyMode::Item,
-            ast::DependencyMode::Default => DependencyMode::Default,
-            ast::DependencyMode::Namespace => DependencyMode::Namespace,
+    /// Bind an AST dependency binding into DIR.
+    pub(super) fn bind_dependency_binding(
+        &self,
+        binding: ast::DependencyBinding,
+    ) -> DependencyBinding {
+        match binding {
+            ast::DependencyBinding::Item => DependencyBinding::Item,
+            ast::DependencyBinding::Default => DependencyBinding::Default,
+            ast::DependencyBinding::Namespace => DependencyBinding::Namespace,
         }
     }
 
-    /// Bind a dependency type into a DIR dependency type.
-    pub(super) fn bind_dependency_kind(
-        &self,
-        dependency_type: ast::DependencyKind,
-    ) -> DependencyKind {
-        match dependency_type {
-            ast::DependencyKind::Type => DependencyKind::Type,
-            ast::DependencyKind::Value => DependencyKind::Value,
+    /// Bind an AST dependency space into DIR.
+    pub(super) fn bind_dependency_space(&self, space: ast::DependencySpace) -> DependencySpace {
+        match space {
+            ast::DependencySpace::Type => DependencySpace::Type,
+            ast::DependencySpace::Value => DependencySpace::Value,
         }
     }
 
@@ -126,8 +126,8 @@ impl Compiler {
         module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
         source: ImportSource,
-        kind: ast::DependencyKind,
-        target: Option<StringId>,
+        default_space: ast::DependencySpace,
+        _target: Option<StringId>,
         ast_item_id: ast::LocalNodeId<ast::DependencyItem>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
@@ -144,8 +144,8 @@ impl Compiler {
         }
 
         let ast::DependencyItem::Item {
-            mode: ast_mode,
-            kind: ast_kind,
+            binding: ast_mode,
+            space: ast_kind,
             name: ast_name,
             alias: ast_alias,
             value: ast_value,
@@ -158,17 +158,17 @@ impl Compiler {
             source,
             ImportSource::ExportStatement | ImportSource::ValueExpression
         );
-        let kind = self.bind_dependency_kind(ast_kind.unwrap_or(kind));
-        let mode = self.bind_dependency_mode(*ast_mode);
+        let space = self.bind_dependency_space(ast_kind.unwrap_or(default_space));
+        let binding = self.bind_dependency_binding(*ast_mode);
         let name = ast_name.map(|name| self.bind_name(ast, name));
         let alias = ast_alias.map(|alias| alias);
 
         // the symbol key is the alias if present, otherwise the name
         // (e.g., `import { foo as bar }` has key `bar`, `import * as baz` has key `baz`)
         let key = alias.or(name.map(|name| name.string()));
-        let symbol_space = match kind {
-            DependencyKind::Type => SymbolSpace::Type,
-            DependencyKind::Value => SymbolSpace::Value,
+        let symbol_space = match space {
+            DependencySpace::Type => SymbolSpace::Type,
+            DependencySpace::Value => SymbolSpace::Value,
         };
         let symbol_id = if is_export {
             None
@@ -204,33 +204,19 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueThenType,
+                    SymbolSpace::Value,
                 );
                 let item = DependencyItem::Value {
-                    mode,
+                    binding,
                     value: value_id,
                 };
                 tree.insert(item_id, item)
             }
-            // `import` or `export { foo } from "foo"`
-            else if let Some(target) = target {
-                let item = DependencyItem::UnresolvedRemote {
-                    source,
-                    mode,
-                    kind,
-                    name,
-                    alias,
-                    target,
-                    target_module: None,
-                    symbol: symbol_id,
-                };
-                tree.insert(item_id, item)
-            }
-            // `export { foo }`
+            // `import`, `export { foo }`, or `export { foo } from "foo"`
             else {
-                let item = DependencyItem::UnresolvedLocal {
-                    mode,
-                    kind,
+                let item = DependencyItem::Item {
+                    binding,
+                    space,
                     name,
                     alias,
                     symbol: symbol_id,
@@ -239,9 +225,9 @@ impl Compiler {
             }
         };
 
-        // set primary declaration for the symbol
+        // attach declaration to the symbol
         if let Some(symbol_id) = symbol_id {
-            symbols.get_symbol_mut(symbol_id).declare_primary(item_id);
+            symbols.get_symbol_mut(symbol_id).declare(item_id);
             if symbol_space == SymbolSpace::Value
                 && matches!(
                     source,

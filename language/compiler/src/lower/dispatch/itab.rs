@@ -280,7 +280,7 @@ impl ModuleLowerer<'_> {
     ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
         // decide the search order for concrete methods
         let mut symbols = Vec::new();
-        if concrete.ty() == dir::SymbolType::Class {
+        if self.symbol_is(concrete, dir::DeclarationForm::Class) {
             symbols.extend(self.collect_class_lineage(concrete).into_iter().rev());
         } else {
             symbols.push(concrete);
@@ -321,7 +321,7 @@ impl ModuleLowerer<'_> {
                     // match the method name
                     let name = self.member_dispatch_name_or_error(
                         key.as_ref(),
-                        signature.mode,
+                        signature.role,
                         member_id.into_any(),
                     )?;
                     if name != method_name {
@@ -364,8 +364,8 @@ impl ModuleLowerer<'_> {
         for (symbol, lineage) in self.types.iter_lineages() {
             // skip non nominal types
             if !matches!(
-                symbol.ty(),
-                dir::SymbolType::Class | dir::SymbolType::Struct
+                self.symbol_form(symbol),
+                Some(dir::DeclarationForm::Class | dir::DeclarationForm::Struct)
             ) {
                 continue;
             }

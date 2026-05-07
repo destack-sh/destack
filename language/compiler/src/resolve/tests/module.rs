@@ -26,7 +26,7 @@ fn css_function_name_is(
 fn assert_has_type_export(test: &TestProgram, module_id: destack_source::ModuleId, name: &str) {
     let profile = test.default_profile_id(module_id);
     let dir = test.artifact_dir(module_id, profile);
-    let exports = &dir.export_by_symbol_key;
+    let exports = &dir.exports.export_by_key;
     let name_id = test.program.strings.intern(name);
     let key = (SymbolSpace::Type, StaticKey::Name(name_id));
 

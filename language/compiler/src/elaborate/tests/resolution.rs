@@ -931,7 +931,7 @@ function greet(pet): string {
                 }
 
                 let Some(resolution_id) =
-                    types.get_resolution_for_node(expression_id.into_global_any(module_id))
+                    types.node_resolution_id(expression_id.into_global_any(module_id))
                 else {
                     continue;
                 };

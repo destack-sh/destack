@@ -646,7 +646,7 @@ impl TestProgram {
                     .output_name(OutputId(output_index))
                     .unwrap_or_else(|| panic!("missing output name for output id {output_index}"))
                     .to_string(),
-                kind: output.kind(),
+                kind: output.space(),
                 modules: output
                     .modules()
                     .iter()

@@ -4,7 +4,7 @@ use destack_ast as ast;
 use destack_dir::{
     Argument, BindingCategory, Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId,
     LocalScopeMark, ModuleBinding, NodeType, Parameter, ProvenanceReason, SymbolBinding,
-    SymbolSpace, SymbolSpaceOrder, SymbolTable, Tree, Type, TypeTable,
+    SymbolSpace, SymbolTable, Tree, Type, TypeTable, UnevaluatedType,
 };
 use destack_workspace::Module;
 
@@ -42,10 +42,8 @@ impl Compiler {
 
         // defaults on type-space parameters should also parse in type space first
         let default_space_order = match symbol_space {
-            SymbolSpace::Type => SymbolSpaceOrder::TypeThenValue,
-            SymbolSpace::Value | SymbolSpace::TypeValue | SymbolSpace::Label => {
-                SymbolSpaceOrder::ValueThenType
-            }
+            SymbolSpace::Type => SymbolSpace::Type,
+            SymbolSpace::Value | SymbolSpace::Label => SymbolSpace::Value,
         };
 
         // pattern bindings still need a runtime binding mutability
@@ -75,7 +73,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
                 let default = default.map(|default| {
@@ -115,14 +113,18 @@ impl Compiler {
                 let parameter_id = tree.insert(parameter_id, parameter);
 
                 let symbol = symbols.get_symbol_mut(symbol_id);
-                symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+                symbol.declaration = Some(parameter_id.into_global_any(module.id));
 
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
                 self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
 
                 if let Some(declared_type) = declared_type {
-                    let declared_type_id =
-                        types.insert_type_from(Type::Unevaluated(declared_type), declared_type);
+                    let declared_type_id = types.insert_type_from(
+                        Type::Unevaluated(UnevaluatedType {
+                            expression: declared_type,
+                        }),
+                        declared_type,
+                    );
                     types.set_declared_type(
                         parameter_id.into_global_any(module.id),
                         declared_type_id,
@@ -167,7 +169,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
                 let default = default.map(|default| {
@@ -198,14 +200,18 @@ impl Compiler {
                 let parameter_id = tree.insert(parameter_id, parameter);
 
                 let symbol = symbols.get_symbol_mut(symbol_id);
-                symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+                symbol.declaration = Some(parameter_id.into_global_any(module.id));
 
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
                 self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
 
                 if let Some(declared_type) = declared_type {
-                    let declared_type_id =
-                        types.insert_type_from(Type::Unevaluated(declared_type), declared_type);
+                    let declared_type_id = types.insert_type_from(
+                        Type::Unevaluated(UnevaluatedType {
+                            expression: declared_type,
+                        }),
+                        declared_type,
+                    );
                     types.set_declared_type(
                         parameter_id.into_global_any(module.id),
                         declared_type_id,
@@ -235,7 +241,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
                 let (symbol_id, _) = self.bind_named_item(
@@ -257,14 +263,18 @@ impl Compiler {
                 let parameter_id = tree.insert(parameter_id, parameter);
 
                 let symbol = symbols.get_symbol_mut(symbol_id);
-                symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+                symbol.declaration = Some(parameter_id.into_global_any(module.id));
 
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
                 self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
 
                 if let Some(declared_type) = declared_type {
-                    let declared_type_id =
-                        types.insert_type_from(Type::Unevaluated(declared_type), declared_type);
+                    let declared_type_id = types.insert_type_from(
+                        Type::Unevaluated(UnevaluatedType {
+                            expression: declared_type,
+                        }),
+                        declared_type,
+                    );
                     types.set_declared_type(
                         parameter_id.into_global_any(module.id),
                         declared_type_id,
@@ -307,7 +317,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
                 let (symbol_id, _) =
@@ -320,14 +330,18 @@ impl Compiler {
                 let parameter_id = tree.insert(parameter_id, parameter);
 
                 let symbol = symbols.get_symbol_mut(symbol_id);
-                symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+                symbol.declaration = Some(parameter_id.into_global_any(module.id));
 
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
                 self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
 
                 if let Some(declared_type) = declared_type {
-                    let declared_type_id =
-                        types.insert_type_from(Type::Unevaluated(declared_type), declared_type);
+                    let declared_type_id = types.insert_type_from(
+                        Type::Unevaluated(UnevaluatedType {
+                            expression: declared_type,
+                        }),
+                        declared_type,
+                    );
                     types.set_declared_type(
                         parameter_id.into_global_any(module.id),
                         declared_type_id,
@@ -343,7 +357,7 @@ impl Compiler {
                 let parameter_id = tree.insert(parameter_id, parameter);
 
                 let symbol = symbols.get_symbol_mut(symbol_id);
-                symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+                symbol.declaration = Some(parameter_id.into_global_any(module.id));
 
                 self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
 
@@ -366,7 +380,7 @@ impl Compiler {
         tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
-        space_order: SymbolSpaceOrder,
+        space: SymbolSpace,
     ) -> LocalNodeId<Argument> {
         let ast_argument = ast.tree.get(ast_argument_id);
         let argument_id =
@@ -387,7 +401,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 tree.insert(argument_id, Argument::Named { name, value })
             }
@@ -405,7 +419,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 tree.insert(argument_id, Argument::Labeled { label, value })
             }
@@ -422,7 +436,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 tree.insert(argument_id, Argument::Positional { value })
             }
@@ -440,7 +454,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 tree.insert(argument_id, Argument::Spread { label, value })
             }

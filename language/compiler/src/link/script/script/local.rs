@@ -49,19 +49,23 @@ impl Compiler {
         // resource imports only expose default and namespace runtime values
         for item_id in items {
             let item = module.tree.get(item_id).clone();
-            let is_namespace = item.mode == js::DependencyMode::Namespace;
-            let binding_name = match item.mode {
-                js::DependencyMode::Default => item.alias.ok_or_else(|| LinkError::Internal {
-                    anchor: (package_id).into(),
-                    package: package_id,
-                    message: "resource default import is missing an alias".to_string(),
-                })?,
-                js::DependencyMode::Namespace => item.alias.ok_or_else(|| LinkError::Internal {
-                    anchor: (package_id).into(),
-                    package: package_id,
-                    message: "resource namespace import is missing an alias".to_string(),
-                })?,
-                js::DependencyMode::Item => match item.name {
+            let is_namespace = item.binding == js::DependencyBinding::Namespace;
+            let binding_name = match item.binding {
+                js::DependencyBinding::Default => {
+                    item.alias.ok_or_else(|| LinkError::Internal {
+                        anchor: (package_id).into(),
+                        package: package_id,
+                        message: "resource default import is missing an alias".to_string(),
+                    })?
+                }
+                js::DependencyBinding::Namespace => {
+                    item.alias.ok_or_else(|| LinkError::Internal {
+                        anchor: (package_id).into(),
+                        package: package_id,
+                        message: "resource namespace import is missing an alias".to_string(),
+                    })?
+                }
+                js::DependencyBinding::Item => match item.name {
                     Some(js::Name::Identifier(name))
                         if module.strings.get(name).as_ref() == "default" =>
                     {
@@ -177,11 +181,11 @@ impl Compiler {
         // current import items
         for item_id in items {
             let item = module.tree.get(item_id).clone();
-            let local_binding_name = match item.mode {
-                js::DependencyMode::Default | js::DependencyMode::Namespace => item
+            let local_binding_name = match item.binding {
+                js::DependencyBinding::Default | js::DependencyBinding::Namespace => item
                     .alias
                     .map(|alias| module.strings.get(alias).to_string()),
-                js::DependencyMode::Item => {
+                js::DependencyBinding::Item => {
                     if let Some(alias) = item.alias {
                         Some(module.strings.get(alias).to_string())
                     } else {
@@ -200,7 +204,7 @@ impl Compiler {
             let local_binding_name = module.strings.intern(&local_binding_name);
 
             // same-output namespace imports need one live bridge object
-            if item.mode == js::DependencyMode::Namespace {
+            if item.binding == js::DependencyBinding::Namespace {
                 let value = self.build_same_output_namespace_bridge_expression(
                     module,
                     statement_id,
@@ -326,16 +330,38 @@ impl Compiler {
         let source_item_id = dir::LocalNodeId::<dir::DependencyItem>::new(source_id);
         let source_item = source_directory.tree.get(source_item_id);
 
-        let target_symbol = source_item
-            .target_symbol()
-            .ok_or_else(|| LinkError::Internal {
-                anchor: (package_id).into(),
-                package: package_id,
-                message: format!(
-                    "missing target symbol for same-output import rewrite item {:?} in module {:?}",
-                    item_id, module_id
-                ),
-            })?;
+        let target_symbol = match source_item {
+            dir::DependencyItem::Item {
+                symbol: Some(symbol),
+                ..
+            } => symbol.into_global(module_id),
+            _ => {
+                let checked = self.dir_checked(context, module_id, profile_id).map_err(|error| {
+                    LinkError::Internal {
+                        anchor: (package_id).into(),
+                        package: package_id,
+                        message: format!(
+                            "missing checked dir for same-output import rewrite module {:?}: {error:?}",
+                            module_id,
+                        ),
+                    }
+                })?;
+                let item_node = source_item_id.into_global_any(module_id);
+                let Some(dir::DependencyResolution::Binding(symbol)) =
+                    checked.types.dependency_resolution(item_node)
+                else {
+                    return Err(LinkError::Internal {
+                        anchor: (package_id).into(),
+                        package: package_id,
+                        message: format!(
+                            "missing target symbol for same-output import rewrite item {:?} in module {:?}",
+                            item_id, module_id
+                        ),
+                    });
+                };
+                *symbol
+            }
+        };
 
         self.resolve_same_output_printable_symbol(target_symbol, profile_id, package_id, context)
     }
@@ -348,59 +374,36 @@ impl Compiler {
         package_id: PackageId,
         context: &dyn ProviderContext,
     ) -> LinkResult<(dir::GlobalSymbolId, String)> {
-        let mut current_symbol = symbol_id;
-        let mut visited_symbols = HashSet::new();
+        // load the source module for the exported symbol
+        let source_directory = self
+            .dir_declared(context, symbol_id.module_id, profile_id)
+            .map_err(|error| LinkError::Internal {
+                anchor: (package_id).into(),
+                package: package_id,
+                message: format!(
+                    "missing declared dir for same-output import target symbol {:?}: {error:?}",
+                    symbol_id
+                ),
+            })?;
+        let symbol = source_directory.symbols.get_symbol(symbol_id.local_id);
 
-        loop {
-            if !visited_symbols.insert(current_symbol) {
-                return Err(LinkError::Internal {
-                    anchor: (package_id).into(),
-                    package: package_id,
-                    message: format!(
-                        "same-output import target symbol {:?} has a cycle in its symbol chain",
-                        symbol_id
-                    ),
-                });
-            }
-
-            let source_directory = self
-                .dir_declared(context, current_symbol.module_id, profile_id)
-                .map_err(|error| LinkError::Internal {
-                    anchor: (package_id).into(),
-                    package: package_id,
-                    message: format!(
-                        "missing declared dir for same-output import target symbol {:?}: {error:?}",
-                        current_symbol,
-                    ),
-                })?;
-            let symbol = source_directory.symbols.get_symbol(current_symbol.local_id);
-
-            if let Some(name) = symbol
-                .decorators
-                .binding
-                .as_ref()
-                .and_then(|binding| binding.name)
-                .or_else(|| symbol.name())
-            {
-                return Ok((
-                    current_symbol,
-                    source_directory.strings.get(name).to_string(),
-                ));
-            }
-
-            let Some(next_symbol) = symbol.target_symbol.or(symbol.canonical_symbol) else {
-                return Err(LinkError::Internal {
-                    anchor: (package_id).into(),
-                    package: package_id,
-                    message: format!(
-                        "same-output import target symbol {:?} has no printable binding name",
-                        symbol_id
-                    ),
-                });
-            };
-
-            current_symbol = next_symbol;
+        // prefer the emitted binding name over the source declaration name
+        if let Some(name) = symbol
+            .attributes
+            .binding_name()
+            .flatten()
+            .or_else(|| symbol.name())
+        {
+            return Ok((symbol_id, source_directory.strings.get(name).to_string()));
         }
+
+        Err(LinkError::Internal {
+            anchor: (package_id).into(),
+            package: package_id,
+            message: format!(
+                "same-output import target symbol {symbol_id:?} has no printable binding name"
+            ),
+        })
     }
 
     /// Insert one path expression that resolves to one source-backed symbol.
@@ -578,17 +581,15 @@ impl Compiler {
         let mut properties = Vec::new();
 
         // runtime value exports
-        for ((space, key), export) in target_directory.export_by_symbol_key.iter() {
-            if !matches!(space, dir::SymbolSpace::Value | dir::SymbolSpace::TypeValue) {
+        for ((space, key), export) in target_directory.exports.export_by_key.iter() {
+            if *space != dir::SymbolSpace::Value {
                 continue;
             }
             if !seen_keys.insert(*key) {
                 continue;
             }
 
-            let Some(target_symbol) = export.target.resolved() else {
-                continue;
-            };
+            let target_symbol = export.target;
             let (target_symbol, target_name) = self.resolve_same_output_printable_symbol(
                 target_symbol,
                 profile_id,
@@ -624,16 +625,16 @@ impl Compiler {
                     modifiers: None,
                     key: Some(key),
                     signature: js::FunctionSignature {
-                        is_abstract: false,
-                        is_override: false,
                         asynchrony: js::Asynchrony::Sync,
-                        cardinality: js::FunctionCardinality::Scalar,
-                        mode: Some(js::FunctionMode::Getter),
-                        kind: js::FunctionKind::Function,
+                        role: Some(js::FunctionRole::Getter),
+                        form: js::FunctionForm::Function,
                         generic_parameters: Vec::new(),
                         this_parameter: None,
                         parameters: Vec::new(),
                         return_type: None,
+                        is_abstract: false,
+                        is_override: false,
+                        is_generator: false,
                     },
                     body: Some(block),
                 },

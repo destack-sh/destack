@@ -607,11 +607,11 @@ impl ScriptLinker<'_> {
 
     /// Return the local binding name for one import item.
     fn import_binding_name(module: &js::Module, item: &js::DependencyItem) -> Option<String> {
-        match item.mode {
-            js::DependencyMode::Default | js::DependencyMode::Namespace => item
+        match item.binding {
+            js::DependencyBinding::Default | js::DependencyBinding::Namespace => item
                 .alias
                 .map(|alias| module.strings.get(alias).to_string()),
-            js::DependencyMode::Item => {
+            js::DependencyBinding::Item => {
                 if let Some(alias) = item.alias {
                     return Some(module.strings.get(alias).to_string());
                 }
@@ -1046,11 +1046,11 @@ impl ScriptLinker<'_> {
                         };
 
                         let item = module.tree.get_mut(item_id);
-                        match item.mode {
-                            js::DependencyMode::Default | js::DependencyMode::Namespace => {
+                        match item.binding {
+                            js::DependencyBinding::Default | js::DependencyBinding::Namespace => {
                                 item.alias = Some(module.strings.intern(name));
                             }
-                            js::DependencyMode::Item => {
+                            js::DependencyBinding::Item => {
                                 if item.alias.is_some() {
                                     item.alias = Some(module.strings.intern(name));
                                 } else if let Some(js::Name::Identifier(_))

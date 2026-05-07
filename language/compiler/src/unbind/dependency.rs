@@ -8,16 +8,16 @@ use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Unbind a DIR dependency kind to an AST dependency kind.
+    /// Unbind a DIR dependency space to an AST dependency space.
     #[inline]
-    pub(super) fn unbind_dependency_kind(
+    pub(super) fn unbind_dependency_space(
         &self,
         _context: &mut UnbindContext,
-        kind: dir::DependencyKind,
-    ) -> ast::DependencyKind {
-        match kind {
-            dir::DependencyKind::Type => ast::DependencyKind::Type,
-            dir::DependencyKind::Value => ast::DependencyKind::Value,
+        space: dir::DependencySpace,
+    ) -> ast::DependencySpace {
+        match space {
+            dir::DependencySpace::Type => ast::DependencySpace::Type,
+            dir::DependencySpace::Value => ast::DependencySpace::Value,
         }
     }
 
@@ -94,17 +94,17 @@ impl Compiler {
         }
     }
 
-    /// Unbind a DIR dependency mode to an AST dependency mode.
+    /// Unbind a DIR dependency binding to an AST dependency binding.
     #[inline]
-    pub(super) fn unbind_dependency_mode(
+    pub(super) fn unbind_dependency_binding(
         &self,
         _context: &mut UnbindContext,
-        mode: dir::DependencyMode,
-    ) -> ast::DependencyMode {
-        match mode {
-            dir::DependencyMode::Item => ast::DependencyMode::Item,
-            dir::DependencyMode::Default => ast::DependencyMode::Default,
-            dir::DependencyMode::Namespace => ast::DependencyMode::Namespace,
+        binding: dir::DependencyBinding,
+    ) -> ast::DependencyBinding {
+        match binding {
+            dir::DependencyBinding::Item => ast::DependencyBinding::Item,
+            dir::DependencyBinding::Default => ast::DependencyBinding::Default,
+            dir::DependencyBinding::Namespace => ast::DependencyBinding::Namespace,
         }
     }
 
@@ -124,8 +124,8 @@ impl Compiler {
         let span = self.unbind_span(module, item_id.into());
         let ast_item = match item {
             dir::DependencyItem::Error => ast::DependencyItem::Error,
-            dir::DependencyItem::Value { mode, value } => {
-                let mode = self.unbind_dependency_mode(context, *mode);
+            dir::DependencyItem::Value { binding, value } => {
+                let binding = self.unbind_dependency_binding(context, *binding);
                 let value = self.unbind_expression(
                     module,
                     *value,
@@ -137,72 +137,27 @@ impl Compiler {
                     context,
                 );
                 ast::DependencyItem::Item {
-                    kind: None,
-                    mode,
+                    space: None,
+                    binding,
                     name: None,
                     alias: None,
                     value: Some(value),
                 }
             }
-            dir::DependencyItem::UnresolvedRemote {
-                mode,
-                kind,
+            dir::DependencyItem::Item {
+                binding,
+                space,
                 name,
                 alias,
                 ..
             } => {
-                let mode = self.unbind_dependency_mode(context, *mode);
-                let kind = Some(self.unbind_dependency_kind(context, *kind));
+                let binding = self.unbind_dependency_binding(context, *binding);
+                let space = Some(self.unbind_dependency_space(context, *space));
                 let name = name.map(|name| self.unbind_name(ast_strings, name));
                 let alias = alias.map(|a| a);
                 ast::DependencyItem::Item {
-                    kind,
-                    mode,
-                    name,
-                    alias,
-                    value: None,
-                }
-            }
-            dir::DependencyItem::UnresolvedLocal {
-                mode,
-                kind,
-                name,
-                alias,
-                ..
-            }
-            | dir::DependencyItem::Local {
-                mode,
-                kind,
-                name,
-                alias,
-                ..
-            } => {
-                let mode = self.unbind_dependency_mode(context, *mode);
-                let kind = Some(self.unbind_dependency_kind(context, *kind));
-                let name = name.map(|name| self.unbind_name(ast_strings, name));
-                let alias = alias.map(|a| a);
-                ast::DependencyItem::Item {
-                    kind,
-                    mode,
-                    name,
-                    alias,
-                    value: None,
-                }
-            }
-            dir::DependencyItem::Remote {
-                mode,
-                kind,
-                name,
-                alias,
-                ..
-            } => {
-                let mode = self.unbind_dependency_mode(context, *mode);
-                let kind = Some(self.unbind_dependency_kind(context, *kind));
-                let name = name.map(|name| self.unbind_name(ast_strings, name));
-                let alias = alias.map(|a| a);
-                ast::DependencyItem::Item {
-                    kind,
-                    mode,
+                    space,
+                    binding,
                     name,
                     alias,
                     value: None,

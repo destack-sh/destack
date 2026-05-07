@@ -1,4 +1,4 @@
-use destack_dir::{SymbolTable, Tree, TypeTable};
+use destack_dir::{GuardTable, SymbolTable, Tree, TypeTable};
 use destack_workspace::{Module, ProfileId, ProviderContext};
 
 use crate::elaborate::ElaborateState;
@@ -22,6 +22,7 @@ impl Compiler {
         tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
+        guards: &mut GuardTable,
     ) -> ElaborateResult<()> {
         // ensure analysis is complete
         if !self.is_code_module(context.revision(), module.id) {
@@ -30,7 +31,7 @@ impl Compiler {
 
         let options = self.elaborate_options(context, module);
         let mut state = ElaborateState::new(
-            context, module.id, module, profile, options, tree, symbols, types,
+            context, module.id, module, profile, options, tree, symbols, types, guards,
         );
 
         // 0. split multi-declarators into individual lets

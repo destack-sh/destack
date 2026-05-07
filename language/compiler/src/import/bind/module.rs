@@ -1,6 +1,8 @@
 use crate::{Compiler, ImportResult};
 use destack_artifact::Ast;
-use destack_dir::{LocalScopeId, ModuleBinding, SymbolTable, Tree, TypeTable};
+use destack_dir::{
+    Expression, LocalNodeId, LocalScopeId, ModuleBinding, SymbolTable, Tree, TypeTable,
+};
 use destack_source::ModuleId;
 use destack_workspace::ProviderContext;
 
@@ -16,7 +18,7 @@ impl Compiler {
         tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
-        roots: &mut Vec<destack_dir::LocalNodeId<destack_dir::Expression>>,
+        roots: &mut Vec<LocalNodeId<Expression>>,
         context: &dyn ProviderContext,
     ) -> ImportResult<()> {
         // syntax-only modules stop at AST
@@ -60,7 +62,7 @@ impl Compiler {
             );
         }
 
-        // mark global augmentations (for declaration merging)
+        // mark global augmentation symbols
         {
             let module = module.as_ref();
             self.mark_global_augmentation_symbols(module, tree, symbols, global_augmentation_scope);

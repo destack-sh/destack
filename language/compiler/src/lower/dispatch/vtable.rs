@@ -12,8 +12,8 @@ use crate::lower::ModuleLowerer;
 pub(crate) struct MethodKey {
     /// The method name.
     name: StringId,
-    /// The function mode for accessor discrimination.
-    mode: Option<dir::FunctionMode>,
+    /// The function role for accessor discrimination.
+    role: Option<dir::FunctionRole>,
     /// The signature type id for the method.
     signature: dir::LocalTypeId,
 }
@@ -22,12 +22,12 @@ impl MethodKey {
     /// Create a virtual method key for dispatch lookups.
     pub(crate) fn new(
         name: StringId,
-        mode: Option<dir::FunctionMode>,
+        role: Option<dir::FunctionRole>,
         signature: dir::LocalTypeId,
     ) -> Self {
         Self {
             name,
-            mode,
+            role,
             signature,
         }
     }
@@ -199,7 +199,7 @@ impl ModuleLowerer<'_> {
             // advance to the base class
             current = self
                 .types
-                .get_lineage_for_symbol(current_symbol)
+                .symbol_lineage(current_symbol)
                 .and_then(|lineage| lineage.extends);
         }
 
@@ -247,13 +247,13 @@ impl ModuleLowerer<'_> {
                 // resolve the method name
                 let name = self.member_dispatch_name_or_error(
                     key.as_ref(),
-                    signature.mode,
+                    signature.role,
                     member_id.into_any(),
                 )?;
 
                 // resolve the signature type id
                 let signature_type_id = self.method_signature_type_id(*member_id)?;
-                let key = MethodKey::new(name, signature.mode, signature_type_id);
+                let key = MethodKey::new(name, signature.role, signature_type_id);
 
                 let method_symbol = method_symbol.into_global(self.module_id);
                 methods.push(VtableMethod {
@@ -281,8 +281,8 @@ impl ModuleLowerer<'_> {
 
         // reject constructor and new members
         if matches!(
-            signature.mode,
-            Some(dir::FunctionMode::Constructor) | Some(dir::FunctionMode::New)
+            signature.role,
+            Some(dir::FunctionRole::Constructor) | Some(dir::FunctionRole::New)
         ) {
             return false;
         }
@@ -306,7 +306,7 @@ impl ModuleLowerer<'_> {
                 // find an existing slot with matching signature
                 let slot_index = virtual_slots.iter().position(|slot: &VtableMethod| {
                     slot.key.name == method.key.name
-                        && slot.key.mode == method.key.mode
+                        && slot.key.role == method.key.role
                         && self
                             .method_signatures_equivalent(slot.key.signature, method.key.signature)
                 });

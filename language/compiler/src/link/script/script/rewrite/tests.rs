@@ -244,7 +244,7 @@ impl TestModuleBuilder {
     fn function_declaration(
         &mut self,
         asynchrony: js::Asynchrony,
-        cardinality: js::FunctionCardinality,
+        is_generator: bool,
         body: Option<js::LocalNodeId<js::Block>>,
     ) -> js::LocalNodeId<js::Declaration> {
         let declaration_source_id = self.source_id(dir::NodeType::Declaration);
@@ -256,16 +256,16 @@ impl TestModuleBuilder {
                 is_ambient: true,
                 is_abstract: false,
                 signature: js::FunctionSignature {
-                    is_abstract: false,
-                    is_override: false,
                     asynchrony,
-                    cardinality,
-                    mode: None,
-                    kind: js::FunctionKind::Function,
+                    role: None,
+                    form: js::FunctionForm::Function,
                     generic_parameters: Vec::new(),
                     this_parameter: None,
                     parameters: Vec::new(),
                     return_type: None,
+                    is_abstract: false,
+                    is_override: false,
+                    is_generator,
                 },
                 body,
             }),
@@ -1180,11 +1180,7 @@ fn test_keeps_undefined_return_in_async_generator() {
     let undefined_value = builder.undefined();
     let statement = builder.return_statement(Some(undefined_value));
     let body = builder.block(vec![statement]);
-    builder.function_declaration(
-        js::Asynchrony::Async,
-        js::FunctionCardinality::Generator,
-        Some(body),
-    );
+    builder.function_declaration(js::Asynchrony::Async, true, Some(body));
     let mut module = builder.finish();
 
     Rewriter::elide_undefined_returns(&mut module);
@@ -1203,11 +1199,7 @@ fn test_elides_undefined_return_in_plain_function() {
     let undefined_value = builder.undefined();
     let statement = builder.return_statement(Some(undefined_value));
     let body = builder.block(vec![statement]);
-    builder.function_declaration(
-        js::Asynchrony::Sync,
-        js::FunctionCardinality::Scalar,
-        Some(body),
-    );
+    builder.function_declaration(js::Asynchrony::Sync, false, Some(body));
     let mut module = builder.finish();
 
     Rewriter::elide_undefined_returns(&mut module);

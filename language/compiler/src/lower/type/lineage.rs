@@ -25,10 +25,10 @@ impl ModuleLowerer<'_> {
         }
 
         // resolve the lineage data for the symbol
-        let lineage = self.types.get_lineage_for_symbol(symbol);
+        let lineage = self.types.symbol_lineage(symbol);
         let parent_symbol = lineage
             .and_then(|lineage| lineage.extends)
-            .filter(|_| symbol.ty() == dir::SymbolType::Class);
+            .filter(|_| self.symbol_is(symbol, dir::DeclarationForm::Class));
 
         // resolve the parent mir type when present
         let parent = if let Some(parent_symbol) = parent_symbol {
@@ -42,7 +42,7 @@ impl ModuleLowerer<'_> {
         let mut seen_interfaces = HashSet::new();
         if let Some(lineage) = lineage {
             // include base interface lineage for interfaces
-            if symbol.ty() == dir::SymbolType::Interface
+            if self.symbol_is(symbol, dir::DeclarationForm::Interface)
                 && let Some(base) = lineage.extends
             {
                 self.collect_interface_lineage_symbols(
@@ -73,7 +73,7 @@ impl ModuleLowerer<'_> {
         }
 
         // record lineage metadata
-        let is_interface = symbol.ty() == dir::SymbolType::Interface;
+        let is_interface = self.symbol_is(symbol, dir::DeclarationForm::Interface);
         let is_abstract = is_interface
             || self
                 .declaration_ids_for_symbol(symbol)
@@ -111,7 +111,7 @@ impl ModuleLowerer<'_> {
         }
 
         // visit the base
-        if let Some(lineage) = self.types.get_lineage_for_symbol(interface)
+        if let Some(lineage) = self.types.symbol_lineage(interface)
             && let Some(base) = lineage.extends
         {
             self.collect_interface_lineage_symbols(base, order, seen);

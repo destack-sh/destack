@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_dir::{
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeType,
-    SymbolSpaceOrder, SymbolTable, Tree, TypeExpression, TypeTable, WhereClause,
+    SymbolSpace, SymbolTable, Tree, TypeExpression, TypeTable, WhereClause,
 };
 
 use crate::Compiler;
@@ -46,7 +46,7 @@ impl Compiler {
             tree,
             symbols,
             types,
-            SymbolSpaceOrder::TypeThenValue,
+            SymbolSpace::Type,
         );
         tree.insert(where_clause_id, WhereClause { left, right })
     }

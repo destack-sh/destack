@@ -122,43 +122,30 @@ impl Compiler {
 
     /// Unbind a DIR function kind to an AST function kind.
     #[inline]
-    pub(super) fn unbind_function_kind(
+    pub(super) fn unbind_function_form(
         &self,
         _context: &mut UnbindContext,
-        kind: dir::FunctionKind,
-    ) -> ast::FunctionKind {
+        kind: dir::FunctionForm,
+    ) -> ast::FunctionForm {
         match kind {
-            dir::FunctionKind::Function => ast::FunctionKind::Function,
-            dir::FunctionKind::Lambda => ast::FunctionKind::Lambda,
+            dir::FunctionForm::Function => ast::FunctionForm::Function,
+            dir::FunctionForm::Lambda => ast::FunctionForm::Lambda,
         }
     }
 
-    /// Unbind a DIR function cardinality to an AST function cardinality.
+    /// Unbind a DIR function role to an AST function role.
     #[inline]
-    pub(super) fn unbind_function_cardinality(
+    pub(super) fn unbind_function_role(
         &self,
         _context: &mut UnbindContext,
-        cardinality: dir::FunctionCardinality,
-    ) -> ast::FunctionCardinality {
-        match cardinality {
-            dir::FunctionCardinality::Scalar => ast::FunctionCardinality::Scalar,
-            dir::FunctionCardinality::Generator => ast::FunctionCardinality::Generator,
-        }
-    }
-
-    /// Unbind a DIR function mode to an AST function mode.
-    #[inline]
-    pub(super) fn unbind_function_mode(
-        &self,
-        _context: &mut UnbindContext,
-        mode: dir::FunctionMode,
-    ) -> ast::FunctionMode {
-        match mode {
-            dir::FunctionMode::Getter => ast::FunctionMode::Getter,
-            dir::FunctionMode::Setter => ast::FunctionMode::Setter,
-            dir::FunctionMode::Constructor => ast::FunctionMode::Constructor,
-            dir::FunctionMode::New => ast::FunctionMode::New,
-            dir::FunctionMode::Call => ast::FunctionMode::Call,
+        role: dir::FunctionRole,
+    ) -> ast::FunctionRole {
+        match role {
+            dir::FunctionRole::Getter => ast::FunctionRole::Getter,
+            dir::FunctionRole::Setter => ast::FunctionRole::Setter,
+            dir::FunctionRole::Constructor => ast::FunctionRole::Constructor,
+            dir::FunctionRole::New => ast::FunctionRole::New,
+            dir::FunctionRole::Call => ast::FunctionRole::Call,
         }
     }
 
@@ -176,12 +163,12 @@ impl Compiler {
     ) -> ast::FunctionSignature {
         let is_abstract = signature.is_abstract;
         let is_override = signature.is_override;
+        let is_generator = signature.is_generator;
         let asynchrony = self.unbind_asynchrony(context, signature.asynchrony);
-        let cardinality = self.unbind_function_cardinality(context, signature.cardinality);
-        let mode = signature
-            .mode
-            .map(|mode| self.unbind_function_mode(context, mode));
-        let kind = self.unbind_function_kind(context, signature.kind);
+        let role = signature
+            .role
+            .map(|role| self.unbind_function_role(context, role));
+        let form = self.unbind_function_form(context, signature.form);
         let generic_parameters = signature
             .generic_parameters
             .iter()
@@ -255,17 +242,17 @@ impl Compiler {
             )
         });
         ast::FunctionSignature {
-            is_abstract,
-            is_override,
             asynchrony,
-            cardinality,
-            mode,
-            kind,
+            role,
+            form,
             generic_parameters,
             where_clauses,
             this_parameter,
             parameters,
             return_type,
+            is_abstract,
+            is_override,
+            is_generator,
         }
     }
 }

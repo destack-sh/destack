@@ -8,12 +8,12 @@ use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Unbind a DIR namespace kind to an AST namespace kind.
+    /// Unbind a DIR namespace form to an AST namespace form.
     #[inline]
-    fn unbind_namespace_kind(&self, kind: dir::NamespaceKind) -> ast::NamespaceKind {
-        match kind {
-            dir::NamespaceKind::Namespace => ast::NamespaceKind::Namespace,
-            dir::NamespaceKind::Module => ast::NamespaceKind::Module,
+    fn unbind_namespace_form(&self, form: dir::NamespaceForm) -> ast::NamespaceForm {
+        match form {
+            dir::NamespaceForm::Namespace => ast::NamespaceForm::Namespace,
+            dir::NamespaceForm::Module => ast::NamespaceForm::Module,
         }
     }
 
@@ -93,8 +93,8 @@ impl Compiler {
 
         let ast_declaration = match declaration {
             dir::Declaration::Global(declaration) => {
-                // ambient body
-                let ambient = self.unbind_ambientness(declaration.ambient, context);
+                // body
+                let is_ambient = self.unbind_ambientness(declaration.is_ambient, context);
                 let expressions = declaration
                     .expressions
                     .iter()
@@ -113,18 +113,39 @@ impl Compiler {
                     .collect();
 
                 ast::Declaration::Global(ast::GlobalDeclaration {
-                    ambient,
+                    is_ambient,
                     expressions,
                 })
+            }
+            dir::Declaration::Module(declaration) => {
+                // body
+                let expressions = declaration
+                    .expressions
+                    .iter()
+                    .map(|expression| {
+                        self.unbind_expression(
+                            module,
+                            *expression,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+
+                ast::Declaration::Module(ast::ModuleDeclaration { expressions })
             }
             dir::Declaration::Namespace(declaration) => {
                 // declaration header
                 let name = self.unbind_name(ast_strings, declaration.name);
                 let export = declaration
                     .export
-                    .map(|export| self.unbind_export_mode(export));
-                let ambient = self.unbind_ambientness(declaration.ambient, context);
-                let kind = self.unbind_namespace_kind(declaration.kind);
+                    .map(|export| self.unbind_export_kind(export));
+                let is_ambient = self.unbind_ambientness(declaration.is_ambient, context);
+                let form = self.unbind_namespace_form(declaration.form);
 
                 // polymorphism
                 let generic_parameters = declaration
@@ -181,8 +202,8 @@ impl Compiler {
                 ast::Declaration::Namespace(ast::NamespaceDeclaration {
                     name,
                     export,
-                    ambient,
-                    kind,
+                    is_ambient,
+                    form,
                     generic_parameters,
                     where_clauses,
                     expressions,
@@ -193,8 +214,8 @@ impl Compiler {
                 let name = self.unbind_name(ast_strings, declaration.name);
                 let export = declaration
                     .export
-                    .map(|export| self.unbind_export_mode(export));
-                let ambient = self.unbind_ambientness(declaration.ambient, context);
+                    .map(|export| self.unbind_export_kind(export));
+                let is_ambient = self.unbind_ambientness(declaration.is_ambient, context);
                 let mutability = declaration
                     .mutability
                     .map(|mutability| self.unbind_mutability(context, mutability));
@@ -248,7 +269,7 @@ impl Compiler {
                 ast::Declaration::Type(ast::TypeDeclaration {
                     name,
                     export,
-                    ambient,
+                    is_ambient,
                     is_nominal: declaration.is_nominal,
                     mutability,
                     generic_parameters,
@@ -261,9 +282,9 @@ impl Compiler {
                 let name = self.unbind_name(ast_strings, declaration.name);
                 let export = declaration
                     .export
-                    .map(|export| self.unbind_export_mode(export));
-                let ambient = self.unbind_ambientness(declaration.ambient, context);
-                let kind = self.unbind_dependency_kind(context, declaration.kind);
+                    .map(|export| self.unbind_export_kind(export));
+                let is_ambient = self.unbind_ambientness(declaration.is_ambient, context);
+                let space = self.unbind_dependency_space(context, declaration.space);
 
                 // alias target
                 let target = match &declaration.target {
@@ -280,8 +301,8 @@ impl Compiler {
                 ast::Declaration::ImportAlias(ast::ImportAliasDeclaration {
                     name,
                     export,
-                    ambient,
-                    kind,
+                    is_ambient,
+                    space,
                     target,
                 })
             }
@@ -290,8 +311,8 @@ impl Compiler {
                 let name = self.unbind_name(ast_strings, declaration.name);
                 let export = declaration
                     .export
-                    .map(|export| self.unbind_export_mode(export));
-                let ambient = self.unbind_ambientness(declaration.ambient, context);
+                    .map(|export| self.unbind_export_kind(export));
+                let is_ambient = self.unbind_ambientness(declaration.is_ambient, context);
 
                 // polymorphism
                 let generic_parameters = declaration
@@ -380,7 +401,7 @@ impl Compiler {
                 ast::Declaration::Struct(ast::StructDeclaration {
                     name,
                     export,
-                    ambient,
+                    is_ambient,
                     generic_parameters,
                     where_clauses,
                     implements_types,
@@ -395,8 +416,8 @@ impl Compiler {
                     .map(|name| self.unbind_name(ast_strings, name));
                 let export = declaration
                     .export
-                    .map(|export| self.unbind_export_mode(export));
-                let ambient = self.unbind_ambientness(declaration.ambient, context);
+                    .map(|export| self.unbind_export_kind(export));
+                let is_ambient = self.unbind_ambientness(declaration.is_ambient, context);
 
                 // polymorphism
                 let generic_parameters = declaration
@@ -497,7 +518,7 @@ impl Compiler {
                 ast::Declaration::Class(ast::ClassDeclaration {
                     name,
                     export,
-                    ambient,
+                    is_ambient,
                     is_abstract: declaration.is_abstract,
                     generic_parameters,
                     where_clauses,
@@ -514,8 +535,8 @@ impl Compiler {
                     .map(|name| self.unbind_name(ast_strings, name));
                 let export = declaration
                     .export
-                    .map(|export| self.unbind_export_mode(export));
-                let ambient = self.unbind_ambientness(declaration.ambient, context);
+                    .map(|export| self.unbind_export_kind(export));
+                let is_ambient = self.unbind_ambientness(declaration.is_ambient, context);
                 let kind = self.unbind_enum_kind(declaration.kind);
 
                 // polymorphism
@@ -605,7 +626,7 @@ impl Compiler {
                 ast::Declaration::Enum(ast::EnumDeclaration {
                     name,
                     export,
-                    ambient,
+                    is_ambient,
                     kind,
                     generic_parameters,
                     where_clauses,
@@ -621,8 +642,8 @@ impl Compiler {
                     .map(|name| self.unbind_name(ast_strings, name));
                 let export = declaration
                     .export
-                    .map(|export| self.unbind_export_mode(export));
-                let ambient = self.unbind_ambientness(declaration.ambient, context);
+                    .map(|export| self.unbind_export_kind(export));
+                let is_ambient = self.unbind_ambientness(declaration.is_ambient, context);
 
                 // polymorphism
                 let generic_parameters = declaration
@@ -716,7 +737,7 @@ impl Compiler {
                 ast::Declaration::Interface(ast::InterfaceDeclaration {
                     name,
                     export,
-                    ambient,
+                    is_ambient,
                     is_nominal: declaration.is_nominal,
                     generic_parameters,
                     where_clauses,
@@ -731,8 +752,8 @@ impl Compiler {
                     .map(|name| self.unbind_name(ast_strings, name));
                 let export = declaration
                     .export
-                    .map(|export| self.unbind_export_mode(export));
-                let ambient = self.unbind_ambientness(declaration.ambient, context);
+                    .map(|export| self.unbind_export_kind(export));
+                let is_ambient = self.unbind_ambientness(declaration.is_ambient, context);
 
                 // polymorphism
                 let generic_parameters = declaration
@@ -815,7 +836,7 @@ impl Compiler {
                 ast::Declaration::Extension(ast::ExtensionDeclaration {
                     name,
                     export,
-                    ambient,
+                    is_ambient,
                     generic_parameters,
                     where_clauses,
                     target_type,
@@ -830,8 +851,8 @@ impl Compiler {
                     .map(|name| self.unbind_name(ast_strings, name));
                 let export = declaration
                     .export
-                    .map(|export| self.unbind_export_mode(export));
-                let ambient = self.unbind_ambientness(declaration.ambient, context);
+                    .map(|export| self.unbind_export_kind(export));
+                let is_ambient = self.unbind_ambientness(declaration.is_ambient, context);
 
                 // signature and body
                 let signature = self.unbind_function_signature(
@@ -860,7 +881,7 @@ impl Compiler {
                 ast::Declaration::Function(ast::FunctionDeclaration {
                     name,
                     export,
-                    ambient,
+                    is_ambient,
                     signature,
                     body,
                 })

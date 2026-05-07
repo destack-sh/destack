@@ -68,8 +68,8 @@ impl FunctionLowerer<'_> {
                     self.state
                         .builder
                         .field_addr(env_value, field.index, field_addr_type);
-                match field.kind {
-                    dir::CaptureKind::ByValue | dir::CaptureKind::ByMove => {
+                match field.mode {
+                    dir::CaptureMode::Copy | dir::CaptureMode::Move => {
                         if self
                             .state
                             .bindings
@@ -84,7 +84,7 @@ impl FunctionLowerer<'_> {
                             self.state.builder.store(field_addr, value);
                         }
                     }
-                    dir::CaptureKind::ByReference => {
+                    dir::CaptureMode::Borrow => {
                         let reference_value =
                             self.reference_value_for_symbol(expression_id, field.symbol, field.ty)?;
                         self.state.builder.store(field_addr, reference_value);
@@ -129,16 +129,13 @@ impl FunctionLowerer<'_> {
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let (field_addr, _) = self.capture_field_addr(expression_id, field)?;
 
-        // by value or move: load the field directly
-        if matches!(
-            field.kind,
-            dir::CaptureKind::ByValue | dir::CaptureKind::ByMove
-        ) {
+        // copy or move: load the field directly
+        if matches!(field.mode, dir::CaptureMode::Copy | dir::CaptureMode::Move) {
             let value = self.state.builder.load(field_addr, field.ty);
             return Ok((value, field.ty));
         }
 
-        // by reference: load the stored pointer, then load the pointee
+        // borrow: load the stored pointer, then load the pointee
         let reference_value = self.state.builder.load(field_addr, field.ty);
         let pointee = match self.state.builder.tree().get(field.ty) {
             mir::Type::Reference { pointee, .. } => pointee
@@ -171,16 +168,13 @@ impl FunctionLowerer<'_> {
     ) -> CompilerResult<()> {
         let (field_addr, _) = self.capture_field_addr(expression_id, field)?;
 
-        // by value or move: store directly into the env field
-        if matches!(
-            field.kind,
-            dir::CaptureKind::ByValue | dir::CaptureKind::ByMove
-        ) {
+        // copy or move: store directly into the env field
+        if matches!(field.mode, dir::CaptureMode::Copy | dir::CaptureMode::Move) {
             self.state.builder.store(field_addr, value);
             return Ok(());
         }
 
-        // by reference: load the stored pointer, then store into it
+        // borrow: load the stored pointer, then store into it
         let reference_value = self.state.builder.load(field_addr, field.ty);
         self.state.builder.store(reference_value, value);
         Ok(())
@@ -193,14 +187,14 @@ impl FunctionLowerer<'_> {
         field: &FunctionEnvironmentField,
         mutability: Option<dir::Mutability>,
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // by reference: forward the stored pointer
-        if field.kind == dir::CaptureKind::ByReference {
+        // borrow: forward the stored pointer
+        if field.mode == dir::CaptureMode::Borrow {
             let (field_addr, _) = self.capture_field_addr(expression_id, field)?;
             let reference_value = self.state.builder.load(field_addr, field.ty);
             return Ok((reference_value, field.ty));
         }
 
-        // by value or move: return a reference to the env field
+        // copy or move: return a reference to the env field
         let (field_addr, field_addr_type) = self.capture_field_addr(expression_id, field)?;
         let mir_mutability = mutability
             .map(lower_mutability)

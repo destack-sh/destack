@@ -4,6 +4,35 @@ use destack_dir as dir;
 use crate::lower::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
+    /// Read one symbol record from local or declared DIR.
+    pub(crate) fn symbol(&self, symbol_id: dir::GlobalSymbolId) -> Option<dir::Symbol> {
+        if symbol_id.module_id == self.module_id {
+            Some(self.symbols.get_symbol(symbol_id.local_id).clone())
+        } else {
+            let declared = self.artifact_dir_data_if_present(symbol_id.module_id)?;
+
+            Some(declared.symbols.get_symbol(symbol_id.local_id).clone())
+        }
+    }
+
+    /// Return the declaration form for one symbol.
+    pub(crate) fn symbol_form(
+        &self,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> Option<dir::DeclarationForm> {
+        Some(self.symbol(symbol_id)?.form)
+    }
+
+    /// Return whether one symbol has the given declaration form.
+    pub(crate) fn symbol_is(
+        &self,
+        symbol_id: dir::GlobalSymbolId,
+        form: dir::DeclarationForm,
+    ) -> bool {
+        self.symbol_form(symbol_id)
+            .is_some_and(|actual| actual == form)
+    }
+
     /// Get the name of a symbol as a String.
     pub(crate) fn get_symbol_name(&self, symbol_id: dir::LocalSymbolId) -> Option<String> {
         // read the symbol entry

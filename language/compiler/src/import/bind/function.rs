@@ -2,10 +2,10 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast::{self as ast, StringId};
 use destack_dir::{
-    Asynchrony, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
-    GenericParameter, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeType,
-    StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType,
-    Tree, Type, TypeExpression, TypeTable, VarianceModifier,
+    Asynchrony, DeclarationForm, FunctionForm, FunctionRole, FunctionSignature, GenericParameter,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeType, StaticKey,
+    SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, Tree, Type, TypeExpression, TypeTable,
+    UnevaluatedType, VarianceModifier,
 };
 use destack_workspace::Module;
 
@@ -26,7 +26,7 @@ impl Compiler {
         tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
-    ) -> destack_dir::LocalNodeId<GenericParameter> {
+    ) -> LocalNodeId<GenericParameter> {
         let ast_parameter = ast.tree.get(ast_parameter_id);
         let parameter_id = tree.reserve_from_source(
             NodeType::GenericParameter,
@@ -63,7 +63,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
                 let default = default.map(|default| {
@@ -79,13 +79,13 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
 
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolKind::Local,
-                    SymbolType::TypeAlias,
+                    DeclarationForm::TypeAlias,
                     SymbolSpace::Type,
                     SymbolBinding::Runtime,
                     Some(StaticKey::Name(name)),
@@ -102,9 +102,7 @@ impl Compiler {
                     symbol: symbol_id,
                 };
                 let parameter_id = tree.insert(parameter_id, parameter);
-                symbols
-                    .get_symbol_mut(symbol_id)
-                    .declare_primary(parameter_id);
+                symbols.get_symbol_mut(symbol_id).declare(parameter_id);
                 parameter_id
             }
             ast::GenericParameter::Value {
@@ -127,7 +125,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
                 let default = default.map(|default| {
@@ -143,13 +141,13 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::ValueThenType,
+                        SymbolSpace::Value,
                     )
                 });
 
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolKind::Local,
-                    SymbolType::Void,
+                    DeclarationForm::Void,
                     SymbolSpace::Value,
                     SymbolBinding::Runtime,
                     Some(StaticKey::Name(name)),
@@ -165,13 +163,15 @@ impl Compiler {
                     symbol: symbol_id,
                 };
                 let parameter_id = tree.insert(parameter_id, parameter);
-                symbols
-                    .get_symbol_mut(symbol_id)
-                    .declare_primary(parameter_id);
+                symbols.get_symbol_mut(symbol_id).declare(parameter_id);
 
                 if let Some(declared_type) = declared_type {
-                    let declared_type_id =
-                        types.insert_type_from(Type::Unevaluated(declared_type), declared_type);
+                    let declared_type_id = types.insert_type_from(
+                        Type::Unevaluated(UnevaluatedType {
+                            expression: declared_type,
+                        }),
+                        declared_type,
+                    );
                     types.set_declared_type(
                         parameter_id.into_global_any(module.id),
                         declared_type_id,
@@ -183,7 +183,7 @@ impl Compiler {
             ast::GenericParameter::Error => {
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolKind::Local,
-                    SymbolType::Void,
+                    DeclarationForm::Void,
                     SymbolSpace::Value,
                     SymbolBinding::Runtime,
                     None,
@@ -192,17 +192,15 @@ impl Compiler {
                 );
                 let parameter = GenericParameter::Error { symbol: symbol_id };
                 let parameter_id = tree.insert(parameter_id, parameter);
-                symbols
-                    .get_symbol_mut(symbol_id)
-                    .declare_primary(parameter_id);
+                symbols.get_symbol_mut(symbol_id).declare(parameter_id);
                 parameter_id
             }
         }
     }
 
     /// Return true when a function receives a runtime `arguments` binding.
-    fn function_has_runtime_arguments(&self, module: &Module, kind: FunctionKind) -> bool {
-        if kind != FunctionKind::Function {
+    fn function_has_runtime_arguments(&self, module: &Module, form: FunctionForm) -> bool {
+        if form != FunctionForm::Function {
             return false;
         }
 
@@ -223,12 +221,12 @@ impl Compiler {
             .is_some()
     }
 
-    /// Bind function kind into a DIR function kind.
+    /// Bind function form into a DIR function form.
     #[inline]
-    pub(super) fn bind_function_kind(&self, kind: ast::FunctionKind) -> FunctionKind {
-        match kind {
-            ast::FunctionKind::Function => FunctionKind::Function,
-            ast::FunctionKind::Lambda => FunctionKind::Lambda,
+    pub(super) fn bind_function_form(&self, form: ast::FunctionForm) -> FunctionForm {
+        match form {
+            ast::FunctionForm::Function => FunctionForm::Function,
+            ast::FunctionForm::Lambda => FunctionForm::Lambda,
         }
     }
 
@@ -241,27 +239,15 @@ impl Compiler {
         }
     }
 
-    /// Bind function cardinality into a DIR function cardinality.
+    /// Bind function role into a DIR function role.
     #[inline]
-    pub(super) fn bind_function_cardinality(
-        &self,
-        cardinality: ast::FunctionCardinality,
-    ) -> FunctionCardinality {
-        match cardinality {
-            ast::FunctionCardinality::Scalar => FunctionCardinality::Scalar,
-            ast::FunctionCardinality::Generator => FunctionCardinality::Generator,
-        }
-    }
-
-    /// Bind function mode into a DIR function mode.
-    #[inline]
-    pub(super) fn bind_function_mode(&self, mode: ast::FunctionMode) -> FunctionMode {
-        match mode {
-            ast::FunctionMode::Getter => FunctionMode::Getter,
-            ast::FunctionMode::Setter => FunctionMode::Setter,
-            ast::FunctionMode::Constructor => FunctionMode::Constructor,
-            ast::FunctionMode::New => FunctionMode::New,
-            ast::FunctionMode::Call => FunctionMode::Call,
+    pub(super) fn bind_function_role(&self, role: ast::FunctionRole) -> FunctionRole {
+        match role {
+            ast::FunctionRole::Getter => FunctionRole::Getter,
+            ast::FunctionRole::Setter => FunctionRole::Setter,
+            ast::FunctionRole::Constructor => FunctionRole::Constructor,
+            ast::FunctionRole::New => FunctionRole::New,
+            ast::FunctionRole::Call => FunctionRole::Call,
         }
     }
 
@@ -282,10 +268,10 @@ impl Compiler {
     ) -> FunctionSignature {
         let is_abstract = signature.is_abstract;
         let is_override = signature.is_override;
+        let is_generator = signature.is_generator;
         let asynchrony = self.bind_asynchrony(signature.asynchrony);
-        let cardinality = self.bind_function_cardinality(signature.cardinality);
-        let mode = signature.mode.map(|mode| self.bind_function_mode(mode));
-        let kind = self.bind_function_kind(signature.kind);
+        let role = signature.role.map(|role| self.bind_function_role(role));
+        let form = self.bind_function_form(signature.form);
 
         // bind generic parameters first so they are in scope for later clauses
         let generic_parameters = signature
@@ -376,7 +362,7 @@ impl Compiler {
             .collect();
 
         // bind JS/TS runtime arguments for non-arrow functions
-        if self.function_has_runtime_arguments(module, kind)
+        if self.function_has_runtime_arguments(module, form)
             && !self.function_scope_has_arguments_binding(scope.0, symbols)
         {
             let arguments_name = StringId::for_text("arguments");
@@ -395,7 +381,7 @@ impl Compiler {
         let scope = (scope.0, symbols.get_scope_mark(scope.0));
 
         // bind the return type
-        let return_type: Option<destack_dir::LocalNodeId<TypeExpression>> =
+        let return_type: Option<LocalNodeId<TypeExpression>> =
             signature.return_type.map(|return_type| {
                 self.bind_type_expression(
                     module,
@@ -409,7 +395,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::TypeThenValue,
+                    SymbolSpace::Type,
                 )
             });
 
@@ -435,17 +421,17 @@ impl Compiler {
             .collect();
 
         FunctionSignature {
-            is_abstract,
-            is_override,
             asynchrony,
-            cardinality,
-            mode,
-            kind,
+            role,
+            form,
             generic_parameters,
             where_clauses,
             this_parameter,
             parameters,
             return_type,
+            is_abstract,
+            is_override,
+            is_generator,
         }
     }
 }

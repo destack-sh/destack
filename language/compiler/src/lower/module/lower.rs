@@ -2,12 +2,10 @@ use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use {destack_dir as dir, destack_mir as mir};
 
-use destack_artifact::{
-    AmbientEnvironment, DiagnosticAnchor, DirDeclared, LanguageEnvironment, WellKnownIntrinsics,
-};
+use destack_artifact::{DiagnosticAnchor, DirDeclared, GlobalEnvironment, WellKnownIntrinsics};
 use destack_ast::StringId;
 use destack_core::StringPool;
-use destack_dir::LanguageSymbol;
+use destack_dir::{GuardTable, LanguageItem};
 use destack_source::{ModuleId, TargetId};
 use destack_workspace::{CheckFailurePolicy, Module, ProfileId, ProviderContext, Target};
 use indexmap::IndexSet;
@@ -20,16 +18,18 @@ use crate::lower::{
     TypeCacheEntry, TypeLowerer,
 };
 
-/// Resolve one well-known symbol from an ambient environment.
+/// Resolve one well-known symbol from a global environment.
 fn well_known_symbol_from_environment(
-    environment: &AmbientEnvironment,
+    environment: &GlobalEnvironment,
     symbol: dir::WellKnownSymbol,
-    order: dir::SymbolSpaceOrder,
+    space: dir::SymbolSpace,
 ) -> Option<dir::GlobalSymbolId> {
-    environment
-        .well_known_symbols()
-        .get_group(symbol)
-        .and_then(|group| group.symbol_for_space_order(order))
+    let pair = environment.well_known_symbols().get_pair(symbol)?;
+
+    match space {
+        dir::SymbolSpace::Type => pair.ty.or(pair.value),
+        dir::SymbolSpace::Value | dir::SymbolSpace::Label => pair.value.or(pair.ty),
+    }
 }
 
 /// Context for lowering a DIR module to MIR.
@@ -57,6 +57,8 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) symbols: &'a dir::SymbolTable,
     /// Provide access to inferred and declared types.
     pub(crate) types: &'a dir::TypeTable,
+    /// Elaborated type guard entries.
+    pub(crate) guards: &'a GuardTable,
     /// Provide access to capture metadata for closures.
     pub(crate) captures: &'a dir::CaptureTable,
     /// Runtime check configuration for this target.
@@ -159,6 +161,7 @@ impl<'a> ModuleLowerer<'a> {
         module_node: dir::LocalNodeIdAny,
         symbols: &'a dir::SymbolTable,
         types: &'a dir::TypeTable,
+        guards: &'a GuardTable,
         captures: &'a dir::CaptureTable,
         target: &'a TargetId,
         pointer_bytes: u8,
@@ -179,7 +182,7 @@ impl<'a> ModuleLowerer<'a> {
             context,
             profile,
             dir::WellKnownSymbol::Vector,
-            dir::SymbolSpaceOrder::TypeThenValue,
+            dir::SymbolSpace::Type,
         )?;
 
         // create the type lowerer
@@ -191,6 +194,7 @@ impl<'a> ModuleLowerer<'a> {
             strings,
             profile,
             dir_tree,
+            symbols,
             vector_symbol,
         );
         let dispatch_call_name = builder.intern("@call");
@@ -219,6 +223,7 @@ impl<'a> ModuleLowerer<'a> {
             module_node,
             symbols,
             types,
+            guards,
             captures,
             runtime_checks,
             well_known_intrinsics,
@@ -266,7 +271,7 @@ impl<'a> ModuleLowerer<'a> {
         profile: ProfileId,
     ) -> CompilerResult<Option<WellKnownIntrinsics>> {
         let environment = compiler
-            .ambient_environment(context, profile)
+            .global_environment(context, profile)
             .map_err(CompilerError::from)?;
 
         let mut intrinsics = WellKnownIntrinsics::new();
@@ -285,39 +290,32 @@ impl<'a> ModuleLowerer<'a> {
         Ok(Some(intrinsics))
     }
 
-    /// Read the ambient environment used by this lowerer.
-    pub(crate) fn ambient_environment(&self) -> CompilerResult<Arc<AmbientEnvironment>> {
+    /// Read the global environment used by this lowerer.
+    pub(crate) fn global_environment(&self) -> CompilerResult<Arc<GlobalEnvironment>> {
         self.compiler
-            .ambient_environment(self.context, self.profile)
+            .global_environment(self.context, self.profile)
             .map_err(CompilerError::from)
     }
 
-    /// Read the language environment used by this lowerer.
-    pub(crate) fn language_environment(&self) -> CompilerResult<Arc<LanguageEnvironment>> {
-        self.compiler
-            .language_environment(self.context, self.profile)
-            .map_err(CompilerError::from)
-    }
-
-    /// Resolve one declared ambient symbol in this lowerer.
-    pub(crate) fn declared_ambient_symbol(
+    /// Resolve one declared global symbol in this lowerer.
+    pub(crate) fn declared_global_symbol(
         &self,
         name: &str,
-        order: dir::SymbolSpaceOrder,
+        space: dir::SymbolSpace,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        let environment = self.ambient_environment()?;
+        let environment = self.global_environment()?;
 
-        Ok(environment.declared_symbol_from(name, order))
+        Ok(environment.symbol_from(name, space))
     }
 
     /// Resolve one compiler language symbol in this lowerer.
-    pub(crate) fn language_symbol(
+    pub(crate) fn language_item(
         &self,
-        symbol: LanguageSymbol,
+        symbol: LanguageItem,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        let environment = self.language_environment()?;
+        let environment = self.global_environment()?;
 
-        Ok(environment.item(symbol))
+        Ok(environment.language.item(symbol))
     }
 
     /// Resolve one well-known symbol before the lowerer has been constructed.
@@ -326,10 +324,10 @@ impl<'a> ModuleLowerer<'a> {
         context: &dyn ProviderContext,
         profile: ProfileId,
         symbol: dir::WellKnownSymbol,
-        order: dir::SymbolSpaceOrder,
+        order: dir::SymbolSpace,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
         let environment = compiler
-            .ambient_environment(context, profile)
+            .global_environment(context, profile)
             .map_err(CompilerError::from)?;
 
         Ok(well_known_symbol_from_environment(
@@ -346,9 +344,9 @@ impl<'a> ModuleLowerer<'a> {
         strings: &StringPool,
         intrinsics: &mut WellKnownIntrinsics,
     ) {
-        for symbol_id in declared.symbols.active_symbol_ids() {
+        for symbol_id in declared.symbols.symbol_ids() {
             let symbol = declared.symbols.get_symbol(symbol_id);
-            let Some(declaration) = symbol.primary_declaration else {
+            let Some(declaration) = symbol.declaration else {
                 continue;
             };
             if declaration.module_id != module_id {
@@ -419,10 +417,7 @@ impl<'a> ModuleLowerer<'a> {
     ) -> bool {
         let expression = declared.tree.get(expression_id);
         let name = match expression {
-            dir::Expression::UnresolvedPath { path, .. }
-            | dir::Expression::LocalReference { path, .. }
-            | dir::Expression::ModuleReference { path, .. }
-            | dir::Expression::GlobalReference { path, .. } => path.last_segment(),
+            dir::Expression::Path { path, .. } => path.last_segment(),
             _ => None,
         };
 
@@ -457,11 +452,11 @@ impl<'a> ModuleLowerer<'a> {
     ) -> Option<String> {
         let symbol = declared
             .symbols
-            .active_symbol_ids()
+            .symbol_ids()
             .map(|symbol_id| declared.symbols.get_symbol(symbol_id))
             .find(|symbol| {
                 symbol
-                    .primary_declaration
+                    .declaration
                     .is_some_and(|declaration| declaration.local_id.id == declaration_id)
             })?;
 
@@ -506,20 +501,20 @@ impl<'a> ModuleLowerer<'a> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> mir::AllocationMode {
-        // load symbol decorators
+        // load symbol attributes
         let symbol = self.symbols.get_symbol(symbol.local_id);
-        let decorators = &symbol.decorators;
+        let attributes = &symbol.attributes;
 
-        // prefer stack only when explicitly requested
-        if decorators.is_stack_only
-            || self.symbol_has_language_decorator(symbol, LanguageSymbol::StackOnly)
+        // prefer no heap when explicitly requested
+        if attributes.is_no_heap()
+            || self.symbol_has_language_decorator(symbol, LanguageItem::NoHeap)
         {
-            return mir::AllocationMode::StackOnly;
+            return mir::AllocationMode::NoHeap;
         }
 
         // apply no managed only when requested explicitly
-        if decorators.is_no_managed
-            || self.symbol_has_language_decorator(symbol, LanguageSymbol::NoManaged)
+        if attributes.is_no_managed()
+            || self.symbol_has_language_decorator(symbol, LanguageItem::NoManaged)
         {
             return mir::AllocationMode::NoManaged;
         }
@@ -531,12 +526,12 @@ impl<'a> ModuleLowerer<'a> {
     fn symbol_has_language_decorator(
         &self,
         symbol: &dir::Symbol,
-        language_symbol: LanguageSymbol,
+        language_item: LanguageItem,
     ) -> bool {
-        let Some(declaration) = symbol.primary_declaration else {
+        let Some(declaration) = symbol.declaration else {
             return false;
         };
-        let Ok(Some(target_symbol)) = self.language_symbol(language_symbol) else {
+        let Ok(Some(target_symbol)) = self.language_item(language_item) else {
             return false;
         };
 
@@ -544,10 +539,17 @@ impl<'a> ModuleLowerer<'a> {
         for decorator_id in self.dir_tree.get_decorators(declaration.local_id.id) {
             let decorator = self.dir_tree.get(decorator_id);
             let expression = self.dir_tree.get(decorator.expression);
-            if expression.target_symbol() == Some(target_symbol) {
+            let decorator_node = decorator.expression.into_global_any(self.module_id);
+            if self
+                .types
+                .symbol_resolution(decorator_node)
+                .is_some_and(|resolution| {
+                    matches!(resolution, dir::SymbolResolution::Target(symbol) if *symbol == target_symbol)
+                })
+            {
                 return true;
             }
-            if expression_is_unqualified_name(expression, language_symbol.export_name()) {
+            if expression_is_unqualified_name(expression, language_item.export_name()) {
                 return true;
             }
         }
@@ -597,7 +599,7 @@ impl<'a> ModuleLowerer<'a> {
         anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<dir::LocalTypeId> {
         self.types
-            .get_type_id_for_symbol(self.symbols, symbol)
+            .declaration_form_id(self.symbols, symbol)
             .ok_or_else(|| LowerError::MissingType {
                 anchor: self.diagnostic_anchor(anchor),
             })
@@ -1022,8 +1024,8 @@ impl<'a> ModuleLowerer<'a> {
             }
 
             if matches!(
-                symbol.ty(),
-                dir::SymbolType::Class | dir::SymbolType::Interface
+                self.symbol_form(symbol),
+                Some(dir::DeclarationForm::Class | dir::DeclarationForm::Interface)
             ) && let Some(reference_type_id) = self.nominal_reference_type_id_for_symbol(symbol)
             {
                 self.lower_type(reference_type_id, anchor)?;
@@ -1111,12 +1113,15 @@ impl<'a> ModuleLowerer<'a> {
         for symbol_id in 0..self.symbols.symbol_count() {
             // skip non nominal symbols
             let symbol = self.symbols.get_symbol_by_id(symbol_id);
-            if !matches!(symbol.ty, dir::SymbolType::Newtype | dir::SymbolType::Enum) {
+            if !matches!(
+                symbol.form,
+                dir::DeclarationForm::Newtype | dir::DeclarationForm::Enum
+            ) {
                 continue;
             }
 
             // resolve the instance type and its lowered mir type
-            let local_id = dir::LocalSymbolId::new_typed(symbol_id, symbol.ty);
+            let local_id = dir::LocalSymbolId::new(symbol_id);
             let global_id = local_id.into_global(self.module_id);
             let Some(instance_type_id) = self.types.get_instance_type_id(global_id) else {
                 continue;
@@ -1156,10 +1161,7 @@ impl<'a> ModuleLowerer<'a> {
 fn expression_is_unqualified_name(expression: &dir::Expression, name: &str) -> bool {
     let name = StringId::for_text(name);
     let path = match expression {
-        dir::Expression::UnresolvedPath { path, .. }
-        | dir::Expression::LocalReference { path, .. }
-        | dir::Expression::ModuleReference { path, .. }
-        | dir::Expression::GlobalReference { path, .. } => path,
+        dir::Expression::Path { path, .. } => path,
         _ => return false,
     };
 

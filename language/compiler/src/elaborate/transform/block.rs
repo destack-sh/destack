@@ -21,7 +21,7 @@ impl Compiler {
 
         for if_id in if_ids {
             let Expression::If {
-                kind,
+                form,
                 condition,
                 then_expression,
                 else_expression,
@@ -41,7 +41,7 @@ impl Compiler {
                 state.tree.replace(
                     if_id,
                     Expression::If {
-                        kind,
+                        form,
                         condition,
                         then_expression: new_then,
                         else_expression: new_else,

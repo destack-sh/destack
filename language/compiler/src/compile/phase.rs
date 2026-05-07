@@ -8,7 +8,7 @@ pub enum CompilePhase {
     Resolve = 2,
     /// Declare, interface, analyze, and validate DIR.
     Analyze = 3,
-    /// Elaborate analyzed DIR into lowered DIR form.
+    /// Elaborate checked DIR into lowered DIR form.
     Elaborate = 4,
     /// Execute comptime and patch DIR.
     Execute = 5,

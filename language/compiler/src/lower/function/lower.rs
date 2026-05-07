@@ -4,6 +4,7 @@ use {destack_dir as dir, destack_mir as mir};
 
 use destack_artifact::{DiagnosticAnchor, DirChecked, DirDeclared, WellKnownIntrinsics};
 use destack_core::{StringId, StringPool};
+use destack_dir::GuardTable;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
 
@@ -35,6 +36,8 @@ pub(crate) struct FunctionLoweringContext<'a> {
     pub(crate) symbols: &'a dir::SymbolTable,
     /// Provide access to inferred and declared types.
     pub(crate) types: &'a dir::TypeTable,
+    /// Elaborated type guard entries.
+    pub(crate) guards: &'a GuardTable,
     /// Provide access to capture metadata for closures.
     pub(crate) captures: &'a dir::CaptureTable,
     /// Provide access to the program string pool for name resolution.
@@ -87,6 +90,40 @@ pub(crate) struct FunctionLoweringContext<'a> {
         &'a HashMap<dir::GlobalSymbolId, FunctionEnvironmentLayout>,
     /// Fallback environment pointer type for non-capturing closures.
     pub(crate) empty_function_environment_pointer_type: mir::LocalNodeId<mir::Type>,
+}
+
+impl FunctionLoweringContext<'_> {
+    /// Read one symbol record from local or declared DIR.
+    pub(crate) fn symbol(&self, symbol_id: dir::GlobalSymbolId) -> Option<dir::Symbol> {
+        if symbol_id.module_id == self.module_id {
+            Some(self.symbols.get_symbol(symbol_id.local_id).clone())
+        } else {
+            let declared = self
+                .compiler
+                .dir_declared(self.provider, symbol_id.module_id, self.profile)
+                .ok()?;
+
+            Some(declared.symbols.get_symbol(symbol_id.local_id).clone())
+        }
+    }
+
+    /// Return the declaration form for one symbol.
+    pub(crate) fn symbol_form(
+        &self,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> Option<dir::DeclarationForm> {
+        Some(self.symbol(symbol_id)?.form)
+    }
+
+    /// Return whether one symbol has the given declaration form.
+    pub(crate) fn symbol_is(
+        &self,
+        symbol_id: dir::GlobalSymbolId,
+        form: dir::DeclarationForm,
+    ) -> bool {
+        self.symbol_form(symbol_id)
+            .is_some_and(|actual| actual == form)
+    }
 }
 
 /// Mutable bindings state while lowering a single function.
@@ -211,7 +248,7 @@ impl<'a> FunctionLowerer<'a> {
             .ok()
     }
 
-    /// Read one committed analyzed DIR snapshot for a module.
+    /// Read one committed checked DIR snapshot for a module.
     pub(crate) fn require_analyzed_dir_data(
         &self,
         module_id: ModuleId,
@@ -459,14 +496,9 @@ impl<'a> FunctionLowerer<'a> {
                 self.lower_value_expression(*expression)
             }
 
-            dir::Expression::LocalReference { target_symbol, .. }
-            | dir::Expression::ModuleReference { target_symbol, .. }
-            | dir::Expression::GlobalReference { target_symbol, .. } => {
-                self.lower_reference_expression(expression_id, *target_symbol)
-            }
+            dir::Expression::Path { .. } => {
+                let target_symbol = self.resolve_expression_symbol(expression_id)?;
 
-            dir::Expression::UnresolvedPath { path, .. } => {
-                let target_symbol = self.resolve_local_path_symbol(expression_id, path)?;
                 self.lower_reference_expression(expression_id, target_symbol)
             }
 
@@ -566,11 +598,11 @@ impl<'a> FunctionLowerer<'a> {
                 self.lower_unary_expression(expression_id, *operator, *right)
             }
 
-            dir::Expression::ReferenceOf {
+            dir::Expression::BorrowOf {
                 mutability, right, ..
             } => self.lower_reference_of_expression(expression_id, *mutability, *right),
 
-            dir::Expression::ValueOf {
+            dir::Expression::MoveOf {
                 mutability, right, ..
             } => self.lower_value_of_expression(expression_id, *mutability, *right),
 
@@ -650,8 +682,10 @@ impl<'a> FunctionLowerer<'a> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         target_symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        let symbol_data = self.context.symbols.get_symbol(target_symbol.local_id);
-        if symbol_data.ty == dir::SymbolType::Function {
+        if self
+            .context
+            .symbol_is(target_symbol, dir::DeclarationForm::Function)
+        {
             return self.lower_function_value_for_symbol(expression_id, target_symbol);
         }
 
@@ -693,51 +727,25 @@ impl<'a> FunctionLowerer<'a> {
         }
     }
 
-    /// Resolve an unresolved local path from its expression scope.
-    pub(crate) fn resolve_local_path_symbol(
+    /// Resolve the symbol attached to an expression.
+    pub(crate) fn resolve_expression_symbol(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        path: &dir::Path,
     ) -> CompilerResult<dir::GlobalSymbolId> {
-        let Some(name) = path.last_segment() else {
+        let node_id = expression_id.into_global_any(self.context.module_id);
+
+        // read the resolved symbol from the checked DIR tables
+        let Some(dir::SymbolResolution::Target(symbol)) =
+            self.context.types.symbol_resolution(node_id)
+        else {
             return Err(LowerError::UnsupportedConstruct {
-                anchor: self.diagnostic_anchor(
-                    expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
-                ),
-                message: "empty path".to_string(),
+                anchor: self.diagnostic_anchor(node_id.into_anchored(Some(self.context.profile))),
+                message: "expression is missing symbol resolution".to_string(),
             }
             .into());
         };
-        let key = dir::StaticKey::Name(name);
-        let (mut scope_id, mut mark) = self.context.dir_tree.get_scope(expression_id);
 
-        loop {
-            let scope = self.context.symbols.get_scope_by_id(scope_id);
-            if let Some(symbol_id) = self
-                .context
-                .symbols
-                .find_active_symbol_up_to(scope, key, mark)
-            {
-                return Ok(symbol_id.into_global(self.context.module_id));
-            }
-
-            let Some((parent_scope_id, _)) = scope.parent else {
-                return Err(LowerError::UnsupportedConstruct {
-                    anchor: self.diagnostic_anchor(
-                        expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
-                    ),
-                    message: "unresolved path".to_string(),
-                }
-                .into());
-            };
-
-            scope_id = parent_scope_id;
-            mark = dir::LocalScopeMark::end();
-        }
+        Ok(*symbol)
     }
 
     /// Lower a function symbol reference to a closure value.
@@ -846,26 +854,17 @@ impl<'a> FunctionLowerer<'a> {
 
         // update the assignment target
         match self.context.dir_tree.get(left) {
-            dir::Expression::LocalReference { target_symbol, .. } => {
-                if let Some(field) = self.capture_field_for_symbol(*target_symbol) {
-                    self.store_captured_binding(expression_id, &field, value)?;
-                    return Ok((value, value_type));
-                }
-
-                // resolve the target binding
-                let binding = self.local_binding_for_symbol(left, *target_symbol)?;
-
-                // update the variable binding
-                self.set_binding_value(binding, value);
-            }
-            dir::Expression::UnresolvedPath { path, .. } => {
-                let target_symbol = self.resolve_local_path_symbol(left, path)?;
+            dir::Expression::Path { .. } => {
+                let target_symbol = self.resolve_expression_symbol(left)?;
                 if let Some(field) = self.capture_field_for_symbol(target_symbol) {
                     self.store_captured_binding(expression_id, &field, value)?;
                     return Ok((value, value_type));
                 }
 
+                // resolve the target binding
                 let binding = self.local_binding_for_symbol(left, target_symbol)?;
+
+                // update the variable binding
                 self.set_binding_value(binding, value);
             }
             dir::Expression::Member {
@@ -919,8 +918,8 @@ impl<'a> FunctionLowerer<'a> {
                 // handle setter access using resolution
                 if let Some(target_symbol) = self.resolved_member_symbol(left)
                     && matches!(
-                        self.member_mode_for_symbol(target_symbol),
-                        Some(dir::FunctionMode::Setter)
+                        self.member_role_for_symbol(target_symbol),
+                        Some(dir::FunctionRole::Setter)
                     )
                 {
                     self.lower_setter_call(expression_id, *receiver_id, target_symbol, value)?;

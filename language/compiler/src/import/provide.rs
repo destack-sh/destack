@@ -1,8 +1,8 @@
 use crate::{Compiler, CompilerError, CompilerResult};
 use destack_artifact::{ArtifactKey, ArtifactPayload, DirDeclared};
 use destack_dir::{
-    ExportMode, Expression, LocalNodeIdAny, LocalScopeMark, NodeType, ScopeKind, SymbolBinding,
-    SymbolKind, SymbolSpace, SymbolTable, SymbolType, Tree, TypeLiteral, TypeTable,
+    DeclarationForm, ExportKind, Expression, LocalNodeIdAny, LocalScopeMark, NodeType, ScopeKind,
+    SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, Tree, TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext, ProviderError};
@@ -53,26 +53,26 @@ impl Compiler {
             );
             let (namespace_symbol, _) = symbols.insert_symbol(
                 SymbolKind::Namespace,
-                SymbolType::Void,
+                DeclarationForm::Void,
                 SymbolSpace::Value,
                 SymbolBinding::Runtime,
                 None,
                 (namespace_scope, LocalScopeMark::end()),
-                Some(ExportMode::Named),
+                Some(ExportKind::Named),
             );
             symbols.get_scope_by_id_mut(namespace_scope).owner_id = Some(namespace_symbol);
             let (default_symbol, _) = symbols.insert_symbol(
                 default_symbol_kind,
-                SymbolType::Void,
+                DeclarationForm::Void,
                 SymbolSpace::Value,
                 SymbolBinding::Runtime,
                 None,
                 (namespace_scope, LocalScopeMark::end()),
-                Some(ExportMode::Default),
+                Some(ExportKind::Default),
             );
             let (export_assignment_symbol, _) = symbols.insert_symbol(
                 SymbolKind::Namespace,
-                SymbolType::Void,
+                DeclarationForm::Void,
                 SymbolSpace::Value,
                 SymbolBinding::Runtime,
                 None,

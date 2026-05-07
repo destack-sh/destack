@@ -582,14 +582,14 @@ function work(): void {}
     });
 }
 
-/// Apply stack only allocation mode when requested by decorators.
+/// Apply no heap allocation mode when requested by decorators.
 #[test]
-fn test_lower_sets_stack_only_allocation_mode() {
+fn test_lower_sets_no_heap_allocation_mode() {
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
-@stackOnly
+@noHeap
 function work(): void {}
 "#,
     );
@@ -600,7 +600,7 @@ function work(): void {}
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
         let function = test.function_by_name(tree, strings, "work");
-        assert_eq!(function.allocation, mir::AllocationMode::StackOnly);
+        assert_eq!(function.allocation, mir::AllocationMode::NoHeap);
     });
 }
 
@@ -615,7 +615,7 @@ function work(): void {}
 "#,
     );
 
-    test.apply_destack_config(module_id, r#"{ "compilerOptions": { "noManaged": true } }"#);
+    test.apply_destack_config(module_id, r#"{ "compiler": { "noManaged": true } }"#);
     test.add_target(module_id, "native");
     test.lower_module(module_id, "native");
     test.compile_check_clean();

@@ -106,10 +106,10 @@ impl FunctionLowerer<'_> {
                 message: "call expression missing dir::Resolution (Analyze issue)".to_string(),
             })
             .map_err(CompilerError::from)?;
-        let dir::Resolution::Static {
+        let dir::Resolution::Dispatch(dir::DispatchResolution::Static {
             receiver: resolution_receiver,
-            candidate,
-        } = resolution
+            target,
+        }) = resolution
         else {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
@@ -122,7 +122,7 @@ impl FunctionLowerer<'_> {
             .into());
         };
         let resolution_receiver = *resolution_receiver;
-        let target_symbol = candidate.target_symbol;
+        let target_symbol = target.symbol;
 
         // lower intrinsic bindings directly
         if let Some(result) = self.lower_intrinsic_binding_call(
@@ -134,7 +134,10 @@ impl FunctionLowerer<'_> {
             return Ok(result);
         }
 
-        if target_symbol.ty() == dir::SymbolType::Newtype {
+        if self
+            .context
+            .symbol_is(target_symbol, dir::DeclarationForm::Newtype)
+        {
             let (value, result_type) =
                 self.lower_newtype_constructor_call(expression_id, target_symbol, arguments)?;
             return Ok((Some(value), result_type));
@@ -154,7 +157,9 @@ impl FunctionLowerer<'_> {
         }
 
         // lower calls through callable values
-        if target_symbol.ty() != dir::SymbolType::Function
+        if !self
+            .context
+            .symbol_is(target_symbol, dir::DeclarationForm::Function)
             && self.function_for_symbol(target_symbol).is_none()
             && let Some(type_id) = self
                 .type_for_expression(*left)
@@ -177,7 +182,9 @@ impl FunctionLowerer<'_> {
             .captures
             .capture_set(target_symbol)
             .is_some_and(|set| !set.captures.is_empty());
-        if self.context.symbols.get_symbol(target_symbol.local_id).ty == dir::SymbolType::Function
+        if self
+            .context
+            .symbol_is(target_symbol, dir::DeclarationForm::Function)
             && has_captures
         {
             let (closure_value, closure_type) = self.lower_value_expression(*left)?;
@@ -807,11 +814,11 @@ impl FunctionLowerer<'_> {
             return Vec::new();
         };
         let type_id = self.context.types.unwrap_value_type_id(type_id);
-        let dir::Type::Function { parameters, .. } = self.context.types.get_type(type_id) else {
+        let dir::Type::Function(function) = self.context.types.get_type(type_id) else {
             return Vec::new();
         };
 
-        parameters.clone()
+        function.parameters.clone()
     }
 
     /// Return MIR parameter type ids from a function signature type.
@@ -905,10 +912,7 @@ impl FunctionLowerer<'_> {
     /// Return whether a DIR type id is a callable value type.
     fn is_function_type(&self, type_id: dir::LocalTypeId) -> bool {
         let type_id = self.context.types.unwrap_value_type_id(type_id);
-        matches!(
-            self.context.types.get_type(type_id),
-            dir::Type::Function { .. }
-        )
+        matches!(self.context.types.get_type(type_id), dir::Type::Function(_))
     }
 
     /// Lower a call through a closure value.

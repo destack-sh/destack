@@ -2,8 +2,9 @@
 
 use destack_dir as dir;
 use dir::{
-    Argument, CastOperator, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId,
-    Member, NodeType, PrimitiveType, Resolution, ScalarLiteral, Type, TypeLiteral, TypeTable,
+    Argument, CastOperator, Declaration, DispatchResolution, Expression, GlobalSymbolId,
+    LocalNodeId, LocalTypeId, Member, NodeType, PrimitiveType, Resolution, ScalarLiteral, Type,
+    TypeLiteral, TypeTable,
 };
 
 use crate::elaborate::ElaborateState;
@@ -19,23 +20,23 @@ impl Compiler {
         arguments: &[LocalNodeId<Argument>],
     ) -> ElaborateResult<Option<Vec<Option<LocalTypeId>>>> {
         // resolve the call resolution
-        let Some(resolution_id) = state
+        let Some(resolution) = state
             .types
-            .get_resolution_for_node(expression_id.into_global_any(state.module_id))
+            .resolution(expression_id.into_global_any(state.module_id))
+            .cloned()
         else {
             return Ok(None);
         };
-        let resolution = state.types.get_resolution(resolution_id).clone();
         let candidates = match resolution {
-            Resolution::Static { candidate, .. } => vec![candidate],
-            Resolution::Dynamic { candidates, .. } => candidates,
+            Resolution::Dispatch(DispatchResolution::Static { target, .. }) => vec![target],
+            Resolution::Dispatch(DispatchResolution::Dynamic { targets, .. }) => targets,
             _ => return Ok(None),
         };
 
         // collect resolved signatures for all candidates
         let mut signatures = Vec::new();
         for candidate in candidates {
-            let Some(resolved_signature) = candidate.resolved_signature else {
+            let Some(resolved_signature) = candidate.signature else {
                 return Ok(None);
             };
             signatures.push(resolved_signature);
@@ -141,8 +142,8 @@ impl Compiler {
     ) -> Option<LocalTypeId> {
         // unwrap value types when needed
         match state.types.get_type(type_id) {
-            Type::Function { return_type, .. } => *return_type,
-            Type::Value { value } => self.return_type_from_type_id(state, *value),
+            Type::Function(function) => function.return_type,
+            Type::Value(value) => self.return_type_from_type_id(state, value.value),
             _ => None,
         }
     }
@@ -160,7 +161,7 @@ enum NumericKind {
 /// Return the numeric kind for a type when possible.
 fn numeric_kind_for_type(ty: &Type) -> Option<NumericKind> {
     // only primitive or scalar literal types are numeric
-    let Type::TypeLiteral { value } = ty else {
+    let Type::Literal(dir::LiteralType { value }) = ty else {
         return None;
     };
 
@@ -263,9 +264,9 @@ pub(super) fn common_numeric_type_id_for_binary(
 
     // widen literal only expressions to number
     if left_is_literal && right_is_literal {
-        let ty = Type::TypeLiteral {
+        let ty = Type::Literal(dir::LiteralType {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
-        };
+        });
         let type_id = types.insert_type_from(ty, source_id);
         return Some(type_id);
     }
@@ -285,11 +286,11 @@ pub(super) fn common_numeric_type_id_for_binary(
 pub(super) fn is_integer_type(ty: &Type) -> bool {
     matches!(
         ty,
-        Type::TypeLiteral {
+        Type::Literal(dir::LiteralType {
             value: TypeLiteral::Primitive(PrimitiveType::Int(_))
-        } | Type::TypeLiteral {
+        }) | Type::Literal(dir::LiteralType {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_))
-        }
+        })
     )
 }
 
@@ -328,9 +329,9 @@ fn prefer_left_numeric_kind(left: NumericKind, right: NumericKind) -> bool {
 pub(super) fn is_any_type(ty: &Type) -> bool {
     matches!(
         ty,
-        Type::TypeLiteral {
+        Type::Literal(dir::LiteralType {
             value: TypeLiteral::Any
-        }
+        })
     )
 }
 
@@ -338,9 +339,9 @@ pub(super) fn is_any_type(ty: &Type) -> bool {
 pub(super) fn is_unknown_type(ty: &Type) -> bool {
     matches!(
         ty,
-        Type::TypeLiteral {
+        Type::Literal(dir::LiteralType {
             value: TypeLiteral::Unknown
-        }
+        })
     )
 }
 
@@ -348,11 +349,11 @@ pub(super) fn is_unknown_type(ty: &Type) -> bool {
 pub(super) fn is_string_type(ty: &Type) -> bool {
     matches!(
         ty,
-        Type::TypeLiteral {
+        Type::Literal(dir::LiteralType {
             value: TypeLiteral::Primitive(PrimitiveType::String)
-        } | Type::TypeLiteral {
+        }) | Type::Literal(dir::LiteralType {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
-        }
+        })
     )
 }
 
@@ -360,9 +361,9 @@ pub(super) fn is_string_type(ty: &Type) -> bool {
 pub(super) fn is_scalar_literal_type(ty: &Type) -> bool {
     matches!(
         ty,
-        Type::TypeLiteral {
+        Type::Literal(dir::LiteralType {
             value: TypeLiteral::ScalarLiteral(_),
-        }
+        })
     )
 }
 
@@ -371,40 +372,40 @@ pub(super) fn has_matching_scalar_runtime_family(source: &Type, target: &Type) -
     matches!(
         (source, target),
         (
-            Type::TypeLiteral {
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(_)),
-            },
-            Type::TypeLiteral {
+            }),
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::Primitive(PrimitiveType::Boolean),
-            },
+            }),
         ) | (
-            Type::TypeLiteral {
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::Character(_)),
-            },
-            Type::TypeLiteral {
+            }),
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::Primitive(PrimitiveType::Character),
-            },
+            }),
         ) | (
-            Type::TypeLiteral {
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_)),
-            },
-            Type::TypeLiteral {
+            }),
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::Primitive(PrimitiveType::String),
-            },
+            }),
         ) | (
-            Type::TypeLiteral {
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::RegexString { .. }),
-            },
-            Type::TypeLiteral {
+            }),
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::Primitive(PrimitiveType::String),
-            },
+            }),
         ) | (
-            Type::TypeLiteral {
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::Bigint(_)),
-            },
-            Type::TypeLiteral {
+            }),
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::Primitive(PrimitiveType::Bigint),
-            },
+            }),
         )
     )
 }
@@ -418,47 +419,48 @@ pub(super) fn has_matching_implicit_value_runtime_family(source: &Type, target: 
     matches!(
         (source, target),
         (
-            Type::TypeLiteral {
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::Primitive(PrimitiveType::Int(_) | PrimitiveType::Float(_)),
-            },
-            Type::TypeLiteral {
+            }),
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::Primitive(PrimitiveType::Number),
-            },
+            }),
         ) | (
-            Type::TypeLiteral {
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::ScalarLiteral(
                     ScalarLiteral::Integer(_) | ScalarLiteral::Float(_),
                 ),
-            },
-            Type::TypeLiteral {
+            }),
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::Primitive(PrimitiveType::Number),
-            },
+            }),
         )
     )
 }
 
 /// Check whether a type is a pointer type.
 pub(super) fn is_pointer_type(ty: &Type) -> bool {
-    matches!(ty, Type::PointerOf { .. })
+    let _ = ty;
+    false
 }
 
 /// Check whether a type is a union type.
 pub(super) fn is_union_type(ty: &Type) -> bool {
-    matches!(ty, Type::Union { .. })
+    matches!(ty, Type::Union(_))
 }
 
 /// Check whether a type is a nullable union type.
 pub(super) fn is_nullable_union(ty: &Type, types: &TypeTable) -> bool {
-    let Type::Union { elements } = ty else {
+    let Type::Union(union) = ty else {
         return false;
     };
 
-    elements.iter().any(|element_id| {
+    union.elements.iter().any(|element_id| {
         matches!(
             types.get_type(*element_id),
-            Type::TypeLiteral {
+            Type::Literal(dir::LiteralType {
                 value: TypeLiteral::Null | TypeLiteral::Undefined,
-            }
+            })
         )
     })
 }
@@ -467,17 +469,8 @@ pub(super) fn is_nullable_union(ty: &Type, types: &TypeTable) -> bool {
 pub(super) fn is_object_type(ty: &Type) -> bool {
     matches!(
         ty,
-        Type::TypeLiteral {
+        Type::Literal(dir::LiteralType {
             value: TypeLiteral::Object
-        }
+        })
     )
-}
-
-/// Check whether two types are semantically equal for casting.
-pub(super) fn are_types_semantically_equal(
-    source: &Type,
-    target: &Type,
-    types: &TypeTable,
-) -> bool {
-    dir::are_types_semantically_equal(source, target, types)
 }

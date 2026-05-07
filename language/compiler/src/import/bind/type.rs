@@ -1,10 +1,10 @@
 use destack_artifact::Ast;
 use destack_ast::{self as ast, StringId};
 use destack_dir::{
-    ConstructorTypeDeclaration, FunctionTypeDeclaration, GenericArgument, LocalNodeId,
-    LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, Mutability, NodeType, ScopeKind,
-    StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType,
-    Tree, TupleElement, TypeExpression, TypeMappedParameter, TypeMember, TypeModifier,
+    ConstructorTypeDeclaration, DeclarationForm, FunctionTypeDeclaration, GenericArgument,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MappedTypeModifier, ModuleBinding,
+    Mutability, NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace,
+    SymbolTable, Tree, TupleElement, TypeExpression, TypeMappedParameter, TypeMember,
     TypePredicateSubject, TypeTable, VarianceBound,
 };
 use destack_workspace::Module;
@@ -28,7 +28,7 @@ impl Compiler {
         tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
-        space_order: SymbolSpaceOrder,
+        space: SymbolSpace,
     ) -> LocalNodeId<GenericArgument> {
         let ast_argument = ast.tree.get(ast_argument_id);
         let argument_id = tree.reserve_from_source(
@@ -52,7 +52,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(argument_id, GenericArgument::Type { value })
@@ -70,7 +70,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(argument_id, GenericArgument::Value { value })
@@ -94,7 +94,7 @@ impl Compiler {
         tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
-        space_order: SymbolSpaceOrder,
+        space: SymbolSpace,
     ) -> LocalNodeId<TupleElement> {
         let ast_element = ast.tree.get(ast_element_id);
         let element_id =
@@ -120,7 +120,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(
@@ -147,7 +147,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(element_id, TupleElement::Spread { label, value })
@@ -171,7 +171,7 @@ impl Compiler {
         tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
-        space_order: SymbolSpaceOrder,
+        space: SymbolSpace,
     ) -> LocalNodeId<TypeMember> {
         let ast_member = ast.tree.get(ast_member_id);
         let member_id =
@@ -216,7 +216,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
 
@@ -231,7 +231,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 member_id
             }
             ast::TypeMember::Method {
@@ -310,7 +310,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
 
@@ -325,7 +325,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 member_id
             }
             ast::TypeMember::CallSignature { signature } => {
@@ -416,7 +416,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
                 let where_clauses = signature
@@ -454,7 +454,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 member_id
             }
             ast::TypeMember::ConstructSignature { signature } => {
@@ -530,7 +530,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
                 let where_clauses = signature
@@ -568,7 +568,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 member_id
             }
             ast::TypeMember::IndexSignature {
@@ -596,7 +596,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let value_type = self.bind_type_expression(
                     module,
@@ -610,7 +610,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 let member_id = tree.insert(
@@ -624,7 +624,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 member_id
             }
             ast::TypeMember::Embed { value } => {
@@ -645,7 +645,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 let member_id = tree.insert(
@@ -655,7 +655,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 member_id
             }
             ast::TypeMember::AssociatedType {
@@ -721,7 +721,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
                 let value = value.map(|value| {
@@ -737,14 +737,14 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
 
                 // member symbol
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolKind::Item,
-                    SymbolType::TypeAlias,
+                    DeclarationForm::TypeAlias,
                     SymbolSpace::Type,
                     SymbolBinding::Runtime,
                     Some(StaticKey::Name(name)),
@@ -762,7 +762,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 member_id
             }
             ast::TypeMember::AssociatedConst {
@@ -787,7 +787,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
                 let value = value.map(|value| {
@@ -803,14 +803,14 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
 
                 // member symbol
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolKind::Item,
-                    SymbolType::Void,
+                    DeclarationForm::Void,
                     SymbolSpace::Value,
                     SymbolBinding::Runtime,
                     Some(StaticKey::Name(name)),
@@ -826,14 +826,14 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 member_id
             }
             ast::TypeMember::Error => {
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 let member_id = tree.insert(member_id, TypeMember::Error { symbol: symbol_id });
-                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                symbols.get_symbol_mut(symbol_id).declare(member_id);
                 member_id
             }
         }
@@ -854,7 +854,7 @@ impl Compiler {
         tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
-        space_order: SymbolSpaceOrder,
+        space: SymbolSpace,
     ) -> LocalNodeId<TypeExpression> {
         let ast_type_expression = ast.tree.get(ast_type_expression_id);
         let type_expression_id = tree.reserve_from_source(
@@ -878,7 +878,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(
@@ -913,7 +913,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            space_order,
+                            space,
                         )
                     })
                     .collect();
@@ -936,7 +936,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            space_order,
+                            space,
                         )
                     })
                     .collect();
@@ -956,10 +956,63 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(type_expression_id, TypeExpression::Array { element })
+            }
+            ast::TypeExpression::Slice { element } => {
+                let element = self.bind_type_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *element,
+                    Some(type_expression_id.into()),
+                    tree,
+                    symbols,
+                    types,
+                    space,
+                );
+
+                tree.insert(type_expression_id, TypeExpression::Slice { element })
+            }
+            ast::TypeExpression::FixedArray { element, length } => {
+                let element = self.bind_type_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *element,
+                    Some(type_expression_id.into()),
+                    tree,
+                    symbols,
+                    types,
+                    space,
+                );
+                let length = self.bind_type_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *length,
+                    Some(type_expression_id.into()),
+                    tree,
+                    symbols,
+                    types,
+                    space,
+                );
+
+                tree.insert(
+                    type_expression_id,
+                    TypeExpression::FixedArray { element, length },
+                )
             }
             ast::TypeExpression::Object { members } => {
                 let members = members
@@ -977,7 +1030,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            space_order,
+                            space,
                         )
                     })
                     .collect();
@@ -1090,7 +1143,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
                 let where_clauses = function
@@ -1193,7 +1246,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
                 let where_clauses = function
@@ -1247,7 +1300,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            space_order,
+                            space,
                         )
                     })
                     .collect();
@@ -1257,7 +1310,7 @@ impl Compiler {
                     TypeExpression::Reference {
                         path,
                         generic_arguments,
-                        space_order,
+                        space,
                     },
                 )
             }
@@ -1278,7 +1331,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let name = *name;
                 let generic_arguments = generic_arguments
@@ -1296,7 +1349,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            space_order,
+                            space,
                         )
                     })
                     .collect();
@@ -1330,7 +1383,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueThenType,
+                    SymbolSpace::Value,
                 );
                 let arguments = arguments
                     .iter()
@@ -1347,7 +1400,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::ValueThenType,
+                            SymbolSpace::Value,
                         )
                     })
                     .collect();
@@ -1356,9 +1409,9 @@ impl Compiler {
                     .map(|qualifier| self.bind_path(module, ast, qualifier));
 
                 let generic_argument_space_order = if module.is_destack() {
-                    SymbolSpaceOrder::ValueThenType
+                    SymbolSpace::Value
                 } else {
-                    SymbolSpaceOrder::TypeThenValue
+                    SymbolSpace::Type
                 };
                 let generic_arguments = generic_arguments
                     .iter()
@@ -1403,7 +1456,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(type_expression_id, TypeExpression::Readonly { target_type })
@@ -1421,7 +1474,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(type_expression_id, TypeExpression::KeyOf { target_type })
@@ -1439,7 +1492,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueOnly,
+                    SymbolSpace::Value,
                 );
 
                 tree.insert(type_expression_id, TypeExpression::TypeOfValue { value })
@@ -1457,7 +1510,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(type_expression_id, TypeExpression::Must { target_type })
@@ -1475,7 +1528,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(
@@ -1496,12 +1549,12 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(type_expression_id, TypeExpression::Not { target_type })
             }
-            ast::TypeExpression::ValueOf {
+            ast::TypeExpression::OwnedOf {
                 mutability,
                 variance,
                 target_type,
@@ -1520,19 +1573,19 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(
                     type_expression_id,
-                    TypeExpression::ValueOf {
+                    TypeExpression::OwnedOf {
                         mutability,
                         variance,
                         target_type,
                     },
                 )
             }
-            ast::TypeExpression::ReferenceOf {
+            ast::TypeExpression::BorrowedOf {
                 mutability,
                 variance,
                 target_type,
@@ -1551,12 +1604,12 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(
                     type_expression_id,
-                    TypeExpression::ReferenceOf {
+                    TypeExpression::BorrowedOf {
                         mutability,
                         variance,
                         target_type,
@@ -1580,7 +1633,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(
@@ -1607,7 +1660,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            space_order,
+                            space,
                         )
                     })
                     .collect();
@@ -1630,7 +1683,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            space_order,
+                            space,
                         )
                     })
                     .collect();
@@ -1658,7 +1711,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 let conditional_scope_id =
@@ -1679,7 +1732,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 let conditional_scope = (
@@ -1698,7 +1751,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let else_type = self.bind_type_expression(
                     module,
@@ -1712,7 +1765,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(
@@ -1744,7 +1797,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 let parameter_scope_id = symbols.insert_scope(ScopeKind::Type, Some(scope), None);
@@ -1778,7 +1831,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
                 let parameter = TypeMappedParameter {
@@ -1804,7 +1857,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(
@@ -1830,7 +1883,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let index = self.bind_type_expression(
                     module,
@@ -1844,7 +1897,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 tree.insert(type_expression_id, TypeExpression::Index { left, index })
@@ -1866,7 +1919,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            space_order,
+                            space,
                         )
                     })
                     .collect();
@@ -1891,7 +1944,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
 
@@ -1938,7 +1991,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
 
@@ -1964,7 +2017,6 @@ impl Compiler {
         match mutability {
             ast::Mutability::Immutable => Mutability::Immutable,
             ast::Mutability::Mutable => Mutability::Mutable,
-            ast::Mutability::Exclusive => Mutability::Mutable,
         }
     }
 
@@ -1979,12 +2031,15 @@ impl Compiler {
 
     /// Bind a type modifier into a DIR type modifier.
     #[inline]
-    pub(super) fn bind_type_modifier(&self, modifier: ast::TypeModifier) -> TypeModifier {
+    pub(super) fn bind_type_modifier(
+        &self,
+        modifier: ast::MappedTypeModifier,
+    ) -> MappedTypeModifier {
         match modifier {
-            ast::TypeModifier::Present => TypeModifier::Present,
-            ast::TypeModifier::Add => TypeModifier::Add,
-            ast::TypeModifier::Remove => TypeModifier::Remove,
-            ast::TypeModifier::None => TypeModifier::None,
+            ast::MappedTypeModifier::Present => MappedTypeModifier::Present,
+            ast::MappedTypeModifier::Add => MappedTypeModifier::Add,
+            ast::MappedTypeModifier::Remove => MappedTypeModifier::Remove,
+            ast::MappedTypeModifier::None => MappedTypeModifier::None,
         }
     }
 }

@@ -163,9 +163,9 @@ These run before optimization passes.
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
 | `move-check` | MoveCheck | function | V | ✓ | ownership | Verify move semantics: no use-after-move for linear types, copy semantics for trivial types |
-| `borrow-check` | BorrowCheck | function | V | ✓ | cfg, liveness, borrow, alias, lifetime | Verify borrow rules, exclusivity, and lifetime annotations |
+| `borrow-check` | BorrowCheck | function | V | ✓ | cfg, liveness, borrow, alias, lifetime | Verify borrow rules, exclusivity, and return lifetimes |
 | `stack-check` | StackCheck | function | V | ✓ | cfg, lifetime | Verify stack safety: no returns of references to locals, no stack pointer escapes |
-| `lifetime-check` | LifetimeCheck | function | V | ✓ | cfg, lifetime | Verify explicit lifetime annotations against returned borrows |
+| `lifetime-check` | LifetimeCheck | function | V | ✓ | cfg, lifetime | Verify explicit return lifetimes against returned borrows |
 | `drop-insert` | DropInsert | function | V | ✓ | cfg, liveness, ownership | Insert `drop` at last-use points for owned refs |
 
 `drop-insert` is the ownership lifetime placement pass.

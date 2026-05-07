@@ -80,11 +80,16 @@ impl FunctionLowerer<'_> {
         // resolve the receiver type
         let dir_type = self.context.types.get_type(receiver_type_id);
         match dir_type {
-            dir::Type::Reference { symbol, .. } if symbol.ty() == dir::SymbolType::Interface => {
-                Some(*symbol)
+            dir::Type::Reference(reference)
+                if self
+                    .context
+                    .symbol_is(reference.symbol, dir::DeclarationForm::Interface) =>
+            {
+                Some(reference.symbol)
             }
-            dir::Type::Value { value } => self.interface_symbol_for_type(*value),
-            dir::Type::Intersection { elements } => elements
+            dir::Type::Value(value) => self.interface_symbol_for_type(value.value),
+            dir::Type::Intersection(intersection) => intersection
+                .elements
                 .iter()
                 .find_map(|element| self.interface_symbol_for_type(*element)),
             _ => None,
@@ -122,8 +127,7 @@ impl FunctionLowerer<'_> {
             else {
                 return false;
             };
-            *name == method_key.name()
-                && dir::are_types_equal(*signature, method_key.signature(), self.context.types)
+            *name == method_key.name() && *signature == method_key.signature()
         });
 
         // require a matching slot
@@ -182,9 +186,9 @@ impl FunctionLowerer<'_> {
             .into());
         }
 
-        // resolve the primary declaration node
+        // resolve the declaration node
         let symbol_entry = self.context.symbols.get_symbol(symbol.local_id);
-        let Some(primary) = symbol_entry.primary_declaration else {
+        let Some(primary) = symbol_entry.declaration else {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id
@@ -265,10 +269,10 @@ impl FunctionLowerer<'_> {
             };
 
         // resolve the method name
-        let method_name = match (dynamic_key, signature.mode) {
+        let method_name = match (dynamic_key, signature.role) {
             (Some(dir::Key::Name(name)), _) => name.string(),
-            (None, Some(dir::FunctionMode::Call)) => self.context.dispatch_call_name,
-            (None, Some(dir::FunctionMode::Constructor | dir::FunctionMode::New)) => {
+            (None, Some(dir::FunctionRole::Call)) => self.context.dispatch_call_name,
+            (None, Some(dir::FunctionRole::Constructor | dir::FunctionRole::New)) => {
                 self.context.dispatch_construct_name
             }
             _ => {
@@ -289,7 +293,7 @@ impl FunctionLowerer<'_> {
 
         Ok(MethodKey::new(
             method_name,
-            signature.mode,
+            signature.role,
             signature_type_id,
         ))
     }

@@ -32,31 +32,31 @@ impl TypeLowerer<'_> {
         builder: &mut mir::ModuleBuilder,
     ) -> Option<mir::LocalNodeId<mir::Type>> {
         match dir_type {
-            dir::Type::TypeLiteral {
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Void,
-            } => Some(self.ty_void),
-            dir::Type::TypeLiteral {
+            }) => Some(self.ty_void),
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Boolean),
-            } => Some(self.ty_bool),
-            dir::Type::TypeLiteral {
+            }) => Some(self.ty_bool),
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Number),
-            } => Some(self.ty_f64),
-            dir::Type::TypeLiteral {
+            }) => Some(self.ty_f64),
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Float(float_type)),
-            } => match float_type.simplify() {
+            }) => match float_type.simplify() {
                 dir::FloatType::Float32 => Some(self.ty_f32),
                 dir::FloatType::Float64 => Some(self.ty_f64),
                 dir::FloatType::Arbitrary { width } => Some(builder.type_float(width)),
             },
-            dir::Type::TypeLiteral {
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::String),
-            } => self.ty_string,
-            dir::Type::TypeLiteral {
+            }) => self.ty_string,
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Null | dir::TypeLiteral::Undefined,
-            } => Some(self.ty_void),
-            dir::Type::TypeLiteral {
+            }) => Some(self.ty_void),
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Int(int_type)),
-            } => match int_type.simplify() {
+            }) => match int_type.simplify() {
                 dir::IntType::Int32 => Some(self.ty_i32),
                 dir::IntType::Int64 => Some(self.ty_i64),
                 dir::IntType::Uint32 => Some(builder.type_int(32, false)),
@@ -75,9 +75,9 @@ impl TypeLowerer<'_> {
                     Some(builder.type_int(width, is_signed))
                 }
             },
-            dir::Type::TypeLiteral {
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::ScalarLiteral(literal),
-            } => match literal {
+            }) => match literal {
                 dir::ScalarLiteral::Null => None,
                 dir::ScalarLiteral::Boolean(_) => Some(self.ty_bool),
                 dir::ScalarLiteral::Integer(_) => Some(self.ty_i32),
@@ -94,25 +94,25 @@ impl TypeLowerer<'_> {
     /// Resolve a scalar type for a given DIR type.
     pub(crate) fn scalar_type_for_dir_type(&self, dir_type: &dir::Type) -> Option<ScalarType> {
         match dir_type {
-            dir::Type::TypeLiteral {
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Boolean),
-            } => Some(ScalarType::Bool),
-            dir::Type::TypeLiteral {
+            }) => Some(ScalarType::Bool),
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Number),
-            } => Some(ScalarType::Float { width: 64 }),
-            dir::Type::TypeLiteral {
+            }) => Some(ScalarType::Float { width: 64 }),
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Float(float_type)),
-            } => match float_type.simplify() {
+            }) => match float_type.simplify() {
                 dir::FloatType::Float32 => Some(ScalarType::Float { width: 32 }),
                 dir::FloatType::Float64 => Some(ScalarType::Float { width: 64 }),
                 dir::FloatType::Arbitrary { width } => Some(ScalarType::Float { width }),
             },
-            dir::Type::TypeLiteral {
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Int(int_type)),
-            } => Some(self.scalar_type_for_int_type(*int_type)),
-            dir::Type::TypeLiteral {
+            }) => Some(self.scalar_type_for_int_type(*int_type)),
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::ScalarLiteral(literal),
-            } => match literal {
+            }) => match literal {
                 dir::ScalarLiteral::Boolean(_) => Some(ScalarType::Bool),
                 dir::ScalarLiteral::Integer(_) => Some(ScalarType::SignedInt { width: 32 }),
                 dir::ScalarLiteral::Float(_) => Some(ScalarType::Float { width: 64 }),

@@ -74,9 +74,9 @@ impl ModuleLowerer<'_> {
         // resolve the class base symbol
         let base_symbol = self
             .types
-            .get_lineage_for_symbol(symbol)
+            .symbol_lineage(symbol)
             .and_then(|lineage| lineage.extends)
-            .filter(|_| symbol.ty() == dir::SymbolType::Class);
+            .filter(|_| self.symbol_is(symbol, dir::DeclarationForm::Class));
 
         // predeclare the base layout for derived classes
         if let Some(base_symbol) = base_symbol {
@@ -142,7 +142,7 @@ impl ModuleLowerer<'_> {
                 field_inputs,
                 LayoutPolicy::default(),
             )
-        } else if symbol.ty() == dir::SymbolType::Class && has_vtable_header {
+        } else if self.symbol_is(symbol, dir::DeclarationForm::Class) && has_vtable_header {
             let vtable_name = self.vtable_field_name;
             let vtable_type = self.builder.type_reference(
                 mir::ReferenceKind::Raw,
@@ -345,24 +345,12 @@ impl ModuleLowerer<'_> {
         let symbol_entry = self.symbols.get_symbol(symbol.local_id);
         let mut declaration_ids = Vec::new();
 
-        // add primary declaration first
-        if let Some(primary) = symbol_entry.primary_declaration
+        // add declaration first
+        if let Some(primary) = symbol_entry.declaration
             && primary.module_id == self.module_id
             && let Ok(local_id) = primary.local_id.try_into_typed::<dir::Declaration>()
         {
             declaration_ids.push(local_id);
-        }
-
-        // add secondary declarations in order
-        if let Some(secondary) = symbol_entry.secondary_declarations.as_deref() {
-            for declaration_id in secondary {
-                if declaration_id.module_id != self.module_id {
-                    continue;
-                }
-                if let Ok(local_id) = declaration_id.local_id.try_into_typed::<dir::Declaration>() {
-                    declaration_ids.push(local_id);
-                }
-            }
         }
 
         declaration_ids

@@ -6,9 +6,8 @@ use destack_artifact::{ArtifactDependency, TargetKey};
 use destack_core::StableHasher;
 use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, TargetId};
 use destack_workspace::{
-    CompilerOptions, EntryResolutionMode, EntrySource, Module, Package, PackageOptions,
-    ProviderContext, Revision, Target, TargetDiscovery, TargetDiscoveryError,
-    TargetDiscoveryOptions,
+    CompilerOptions, EntryResolutionMode, Module, Package, PackageOptions, ProviderContext,
+    Revision, Target, TargetDiscoveryError, TargetDiscoveryOptions,
 };
 
 use crate::{Compiler, LowerOptions};
@@ -104,20 +103,13 @@ impl Compiler {
     pub(crate) fn target_module_ids(
         &self,
         context: &dyn ProviderContext,
-        package_id: PackageId,
+        _package_id: PackageId,
         _package_path: &Option<PathBuf>,
-        target: &Target,
+        _target: &Target,
         target_id: &TargetId,
     ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
-        let manifest_entry_targets = if matches!(target.discovery, TargetDiscovery::Entry) {
-            self.manifest_entry_targets(context.revision(), package_id)
-        } else {
-            Vec::new()
-        };
         let options = TargetDiscoveryOptions {
-            entry_source: EntrySource::Auto,
             entry_resolution: EntryResolutionMode::Strict,
-            manifest_entry_targets: &manifest_entry_targets,
         };
         let mut module_ids =
             self.repository
@@ -182,18 +174,6 @@ impl Compiler {
     ) -> ProfileId {
         self.target_profile_id(revision, module_id, target_id)
             .unwrap_or_else(|| self.default_profile_id(revision, module_id))
-    }
-
-    /// Return package manifest entry targets for one package.
-    fn manifest_entry_targets(&self, revision: Revision, package_id: PackageId) -> Vec<String> {
-        let package = self.package(revision, package_id);
-
-        self.repository
-            .package_declaration_for_package(revision, package.as_ref())
-            .ok()
-            .flatten()
-            .map(|declaration| declaration.manifest.entry_targets())
-            .unwrap_or_default()
     }
 }
 

@@ -298,7 +298,7 @@ b0(v0: int32, v1: ref<int32, borrowed>, v2: int32):
         assert!(!lifetime.includes_parameter(2)); // i32
     }
 
-    /// Explicit static lifetime annotation overrides inference.
+    /// Explicit static return lifetime overrides inference.
     #[test]
     fn test_resolve_explicit_static_lifetime() {
         let mut program = TestProgram::new(
@@ -325,7 +325,7 @@ b0(v0: ref<int32, borrowed>):
         assert!(!lifetime.includes_parameter(0));
     }
 
-    /// Explicit parameter lifetime annotation overrides inference.
+    /// Explicit parameter return lifetime overrides inference.
     #[test]
     fn test_resolve_explicit_param_lifetime() {
         let mut program = TestProgram::new(

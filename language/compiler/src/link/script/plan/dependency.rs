@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use destack_artifact::{ModuleOutput, ScriptOutput};
-use destack_codegen_js::DependencyKind;
+use destack_codegen_js::DependencySpace;
 use destack_source::{ModuleId, PackageId, Span, TargetId};
 use destack_workspace::{ProviderContext, Target};
 use indexmap::{IndexMap, IndexSet};
@@ -46,7 +46,7 @@ impl Compiler {
             });
         };
 
-        Ok(Some(script.clone()))
+        Ok(Some(script.as_ref().clone()))
     }
 
     /// Return whether target policy explicitly externalizes one dependency specifier.
@@ -160,7 +160,7 @@ impl Compiler {
 
         // bundled static imports
         for dependency in static_script_dependencies(&script.module) {
-            if dependency.kind == DependencyKind::Type {
+            if dependency.kind == DependencySpace::Type {
                 continue;
             }
 
@@ -242,7 +242,7 @@ impl Compiler {
 
         // retained external static imports
         for dependency in static_script_dependencies(&script.module) {
-            if dependency.kind == DependencyKind::Type {
+            if dependency.kind == DependencySpace::Type {
                 continue;
             }
 

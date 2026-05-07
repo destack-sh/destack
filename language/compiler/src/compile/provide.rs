@@ -19,23 +19,30 @@ impl Compiler {
         artifact_key: ArtifactKey,
     ) -> CompilerResult<ArtifactPayload> {
         match artifact_key {
-            ArtifactKey::Ast { .. } | ArtifactKey::Data { .. } => {
-                panic!("source artifact key reached compiler provider: {artifact_key:?}")
-            }
-            ArtifactKey::LanguageEnvironment { profile } => {
-                self.provide_language_environment(profile, context)
-            }
-            ArtifactKey::AmbientEnvironment { profile } => {
-                self.provide_ambient_environment(profile, context)
-            }
-            ArtifactKey::DirExported { module, profile } => {
-                self.provide_dir_exported(module, profile, context)
+            ArtifactKey::Ast { .. } | ArtifactKey::Data { .. } => Err(CompilerError::Internal {
+                message: format!("source artifact key reached compiler provider: {artifact_key:?}"),
+            }),
+            ArtifactKey::GlobalEnvironment { profile } => {
+                self.provide_global_environment(profile, context)
             }
             ArtifactKey::DirDeclared { module, profile } => {
                 self.provide_dir_declared(module, profile, context)
             }
+            ArtifactKey::DirExported { module, profile } => {
+                self.provide_dir_exported(module, profile, context)
+            }
+            ArtifactKey::DirExpanded { .. } => {
+                todo!(
+                    "expanded DIR artifact reached compiler before expansion provider is wired: {artifact_key:?}"
+                )
+            }
             ArtifactKey::DirChecked { module, profile } => {
                 self.provide_dir_checked(module, profile, context)
+            }
+            ArtifactKey::DirMaterialized { .. } => {
+                todo!(
+                    "materialized DIR artifact reached compiler before materialize provider is wired: {artifact_key:?}"
+                )
             }
             ArtifactKey::DirElaborated { module, profile } => {
                 self.provide_dir_elaborated(module, profile, context)
@@ -51,11 +58,12 @@ impl Compiler {
                 target,
             } => self.provide_mir_optimized(module, profile, target, context),
             ArtifactKey::ModuleOutput { module, target } => {
-                let profile = self
-                    .target_profile_id(context.revision(), module, &target)
-                    .unwrap_or_else(|| {
-                        panic!("missing profile for module {module:?} target {target:?}")
+                let Some(profile) = self.target_profile_id(context.revision(), module, &target)
+                else {
+                    return Err(CompilerError::Internal {
+                        message: format!("missing profile for module {module:?} target {target:?}"),
                     });
+                };
 
                 self.provide_module_output(module, profile, target, context)
             }
@@ -64,9 +72,13 @@ impl Compiler {
             }
             ArtifactKey::ModuleLinted { .. }
             | ArtifactKey::PackageLinted { .. }
-            | ArtifactKey::WorkspaceLinted => {
-                panic!("non compiler artifact key reached compiler provider: {artifact_key:?}")
-            }
+            | ArtifactKey::WorkspaceLinted
+            | ArtifactKey::ModuleQueryIndex { .. }
+            | ArtifactKey::WorkspaceQueryIndex { .. } => Err(CompilerError::Internal {
+                message: format!(
+                    "non compiler artifact key reached compiler provider: {artifact_key:?}"
+                ),
+            }),
         }
     }
 

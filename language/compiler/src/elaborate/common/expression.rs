@@ -64,7 +64,7 @@ impl Compiler {
             TypeExpression::Reference {
                 path,
                 generic_arguments,
-                space_order,
+                space,
             } => {
                 let generic_arguments = generic_arguments
                     .into_iter()
@@ -81,76 +81,7 @@ impl Compiler {
                 TypeExpression::Reference {
                     path,
                     generic_arguments,
-                    space_order,
-                }
-            }
-            TypeExpression::LocalReference {
-                path,
-                generic_arguments,
-                target_symbol,
-            } => {
-                let generic_arguments = generic_arguments
-                    .into_iter()
-                    .map(|argument_id| {
-                        self.clone_type_generic_argument_into_scope(
-                            state,
-                            origin_id,
-                            argument_id,
-                            scope,
-                        )
-                    })
-                    .collect();
-
-                TypeExpression::LocalReference {
-                    path,
-                    generic_arguments,
-                    target_symbol,
-                }
-            }
-            TypeExpression::ModuleReference {
-                path,
-                generic_arguments,
-                target_symbol,
-            } => {
-                let generic_arguments = generic_arguments
-                    .into_iter()
-                    .map(|argument_id| {
-                        self.clone_type_generic_argument_into_scope(
-                            state,
-                            origin_id,
-                            argument_id,
-                            scope,
-                        )
-                    })
-                    .collect();
-
-                TypeExpression::ModuleReference {
-                    path,
-                    generic_arguments,
-                    target_symbol,
-                }
-            }
-            TypeExpression::GlobalReference {
-                path,
-                generic_arguments,
-                target_symbol,
-            } => {
-                let generic_arguments = generic_arguments
-                    .into_iter()
-                    .map(|argument_id| {
-                        self.clone_type_generic_argument_into_scope(
-                            state,
-                            origin_id,
-                            argument_id,
-                            scope,
-                        )
-                    })
-                    .collect();
-
-                TypeExpression::GlobalReference {
-                    path,
-                    generic_arguments,
-                    target_symbol,
+                    space,
                 }
             }
             _ => todo!("FUGU #Incomplete: clone elaborate guard type expressions"),
@@ -165,7 +96,7 @@ impl Compiler {
             Some(dir::ProvenanceReason::Elaborated),
         );
         let cloned_id = state.tree.insert_as_owner(cloned_id, cloned_expression);
-        state.types.copy_node_analysis(
+        state.types.copy_node_relations(
             expression_id.into_global_any(state.module_id),
             cloned_id.into_global_any(state.module_id),
         );
@@ -183,7 +114,7 @@ impl Compiler {
     ) -> LocalNodeId<TypeExpression> {
         // choose the compact type expression form
         let expression = match state.types.get_type(type_id) {
-            Type::TypeLiteral { value } => TypeExpression::Literal {
+            Type::Literal(dir::LiteralType { value }) => TypeExpression::Literal {
                 value: value.clone(),
             },
             _ => {
@@ -192,7 +123,7 @@ impl Compiler {
                     // clone one existing type expression source when available
                     NodeType::TypeExpression => source_id.into_typed::<TypeExpression>(),
 
-                    // unwrap prior type-value expressions back to their type expression
+                    // unwrap prior type and value expressions back to their type expression
                     NodeType::Expression => {
                         let expression = state.tree.get(source_id.into_typed::<Expression>());
                         let Expression::Type { value, .. } = expression else {
@@ -250,7 +181,7 @@ impl Compiler {
         );
 
         // annotate with its literal type
-        let literal_type = Type::TypeLiteral { value };
+        let literal_type = Type::Literal(dir::LiteralType { value });
         let literal_type_id = state.types.insert_type_from(literal_type, literal_id);
         state.types.set_inferred_type(
             literal_id.into_global_any(state.tree.module_id),

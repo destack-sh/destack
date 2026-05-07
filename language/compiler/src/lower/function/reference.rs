@@ -53,95 +53,22 @@ impl FunctionLowerer<'_> {
                 self.borrow_address_space(expression_id, *expression)
             }
 
-            // locals borrow from the current frame
-            dir::Expression::LocalReference { target_symbol, .. } => {
-                if let Some(field) = self.capture_field_for_symbol(*target_symbol) {
-                    if field.kind == dir::CaptureKind::ByReference {
+            // resolved paths borrow from their storage owner
+            dir::Expression::Path { .. } => {
+                let target_symbol = self.resolve_expression_symbol(expression)?;
+                if let Some(field) = self.capture_field_for_symbol(target_symbol) {
+                    if field.mode == dir::CaptureMode::Borrow {
                         return self.reference_address_space(expression_id, field.ty);
                     }
 
                     return Ok(mir::AddressSpace::Local);
                 }
 
-                let binding = self.local_binding_for_symbol(expression, *target_symbol)?;
-                match binding.storage {
-                    LocalStorage::Local(_) => Ok(mir::AddressSpace::Frame),
-                    LocalStorage::IndirectBinding { reference_type, .. } => {
-                        self.reference_address_space(expression_id, reference_type)
-                    }
-                    LocalStorage::Variable(_) => {
-                        if matches!(
-                            self.state.builder.tree().get(binding.ty),
-                            mir::Type::Reference { .. }
-                        ) {
-                            return self.reference_address_space(expression_id, binding.ty);
-                        }
-
-                        Err(LowerError::Internal {
-                            anchor: (self.context.module_id).into(),
-                            module: self.context.module_id,
-                            message: "local borrow requires addressable storage".to_string(),
-                        }
-                        .into())
-                    }
-                }
-            }
-
-            // 'this' follows the same storage rules as ordinary locals
-            dir::Expression::This => {
-                if let Some(binding) = self.state.bindings.this_binding {
-                    return match binding.storage {
-                        LocalStorage::Local(_) => Ok(mir::AddressSpace::Frame),
-                        LocalStorage::IndirectBinding { reference_type, .. } => {
-                            self.reference_address_space(expression_id, reference_type)
-                        }
-                        LocalStorage::Variable(_) => {
-                            if matches!(
-                                self.state.builder.tree().get(binding.ty),
-                                mir::Type::Reference { .. }
-                            ) {
-                                return self.reference_address_space(expression_id, binding.ty);
-                            }
-
-                            Err(LowerError::Internal {
-                                anchor: (self.context.module_id).into(),
-                                module: self.context.module_id,
-                                message: "this borrow requires addressable storage".to_string(),
-                            }
-                            .into())
-                        }
-                    };
-                }
-
-                if let Some(this_symbol) = self.state.bindings.this_symbol
-                    && let Some(field) = self.capture_field_for_symbol(this_symbol)
-                {
-                    if field.kind == dir::CaptureKind::ByReference {
-                        return self.reference_address_space(expression_id, field.ty);
-                    }
-
-                    return Ok(mir::AddressSpace::Local);
-                }
-
-                Err(LowerError::UnsupportedConstruct {
-                    anchor: self.diagnostic_anchor(
-                        expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
-                    ),
-                    message: "this reference outside of method context".to_string(),
-                }
-                .into())
-            }
-
-            // module and global references either hit a lowered local binding or a true global
-            dir::Expression::ModuleReference { target_symbol, .. }
-            | dir::Expression::GlobalReference { target_symbol, .. } => {
                 if let Some(binding) = self
                     .state
                     .bindings
                     .locals_by_symbol
-                    .get(target_symbol)
+                    .get(&target_symbol)
                     .copied()
                 {
                     return match binding.storage {
@@ -167,10 +94,13 @@ impl FunctionLowerer<'_> {
                     };
                 }
 
-                let global = self.global_binding_for_symbol(expression_id, *target_symbol)?;
+                let global = self.global_binding_for_symbol(expression_id, target_symbol)?;
 
                 Ok(global.space)
             }
+
+            // 'this' follows the same storage rules as ordinary locals
+            dir::Expression::This => self.this_borrow_address_space(expression_id),
 
             // field and element borrows preserve the aggregate storage space
             dir::Expression::Member { left, .. }
@@ -182,6 +112,127 @@ impl FunctionLowerer<'_> {
             // rvalue borrows spill into a temporary local slot first
             _ => Ok(mir::AddressSpace::Frame),
         }
+    }
+
+    /// Return the address space produced when borrowing `this`.
+    fn this_borrow_address_space(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<mir::AddressSpace> {
+        // direct method receiver storage
+        if let Some(binding) = self.state.bindings.this_binding {
+            return match binding.storage {
+                LocalStorage::Local(_) => Ok(mir::AddressSpace::Frame),
+                LocalStorage::IndirectBinding { reference_type, .. } => {
+                    self.reference_address_space(expression_id, reference_type)
+                }
+                LocalStorage::Variable(_) => {
+                    if matches!(
+                        self.state.builder.tree().get(binding.ty),
+                        mir::Type::Reference { .. }
+                    ) {
+                        return self.reference_address_space(expression_id, binding.ty);
+                    }
+
+                    Err(LowerError::Internal {
+                        anchor: (self.context.module_id).into(),
+                        module: self.context.module_id,
+                        message: "this borrow requires addressable storage".to_string(),
+                    }
+                    .into())
+                }
+            };
+        }
+
+        // captured method receiver storage
+        if let Some(this_symbol) = self.state.bindings.this_symbol
+            && let Some(field) = self.capture_field_for_symbol(this_symbol)
+        {
+            if field.mode == dir::CaptureMode::Borrow {
+                return self.reference_address_space(expression_id, field.ty);
+            }
+
+            return Ok(mir::AddressSpace::Local);
+        }
+
+        Err(LowerError::UnsupportedConstruct {
+            anchor: self.diagnostic_anchor(
+                expression_id
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
+            ),
+            message: "this reference outside of method context".to_string(),
+        }
+        .into())
+    }
+
+    /// Lower a borrow of `this` to a reference value.
+    fn lower_reference_of_this_expression(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        mutability: Option<dir::Mutability>,
+        result_type: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // direct method receiver storage
+        if let Some(binding) = self.state.bindings.this_binding {
+            return match binding.storage {
+                LocalStorage::Local(local) => {
+                    let value = self.state.builder.local_addr(local, result_type);
+
+                    Ok((value, result_type))
+                }
+                LocalStorage::IndirectBinding {
+                    variable,
+                    reference_type,
+                } => {
+                    let reference_value = self.state.builder.use_variable(variable);
+                    let value = if reference_type == result_type {
+                        reference_value
+                    } else {
+                        self.state.builder.cast(
+                            mir::CastOperator::Bitcast,
+                            reference_value,
+                            result_type,
+                        )
+                    };
+
+                    Ok((value, result_type))
+                }
+                LocalStorage::Variable(_) => {
+                    if matches!(
+                        self.state.builder.tree().get(binding.ty),
+                        mir::Type::Reference { .. }
+                    ) {
+                        let value = self.binding_value(binding);
+                        return Ok((value, result_type));
+                    }
+
+                    Err(LowerError::Internal {
+                        anchor: (self.context.module_id).into(),
+                        module: self.context.module_id,
+                        message: "this borrow requires addressable storage".to_string(),
+                    }
+                    .into())
+                }
+            };
+        }
+
+        // captured method receiver storage
+        if let Some(this_symbol) = self.state.bindings.this_symbol
+            && let Some(field) = self.capture_field_for_symbol(this_symbol)
+        {
+            return self.borrow_captured_binding(expression_id, &field, mutability);
+        }
+
+        Err(LowerError::UnsupportedConstruct {
+            anchor: self.diagnostic_anchor(
+                expression_id
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
+            ),
+            message: "this reference outside of method context".to_string(),
+        }
+        .into())
     }
 
     /// Lower a borrow expression to a reference value.
@@ -215,116 +266,17 @@ impl FunctionLowerer<'_> {
             dir::Expression::Parenthesized { expression } => {
                 self.lower_reference_of_expression(expression_id, mutability, *expression)
             }
-            dir::Expression::LocalReference { target_symbol, .. } => {
-                if let Some(field) = self.capture_field_for_symbol(*target_symbol) {
+            dir::Expression::Path { .. } => {
+                let target_symbol = self.resolve_expression_symbol(right)?;
+                if let Some(field) = self.capture_field_for_symbol(target_symbol) {
                     return self.borrow_captured_binding(expression_id, &field, mutability);
                 }
 
-                let binding = self.local_binding_for_symbol(right, *target_symbol)?;
-                match binding.storage {
-                    LocalStorage::Local(local) => {
-                        let value = self.state.builder.local_addr(local, result_type);
-                        Ok((value, result_type))
-                    }
-                    LocalStorage::IndirectBinding {
-                        variable,
-                        reference_type,
-                    } => {
-                        let reference_value = self.state.builder.use_variable(variable);
-                        let value = if reference_type == result_type {
-                            reference_value
-                        } else {
-                            self.state.builder.cast(
-                                mir::CastOperator::Bitcast,
-                                reference_value,
-                                result_type,
-                            )
-                        };
-                        Ok((value, result_type))
-                    }
-                    LocalStorage::Variable(_) => {
-                        if matches!(
-                            self.state.builder.tree().get(binding.ty),
-                            mir::Type::Reference { .. }
-                        ) {
-                            let value = self.binding_value(binding);
-                            return Ok((value, result_type));
-                        }
-
-                        Err(LowerError::Internal {
-                            anchor: (self.context.module_id).into(),
-                            module: self.context.module_id,
-                            message: "local borrow requires addressable storage".to_string(),
-                        }
-                        .into())
-                    }
-                }
-            }
-            dir::Expression::This => {
-                if let Some(binding) = self.state.bindings.this_binding {
-                    return match binding.storage {
-                        LocalStorage::Local(local) => {
-                            let value = self.state.builder.local_addr(local, result_type);
-                            Ok((value, result_type))
-                        }
-                        LocalStorage::IndirectBinding {
-                            variable,
-                            reference_type,
-                        } => {
-                            let reference_value = self.state.builder.use_variable(variable);
-                            let value = if reference_type == result_type {
-                                reference_value
-                            } else {
-                                self.state.builder.cast(
-                                    mir::CastOperator::Bitcast,
-                                    reference_value,
-                                    result_type,
-                                )
-                            };
-                            Ok((value, result_type))
-                        }
-                        LocalStorage::Variable(_) => {
-                            if matches!(
-                                self.state.builder.tree().get(binding.ty),
-                                mir::Type::Reference { .. }
-                            ) {
-                                let value = self.binding_value(binding);
-                                return Ok((value, result_type));
-                            }
-
-                            Err(LowerError::Internal {
-                                anchor: (self.context.module_id).into(),
-                                module: self.context.module_id,
-                                message: "this borrow requires addressable storage".to_string(),
-                            }
-                            .into())
-                        }
-                    };
-                }
-
-                if let Some(this_symbol) = self.state.bindings.this_symbol
-                    && let Some(field) = self.capture_field_for_symbol(this_symbol)
-                {
-                    return self.borrow_captured_binding(expression_id, &field, mutability);
-                }
-
-                Err(LowerError::UnsupportedConstruct {
-                    anchor: self.diagnostic_anchor(
-                        expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
-                    ),
-                    message: "this reference outside of method context".to_string(),
-                }
-                .into())
-            }
-            dir::Expression::ModuleReference { target_symbol, .. }
-            | dir::Expression::GlobalReference { target_symbol, .. } => {
                 if let Some(binding) = self
                     .state
                     .bindings
                     .locals_by_symbol
-                    .get(target_symbol)
+                    .get(&target_symbol)
                     .copied()
                 {
                     match binding.storage {
@@ -367,9 +319,12 @@ impl FunctionLowerer<'_> {
                     }
                 }
 
-                let global = self.global_binding_for_symbol(expression_id, *target_symbol)?;
+                let global = self.global_binding_for_symbol(expression_id, target_symbol)?;
                 let value = self.state.builder.global_addr(global.global, result_type);
                 Ok((value, result_type))
+            }
+            dir::Expression::This => {
+                self.lower_reference_of_this_expression(expression_id, mutability, result_type)
             }
             dir::Expression::Member { left, name }
             | dir::Expression::PrivateMember { left, name } => {

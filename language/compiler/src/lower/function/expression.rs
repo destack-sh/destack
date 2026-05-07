@@ -1,5 +1,7 @@
 use {destack_dir as dir, destack_mir as mir};
 
+use destack_dir::GuardEntry;
+
 use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 
 use super::{FunctionLowerer, RUNTIME_CHECK_MESSAGES};
@@ -229,11 +231,11 @@ impl FunctionLowerer<'_> {
         target_type_id: dir::LocalTypeId,
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // require runtime check metadata from Analyze
-        let guard_strategy = self
+        let guard_entry = self
             .context
-            .types
-            .get_guard_strategy(expression_id.into_global_any(self.context.module_id));
-        let Some(guard_strategy) = guard_strategy else {
+            .guards
+            .entry(expression_id.into_global_any(self.context.module_id));
+        let Some(guard_entry) = guard_entry else {
             return Err(LowerError::Internal {
                 anchor: (self.context.module_id).into(),
                 module: self.context.module_id,
@@ -243,13 +245,13 @@ impl FunctionLowerer<'_> {
         };
 
         // handle constant guards early
-        if let dir::GuardStrategy::Constant(value) = guard_strategy {
+        if let GuardEntry::Constant(value) = guard_entry {
             let value = self.state.builder.bconst(value);
             return Ok((value, self.context.type_lowerer.ty_bool));
         }
 
         // reject type descriptor guards until RTTI is lowered (#Incomplete)
-        if guard_strategy == dir::GuardStrategy::TypeDescriptor {
+        if guard_entry == GuardEntry::TypeDescriptor {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id
@@ -279,7 +281,7 @@ impl FunctionLowerer<'_> {
             self.context.types.get_type(left_type_id),
             dir::Type::Union { .. }
         );
-        if guard_strategy == dir::GuardStrategy::UnionTag && !is_union_value {
+        if guard_entry == GuardEntry::UnionTag && !is_union_value {
             return Err(LowerError::Internal {
                 anchor: (self.context.module_id).into(),
                 module: self.context.module_id,

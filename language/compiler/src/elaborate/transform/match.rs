@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::{
-    BinaryOperator, Block, Expression, IfCondition, IfKind, LocalNodeId, LocalSymbolId,
-    LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource, Mutability, NodeType, Pattern,
+    BinaryOperator, Block, Expression, IfCondition, IfForm, LocalNodeId, LocalSymbolId,
+    LocalTypeId, MatchCase, MatchForm, MatchOrigin, MatchSelector, Mutability, NodeType, Pattern,
     PatternField, ScalarLiteral, StringId, TypeExpression,
 };
 
@@ -37,8 +37,8 @@ impl Compiler {
                 matches!(
                     state.tree.get(*id),
                     Expression::Match {
-                        kind: MatchKind::Match,
-                        source: MatchSource::Match,
+                        form: MatchForm::Match,
+                        source: MatchOrigin::Match,
                         ..
                     }
                 )
@@ -338,9 +338,9 @@ impl Compiler {
                 match_type_id,
             );
         }
-        // array patterns: use index access
-        else if let Pattern::Array { fields } = &pattern {
-            return self.handle_array_pattern(
+        // sequence patterns: use index access
+        else if let Pattern::Sequence { fields } = &pattern {
+            return self.handle_sequence_pattern(
                 state,
                 match_id,
                 value,
@@ -382,7 +382,7 @@ impl Compiler {
         let if_expr: LocalNodeId<Expression> = state.tree.insert_as_owner(
             if_id,
             Expression::If {
-                kind: IfKind::If,
+                form: IfForm::If,
                 condition: IfCondition::Expression { condition },
                 then_expression,
                 else_expression,
@@ -877,8 +877,8 @@ impl Compiler {
         Ok(Some(if_expr))
     }
 
-    /// Handle an array pattern by using index access bindings.
-    fn handle_array_pattern(
+    /// Handle a sequence pattern by using index access bindings.
+    fn handle_sequence_pattern(
         &self,
         state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
@@ -1042,7 +1042,7 @@ impl Compiler {
             }
 
             // untagged sequence patterns use constrained slot checks
-            Pattern::Tuple { fields } | Pattern::Array { fields } => {
+            Pattern::Tuple { fields } | Pattern::Sequence { fields } => {
                 self.extend_sequence_pattern_check(state, match_id, value, &fields, None, scope)
             }
 
@@ -1058,8 +1058,8 @@ impl Compiler {
 
             // transparent wrappers recurse to their inner pattern
             Pattern::Must(inner)
-            | Pattern::ReferenceOf { right: inner, .. }
-            | Pattern::ValueOf { right: inner, .. } => {
+            | Pattern::BorrowOf { right: inner, .. }
+            | Pattern::MoveOf { right: inner, .. } => {
                 self.build_pattern_check(state, match_id, value, inner, scope)
             }
         }
@@ -1240,17 +1240,15 @@ impl Compiler {
         };
 
         // derive and record the runtime check kind
-        let guard_strategy =
-            self.guard_strategy_for_relation(state.types, value_type_id, target_type_id);
-        let Some(guard_strategy) = guard_strategy else {
+        let guard_entry = self.guard_entry_for_relation(state.types, value_type_id, target_type_id);
+        let Some(guard_entry) = guard_entry else {
             return Err(ElaborateError::UnsupportedConstruct {
                 anchor: state.module_id.into(),
             });
         };
-        state.types.set_guard_strategy(
-            expr_id.into_global_any(state.tree.module_id),
-            guard_strategy,
-        );
+        state
+            .guards
+            .set_entry(expr_id.into_global_any(state.tree.module_id), guard_entry);
         Ok(expr_id)
     }
 
@@ -1498,8 +1496,8 @@ impl Compiler {
             match state.tree.get(current) {
                 Pattern::Assign { pattern: inner, .. }
                 | Pattern::Must(inner)
-                | Pattern::ReferenceOf { right: inner, .. }
-                | Pattern::ValueOf { right: inner, .. } => {
+                | Pattern::BorrowOf { right: inner, .. }
+                | Pattern::MoveOf { right: inner, .. } => {
                     current = *inner;
                 }
                 _ => return current,
@@ -1618,7 +1616,7 @@ impl Compiler {
             block_id,
             Block {
                 context: dir::BlockContext::Expression,
-                format: dir::BlockFormat::Explicit,
+                form: dir::BlockForm::Explicit,
                 scope: scope.0,
                 leading_expressions,
                 tail_expression: Some(body),
@@ -1691,7 +1689,7 @@ impl Compiler {
             block_id,
             Block {
                 context: dir::BlockContext::Expression,
-                format: dir::BlockFormat::Explicit,
+                form: dir::BlockForm::Explicit,
                 scope: scope.0,
                 leading_expressions: Vec::new(),
                 tail_expression: Some(body),
@@ -1753,9 +1751,14 @@ impl Compiler {
             .types
             .get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))?;
         let value_type_id = state.types.unwrap_value_type_id(value_type_id);
-        state
-            .types
-            .get_index_access_type(state.types, value_type_id, index)
+        let value_type = state.types.get_type(value_type_id);
+
+        match value_type {
+            dir::Type::Tuple(tuple) => tuple.elements.get(index).map(|element| element.ty),
+            dir::Type::FixedArray(array) => Some(array.element),
+            dir::Type::Slice(slice) => slice.element,
+            _ => None,
+        }
     }
 
     /// Resolve the inferred type for a synthesized member access.
@@ -1769,8 +1772,14 @@ impl Compiler {
             .types
             .get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))?;
         let value_type_id = state.types.unwrap_value_type_id(value_type_id);
-        state
-            .types
-            .get_member_access_type(state.types, value_type_id, name)
+        let value_type = state.types.get_type(value_type_id);
+
+        match value_type {
+            dir::Type::Object(object) => object
+                .fields
+                .iter()
+                .find_map(|field| (field.key == dir::StaticKey::Name(name)).then_some(field.ty)),
+            _ => None,
+        }
     }
 }

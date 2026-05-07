@@ -148,11 +148,11 @@ impl FunctionLowerer<'_> {
         &self,
         receiver_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let symbol = match self.context.dir_tree.get(receiver_id) {
-            dir::Expression::LocalReference { target_symbol, .. }
-            | dir::Expression::ModuleReference { target_symbol, .. }
-            | dir::Expression::GlobalReference { target_symbol, .. } => *target_symbol,
-            _ => return false,
+        let dir::Expression::Path { .. } = self.context.dir_tree.get(receiver_id) else {
+            return false;
+        };
+        let Ok(symbol) = self.resolve_expression_symbol(receiver_id) else {
+            return false;
         };
 
         let Some(dir) = self.artifact_dir_data_if_present(symbol.module_id) else {

@@ -2420,7 +2420,7 @@ b0:
 
     /// Call with explicit param lifetime tracks only specified params.
     ///
-    /// When a function has explicit lifetime annotation specifying which params
+    /// When a function has explicit return lifetime specifying which params
     /// the return borrows from, only those params are tracked.
     #[test]
     fn test_track_call_explicit_param_lifetime() {
@@ -2553,7 +2553,7 @@ b0:
 
     /// Explicit multi-param lifetime tracks all specified parameters.
     ///
-    /// When a function has explicit lifetime annotation for multiple params,
+    /// When a function has explicit return lifetime for multiple params,
     /// the return may borrow from any of them.
     #[test]
     fn test_track_call_explicit_multi_param_lifetime() {

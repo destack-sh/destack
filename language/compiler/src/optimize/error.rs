@@ -106,12 +106,12 @@ pub enum OptimizeError {
     #[diagnostic(code = "EO301", message = "reference to local escapes function")]
     LocalReferenceEscapes { anchor: DiagnosticAnchor },
 
-    /// Returned borrow does not match lifetime annotation.
+    /// Returned borrow does not match return lifetime.
     #[diagnostic(
         code = "EO302",
-        message = "return borrows from {origin} not covered by lifetime annotation"
+        message = "return borrows from {origin} not covered by return lifetime"
     )]
-    LifetimeAnnotationMismatch {
+    ReturnLifetimeMismatch {
         anchor: DiagnosticAnchor,
         origin: String,
     },

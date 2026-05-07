@@ -595,6 +595,44 @@ impl Compiler {
 
                 ast::TypeExpression::Array { element }
             }
+            dir::TypeExpression::Slice { element } => {
+                let element = self.unbind_type_expression(
+                    module,
+                    *element,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+
+                ast::TypeExpression::Slice { element }
+            }
+            dir::TypeExpression::FixedArray { element, length } => {
+                let element = self.unbind_type_expression(
+                    module,
+                    *element,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                let length = self.unbind_type_expression(
+                    module,
+                    *length,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+
+                ast::TypeExpression::FixedArray { element, length }
+            }
             dir::TypeExpression::Object { members } => {
                 let members = members
                     .iter()
@@ -783,22 +821,7 @@ impl Compiler {
             dir::TypeExpression::Reference {
                 path,
                 generic_arguments,
-                space_order: _,
-            }
-            | dir::TypeExpression::LocalReference {
-                path,
-                generic_arguments,
-                target_symbol: _,
-            }
-            | dir::TypeExpression::ModuleReference {
-                path,
-                generic_arguments,
-                target_symbol: _,
-            }
-            | dir::TypeExpression::GlobalReference {
-                path,
-                generic_arguments,
-                target_symbol: _,
+                ..
             } => {
                 let path = self.unbind_path(path, ast_strings, context);
                 let generic_arguments = generic_arguments
@@ -1003,7 +1026,7 @@ impl Compiler {
 
                 ast::TypeExpression::Not { target_type }
             }
-            dir::TypeExpression::ValueOf {
+            dir::TypeExpression::OwnedOf {
                 mutability,
                 variance,
                 target_type,
@@ -1023,13 +1046,13 @@ impl Compiler {
                     context,
                 );
 
-                ast::TypeExpression::ValueOf {
+                ast::TypeExpression::OwnedOf {
                     mutability,
                     variance,
                     target_type,
                 }
             }
-            dir::TypeExpression::ReferenceOf {
+            dir::TypeExpression::BorrowedOf {
                 mutability,
                 variance,
                 target_type,
@@ -1049,7 +1072,7 @@ impl Compiler {
                     context,
                 );
 
-                ast::TypeExpression::ReferenceOf {
+                ast::TypeExpression::BorrowedOf {
                     mutability,
                     variance,
                     target_type,
@@ -1327,12 +1350,12 @@ impl Compiler {
 
     /// Unbind a DIR type modifier to an AST type modifier.
     #[inline]
-    fn unbind_type_modifier(&self, modifier: dir::TypeModifier) -> ast::TypeModifier {
+    fn unbind_type_modifier(&self, modifier: dir::MappedTypeModifier) -> ast::MappedTypeModifier {
         match modifier {
-            dir::TypeModifier::Present => ast::TypeModifier::Present,
-            dir::TypeModifier::Add => ast::TypeModifier::Add,
-            dir::TypeModifier::Remove => ast::TypeModifier::Remove,
-            dir::TypeModifier::None => ast::TypeModifier::None,
+            dir::MappedTypeModifier::Present => ast::MappedTypeModifier::Present,
+            dir::MappedTypeModifier::Add => ast::MappedTypeModifier::Add,
+            dir::MappedTypeModifier::Remove => ast::MappedTypeModifier::Remove,
+            dir::MappedTypeModifier::None => ast::MappedTypeModifier::None,
         }
     }
 

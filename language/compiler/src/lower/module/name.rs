@@ -19,8 +19,6 @@ const INTERSECTION_METADATA_SUFFIX: &str = "#intersection";
 const FUNCTION_METADATA_SUFFIX: &str = ".function";
 /// Suffix for array metadata names.
 const ARRAY_METADATA_SUFFIX: &str = "#array";
-/// Suffix for pointer metadata names.
-const POINTER_METADATA_SUFFIX: &str = "#pointer";
 /// Suffix for class reference metadata names.
 const REFERENCE_METADATA_SUFFIX: &str = "#reference";
 /// Suffix for return types in union metadata names.
@@ -100,16 +98,18 @@ impl ModuleLowerer<'_> {
         }
 
         // use nominal naming when the type resolves to a symbol
-        if let dir::Type::Reference { symbol, .. } = dir_type
+        if let dir::Type::Reference(reference) = dir_type
             && matches!(
-                symbol.ty(),
-                dir::SymbolType::Struct
-                    | dir::SymbolType::Class
-                    | dir::SymbolType::Interface
-                    | dir::SymbolType::Enum
+                self.symbol_form(reference.symbol),
+                Some(
+                    dir::DeclarationForm::Struct
+                        | dir::DeclarationForm::Class
+                        | dir::DeclarationForm::Interface
+                        | dir::DeclarationForm::Enum
+                )
             )
         {
-            let names = self.metadata_names_for_symbol(*symbol, anchor)?;
+            let names = self.metadata_names_for_symbol(reference.symbol, anchor)?;
             let reference_name = names.reference.ok_or_else(|| LowerError::Internal {
                 anchor: (self.module_id).into(),
                 module: self.module_id,
@@ -128,11 +128,13 @@ impl ModuleLowerer<'_> {
 
         if let Some(symbol) = self.types.symbol_for_instance_type(type_id)
             && matches!(
-                symbol.ty(),
-                dir::SymbolType::Struct
-                    | dir::SymbolType::Class
-                    | dir::SymbolType::Interface
-                    | dir::SymbolType::Enum
+                self.symbol_form(symbol),
+                Some(
+                    dir::DeclarationForm::Struct
+                        | dir::DeclarationForm::Class
+                        | dir::DeclarationForm::Interface
+                        | dir::DeclarationForm::Enum
+                )
             )
         {
             let names = self.metadata_names_for_symbol(symbol, anchor)?;
@@ -179,13 +181,7 @@ impl ModuleLowerer<'_> {
 
     /// Build a metadata name for a function type when no context is available.
     fn function_type_metadata_name(&self, type_id: dir::LocalTypeId) -> Option<String> {
-        let dir::Type::Function {
-            this_parameter,
-            parameters,
-            return_type,
-            ..
-        } = self.types.get_type(type_id)
-        else {
+        let dir::Type::Function(function) = self.types.get_type(type_id) else {
             return None;
         };
 
@@ -193,16 +189,16 @@ impl ModuleLowerer<'_> {
         let mut name = String::from("fn");
 
         // record the implicit this parameter when present
-        if let Some(this_parameter) = this_parameter {
+        if let Some(this_parameter) = function.this_parameter {
             let this_name = self
-                .metadata_base_name_for_type(*this_parameter)
+                .metadata_base_name_for_type(this_parameter)
                 .unwrap_or_else(|| "unknown".to_string());
             name.push_str(".this.");
             name.push_str(&this_name);
         }
 
         // record dynamic parameter names
-        for parameter in parameters {
+        for parameter in &function.parameters {
             let param_name = self
                 .metadata_base_name_for_type(*parameter)
                 .unwrap_or_else(|| "unknown".to_string());
@@ -211,7 +207,8 @@ impl ModuleLowerer<'_> {
         }
 
         // record the return type
-        let return_name = return_type
+        let return_name = function
+            .return_type
             .and_then(|return_type| self.metadata_base_name_for_type(return_type))
             .unwrap_or_else(|| "void".to_string());
         name.push_str(".to.");
@@ -292,7 +289,7 @@ impl ModuleLowerer<'_> {
         names.reference = Some(name_id);
 
         // resolve interface reference and instance types separately
-        if symbol.ty() == dir::SymbolType::Interface {
+        if self.symbol_is(symbol, dir::DeclarationForm::Interface) {
             let instance_name = format!("{name}{OBJECT_METADATA_SUFFIX}");
             let instance_name_id = self.builder.intern(&instance_name);
             names.reference = Some(name_id);
@@ -322,7 +319,7 @@ impl ModuleLowerer<'_> {
         }
 
         // resolve class reference types separately
-        if symbol.ty() == dir::SymbolType::Class
+        if self.symbol_is(symbol, dir::DeclarationForm::Class)
             && let Some(reference_type_id) = self.nominal_reference_type_id_for_symbol(symbol)
             && let Some(mir_type) = self.type_lowerer.cached_type(reference_type_id)
         {
@@ -388,16 +385,12 @@ impl ModuleLowerer<'_> {
     fn anonymous_metadata_suffix(&self, dir_type: &dir::Type) -> Option<&'static str> {
         // select a suffix based on the type kind
         match dir_type {
-            dir::Type::Object { .. } => Some(OBJECT_METADATA_SUFFIX),
-            dir::Type::Tuple { .. } => Some(TUPLE_METADATA_SUFFIX),
-            dir::Type::Union { .. } => Some(UNION_METADATA_SUFFIX),
-            dir::Type::Intersection { .. } => Some(INTERSECTION_METADATA_SUFFIX),
-            dir::Type::Function { .. } => Some(FUNCTION_METADATA_SUFFIX),
-            dir::Type::ArraySized { .. } | dir::Type::Array { .. } => Some(ARRAY_METADATA_SUFFIX),
-            dir::Type::PointerOf { .. } => Some(POINTER_METADATA_SUFFIX),
-            dir::Type::ValueOf { .. } | dir::Type::ReferenceOf { .. } => {
-                Some(REFERENCE_METADATA_SUFFIX)
-            }
+            dir::Type::Object(_) => Some(OBJECT_METADATA_SUFFIX),
+            dir::Type::Tuple(_) => Some(TUPLE_METADATA_SUFFIX),
+            dir::Type::Union(_) => Some(UNION_METADATA_SUFFIX),
+            dir::Type::Intersection(_) => Some(INTERSECTION_METADATA_SUFFIX),
+            dir::Type::Function(_) => Some(FUNCTION_METADATA_SUFFIX),
+            dir::Type::FixedArray(_) | dir::Type::Slice(_) => Some(ARRAY_METADATA_SUFFIX),
             _ => None,
         }
     }
@@ -466,7 +459,7 @@ impl ModuleLowerer<'_> {
     /// Resolve a metadata name for scalar and literal types.
     fn type_literal_metadata_name(&self, dir_type: &dir::Type) -> Option<String> {
         // only handle type literal nodes
-        let dir::Type::TypeLiteral { value } = dir_type else {
+        let dir::Type::Literal(dir::LiteralType { value }) = dir_type else {
             return None;
         };
 
@@ -494,16 +487,16 @@ impl ModuleLowerer<'_> {
     /// Resolve a metadata name for named reference types.
     fn reference_metadata_name(&self, dir_type: &dir::Type) -> Option<String> {
         // only handle reference nodes
-        let dir::Type::Reference { symbol, .. } = dir_type else {
+        let dir::Type::Reference(reference) = dir_type else {
             return None;
         };
 
-        let name = self.qualified_symbol_name(*symbol).or_else(|| {
-            let dir = self.artifact_dir_data_if_present(symbol.module_id)?;
-            self.symbol_path_from_symbols(*symbol, &dir.symbols)
+        let name = self.qualified_symbol_name(reference.symbol).or_else(|| {
+            let dir = self.artifact_dir_data_if_present(reference.symbol.module_id)?;
+            self.symbol_path_from_symbols(reference.symbol, &dir.symbols)
         })?;
 
-        if symbol.ty() == dir::SymbolType::Class {
+        if self.symbol_is(reference.symbol, dir::DeclarationForm::Class) {
             return Some(format!("{name}{REFERENCE_METADATA_SUFFIX}"));
         }
 
@@ -513,13 +506,12 @@ impl ModuleLowerer<'_> {
     /// Resolve a metadata name for value or borrowed reference types without context.
     fn fallback_reference_metadata_name(&self, dir_type: &dir::Type) -> Option<String> {
         // resolve the referenced type id
-        let referenced_type = match dir_type {
-            dir::Type::ValueOf { right, .. } | dir::Type::ReferenceOf { right, .. } => *right,
-            _ => return None,
+        let dir::Type::Form(form) = dir_type else {
+            return None;
         };
 
         // use the base metadata name when possible
-        let base_name = self.metadata_base_name_for_type(referenced_type)?;
+        let base_name = self.metadata_base_name_for_type(form.base)?;
         Some(format!("{base_name}{REFERENCE_METADATA_SUFFIX}"))
     }
 
@@ -528,15 +520,15 @@ impl ModuleLowerer<'_> {
         let dir_type = self.types.get_type(type_id);
 
         // unwrap type-as-value nodes
-        if let dir::Type::Value { value } = dir_type {
-            return self.metadata_base_name_for_type(*value);
+        if let dir::Type::Value(value) = dir_type {
+            return self.metadata_base_name_for_type(value.value);
         }
 
         // use nominal names without suffix adjustments
-        if let dir::Type::Reference { symbol, .. } = dir_type {
-            return self.qualified_symbol_name(*symbol).or_else(|| {
-                let dir = self.artifact_dir_data_if_present(symbol.module_id)?;
-                self.symbol_path_from_symbols(*symbol, &dir.symbols)
+        if let dir::Type::Reference(reference) = dir_type {
+            return self.qualified_symbol_name(reference.symbol).or_else(|| {
+                let dir = self.artifact_dir_data_if_present(reference.symbol.module_id)?;
+                self.symbol_path_from_symbols(reference.symbol, &dir.symbols)
             });
         }
 
@@ -549,8 +541,10 @@ impl ModuleLowerer<'_> {
     fn union_intersection_metadata_name(&self, dir_type: &dir::Type) -> Option<String> {
         // select the join separator and suffix
         let (elements, separator, suffix) = match dir_type {
-            dir::Type::Union { elements } => (elements, "|", UNION_METADATA_SUFFIX),
-            dir::Type::Intersection { elements } => (elements, "&", INTERSECTION_METADATA_SUFFIX),
+            dir::Type::Union(union) => (&union.elements, "|", UNION_METADATA_SUFFIX),
+            dir::Type::Intersection(intersection) => {
+                (&intersection.elements, "&", INTERSECTION_METADATA_SUFFIX)
+            }
             _ => return None,
         };
 
