@@ -341,6 +341,10 @@ impl TypeLowerer {
                 let align = bytes.min(8);
                 Some((bytes, align))
             }
+            mir::Type::Atomic { value } => {
+                let value = tree.get(value.ty()?);
+                self.size_and_align_of_type(value, tree)
+            }
             mir::Type::FunctionSignature { .. } => None,
             mir::Type::TypeDescriptor | mir::Type::TypeId | mir::Type::Reference { .. } => {
                 let bytes = pointer_bytes as u32;

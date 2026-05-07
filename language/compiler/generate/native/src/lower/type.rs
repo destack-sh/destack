@@ -56,6 +56,15 @@ pub(crate) fn lower_type(
             )),
         },
 
+        mir::Type::Atomic { value } => {
+            let value = value.ty().ok_or_else(|| CodegenCraneliftError::Internal {
+                message: "missing or malformed MIR type in native lowering: atomic value type"
+                    .into(),
+            })?;
+
+            lower_type(tree, value, pointer_bytes)
+        }
+
         mir::Type::TypeDescriptor
         | mir::Type::TypeId
         | mir::Type::Reference { .. }

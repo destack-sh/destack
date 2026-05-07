@@ -34,6 +34,8 @@ pub enum TypeKey {
     TypeDescriptor,
     /// Compact runtime type id.
     TypeId,
+    /// Atomic storage type.
+    Atomic { value: Box<TypeKey> },
     /// Reference or pointer type.
     Reference {
         kind: mir::ReferenceKind,
@@ -149,6 +151,9 @@ impl TypeKey {
             mir::Type::Float { width } => TypeKey::Float { width: *width },
             mir::Type::TypeDescriptor => TypeKey::TypeDescriptor,
             mir::Type::TypeId => TypeKey::TypeId,
+            mir::Type::Atomic { value } => TypeKey::Atomic {
+                value: Box::new(Self::from_type_reference(*value, tree)),
+            },
 
             mir::Type::Reference {
                 kind,

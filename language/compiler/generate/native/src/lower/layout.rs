@@ -100,6 +100,16 @@ pub(crate) fn compute_type_layout(
             Ok(TypeLayout::natural(bytes))
         }
 
+        // atomic storage has the same representation as its value
+        mir::Type::Atomic { value } => {
+            let value = value.ty().ok_or_else(|| CodegenCraneliftError::Internal {
+                message: "missing or malformed MIR type in native lowering: atomic value type"
+                    .into(),
+            })?;
+
+            compute_type_layout(tree, value, pointer_bytes)
+        }
+
         // pointers and references
         mir::Type::TypeDescriptor
         | mir::Type::TypeId
@@ -205,7 +215,7 @@ pub(crate) fn compute_type_layout(
             compute_type_layout(tree, inner, pointer_bytes)
         }
 
-        // vectors: treat as packed elements for now
+        // vectors: packed element storage
         mir::Type::Vector {
             element,
             lanes,
