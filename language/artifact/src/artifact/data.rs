@@ -8,7 +8,7 @@ pub enum Data {
     /// One parsed JSON-like module value.
     Json(serde_json::Value),
     /// One parsed HTML module payload.
-    Html(Html),
+    Html(Box<Html>),
     /// One parsed CSS module payload.
-    Css(Css),
+    Css(Box<Css>),
 }

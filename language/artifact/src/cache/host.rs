@@ -47,7 +47,7 @@ impl CacheStore for DiskCacheStore {
         match fs::read(path) {
             Ok(bytes) => Ok(Some(bytes)),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(error) => Err(CacheStoreError::Io(error)),
+            Err(error) => Err(CacheStoreError::from(error)),
         }
     }
 
@@ -77,7 +77,7 @@ impl CacheStore for DiskCacheStore {
             }
             Err(error) => {
                 cleanup_temp_path(&temp_path);
-                return Err(CacheStoreError::Io(error));
+                return Err(CacheStoreError::from(error));
             }
         }
 
@@ -91,7 +91,7 @@ impl CacheStore for DiskCacheStore {
         match fs::metadata(path) {
             Ok(metadata) => Ok(Some(metadata.len())),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(error) => Err(CacheStoreError::Io(error)),
+            Err(error) => Err(CacheStoreError::from(error)),
         }
     }
 }

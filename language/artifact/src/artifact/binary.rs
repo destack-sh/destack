@@ -7,9 +7,9 @@ use crate::{ScriptOutput, SourceMapArtifact};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ModuleOutput {
     /// One generated script output.
-    Script(ScriptOutput),
+    Script(Box<ScriptOutput>),
     /// One generated binary output.
-    Binary(BinaryOutput),
+    Binary(Box<BinaryOutput>),
 }
 
 /// One generated binary output.

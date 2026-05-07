@@ -149,17 +149,19 @@ pub enum ArtifactImageError {
     Corrupt(&'static str),
     /// The image header version did not match the expected exact version.
     Version {
-        expected: ArtifactVersion,
-        found: ArtifactVersion,
+        /// The requested artifact version.
+        expected: Box<ArtifactVersion>,
+        /// The artifact version carried by the image.
+        found: Box<ArtifactVersion>,
     },
     /// The image failed to encode or decode.
-    Codec(PostcardError),
+    Codec(Box<PostcardError>),
     /// The image exceeded the configured size limit.
     Size { limit: u64, actual: u64 },
     /// The cache already has different bytes for the same exact version.
-    Conflict { version: ArtifactVersion },
+    Conflict { version: Box<ArtifactVersion> },
     /// The artifact image cache failed to read or write.
-    Cache(CacheStoreError),
+    Cache(Box<CacheStoreError>),
 }
 
 impl fmt::Display for ArtifactImageError {
@@ -197,7 +199,7 @@ impl std::error::Error for ArtifactImageError {}
 
 impl From<std::io::Error> for ArtifactImageError {
     fn from(error: std::io::Error) -> Self {
-        Self::Cache(CacheStoreError::Io(error))
+        Self::Cache(Box::new(CacheStoreError::from(error)))
     }
 }
 
@@ -206,7 +208,8 @@ fn serialize_payload_with_limit<T: Serialize>(
     payload: &T,
     limit: u64,
 ) -> Result<Vec<u8>, ArtifactImageError> {
-    let bytes = postcard::to_allocvec(payload).map_err(ArtifactImageError::Codec)?;
+    let bytes = postcard::to_allocvec(payload)
+        .map_err(|error| ArtifactImageError::Codec(Box::new(error)))?;
     let actual = bytes.len() as u64;
     if actual > limit {
         return Err(ArtifactImageError::Size { limit, actual });
@@ -225,5 +228,5 @@ fn deserialize_payload_with_limit<T: DeserializeOwned>(
         return Err(ArtifactImageError::Size { limit, actual });
     }
 
-    postcard::from_bytes(bytes).map_err(ArtifactImageError::Codec)
+    postcard::from_bytes(bytes).map_err(|error| ArtifactImageError::Codec(Box::new(error)))
 }

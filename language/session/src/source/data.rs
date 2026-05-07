@@ -48,7 +48,7 @@ impl SessionState {
         let source = file.text().to_string();
         let (tree, document) = parse_html(file, &source);
 
-        Data::Html(Html { tree, document })
+        Data::Html(Box::new(Html { tree, document }))
     }
 
     /// Parse CSS content into a data artifact.
@@ -62,7 +62,7 @@ impl SessionState {
                 ),
             })?;
 
-        Ok(Data::Css(Css { tree, stylesheet }))
+        Ok(Data::Css(Box::new(Css { tree, stylesheet })))
     }
 
     /// Parse JSON content into a JSON value.

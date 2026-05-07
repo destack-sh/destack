@@ -21,6 +21,12 @@ impl MirLowered {
     }
 }
 
+impl Default for MirLowered {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Optimized MIR payload after pipeline transforms.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MirOptimized {
@@ -37,5 +43,11 @@ impl MirOptimized {
             tree: mir::Tree::new(),
             strings: StringPool::new(),
         }
+    }
+}
+
+impl Default for MirOptimized {
+    fn default() -> Self {
+        Self::new()
     }
 }

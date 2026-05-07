@@ -56,7 +56,7 @@ impl Compiler {
             self.emit_diagnostic(context, error)?;
         }
 
-        Ok(ModuleOutput::Script(artifact))
+        Ok(ModuleOutput::Script(Box::new(artifact)))
     }
 
     /// Map one script backend error to a compiler error.

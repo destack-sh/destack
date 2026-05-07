@@ -38,7 +38,7 @@ impl CacheStore for DiskCacheStore {
 
 /// Build one unsupported cache-store error.
 fn unsupported() -> CacheStoreError {
-    CacheStoreError::Io(std::io::Error::new(
+    CacheStoreError::from(std::io::Error::new(
         ErrorKind::Unsupported,
         "disk cache is not supported on this target",
     ))

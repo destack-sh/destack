@@ -199,7 +199,7 @@ impl<'a> ScriptLinker<'a> {
             });
         };
 
-        Ok(script.clone())
+        Ok(script.as_ref().clone())
     }
 
     /// Return the emitted file type for one linked script target.
