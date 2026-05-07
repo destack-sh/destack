@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_dir::LanguageSymbol;
+use destack_dir::LanguageItem;
 use destack_source::{FileType, ModuleId, PackageId, ProfileId, TargetId, Uri};
 
 use crate::{DiagnosticContext, DiagnosticDisplay, DiagnosticError};
@@ -275,7 +275,7 @@ impl DiagnosticFormat for dir::Visibility {
     }
 }
 
-impl DiagnosticFormat for LanguageSymbol {
+impl DiagnosticFormat for LanguageItem {
     /// Format one language symbol for display.
     fn format_diagnostic(
         &self,

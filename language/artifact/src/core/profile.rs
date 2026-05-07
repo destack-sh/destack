@@ -15,6 +15,8 @@ const PROFILE_ID_DOMAIN: &[u8] = b"profile";
 pub struct ProfileFlags {
     /// Forbid managed memory features.
     pub no_managed: bool,
+    /// Forbid heap allocation.
+    pub no_heap: bool,
     /// Forbid runtime features.
     pub no_runtime: bool,
     /// Forbid referential equality.

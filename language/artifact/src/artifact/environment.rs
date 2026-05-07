@@ -1,6 +1,6 @@
 use destack_core::StringId;
 use destack_dir::{
-    GlobalSymbolId, LanguageSymbol, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolType,
+    GlobalSymbolId, LanguageItem, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolType,
     WellKnownSymbol, WellKnownSymbolKey,
 };
 use destack_source::ModuleId;
@@ -13,14 +13,14 @@ use super::{AmbientLookupKey, SymbolGroup, WellKnownKey, WellKnownSymbols};
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LanguageEnvironment {
     /// Resolved language items by builtin id.
-    pub items: IndexMap<LanguageSymbol, GlobalSymbolId>,
+    pub items: IndexMap<LanguageItem, GlobalSymbolId>,
     /// Resolved builtin symbols by export name.
     pub symbols: IndexMap<StringId, GlobalSymbolId>,
 }
 
 impl LanguageEnvironment {
     /// Return one language item symbol.
-    pub fn item(&self, item: LanguageSymbol) -> Option<GlobalSymbolId> {
+    pub fn item(&self, item: LanguageItem) -> Option<GlobalSymbolId> {
         self.items.get(&item).copied()
     }
 
