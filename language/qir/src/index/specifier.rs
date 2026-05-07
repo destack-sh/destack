@@ -27,12 +27,6 @@ impl SpecifierIndex {
         index
     }
 
-    /// Extend this index with another specifier index.
-    pub fn extend(&mut self, index: Self) {
-        self.by_target_path.extend(index.by_target_path);
-        self.unresolved.extend(index.unresolved);
-    }
-
     /// Sort and deduplicate this index.
     pub fn finish(&mut self) {
         self.by_target_path.sort_by(|left, right| {

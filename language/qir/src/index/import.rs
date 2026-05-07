@@ -18,11 +18,6 @@ impl ImportIndex {
         index
     }
 
-    /// Extend this index with another import index.
-    pub fn extend(&mut self, index: Self) {
-        self.entries.extend(index.entries);
-    }
-
     /// Sort and deduplicate this index.
     pub fn finish(&mut self) {
         self.entries
