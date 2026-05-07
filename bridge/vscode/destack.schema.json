@@ -516,85 +516,8 @@
             }
           ]
         },
-        "noReferentialEquality": {
-          "description": "Policy for referential equality.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noDynamicEvaluation": {
-          "description": "Policy for `eval()` and `Function` constructor.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noGlobalThis": {
-          "description": "Policy for `globalThis` access.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noDynamicImport": {
-          "description": "Policy for dynamic `import()` and `require()` expressions.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "noInternalImport": {
           "description": "Policy for low level internal protocol imports (`platform:`).",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noDynamicShapes": {
-          "description": "Policy for defineProperty, prototype mutation, delete, and declaration expressions.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noComputedPropertyAccess": {
-          "description": "Policy for computed property access `obj[expr]` where expr isn't constant.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noProxy": {
-          "description": "Policy for `Proxy`.",
           "anyOf": [
             {
               "$ref": "#/$defs/DiagnosticPolicyJson"

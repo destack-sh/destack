@@ -1,0 +1,22 @@
+import { type Patcher } from "./patch.ds";
+
+/// Builder for lowercase tree tags in one module.
+export newtype interface TreeTagBuilder {}
+
+/// Static configuration for one source module.
+export interface Module {
+    /// The tree tag builder for tree literals in this module.
+    readonly tree?: TreeTagBuilder;
+    /// Auto-derive providers for nominal declarations in this module.
+    readonly derive?: readonly Patcher<unknown>[];
+    /// Forbid managed values and managed allocation in this module.
+    readonly noManaged?: boolean;
+    /// Forbid managed values and raw heap allocation in this module.
+    readonly noHeap?: boolean;
+    /// Forbid runtime-dependent language features in this module.
+    readonly noRuntime?: boolean;
+    /// Forbid `throw` in this module.
+    readonly noExceptions?: boolean;
+    /// Forbid dispatch that cannot be resolved statically in this module.
+    readonly noImplicitDynamicDispatch?: boolean;
+}

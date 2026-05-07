@@ -59,22 +59,8 @@ pub struct CompilerOptions {
     pub no_heap: DiagnosticPolicy,
     /// Policy for runtime usage (no managed memory, no Promise, no exceptions, ...).
     pub no_runtime: DiagnosticPolicy,
-    /// Policy for referential equality.
-    pub no_referential_equality: DiagnosticPolicy,
-    /// Policy for `eval()` and `Function` constructor.
-    pub no_dynamic_evaluation: DiagnosticPolicy,
-    /// Policy for `globalThis` access.
-    pub no_global_this: DiagnosticPolicy,
-    /// Policy for dynamic `import()` and `require()` expressions.
-    pub no_dynamic_import: DiagnosticPolicy,
     /// Policy for low level internal protocol imports (`platform:`).
     pub no_internal_import: DiagnosticPolicy,
-    /// Policy for defineProperty, prototype mutation, delete, and declaration expressions.
-    pub no_dynamic_shapes: DiagnosticPolicy,
-    /// Policy for computed property access `obj[expr]` where expr isn't constant.
-    pub no_computed_property_access: DiagnosticPolicy,
-    /// Policy for `Proxy`.
-    pub no_proxy: DiagnosticPolicy,
     /// Policy for overloads that are not statically resolvable.
     pub no_implicit_dynamic_dispatch: DiagnosticPolicy,
     /// Policy for `throw` and `try`/`catch` (use Result types instead).
@@ -128,14 +114,7 @@ impl Default for CompilerOptions {
             no_managed: DiagnosticPolicy::Allow,
             no_heap: DiagnosticPolicy::Allow,
             no_runtime: DiagnosticPolicy::Allow,
-            no_referential_equality: DiagnosticPolicy::Allow,
-            no_dynamic_evaluation: DiagnosticPolicy::Allow,
-            no_global_this: DiagnosticPolicy::Allow,
-            no_dynamic_import: DiagnosticPolicy::Allow,
             no_internal_import: DiagnosticPolicy::Allow,
-            no_dynamic_shapes: DiagnosticPolicy::Allow,
-            no_computed_property_access: DiagnosticPolicy::Allow,
-            no_proxy: DiagnosticPolicy::Allow,
             no_implicit_dynamic_dispatch: DiagnosticPolicy::Allow,
             no_exceptions: DiagnosticPolicy::Allow,
 
@@ -181,14 +160,7 @@ impl CompilerOptions {
     /// Enable native-only restrictions for native and wasm targets.
     pub fn apply_native_restrictions(&mut self) {
         self.no_managed = DiagnosticPolicy::Deny;
-
-        // disable runtime features that native backends cannot support
-        self.no_dynamic_evaluation = DiagnosticPolicy::Deny;
-        self.no_dynamic_import = DiagnosticPolicy::Deny;
-        self.no_proxy = DiagnosticPolicy::Deny;
-        self.no_dynamic_shapes = DiagnosticPolicy::Deny;
         self.no_exceptions = DiagnosticPolicy::Deny;
-        self.no_global_this = DiagnosticPolicy::Deny;
     }
 
     /// Enable heap-free restrictions.
@@ -205,12 +177,6 @@ impl CompilerOptions {
         self.no_heap = DiagnosticPolicy::Deny;
         self.no_managed = DiagnosticPolicy::Deny;
         self.no_exceptions = DiagnosticPolicy::Deny;
-        self.no_dynamic_evaluation = DiagnosticPolicy::Deny;
-        self.no_dynamic_import = DiagnosticPolicy::Deny;
-        self.no_dynamic_shapes = DiagnosticPolicy::Deny;
-        self.no_computed_property_access = DiagnosticPolicy::Deny;
-        self.no_proxy = DiagnosticPolicy::Deny;
-        self.no_global_this = DiagnosticPolicy::Deny;
         self.no_implicit_dynamic_dispatch = DiagnosticPolicy::Deny;
     }
 }
@@ -380,22 +346,8 @@ pub struct CompilerOptionsJson {
     pub no_heap: Option<DiagnosticPolicyJson>,
     /// Policy for runtime usage (no managed memory, no Promise, no exceptions, ...).
     pub no_runtime: Option<DiagnosticPolicyJson>,
-    /// Policy for referential equality.
-    pub no_referential_equality: Option<DiagnosticPolicyJson>,
-    /// Policy for `eval()` and `Function` constructor.
-    pub no_dynamic_evaluation: Option<DiagnosticPolicyJson>,
-    /// Policy for `globalThis` access.
-    pub no_global_this: Option<DiagnosticPolicyJson>,
-    /// Policy for dynamic `import()` and `require()` expressions.
-    pub no_dynamic_import: Option<DiagnosticPolicyJson>,
     /// Policy for low level internal protocol imports (`platform:`).
     pub no_internal_import: Option<DiagnosticPolicyJson>,
-    /// Policy for defineProperty, prototype mutation, delete, and declaration expressions.
-    pub no_dynamic_shapes: Option<DiagnosticPolicyJson>,
-    /// Policy for computed property access `obj[expr]` where expr isn't constant.
-    pub no_computed_property_access: Option<DiagnosticPolicyJson>,
-    /// Policy for `Proxy`.
-    pub no_proxy: Option<DiagnosticPolicyJson>,
     /// Policy for overloads that are not statically resolvable.
     pub no_implicit_dynamic_dispatch: Option<DiagnosticPolicyJson>,
     /// Policy for `throw` and `try`/`catch` (use Result types instead).
@@ -493,36 +445,8 @@ impl From<&CompilerOptionsJson> for CompilerOptions {
                 .no_runtime
                 .map(DiagnosticPolicy::from)
                 .unwrap_or(DiagnosticPolicy::Allow),
-            no_referential_equality: json
-                .no_referential_equality
-                .map(DiagnosticPolicy::from)
-                .unwrap_or(DiagnosticPolicy::Allow),
-            no_dynamic_evaluation: json
-                .no_dynamic_evaluation
-                .map(DiagnosticPolicy::from)
-                .unwrap_or(DiagnosticPolicy::Allow),
-            no_global_this: json
-                .no_global_this
-                .map(DiagnosticPolicy::from)
-                .unwrap_or(DiagnosticPolicy::Allow),
-            no_dynamic_import: json
-                .no_dynamic_import
-                .map(DiagnosticPolicy::from)
-                .unwrap_or(DiagnosticPolicy::Allow),
             no_internal_import: json
                 .no_internal_import
-                .map(DiagnosticPolicy::from)
-                .unwrap_or(DiagnosticPolicy::Allow),
-            no_dynamic_shapes: json
-                .no_dynamic_shapes
-                .map(DiagnosticPolicy::from)
-                .unwrap_or(DiagnosticPolicy::Allow),
-            no_computed_property_access: json
-                .no_computed_property_access
-                .map(DiagnosticPolicy::from)
-                .unwrap_or(DiagnosticPolicy::Allow),
-            no_proxy: json
-                .no_proxy
                 .map(DiagnosticPolicy::from)
                 .unwrap_or(DiagnosticPolicy::Allow),
             no_implicit_dynamic_dispatch: json

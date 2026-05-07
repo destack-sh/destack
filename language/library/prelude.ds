@@ -137,7 +137,7 @@ export {
     intrinsic,
     languageItem,
     noManaged,
-    stackOnly,
+    noHeap,
     capture,
     Tagged,
     Clone,
@@ -168,6 +168,7 @@ export {
 
 // module patches
 export {
+    type Module,
     type PatchContext,
     type PatchAdd,
     type PatchReplace,
