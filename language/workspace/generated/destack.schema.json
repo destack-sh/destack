@@ -5129,7 +5129,7 @@
           }
         },
         "outDir": {
-          "description": "Output directory for this target (overrides compilerOptions.outDir).",
+          "description": "Output directory for this target (overrides compiler.outDir).",
           "type": [
             "string",
             "null"
@@ -5143,21 +5143,21 @@
           ]
         },
         "declarationDir": {
-          "description": "Separate directory for declaration files (overrides compilerOptions.declarationDir).",
+          "description": "Separate directory for declaration files (overrides compiler.declarationDir).",
           "type": [
             "string",
             "null"
           ]
         },
         "module": {
-          "description": "Module format for this target (overrides compilerOptions.module).",
+          "description": "Module format for this target (overrides compiler.module).",
           "type": [
             "string",
             "null"
           ]
         },
         "target": {
-          "description": "ECMAScript target for this target (overrides compilerOptions.target).",
+          "description": "ECMAScript target for this target (overrides compiler.target).",
           "type": [
             "string",
             "null"
