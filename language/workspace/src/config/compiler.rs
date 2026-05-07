@@ -1,12 +1,8 @@
 use std::path::PathBuf;
 
-use indexmap::IndexMap;
 use serde::Deserialize;
 
-use crate::config::{EsTarget, ModuleDetection, ModuleResolution, ModuleTarget, TsConfigOptions};
-
-/// Path alias mapping (resolved from Destack config paths).
-pub type DsPathAliases = IndexMap<String, Vec<String>>;
+use crate::config::{EsTarget, JsModuleFormat};
 
 /// Normalized Destack compiler options.
 ///
@@ -14,29 +10,11 @@ pub type DsPathAliases = IndexMap<String, Vec<String>>;
 /// build, interop, and capability policy.
 #[derive(Debug, Clone)]
 pub struct CompilerOptions {
-    // module resolution
-    /// Base URL for resolving non-relative module names.
-    pub base_url: Option<PathBuf>,
-    /// Path alias mappings (resolved relative to baseUrl).
-    pub paths: Option<DsPathAliases>,
-
     // module & target
-    /// Module format for output.
-    pub module: ModuleTarget,
+    /// JavaScript module format for output.
+    pub module: JsModuleFormat,
     /// ECMAScript target version.
     pub es_target: EsTarget,
-    /// Module resolution strategy.
-    pub module_resolution: ModuleResolution,
-    /// Use package.json exports field during module resolution.
-    pub resolve_package_json_exports: bool,
-    /// Use package.json imports field during module resolution.
-    pub resolve_package_json_imports: bool,
-    /// Custom package export conditions for module resolution.
-    pub custom_conditions: Vec<String>,
-    /// Package linker strategy for bare module resolution.
-    pub node_linker: NodeLinker,
-    /// How to detect modules versus scripts.
-    pub module_detection: ModuleDetection,
     /// Default environment for IDEs and CLI usage.
     pub environment: Option<String>,
     /// Default profile for IDEs and CLI usage.
@@ -63,8 +41,8 @@ pub struct CompilerOptions {
     pub no_internal_import: DiagnosticPolicy,
     /// Policy for overloads that are not statically resolvable.
     pub no_implicit_dynamic_dispatch: DiagnosticPolicy,
-    /// Policy for `throw` and `try`/`catch` (use Result types instead).
-    pub no_exceptions: DiagnosticPolicy,
+    /// Policy for `throw`.
+    pub no_throw: DiagnosticPolicy,
 
     // emit
     /// Root directory of source files (controls output directory structure, not module resolution).
@@ -77,31 +55,13 @@ pub struct CompilerOptions {
     pub declaration_map: bool,
     /// Do not emit output files.
     pub no_emit: bool,
-
-    // interop
-    /// Path to tsconfig.json to inherit settings from.
-    pub tsconfig: Option<PathBuf>,
-    /// Allow arbitrary file extensions in import specifiers.
-    pub allow_arbitrary_extensions: bool,
-    /// Allow TypeScript file extensions in import specifiers.
-    pub allow_importing_ts_extensions: bool,
-    /// Skip type checking of declaration files.
-    pub skip_lib_check: bool,
 }
 
 impl Default for CompilerOptions {
     fn default() -> Self {
         Self {
-            base_url: None,
-            paths: None,
-            module_resolution: ModuleResolution::default(),
-            resolve_package_json_exports: true,
-            resolve_package_json_imports: true,
-            custom_conditions: Vec::new(),
-            node_linker: NodeLinker::default(),
-            module: ModuleTarget::default(),
+            module: JsModuleFormat::default(),
             es_target: EsTarget::default(),
-            module_detection: ModuleDetection::default(),
             environment: None,
             profile: None,
             mode: None,
@@ -116,7 +76,7 @@ impl Default for CompilerOptions {
             no_runtime: DiagnosticPolicy::Allow,
             no_internal_import: DiagnosticPolicy::Allow,
             no_implicit_dynamic_dispatch: DiagnosticPolicy::Allow,
-            no_exceptions: DiagnosticPolicy::Allow,
+            no_throw: DiagnosticPolicy::Allow,
 
             // emit
             root_dir: None,
@@ -124,43 +84,15 @@ impl Default for CompilerOptions {
             declaration_dir: None,
             declaration_map: false,
             no_emit: false,
-
-            // interop
-            tsconfig: None,
-            allow_arbitrary_extensions: false,
-            allow_importing_ts_extensions: false,
-            skip_lib_check: false,
         }
     }
 }
 
 impl CompilerOptions {
-    /// Apply compiler options from one normalized TypeScript configuration.
-    pub fn apply_tsconfig_options(&mut self, tsconfig_options: &TsConfigOptions) {
-        let compiler = &tsconfig_options.compiler;
-
-        // module resolution
-        self.base_url = compiler.base_url.clone();
-        self.paths = compiler.paths.as_ref().map(|paths| {
-            let mut mapped_paths = DsPathAliases::default();
-
-            for (key, values) in paths {
-                mapped_paths.insert(key.clone(), values.clone());
-            }
-
-            mapped_paths
-        });
-
-        // language and module semantics
-        self.module = compiler.module;
-        self.es_target = compiler.es_target;
-        self.skip_lib_check = compiler.skip_lib_check;
-    }
-
     /// Enable native-only restrictions for native and wasm targets.
     pub fn apply_native_restrictions(&mut self) {
         self.no_managed = DiagnosticPolicy::Deny;
-        self.no_exceptions = DiagnosticPolicy::Deny;
+        self.no_throw = DiagnosticPolicy::Deny;
     }
 
     /// Enable heap-free restrictions.
@@ -176,32 +108,8 @@ impl CompilerOptions {
         self.no_runtime = DiagnosticPolicy::Deny;
         self.no_heap = DiagnosticPolicy::Deny;
         self.no_managed = DiagnosticPolicy::Deny;
-        self.no_exceptions = DiagnosticPolicy::Deny;
+        self.no_throw = DiagnosticPolicy::Deny;
         self.no_implicit_dynamic_dispatch = DiagnosticPolicy::Deny;
-    }
-}
-
-/// Node package linker mode for module resolution.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum NodeLinker {
-    /// Detect linker mode automatically from workspace files.
-    #[default]
-    Auto,
-    /// Resolve packages through node_modules directory traversal.
-    NodeModules,
-    /// Resolve packages through Yarn Plug'n'Play manifests.
-    Pnp,
-}
-
-impl NodeLinker {
-    /// Parse one node linker value from config text.
-    pub fn parse(value: &str) -> Option<Self> {
-        match value {
-            "auto" => Some(Self::Auto),
-            "node-modules" | "node_modules" | "nodeModules" => Some(Self::NodeModules),
-            "pnp" => Some(Self::Pnp),
-            _ => None,
-        }
     }
 }
 
@@ -301,29 +209,11 @@ impl DiagnosticPolicy {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct CompilerOptionsJson {
-    // module resolution
-    /// Base URL for resolving non-relative module names.
-    pub base_url: Option<String>,
-    /// Path alias mappings (resolved relative to baseUrl, like tsconfig paths).
-    pub paths: Option<IndexMap<String, Vec<String>>>,
-
     // module & target
     /// Module format for output (e.g., "esnext", "commonjs").
     pub module: Option<String>,
     /// ECMAScript target version (e.g., "es2022", "esnext").
     pub target: Option<String>,
-    /// Module resolution strategy (e.g., "bundler", "node16", "nodenext").
-    pub module_resolution: Option<String>,
-    /// Use package.json exports field during module resolution.
-    pub resolve_package_json_exports: Option<bool>,
-    /// Use package.json imports field during module resolution.
-    pub resolve_package_json_imports: Option<bool>,
-    /// Custom package export conditions for module resolution.
-    pub custom_conditions: Option<Vec<String>>,
-    /// Package linker strategy for bare module resolution (`auto`, `node-modules`, `pnp`).
-    pub node_linker: Option<String>,
-    /// How to detect modules versus scripts (e.g., "auto", "force", "legacy").
-    pub module_detection: Option<String>,
     /// Default environment for IDEs and CLI usage.
     pub environment: Option<String>,
     /// Default profile for IDEs and CLI usage.
@@ -350,8 +240,8 @@ pub struct CompilerOptionsJson {
     pub no_internal_import: Option<DiagnosticPolicyJson>,
     /// Policy for overloads that are not statically resolvable.
     pub no_implicit_dynamic_dispatch: Option<DiagnosticPolicyJson>,
-    /// Policy for `throw` and `try`/`catch` (use Result types instead).
-    pub no_exceptions: Option<DiagnosticPolicyJson>,
+    /// Policy for `throw`.
+    pub no_throw: Option<DiagnosticPolicyJson>,
 
     // emit
     /// Root directory of source files (controls output directory structure, not module resolution).
@@ -364,61 +254,20 @@ pub struct CompilerOptionsJson {
     pub declaration_map: Option<bool>,
     /// Do not emit output files.
     pub no_emit: Option<bool>,
-
-    // interop
-    /// Path to tsconfig.json to inherit settings from.
-    pub tsconfig: Option<String>,
-    /// Allow arbitrary file extensions in import specifiers.
-    pub allow_arbitrary_extensions: Option<bool>,
-    /// Allow TypeScript file extensions in import specifiers.
-    pub allow_importing_ts_extensions: Option<bool>,
-    /// Skip type checking of declaration files (.d.ts, .d.ds).
-    pub skip_lib_check: Option<bool>,
 }
 
 impl From<&CompilerOptionsJson> for CompilerOptions {
     fn from(json: &CompilerOptionsJson) -> Self {
-        let module_resolution = json
-            .module_resolution
-            .as_deref()
-            .and_then(ModuleResolution::parse)
-            .unwrap_or_default();
-        let resolve_package_json_default = matches!(
-            module_resolution,
-            ModuleResolution::Node16 | ModuleResolution::NodeNext | ModuleResolution::Bundler
-        );
         let mut options = Self {
-            base_url: json.base_url.as_ref().map(PathBuf::from),
-            paths: json.paths.clone(),
-            module_resolution,
-            allow_arbitrary_extensions: json.allow_arbitrary_extensions.unwrap_or(false),
-            allow_importing_ts_extensions: json.allow_importing_ts_extensions.unwrap_or(false),
-            resolve_package_json_exports: json
-                .resolve_package_json_exports
-                .unwrap_or(resolve_package_json_default),
-            resolve_package_json_imports: json
-                .resolve_package_json_imports
-                .unwrap_or(resolve_package_json_default),
-            custom_conditions: json.custom_conditions.clone().unwrap_or_default(),
-            node_linker: json
-                .node_linker
-                .as_deref()
-                .and_then(NodeLinker::parse)
-                .unwrap_or_default(),
             module: json
                 .module
                 .as_deref()
-                .and_then(ModuleTarget::parse)
+                .and_then(JsModuleFormat::parse)
                 .unwrap_or_default(),
             es_target: json
                 .target
                 .as_deref()
                 .and_then(EsTarget::parse)
-                .unwrap_or_default(),
-            module_detection: json
-                .module_detection
-                .as_deref()
-                .and_then(ModuleDetection::parse)
                 .unwrap_or_default(),
             environment: json.environment.clone(),
             profile: json.profile.clone(),
@@ -453,8 +302,8 @@ impl From<&CompilerOptionsJson> for CompilerOptions {
                 .no_implicit_dynamic_dispatch
                 .map(DiagnosticPolicy::from)
                 .unwrap_or(DiagnosticPolicy::Allow),
-            no_exceptions: json
-                .no_exceptions
+            no_throw: json
+                .no_throw
                 .map(DiagnosticPolicy::from)
                 .unwrap_or(DiagnosticPolicy::Allow),
 
@@ -464,10 +313,6 @@ impl From<&CompilerOptionsJson> for CompilerOptions {
             declaration_dir: json.declaration_dir.as_ref().map(PathBuf::from),
             declaration_map: json.declaration_map.unwrap_or(false),
             no_emit: json.no_emit.unwrap_or(false),
-
-            // interop
-            tsconfig: json.tsconfig.as_ref().map(PathBuf::from),
-            skip_lib_check: json.skip_lib_check.unwrap_or(false),
         };
 
         // apply heap-free restrictions when requested

@@ -7,7 +7,7 @@ use im::OrdMap;
 use crate::repository::key::profile_key_for_target;
 use crate::{
     CompilerOptions, HostEnvironment, Module, Package, ProfileEnvironment, ProfileOptions,
-    Repository, RepositoryError, Revision, Target, TsConfigOptions,
+    Repository, RepositoryError, Revision, Target,
 };
 
 /// One resolved semantic profile.
@@ -55,8 +55,7 @@ impl Repository {
             });
         };
 
-        let (compiler_options, tsconfig_options) =
-            self.module_compiler_options(revision, &package, &module)?;
+        let compiler_options = self.module_compiler_options(revision, &package, &module)?;
         let package_options = self.package_options(revision, package.id)?;
 
         let (target, profile_config) = if let Some(package_options) = package_options.as_ref() {
@@ -77,7 +76,6 @@ impl Repository {
             &target,
             &compiler_options,
             profile_config,
-            tsconfig_options.as_ref(),
             &revision_state.host,
         );
 
@@ -118,7 +116,6 @@ impl Repository {
             &target,
             &compiler_options,
             profile_config,
-            None,
             &revision_state.host,
         );
 
@@ -149,8 +146,7 @@ impl Repository {
             return Ok(None);
         };
 
-        let (compiler_options, tsconfig_options) =
-            self.module_compiler_options(revision, &package, &module)?;
+        let compiler_options = self.module_compiler_options(revision, &package, &module)?;
         let package_options = self.package_options(revision, package.id)?;
         let profile_config = package_options.as_ref().and_then(|package_options| {
             target
@@ -164,7 +160,6 @@ impl Repository {
             &target,
             &compiler_options,
             profile_config,
-            tsconfig_options.as_ref(),
             &revision_state.host,
         );
 
@@ -292,27 +287,14 @@ impl Repository {
         &self,
         revision: Revision,
         package: &Package,
-        module: &Module,
-    ) -> Result<(CompilerOptions, Option<TsConfigOptions>), RepositoryError> {
-        let mut compiler_options = self
+        _module: &Module,
+    ) -> Result<CompilerOptions, RepositoryError> {
+        let compiler_options = self
             .package_options(revision, package.id)?
             .map(|package_options| package_options.compiler)
             .unwrap_or_default();
 
-        let tsconfig = match (package.destack_file_id, module.tsconfig_file_id) {
-            (None, Some(tsconfig_file_id)) => {
-                self.tsconfig_declaration_for_file(revision, tsconfig_file_id)?
-            }
-            _ => None,
-        };
-
-        let tsconfig_options = tsconfig.as_ref().map(|tsconfig| tsconfig.options());
-
-        if let Some(tsconfig_options) = tsconfig_options.as_ref() {
-            compiler_options.apply_tsconfig_options(tsconfig_options);
-        }
-
-        Ok((compiler_options, tsconfig_options))
+        Ok(compiler_options)
     }
 
     /// Build one resolved profile from one target and effective option set.
@@ -321,16 +303,9 @@ impl Repository {
         target: &Target,
         compiler_options: &CompilerOptions,
         profile_config: Option<&ProfileOptions>,
-        tsconfig_options: Option<&TsConfigOptions>,
         environment: &HostEnvironment,
     ) -> Arc<Profile> {
-        let key = profile_key_for_target(
-            target,
-            compiler_options,
-            profile_config,
-            tsconfig_options,
-            environment,
-        );
+        let key = profile_key_for_target(target, compiler_options, profile_config, environment);
 
         Arc::new(Profile::from_key(key, environment))
     }

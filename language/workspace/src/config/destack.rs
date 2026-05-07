@@ -1,8 +1,17 @@
+use std::io::{Error, ErrorKind};
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use destack_source::{File, FileId};
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::config::ProfileOptionsJson;
+use crate::config::{
+    PackageOptions, ProfileOptions, ProfileOptionsJson, TargetOptions, WorkspaceOptions,
+    environment_options_from_json, extend_environment_options, parse_jsonc_file,
+    runtime_options_with_base,
+};
 
 use super::cache::CacheJson;
 use super::compiler::CompilerOptionsJson;
@@ -38,28 +47,9 @@ pub struct DestackJson {
     pub homepage: Option<String>,
     /// Package keywords.
     pub keywords: Option<Vec<String>>,
-    /// Preferred package manager string.
-    pub package_manager: Option<String>,
-    /// Package module type.
-    #[serde(rename = "type")]
-    pub module_type: Option<String>,
-    /// Package engines.
-    pub engines: Option<IndexMap<String, String>>,
-    /// Package exports map.
-    pub exports: Option<Value>,
-    /// Package imports map.
-    pub imports: Option<IndexMap<String, Value>>,
-    /// Runtime dependencies.
-    pub dependencies: Option<IndexMap<String, String>>,
-    /// Development dependencies.
-    pub dev_dependencies: Option<IndexMap<String, String>>,
-    /// Peer dependencies.
-    pub peer_dependencies: Option<IndexMap<String, String>>,
-    /// Optional dependencies.
-    pub optional_dependencies: Option<IndexMap<String, String>>,
     /// Repository wide workspace membership.
     pub workspace: Option<WorkspaceJson>,
-    /// Extends other Destack configs or tsconfig files by path.
+    /// Extends other Destack configs by path.
     pub extends: Option<ExtendsFieldJson>,
     /// Specific files to include in the project.
     pub files: Option<Vec<String>>,
@@ -126,4 +116,426 @@ pub enum ExtendsFieldJson {
     Single(String),
     /// Extend multiple config paths.
     Multiple(Vec<String>),
+}
+
+/// Parsed `destack.json` declaration.
+#[derive(Debug, Clone)]
+pub struct DestackDeclaration {
+    /// The id of the `destack.json` file.
+    pub file_id: FileId,
+    /// Path to the `destack.json` file.
+    pub path: PathBuf,
+    /// The directory containing the `destack.json` file.
+    pub directory: PathBuf,
+    /// The raw JSON content of the `destack.json` file.
+    pub json: DestackJson,
+    /// The raw declaration JSON for exact child over parent merging.
+    raw_json: Value,
+    /// The effective package options after declaration inheritance.
+    package_options: PackageOptions,
+    /// The effective workspace options after declaration inheritance.
+    workspace_options: WorkspaceOptions,
+}
+
+impl DestackDeclaration {
+    /// Parse one `destack.json` declaration from one file.
+    pub fn parse(file: &Arc<File>) -> Result<Self, serde_json::Error> {
+        let raw_json = parse_jsonc_file(file)?;
+        let json: DestackJson = serde_json::from_value(raw_json.clone())?;
+
+        json.linter
+            .validate()
+            .map_err(|error| serde_json::Error::io(Error::new(ErrorKind::InvalidData, error)))?;
+
+        let path = file
+            .path
+            .clone()
+            .or_else(|| file.uri.to_path_buf())
+            .ok_or_else(|| {
+                serde_json::Error::io(Error::new(
+                    ErrorKind::InvalidData,
+                    "destack.json must have a valid path",
+                ))
+            })?;
+        let directory = path.parent().map(PathBuf::from).ok_or_else(|| {
+            serde_json::Error::io(Error::new(
+                ErrorKind::InvalidData,
+                "destack.json must have a parent directory",
+            ))
+        })?;
+        let package_options = PackageOptions::from(&json);
+        let workspace_options = WorkspaceOptions::from(&json);
+
+        Ok(Self {
+            file_id: file.id,
+            path,
+            directory,
+            json,
+            raw_json,
+            package_options,
+            workspace_options,
+        })
+    }
+
+    /// Return the declared `extends` specifiers in order.
+    pub fn extends(&self) -> impl Iterator<Item = &str> {
+        self.json.extends()
+    }
+
+    /// Inherit settings from one parent declaration.
+    #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
+    pub fn extend_from(&mut self, parent: &Self) -> Result<(), serde_json::Error> {
+        let parent_package = &parent.package_options;
+        let parent_workspace = &parent.workspace_options;
+
+        // package metadata
+        if self.json.name.is_none() {
+            self.package_options.name = parent_package.name.clone();
+        }
+        if self.json.version.is_none() {
+            self.package_options.version = parent_package.version.clone();
+        }
+        if self.json.r#private.is_none() {
+            self.package_options.is_private = parent_package.is_private;
+        }
+        if self.json.description.is_none() {
+            self.package_options.description = parent_package.description.clone();
+        }
+        if self.json.license.is_none() {
+            self.package_options.license = parent_package.license.clone();
+        }
+        if self.json.repository.is_none() {
+            self.package_options.repository = parent_package.repository.clone();
+        }
+        if self.json.homepage.is_none() {
+            self.package_options.homepage = parent_package.homepage.clone();
+        }
+        if self.json.keywords.is_none() {
+            self.package_options.keywords = parent_package.keywords.clone();
+        }
+
+        // workspace membership
+        if let Some(workspace) = self.json.workspace.as_ref() {
+            let mut membership = self.workspace_options.membership.clone();
+            membership.extend_from(&parent_workspace.membership);
+            self.workspace_options.membership = membership;
+
+            if workspace.members.is_none() {
+                self.workspace_options.membership.members =
+                    parent_workspace.membership.members.clone();
+            }
+            if workspace.groups.is_none() {
+                self.workspace_options.membership.groups =
+                    parent_workspace.membership.groups.clone();
+            }
+        } else {
+            self.workspace_options.membership = parent_workspace.membership.clone();
+        }
+
+        // source selection
+        if self.package_options.files.is_empty() {
+            self.package_options.files = parent_package.files.clone();
+        }
+        if self.package_options.include.is_empty() {
+            self.package_options.include = parent_package.include.clone();
+        }
+        if self.package_options.exclude.is_empty() {
+            self.package_options.exclude = parent_package.exclude.clone();
+        }
+
+        // compiler
+        let parent_compiler = &parent_package.compiler;
+        let compiler = &mut self.package_options.compiler;
+
+        if compiler.environment.is_none() {
+            compiler.environment = parent_compiler.environment.clone();
+        }
+        if compiler.profile.is_none() {
+            compiler.profile = parent_compiler.profile.clone();
+        }
+        if compiler.mode.is_none() {
+            compiler.mode = parent_compiler.mode.clone();
+        }
+        if compiler.comptime_env.is_none() {
+            compiler.comptime_env = parent_compiler.comptime_env.clone();
+        }
+        if compiler.tree.is_none() {
+            compiler.tree = parent_compiler.tree.clone();
+        }
+        if self.json.compiler.globals.is_none() {
+            compiler.globals = parent_compiler.globals.clone();
+        }
+        if self.json.compiler.derive.is_none() {
+            compiler.derive = parent_compiler.derive.clone();
+        }
+        if parent_compiler
+            .no_managed
+            .is_stricter_than(compiler.no_managed)
+        {
+            compiler.no_managed = parent_compiler.no_managed;
+        }
+        if parent_compiler.no_heap.is_stricter_than(compiler.no_heap) {
+            compiler.no_heap = parent_compiler.no_heap;
+        }
+        if parent_compiler
+            .no_runtime
+            .is_stricter_than(compiler.no_runtime)
+        {
+            compiler.no_runtime = parent_compiler.no_runtime;
+        }
+        if parent_compiler
+            .no_internal_import
+            .is_stricter_than(compiler.no_internal_import)
+        {
+            compiler.no_internal_import = parent_compiler.no_internal_import;
+        }
+        if parent_compiler
+            .no_implicit_dynamic_dispatch
+            .is_stricter_than(compiler.no_implicit_dynamic_dispatch)
+        {
+            compiler.no_implicit_dynamic_dispatch = parent_compiler.no_implicit_dynamic_dispatch;
+        }
+        if parent_compiler.no_throw.is_stricter_than(compiler.no_throw) {
+            compiler.no_throw = parent_compiler.no_throw;
+        }
+        if compiler.root_dir.is_none() {
+            compiler.root_dir = parent_compiler.root_dir.clone();
+        }
+        if compiler.out_dir.is_none() {
+            compiler.out_dir = parent_compiler.out_dir.clone();
+        }
+        if compiler.declaration_dir.is_none() {
+            compiler.declaration_dir = parent_compiler.declaration_dir.clone();
+        }
+        if self.json.compiler.declaration_map.is_none() {
+            compiler.declaration_map = parent_compiler.declaration_map;
+        }
+        if self.json.compiler.no_emit.is_none() {
+            compiler.no_emit = parent_compiler.no_emit;
+        }
+
+        // formatter
+        let child_formatter = &self.json.formatter;
+        let formatter = &mut self.package_options.formatter;
+        let parent_formatter = &parent_package.formatter;
+
+        if child_formatter.line_ending.is_none() {
+            formatter.line_ending = parent_formatter.line_ending;
+        }
+        if child_formatter.indent_style.is_none() && child_formatter.use_tabs.is_none() {
+            formatter.indent_style = parent_formatter.indent_style;
+        }
+        if child_formatter.indent_width.is_none() {
+            formatter.indent_width = parent_formatter.indent_width;
+        }
+        if child_formatter.line_width.is_none() {
+            formatter.line_width = parent_formatter.line_width;
+        }
+        if child_formatter.quote_style.is_none() && child_formatter.single_quote.is_none() {
+            formatter.quote_style = parent_formatter.quote_style;
+        }
+        if child_formatter.trailing_comma.is_none() {
+            formatter.trailing_comma = parent_formatter.trailing_comma;
+        }
+        if child_formatter.bracket_spacing.is_none() {
+            formatter.bracket_spacing = parent_formatter.bracket_spacing;
+        }
+        if child_formatter.arrow_parens.is_none() {
+            formatter.arrow_parentheses = parent_formatter.arrow_parentheses;
+        }
+        if child_formatter.quote_props.is_none() {
+            formatter.quote_property = parent_formatter.quote_property;
+        }
+        if child_formatter.bracket_same_line.is_none() {
+            formatter.bracket_same_line = parent_formatter.bracket_same_line;
+        }
+        if child_formatter.single_attribute_per_line.is_none() {
+            formatter.single_attribute_per_line = parent_formatter.single_attribute_per_line;
+        }
+        if child_formatter.organize_imports.is_none() {
+            formatter.organize_imports = parent_formatter.organize_imports;
+        }
+        if child_formatter.import_sort_order.is_none() {
+            formatter.import_sort_order = parent_formatter.import_sort_order;
+        }
+
+        // linter
+        let child_linter = &self.json.linter;
+        let linter = &mut self.package_options.linter;
+        let parent_linter = &parent_package.linter;
+
+        if child_linter.enabled.is_none() {
+            linter.enabled = parent_linter.enabled;
+        }
+        if child_linter.rules.preset.is_none()
+            && child_linter.rules.recommended.is_none()
+            && child_linter.rules.all.is_none()
+        {
+            linter.preset = parent_linter.preset;
+        }
+        for (category, severity) in &parent_linter.categories {
+            if !linter.categories.contains_key(category) {
+                linter.categories.insert(*category, *severity);
+            }
+        }
+        for (rule, severity) in &parent_linter.overrides {
+            if !linter.overrides.contains_key(rule) {
+                linter.overrides.insert(rule.clone(), *severity);
+            }
+        }
+
+        // cache
+        if self.json.cache.mode.is_none() {
+            self.workspace_options.cache.mode = parent_workspace.cache.mode;
+        }
+
+        // runtime
+        self.package_options.runtime =
+            runtime_options_with_base(&parent_package.runtime, Some(&self.json.runtime));
+
+        // declaration maps
+        let mut environments = environment_options_from_json(&self.json.environments);
+        extend_environment_options(&mut environments, &parent_package.environments);
+        self.package_options.environments = environments;
+
+        // watch and daemon
+        if self.json.watch.debounce_ms.is_none() {
+            self.package_options.watch.debounce_ms = parent_package.watch.debounce_ms;
+        }
+        if self.json.watch.poll_interval_ms.is_none() {
+            self.package_options.watch.poll_interval_ms = parent_package.watch.poll_interval_ms;
+        }
+        if self.json.daemon.idle_shutdown_ms.is_none() {
+            self.package_options.daemon.idle_shutdown_ms = parent_package.daemon.idle_shutdown_ms;
+        }
+
+        // targets
+        if let Some(targets) = &self.json.targets {
+            for name in targets.keys() {
+                let target_json = self.merged_target_json(parent, name)?;
+                let options = TargetOptions::from_json_with_runtime(
+                    &target_json,
+                    &self.package_options.runtime,
+                );
+                self.package_options.targets.insert(name.clone(), options);
+            }
+        }
+        for (name, target) in &parent_package.targets {
+            if !self.package_options.targets.contains_key(name) {
+                self.package_options
+                    .targets
+                    .insert(name.clone(), target.clone());
+            }
+        }
+
+        // profiles
+        if let Some(profiles) = &self.json.profiles {
+            for name in profiles.keys() {
+                let profile_json = self.merged_profile_json(parent, name)?;
+                let profile = ProfileOptions::from_json(&profile_json);
+                self.package_options.profiles.insert(name.clone(), profile);
+            }
+        }
+        for (name, profile) in &parent_package.profiles {
+            if !self.package_options.profiles.contains_key(name) {
+                self.package_options
+                    .profiles
+                    .insert(name.clone(), profile.clone());
+            }
+        }
+        for (name, mode) in &parent_package.modes {
+            if !self.package_options.modes.contains_key(name) {
+                self.package_options
+                    .modes
+                    .insert(name.clone(), mode.clone());
+            }
+        }
+        if self.package_options.default_target.is_none() {
+            self.package_options.default_target = parent_package.default_target.clone();
+        }
+
+        // keep the workspace package defaults aligned
+        self.workspace_options.package = self.package_options.clone();
+
+        Ok(())
+    }
+
+    /// Derive effective package options from this declaration.
+    pub fn package_options(&self) -> PackageOptions {
+        self.package_options.clone()
+    }
+
+    /// Derive effective workspace options from this declaration.
+    pub fn workspace_options(&self) -> WorkspaceOptions {
+        self.workspace_options.clone()
+    }
+
+    /// Return one merged target declaration JSON for one inherited target name.
+    fn merged_target_json(
+        &self,
+        parent: &Self,
+        name: &str,
+    ) -> Result<TargetJson, serde_json::Error> {
+        let child_json = self.raw_named_json("targets", name).ok_or_else(|| {
+            serde_json::Error::io(Error::new(
+                ErrorKind::InvalidData,
+                format!("failed to find target declaration during inheritance: target={name}"),
+            ))
+        })?;
+        let merged_json = if let Some(parent_json) = parent.raw_named_json("targets", name) {
+            Self::merge_json(parent_json, child_json)
+        } else {
+            child_json.clone()
+        };
+
+        serde_json::from_value(merged_json)
+    }
+
+    /// Return one merged profile declaration JSON for one inherited profile name.
+    fn merged_profile_json(
+        &self,
+        parent: &Self,
+        name: &str,
+    ) -> Result<ProfileOptionsJson, serde_json::Error> {
+        let child_json = self.raw_named_json("profiles", name).ok_or_else(|| {
+            serde_json::Error::io(Error::new(
+                ErrorKind::InvalidData,
+                format!("failed to find profile declaration during inheritance: profile={name}"),
+            ))
+        })?;
+        let merged_json = if let Some(parent_json) = parent.raw_named_json("profiles", name) {
+            Self::merge_json(parent_json, child_json)
+        } else {
+            child_json.clone()
+        };
+
+        serde_json::from_value(merged_json)
+    }
+
+    /// Return one named raw JSON entry from one declaration section.
+    fn raw_named_json<'a>(&'a self, section: &str, name: &str) -> Option<&'a Value> {
+        self.raw_json.get(section)?.get(name)
+    }
+
+    /// Merge one child JSON value over one parent JSON value.
+    fn merge_json(parent: &Value, child: &Value) -> Value {
+        match (parent, child) {
+            (Value::Object(parent), Value::Object(child)) => {
+                let mut merged = parent.clone();
+
+                for (key, child_value) in child {
+                    let merged_value = if let Some(parent_value) = merged.get(key) {
+                        Self::merge_json(parent_value, child_value)
+                    } else {
+                        child_value.clone()
+                    };
+
+                    merged.insert(key.clone(), merged_value);
+                }
+
+                Value::Object(merged)
+            }
+            _ => child.clone(),
+        }
+    }
 }

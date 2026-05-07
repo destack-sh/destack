@@ -141,27 +141,9 @@ pub enum BundleAssetMode {
     Reference,
 }
 
-/// Package handling policy for node_modules style imports.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub enum BundlePackageMode {
-    /// Use the tool default package policy.
-    #[default]
-    Auto,
-    /// Prefer bundling package dependencies.
-    Bundle,
-    /// Prefer leaving package dependencies external.
-    External,
-}
-
-/// Bundler dependency and resolution options.
+/// Bundler dependency options.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TargetDependencyOptions {
-    /// Package policy for node_modules style imports.
-    pub packages: BundlePackageMode,
-    /// Whether to skip resolving and bundling node_modules entries entirely.
-    pub skip_node_modules_bundle: bool,
     /// Module specifiers to leave external.
     pub external: Vec<String>,
     /// Module specifiers that must remain external.
@@ -170,30 +152,14 @@ pub struct TargetDependencyOptions {
     pub always_bundle: Vec<String>,
     /// Module specifiers that are the only allowed bundle inputs.
     pub only_bundle: Vec<String>,
-    /// Module specifier aliases.
-    pub alias: IndexMap<String, String>,
-    /// Resolution conditions to prefer.
-    pub conditions: Vec<String>,
-    /// Package.json fields to prefer during resolution.
-    pub main_fields: Vec<String>,
 }
 
 impl Hash for TargetDependencyOptions {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.packages.hash(state);
-        self.skip_node_modules_bundle.hash(state);
         self.external.hash(state);
         self.never_bundle.hash(state);
         self.always_bundle.hash(state);
         self.only_bundle.hash(state);
-        self.conditions.hash(state);
-        self.main_fields.hash(state);
-
-        self.alias.len().hash(state);
-        for (from, to) in &self.alias {
-            from.hash(state);
-            to.hash(state);
-        }
     }
 }
 
@@ -349,16 +315,11 @@ impl Hash for TargetOutputPolicy {
     }
 }
 
-/// Bundler dependency and resolution options in `destack.json`.
+/// Bundler dependency options in `destack.json`.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct TargetDependencyOptionsJson {
-    /// Package policy for node_modules style imports.
-    pub packages: Option<BundlePackageMode>,
-    /// Whether to skip resolving and bundling node_modules entries entirely.
-    #[serde(default)]
-    pub skip_node_modules_bundle: bool,
     /// Module specifiers to leave external.
     pub external: Option<Vec<String>>,
     /// Module specifiers that must remain external.
@@ -367,26 +328,15 @@ pub struct TargetDependencyOptionsJson {
     pub always_bundle: Option<Vec<String>>,
     /// Module specifiers that are the only allowed bundle inputs.
     pub only_bundle: Option<Vec<String>>,
-    /// Module specifier aliases.
-    pub alias: Option<IndexMap<String, String>>,
-    /// Resolution conditions to prefer.
-    pub conditions: Option<Vec<String>>,
-    /// Package.json fields to prefer during resolution.
-    pub main_fields: Option<Vec<String>>,
 }
 
 impl From<&TargetDependencyOptionsJson> for TargetDependencyOptions {
     fn from(json: &TargetDependencyOptionsJson) -> Self {
         Self {
-            packages: json.packages.unwrap_or_default(),
-            skip_node_modules_bundle: json.skip_node_modules_bundle,
             external: json.external.clone().unwrap_or_default(),
             never_bundle: json.never_bundle.clone().unwrap_or_default(),
             always_bundle: json.always_bundle.clone().unwrap_or_default(),
             only_bundle: json.only_bundle.clone().unwrap_or_default(),
-            alias: json.alias.clone().unwrap_or_default(),
-            conditions: json.conditions.clone().unwrap_or_default(),
-            main_fields: json.main_fields.clone().unwrap_or_default(),
         }
     }
 }
