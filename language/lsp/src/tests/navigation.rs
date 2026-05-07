@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::DiskCacheStore;
-use destack_dir::{GlobalSymbolId, LocalSymbolId, SymbolType};
+use destack_dir::{GlobalSymbolId, LocalSymbolId};
 use destack_query as query;
 use destack_source::{FileId, FileSystem, ModuleId, PackageId, PhysicalFileSystem, Span};
 use destack_workspace::{Edit as RepositoryEdit, HostEnvironment, Ref, Repository};
@@ -16,7 +16,7 @@ fn test_symbol_id() -> GlobalSymbolId {
             PackageId::from_synthetic_path(Path::new("lsp-navigation")),
             Path::new("symbol.ds"),
         ),
-        LocalSymbolId::new_typed(1, SymbolType::Function),
+        LocalSymbolId::new(1),
     )
 }
 

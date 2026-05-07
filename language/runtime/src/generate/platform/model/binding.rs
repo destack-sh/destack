@@ -546,25 +546,10 @@ pub(crate) fn binding_type_from_type_id(
                 compiler, context, symbol, modules, strings, profile_id, symbols,
             )
         }
-        dir::Type::Unary { right, .. } | dir::Type::ValueOf { right, .. } => {
-            binding_type_from_type_id(
-                compiler,
-                context,
-                *right,
-                tree,
-                types,
-                symbol_table,
-                modules,
-                strings,
-                profile_id,
-                symbols,
-                domain,
-            )
-        }
-        dir::Type::ReferenceOf { right, .. } => binding_type_from_type_id(
+        dir::Type::Form(form) => binding_type_from_type_id(
             compiler,
             context,
-            *right,
+            form.base,
             tree,
             types,
             symbol_table,
@@ -573,10 +558,6 @@ pub(crate) fn binding_type_from_type_id(
             profile_id,
             symbols,
             domain,
-        ),
-        dir::Type::PointerOf { .. } => unsupported_binding_type(
-            type_text.as_str(),
-            "pointer types are not supported in platform bindings",
         ),
         dir::Type::Array { element, .. } => {
             let element = element.unwrap_or_else(|| {
@@ -664,10 +645,7 @@ fn is_result_type_id(
 ) -> bool {
     match types.get_type(type_id) {
         dir::Type::Reference { symbol, .. } => symbols.is_result(*symbol),
-        dir::Type::Unary { right, .. }
-        | dir::Type::ValueOf { right, .. }
-        | dir::Type::ReferenceOf { right, .. }
-        | dir::Type::PointerOf { right, .. } => is_result_type_id(*right, types, symbols),
+        dir::Type::Form(form) => is_result_type_id(form.base, types, symbols),
         _ => false,
     }
 }

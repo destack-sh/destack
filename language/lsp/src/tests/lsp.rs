@@ -830,26 +830,15 @@ async fn test_lsp_registers_file_watchers() {
     // check that the expected watch patterns are registered
     assert!(patterns.iter().any(|pattern| pattern == "**/*.ds"));
     assert!(patterns.iter().any(|pattern| pattern == "**/destack.json"));
-    assert!(
-        patterns
-            .iter()
-            .any(|pattern| pattern == "**/tsconfig*.json")
-    );
 }
 
 /// LSP config changes publish diagnostics for invalidated modules.
 #[tokio::test]
 async fn test_lsp_config_change_fanout_publishes_diagnostics() {
-    // set up the workspace root with a package and destack.json
+    // set up the workspace root with destack.json
     let fs = test_fs("config_fanout");
-    let _package_path = fs
-        .write_text(
-            "package.json",
-            "{ \"name\": \"fanout\", \"version\": \"0.1.0\" }\n",
-        )
-        .unwrap();
     let destack_config_path = fs
-        .write_text("destack.json", "{ \"compilerOptions\": {} }\n")
+        .write_text("destack.json", "{ \"compiler\": {} }\n")
         .unwrap();
 
     // write modules with invalid syntax
@@ -872,7 +861,7 @@ async fn test_lsp_config_change_fanout_publishes_diagnostics() {
     // open destack.json for edits
     let destack_config_uri = uri_for_path(&destack_config_path);
     harness
-        .did_open(destack_config_uri.clone(), "{ \"compilerOptions\": {} }\n")
+        .did_open(destack_config_uri.clone(), "{ \"compiler\": {} }\n")
         .await;
 
     // drain initial diagnostics from didOpen
@@ -883,13 +872,13 @@ async fn test_lsp_config_change_fanout_publishes_diagnostics() {
     // update destack.json to trigger module invalidation
     fs.write_text(
         &destack_config_path,
-        "{ \"compilerOptions\": { \"noImplicitAny\": true } }\n",
+        "{ \"compiler\": { \"noThrow\": true } }\n",
     )
     .unwrap();
     harness
         .did_change(
             destack_config_uri.clone(),
-            "{ \"compilerOptions\": { \"noImplicitAny\": true } }\n",
+            "{ \"compiler\": { \"noThrow\": true } }\n",
             2,
         )
         .await;
@@ -909,8 +898,8 @@ async fn test_lsp_multi_root_scopes_diagnostics() {
     let fs_b = test_fs("multi_root_b");
     let root_a = fs_a.root().to_path_buf();
     let root_b = fs_b.root().to_path_buf();
-    let _ = fs_a.write_text("destack.json", "{ \"compilerOptions\": {} }\n");
-    let _ = fs_b.write_text("destack.json", "{ \"compilerOptions\": {} }\n");
+    let _ = fs_a.write_text("destack.json", "{ \"compiler\": {} }\n");
+    let _ = fs_b.write_text("destack.json", "{ \"compiler\": {} }\n");
 
     // write invalid modules in both roots
     let module_a = fs_a.write_text("a.ds", "export const a = ;\n").unwrap();
@@ -963,8 +952,8 @@ async fn test_lsp_initialize_workspace_folders_scopes_diagnostics() {
     let fs_b = test_fs("multi_root_initialize_b");
     let root_a = fs_a.root().to_path_buf();
     let root_b = fs_b.root().to_path_buf();
-    let _ = fs_a.write_text("destack.json", "{ \"compilerOptions\": {} }\n");
-    let _ = fs_b.write_text("destack.json", "{ \"compilerOptions\": {} }\n");
+    let _ = fs_a.write_text("destack.json", "{ \"compiler\": {} }\n");
+    let _ = fs_b.write_text("destack.json", "{ \"compiler\": {} }\n");
 
     // write invalid modules in both roots
     let module_a = fs_a.write_text("a.ds", "export const a = ;\n").unwrap();
@@ -1027,8 +1016,8 @@ async fn test_lsp_will_rename_files_rejects_multi_root_batches() {
     let fs_b = test_fs("will_rename_multi_root_b");
     let root_a = fs_a.root().to_path_buf();
     let root_b = fs_b.root().to_path_buf();
-    let _ = fs_a.write_text("destack.json", "{ \"compilerOptions\": {} }\n");
-    let _ = fs_b.write_text("destack.json", "{ \"compilerOptions\": {} }\n");
+    let _ = fs_a.write_text("destack.json", "{ \"compiler\": {} }\n");
+    let _ = fs_b.write_text("destack.json", "{ \"compiler\": {} }\n");
     let dep_a = fs_a
         .write_text("dep.ds", "export const dep = 1;\n")
         .unwrap();
