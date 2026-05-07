@@ -6,9 +6,9 @@ use destack_source::DiagnosticCollection;
 use super::entry::{ArtifactEntry, ArtifactOutcome};
 use super::pin::ArtifactPin;
 use crate::{
-    AmbientEnvironment, ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload,
-    ArtifactVersion, Ast, Data, DirChecked, DirDeclared, DirElaborated, DirExported,
-    LanguageEnvironment, MirLowered, MirOptimized, ModuleLinted, ModuleOutput, ModuleQueryIndex,
+    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion, Ast, Data,
+    DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirMaterialized,
+    GlobalEnvironment, MirLowered, MirOptimized, ModuleLinted, ModuleOutput, ModuleQueryIndex,
     PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
 };
 
@@ -23,22 +23,24 @@ pub struct ArtifactStore {
     /// The live retain count for each exact artifact version.
     retained_versions: DashMap<ArtifactVersion, usize>,
 
-    /// Language environments by profile.
-    language_environments: ArtifactMap<LanguageEnvironment>,
-    /// Ambient environments by profile.
-    ambient_environments: ArtifactMap<AmbientEnvironment>,
-
     /// AST artifacts by module.
     ast: ArtifactMap<Ast>,
     /// Parsed data artifacts by module.
     data: ArtifactMap<Data>,
 
+    /// Global environment by profile.
+    global_environment: ArtifactMap<GlobalEnvironment>,
+
     /// Declared DIR artifacts by module and profile.
     dir_declared: ArtifactMap<DirDeclared>,
     /// Exported DIR artifacts by module and profile.
     dir_exported: ArtifactMap<DirExported>,
+    /// Expanded DIR artifacts by module and profile.
+    dir_expanded: ArtifactMap<DirExpanded>,
     /// Checked DIR artifacts by module and profile.
     dir_checked: ArtifactMap<DirChecked>,
+    /// Materialized DIR artifacts by module and profile.
+    dir_materialized: ArtifactMap<DirMaterialized>,
     /// Elaborated DIR artifacts by module and profile.
     dir_elaborated: ArtifactMap<DirElaborated>,
 
@@ -141,17 +143,14 @@ impl ArtifactStore {
     /// Return whether one exact artifact payload is published.
     pub fn has(&self, version: &ArtifactVersion) -> bool {
         match &version.key {
-            ArtifactKey::LanguageEnvironment { .. } => {
-                self.language_environments.contains_key(version)
-            }
-            ArtifactKey::AmbientEnvironment { .. } => {
-                self.ambient_environments.contains_key(version)
-            }
+            ArtifactKey::GlobalEnvironment { .. } => self.global_environment.contains_key(version),
             ArtifactKey::Ast { .. } => self.ast.contains_key(version),
             ArtifactKey::Data { .. } => self.data.contains_key(version),
             ArtifactKey::DirDeclared { .. } => self.dir_declared.contains_key(version),
             ArtifactKey::DirExported { .. } => self.dir_exported.contains_key(version),
+            ArtifactKey::DirExpanded { .. } => self.dir_expanded.contains_key(version),
             ArtifactKey::DirChecked { .. } => self.dir_checked.contains_key(version),
+            ArtifactKey::DirMaterialized { .. } => self.dir_materialized.contains_key(version),
             ArtifactKey::DirElaborated { .. } => self.dir_elaborated.contains_key(version),
             ArtifactKey::MirLowered { .. } => self.mir_lowered.contains_key(version),
             ArtifactKey::MirOptimized { .. } => self.mir_optimized.contains_key(version),
@@ -193,19 +192,12 @@ impl ArtifactStore {
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
     ) {
         match payload {
-            ArtifactPayload::LanguageEnvironment(payload) => Self::insert_payload(
-                &self.language_environments,
+            ArtifactPayload::GlobalEnvironment(payload) => Self::insert_payload(
+                &self.global_environment,
                 version,
                 payload,
-                matches!(&version.key, ArtifactKey::LanguageEnvironment { .. }),
-                "LanguageEnvironment",
-            ),
-            ArtifactPayload::AmbientEnvironment(payload) => Self::insert_payload(
-                &self.ambient_environments,
-                version,
-                payload,
-                matches!(&version.key, ArtifactKey::AmbientEnvironment { .. }),
-                "AmbientEnvironment",
+                matches!(&version.key, ArtifactKey::GlobalEnvironment { .. }),
+                "GlobalEnvironment",
             ),
             ArtifactPayload::Ast(payload) => Self::insert_payload(
                 &self.ast,
@@ -235,12 +227,26 @@ impl ArtifactStore {
                 matches!(&version.key, ArtifactKey::DirExported { .. }),
                 "DirExported",
             ),
+            ArtifactPayload::DirExpanded(payload) => Self::insert_payload(
+                &self.dir_expanded,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::DirExpanded { .. }),
+                "DirExpanded",
+            ),
             ArtifactPayload::DirChecked(payload) => Self::insert_payload(
                 &self.dir_checked,
                 version,
                 payload,
                 matches!(&version.key, ArtifactKey::DirChecked { .. }),
                 "DirChecked",
+            ),
+            ArtifactPayload::DirMaterialized(payload) => Self::insert_payload(
+                &self.dir_materialized,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::DirMaterialized { .. }),
+                "DirMaterialized",
             ),
             ArtifactPayload::DirElaborated(payload) => Self::insert_payload(
                 &self.dir_elaborated,
@@ -334,22 +340,9 @@ impl ArtifactStore {
 }
 
 impl ArtifactStore {
-    /// Get one language environment artifact.
-    pub fn language_environment(
-        &self,
-        version: &ArtifactVersion,
-    ) -> Option<Arc<LanguageEnvironment>> {
-        self.language_environments
-            .get(version)
-            .map(|entry| entry.value().clone())
-    }
-
-    /// Get one ambient environment artifact.
-    pub fn ambient_environment(
-        &self,
-        version: &ArtifactVersion,
-    ) -> Option<Arc<AmbientEnvironment>> {
-        self.ambient_environments
+    /// Get one global environment artifact.
+    pub fn global_environment(&self, version: &ArtifactVersion) -> Option<Arc<GlobalEnvironment>> {
+        self.global_environment
             .get(version)
             .map(|entry| entry.value().clone())
     }
@@ -378,9 +371,23 @@ impl ArtifactStore {
             .map(|entry| entry.value().clone())
     }
 
+    /// Get one expanded DIR artifact.
+    pub fn dir_expanded(&self, version: &ArtifactVersion) -> Option<Arc<DirExpanded>> {
+        self.dir_expanded
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
     /// Get one checked DIR artifact.
     pub fn dir_checked(&self, version: &ArtifactVersion) -> Option<Arc<DirChecked>> {
         self.dir_checked
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Get one materialized DIR artifact.
+    pub fn dir_materialized(&self, version: &ArtifactVersion) -> Option<Arc<DirMaterialized>> {
+        self.dir_materialized
             .get(version)
             .map(|entry| entry.value().clone())
     }

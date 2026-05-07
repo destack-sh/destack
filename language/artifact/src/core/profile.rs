@@ -19,22 +19,8 @@ pub struct ProfileFlags {
     pub no_heap: bool,
     /// Forbid runtime features.
     pub no_runtime: bool,
-    /// Forbid referential equality.
-    pub no_referential_equality: bool,
-    /// Forbid dynamic evaluation.
-    pub no_dynamic_evaluation: bool,
-    /// Forbid `globalThis`.
-    pub no_global_this: bool,
-    /// Forbid dynamic imports.
-    pub no_dynamic_import: bool,
     /// Forbid internal protocol imports.
     pub no_internal_import: bool,
-    /// Forbid dynamic shapes.
-    pub no_dynamic_shapes: bool,
-    /// Forbid computed property access.
-    pub no_computed_property_access: bool,
-    /// Forbid Proxy usage.
-    pub no_proxy: bool,
     /// Require static dispatch.
     pub no_implicit_dynamic_dispatch: bool,
     /// Forbid exceptions.
